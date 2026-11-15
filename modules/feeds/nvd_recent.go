@@ -31,11 +31,17 @@ const (
 	recentDays = 365
 	// recentWindow is NVD's largest date range for one query (120 days).
 	recentWindow = 120 * 24 * time.Hour
-	// recentIncrementalDays: an update asks for the changes since one day before the last good pull, which NVD's
-	// 120-day limit allows up to this age; an older box fills again.
-	recentIncrementalDays = 100
 	// recentMaxStatus caps NVD's vulnStatus ("Awaiting Analysis", "Deferred", ...).
 	recentMaxStatus = 40
+	// recentSmallPage: a page that came back too large or unreadable is asked again with this many records.
+	recentSmallPage = 250
+	// recentMaxTotal bounds the records of one window (57,631 in the busiest 120 days measured): more is a broken answer.
+	recentMaxTotal = 150_000
+	// recentResumeStale: an update window that ended longer ago than this is asked again up to now (as nvd-kev's
+	// nvdIncrementalStale), and a pull finished that late catches up at once.
+	recentResumeStale = 12 * time.Hour
+	// recentMaxSpan: the longest change window asked for (NVD allows 120 days); a longer gap fills again.
+	recentMaxSpan = 110 * 24 * time.Hour
 )
 
 // RecentCVE is one NVD record as tier 3 keeps it.
@@ -56,8 +62,8 @@ type RecentPage struct {
 }
 
 // RecentPageURL builds one request: base?pubStartDate=…&pubEndDate=… (byPublished, the first fill) or
-// lastModStartDate=…&lastModEndDate=… (an update), &resultsPerPage=RecentPageSize&startIndex=start.
-func RecentPageURL(base string, byPublished bool, from, to time.Time, start int) (string, error) {
+// lastModStartDate=…&lastModEndDate=… (an update), &resultsPerPage=size&startIndex=start.
+func RecentPageURL(base string, byPublished bool, from, to time.Time, start, size int) (string, error) {
 	if err := CheckURL(base); err != nil {
 		return "", err
 	}
@@ -69,7 +75,7 @@ func RecentPageURL(base string, byPublished bool, from, to time.Time, start int)
 	if byPublished {
 		a, b = "pubStartDate", "pubEndDate"
 	}
-	return fmt.Sprintf("%s?%s=%s&%s=%s&resultsPerPage=%d&startIndex=%d", strings.TrimSpace(base), a, from.UTC().Format(layout), b, to.UTC().Format(layout), RecentPageSize, start), nil
+	return fmt.Sprintf("%s?%s=%s&%s=%s&resultsPerPage=%d&startIndex=%d", strings.TrimSpace(base), a, from.UTC().Format(layout), b, to.UTC().Format(layout), size, start), nil
 }
 
 type cvssEntry struct {
@@ -203,28 +209,37 @@ func ParseNVDRecent(data []byte) (RecentPage, error) {
 	return out, nil
 }
 
-// recentCursor is how far an unfinished pull got (feeds_recent_cursor).
+// Cursor modes of feeds_recent_cursor.
+const (
+	modeFill   = "fill"   // the first fill, by published date, window by window up to Until
+	modeUpdate = "update" // the records NVD changed between From and To
+	modeDone   = "done"   // nothing pending; the data is complete up to Until
+)
+
+// recentCursor is where nvd-recent stands (feeds_recent_cursor): an unfinished pull, or after a finished one the time
+// its data is complete up to, where the next update starts (review r1 #2: a fill longer than a day leaves no gap).
 type recentCursor struct {
 	URL              string
-	Fill             bool // the first fill (by published date), else an update (by NVD's change date)
+	Mode             string
 	From, To, Until  time.Time
 	NextIndex, Total int
 }
 
+func (c *recentCursor) fill() bool { return c.Mode == modeFill }
+
 func (s *Store) recentCursor(ctx context.Context) (*recentCursor, error) {
 	var (
-		c             recentCursor
-		mode, f, t, u string
+		c       recentCursor
+		f, t, u string
 	)
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT url, mode, win_from, win_to, until, next_index, total FROM feeds_recent_cursor WHERE id = 1`).
-		Scan(&c.URL, &mode, &f, &t, &u, &c.NextIndex, &c.Total)
+		Scan(&c.URL, &c.Mode, &f, &t, &u, &c.NextIndex, &c.Total)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("feeds: recent cursor: %w", err)
 	}
-	c.Fill = mode == "fill"
 	var e1, e2, e3 error
 	c.From, e1 = parseTS(f)
 	c.To, e2 = parseTS(t)
@@ -235,19 +250,45 @@ func (s *Store) recentCursor(ctx context.Context) (*recentCursor, error) {
 	return &c, nil
 }
 
-func saveRecentCursor(ctx context.Context, tx *sql.Tx, c *recentCursor) error {
-	if c == nil {
-		_, err := tx.ExecContext(ctx, `DELETE FROM feeds_recent_cursor`)
-		return err
-	}
-	mode := "update"
-	if c.Fill {
-		mode = "fill"
-	}
+func saveRecentCursor(ctx context.Context, tx *sql.Tx, c recentCursor) error {
 	_, err := tx.ExecContext(ctx, `INSERT INTO feeds_recent_cursor (id, url, mode, win_from, win_to, until, next_index, total) VALUES (1, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET url = excluded.url, mode = excluded.mode, win_from = excluded.win_from, win_to = excluded.win_to, until = excluded.until, next_index = excluded.next_index, total = excluded.total`,
-		c.URL, mode, store.FormatTS(c.From), store.FormatTS(c.To), store.FormatTS(c.Until), c.NextIndex, c.Total)
+		c.URL, c.Mode, store.FormatTS(c.From), store.FormatTS(c.To), store.FormatTS(c.Until), c.NextIndex, c.Total)
 	return err
+}
+
+// recentStart decides what a pull of nvd-recent does (review r1 #1, #2), whatever the feed's last status was:
+//   - an unfinished fill goes on (its windows end at its own Until; the update after it starts there);
+//   - an unfinished update goes on; if its window ended more than recentResumeStale ago, it asks again from its From to
+//     now, so the next update, which starts one day before this one's end, leaves no gap;
+//   - after a finished pull, an update from one day before the time the data is complete up to;
+//   - a fill when there is no data, the address changed, or the gap is longer than NVD's window allows.
+func recentStart(cur *recentCursor, url string, have int, now time.Time) recentCursor {
+	fill := func() recentCursor {
+		from := now.AddDate(0, 0, -recentDays)
+		return recentCursor{URL: url, Mode: modeFill, From: from, To: minTime(from.Add(recentWindow), now), Until: now}
+	}
+	if cur == nil || cur.URL != url || have == 0 && cur.Mode != modeFill {
+		return fill()
+	}
+	switch cur.Mode {
+	case modeFill:
+		return *cur
+	case modeUpdate:
+		c := *cur
+		if now.Sub(c.To) > recentResumeStale {
+			c.To, c.Until, c.NextIndex, c.Total = now, now, 0, 0
+		}
+		if c.To.Sub(c.From) > recentMaxSpan {
+			return fill()
+		}
+		return c
+	}
+	from := cur.Until.Add(-24 * time.Hour)
+	if now.Sub(from) > recentMaxSpan {
+		return fill()
+	}
+	return recentCursor{URL: url, Mode: modeUpdate, From: from, To: now, Until: now}
 }
 
 // storeRecentPage writes one page and the cursor after it in one transaction: a record published before cutoff (an update
@@ -301,17 +342,24 @@ ON CONFLICT(cve) DO UPDATE SET published = excluded.published, last_modified = e
 	return nil
 }
 
-// recentText is the feed's progress line while a pull is unfinished.
-func recentText(c *recentCursor, stored int, paused bool) string {
+// recentText is the feed's progress line while a pull is unfinished; busy is why NVD's last try failed and retryAt when
+// that page is tried again (nvdPage), shown while the pull waits or pauses.
+func recentText(c recentCursor, stored int, paused bool, busy string, retryAt, now time.Time) string {
 	verb := "Updating"
-	if c.Fill {
+	if c.fill() {
 		verb = "Loading"
 	}
 	t := fmt.Sprintf("%s the CVEs of the last 12 months from NVD: %s stored so far", verb, grouped(stored))
-	if c.Fill {
+	if c.fill() {
 		t += fmt.Sprintf(", published up to %s", c.From.Format("2 Jan 2006"))
 	}
 	t += "."
+	if busy != "" {
+		t += " " + busy + "."
+	}
+	if wait := retryAt.Sub(now); busy != "" && wait > 0 {
+		return t + " Vedette tries again in " + roughly(wait) + "."
+	}
 	if paused {
 		t += " Vedette goes on at the next check (every 5 minutes)."
 	}
@@ -332,81 +380,90 @@ func (s *Store) recentCount(ctx context.Context) (all, ranged int, err error) {
 	return all, ranged, err
 }
 
-// buildRecent runs (or goes on with) the paged pull of nvd-recent. The first fill asks for the CVEs published in each
-// 120-day window from recentDays ago to the start of the pull; after a good pull younger than recentIncrementalDays, an
-// update asks for the records NVD changed since one day before it. Every page is stored as it comes with the cursor after
-// it, so a pull that stops (its budget, NVD busy after every try, nvd-kev pulling) loses nothing and returns errNVDPaused;
-// the next pull goes on. A pull that got no page at all is a failure of the feed (its back-off applies). When the last
-// page is in, CVEs published before the 12 months go and the feed records its counts.
+// buildRecent runs (or goes on with) the paged pull of nvd-recent (recentStart says what it asks for). Every page is
+// stored as it comes with the cursor after it, so a pull that stops (its budget, NVD busy after every try, another NVD pull
+// running or waiting out NVD) loses nothing and returns errNVDPaused; the next pull goes on. A pull that got no page at all
+// is a failure of the feed (its error is shown, its back-off applies). When the last page is in, CVEs published before the
+// 12 months go, the cursor says up to when the data is complete, and the feed records its counts.
 func (s *Service) buildRecent(ctx context.Context, src sourceRow, p pullPlan) (pullPlan, error) {
 	now := s.now()
-	cur, err := s.st.recentCursor(ctx)
+	saved, err := s.st.recentCursor(ctx)
 	if err != nil {
 		return p, err
 	}
-	if cur == nil || cur.URL != src.URL {
-		have, _, err := s.st.recentCount(ctx)
-		if err != nil {
-			return p, err
-		}
-		if have > 0 && src.Status == "ok" && src.LastSuccess != nil && now.Sub(*src.LastSuccess) < recentIncrementalDays*24*time.Hour {
-			cur = &recentCursor{URL: src.URL, From: src.LastSuccess.Add(-24 * time.Hour), To: now, Until: now}
-		} else {
-			from := now.AddDate(0, 0, -recentDays)
-			cur = &recentCursor{URL: src.URL, Fill: true, From: from, To: minTime(from.Add(recentWindow), now), Until: now}
-		}
+	have, _, err := s.st.recentCount(ctx)
+	if err != nil {
+		return p, err
 	}
-	run := &nvdRun{} // nvdPage's busy and retry fields; the progress line of this feed is s.recent
-	pages, bytesRead := 0, 0
+	cur := recentStart(saved, src.URL, have, now)
+	run := &nvdRun{} // nvdPage's busy reason and retry time, shown in the progress line (s.recent)
+	pages, bytesRead, stored := 0, 0, have
 	var st Stats
-	paused := func(why error) (pullPlan, error) {
-		stored, _, _ := s.st.recentCount(ctx)
-		s.setRecentText(recentText(cur, stored, true))
-		if pages == 0 && !errors.Is(why, errNVDPaused) {
+	text := func(paused bool) string {
+		s.nvdMu.Lock()
+		busy, at := run.busy, run.retryAt
+		s.nvdMu.Unlock()
+		return recentText(cur, stored, paused, busy, at, s.now())
+	}
+	stop := func(why error) (pullPlan, error) {
+		if pages == 0 && !errors.Is(why, errNVDPaused) { // a failure: the feed shows its error, not a progress line (review r1 #4)
+			s.setRecentText("")
 			if nvdRetryable(why) && ctx.Err() == nil {
 				return p, &Error{Err: why, Detail: nvdBusy(why) + ", after every try. Vedette tries again later; the CVEs stored so far are kept."}
 			}
 			return p, why
 		}
+		s.setRecentText(text(true))
 		s.Log.InfoContext(ctx, "the NVD pull of recent CVEs paused; it goes on later", "pages", pages, "error", why)
 		return p, errNVDPaused
 	}
 	cutoff := now.AddDate(0, 0, -recentDays)
 	for {
-		if s.busy(nvdFeedID) { // one NVD pull at a time: NVD allows 5 requests in 30 s without a key
-			return paused(errNVDPaused)
+		if s.busy(nvdFeedID) { // one NVD pull at a time (the request gate in nvdPage spaces the requests of both)
+			return stop(errNVDPaused)
 		}
-		if pages > 0 {
-			if err := s.sleep(ctx, nvdPause); err != nil {
-				return paused(err)
+		if at, paused := s.nvdResumeAt(); paused && s.now().Before(at) { // nvd-kev waits out NVD: so does this feed
+			return stop(errNVDPaused)
+		}
+		s.setRecentText(text(false))
+		var d RecentPage
+		var body int
+		for _, size := range []int{RecentPageSize, recentSmallPage} { // a page too large or unreadable is asked again smaller (review r1 #6)
+			u, err := RecentPageURL(src.URL, cur.fill(), cur.From, cur.To, cur.NextIndex, size)
+			if err != nil {
+				return p, err
+			}
+			var resp *Response
+			if resp, err = s.nvdPage(ctx, run, u, recentMaxBytes); err == nil {
+				body = len(resp.Body)
+				d, err = ParseNVDRecent(resp.Body)
+			}
+			if err == nil || size == recentSmallPage || !errors.Is(err, ErrTooLarge) && !errors.Is(err, ErrBadSample) {
+				if err != nil {
+					return stop(err)
+				}
+				break
 			}
 		}
-		u, err := RecentPageURL(src.URL, cur.Fill, cur.From, cur.To, cur.NextIndex)
-		if err != nil {
-			return p, err
-		}
-		stored, _, _ := s.st.recentCount(ctx)
-		s.setRecentText(recentText(cur, stored, false))
-		resp, err := s.nvdPage(ctx, run, u, recentMaxBytes)
-		if err != nil {
-			return paused(err)
-		}
-		d, err := ParseNVDRecent(resp.Body)
-		if err != nil {
-			return paused(err)
+		if d.Total > recentMaxTotal {
+			return stop(fail(ErrBadSample, "NVD answered %s records for one window, more than Vedette expects (%s); it kept the CVEs it had.", grouped(d.Total), grouped(recentMaxTotal)))
 		}
 		if d.Returned == 0 && cur.NextIndex < d.Total {
-			return paused(fail(ErrBadSample, "NVD answered an empty page at record %d of %d; Vedette kept the CVEs it had.", cur.NextIndex, d.Total))
+			return stop(fail(ErrBadSample, "NVD answered an empty page at record %d of %d; Vedette kept the CVEs it had.", cur.NextIndex, d.Total))
 		}
-		next := *cur
+		next := cur
 		next.NextIndex += d.Returned
 		next.Total = d.Total
 		done := false
 		if next.NextIndex >= d.Total {
-			if next.Fill && next.To.Before(next.Until) {
+			switch {
+			case next.fill() && next.To.Before(next.Until):
 				next.From, next.To, next.NextIndex, next.Total = next.To, minTime(next.To.Add(recentWindow), next.Until), 0, 0
-			} else {
+			case now.Sub(next.Until) > recentResumeStale: // a fill or update resumed late: catch up with NVD's changes since
+				next = recentCursor{URL: src.URL, Mode: modeUpdate, From: next.Until.Add(-24 * time.Hour), To: now, Until: now}
+			default:
 				done = true
+				next = recentCursor{URL: src.URL, Mode: modeDone, From: next.Until, To: next.Until, Until: next.Until}
 			}
 		}
 		stale := false
@@ -426,9 +483,8 @@ func (s *Service) buildRecent(ctx context.Context, src sourceRow, p pullPlan) (p
 				if _, err := tx.ExecContext(ctx, `DELETE FROM feeds_recent_cve WHERE published < ?`, store.FormatTS(cutoff)); err != nil {
 					return fmt.Errorf("feeds: prune recent CVEs: %w", err)
 				}
-				return saveRecentCursor(ctx, tx, nil)
 			}
-			return saveRecentCursor(ctx, tx, &next)
+			return saveRecentCursor(ctx, tx, next)
 		})
 		if err != nil {
 			return p, err
@@ -438,15 +494,18 @@ func (s *Service) buildRecent(ctx context.Context, src sourceRow, p pullPlan) (p
 			return p, ErrFeedDisabled // pullOne finds the row changed and writes nothing
 		}
 		pages++
-		bytesRead += len(resp.Body)
+		bytesRead += body
 		st.Accepted += d.Accepted
 		st.Rejected += d.Rejected
 		if len(st.Reasons) < 3 {
 			st.Reasons = append(st.Reasons, d.Reasons...)
 		}
-		cur = &next
+		cur = next
 		if done {
 			break
+		}
+		if stored, _, err = s.st.recentCount(ctx); err != nil {
+			return p, err
 		}
 	}
 	s.setRecentText("")

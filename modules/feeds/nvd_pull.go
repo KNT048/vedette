@@ -99,7 +99,12 @@ func (s *Service) live(r sourceRow) sourceRow {
 		s.nvdMu.Lock()
 		text := s.recent
 		s.nvdMu.Unlock()
-		if text != "" && r.Enabled {
+		switch {
+		case text == "" || !r.Enabled:
+		case r.Status == "error" && r.Error != nil: // the last failure stays visible, with how far the pull got since (review r1 #4)
+			text = *r.Error + " " + text
+			r.Error = &text
+		default:
 			r.Error = &text
 			if r.Records == nil {
 				r.Status = "never"
@@ -211,11 +216,29 @@ func (s *Service) sleep(ctx context.Context, d time.Duration) error {
 	}
 }
 
+// nvdSlot waits for this feed's turn to ask NVD: every NVD request of nvd-kev and nvd-recent goes through it, at least
+// nvdPause apart, so the two feeds together stay within NVD's 5 requests in 30 s without a key (review r1 #5; a "Fetch
+// now" of one while the job pulls the other). Each caller books the next slot before it waits.
+func (s *Service) nvdSlot(ctx context.Context) error {
+	s.nvdGateMu.Lock()
+	now := s.now()
+	at := s.nvdNext
+	if at.Before(now) {
+		at = now
+	}
+	s.nvdNext = at.Add(nvdPause)
+	s.nvdGateMu.Unlock()
+	return s.sleep(ctx, at.Sub(now))
+}
+
 // nvdPage fetches one page, trying again after nvdRetryWaits (or NVD's Retry-After when longer) while NVD is busy or
 // slow. A wait that would not end before the pull's deadline is not started: the pull pauses and goes on later.
 // maxBytes caps the answer (0: MaxBodyBytes); nvd-recent's pages of 1,000 records need more (D-614).
 func (s *Service) nvdPage(ctx context.Context, run *nvdRun, u string, maxBytes int64) (*Response, error) {
 	for try := 0; ; try++ {
+		if err := s.nvdSlot(ctx); err != nil {
+			return nil, err
+		}
 		rctx, cancel := context.WithTimeout(ctx, nvdPageTimeout)
 		resp, err := s.Fetcher.Fetch(rctx, Request{URL: u, HeaderTimeout: nvdHeaderTimeout, MaxBytes: maxBytes})
 		cancel()

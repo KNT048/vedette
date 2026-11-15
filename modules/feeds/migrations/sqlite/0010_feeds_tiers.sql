@@ -5,7 +5,8 @@
 -- feeds_recent_cve: the NVD record of each CVE published in the last 12 months (built-in feed nvd-recent): dates, NVD's
 -- status and the CVSS severity; its vulnerable CPE match entries are in feeds_recent_affected (the shape of feeds_affected,
 -- kept apart so nvd-kev's full pull never deletes them and the KEV matcher never reads them).
--- feeds_recent_cursor: how far an unfinished paged pull of nvd-recent got (one row at most), so the next pull goes on.
+-- feeds_recent_cursor (one row at most): how far an unfinished paged pull of nvd-recent got (mode fill or update), so the next
+-- pull goes on; after a finished pull, mode done and until = the time the data is complete up to, where the next update starts.
 -- Forward-only.
 CREATE TABLE feeds_epss (
     cve        TEXT    NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
@@ -31,10 +32,11 @@ CREATE TABLE feeds_recent_affected (
     end_excl   TEXT NOT NULL CHECK (length(end_excl) <= 100)
 );
 CREATE INDEX feeds_recent_affected_cve_idx ON feeds_recent_affected (cve);
+CREATE INDEX feeds_recent_affected_cpe_idx ON feeds_recent_affected (cpe); -- slice 2 matches devices by CPE
 CREATE TABLE feeds_recent_cursor (
     id         INTEGER NOT NULL PRIMARY KEY CHECK (id = 1),
     url        TEXT    NOT NULL CHECK (length(url) <= 2048),
-    mode       TEXT    NOT NULL CHECK (mode IN ('fill', 'update')),
+    mode       TEXT    NOT NULL CHECK (mode IN ('fill', 'update', 'done')),
     win_from   TEXT    NOT NULL,
     win_to     TEXT    NOT NULL,
     until      TEXT    NOT NULL,

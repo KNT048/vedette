@@ -27,10 +27,14 @@ const (
 	EPSSLikely = 0.1
 	// epssAllMaxBytes caps the download (the gzip file); epssAllMaxUnpacked caps what it unpacks to, so a hostile
 	// file cannot make the box inflate gigabytes; epssAllMaxRows caps the rows.
-	epssAllMaxBytes    = 20_000_000
-	epssAllMaxUnpacked = 64_000_000
-	epssAllMaxRows     = 1_000_000
-	epssAllTimeout     = 5 * time.Minute
+	epssAllMaxBytes = 20_000_000
+	epssAllTimeout  = 5 * time.Minute
+)
+
+// Vars for the tests (the real values are far above what a test file holds).
+var (
+	epssAllMaxUnpacked int64 = 64_000_000
+	epssAllMaxRows           = 1_000_000
 	// epssChunkRows rows per transaction, so the writer is never held for long (as applyIOCs does).
 	epssChunkRows = 20_000
 )
@@ -66,7 +70,7 @@ func ParseEPSSCSV(r io.Reader) (EPSSAllData, error) {
 	capped := &io.LimitedReader{R: in, N: epssAllMaxUnpacked + 1}
 	sc := bufio.NewScanner(capped)
 	sc.Buffer(make([]byte, 0, 4096), 4096)
-	out := EPSSAllData{Scores: make([]EPSSAllScore, 0, 450_000)}
+	out := EPSSAllData{Scores: []EPSSAllScore{}}
 	tl := newTally()
 	header, row := false, 0
 	for sc.Scan() {
@@ -85,6 +89,7 @@ func ParseEPSSCSV(r io.Reader) (EPSSAllData, error) {
 				}
 			case strings.EqualFold(strings.ReplaceAll(line, " ", ""), "cve,epss,percentile"):
 				header = true
+				out.Scores = make([]EPSSAllScore, 0, 450_000) // the real file: about 406,000 rows
 			case strings.TrimSpace(line) == "":
 			default:
 				return EPSSAllData{}, fail(ErrBadSample, `The EPSS file has no "cve,epss,percentile" header.`)
@@ -198,6 +203,14 @@ func (s *Service) buildEPSSAll(ctx context.Context, src sourceRow, p pullPlan) (
 	if err := accepted(res.Stats); err != nil {
 		return p, err
 	}
+	// A short file that parses (a proxy's page of a few rows, a cut mirror) must not replace every score (review r1 #7).
+	var have int
+	if err := s.DB.Reader().QueryRowContext(ctx, `SELECT count(*) FROM feeds_epss`).Scan(&have); err != nil {
+		return p, fmt.Errorf("feeds: count epss: %w", err)
+	}
+	if 2*len(res.Scores) < have {
+		return p, fail(ErrBadSample, "The EPSS file has %s scores, fewer than half of the %s on the box; Vedette kept the scores it had.", grouped(len(res.Scores)), grouped(have))
+	}
 	p.out = outcome{OK: true, Bytes: read, ETag: resp.ETag, LastModif: resp.LastModified}
 	p.out.fill(res.Stats, len(res.Scores))
 	day := res.ScoreDate
@@ -225,7 +238,7 @@ func applyEPSSAll(ctx context.Context, db *store.DB, src sourceRow, scores []EPS
 		return cur.Rev == src.Rev && cur.Enabled, nil
 	}
 	var gen int64
-	for i, chunk := 0, 0; i == 0 || i < len(scores); chunk++ {
+	for i, chunk := 0, 0; chunk == 0 || i < len(scores); chunk++ { // chunk 0 always runs: it takes the gen
 		end := min(i+epssChunkRows, len(scores))
 		part := scores[i:end]
 		err = db.Write(ctx, func(tx *sql.Tx) error {

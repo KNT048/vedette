@@ -3,6 +3,7 @@ package feeds
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -109,5 +110,58 @@ func TestEPSSAllPull_BadFileKeepsTheScores(t *testing.T) {
 	}
 	if f := e.feed(epssAllFeedID); f.Status != "error" || rowsOf(t, e.db, "feeds_epss") != 3 {
 		t.Fatalf("feed %+v, %d scores", f, rowsOf(t, e.db, "feeds_epss"))
+	}
+}
+
+// Review r1 #7: a file that parses but holds fewer than half the scores on the box is refused; the scores stay.
+func TestEPSSAllPull_ShortFileKeepsTheScores(t *testing.T) {
+	t.Parallel()
+	e, o := pullEnv(t)
+	e.only(epssAllFeedID)
+	e.mirror(epssAllFeedID, o.url("/epss.csv.gz"))
+	o.body("/epss.csv.gz", `"d1"`, gz(t, epssFile))
+	if err := e.svc.Fetch(t.Context(), epssAllFeedID); err != nil {
+		t.Fatal(err)
+	}
+	o.body("/epss.csv.gz", `"d2"`, gz(t, "cve,epss,percentile\nCVE-1999-0001,0.5,0.97\n"))
+	e.setNow(e.clock().Add(25 * 3600e9))
+	if err := e.svc.Fetch(t.Context(), epssAllFeedID); err != nil {
+		t.Fatal(err)
+	}
+	f := e.feed(epssAllFeedID)
+	if f.Status != "error" || f.Error == nil || !strings.Contains(*f.Error, "fewer than half of the 3") || rowsOf(t, e.db, "feeds_epss") != 3 {
+		t.Fatalf("feed %+v, %d scores", f, rowsOf(t, e.db, "feeds_epss"))
+	}
+}
+
+// Not parallel: it lowers package limits (parallel tests run after it). A file is stored over several chunks under one
+// gen (the stale rows of an earlier gen go once, at the end), and the unpack and row caps fail the parse.
+func TestEPSSAll_ChunksAndCaps(t *testing.T) {
+	chunk, unpacked, rows := epssChunkRows, epssAllMaxUnpacked, epssAllMaxRows
+	t.Cleanup(func() { epssChunkRows, epssAllMaxUnpacked, epssAllMaxRows = chunk, unpacked, rows })
+	epssChunkRows = 1
+	e, o := pullEnv(t)
+	e.only(epssAllFeedID)
+	e.mirror(epssAllFeedID, o.url("/epss.csv.gz"))
+	o.body("/epss.csv.gz", `"d1"`, gz(t, epssFile))
+	if err := e.svc.Fetch(t.Context(), epssAllFeedID); err != nil {
+		t.Fatal(err)
+	}
+	o.body("/epss.csv.gz", `"d2"`, gz(t, "cve,epss,percentile\nCVE-1999-0001,0.5,0.97\nCVE-2026-1234,0.7,0.99\n"))
+	e.setNow(e.clock().Add(25 * 3600e9))
+	if err := e.svc.Fetch(t.Context(), epssAllFeedID); err != nil {
+		t.Fatal(err)
+	}
+	var n, gens int
+	if err := e.db.Reader().QueryRowContext(t.Context(), `SELECT count(*), count(DISTINCT gen) FROM feeds_epss`).Scan(&n, &gens); err != nil || n != 2 || gens != 1 {
+		t.Fatalf("%d rows in %d gens (%v)", n, gens, err)
+	}
+	epssAllMaxRows = 2
+	if _, err := ParseEPSSCSV(strings.NewReader(epssFile)); err == nil || !strings.Contains(err.Error(), "more than 2 rows") {
+		t.Fatalf("row cap: %v", err)
+	}
+	epssAllMaxRows, epssAllMaxUnpacked = rows, 100
+	if _, err := ParseEPSSCSV(strings.NewReader(gz(t, epssFile+strings.Repeat("CVE-2025-0005,0.1,0.5\n", 20)))); err == nil || !errors.Is(err, ErrTooLarge) {
+		t.Fatalf("unpack cap: %v", err)
 	}
 }

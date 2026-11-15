@@ -39,6 +39,9 @@ type Source struct {
 	// BYOK: the customer's own API key is needed (D-557). The feed is off until one is saved, and what it loaded goes
 	// when the key is removed or the feed is turned off.
 	BYOK bool
+	// Off: seeded turned off (D-614: epss-all and nvd-recent until slice 2 of the CVE tiers reads their data); an admin can
+	// turn it on like any feed.
+	Off bool
 
 	// Aggregate: the list is itself a merge of other lists (IPsum, hagezi TIF).
 	// It never reaches block alone, and counts with one of its Upstreams as one source.
@@ -94,9 +97,9 @@ const (
 var builtinSources = []Source{
 	{ID: "cisa-kev", Name: "CISA KEV", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json", License: "CC0", IntervalHours: 1, Decoder: DecoderKEV},
 	{ID: "first-epss", Name: "FIRST EPSS", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://api.first.org/data/v1/epss", License: "Attribution: EPSS by FIRST", IntervalHours: 24, Decoder: DecoderEPSS},
-	{ID: epssAllFeedID, Name: "EPSS, every CVE", Kind: KindVulnerabilities, Format: FormatCSV, URL: "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz", License: "Attribution: EPSS by FIRST", IntervalHours: 24, Decoder: DecoderEPSSAll},
+	{ID: epssAllFeedID, Name: "EPSS, every CVE", Kind: KindVulnerabilities, Format: FormatCSV, URL: "https://epss.empiricalsecurity.com/epss_scores-current.csv.gz", License: "Attribution: EPSS by FIRST", IntervalHours: 24, Decoder: DecoderEPSSAll, Off: true},
 	{ID: "nvd-kev", Name: "NVD affected versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://services.nvd.nist.gov/rest/json/cves/2.0", License: nvdNotice, IntervalHours: 24, Decoder: DecoderNVD},
-	{ID: recentFeedID, Name: "NVD, CVEs of the last 12 months", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://services.nvd.nist.gov/rest/json/cves/2.0", License: nvdNotice, IntervalHours: 24, Decoder: DecoderNVDRecent},
+	{ID: recentFeedID, Name: "NVD, CVEs of the last 12 months", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://services.nvd.nist.gov/rest/json/cves/2.0", License: nvdNotice, IntervalHours: 24, Decoder: DecoderNVDRecent, Off: true},
 	{ID: "cve-org", Name: "CVE.org affected versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://raw.githubusercontent.com/CVEProject/cvelistV5/main/cves", License: cveOrgNotice, IntervalHours: 1, Decoder: DecoderCVEOrg},
 	{ID: vulnCheckFeedID, Name: "VulnCheck KEV", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://api.vulncheck.com/v3/index/vulncheck-kev", License: vulnCheckNotice, IntervalHours: 6, Decoder: DecoderVulnCheck, BYOK: true},
 	{ID: ubuntuOSVFeedID, Name: "Ubuntu fixed versions", Kind: KindVulnerabilities, Format: FormatJSON, URL: "https://security-metadata.canonical.com/osv/osv-all.tar.xz", License: canonicalNotice, IntervalHours: 24, Decoder: DecoderUbuntuOSV},

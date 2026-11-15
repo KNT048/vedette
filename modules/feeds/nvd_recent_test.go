@@ -46,13 +46,14 @@ func TestParseNVDRecent(t *testing.T) {
 }
 
 // recentNVD is a fake NVD for nvd-recent: each date window (pubStartDate, or lastModStartDate for an update) has a number
-// of records, CVE-<window>-<n> published an hour after the window starts; plan makes a startIndex answer busy.
+// of records, CVE-<window>-<n> published an hour after the window starts; codes makes a startIndex answer an HTTP error; hook runs on each request.
 type recentNVD struct {
 	mu     sync.Mutex
 	perWin func(from time.Time, byPub bool) int
-	busy   map[string]bool // "<from>/<start>" answered 503
-	asked  []string        // "<pub|mod> <from> <start>"
-	extra  []string        // records added to every update answer (raw JSON)
+	codes  map[string]int // "<from>/<start>" answered with this status
+	hook   func()
+	asked  []string // "<pub|mod> <from> <start>"
+	extra  []string // records added to every update answer (raw JSON)
 }
 
 func (n *recentNVD) serve(o *origin) {
@@ -72,12 +73,16 @@ func (n *recentNVD) serve(o *origin) {
 			kind = "pub"
 		}
 		n.asked = append(n.asked, fmt.Sprintf("%s %s %d", kind, from.Format("2006-01-02"), start))
-		busy := n.busy[key]
+		code := n.codes[key]
+		hook := n.hook
 		total := n.perWin(from, byPub)
 		extra := n.extra
 		n.mu.Unlock()
-		if busy {
-			w.WriteHeader(http.StatusServiceUnavailable)
+		if hook != nil {
+			hook()
+		}
+		if code != 0 {
+			w.WriteHeader(code)
 			return
 		}
 		var recs []string
@@ -111,7 +116,7 @@ func recentEnv(t *testing.T) (*env, *recentNVD) {
 	e, o := pullEnv(t)
 	e.only(recentFeedID)
 	e.mirror(recentFeedID, o.url("/nvd"))
-	n := &recentNVD{busy: map[string]bool{}}
+	n := &recentNVD{codes: map[string]int{}}
 	n.serve(o)
 	return e, n
 }
@@ -138,8 +143,11 @@ func TestRecentPull_FillsTwelveMonthsInWindows(t *testing.T) {
 	if f.Status != "ok" || f.Records == nil || *f.Records != 1203 || f.Error == nil || !strings.Contains(*f.Error, "1,203 CVEs published since 5 Nov 2025; NVD gives affected versions for 1,203 of them.") {
 		t.Fatalf("feed %+v %v", f, f.Error)
 	}
-	if rowsOf(t, e.db, "feeds_recent_affected") != 1203 || rowsOf(t, e.db, "feeds_recent_cursor") != 0 {
-		t.Fatal("entries or cursor")
+	if rowsOf(t, e.db, "feeds_recent_affected") != 1203 {
+		t.Fatal("entries")
+	}
+	if c, err := e.svc.st.recentCursor(t.Context()); err != nil || c == nil || c.Mode != modeDone || !c.Until.Equal(e.clock()) {
+		t.Fatalf("cursor after the fill: %+v %v", c, err)
 	}
 }
 
@@ -149,7 +157,7 @@ func TestRecentPull_PausesAndGoesOn(t *testing.T) {
 	t.Parallel()
 	e, n := recentEnv(t)
 	n.perWin = func(time.Time, bool) int { return 2 }
-	n.busy["2026-03-05T12:00:00.000Z/0"] = true
+	n.codes["2026-03-05T12:00:00.000Z/0"] = http.StatusServiceUnavailable
 	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +169,7 @@ func TestRecentPull_PausesAndGoesOn(t *testing.T) {
 		t.Fatalf("progress %v", live.Error)
 	}
 	n.mu.Lock()
-	n.busy = map[string]bool{}
+	n.codes = map[string]int{}
 	n.asked = nil
 	n.mu.Unlock()
 	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
@@ -207,18 +215,168 @@ func TestRecentPull_UpdateKeepsTwelveMonths(t *testing.T) {
 	if got := n.requests(); !slices.Equal(got, []string{"mod " + first.AddDate(0, 0, -1).Format("2006-01-02") + " 0"}) {
 		t.Fatalf("update requests %v", got)
 	}
-	var left []string
+	if left := recentCVEs(t, e); !slices.Equal(left, []string{"CVE-2026-03050000", "CVE-2026-10310000"}) {
+		t.Fatalf("left %v", left)
+	}
+}
+
+func recentCVEs(t *testing.T, e *env) []string {
+	t.Helper()
 	rows, err := e.db.Reader().QueryContext(t.Context(), `SELECT cve FROM feeds_recent_cve ORDER BY cve`)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() { _ = rows.Close() }()
+	var out []string
 	for rows.Next() {
 		var c string
 		_ = rows.Scan(&c)
-		left = append(left, c)
+		out = append(out, c)
 	}
-	if !slices.Equal(left, []string{"CVE-2026-03050000", "CVE-2026-10310000"}) {
-		t.Fatalf("left %v", left)
+	return out
+}
+
+func (n *recentNVD) reset() {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.asked, n.codes, n.hook = nil, map[string]int{}, nil
+}
+
+// Review r1 #1, #4: an update NVD refuses on its first page is a failure the feed line shows as it is (not a progress
+// line), and the next pull is an update again, not a refill of 12 months.
+func TestRecentPull_FailedUpdateIsNotARefill(t *testing.T) {
+	t.Parallel()
+	e, n := recentEnv(t)
+	n.perWin = func(_ time.Time, byPub bool) int {
+		if byPub {
+			return 1
+		}
+		return 0
+	}
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	first := e.clock()
+	n.reset()
+	n.mu.Lock()
+	n.codes[first.Add(-24*time.Hour).Format("2006-01-02T15:04:05.000Z")+"/0"] = http.StatusForbidden
+	n.mu.Unlock()
+	e.setNow(first.Add(24 * time.Hour))
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	f := e.svc.live(e.feed(recentFeedID))
+	if f.Status != "error" || f.Error == nil || !strings.Contains(*f.Error, "HTTP 403") || strings.Contains(*f.Error, "Loading") {
+		t.Fatalf("failed update: %+v %v", f, *f.Error)
+	}
+	n.reset()
+	e.setNow(first.Add(72 * time.Hour))
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.requests(); !slices.Equal(got, []string{"mod " + first.Add(-24*time.Hour).Format("2006-01-02") + " 0"}) {
+		t.Fatalf("after a failed update the next pull asks %v, want the update from the last complete time", got)
+	}
+	if f := e.feed(recentFeedID); f.Status != "ok" {
+		t.Fatalf("feed %+v", f)
+	}
+}
+
+// Review r1 #2: a fill that pauses and goes on days later finishes its windows, then in the same pull asks for NVD's
+// changes since one day before the fill started, so CVEs published in between are not lost.
+func TestRecentPull_LateFillCatchesUp(t *testing.T) {
+	t.Parallel()
+	e, n := recentEnv(t)
+	n.perWin = func(time.Time, bool) int { return 1 }
+	start := e.clock()
+	n.codes["2026-03-05T12:00:00.000Z/0"] = http.StatusServiceUnavailable
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	n.reset()
+	e.setNow(start.Add(72 * time.Hour))
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"pub 2026-03-05 0", "pub 2026-07-03 0", "pub 2026-10-31 0", "mod " + start.Add(-24*time.Hour).Format("2006-01-02") + " 0"}
+	if got := n.requests(); !slices.Equal(got, want) {
+		t.Fatalf("requests %v, want %v", got, want)
+	}
+	c, err := e.svc.st.recentCursor(t.Context())
+	if err != nil || c == nil || c.Mode != modeDone || !c.Until.Equal(start.Add(72*time.Hour)) {
+		t.Fatalf("cursor %+v %v", c, err)
+	}
+}
+
+// Review r1 #2: an update window that ended more than 12 h ago is asked again up to now.
+func TestRecentStart(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	u := "https://nvd.example/x"
+	upd := &recentCursor{URL: u, Mode: modeUpdate, From: now.AddDate(0, 0, -5), To: now.AddDate(0, 0, -3), Until: now.AddDate(0, 0, -3), NextIndex: 1000, Total: 1500}
+	if c := recentStart(upd, u, 10, now); c.Mode != modeUpdate || !c.From.Equal(upd.From) || !c.To.Equal(now) || c.NextIndex != 0 {
+		t.Fatalf("stale update %+v", c)
+	}
+	fresh := *upd
+	fresh.To = now.Add(-time.Hour)
+	if c := recentStart(&fresh, u, 10, now); c.NextIndex != 1000 || !c.To.Equal(fresh.To) {
+		t.Fatalf("fresh update goes on: %+v", c)
+	}
+	done := &recentCursor{URL: u, Mode: modeDone, Until: now.AddDate(0, 0, -2)}
+	if c := recentStart(done, u, 10, now); c.Mode != modeUpdate || !c.From.Equal(now.AddDate(0, 0, -3)) {
+		t.Fatalf("after done %+v", c)
+	}
+	for name, c := range map[string]recentCursor{
+		"no data":     recentStart(done, u, 0, now),
+		"new address": recentStart(done, "https://mirror.example/x", 10, now),
+		"long gap":    recentStart(&recentCursor{URL: u, Mode: modeDone, Until: now.AddDate(0, 0, -120)}, u, 10, now),
+		"nothing":     recentStart(nil, u, 10, now),
+	} {
+		if c.Mode != modeFill || !c.From.Equal(now.AddDate(0, 0, -recentDays)) {
+			t.Errorf("%s: %+v", name, c)
+		}
+	}
+}
+
+// D-614: while nvd-kev is pulling, nvd-recent asks NVD nothing and goes on later (not a failure).
+func TestRecentPull_WaitsForNVDKev(t *testing.T) {
+	t.Parallel()
+	e, n := recentEnv(t)
+	n.perWin = func(time.Time, bool) int { return 1 }
+	release, _, err := e.svc.lockFeed(t.Context(), nvdFeedID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	release()
+	if len(n.requests()) != 0 || e.feed(recentFeedID).Status != "never" {
+		t.Fatalf("requests %v, feed %+v", n.requests(), e.feed(recentFeedID))
+	}
+}
+
+// A feed turned off in the middle of a fill stores nothing more: the page that came back after is not written.
+func TestRecentPull_TurnedOffMidFill(t *testing.T) {
+	t.Parallel()
+	e, n := recentEnv(t)
+	n.perWin = func(time.Time, bool) int { return 1 }
+	calls := 0
+	n.hook = func() {
+		calls++
+		if calls == 2 {
+			if c, b := e.put(recentFeedID, `{"enabled":false}`); c != 200 {
+				t.Errorf("turn off: %d %v", c, b)
+			}
+		}
+	}
+	if err := e.svc.Fetch(t.Context(), recentFeedID); err != nil {
+		t.Fatal(err)
+	}
+	if got := recentCVEs(t, e); len(got) != 1 || len(n.requests()) != 2 {
+		t.Fatalf("stored %v after %v", got, n.requests())
+	}
+	if f := e.feed(recentFeedID); f.Enabled || f.Status == "ok" {
+		t.Fatalf("feed %+v", f)
 	}
 }

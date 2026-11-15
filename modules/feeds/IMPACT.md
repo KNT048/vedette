@@ -132,7 +132,8 @@
 
 ## Modifying: feeds `epss-all`, `nvd-recent`, `ParseEPSSCSV`, `RecentPageURL`/`ParseNVDRecent`, bảng `feeds_epss`, `feeds_recent_*` (D-613, D-614)
 - **findings** (slice 2): tầng 2 đọc `feeds_epss` (EPSS ≥ `EPSSLikely`, CVE công bố trong 12 tháng theo `feeds_recent_cve.published`, D-615), tầng 3 đọc `feeds_recent_cve` + `feeds_recent_affected`; khi đó thêm hai feed vào `Store.MatchStamp` và phát `feeds.ranges.updated` (hoặc sự kiện riêng) sau lượt kéo. Hiện chưa module nào đọc chúng.
-- **nvd-kev**: dùng chung `nvdPage` (thêm tham số `maxBytes`, `nvd-kev` truyền 0 = `MaxBodyBytes`); `nvd-recent` dừng khi `nvd-kev` đang kéo (`Service.busy`), `nvd-kev` không đổi.
+- **nvd-kev**: dùng chung `nvdPage` (thêm tham số `maxBytes`, `nvd-kev` truyền 0 = `MaxBodyBytes`) và cổng `nvdSlot` (mọi request NVD của hai feed cách nhau ≥ `nvdPause`; với `nvd-kev` một mình cổng không thêm chờ vì `nvdPages` đã nghỉ `nvdPause`); `nvd-recent` dừng khi `nvd-kev` đang kéo (`Service.busy`) hoặc đang chờ NVD (`nvdResumeAt`).
 - **core** (`modules/core/export_policy.go`): bốn bảng mới `skipAll` (dữ liệu công khai, kéo lại được); `cmd/vedette` `TestExport_PolicyClassifiesEveryColumn` ghim danh sách đó.
 - **PRIVACY.md** luồng 1 + Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md` (hàng FIRST EPSS, NVD), `sourcesMock.ts` + `conformance.test.ts` (danh sách feed có sẵn), `sources_test.go` (host `epss.empiricalsecurity.com`, 16 feed).
-- **TERMS.md** (D-613, D-615): đoạn "What Vedette tells you, and what it does not" mô tả ba tầng và luật tuổi 12 tháng (cũ hơn chỉ khi có bằng chứng xác nhận); đổi nội dung tầng thì sửa cả đoạn đó (phiên bản điều khoản đổi theo hash).
+- **TERMS.md** (D-613, D-615): đoạn mô tả ba tầng và luật tuổi vào ở slice 2 cùng hành vi (slice 1 không đổi TERMS.md).
+- **Mặc định tắt** (`Source.Off`, D-614): slice 2 bỏ `Off` và phải bật hai feed trên hộp đã seed (hàng có sẵn giữ `enabled = 0`), như D-485 đổi lịch CISA.

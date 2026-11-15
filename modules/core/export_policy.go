@@ -13,7 +13,8 @@ import "strings"
 //	url     a URL as text: userinfo, path and query are cut, leaving scheme://host (other text stays as it is)
 //	skip    never exported: a secret, a reference to a secret, a hash or nonce of sign-in state
 //
-// A table with skipAll is not exported at all (secrets, sign-in state, link state).
+// A table with skipAll is not exported at all (secrets, sign-in state, link state, and public data the box pulls again,
+// such as feeds_epss).
 type tablePolicy struct {
 	skipAll                          bool
 	export, json, jsonURL, url, skip string

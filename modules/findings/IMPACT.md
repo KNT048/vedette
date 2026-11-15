@@ -101,7 +101,7 @@
 - Finding cũ và lịch sử giữ trong `fnd_*`.
 - **Loại thiết bị (D-511)**: đọc `content/devicetypes` (gói lá, chỉ thư viện chuẩn). `validKind` nhận mọi id loại của danh sách (không còn chép tay 13 loại); không đổi cách khớp.
 
-## Modifying: `Evidence.Agent`, `RowFix`/`RowFixes`, `Asset.AgentOS`, `PlatformRuledOut` (D-545, D-548, D-549)
+## Modifying: `Evidence.Agent`, `RowFix`/`RowFixes`, `Asset.AgentOS`, `Asset.MAC`, `PlatformRuledOut`, Edge Legacy (D-545, D-548, D-549, D-619, D-620)
 - `Evidence.AgentRow` (D-612) → API `evidence.agent_row` (contract.ts, `api/openapi.json`, `core/api/oas`): SPA `RiskChip` (gợi ý của chip "unverified"), **mitigation** `genericRecheck` (bước đầu không hỏi phiên bản).
 - `winOld` / năm CVE (D-610) → đóng finding Windows có bằng chứng (`NotAffected`, D-530): lịch sử và audit của finding mở; trang CVE và báo cáo tuần đọc cùng kết quả khớp. `core/winrel` `GARev` đổi ⇒ xét lại cả hai bằng chứng "chỉ bản cũ hơn".
 - Luật tháng của build Windows (D-618, `winBuildMonth`/`winMonthRule`) → đóng finding Windows có bằng chứng (`NotAffected`, D-530) khi CVE của Windows được công bố trong/trước tháng của build; đọc `Vuln.Published` (feeds `feeds_published`, D-616: thiếu ngày → không đóng) và khoảng NVD của **toàn bộ** danh sách KEV (Reconcile chia backlog/recent nhưng gán `Asset.winList` = cả danh sách cho cả hai lượt ghi; một lời gọi `MatchAsset` khác với một phần danh sách phải làm như vậy, nếu không tháng của build có thể sai). Đổi `core/winrel` (`Line`, build) hay `winOSComponents` đổi tháng của build hay hàng nào được tính là Windows. Thêm sản phẩm Microsoft vào `winOSComponents` chỉ khi bản cập nhật tháng của Windows vá nó.
@@ -109,6 +109,8 @@
 - `RowFix` → `FindingRow.fix` (contract.ts, `api/openapi.json`, `core/api/oas`): SPA `fix.ts`/`FixGroups.tsx` (Findings Open, panel thiết bị). Cùng luật với báo cáo tuần (`cmd/vedette/reports.go` `FixedInForAll`).
 - `Asset.AgentOS` do `cmd/vedette/wiring.go` `findingsInventory.MatchInput` điền từ inventory `MatchDevice.AgentOS`; thiếu ⇒ dòng agent không có bằng chứng nền tảng (finding giữ câu điều kiện).
 - `PlatformRuledOut` ← `cmd/vedette/wiring.go` `feedsInventory.NotAffected` (feeds `PlatformChecker`, trang CVE).
+- `Asset.MAC` (D-620) do `findingsInventory.MatchInput` điền từ inventory `MatchDevice.MAC` (MAC của thiết bị có IP); `networkStated` đọc OUI của nó (`content/oui`) trước khi lời Junos qua LLDP được tính cho dòng scan: một switch Juniper chỉ nêu OS qua LLDP đóng CVE chỉ ảnh hưởng nền tảng khác (INV-16) và rời trang CVE (`PlatformRuledOut`). Bảng OUI đổi tên "Juniper Networks" ⇒ `juniperOUI`. inventory `matchView` có MAC ⇒ MAC đổi thì khớp lại.
+- Luật Edge Legacy (D-619, `edgeLegacyOnly`, INV-21) → đóng có bằng chứng (`NotAffected`, D-530) finding "Microsoft | Edge" trước 2020 trên dòng Edge Chromium: lịch sử, audit, notify (không tin khi đóng), báo cáo tuần và Home đếm ít hơn; đọc `Vuln.Published` (feeds `feeds_published`; thiếu ngày → chỉ id CVE ≤ 2018). `matchedOn` → `GET /findings/{id}` `asset.display` (SPA `FindingPage` panel Device); `Detail` đọc `MatchInput` một lần cho cả `asset.display` và `fixed_in`.
 
 ## Modifying: luật tuổi D-615 (INV-19) và "Updates to plan" (INV-20, D-616)
 - **feeds**: `Vuln.Published` từ `feeds.Store.KevPublished` (cmd/vedette `findingsFeeds.readVulns`); `findings.Feeds` thêm `TierStatus` (mọi cài đặt giả của `Feeds` phải có: `service_test.go`, `modules/mitigation/mitigation_test.go`). `KevInfo.Published` → `contract.ts` `KevInfo.published`, `api/openapi.json`, `core/api/oas`.

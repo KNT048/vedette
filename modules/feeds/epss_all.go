@@ -18,8 +18,8 @@ import (
 
 // The EPSS score of every CVE (D-614): FIRST publishes the scores of all CVEs once a day as one gzip CSV
 // ("#model_version:…,score_date:…", "cve,epss,percentile", then one row per CVE). Measured 2026-11-15: 2,849,094 bytes
-// for 406,543 CVEs, about 12 MB once unpacked; 15.5 MB in SQLite. The scores feed tier 2 (D-613: EPSS at or above
-// EPSSLikely, any age) and are kept for every CVE.
+// for 406,543 CVEs, about 12 MB once unpacked; 15.5 MB in SQLite. The scores feed tier 2 (D-613, D-615: EPSS at or above
+// EPSSLikely, published in the last 12 months) and are kept for every CVE (CVE pages, scan-found older CVEs).
 const (
 	epssAllFeedID = "epss-all"
 	// EPSSLikely is the score from which a CVE is "likely to be exploited" (tier 2, D-613): FIRST's own example

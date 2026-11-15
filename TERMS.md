@@ -18,9 +18,9 @@ Vedette is free, open-source software under the Apache License 2.0 (the LICENSE 
 
 ## What Vedette tells you, and what it does not
 
-- Vedette alerts you when a CVE on a list of vulnerabilities being exploited (CISA KEV, and VulnCheck KEV if you turn it on) matches a device it knows.
-- It also lists, without alerts unless you turn them on, the CVEs likely to be exploited (an EPSS score of 10% or more: FIRST's estimate of the chance of exploitation in the next 30 days), and every CVE published in the last 12 months that matches a version your devices report. These lists help you plan updates; they are not a promise that a CVE left off them is harmless.
-- Matches come from public data (CISA, FIRST, NVD, CVE.org, Ubuntu, Debian) and from what Vedette can see of your devices. Public data has gaps and mistakes, and a device or version Vedette cannot see is not checked. Vedette does not find every vulnerability, and an empty list does not mean your systems are safe.
+- Vedette alerts you when a CVE on a list of vulnerabilities being exploited (CISA KEV, and VulnCheck KEV if you turn it on) matches a device it knows. For such a CVE published more than 12 months ago, it does so only on confirmed evidence: a scan found it, the device's agent reports an affected build or package, or Ubuntu or Debian says the installed package is affected. A match on the product name, or on a version guessed from what a service announces, is not shown for those older CVEs.
+- It also lists, without alerts unless you turn them on, the CVEs published in the last 12 months that are likely to be exploited (an EPSS score of 10% or more: FIRST's estimate of the chance of exploitation in the next 30 days) or that match a version your devices report. Older CVEs that are not on an exploited list are shown only when a scan found them. These lists help you plan updates; they are not a promise that a CVE left off them is harmless.
+- Matches come from public data (CISA, FIRST, NVD, CVE.org, Ubuntu, Debian) and from what Vedette can see of your devices. Public data has gaps and mistakes, and a device or version Vedette cannot see is not checked. Because of these rules, an old vulnerability Vedette cannot confirm is not reported. Vedette does not find every vulnerability, and an empty list does not mean your systems are safe.
 
 ## Your data stays on the box
 

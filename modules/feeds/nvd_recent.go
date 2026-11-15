@@ -302,6 +302,30 @@ ON CONFLICT(id) DO UPDATE SET url = excluded.url, mode = excluded.mode, win_from
 	return err
 }
 
+// recentComplete says the data of nvd-recent is complete for url: its last pull finished (mode done) at this address. Anything
+// else (no cursor, as after migration 0013; an unfinished fill or update; another address) is a pull the feed still owes, due at
+// the next check whatever its last success says (N55-2). ponytail: a done cursor with no CVE stored (only a source that
+// answers nothing) waits for the feed's interval, so such a source is not asked every 5 minutes.
+func recentComplete(cur *recentCursor, url string) bool {
+	return cur != nil && cur.Mode == modeDone && cur.URL == url
+}
+
+// recentIdleText is the progress line of nvd-recent while no pull is running and the data is not complete (N55-1): where the
+// next pull goes on, from the cursor; "" when the data is complete or cannot be read. next: the line says the next 5-minute
+// check goes on (false during the back-off after a failure).
+func (s *Service) recentIdleText(ctx context.Context, url string, next bool) string {
+	cur, err := s.st.recentCursor(ctx)
+	if err != nil || recentComplete(cur, url) {
+		return ""
+	}
+	var have int
+	if err := s.st.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM feeds_recent_cve`).Scan(&have); err != nil {
+		return ""
+	}
+	now := s.now()
+	return recentText(recentStart(cur, url, have, now), have, next, "", time.Time{}, now)
+}
+
 // recentStart decides what a pull of nvd-recent does (review r1 #1, #2), whatever the feed's last status was:
 //   - an unfinished fill goes on (its windows end at its own Until; the update after it starts there);
 //   - an unfinished update goes on; if its window ended more than recentResumeStale ago, it asks again from its From to

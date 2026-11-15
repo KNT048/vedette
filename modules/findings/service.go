@@ -297,7 +297,7 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, need []Vers
 			"asset", a.ID, "count", res.Retired)
 	}
 	if res.Aged > 0 {
-		s.cfg.Log.InfoContext(ctx, "findings: closed (D-615): KEV CVEs published over 12 months ago without confirmed evidence", "asset", a.ID, "count", res.Aged)
+		s.cfg.Log.InfoContext(ctx, "findings: closed (D-615): KEV CVEs published over 12 months ago matched by product only", "asset", a.ID, "count", res.Aged)
 	}
 	return res, nil
 }
@@ -431,8 +431,8 @@ func (s *Service) autoResolve(ctx context.Context, tx *sql.Tx, assetID string, p
 	return closed, nil
 }
 
-// closeAged closes the open findings the age rule drops (D-615, S-TIER-4, MatchResult.Aged): a KEV CVE published over 12
-// months ago that the matcher matches only by product or by a version that is not the agent's. Like D-506's retired ones,
+// closeAged closes the open findings the age rule drops (D-615, D-616, S-TIER-4, MatchResult.Aged): a KEV CVE published over
+// 12 months ago that the matcher matches by product only (no version compared). Like D-506's retired ones,
 // status not_relevant by the system user with the reason not_affected_version (the only one the CHECK of
 // fnd_finding.resolution_reason allows; D-505), the note saying why (AgedNote), a history row, audit findings.auto_resolved
 // and a status_changed event (notify sends nothing for it). Never a finding a scan confirmed (basis scan), a closed one, or
@@ -463,7 +463,7 @@ func (s *Service) closeAged(ctx context.Context, tx *sql.Tx, assetID string, age
 			return closed, err
 		}
 		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID,
-			Detail: r.CVE + ": " + ReasonNotAffectedVersion + " (D-615: published over 12 months ago, no scan, agent or distribution evidence)"}); err != nil {
+			Detail: r.CVE + ": " + ReasonNotAffectedVersion + " (D-615: published over 12 months ago, product match only, no version compared)"}); err != nil {
 			return closed, err
 		}
 		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status, Reason: ReasonNotAffectedVersion})

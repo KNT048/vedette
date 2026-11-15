@@ -205,9 +205,9 @@ type MatchResult struct {
 	// the reason ("… affects only …; the software reports 9.6p1 Ubuntu 3ubuntu13.20."), for a page that lists none of them, such as
 	// exposure's. A device that has the finding also gets it in NotAffected, with the sentence that closes it.
 	OtherPlatform []Match
-	// Aged lists, whatever the device already has, the matches the age rule drops (D-615, S-TIER-4): the KEV CVE was published
-	// more than AgeLimit ago and the match is not confirmed (basis product, or a version that is not the device's agent's: a
-	// banner, a scan's guess, a person's entry). No finding is made for it; the service closes an open suspected finding of
+	// Aged lists, whatever the device already has, the matches the age rule drops (D-615, D-616, S-TIER-4): the KEV CVE was
+	// published more than AgeLimit ago and the match is product-only (basis product: no version compared). No finding is made
+	// for it; the service closes an open suspected finding of
 	// that pair with Evidence.Summary (AgedNote first) as its note, and a later confirmed match reopens it. Exposure lists
 	// them as ruled out, with the reason.
 	Aged []Match
@@ -217,8 +217,8 @@ type MatchResult struct {
 // 365 days, judged at each match, so a CVE ages out by itself.
 const AgeLimit = 365 * 24 * time.Hour
 
-// AgedNote starts the note of a finding the age rule closed (D-615, S-TIER-4); ReopenOnMatch recognises it.
-const AgedNote = "Older than 12 months and not confirmed by a scan, the agent or the distribution"
+// AgedNote starts the note of a finding the age rule closed (D-615, D-616, S-TIER-4); ReopenOnMatch recognises it.
+const AgedNote = "Older than 12 months and matched by the product name only"
 
 // aged reports whether v was published more than AgeLimit before now; an unknown day is never aged (D-615: a missing date
 // never closes a finding).
@@ -226,35 +226,19 @@ func aged(v Vuln, now time.Time) bool {
 	return !v.Published.IsZero() && v.Published.Before(now.Add(-AgeLimit))
 }
 
-// confirmedMatch reports whether a matcher's match rests on confirmed evidence (D-615): the version the device's own agent
-// reports (its build, or its package, the distribution's verdict included: D-548, D-516), or, D-616, the version the device
-// states in answer to Vedette's own SNMP read of its address (a row of source snmp, or the stated network OS row when
-// Asset.SNMPOS states it: the device's own word to an authenticated query, never an LLDP frame or a banner). A scan's
-// confirmation comes from ConfirmFromScan, never from the matcher.
-func confirmedMatch(a Asset, sws []Software, m Match) bool {
-	if m.Basis == BasisScan || m.Basis == BasisVersion && m.Evidence.Agent {
-		return true
-	}
-	if m.Basis != BasisVersion {
-		return false
-	}
-	for _, s := range sws {
-		if s.ID != m.SoftwareID {
-			continue
-		}
-		return s.Source == "snmp" || s.ID == osSoftwareID(a.ID) && a.SNMPOS != "" && strings.TrimSpace(a.SNMPOS) == strings.TrimSpace(a.StatedOS)
-	}
-	return false
+// confirmedMatch reports whether a matcher's match on an old KEV CVE stands (D-615 as amended by D-616, supervisor
+// 2026-11-15): it compared a version (whoever gave it: the agent, the distribution, SNMP or LLDP, a person, a service's
+// banner) or a scan engine hit it. Only a product-only match (no version compared) is dropped: that is the noise of
+// XP-era rows on Server 2025, while CVE-2018-13379 on an unpatched FortiGate stays. Labels are unchanged (a banner or a typed
+// version stays suspected).
+func confirmedMatch(m Match) bool {
+	return m.Basis != BasisProduct
 }
 
 // agedSummary is the note of a finding the age rule closes.
-func agedSummary(v Vuln, m Match) string {
-	how := "by the product name only"
-	if m.Basis == BasisVersion {
-		how = "by a version read from a banner, a scan's guess or typed in, not one the device's agent reports"
-	}
-	return fmt.Sprintf("%s: %s was published on %s, more than 12 months ago, and Vedette matched it %s. Vedette reopens this finding if a scan, the device's agent or its distribution confirms it.",
-		AgedNote, v.CVE, FmtDay(v.Published), how)
+func agedSummary(v Vuln) string {
+	return fmt.Sprintf("%s: %s was published on %s, more than 12 months ago, and Vedette could not compare a version (it matched the product name only). Vedette reopens this finding when it can compare the version (from the agent, the device or one you enter) or a scan finds it.",
+		AgedNote, v.CVE, FmtDay(v.Published))
 }
 
 // SettledKEV is how long a "Multiple Products" entry must have been in KEV before NVD's product list for it is taken as
@@ -371,9 +355,6 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				}
 			case outNeedVersion:
 				unproved = true
-				if aged(v, now) { // D-615: a version typed in would not be confirmed evidence for an old CVE, so it is not asked for
-					break
-				}
 				i, ok := need[s.ID]
 				if !ok {
 					i = len(res.NeedVersion)
@@ -406,9 +387,9 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 			}
 			continue
 		}
-		if aged(v, now) && !confirmedMatch(a, sws, *best) { // D-615: an old KEV CVE only on confirmed evidence
+		if aged(v, now) && !confirmedMatch(*best) { // D-615, D-616: an old KEV CVE only with a version compared or a scan hit
 			r := *best
-			r.Evidence.Summary = agedSummary(v, r)
+			r.Evidence.Summary = agedSummary(v)
 			res.Aged = append(res.Aged, r)
 			continue
 		}

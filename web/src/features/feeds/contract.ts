@@ -54,7 +54,7 @@ export const MatchedAsset = z.object({ id: z.string(), hostname: z.string().null
 export const CveDetail = Vuln.extend({
   display: z.string(), matched: z.array(MatchedAsset).nullable(),
   not_affected: z.number().int().min(0).optional().describe('D-549: devices that run the product but that the platform rules of the findings prove are not affected; left out of matched'),
-  published: isoDate.nullable().describe('D-615: the day NVD published the CVE (never CISA\'s date_added); null when NVD has not answered for it. Older than 12 months: a device becomes a finding only on confirmed evidence (a scan, the agent, the distribution), so matched lists devices that run the product without being findings'),
+  published: isoDate.nullable().describe('D-615: the day NVD published the CVE (never CISA\'s date_added); null when NVD has not answered for it. Older than 12 months: a device that matches by the product name only (no version compared) is not a finding (D-616), so matched may list devices that are not findings'),
 })
 // D-613, D-615 (S-TIER-1): a CVE that is on no exploited list, from the tier data (feeds epss-all and nvd-recent).
 export const TierCve = z.object({

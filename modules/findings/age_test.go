@@ -9,10 +9,10 @@ import (
 	"time"
 )
 
-// D-615, S-TIER-4: a KEV CVE published more than 12 months ago makes a finding only on confirmed evidence (the device's
-// agent here; a scan comes through ConfirmFromScan). A banner or typed version, or the product name alone, makes none; a
-// recent CVE and one with no known published day keep today's rules.
-func TestMatchAsset_D615_OldKEVNeedsConfirmedEvidence(t *testing.T) {
+// D-615 as amended by D-616 (S-TIER-4): a KEV CVE published more than 12 months ago keeps every match that compared a version
+// (agent, SNMP or LLDP, a person's entry, a banner) with its usual label; only a product-only match (no version compared) is
+// dropped. A recent CVE and one with no known published day keep today's rules.
+func TestMatchAsset_D615_OldKEVDropsOnlyProductOnly(t *testing.T) {
 	t.Parallel()
 	old, recent := t0.AddDate(-2, 0, 0), t0.AddDate(0, -1, 0)
 	ranged := func(pub time.Time) []Vuln {
@@ -22,27 +22,21 @@ func TestMatchAsset_D615_OldKEVNeedsConfirmedEvidence(t *testing.T) {
 	}
 	productOnly := func(pub time.Time) []Vuln { v := qnapVuln(); v.Published = pub; return []Vuln{v} }
 	agent := func(ver string) Asset { a := nas(ver); a.Software[0].Source = "agent"; return a }
-	snmpRow := func(ver string) Asset { a := nas(ver); a.Software[0].Source = "snmp"; return a }
 	for name, tc := range map[string]struct {
 		a       Asset
 		vulns   []Vuln
 		want    Basis // "" = no finding
 		agentEv bool
 	}{
-		"old, banner version inside":       {nas("6.1.1"), ranged(old), "", false},
-		"old, product only":                {nas("6.1.1"), productOnly(old), "", false},
-		"old, agent version inside":        {agent("6.1.1"), ranged(old), BasisVersion, true},
-		"recent, banner version":           {nas("6.1.1"), ranged(recent), BasisVersion, false},
-		"recent, product only":             {nas("6.1.1"), productOnly(recent), BasisProduct, false},
-		"unknown day, banner version":      {nas("6.1.1"), ranged(time.Time{}), BasisVersion, false},
-		"unknown day, product only":        {nas("6.1.1"), productOnly(time.Time{}), BasisProduct, false},
-		"just inside 12 months":            {nas("6.1.1"), ranged(t0.Add(-AgeLimit + time.Hour)), BasisVersion, false},
-		"just over 12 months":              {nas("6.1.1"), ranged(t0.Add(-AgeLimit - time.Hour)), "", false},
-		"old, banner version outside":      {nas("6.2.0"), ranged(old), "", false},
-		"old, agent version outside":       {agent("6.2.0"), ranged(old), "", false},
-		"old, banner, existing pair":       {nas("6.1.1"), ranged(old), "", false},
-		"recent, agent version inside":     {agent("6.1.1"), ranged(recent), BasisVersion, true},
-		"old, SNMP version inside (D-616)": {snmpRow("6.1.1"), ranged(old), BasisVersion, false},
+		"old, product only":              {nas("6.1.1"), productOnly(old), "", false},
+		"old, banner version inside":     {nas("6.1.1"), ranged(old), BasisVersion, false},
+		"old, agent version inside":      {agent("6.1.1"), ranged(old), BasisVersion, true},
+		"old, banner version outside":    {nas("6.2.0"), ranged(old), "", false},
+		"recent, product only":           {nas("6.1.1"), productOnly(recent), BasisProduct, false},
+		"recent, banner version":         {nas("6.1.1"), ranged(recent), BasisVersion, false},
+		"unknown day, product only":      {nas("6.1.1"), productOnly(time.Time{}), BasisProduct, false},
+		"product only, just inside year": {nas("6.1.1"), productOnly(t0.Add(-AgeLimit + time.Hour)), BasisProduct, false},
+		"product only, just over a year": {nas("6.1.1"), productOnly(t0.Add(-AgeLimit - time.Hour)), "", false},
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -58,27 +52,24 @@ func TestMatchAsset_D615_OldKEVNeedsConfirmedEvidence(t *testing.T) {
 			}
 		})
 	}
-	// the unconfirmed old match is in Aged with the sentence that closes a finding of it
-	res := MatchAsset(nas("6.1.1"), ranged(old), map[string]bool{"CVE-2022-27593": true}, t0)
+	// the product-only old match is in Aged with the sentence that closes a finding of it
+	res := MatchAsset(nas("6.1.1"), productOnly(old), map[string]bool{"CVE-2022-27593": true}, t0)
 	if len(res.Existing) != 0 || len(res.Aged) != 1 || !strings.HasPrefix(res.Aged[0].Evidence.Summary, AgedNote+": CVE-2022-27593 was published on 9 Nov 2024") {
 		t.Fatalf("existing %+v, aged %+v", res.Existing, res.Aged)
 	}
-	// D-615: no "add the version" item for an old CVE (a typed version would not be confirmed evidence); a recent one keeps it
-	if res := MatchAsset(nas(""), ranged(old), nil, t0); len(res.NeedVersion) != 0 || len(res.New) != 0 {
+	// a version would decide an old CVE too, so the "add the version" item still counts it
+	if res := MatchAsset(nas(""), ranged(old), nil, t0); len(res.NeedVersion) != 1 || len(res.New) != 0 {
 		t.Fatalf("old CVE, no version: %+v", res)
-	}
-	if res := MatchAsset(nas(""), ranged(recent), nil, t0); len(res.NeedVersion) != 1 {
-		t.Fatalf("recent CVE, no version: %+v", res)
 	}
 }
 
-// D-615, S-TIER-4: an open finding of an old KEV CVE that rests on no confirmed evidence closes with the reason in its history
-// (never deleted, no alert: notify ignores not_relevant), and reopens when confirmed evidence arrives (the agent here). A
-// finding a scan confirmed, or one a person reopened, never closes for its age.
+// D-615, D-616, S-TIER-4: an open product-only finding of an old KEV CVE closes with the reason in its history (never deleted,
+// no alert: notify ignores not_relevant), and reopens when a version can be compared and is affected. A finding a scan
+// confirmed, or one a person reopened, never closes for its age.
 func TestContract_D615_AgedFindingClosesAndReopens(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	v := qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}})
+	v := qnapVuln() // no NVD ranges: a product-only match
 	upsert := func(a Asset, pub time.Time) {
 		t.Helper()
 		e.advance(time.Minute)
@@ -96,9 +87,9 @@ func TestContract_D615_AgedFindingClosesAndReopens(t *testing.T) {
 		}
 		return r
 	}
-	upsert(nas("6.1.1"), time.Time{}) // before nvd-kev stored the day: counts as recent, a version finding
+	upsert(nas("6.1.1"), time.Time{}) // before nvd-kev stored the day: counts as recent, a product finding (no NVD ranges)
 	e.pub.take()
-	upsert(nas("6.1.1"), t0.AddDate(-3, 0, 0)) // the day arrives: old, banner version only
+	upsert(nas("6.1.1"), t0.AddDate(-3, 0, 0)) // the day arrives: old, product only
 	r := load()
 	if r.Status != StatusNotRelevant || r.ResolvedBy != SystemUser || r.ResolutionReason != ReasonNotAffectedVersion || !strings.HasPrefix(r.ResolutionNote, AgedNote) {
 		t.Fatalf("not closed for its age: %+v", r.Finding)
@@ -113,16 +104,16 @@ func TestContract_D615_AgedFindingClosesAndReopens(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'findings.auto_resolved' AND detail LIKE '%D-615%'`); n != 1 {
 		t.Fatalf("audit rows %d", n)
 	}
-	a := nas("6.1.1")
-	a.Software[0].Source = "agent"
-	upsert(a, t0.AddDate(-3, 0, 0)) // the agent reports the version: confirmed evidence
+	v = qnapVuln(Affected{CPE: qnapCPE, Range: VersionRange{EndExcl: "6.1.2"}}) // NVD's ranges arrive: 6.1.1 is inside
+	upsert(nas("6.1.1"), t0.AddDate(-3, 0, 0))
 	if r = load(); r.Status != StatusSuspected || r.ResolutionNote != "" {
 		t.Fatalf("not reopened: %+v", r.Finding)
 	}
-	if last := r.History[len(r.History)-1]; last.Action != "matches_again" || !strings.Contains(last.Note, "older than 12 months") {
+	if last := r.History[len(r.History)-1]; last.Action != "matches_again" || !strings.Contains(last.Note, "older than 12 months and matched by the product name only") {
 		t.Fatalf("reopen row %+v", last)
 	}
 
+	v = qnapVuln()
 	// a scan-confirmed finding stays open whatever its age
 	s := newEnv(t)
 	if _, err := s.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), []Vuln{v}); err != nil {
@@ -186,8 +177,8 @@ func TestPlan_HonestStateBeforeTheMatcher(t *testing.T) {
 // D-615 measured on the real fixtures: the KEV entries and NVD ranges of the golden set, the N23 Juniper set and the N22
 // Office set, with each CVE's real published day (testdata/kev-published.json), on the devices the golden tests use. Each
 // device starts with the flood the old matcher left (a finding for every KEV CVE of its products) and is matched again:
-// the counts are the open findings the age rule closes, by basis. A patched Ubuntu server whose versions come from its
-// agent loses nothing to the rule.
+// the counts are the open findings the age rule closes, by basis: only product-only ones (D-616), so a FortiGate 6.2.0 read
+// from a banner keeps its old exploited CVEs (CVE-2018-13379 class).
 func TestGolden_D615_WhatTheAgeRuleCloses(t *testing.T) {
 	t.Parallel()
 	b, err := os.ReadFile("testdata/kev-published.json")
@@ -260,9 +251,11 @@ func TestGolden_D615_WhatTheAgeRuleCloses(t *testing.T) {
 		}
 		totP, totV, totKept, totOpen = totP+p, totV+v, totKept+len(after.Existing), totOpen+len(before.Existing)
 	}
-	t.Logf("all devices: %d open findings before; the age rule closes %d product-only and %d banner/typed-version ones; %d stay", totOpen, totP, totV, totKept)
-	if totOpen != 107 || totP != 12 || totV != 68 || totKept != 27 { // pinned: a change of the rule or the data shows here
-		t.Errorf("before %d, closed product %d, version %d, kept %d; want 107, 12, 68, 27", totOpen, totP, totV, totKept)
+	t.Logf("all devices: %d open findings before; the age rule closes %d product-only and %d version ones; %d stay", totOpen, totP, totV, totKept)
+	// pinned: a change of the rule or the data shows here. D-616: only product-only findings close (the first build, which also
+	// closed banner and typed versions, closed 12 + 68 and kept 27; supervisor 2026-11-15: too strict for unpatched gear).
+	if totOpen != 107 || totP != 12 || totV != 0 || totKept != 95 {
+		t.Errorf("before %d, closed product %d, version %d, kept %d; want 107, 12, 0, 95", totOpen, totP, totV, totKept)
 	}
 }
 

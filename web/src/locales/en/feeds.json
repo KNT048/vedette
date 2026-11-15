@@ -122,7 +122,7 @@
     "notAffected_other": "{{count}} devices run this product but are not affected: Vedette checked their platform (see their findings).",
     "published": "Published",
     "publishedUnknown": "Not known yet (NVD has not answered for it)",
-    "oldNote": "Published {{date}}, more than 12 months ago. Vedette makes a finding for it only when a scan, the device's agent or its distribution confirms it: a match by the product name or by a version read from a banner is not enough for an old CVE. The devices below run the product; to confirm, install the agent on them or scan them."
+    "oldNote": "Published {{date}}, more than 12 months ago. For an old CVE, Vedette makes a finding only when it can compare a version (or a scan finds it): a device that matches by the product name alone is listed below but is not a finding. To check such a device, add its version, install the agent on it or scan it."
   },
   "settings": {
     "nav": "Feeds",

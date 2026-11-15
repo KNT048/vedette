@@ -45,7 +45,7 @@ export const KevInfo = z.object({
   name: z.string(), vendor: z.string(), product: z.string(), display: z.string(), required_action: z.string(), links: z.array(z.string()),
   date_added: z.string(), due_date: z.string().nullable(), ransomware: z.boolean(), epss: z.number().nullable(), has_template: z.boolean(),
   source: z.enum(['cisa-kev', 'vulncheck-kev']).optional().describe('Which list the entry is on (D-557): texts and the source badge name it; an entry of VulnCheck KEV is never called CISA\'s'),
-  published: z.iso.date().nullable().describe('D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE needs confirmed evidence, a missing date never closes a finding)'),
+  published: z.iso.date().nullable().describe('D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only match (D-616), and a missing date never closes a finding)'),
 })
 export const FindingAsset = z.object({
   id: z.string(), name: z.string().describe('The name the Devices page shows: hostname, else vendor and model, else the IP, else the software; never the internal id (D-484)'),

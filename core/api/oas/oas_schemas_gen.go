@@ -53880,8 +53880,8 @@ type FeedsGetFeedsCveIDOK struct {
 	NotAffected OptInt `json:"not_affected"`
 	Product     string `json:"product"`
 	// D-615: the day NVD published the CVE (never CISA's date_added); null when NVD has not answered for
-	// it. Older than 12 months: a device becomes a finding only on confirmed evidence (a scan, the agent,
-	// the distribution), so matched lists devices that run the product without being findings.
+	// it. Older than 12 months: a device that matches by the product name only (no version compared) is
+	// not a finding (D-616), so matched may list devices that are not findings.
 	Published      NilString `json:"published"`
 	Ransomware     bool      `json:"ransomware"`
 	RequiredAction string    `json:"required_action"`
@@ -63241,8 +63241,8 @@ type FindingsGetFindingsIDOKKev struct {
 	Name        string     `json:"name"`
 	Product     string     `json:"product"`
 	// D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD
-	// has not answered for it (then it counts as recent: an older CVE needs confirmed evidence, a missing
-	// date never closes a finding).
+	// has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only
+	// match (D-616), and a missing date never closes a finding).
 	Published      NilDate `json:"published"`
 	Ransomware     bool    `json:"ransomware"`
 	RequiredAction string  `json:"required_action"`
@@ -65498,8 +65498,8 @@ type FindingsGetFindingsOKItemsItemKev struct {
 	Name        string     `json:"name"`
 	Product     string     `json:"product"`
 	// D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD
-	// has not answered for it (then it counts as recent: an older CVE needs confirmed evidence, a missing
-	// date never closes a finding).
+	// has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only
+	// match (D-616), and a missing date never closes a finding).
 	Published      NilDate `json:"published"`
 	Ransomware     bool    `json:"ransomware"`
 	RequiredAction string  `json:"required_action"`
@@ -69577,8 +69577,8 @@ type FindingsPostFindingsIDAiOKKev struct {
 	Name        string     `json:"name"`
 	Product     string     `json:"product"`
 	// D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD
-	// has not answered for it (then it counts as recent: an older CVE needs confirmed evidence, a missing
-	// date never closes a finding).
+	// has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only
+	// match (D-616), and a missing date never closes a finding).
 	Published      NilDate `json:"published"`
 	Ransomware     bool    `json:"ransomware"`
 	RequiredAction string  `json:"required_action"`
@@ -72818,8 +72818,8 @@ type FindingsPostFindingsIDAppliedOKKev struct {
 	Name        string     `json:"name"`
 	Product     string     `json:"product"`
 	// D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD
-	// has not answered for it (then it counts as recent: an older CVE needs confirmed evidence, a missing
-	// date never closes a finding).
+	// has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only
+	// match (D-616), and a missing date never closes a finding).
 	Published      NilDate `json:"published"`
 	Ransomware     bool    `json:"ransomware"`
 	RequiredAction string  `json:"required_action"`
@@ -76080,8 +76080,8 @@ type FindingsPostFindingsIDStatusOKKev struct {
 	Name        string     `json:"name"`
 	Product     string     `json:"product"`
 	// D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD
-	// has not answered for it (then it counts as recent: an older CVE needs confirmed evidence, a missing
-	// date never closes a finding).
+	// has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only
+	// match (D-616), and a missing date never closes a finding).
 	Published      NilDate `json:"published"`
 	Ransomware     bool    `json:"ransomware"`
 	RequiredAction string  `json:"required_action"`

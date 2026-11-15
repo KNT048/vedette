@@ -28157,7 +28157,7 @@
                           "type": "null"
                         }
                       ],
-                      "description": "D-615: the day NVD published the CVE (never CISA's date_added); null when NVD has not answered for it. Older than 12 months: a device becomes a finding only on confirmed evidence (a scan, the agent, the distribution), so matched lists devices that run the product without being findings"
+                      "description": "D-615: the day NVD published the CVE (never CISA's date_added); null when NVD has not answered for it. Older than 12 months: a device that matches by the product name only (no version compared) is not a finding (D-616), so matched may list devices that are not findings"
                     }
                   },
                   "required": [
@@ -30754,7 +30754,7 @@
                                         "type": "null"
                                       }
                                     ],
-                                    "description": "D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE needs confirmed evidence, a missing date never closes a finding)"
+                                    "description": "D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only match (D-616), and a missing date never closes a finding)"
                                   }
                                 },
                                 "required": [
@@ -31462,7 +31462,7 @@
                                   "type": "null"
                                 }
                               ],
-                              "description": "D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE needs confirmed evidence, a missing date never closes a finding)"
+                              "description": "D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only match (D-616), and a missing date never closes a finding)"
                             }
                           },
                           "required": [
@@ -32714,7 +32714,7 @@
                                   "type": "null"
                                 }
                               ],
-                              "description": "D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE needs confirmed evidence, a missing date never closes a finding)"
+                              "description": "D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only match (D-616), and a missing date never closes a finding)"
                             }
                           },
                           "required": [
@@ -33968,7 +33968,7 @@
                                   "type": "null"
                                 }
                               ],
-                              "description": "D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE needs confirmed evidence, a missing date never closes a finding)"
+                              "description": "D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only match (D-616), and a missing date never closes a finding)"
                             }
                           },
                           "required": [
@@ -35234,7 +35234,7 @@
                                   "type": "null"
                                 }
                               ],
-                              "description": "D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE needs confirmed evidence, a missing date never closes a finding)"
+                              "description": "D-615: the day the CVE was published (NVD `published`), never the day CISA added it; null when NVD has not answered for it (then it counts as recent: an older CVE is not a finding on a product-only match (D-616), and a missing date never closes a finding)"
                             }
                           },
                           "required": [

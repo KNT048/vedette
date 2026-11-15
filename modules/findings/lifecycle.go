@@ -156,8 +156,8 @@ func (f Finding) ReopenOnMatch(now time.Time) (Finding, HistoryEntry, bool) {
 		return f, HistoryEntry{}, false
 	}
 	note := "The device matches this entry again, so Vedette reopened it (it had closed it as not affected)."
-	if strings.HasPrefix(f.ResolutionNote, AgedNote) { // D-615: closed for its age, and confirmed evidence came
-		note = "A scan, the device's agent or its distribution now confirms this CVE, so Vedette reopened it (it had closed it as older than 12 months without confirmed evidence)."
+	if strings.HasPrefix(f.ResolutionNote, AgedNote) { // D-615, D-616: closed for its age, and a version can now be compared
+		note = "Vedette can now compare the device's version with this CVE and it is affected, so Vedette reopened it (it had closed it as older than 12 months and matched by the product name only)."
 	}
 	f.Status, f.ResolvedBy, f.ResolvedAt, f.ResolutionNote, f.ResolutionReason = StatusSuspected, "", time.Time{}, "", ""
 	return f, HistoryEntry{TS: now, User: SystemUser, Action: "matches_again", Note: note}, true

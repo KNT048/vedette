@@ -5,6 +5,7 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/knt048/vedette/core/observe"
@@ -136,6 +137,7 @@ func TestSNMPReadNowStoppedWhileItStartsSendsNothing(t *testing.T) {
 	w.inv.mu.Lock()
 	w.inv.onAddresses = nil
 	w.inv.mu.Unlock()
+	w.svc.Resume()
 	if _, err := w.svc.ReadSNMP(t.Context(), "a", c.ID); err != nil {
 		t.Fatal(err)
 	}
@@ -205,7 +207,8 @@ func TestSNMPReadNowIsOneAtATimeAndStops(t *testing.T) {
 	if w.count(`SELECT count(*) FROM sa_job WHERE reason = 'snmp_read' AND status = 'stopped'`) != 1 {
 		t.Fatal("the job is not closed as stopped")
 	}
-	// The next read may start once the first ended.
+	// The module turned on again: the next read may start once the first ended.
+	w.svc.Resume()
 	r.mu.Lock()
 	r.answer = nil
 	r.mu.Unlock()
@@ -214,5 +217,45 @@ func TestSNMPReadNowIsOneAtATimeAndStops(t *testing.T) {
 	}
 	if got := w.waitRead(other.ID); got.Status != "done" || got.Answered != 2 {
 		t.Fatalf("second read %+v", got)
+	}
+}
+
+// SYS-5 (review #855 r2 L1): the module turned off in the two windows without any I/O still sends nothing. (b) Off before Read now
+// starts (the request passed the module gate while it was on): 409 stopped. (a) Off after a batch passed the read's own check but
+// before it registered (nothing to cancel yet): the batch sees the sticky flag and the read ends stopped. A Test is held the same way.
+// Turned on again, reads run.
+func TestSNMPReadNowModuleOffInEitherWindowSendsNothing(t *testing.T) {
+	t.Parallel()
+	r := &fakeReader{}
+	w := newSNMPWorld(t, r)
+	c := w.add(v2cInput("all", "s3cret-community"))
+
+	w.svc.Stop() // (b)
+	if _, err := w.svc.ReadSNMP(t.Context(), "a", c.ID); apiCode(err) != "stopped" {
+		t.Fatalf("(b) a read after the module went off: %v", err)
+	}
+	if res, err := w.svc.TestSNMP(t.Context(), "a", c.ID, "192.168.10.20"); err == nil && res.OK {
+		t.Fatalf("a Test while the module is off: %+v", res)
+	}
+	w.svc.Resume()
+
+	var once sync.Once // (a)
+	sa.SetBeforeSNMPBatch(w.svc, func() { once.Do(w.svc.Stop) })
+	if _, err := w.svc.ReadSNMP(t.Context(), "a", c.ID); err != nil {
+		t.Fatalf("(a) start: %v", err)
+	}
+	if got := w.waitRead(c.ID); got.Status != "stopped" || got.Answered != 0 {
+		t.Fatalf("(a) a batch the module stopped before it registered: %+v", got)
+	}
+	if len(r.sent()) != 0 || len(w.sink.observations()) != 0 {
+		t.Fatalf("the credential left after the module went off: %d jobs", len(r.sent()))
+	}
+
+	w.svc.Resume()
+	if _, err := w.svc.ReadSNMP(t.Context(), "a", c.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := w.waitRead(c.ID); got.Status != "done" || got.Answered != 2 {
+		t.Fatalf("the module on again: %+v", got)
 	}
 }

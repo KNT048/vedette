@@ -800,3 +800,40 @@ func TestWazuh_AgentAddressesFollowTheServer(t *testing.T) {
 		t.Fatalf("a new connection before its first pull lists %v %v %v", ips, macs, err)
 	}
 }
+
+// Review #855 r2 L2: a saved connection's generation never repeats a deleted one's, so a pull of the old connection still running
+// (it read the generation before the delete) cannot pass as the new connection: what it records is dropped.
+func TestWazuh_ANewConnectionNeverTakesAnOldGeneration(t *testing.T) {
+	r := newWzRig(t)
+	gen := func() int64 {
+		t.Helper()
+		var g int64
+		if err := r.db.Reader().QueryRowContext(t.Context(), `SELECT generation FROM intake_wazuh WHERE id = 1`).Scan(&g); err != nil {
+			t.Fatal(err)
+		}
+		return g
+	}
+	r.save()
+	old := gen()
+	if res := r.admin("DELETE", "/inventory/agents/wazuh", nil); res.code != 204 {
+		t.Fatalf("delete: %d %s", res.code, res.raw)
+	}
+	r.save()
+	if now := gen(); now == old || now < 2 {
+		t.Fatalf("the new connection took generation %d (the deleted one had %d)", now, old)
+	}
+	if err := r.svc.WazuhAgentSeenForTest(t.Context(), "001", old, netip.MustParseAddr("192.0.2.21")); err != nil {
+		t.Fatal(err)
+	}
+	if n := r.count(`SELECT count(*) FROM intake_wazuh_agent`); n != 0 {
+		t.Fatalf("the old connection's pull wrote %d rows for the new one", n)
+	}
+	if ips, _, _ := r.svc.WazuhAgentAddresses(t.Context()); len(ips) != 0 {
+		t.Fatalf("listed %v", ips)
+	}
+	// The pull of the connection saved now still records its agents.
+	r.pull()
+	if ips, _, _ := r.svc.WazuhAgentAddresses(t.Context()); len(ips) != 2 {
+		t.Fatalf("the current connection's agents: %v", ips)
+	}
+}

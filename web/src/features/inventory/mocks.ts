@@ -239,7 +239,7 @@ const scanInfo = (a: Asset) => ({
 /** The wire shape adds the source of the kind and the rules' guess, only while the kind is unknown (D-511). */
 const live = (a: Asset) => ({ ...a, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null })
 /** #849: what feeds a device, in the words of the Devices search. Agent data is osquery's when osquery reports the device (its node is
- * bound to it), Wazuh's when only the saved Wazuh connection delivered it, and neither once that connection is deleted. */
+ * bound to it) and Wazuh's when the saved Wazuh connection delivered it (both when both do); not Wazuh's once that connection is gone. */
 const DEVICE_SOURCES: readonly DeviceSource[] = ['manual', 'passive', 'scan', 'snmp', 'osquery', 'wazuh']
 function sourcesOf(a: Asset): DeviceSource[] {
   const has = new Set<DeviceSource>()
@@ -248,8 +248,9 @@ function sourcesOf(a: Asset): DeviceSource[] {
     if (src === 'passive' || src === 'snmp') has.add(src)
     else if (src === 'nmap' || src === 'scan') has.add('scan')
     else if (src === 'agent' && a.id !== BOX_ID) {
-      if (agentFeedStore.get()[a.id] !== 'wazuh') has.add('osquery')
-      else if (wazuhStore.get()) has.add('wazuh')
+      const mark = agentFeedStore.get()[a.id]
+      if (!mark || mark.osquery) has.add('osquery')
+      if (mark?.wazuh && wazuhStore.get()) has.add('wazuh')
     }
   }
   return DEVICE_SOURCES.filter((x) => has.has(x))
@@ -421,10 +422,10 @@ function checkWazuhInput(b: Partial<WazuhInput>, prev: StoredWazuh | null): { st
   return null
 }
 /** Mô phỏng một lần agent/Wazuh báo về: tới 3 máy chủ hoặc máy tính nhận phần mềm nguồn "agent" (tin cậy cao) và một quan sát hệ điều hành. */
-/** #849: which agent reports each device. osquery binds its node to the device (agent_key), so a device osquery reports says osquery
- * whatever Wazuh does; Wazuh only marks the devices its pull delivered to (the box's intake_wazuh_agent). Agent data of the sample
- * fixtures is osquery's. */
-const agentFeedStore = collection<Record<string, 'osquery' | 'wazuh'>>('agent_feed', () => ({}), () => ({}))
+/** #849: which agents report each device, as the box tells them apart: osquery by its node bound to the device (agent_key), Wazuh by
+ * the addresses its pull delivered to (intake_wazuh_agent). A device both report says both. Agent data of the sample fixtures with no
+ * mark is osquery's. */
+const agentFeedStore = collection<Record<string, { osquery?: true; wazuh?: true }>>('agent_feed', () => ({}), () => ({}))
 function injectSample(feed: 'osquery' | 'wazuh'): { devices: number; software: number } | { err: string } {
   const targets = allAssets().filter((a) => a.id !== BOX_ID && a.approved && (a.kind === 'server' || a.kind === 'pc')).slice(0, 3)
   if (!targets.length) return { err: 'There is no server or computer in the device list to match yet. Add a device first, then send sample data.' }
@@ -438,7 +439,7 @@ function injectSample(feed: 'osquery' | 'wazuh'): { devices: number; software: n
     matchAssetToKev(a.id)
     addObs(a, 'os', a.os?.value ?? (windows ? 'Windows Server 2019 (build 17763)' : 'Ubuntu 22.04.4 LTS'), 'agent', 0.95)
     added += sw.length
-    agentFeedStore.update((m) => (m[a.id] === 'osquery' ? m : { ...m, [a.id]: feed })) // a bound osquery node is never overridden
+    agentFeedStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], [feed]: true } }))
   }
   return { devices: targets.length, software: added }
 }
@@ -1115,7 +1116,7 @@ export const handlers = [
     const run: SnmpRead = { id: newId('saj'), credential_id: c.id, by: currentUser()?.email ?? 'admin@example.com', started_at: nowIso(), finished_at: nowIso(), status: 'done', message: null,
       total: targets.length, done: targets.length, answered, skipped: inScope.length - targets.length, results }
     snmpReads[c.id] = { ...run, status: 'running' }
-    if (targets.length) audit('inventory.snmp_read', c.name, `${targets.length} approved devices, ${run.skipped} skipped`)
+    audit('inventory.snmp_read', c.name, `${targets.length} approved devices, ${run.skipped} skipped`) // every read, one with no target too
     queueMicrotask(() => { snmpReads[c.id] = run })
     return HttpResponse.json({ ...run, status: 'running', finished_at: null, done: 0, answered: 0, results: [] } satisfies SnmpRead, { status: 202 })
   }),

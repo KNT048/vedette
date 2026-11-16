@@ -29597,7 +29597,8 @@ func (s *Server) handleInventoryPostInventorySnmpRequest(args [0]string, argsEsc
 //
 // Read now every approved device in this credential's scope (read-only GETs from the scan container,
 // logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the
-// window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent.
+// window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent;
+// 409 stopped when active discovery was turned off while the read started.
 //
 // POST /inventory/snmp/{id}/read
 func (s *Server) handleInventoryPostInventorySnmpIDReadRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29676,7 +29677,7 @@ func (s *Server) handleInventoryPostInventorySnmpIDReadRequest(args [1]string, a
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPostInventorySnmpIDReadOperation,
-			OperationSummary: "Read now every approved device in this credential's scope (read-only GETs from the scan container, logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent",
+			OperationSummary: "Read now every approved device in this credential's scope (read-only GETs from the scan container, logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent; 409 stopped when active discovery was turned off while the read started",
 			OperationID:      "inventory_post_inventory_snmp_id_read",
 			Body:             nil,
 			RawBody:          rawBody,

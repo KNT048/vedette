@@ -2,7 +2,9 @@ package agentintake
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -306,8 +308,14 @@ func (s *Service) SaveWazuh(ctx context.Context, actor string, in WazuhInput) (W
 			if err != nil {
 				return fmt.Errorf("agentintake: seal wazuh password: %w", err)
 			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO intake_wazuh (id, url, username, secret_id, password_last4, interval_minutes, tls_pin, tls_pin_first_seen, next_pull, updated_at) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-				c.origin, c.user, id, last4, c.interval, pin, ts, ts, ts); err != nil {
+			// A new connection's generation never repeats one of a deleted connection (a row of 1 would be the default's again): a
+			// pull of the old connection still running would otherwise pass current() and write as the new one (review #855 r2 L2).
+			gen, err := newGeneration()
+			if err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT INTO intake_wazuh (id, url, username, secret_id, password_last4, interval_minutes, tls_pin, tls_pin_first_seen, next_pull, updated_at, generation) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				c.origin, c.user, id, last4, c.interval, pin, ts, ts, ts, gen); err != nil {
 				return fmt.Errorf("agentintake: insert wazuh: %w", err)
 			}
 			// A new connection starts again at generation 1: no row of an earlier one may count as its agent (#855 r1 M1).
@@ -468,7 +476,9 @@ func (s *Service) WazuhPull(ctx context.Context) error {
 // osquery by them).
 func (s *Service) wazuhAgentSeen(ctx context.Context, id string, generation int64, ip netip.Addr, mac string) error {
 	return s.db.Write(ctx, func(tx *sql.Tx) error {
-		_, err := tx.ExecContext(ctx, `INSERT INTO intake_wazuh_agent (agent_id, generation, ip, mac, seen_at) VALUES (?, ?, ?, ?, ?)
+		// Only for the connection saved now: a pull of a deleted or replaced one writes nothing here (review #855 r2 L2).
+		_, err := tx.ExecContext(ctx, `INSERT INTO intake_wazuh_agent (agent_id, generation, ip, mac, seen_at)
+			SELECT ?1, ?2, ?3, ?4, ?5 WHERE EXISTS (SELECT 1 FROM intake_wazuh WHERE id = 1 AND generation = ?2)
 			ON CONFLICT (agent_id) DO UPDATE SET generation = excluded.generation, ip = excluded.ip, mac = excluded.mac, seen_at = excluded.seen_at`,
 			id, generation, ip.String(), mac, store.FormatTS(s.now()))
 		if err != nil {
@@ -476,6 +486,16 @@ func (s *Service) wazuhAgentSeen(ctx context.Context, id string, generation int6
 		}
 		return nil
 	})
+}
+
+// newGeneration is the generation of a newly saved connection: random, positive, below 2^53 (edits add one), so it never repeats one
+// of a deleted connection in practice.
+func newGeneration() (int64, error) {
+	var b [8]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return 0, fmt.Errorf("agentintake: wazuh generation: %w", err)
+	}
+	return int64(binary.BigEndian.Uint64(b[:])>>11) + 2, nil
 }
 
 // WazuhAgentAddresses lists the addresses and MACs (aa:bb:cc:dd:ee:ff) of the agents the saved Wazuh connection's pulls delivered to

@@ -60,9 +60,13 @@ func (r *SNMPRead) clone() SNMPRead {
 // ReadSNMP starts a Read now of credential id (POST /inventory/snmp/{id}/read) and answers at once with the run. 409 when nothing can
 // be sent (scanning off, the scope not confirmed, SNMP unavailable) or another SNMP job runs (busy).
 func (s *Service) ReadSNMP(ctx context.Context, actor, id string) (SNMPRead, error) {
-	// The module's stop generation before anything else: a Stop (module off) at any point from here on stops the read before a
-	// packet leaves, even one that came while snmpCur was still empty and had nothing to cancel (#855 r1 M2, SYS-5).
+	// The module's stop generation before anything else, and the sticky off flag: a module turned off before or while the read is
+	// prepared answers 409 stopped, and one turned off later stops the next batch (snmpBatch checks off once registered; #855 r1 M2,
+	// r2 L1, SYS-5).
 	stops := s.stops.Load()
+	if s.off.Load() {
+		return SNMPRead{}, stoppedRead()
+	}
 	if s.secrets == nil {
 		return SNMPRead{}, snmpOff()
 	}
@@ -110,9 +114,9 @@ func (s *Service) ReadSNMP(ctx context.Context, actor, id string) (SNMPRead, err
 	if err == nil {
 		jobID, err = s.startJob(ctx, KindSNMP, snmpReasonRead, len(targets))
 	}
-	if err == nil && s.stops.Load() != stops {
+	if err == nil && (s.stops.Load() != stops || s.off.Load()) {
 		s.closeSNMPJob(ctx, jobID, 0, ErrStopped)
-		err = apierr.New(409, "stopped", "The read was stopped before anything was sent: active discovery was turned off.")
+		err = stoppedRead()
 	}
 	if err != nil {
 		s.snmpMu.Unlock()
@@ -131,6 +135,10 @@ func (s *Service) ReadSNMP(ctx context.Context, actor, id string) (SNMPRead, err
 	// The read outlives the request; the module turned off (Stop) stops its batch, and the read before the next one.
 	go s.runSNMPRead(context.WithoutCancel(ctx), run, *cred, targets, stops, done)
 	return out, nil
+}
+
+func stoppedRead() *apierr.Error {
+	return apierr.New(409, "stopped", "The read was stopped before anything was sent: active discovery was turned off.")
 }
 
 // SNMPReadOf is the read of credential id that runs now or the last one since the box started (GET /inventory/snmp/{id}/read); nil
@@ -212,7 +220,7 @@ func (s *Service) runSNMPRead(ctx context.Context, run *SNMPRead, cred snmpRow, 
 			s.snmpMu.Lock()
 		}
 		held = false
-		if s.stops.Load() != stops {
+		if s.stops.Load() != stops || s.off.Load() {
 			s.snmpMu.Unlock()
 			err = ErrStopped
 			break

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { collection } from '@/mocks/db'
-import { sessionStore } from '@/mocks/stores'
+import { auditStore, sessionStore } from '@/mocks/stores'
 import { ensureBox } from './mocks'
 
 // #849: the mock of the Devices search and of SNMP Read now answers as the backend does (modules/inventory devicesquery.go,
@@ -31,7 +31,7 @@ describe('Devices search (#849)', () => {
     expect((await call('GET', '/devices?approved=true&approved=true&q=nothing-like-this')).json!.items).toEqual([])
   })
 
-  it('says wazuh only for what Wazuh alone reports; an osquery-bound device stays osquery (r1 L2)', async () => {
+  it('says wazuh for what Wazuh reports and osquery for what osquery reports, both when both do (r1 L2, r2 L3)', async () => {
     collection<unknown>('intake_wazuh', () => null).set({ url: 'https://wazuh.example:55000', username: 'vedette', password: 'x', password_last4: '', interval_minutes: 60, status: 'never', last_sync: null, agents: 0, packages: 0, error: null })
     expect((await call('POST', '/agents/wazuh/sample-data')).status).toBe(200)
     const wz = (await call('GET', '/devices?source=wazuh')).json!.items as { id: string; sources: string[] }[]
@@ -39,8 +39,7 @@ describe('Devices search (#849)', () => {
     expect(wz.every((d) => !d.sources.includes('osquery'))).toBe(true)
     expect((await call('POST', '/agents/tokens/tk-osquery/sample-data')).status).toBe(200) // the same machines enrol osquery
     const all = (await call('GET', '/devices')).json!.items as { id: string; sources: string[] }[]
-    for (const d of wz) expect(all.find((x) => x.id === d.id)!.sources).toContain('osquery')
-    expect(all.some((d) => d.sources.includes('osquery') && d.sources.includes('wazuh'))).toBe(false)
+    for (const d of wz) expect(all.find((x) => x.id === d.id)!.sources).toEqual(expect.arrayContaining(['osquery', 'wazuh']))
   })
 
   it('refuses unknown words like the backend', async () => {
@@ -61,5 +60,15 @@ describe('Devices search (#849)', () => {
     expect(done.status).toBe('done')
     expect(done.done).toBe(done.total)
     expect(done.results.every((r: { device_id: string | null }) => r.device_id)).toBe(true)
+  })
+
+  it('audits a Read now that finds no approved device too, as the box does (r2 L3)', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    const add = await fetch(`${BASE}/snmp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Empty range', version: 'v2c', community: 'public', scope: ['192.168.250.0/28'] }) })
+    const cred = await add.json()
+    const run = await call('POST', `/snmp/${cred.id}/read`)
+    expect(run.status).toBe(202)
+    expect(run.json!.total).toBe(0)
+    expect(auditStore.get().some((e) => e.action === 'inventory.snmp_read' && JSON.stringify(e).includes('Empty range'))).toBe(true)
   })
 })

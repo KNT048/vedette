@@ -100,6 +100,12 @@ type Service struct {
 	// stops is bumped by every Stop (the module turned off): a picked run or an external one that was still waiting for runMu when
 	// it came sees it move once it has the lock, and stops instead of starting (#723 review L4).
 	stops atomic.Uint64
+	// off is set by Stop and cleared by Resume (the module turned on again): while it is set no SNMP batch sends anything, whatever
+	// generation a read or a round captured (SYS-5; review #855 r2 L1: a Stop that came before the batch registered had nothing to
+	// cancel). Checked by snmpBatch right after it registers, and by Read now before it starts and before each batch.
+	off atomic.Bool
+	// beforeSNMPBatch, when set (tests only, export_test.go), runs as a batch starts, before it registers.
+	beforeSNMPBatch func()
 	// urgent counts the runs waiting in lockWithin (a Scan now identification, an exposure scan): while it is above zero the
 	// weekly scan of every port gives the slot up (review r1 M1).
 	urgent atomic.Int32
@@ -528,6 +534,7 @@ func (s *Service) setTargets(t []netip.Addr, rate int) {
 // identification for Scan now runs on the scan module's goroutine, so only this reaches it (D-501, review L3).
 func (s *Service) Stop() {
 	s.stops.Add(1)
+	s.off.Store(true) // before snmpCur is read under s.mu: a batch registering now either is seen here or sees off (snmpBatch)
 	s.mu.Lock()
 	cur, snmp := s.cur, s.snmpCur
 	s.mu.Unlock()
@@ -538,6 +545,9 @@ func (s *Service) Stop() {
 		snmp.cancel()
 	}
 }
+
+// Resume is the module turned on again: SNMP reads may be sent again (Stop's off flag is cleared).
+func (s *Service) Resume() { s.off.Store(false) }
 
 // isPicked says the registered run is an identification a person asked for (running.picked).
 func (s *Service) isPicked() bool {

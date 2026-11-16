@@ -1496,7 +1496,8 @@ type Handler interface {
 	//
 	// Read now every approved device in this credential's scope (read-only GETs from the scan container,
 	// logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the
-	// window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent.
+	// window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent;
+	// 409 stopped when active discovery was turned off while the read started.
 	//
 	// POST /inventory/snmp/{id}/read
 	InventoryPostInventorySnmpIDRead(ctx context.Context, params InventoryPostInventorySnmpIDReadParams) (*InventoryPostInventorySnmpIDReadAccepted, error)

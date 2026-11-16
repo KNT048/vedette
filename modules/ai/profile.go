@@ -34,6 +34,10 @@ type Profile struct {
 	APIKey        provider.Secret
 	Location      Location
 	MonthlyBudget int
+	// KeyLost: a key is saved but this box cannot open it, so APIKey is empty: it was sealed under another master key (a backup restored
+	// without its decryption key, or a key file made again, #847). Such a profile is never called and never tested with its saved key;
+	// it stays listed and assigned until the key is entered again (Edit) or it is deleted.
+	KeyLost bool
 	// AnthropicVersion overrides the anthropic-version header (YYYY-MM-DD); empty = the provider package default.
 	AnthropicVersion string
 }
@@ -109,7 +113,7 @@ func (p Profile) Validate() error {
 	if k := p.APIKey.Reveal(); k != "" && (len(k) < 8 || strings.IndexFunc(k, unicode.IsSpace) >= 0) {
 		return perr("invalid_key", "The API key is too short or contains spaces. Copy the whole key again from the provider's console.")
 	}
-	if p.Location == LocationCloud && !p.APIKey.IsSet() {
+	if p.Location == LocationCloud && !p.APIKey.IsSet() && !p.KeyLost {
 		return perr("key_required", "Enter the API key. It stays on this box and is encrypted.")
 	}
 	if !ValidMonthlyBudget(p.MonthlyBudget) {
@@ -151,8 +155,11 @@ func (p Profile) checkOwn(own provider.OwnSources) error {
 }
 
 // Usable reports whether the profile can be assigned and called: it has a key, or runs inside the network
-// where a key may be optional (INV-1).
-func (p Profile) Usable() bool { return p.APIKey.IsSet() || p.Location == LocationInternal }
+// where a key may be optional (INV-1). A profile whose saved key is lost is not usable: an internal one would otherwise be called without
+// the key it needs (#847).
+func (p Profile) Usable() bool {
+	return !p.KeyLost && (p.APIKey.IsSet() || p.Location == LocationInternal)
+}
 
 // Provider builds the client for this profile. http base URLs are only reachable here for internal profiles
 // because Validate refuses them otherwise. It does not know the machine's addresses, so Vedette's own ports are refused on every
@@ -231,6 +238,12 @@ func (a Assignments) Validate(profiles map[string]Profile) error {
 			switch {
 			case !ok:
 				return &AssignmentError{job, "unknown_profile", fmt.Sprintf("The %s profile for %s no longer exists. Pick another.", id.slot, job.Name())}
+			case p.KeyLost:
+				// #847: it was assigned while its key opened. It stays assigned (the router skips it, candidates) so a restore without the key
+				// does not wipe the assignments; the privacy rule still holds for where it runs.
+				if a.InternalOnly && job.CarriesInternalData() && p.Location != LocationInternal {
+					return &AssignmentError{job, "privacy_rule", fmt.Sprintf("%q runs in the cloud, but %s sends internal data and the privacy rule only allows internal profiles. Pick an internal profile or switch the rule off.", p.Name, job.Name())}
+				}
 			case !p.Usable():
 				return &AssignmentError{job, "profile_unusable", fmt.Sprintf("%q has no API key yet, so it cannot be assigned to %s. Edit the profile and add the key.", p.Name, job.Name())}
 			case !a.Allowed(job, p):

@@ -424,6 +424,22 @@ func (e scanningEngines) active(ctx context.Context, id string) (core.EngineStat
 			at, _ := parseTS(h.StartedAt)
 			s.Running = append(s.Running, core.RunningJob{Engine: id, ID: h.ID, Label: "SNMP reads", StartedAt: at})
 		}
+		// A credential whose saved secret this box cannot open is skipped by every read until it is typed again (#868).
+		var lost []string
+		for _, c := range creds {
+			if c.SecretLost {
+				lost = append(lost, strconv.Quote(c.Name))
+			}
+		}
+		if len(lost) > 0 {
+			s.Reason = "The saved community or password of SNMP credential " + strings.Join(lost, ", ") + " was not restored (the backup was restored without its decryption key, or the box key changed), so it is skipped. Open Devices › Scope and sensors › SNMP, Edit it, enter it again and save."
+			if len(lost) > 1 {
+				s.Reason = "The saved communities or passwords of SNMP credentials " + strings.Join(lost, ", ") + " were not restored (the backup was restored without its decryption key, or the box key changed), so they are skipped. Open Devices › Scope and sensors › SNMP, Edit each, enter it again and save."
+			}
+			if len(lost) == len(creds) && s.State == core.EngineReady {
+				s.State = core.EngineError
+			}
+		}
 	}
 	return s, nil
 }

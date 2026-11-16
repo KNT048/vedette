@@ -3309,8 +3309,12 @@ type AiGetAiProfilesOKItemsItem struct {
 	ID       string                             `json:"id"`
 	// Last 4 characters of the key; the full key is never returned (SYS-4). null = no key yet (valid for
 	// internal profiles).
-	KeyLast4 NilString                      `json:"key_last4"`
-	Kind     AiGetAiProfilesOKItemsItemKind `json:"kind"`
+	KeyLast4 NilString `json:"key_last4"`
+	// A key is saved but this box cannot open it (a backup restored without its decryption key, or the box
+	// key changed, #847). The profile is not usable and is never called; Test and Edit without a new key
+	// answer 409 secret_lost. Enter the key again in Edit, or delete the profile.
+	KeyLost bool                           `json:"key_lost"`
+	Kind    AiGetAiProfilesOKItemsItemKind `json:"kind"`
 	// Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its
 	// address, model, key or place changed. A test the same admin ran in the Add or Edit dialog of exactly
 	// the settings saved (within 15 minutes) counts (D-445); the request cannot carry one.
@@ -3345,6 +3349,11 @@ func (s *AiGetAiProfilesOKItemsItem) GetID() string {
 // GetKeyLast4 returns the value of KeyLast4.
 func (s *AiGetAiProfilesOKItemsItem) GetKeyLast4() NilString {
 	return s.KeyLast4
+}
+
+// GetKeyLost returns the value of KeyLost.
+func (s *AiGetAiProfilesOKItemsItem) GetKeyLost() bool {
+	return s.KeyLost
 }
 
 // GetKind returns the value of Kind.
@@ -3405,6 +3414,11 @@ func (s *AiGetAiProfilesOKItemsItem) SetID(val string) {
 // SetKeyLast4 sets the value of KeyLast4.
 func (s *AiGetAiProfilesOKItemsItem) SetKeyLast4(val NilString) {
 	s.KeyLast4 = val
+}
+
+// SetKeyLost sets the value of KeyLost.
+func (s *AiGetAiProfilesOKItemsItem) SetKeyLost(val bool) {
+	s.KeyLost = val
 }
 
 // SetKind sets the value of Kind.
@@ -8009,8 +8023,12 @@ type AiPostAiProfilesOK struct {
 	ID       string                     `json:"id"`
 	// Last 4 characters of the key; the full key is never returned (SYS-4). null = no key yet (valid for
 	// internal profiles).
-	KeyLast4 NilString              `json:"key_last4"`
-	Kind     AiPostAiProfilesOKKind `json:"kind"`
+	KeyLast4 NilString `json:"key_last4"`
+	// A key is saved but this box cannot open it (a backup restored without its decryption key, or the box
+	// key changed, #847). The profile is not usable and is never called; Test and Edit without a new key
+	// answer 409 secret_lost. Enter the key again in Edit, or delete the profile.
+	KeyLost bool                   `json:"key_lost"`
+	Kind    AiPostAiProfilesOKKind `json:"kind"`
 	// Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its
 	// address, model, key or place changed. A test the same admin ran in the Add or Edit dialog of exactly
 	// the settings saved (within 15 minutes) counts (D-445); the request cannot carry one.
@@ -8045,6 +8063,11 @@ func (s *AiPostAiProfilesOK) GetID() string {
 // GetKeyLast4 returns the value of KeyLast4.
 func (s *AiPostAiProfilesOK) GetKeyLast4() NilString {
 	return s.KeyLast4
+}
+
+// GetKeyLost returns the value of KeyLost.
+func (s *AiPostAiProfilesOK) GetKeyLost() bool {
+	return s.KeyLost
 }
 
 // GetKind returns the value of Kind.
@@ -8105,6 +8128,11 @@ func (s *AiPostAiProfilesOK) SetID(val string) {
 // SetKeyLast4 sets the value of KeyLast4.
 func (s *AiPostAiProfilesOK) SetKeyLast4(val NilString) {
 	s.KeyLast4 = val
+}
+
+// SetKeyLost sets the value of KeyLost.
+func (s *AiPostAiProfilesOK) SetKeyLost(val bool) {
+	s.KeyLost = val
 }
 
 // SetKind sets the value of Kind.
@@ -11143,8 +11171,12 @@ type AiPutAiProfilesIDOK struct {
 	ID       string                      `json:"id"`
 	// Last 4 characters of the key; the full key is never returned (SYS-4). null = no key yet (valid for
 	// internal profiles).
-	KeyLast4 NilString               `json:"key_last4"`
-	Kind     AiPutAiProfilesIDOKKind `json:"kind"`
+	KeyLast4 NilString `json:"key_last4"`
+	// A key is saved but this box cannot open it (a backup restored without its decryption key, or the box
+	// key changed, #847). The profile is not usable and is never called; Test and Edit without a new key
+	// answer 409 secret_lost. Enter the key again in Edit, or delete the profile.
+	KeyLost bool                    `json:"key_lost"`
+	Kind    AiPutAiProfilesIDOKKind `json:"kind"`
 	// Last connection test of the profile as saved (S-AI-1). null = not tested since it was added or its
 	// address, model, key or place changed. A test the same admin ran in the Add or Edit dialog of exactly
 	// the settings saved (within 15 minutes) counts (D-445); the request cannot carry one.
@@ -11179,6 +11211,11 @@ func (s *AiPutAiProfilesIDOK) GetID() string {
 // GetKeyLast4 returns the value of KeyLast4.
 func (s *AiPutAiProfilesIDOK) GetKeyLast4() NilString {
 	return s.KeyLast4
+}
+
+// GetKeyLost returns the value of KeyLost.
+func (s *AiPutAiProfilesIDOK) GetKeyLost() bool {
+	return s.KeyLost
 }
 
 // GetKind returns the value of Kind.
@@ -11239,6 +11276,11 @@ func (s *AiPutAiProfilesIDOK) SetID(val string) {
 // SetKeyLast4 sets the value of KeyLast4.
 func (s *AiPutAiProfilesIDOK) SetKeyLast4(val NilString) {
 	s.KeyLast4 = val
+}
+
+// SetKeyLost sets the value of KeyLost.
+func (s *AiPutAiProfilesIDOK) SetKeyLost(val bool) {
+	s.KeyLost = val
 }
 
 // SetKind sets the value of Kind.
@@ -97660,6 +97702,10 @@ type InventoryGetInventorySnmpOKCredentialsItem struct {
 	// Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has
 	// fewer than 8 characters.
 	SecretLast4 string `json:"secret_last4"`
+	// A saved secret of it cannot be opened on this box (a backup restored without its decryption key, or
+	// the box key changed, #868): it is sent nowhere (Test and Read now answer 409 secret_lost, the scan
+	// window skips it) until Edit saves it with the secret typed again.
+	SecretLost bool `json:"secret_lost"`
 	// V3 user name; null for v2c.
 	Username NilString `json:"username"`
 	// No SNMPv1 (D-512).
@@ -97714,6 +97760,11 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) GetScope() []string {
 // GetSecretLast4 returns the value of SecretLast4.
 func (s *InventoryGetInventorySnmpOKCredentialsItem) GetSecretLast4() string {
 	return s.SecretLast4
+}
+
+// GetSecretLost returns the value of SecretLost.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) GetSecretLost() bool {
+	return s.SecretLost
 }
 
 // GetUsername returns the value of Username.
@@ -97774,6 +97825,11 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) SetScope(val []string) {
 // SetSecretLast4 sets the value of SecretLast4.
 func (s *InventoryGetInventorySnmpOKCredentialsItem) SetSecretLast4(val string) {
 	s.SecretLast4 = val
+}
+
+// SetSecretLost sets the value of SecretLost.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) SetSecretLost(val bool) {
+	s.SecretLost = val
 }
 
 // SetUsername sets the value of Username.
@@ -100298,6 +100354,10 @@ type InventoryPostInventorySnmpCreated struct {
 	// Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has
 	// fewer than 8 characters.
 	SecretLast4 string `json:"secret_last4"`
+	// A saved secret of it cannot be opened on this box (a backup restored without its decryption key, or
+	// the box key changed, #868): it is sent nowhere (Test and Read now answer 409 secret_lost, the scan
+	// window skips it) until Edit saves it with the secret typed again.
+	SecretLost bool `json:"secret_lost"`
 	// V3 user name; null for v2c.
 	Username NilString `json:"username"`
 	// No SNMPv1 (D-512).
@@ -100352,6 +100412,11 @@ func (s *InventoryPostInventorySnmpCreated) GetScope() []string {
 // GetSecretLast4 returns the value of SecretLast4.
 func (s *InventoryPostInventorySnmpCreated) GetSecretLast4() string {
 	return s.SecretLast4
+}
+
+// GetSecretLost returns the value of SecretLost.
+func (s *InventoryPostInventorySnmpCreated) GetSecretLost() bool {
+	return s.SecretLost
 }
 
 // GetUsername returns the value of Username.
@@ -100412,6 +100477,11 @@ func (s *InventoryPostInventorySnmpCreated) SetScope(val []string) {
 // SetSecretLast4 sets the value of SecretLast4.
 func (s *InventoryPostInventorySnmpCreated) SetSecretLast4(val string) {
 	s.SecretLast4 = val
+}
+
+// SetSecretLost sets the value of SecretLost.
+func (s *InventoryPostInventorySnmpCreated) SetSecretLost(val bool) {
+	s.SecretLost = val
 }
 
 // SetUsername sets the value of Username.
@@ -102737,6 +102807,10 @@ type InventoryPutInventorySnmpIDOK struct {
 	// Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has
 	// fewer than 8 characters.
 	SecretLast4 string `json:"secret_last4"`
+	// A saved secret of it cannot be opened on this box (a backup restored without its decryption key, or
+	// the box key changed, #868): it is sent nowhere (Test and Read now answer 409 secret_lost, the scan
+	// window skips it) until Edit saves it with the secret typed again.
+	SecretLost bool `json:"secret_lost"`
 	// V3 user name; null for v2c.
 	Username NilString `json:"username"`
 	// No SNMPv1 (D-512).
@@ -102791,6 +102865,11 @@ func (s *InventoryPutInventorySnmpIDOK) GetScope() []string {
 // GetSecretLast4 returns the value of SecretLast4.
 func (s *InventoryPutInventorySnmpIDOK) GetSecretLast4() string {
 	return s.SecretLast4
+}
+
+// GetSecretLost returns the value of SecretLost.
+func (s *InventoryPutInventorySnmpIDOK) GetSecretLost() bool {
+	return s.SecretLost
 }
 
 // GetUsername returns the value of Username.
@@ -102851,6 +102930,11 @@ func (s *InventoryPutInventorySnmpIDOK) SetScope(val []string) {
 // SetSecretLast4 sets the value of SecretLast4.
 func (s *InventoryPutInventorySnmpIDOK) SetSecretLast4(val string) {
 	s.SecretLast4 = val
+}
+
+// SetSecretLost sets the value of SecretLost.
+func (s *InventoryPutInventorySnmpIDOK) SetSecretLost(val bool) {
+	s.SecretLost = val
 }
 
 // SetUsername sets the value of Username.
@@ -103877,7 +103961,12 @@ type LogsGetLogsSiemOK struct {
 	Proto    LogsGetLogsSiemOKProto        `json:"proto"`
 	// The signing key is never returned, only its last 4 characters (SYS-4).
 	SecretLast4 NilString `json:"secret_last4"`
-	URL         string    `json:"url"`
+	// A signing key is saved but this box cannot open it (a backup restored without its decryption key, or
+	// the box key changed, #847). Only the JSON webhook signs with it: while the format is json, Test and
+	// Save without a new key answer 409 secret_lost and nothing is forwarded until the key is entered
+	// again.
+	SecretLost bool   `json:"secret_lost"`
+	URL        string `json:"url"`
 }
 
 // GetEnabled returns the value of Enabled.
@@ -103918,6 +104007,11 @@ func (s *LogsGetLogsSiemOK) GetProto() LogsGetLogsSiemOKProto {
 // GetSecretLast4 returns the value of SecretLast4.
 func (s *LogsGetLogsSiemOK) GetSecretLast4() NilString {
 	return s.SecretLast4
+}
+
+// GetSecretLost returns the value of SecretLost.
+func (s *LogsGetLogsSiemOK) GetSecretLost() bool {
+	return s.SecretLost
 }
 
 // GetURL returns the value of URL.
@@ -103963,6 +104057,11 @@ func (s *LogsGetLogsSiemOK) SetProto(val LogsGetLogsSiemOKProto) {
 // SetSecretLast4 sets the value of SecretLast4.
 func (s *LogsGetLogsSiemOK) SetSecretLast4(val NilString) {
 	s.SecretLast4 = val
+}
+
+// SetSecretLost sets the value of SecretLost.
+func (s *LogsGetLogsSiemOK) SetSecretLost(val bool) {
+	s.SecretLost = val
 }
 
 // SetURL sets the value of URL.
@@ -106301,7 +106400,12 @@ type LogsPutLogsSiemOK struct {
 	Proto    LogsPutLogsSiemOKProto        `json:"proto"`
 	// The signing key is never returned, only its last 4 characters (SYS-4).
 	SecretLast4 NilString `json:"secret_last4"`
-	URL         string    `json:"url"`
+	// A signing key is saved but this box cannot open it (a backup restored without its decryption key, or
+	// the box key changed, #847). Only the JSON webhook signs with it: while the format is json, Test and
+	// Save without a new key answer 409 secret_lost and nothing is forwarded until the key is entered
+	// again.
+	SecretLost bool   `json:"secret_lost"`
+	URL        string `json:"url"`
 }
 
 // GetEnabled returns the value of Enabled.
@@ -106342,6 +106446,11 @@ func (s *LogsPutLogsSiemOK) GetProto() LogsPutLogsSiemOKProto {
 // GetSecretLast4 returns the value of SecretLast4.
 func (s *LogsPutLogsSiemOK) GetSecretLast4() NilString {
 	return s.SecretLast4
+}
+
+// GetSecretLost returns the value of SecretLost.
+func (s *LogsPutLogsSiemOK) GetSecretLost() bool {
+	return s.SecretLost
 }
 
 // GetURL returns the value of URL.
@@ -106387,6 +106496,11 @@ func (s *LogsPutLogsSiemOK) SetProto(val LogsPutLogsSiemOKProto) {
 // SetSecretLast4 sets the value of SecretLast4.
 func (s *LogsPutLogsSiemOK) SetSecretLast4(val NilString) {
 	s.SecretLast4 = val
+}
+
+// SetSecretLost sets the value of SecretLost.
+func (s *LogsPutLogsSiemOK) SetSecretLost(val bool) {
+	s.SecretLost = val
 }
 
 // SetURL sets the value of URL.

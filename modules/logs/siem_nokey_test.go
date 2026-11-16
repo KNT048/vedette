@@ -99,8 +99,16 @@ func TestSiemRestoredWithoutTheKeyTestAndSaveAskForTheKey(t *testing.T) {
 	if _, err := e.svc.SetSiem(ctx, "admin@acme.example", in); code(err) != "secret_lost" {
 		t.Fatalf("Save with the key left blank: %v", err)
 	}
+	// a Save that does not turn the webhook on with the lost key is not refused: forwarding off, another URL, other events
+	off := in
+	off.Enabled, off.URL, off.Events = false, "https://siem2.example.com/hooks/vedette", []string{"findings"}
+	if v, err := e.svc.SetSiem(ctx, "admin@acme.example", off); err != nil || !v.SecretLost || v.Enabled || v.URL != off.URL {
+		t.Fatalf("Save with forwarding off and the key left blank: %+v, %v", v, err)
+	}
 	// syslog and CEF send no key: they still work, and the page still says the key is lost (it matters again on a switch to JSON)
-	e.saveSiem(syslogInput("192.168.10.50", 514, "udp"))
+	if v := e.saveSiem(syslogInput("192.168.10.50", 514, "udp")); !v.SecretLost {
+		t.Fatalf("the answer of a Save that keeps the lost key: %+v", v)
+	}
 	if _, err := e.svc.TestSiem(ctx, "admin@acme.example"); err != nil || sends != 1 {
 		t.Fatalf("syslog test with a lost webhook key: %v, %d sends", err, sends)
 	}
@@ -161,6 +169,38 @@ func TestSiemForwarderStopsOnALostKeyAndResumesOnSave(t *testing.T) {
 		<-done
 		if len(sent) != 1 || sent[0] != "honeypot.hit" || w.count() != 1 {
 			t.Fatalf("after the key was typed again: sent %v, %d warnings", sent, w.count())
+		}
+	})
+}
+
+// syslog and CEF send no key: with a lost webhook key kept, the forwarder sends as before and writes no warning.
+func TestSiemForwarderSendsSyslogWithALostWebhookKey(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		e := newSiemEnv(t)
+		w := &warnCounter{}
+		e.svc.cfg.Log = slog.New(w)
+		bus := events.NewBus(slog.New(slog.DiscardHandler))
+		e.svc.Subscribe(bus)
+		e.saveSiem(webhookInput())
+		e.saveSiem(syslogInput("192.168.10.50", 514, "udp")) // the key stays saved
+		e.resealSiemKey()
+		var sent []string
+		e.svc.siemSendFn = func(_ context.Context, _ siemRow, recs []siemRecord) (string, error) {
+			for _, r := range recs {
+				sent = append(sent, r.Name)
+			}
+			return "", nil
+		}
+		ctx, cancel := context.WithCancel(t.Context())
+		done := make(chan struct{})
+		go func() { _ = e.svc.runSiem(ctx); close(done) }()
+		synctest.Wait()
+		publish(t, bus, siemEventHoneypot, map[string]any{"id": "h-1", "service": "ssh"})
+		synctest.Wait()
+		cancel()
+		<-done
+		if len(sent) != 1 || w.count() != 0 {
+			t.Fatalf("syslog with a lost webhook key: sent %v, warnings %v", sent, w.warns)
 		}
 	})
 }

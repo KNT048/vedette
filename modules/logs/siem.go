@@ -17,18 +17,17 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/conn"
 	"github.com/knt048/vedette/core/secrets"
 )
-
-// codeSecretLost is the error code of a saved secret this box cannot open (docs/API_CONVENTIONS.md, the code of core/conn, #847).
-const codeSecretLost = "secret_lost"
 
 // siemLostMsg is the answer of Test and Save, and the state of the SIEM page, when the saved signing key of the webhook is sealed under
 // another master key: a backup restored without its decryption key, or a key file made again (#847). The key is gone for good; typing it
 // again seals it under this box's key and forwarding starts again.
 const siemLostMsg = "The saved signing key of the SIEM webhook was not restored (the backup was restored without its decryption key, or the box key changed). Enter the signing key again (the one your SIEM checks, or press Generate random and put the new key in the SIEM) and press Save. Nothing is sent to the SIEM until then."
 
-func siemLost() error { return apierr.New(409, codeSecretLost, siemLostMsg) }
+// siemLost uses core/conn's code, so every secret this box cannot open answers with one code the UI handles once (#847).
+func siemLost() error { return apierr.New(409, conn.CodeSecretLost, siemLostMsg) }
 
 // SIEM forwarding (L5, S-LOG-3, INV-8..10). The configuration is one row of logs_siem in the main database; the signing key is a
 // sealed core_secret (SYS-4) that the API never returns (FORBID-2).
@@ -294,11 +293,19 @@ func (s *Service) SetSiem(ctx context.Context, user string, in SiemInput) (SiemV
 	}
 	var out SiemView
 	err = s.cfg.Config.Write(ctx, func(tx *sql.Tx) error {
-		cur, err := s.loadSiem(ctx, tx, in.Secret == "" && in.Format == "json")
+		cur, err := s.loadSiem(ctx, tx, false)
 		if err != nil {
 			return err
 		}
-		if cur.SecretLost { // only read for a webhook saved without a new key: it would sign with a key this box cannot open (#847)
+		// #847: a saved key kept as it is may be one this box cannot open. Only the wrong-key answer counts (any other error of the open
+		// leaves the save as it always was); only a save that turns the webhook on with it is refused, since it would sign with nothing.
+		// Turning forwarding off, or another URL or events, saves; the answer says the key is still lost.
+		lost := false
+		if in.Secret == "" && cur.secretID != "" {
+			_, oerr := s.cfg.Secrets.Open(ctx, s.cfg.Config.Reader(), cur.secretID, siemSecretPurpose)
+			lost = secrets.IsWrongKey(oerr)
+		}
+		if lost && in.Format == "json" && in.Enabled {
 			return siemLost()
 		}
 		id, last4 := cur.secretID, ""
@@ -339,7 +346,7 @@ func (s *Service) SetSiem(ctx context.Context, user string, in SiemInput) (SiemV
 		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: "logs.siem_save", Target: siemTargetLabel(in.Format, in.Host, in.Port, in.URL), Detail: in.Format + ", " + state}); err != nil {
 			return err
 		}
-		out = SiemView{Enabled: in.Enabled, Format: in.Format, Host: in.Host, Port: in.Port, Proto: in.Proto, URL: in.URL, Events: events}
+		out = SiemView{Enabled: in.Enabled, Format: in.Format, Host: in.Host, Port: in.Port, Proto: in.Proto, URL: in.URL, Events: events, SecretLost: lost}
 		if last4 != "" {
 			out.SecretLast4 = &last4
 		}
@@ -399,7 +406,7 @@ func (s *Service) TestSiem(ctx context.Context, user string) (SiemTestRecord, er
 		// #847: nothing is sent. The attempt is on record like any other test; last_test keeps the last real send (the page says the key
 		// is lost from secret_lost).
 		if err := s.cfg.Config.Write(ctx, func(tx *sql.Tx) error {
-			return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: "logs.siem_test", Target: siemTargetLabel(cfg.Format, cfg.Host, cfg.Port, cfg.URL), Detail: "failed: " + codeSecretLost})
+			return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: "logs.siem_test", Target: siemTargetLabel(cfg.Format, cfg.Host, cfg.Port, cfg.URL), Detail: "failed: " + conn.CodeSecretLost})
 		}); err != nil {
 			return SiemTestRecord{}, err
 		}

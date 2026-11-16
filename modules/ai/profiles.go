@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/conn" // CodeSecretLost only: the one code of a secret this box cannot open (#847); no connection tool comes from here (INV-14)
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/ai/provider"
 )
@@ -88,11 +89,14 @@ func (s *Service) view(p stored) ProfileView {
 // profileKeyLost is the answer of Test, Edit and the model list of a saved profile whose key this box cannot open (#847) when no new key
 // was typed: the key cannot be used or kept, so nothing is sent and nothing is saved.
 func profileKeyLost(name string) error {
-	return apierr.New(http.StatusConflict, codeSecretLost, fmt.Sprintf("The saved API key of the AI profile %q was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter the key again and save, then test it. Nothing was sent.", name))
+	return apierr.New(http.StatusConflict, conn.CodeSecretLost, fmt.Sprintf("The saved API key of the AI profile %q was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter the key again and save, then test it. Nothing was sent.", name))
 }
 
-// codeSecretLost is the error code of a saved secret this box cannot open (docs/API_CONVENTIONS.md, the code of core/conn, #847).
-const codeSecretLost = "secret_lost"
+// profileKeyLostFor is the refusal to give a profile whose key is lost something new to do (what: "Explain a finding", "the knowledge
+// index"): it could not do it. Nothing is saved.
+func profileKeyLostFor(name, what string) error {
+	return apierr.New(http.StatusConflict, conn.CodeSecretLost, fmt.Sprintf("The saved API key of the AI profile %q was not restored (the backup was restored without its decryption key, or the box key changed), so it cannot take %s. Open Edit on the profile and enter the key again first. Nothing was saved.", name, what))
+}
 
 // Profiles lists the profiles in the order they were added.
 func (s *Service) Profiles() []ProfileView {

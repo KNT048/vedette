@@ -68,7 +68,7 @@ func (s *Service) SetAssignments(ctx context.Context, who string, in Assignments
 		was := cur.assign.Jobs[j]
 		for _, id := range []string{slot.Primary, slot.Fallback} {
 			if p, ok := cur.find(id); ok && p.KeyLost && id != was.Primary && id != was.Fallback {
-				return AssignmentsView{}, profileKeyLost(p.Name)
+				return AssignmentsView{}, profileKeyLostFor(p.Name, j.Name())
 			}
 		}
 	}

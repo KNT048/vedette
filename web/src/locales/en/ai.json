@@ -392,6 +392,7 @@
     "needProfile": "Add a usable profile first",
     "cleared": "{{count}} cloud assignment(s) were cleared because the rule allows only internal profiles for that data. Save to apply.",
     "noProfiles": "No usable profile to assign",
+    "allLost": "No job can run: the saved key of every profile was not restored with the backup. The jobs keep their profiles below; enter each key again in Profiles above (Enter the key).",
     "noProfilesBody": "Add an AI profile above, with its key if it needs one.",
     "noProfilesInfo": "Add an AI profile above; a profile that needs a key is not usable until the key is saved.",
     "caption": "AI job routing",

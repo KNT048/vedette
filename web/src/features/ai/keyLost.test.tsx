@@ -38,10 +38,15 @@ describe('AI profiles after a restore without the decryption key', () => {
     await waitFor(() => expect(qc.getQueryData(['me'])).toBeTruthy(), T)
     expect(await screen.findByText('Claude: the saved API key was not restored', undefined, T)).toBeInTheDocument()
     expect(screen.getAllByText('Key not restored: enter it again').length).toBeGreaterThan(0)
+    // the only profile is lost: the routing table stays, with its own line (not "add a profile")
+    expect(await screen.findByText(/No job can run: the saved key of every profile was not restored/, undefined, T)).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'AI job routing' })).toBeInTheDocument()
+    expect(screen.queryByText('No usable profile to assign')).not.toBeInTheDocument()
 
     // Test: the box says the key was not restored, and Edit opens on the key field
     await user.click(await screen.findByRole('button', { name: 'Test connection for Claude' }))
     let dlg = await screen.findByRole('dialog', { name: 'Edit Claude' }, T)
+    expect(screen.getByText(`Claude: ${LOST}`)).toBeInTheDocument()
     const key = within(dlg).getByLabelText('API key')
     await waitFor(() => expect(key).toHaveFocus())
     expect(key).toHaveAccessibleDescription(/was not restored with the backup/)
@@ -61,5 +66,6 @@ describe('AI profiles after a restore without the decryption key', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), T)
     expect(saved).toMatchObject({ id: 'p-claude', api_key: 'new-secret-key-2222' })
     await waitFor(() => expect(screen.queryByText('Claude: the saved API key was not restored')).not.toBeInTheDocument(), T)
+    expect(screen.queryByText(`Claude: ${LOST}`)).not.toBeInTheDocument() // the failed Test of the old key is gone too
   })
 })

@@ -46,4 +46,17 @@ describe('SIEM forwarding after a restore without the decryption key', () => {
     await waitFor(() => expect(screen.queryByText('Forwarding is stopped: the saved signing key was not restored')).not.toBeInTheDocument(), T)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
+
+  it('a working syslog setup with a lost webhook key: nothing is stopped; switching to JSON asks for the key', async () => {
+    server.use(http.get('*/api/v1/logs/siem', () => HttpResponse.json({ enabled: true, format: 'syslog', host: '192.168.10.50', port: 514, proto: 'udp', url: '', secret_last4: '1234', secret_lost: true, events: ['alerts'], last_test: null })))
+    orgStore.update((o) => ({ ...o, setup_complete: true }))
+    sessionStore.set({ userId: 'u-admin' })
+    const user = userEvent.setup()
+    render(<QueryClientProvider client={makeQueryClient()}><SiemSettings /><Toaster /></QueryClientProvider>)
+    await waitFor(() => expect(screen.getByLabelText('SIEM server')).toBeEnabled(), T)
+    expect(screen.queryByText('Forwarding is stopped: the saved signing key was not restored')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'JSON webhook' }))
+    expect(await screen.findByText('The saved signing key was not restored')).toBeInTheDocument()
+    expect(screen.queryByText('Forwarding is stopped: the saved signing key was not restored')).not.toBeInTheDocument()
+  })
 })

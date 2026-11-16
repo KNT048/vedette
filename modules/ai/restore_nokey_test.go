@@ -88,7 +88,9 @@ func TestRestoreWithoutTheKeyProfileIsListedFixedOrDeleted(t *testing.T) {
 	h.want("POST", "/ai/cve/CVE-2022-27593/explain", "operator", "", 200, "")
 
 	// it cannot be chosen to build the knowledge index either
-	h.want("PUT", "/ai/knowledge/settings", "admin", `{"index_profile":"`+gem+`"}`, 409, "secret_lost")
+	if msg := lostMessage(t, h.want("PUT", "/ai/knowledge/settings", "admin", `{"index_profile":"`+gem+`"}`, 409, "secret_lost")); !strings.Contains(msg, "the knowledge index") || !strings.Contains(msg, "Nothing was saved") {
+		t.Fatalf("index refusal %q", msg)
+	}
 
 	// Delete of the profile still lost: no key is opened, its secret row goes
 	h.want("DELETE", "/ai/profiles/"+gem, "admin", "", 200, "")
@@ -119,5 +121,30 @@ func TestRestoreWithoutTheKeyJobsFallOverAndAssignmentsKeepTheProfile(t *testing
 		}
 	}
 	m := h.want("PUT", "/ai/assignments", "admin", assignBody(false, map[string][2]string{"explain-finding": {claude, lan}, "cve-news": {claude, ""}}), 409, "secret_lost")
-	lostMessage(t, m)
+	if msg := lostMessage(t, m); !strings.Contains(msg, "Nothing was saved") || !strings.Contains(msg, "cannot take") {
+		t.Fatalf("assignment refusal %q", msg)
+	}
+}
+
+// INV-3 with a lost key: internal_only is on and the internal primary of a job that sends internal data lost its key. An internal fallback
+// answers; with none the job is refused with secret_lost. A cloud profile on the box is never called either way.
+func TestRestoreWithoutTheKeyInternalOnlyNeverFallsToTheCloud(t *testing.T) {
+	a := newAPI(t)
+	a.fake.setAnswer(goodExplain)
+	lab := a.addProfile(strings.Replace(internalBody("Lab"), `"location":"internal"`, `"api_key":"`+keyA+`","location":"internal"`, 1))["id"].(string)
+	a.want("PUT", "/ai/assignments", "admin", assignBody(true, map[string][2]string{"explain-finding": {lab, ""}}), 200, "")
+	h, _ := a.restartWithoutTheKey()
+	h.addProfile(cloudBody("Cloud", keyB)) // takes the public jobs only: the rule keeps it off explain-finding
+
+	// no internal profile can answer: refused, nothing sent, never the cloud
+	lostMessage(t, h.want("POST", "/ai/cve/CVE-2022-27593/explain", "operator", "", 409, "secret_lost"))
+	// an internal fallback answers
+	lan := h.addProfile(internalBody("Lan"))["id"].(string)
+	h.want("PUT", "/ai/assignments", "admin", assignBody(true, map[string][2]string{"explain-finding": {lab, lan}, "cve-news": {lan, ""}}), 200, "")
+	if got := h.want("POST", "/ai/cve/CVE-2022-27593/explain", "operator", "", 200, ""); got["profile"] != "Lan" {
+		t.Fatalf("answered by %v", got["profile"])
+	}
+	if n := a.fake.called("Cloud") + a.fake.called("Lab"); n != 0 {
+		t.Fatalf("%d calls to the cloud or to the profile whose key is lost", n)
+	}
 }

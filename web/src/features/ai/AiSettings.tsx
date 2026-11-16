@@ -193,7 +193,8 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
           </p>
         ) : <Notice tone="danger" role="alert" title={`${result.name}: ${result.error}`} className="mt-3 mb-0" />
       ) : null}
-      {edit ? <ProfileDialog key={typeof edit === 'string' ? 'new' : edit.id} profile={edit === 'new' ? null : edit} existing={profiles} onClose={() => setEdit(null)} /> : null}
+      {edit ? <ProfileDialog key={typeof edit === 'string' ? 'new' : edit.id} profile={edit === 'new' ? null : edit} existing={profiles} onClose={() => setEdit(null)}
+        onSaved={(name) => setResult((r) => (r?.error && r.name === name ? null : r))} /> : null}
       {del ? <RemoveDialog profile={del} assign={assign} onClose={() => setDel(null)} /> : null}
     </Section>
   )
@@ -204,7 +205,8 @@ type Errs = Partial<Record<'name' | 'base_url' | 'model' | 'key' | 'cap' | 'styl
 
 const sameOrigin = (a: string, b: string) => { try { return new URL(a).origin === new URL(b.trim()).origin } catch { return false } }
 
-function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | null; existing: AiProfile[]; onClose: () => void }) {
+// onSaved: the profile as it was named when the dialog opened was saved; a failed Test shown for it is out of date (review r1 L5).
+function ProfileDialog({ profile, existing, onClose, onSaved }: { profile: AiProfile | null; existing: AiProfile[]; onClose: () => void; onSaved?: (name: string) => void }) {
   const { t } = useTranslation('ai')
   const save = useSaveProfile()
   const test = useTestProfile()
@@ -283,7 +285,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
     e.preventDefault()
     test.reset()
     if (!validate(false)) return
-    save.mutate(input(), { onSuccess: () => { toast.success(profile ? t('profiles.saved') : t('profiles.added')); onClose() } })
+    save.mutate(input(), { onSuccess: () => { toast.success(profile ? t('profiles.saved') : t('profiles.added')); if (profile) onSaved?.(profile.name); onClose() } })
   }
   function runTest() { save.reset(); if (validate(true)) test.mutate(input()) }
   // The box asks the provider which models it offers (D-475). Only what the call needs is checked here; the box checks the rest.
@@ -443,10 +445,12 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
       setNote(JSON.stringify(s) === JSON.stringify(assign) ? t('assign.suggestedSame') : t('assign.suggested'))
     } catch (e) { toast.error(e instanceof Error ? e.message : String(e)) }
   }
-  const noProfiles = profiles.filter(usable).length === 0
+  // #847: every profile's key was not restored. The table stays (its jobs keep their profiles) with its own line, not "add a profile".
+  const allLost = profiles.filter(usable).length === 0 && profiles.some((p) => p.key_lost)
+  const noProfiles = profiles.filter(usable).length === 0 && !allLost
   return (
     <Section id="ai-routing" title={t('assign.title')} description={t('assign.description')} info={<><p>{t('assign.descriptionInfo')}</p><p>{t('assign.fallbackNote')}</p></>} stories={['S-AI-4']}
-      actions={<Button onClick={() => void suggest()} disabled={!admin || noProfiles} title={reason ?? (noProfiles ? t('assign.needProfile') : undefined)}>{t('assign.suggest')}</Button>}>
+      actions={<Button onClick={() => void suggest()} disabled={!admin || noProfiles || allLost} title={reason ?? (noProfiles || allLost ? t('assign.needProfile') : undefined)}>{t('assign.suggest')}</Button>}>
       <div className="grid gap-4">
         <div className="flex items-start gap-3 rounded-md border border-rule bg-surface p-3">
           <Switch id="ai-internal-only" checked={draft.internal_only} onCheckedChange={toggleRule} disabled={!admin} title={reason} className="mt-0.5" />
@@ -459,6 +463,7 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
           </div>
         </div>
         {note ? <p role="status" className="text-sm">{note}</p> : null}
+        {allLost ? <p role="status" className="text-sm text-danger">{t('assign.allLost')}</p> : null}
         {noProfiles ? <EmptyState title={t('assign.noProfiles')} info={t('assign.noProfilesInfo')}>{t('assign.noProfilesBody')}</EmptyState> : (
           <div className="overflow-x-auto rounded-md border border-rule bg-surface">
             <table className="w-full min-w-[760px] border-collapse text-sm">

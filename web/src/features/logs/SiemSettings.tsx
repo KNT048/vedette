@@ -51,8 +51,11 @@ function SiemForm({ cfg }: { cfg: SiemConfig }) {
 
   // #847: only the JSON webhook signs with the key, so only then does a key that was not restored stop forwarding.
   const lost = cfg.secret_lost && format === 'json'
+  // What is saved decides whether forwarding is stopped now: a saved, switched-on webhook. A JSON switch not saved yet, or a webhook
+  // saved off, only needs the key entered again before it can send (own wording, review r1 L3).
+  const stopped = cfg.secret_lost && cfg.format === 'json' && cfg.enabled
   // The page opens on the field to fill (the fieldset is enabled once the role is known)
-  useEffect(() => { if (lost && isAdmin) focusSecretField() }, [lost, isAdmin])
+  useEffect(() => { if (stopped && isAdmin) focusSecretField() }, [stopped, isAdmin])
   const body = () => ({ enabled, format, host: host.trim(), port: Number(port), proto, url: url.trim(), events: events.filter(shown), secret: secret || undefined })
   function onSave(e: { preventDefault(): void }, thenTest = false) {
     e.preventDefault()
@@ -72,7 +75,8 @@ function SiemForm({ cfg }: { cfg: SiemConfig }) {
   return (
     <form onSubmit={onSave} className="grid max-w-2xl gap-5" noValidate>
       {error ? <Notice tone="danger" role="alert" title={error} className="mb-0" /> : null}
-      {lost && !error ? <Notice tone="danger" role="status" title={t('siem.lostTitle')} className="mb-0">{t('siem.lostBody')}</Notice> : null}
+      {stopped && !error ? <Notice tone="danger" role="status" title={t('siem.lostTitle')} className="mb-0">{t('siem.lostBody')}</Notice>
+        : lost && !error ? <Notice tone="warn" role="status" title={t('siem.lostKeyTitle')} className="mb-0">{t('siem.lostKeyBody')}</Notice> : null}
       <div className="flex items-center gap-3">
         <Switch id="siem-enabled" checked={enabled} onCheckedChange={setEnabled} disabled={!isAdmin} />
         <Label htmlFor="siem-enabled">{t('siem.enabled')}</Label>

@@ -257,6 +257,11 @@ func byName(st ScanTarget) ScanTarget {
 
 func (s *Service) saveScan(ctx context.Context, user string, t Target, content Content, id string, gbRun GreenboneRun) (Snapshot, error) {
 	at := s.clock()
+	// INV-22: the marks of a carried port come only from carryNotSeen below, never from what the runner sent (sanitize keeps them, for
+	// the Greenbone re-save of a stored snapshot)
+	for i := range content.Ports {
+		content.Ports[i].LastSeen, content.Ports[i].Misses, content.Ports[i].Unchecked = "", 0, false
+	}
 	content = sanitize(content)
 	extra := ""
 	if t.Kind == KindIP {

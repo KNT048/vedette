@@ -13,8 +13,9 @@ import (
 // #829 C4 (J2): a device that answered a credential and moved to an address outside that credential's scope is never sent the secret
 // there (D-512), and the credential, Read now and the round's log say so instead of nothing.
 
-// moveDevice gives device id a new address, as the inventory does when it follows the device's MAC.
-func (w *snmpWorld) moveDevice(id, ip string) {
+// moveSwitch gives the switch a-sw a new address, as the inventory does when it follows the device's MAC.
+func (w *snmpWorld) moveSwitch(ip string) {
+	const id = "a-sw"
 	w.t.Helper()
 	w.inv.mu.Lock()
 	defer w.inv.mu.Unlock()
@@ -60,7 +61,7 @@ func TestSNMPADeviceThatMovedOutOfTheScopeIsNamedAndNeverSentTo(t *testing.T) {
 	if got := w.movedOf("ipchg-c4"); len(got) != 0 {
 		t.Fatalf("not moved yet: %+v", got)
 	}
-	w.moveDevice("a-sw", "192.168.10.30") // same device row, new address, still approved and in the scan scope
+	w.moveSwitch("192.168.10.30") // same device row, new address, still approved and in the scan scope
 
 	got := w.movedOf("ipchg-c4")
 	if len(got) != 1 || got[0].DeviceID != "a-sw" || got[0].Name != "device a-sw" || got[0].IP != "192.168.10.30" ||
@@ -128,17 +129,17 @@ func TestSNMPMovedOutFollowsTheNewestAnswerAndGoesWithTheCredential(t *testing.T
 	if w.count(`SELECT count(*) FROM sa_snmp_answer WHERE asset_id = 'a-sw' AND ip = '192.168.10.20'`) != 1 {
 		t.Fatal("the round did not record which device answered")
 	}
-	w.moveDevice("a-sw", "192.168.10.30")
+	w.moveSwitch("192.168.10.30")
 	if got := w.movedOf("old"); len(got) != 1 {
 		t.Fatalf("moved out %+v", got)
 	}
 	// Moved back: nothing to say.
-	w.moveDevice("a-sw", "192.168.10.20")
+	w.moveSwitch("192.168.10.20")
 	if got := w.movedOf("old"); len(got) != 0 {
 		t.Fatalf("moved back %+v", got)
 	}
 	// Moved again, and another credential whose scope holds the new address answers it: that one reads it now, the old one says nothing.
-	w.moveDevice("a-sw", "192.168.10.30")
+	w.moveSwitch("192.168.10.30")
 	n := w.add(v2cInput("new", "community-2", "192.168.10.30"))
 	if res, err := w.svc.TestSNMP(ctx, "admin@example.com", n.ID, "192.168.10.30"); err != nil || !res.OK {
 		t.Fatalf("answer with the new credential: %v %+v", err, res)

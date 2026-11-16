@@ -264,8 +264,8 @@ test.describe('P2 IT person, day to day: list, add manually, CSV, detail', () =>
     await page.goto('/devices/a-nas02')
     await page.getByRole('button', { name: 'Remove from list' }).click()
     const dlg = page.getByRole('dialog')
-    await expect(dlg).toContainText(/has \d+ findings?\./)
-    await expect(dlg).toContainText('also removes')
+    // the wording of #836 (on main): the count, and that removing the device removes its findings
+    await expect(dlg).toContainText(/This device has \d+ findings?; removing the device removes (it|them) too\./)
     await shot(page, 'inventory', 'delete-with-findings')
     await page.keyboard.press('Escape')
     await expect(dlg).toBeHidden()
@@ -554,7 +554,10 @@ test.describe('Clean install: first-time user', () => {
     await page.goto('/devices')
     await expect(h1(page)).toHaveText('Only the Vedette box so far') // only the box itself: it is always the first device (INV-3)
     await expect(page.getByRole('button', { name: 'Add a device' }).last()).toBeEnabled()
-    await expect(page.getByRole('table').getByRole('row')).toHaveCount(2) // header + the box
+    // header + the box on a desktop table; the box alone in the phone list (DataTable mobileRow below 768 px)
+    const table = page.getByRole('table', { name: 'Device list' })
+    if (await table.count()) await expect(table.getByRole('row')).toHaveCount(2)
+    else await expect(page.getByRole('list', { name: 'Device list' }).getByRole('listitem')).toHaveCount(1)
     await shot(page, 'inventory', 'clean-empty')
     await expectAccessible(page, 'clean list')
     await expectEnglishOnly(page, 'clean list')

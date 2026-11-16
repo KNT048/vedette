@@ -264,9 +264,9 @@ func windowsDecide(in swInfo, v Vuln, named bool, now time.Time) (winVerdict, bo
 			others = appendOnce(others, l.product)
 			listedYear = max(listedYear, winOldYear)
 		case l.server == d.rel.Server && l.build == d.rel.Build:
-			own = append(own, fixedEntry{c, af.Range})
+			own = append(own, fixedEntry{c, af.Range, naValued(v, c, af.Range)})
 		case l.server == d.rel.Server && !l.server && d.sameLine(l.build):
-			sib = append(sib, fixedEntry{c, af.Range})
+			sib = append(sib, fixedEntry{c, af.Range, naValued(v, c, af.Range)})
 			if r, ok := winrel.ByBuild(l.build, false); ok {
 				sibNames = appendOnce(sibNames, r.Display)
 			}
@@ -416,7 +416,7 @@ func winRows(rows []fixedEntry, d winDev, v Vuln) winVerdict {
 				continue
 			}
 		}
-		t, r, b := winEval(e.c, e.r, d)
+		t, r, b := winEval(e.c, e.r, d, e.valued)
 		ts = append(ts, t)
 		if t == Yes && (yes == nil || widerEnd(r, *yes)) {
 			yes, yesBuild = &r, b
@@ -441,8 +441,8 @@ func winRows(rows []fixedEntry, d winDev, v Vuln) winVerdict {
 // without the revision, "-" as the version, an update) is Unknown, and so is a release row of every version with no range: for a
 // Windows release that means NVD recorded no fixed build, not that no update fixes it (review r1 LOW-1). An attribute NA ("-": the
 // software edition of "windows_server_2025:*:*:*:*:-:*:x64:*") pins nothing the device states, so it reads (winUnpinned, #901).
-func winEval(c CPE, r VersionRange, d winDev) (Tri, VersionRange, int) {
-	if !winUnpinned(c, d) {
+func winEval(c CPE, r VersionRange, d winDev, valued uint8) (Tri, VersionRange, int) {
+	if !winUnpinned(c, d, valued) {
 		return Unknown, r, 0
 	}
 	if r.IsZero() {
@@ -667,8 +667,8 @@ func winKinship(l winListed, d winDev) (same, other bool) {
 // winFixRev is the update revision of the fix a row names: its range ends before a build of the device's numbering ("< 10.0.26100.2033":
 // a build on the device's line, or exactly the device's build for a row of the other kind), nothing else is pinned and a start bound is
 // of the same build. false otherwise.
-func winFixRev(c CPE, r VersionRange, d winDev, other bool) (int, bool) {
-	if c.Version.Kind != Any || !winUnpinned(c, d) {
+func winFixRev(c CPE, r VersionRange, d winDev, other bool, valued uint8) (int, bool) {
+	if c.Version.Kind != Any || !winUnpinned(c, d, valued) {
 		return 0, false
 	}
 	m := winBoundRE.FindStringSubmatch(r.EndExcl)
@@ -691,13 +691,15 @@ func winFixRev(c CPE, r VersionRange, d winDev, other bool) (int, bool) {
 // winUnpinned says whether row c pins nothing after its version but target hardware (winRows reads that). Update and edition must
 // be ANY: on a Windows row they name a service pack or an edition ("windows_7:-:sp1"), and "-" there is "the release without one", a
 // restriction the device's build does not settle. Language, software edition, target software and other may also be NA where the
-// device's row states no value (naCovers, #901): NVD writes "windows_server_2025:*:*:*:*:-:*:x64:*" for every install of the release.
-func winUnpinned(c CPE, d winDev) bool {
+// device's row states no value and no other row of the product does (naCovers, bit i of valued as in pinnedAttrs, #901): NVD writes
+// "windows_server_2025:*:*:*:*:-:*:x64:*" for every install of the release.
+func winUnpinned(c CPE, d winDev, valued uint8) bool {
 	if c.Update.Kind != Any || c.Edition.Kind != Any {
 		return false
 	}
-	for _, p := range [...][2]Attr{{c.Language, d.cpe.Language}, {c.SWEdition, d.cpe.SWEdition}, {c.TargetSW, d.cpe.TargetSW}, {c.Other, d.cpe.Other}} {
-		if p[0].Kind != Any && !naCovers(p[0], p[1]) {
+	cf, df := c.fields(), d.cpe.fields()
+	for _, i := range [...]int{6, 7, 8, 10} { // language, software edition, target software, other; target hardware is winRows'
+		if cf[i].Kind != Any && !naCovers(*cf[i], *df[i], valued&(1<<(i-5)) != 0) {
 			return false
 		}
 	}
@@ -733,7 +735,7 @@ func winBuildMonth(vulns []Vuln, d winDev) winBuild {
 			if !same && !oth {
 				continue
 			}
-			rev, ok := winFixRev(c, af.Range, d, oth)
+			rev, ok := winFixRev(c, af.Range, d, oth, naValued(v, c, af.Range))
 			if !ok {
 				continue
 			}
@@ -823,7 +825,7 @@ func winMonthRule(d winDev, b winBuild, v Vuln, now time.Time) (winVerdict, bool
 		}
 		same, oth := winKinship(l, d)
 		if oth && cm >= d.otherUntil() { // numbered apart from the device's: its fix build tells only against the other kind's own builds
-			if rev, ok := winFixRev(c, af.Range, d, true); ok && rev > b.otherAt {
+			if rev, ok := winFixRev(c, af.Range, d, true, naValued(v, c, af.Range)); ok && rev > b.otherAt {
 				return winVerdict{}, false // the stored data says the fix came after the device's month (review r2 #2 of #806)
 			}
 			continue
@@ -837,7 +839,7 @@ func winMonthRule(d winDev, b winBuild, v Vuln, now time.Time) (winVerdict, bool
 		if af.Range.IsZero() && c.Version.Kind != Value {
 			continue // every version or "-": NVD recorded no fix build (review r1 LOW-1)
 		}
-		rev, ok := winFixRev(c, af.Range, d, oth)
+		rev, ok := winFixRev(c, af.Range, d, oth, naValued(v, c, af.Range))
 		if !ok || d.rev < rev {
 			return winVerdict{}, false
 		}
@@ -896,7 +898,7 @@ func winLaterNote(d winDev, b winBuild, v Vuln) string {
 		if _, oth := winKinship(l, d); !oth {
 			continue
 		}
-		if rev, ok := winFixRev(c, af.Range, d, true); ok && rev > d.rev && rev > fix {
+		if rev, ok := winFixRev(c, af.Range, d, true, naValued(v, c, af.Range)); ok && rev > d.rev && rev > fix {
 			fix, name = rev, winNames([]string{l.product})
 		}
 	}

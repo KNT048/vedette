@@ -141,7 +141,7 @@ func osRulesOut(v Vuln, in swInfo) bool {
 			continue // another distribution's release
 		}
 		own = true
-		if t, _ := evalAffected(c, af.Range, in.osVer, CPE{}, false); t != No {
+		if t, _ := evalAffected(c, af.Range, in.osVer, CPE{}, false, naValued(v, c, af.Range)); t != No {
 			return false
 		}
 	}

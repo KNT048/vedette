@@ -256,12 +256,16 @@ func attrMatch(c, t Attr) bool {
 }
 
 // naCovers reports whether a configuration attribute c of NA ("not applicable", written "-") covers the software's attribute t
-// (#901). NISTIR 7696 matches NA only to NA or ANY, never to a value. A software row's ANY means "not stated": inventory never
-// knows an edition, a language or a target software, and NA says the attribute does not apply to the product at all, so no
-// install of it carries a value there. So NA covers NA and an unstated attribute; a concrete value ("enterprise", "x86") never.
-// Only for the attributes after the version (update, edition, language, software edition, target software and hardware, other):
-// part, vendor, product and version go by attrMatch and the version rules.
-func naCovers(c, t Attr) bool { return c.Kind == NA && t.Kind != Value }
+// after the version (#901). This is a product rule, not NISTIR 7696's name matching: there NA against ANY is SUBSET, not a match,
+// and attrMatch keeps that. A software row's ANY means "not stated": inventory never knows an edition, a language or a target
+// software. NVD writes "-" both for "the product has no such attribute" ("windows_server_2025:*:*:*:*:-:*:x64:*") and for "the
+// plain edition" beside a named one ("firefox:*:*:*:*:-:*:*:*" next to "firefox:*:*:*:*:esr:*:*:*", review H1 of #906). An
+// unstated attribute is taken as NA only when the list has no valued sibling (valuedSibling false: no row of the same CVE and
+// product states a value there, naValued); with one, the install may be that edition, and NA does not cover it. NA always
+// covers NA and never a value ("enterprise", "x86"). Part, vendor, product and version go by attrMatch and the version rules.
+func naCovers(c, t Attr, valuedSibling bool) bool {
+	return c.Kind == NA && (t.Kind == NA || t.Kind == Any && !valuedSibling)
+}
 
 // Matches reports whether configuration cpe c covers every attribute of the
 // target cpe t. The target is normally a CPE of installed software.

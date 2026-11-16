@@ -760,7 +760,7 @@ func decide(in swInfo, v Vuln, multi bool) (t Tri, within VersionRange, every bo
 				jl.ends = append(jl.ends, e)
 			}
 		}
-		t, r := evalAffected(c, af.Range, in.ver, in.cpe, in.hasCPE)
+		t, r := evalAffected(c, af.Range, in.ver, in.cpe, in.hasCPE, naValued(v, c, af.Range))
 		if t != No && af.Range.IsZero() && everyVersion(c) {
 			every = true
 		}
@@ -911,10 +911,11 @@ func versionGiven(ver string) bool {
 // evalAffected evaluates one configuration CPE (with its NVD range) against the
 // software. Everything the software side cannot confirm (an unknown version, a
 // pinned update, edition, language or target the software does not carry) can
-// only lower Yes to Unknown, never produce No.
-func evalAffected(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) (Tri, VersionRange) {
+// only lower Yes to Unknown, never produce No. valued is naValued of the entry's list: the NA attributes a sibling
+// row of the same product states a value in (#901).
+func evalAffected(c CPE, r VersionRange, ver string, sw CPE, hasSW bool, valued uint8) (Tri, VersionRange) {
 	if t, jr, ok := junosEval(c, r, ver); ok { // D-510: "15.1R7.9" is 15.1R7, an X train is a release of its own
-		if t = pinnedAttrs(c, sw, hasSW, t); t == No {
+		if t = pinnedAttrs(c, sw, hasSW, t, valued); t == No {
 			return No, r
 		}
 		return t, jr
@@ -955,7 +956,7 @@ func evalAffected(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) (Tri, V
 	if exact && t != Yes && c.Update.Kind == Any && sameVersionText(r.StartIncl, ver) {
 		t = Yes // the exact version NVD lists, character for character: Cisco "15.2(4)m3" needs no ordering
 	}
-	if t = pinnedAttrs(c, sw, hasSW, t); t == No {
+	if t = pinnedAttrs(c, sw, hasSW, t, valued); t == No {
 		return No, r
 	}
 	return t, r
@@ -988,7 +989,9 @@ func evalUpdate(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) Tri {
 	if pv.tail != "" {
 		return Unknown
 	}
-	if c.Update.Kind == NA && (!hasSW || naCovers(c.Update, sw.Update)) { // "1.9.17:-" is the release with no update: "1.9.17p2" is not it (D-500, #901)
+	// "1.9.17:-" is the release with no update: "1.9.17p2" is not it (D-500). A row's unstated update is read from its version
+	// string as on a row without a CPE (#901), whatever the siblings: "9.8:p1" is a sibling of "9.8:-" by nature.
+	if c.Update.Kind == NA && (!hasSW || naCovers(c.Update, sw.Update, false)) {
 		if pv.q.class != 0 {
 			return No
 		}
@@ -1026,9 +1029,11 @@ func evalUpdate(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) Tri {
 // pinnedAttrs checks the attributes the software side rarely carries (edition,
 // language, software edition, target software/hardware, other). A pinned value
 // the software contradicts gives No; one it does not carry lowers Yes to Unknown.
-// NA ("-") is not a value: it covers the software's NA or unstated attribute and
-// leaves the answer as it is, and a value the software states gives No (#901).
-func pinnedAttrs(c, sw CPE, hasSW bool, t Tri) Tri {
+// NA ("-") covers the software's NA, and its unstated attribute when no sibling row
+// states a value there (naCovers, bit i of valued): then it leaves the answer as it
+// is (#901). Beside a valued sibling ("esr", "lts") NA is a pinned edition like any
+// other, and a value the software states gives No either way.
+func pinnedAttrs(c, sw CPE, hasSW bool, t Tri, valued uint8) Tri {
 	cfa := c.fields()
 	cf := cfa[5:]
 	var sf []*Attr
@@ -1040,10 +1045,11 @@ func pinnedAttrs(c, sw CPE, hasSW bool, t Tri) Tri {
 		if a.Kind == Any {
 			continue
 		}
-		if a.Kind == NA { // #901: NA covers NA and an unstated attribute, never a value (naCovers)
-			if hasSW && !naCovers(*a, *sf[i]) {
-				return No
-			}
+		s := Attr{Kind: Any} // a row without a CPE states nothing
+		if hasSW {
+			s = *sf[i]
+		}
+		if naCovers(*a, s, valued&(1<<i) != 0) { // #901
 			continue
 		}
 		if hasSW {
@@ -1059,6 +1065,78 @@ func pinnedAttrs(c, sw CPE, hasSW bool, t Tri) Tri {
 		}
 	}
 	return t
+}
+
+// naValued gives, for row c (with range r) of v, the attributes after the version where c is NA and another row of v for the same
+// product states a value at versions c also names: bit i is c.fields()[5+i] (edition, language, software edition, target software,
+// target hardware, other). Firefox "firefox:*:*:*:*:-:*:*:*" before 131.0.2 beside "firefox:*:*:*:*:esr:*:*:*" before 115.16.1,
+// Jenkins "-" beside "lts" (review H1 of #906): there "-" is the plain edition, which inventory cannot tell from the named one at
+// the same version, so NA does not cover an unstated attribute (naCovers). A sibling only at other versions cannot be the same
+// install and does not count: CVE-2015-2545's "office:2013:sp1:*:*:rt" leaves "office:2016:*:-:*:-:*:-:*" alone (Office 2016 has
+// no RT edition). 0 without reading the list when c has no NA there, the common case.
+func naValued(v Vuln, c CPE, r VersionRange) uint8 {
+	var na uint8
+	cf := c.fields()
+	for i, a := range cf[5:] {
+		if a.Kind == NA {
+			na |= 1 << i
+		}
+	}
+	if na == 0 {
+		return 0
+	}
+	cs, cok := versionScope(c, r)
+	var m uint8
+	for _, af := range v.Affected {
+		o, err := af.cpe()
+		if err != nil || o.Part != c.Part || o.Vendor != c.Vendor || o.Product != c.Product {
+			continue
+		}
+		var b uint8
+		of := o.fields()
+		for i, a := range of[5:] {
+			if a.Kind == Value {
+				b |= 1 << i
+			}
+		}
+		if b&na&^m == 0 {
+			continue // nothing new to add
+		}
+		if sib, ok := versionScope(o, af.Range); cok && ok && (endsBefore(cs, sib) || endsBefore(sib, cs)) {
+			continue // the sibling names other versions only
+		}
+		m |= b
+	}
+	return m & na
+}
+
+// versionScope is the versions row c with range r names: the range, or an exact version as a range of one. ok is false for every
+// version (ANY, NA, a version with a wildcard).
+func versionScope(c CPE, r VersionRange) (VersionRange, bool) {
+	if !r.IsZero() {
+		return r, true
+	}
+	if lit, ok := c.Version.Literal(); ok && c.Version.Kind == Value {
+		return VersionRange{StartIncl: lit, EndIncl: lit}, true
+	}
+	return VersionRange{}, false
+}
+
+// endsBefore says every version of a is below every version of b, as far as their bounds can be compared; false when they cannot.
+func endsBefore(a, b VersionRange) bool {
+	end, endIn := a.EndExcl, false
+	if end == "" {
+		end, endIn = a.EndIncl, true
+	}
+	start, startIn := b.StartExcl, false
+	if start == "" {
+		start, startIn = b.StartIncl, true
+	}
+	if end == "" || start == "" {
+		return false
+	}
+	c, ok := compareBound(end, start)
+	return ok && (c < 0 || c == 0 && !(endIn && startIn))
 }
 
 // clean removes control characters and caps the length: names, versions and

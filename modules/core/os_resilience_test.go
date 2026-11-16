@@ -2,6 +2,7 @@ package core_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -571,9 +572,9 @@ func TestBackupDownloadsAreOneAtATimeAndOnePerMinute(t *testing.T) {
 
 // otherWrite starts a write command on the real host (os.check stands in for a module's container starting, #866) and
 // answers backup.create the way the host does while it runs: 409 busy naming it.
-func otherWrite(t *testing.T, hh *hookHost, n int64) error {
+func otherWrite(ctx context.Context, t *testing.T, hh *hookHost, n int64) error {
 	t.Helper()
-	run, err := hh.h().OSCheck(t.Context(), fmt.Sprintf("00000000-0000-4000-8000-%012d", n), "test")
+	run, err := hh.h().OSCheck(ctx, fmt.Sprintf("00000000-0000-4000-8000-%012d", n), "test")
 	if err != nil {
 		t.Errorf("os.check: %v", err)
 	}
@@ -593,7 +594,7 @@ func TestBackupDownloadWaitsWhileTheHostFinishesAnotherCommand(t *testing.T) {
 		n := len(ids)
 		mu.Unlock()
 		if n <= 2 {
-			return api.Run{}, otherWrite(t, hh, int64(n))
+			return api.Run{}, otherWrite(ctx, t, hh, int64(n))
 		}
 		return hh.h().BackupCreate(ctx, args, id, actor)
 	}
@@ -619,9 +620,16 @@ func TestBackupDownloadWaitsWhileTheHostFinishesAnotherCommand(t *testing.T) {
 func TestBackupDownloadDoesNotWaitForAnUpdateRun(t *testing.T) {
 	t.Parallel()
 	e, hh := newHookEnv(t)
-	hh.onBackupCreate = func(context.Context, api.BackupCreateArgs, string, string) (api.Run, error) {
-		e.setting("core_update_run", `{"id":"u1","action":"update","component":"software","to":"1.4.0","status":"running","steps":[],"started_at":"2026-11-09T12:00:00Z","user":"admin@acme.example"}`)
-		return api.Run{}, otherWrite(t, hh, 1)
+	hh.onBackupCreate = func(ctx context.Context, _ api.BackupCreateArgs, _, _ string) (api.Run, error) {
+		err := e.env.DB.Write(ctx, func(tx *sql.Tx) error { // a software update run of this core has just started
+			_, err := tx.ExecContext(ctx, `INSERT INTO core_setting (key, value, updated_at, updated_by) VALUES ('core_update_run', ?, '2026-11-09T12:00:00.000Z', 'test')`,
+				`{"id":"u1","action":"update","component":"software","to":"1.4.0","status":"running","steps":[],"started_at":"2026-11-09T12:00:00Z","user":"admin@acme.example"}`)
+			return err
+		})
+		if err != nil {
+			t.Error(err)
+		}
+		return api.Run{}, otherWrite(ctx, t, hh, 1)
 	}
 	r := e.admin.get("/core/data/backup")
 	wantStatus(t, r, 409, "busy")
@@ -640,9 +648,9 @@ func TestBackupDownloadDoesNotWaitForAnUpdateRun(t *testing.T) {
 func TestBackupDownloadGivesUpWhenTheHostStaysBusy(t *testing.T) {
 	t.Parallel()
 	e, hh := newHookEnv(t)
-	hh.onBackupCreate = func(context.Context, api.BackupCreateArgs, string, string) (api.Run, error) {
+	hh.onBackupCreate = func(ctx context.Context, _ api.BackupCreateArgs, _, _ string) (api.Run, error) {
 		e.clock.Advance(61 * time.Second)
-		return api.Run{}, otherWrite(t, hh, hh.backupCalls.Load())
+		return api.Run{}, otherWrite(ctx, t, hh, hh.backupCalls.Load())
 	}
 	r := e.admin.get("/core/data/backup")
 	wantStatus(t, r, 409, "busy")

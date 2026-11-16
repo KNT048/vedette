@@ -326,7 +326,8 @@ var reservedV4 = netip.MustParsePrefix("240.0.0.0/4")
 // hostMgmtIPv4s is the IPv4 addresses vedette-host reports on the management card (state/net, role
 // "management"; never the SPAN card, never decoys, which hostNetCache also holds), without loopback and
 // link-local ones. It is whatever the host reports at that moment (during a network change that waits for
-// confirmation that may be the new address only: the certificate follows the host, it does not remember).
+// confirmation that may be the new address only: a running box follows the host; at start an address only removed stays in the
+// certificate until the next re-issue, review L2).
 // Only private or global unicast addresses count (no multicast, 240/4 or broadcast), each once, at most
 // maxMgmtAddrs (the rest are ignored, with one warning on log; nil: none). nil when there is no host.
 func hostMgmtIPv4s(r netStateReader, log *slog.Logger) func(ctx context.Context) ([]netip.Addr, error) {

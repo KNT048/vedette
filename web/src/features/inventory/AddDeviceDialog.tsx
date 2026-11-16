@@ -58,22 +58,21 @@ export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode
     })
   }
 
-  const ipDescribed = ipErr ? 'add-ip-error' : 'add-ip-hint'
   return (
     <form onSubmit={submit} className="grid gap-4" noValidate>
       {mode === 'device' ? (
         <div className="grid gap-4 md:grid-cols-2">
           <Field label={t('add.ip')} htmlFor="add-ip" hint={t('add.ipHint')} error={ipErr ?? undefined}>
-            <Input id="add-ip" inputMode="decimal" value={ip} onChange={(e) => { setIp(e.target.value); setIpErr(null) }} placeholder="192.168.10.25" aria-invalid={!!ipErr} aria-describedby={ipDescribed} />
+            <Input id="add-ip" inputMode="decimal" value={ip} onChange={(e) => { setIp(e.target.value); setIpErr(null) }} placeholder="192.168.10.25" />
           </Field>
           <Field label={t('add.name')} htmlFor="add-name" hint={t('add.nameHint')}>
-            <Input id="add-name" value={name} onChange={(e) => { setName(e.target.value); setIpErr(null) }} maxLength={64} aria-describedby="add-name-hint" />
+            <Input id="add-name" value={name} onChange={(e) => { setName(e.target.value); setIpErr(null) }} maxLength={64} />
           </Field>
         </div>
       ) : null}
       <ProductPicker value={product} onChange={setProduct} label={mode === 'device' ? t('add.productRuns') : t('add.product')} listOpenRef={listOpenRef} />
       <Field label={t('add.version')} htmlFor="add-version" hint={product?.version_hint || t('add.versionHint')}>
-        <Input id="add-version" value={version} onChange={(e) => setVersion(e.target.value)} placeholder={t('add.versionPlaceholder')} maxLength={40} aria-describedby="add-version-hint" />
+        <Input id="add-version" value={version} onChange={(e) => setVersion(e.target.value)} placeholder={t('add.versionPlaceholder')} maxLength={40} />
       </Field>
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       <DialogFooter>

@@ -99,7 +99,7 @@ function SnmpMethod() {
         <div className="grid gap-4 md:grid-cols-2">
           <Field label={t('addDialog.snmp.target')} htmlFor={targetId} hint={t('addDialog.snmp.targetHint')} error={targetErr ?? undefined}>
             <Input id={targetId} list={`${uid}-known`} value={target} maxLength={18} inputMode="decimal" autoComplete="off" placeholder="192.168.10.3"
-              onChange={(e) => { setTarget(e.target.value); setTargetErr(null); setResult(null) }} aria-invalid={!!targetErr} aria-describedby={targetErr ? `${targetId}-error` : `${targetId}-hint`} />
+              onChange={(e) => { setTarget(e.target.value); setTargetErr(null); setResult(null) }} />
             <datalist id={`${uid}-known`}>{known.map((ip) => <option key={ip} value={ip} />)}</datalist>
           </Field>
           <Field label={t('sources.snmp.credential')} htmlFor={`${uid}-cred`}>
@@ -197,7 +197,9 @@ export function AddDialog({ open, onOpenChange, method: initial = 'manual', onMe
   return (
     <Dialog open={open} onOpenChange={close}>
       <DialogContent wide title={t('add.title')} description={t('addDialog.body')} info={t('addDialog.bodyInfo')}
-        onEscapeKeyDown={(e) => { if (listOpenRef.current) e.preventDefault() }}>
+        onEscapeKeyDown={(e) => { if (listOpenRef.current) e.preventDefault() }}
+        // Focus starts on the chosen method (APG radio group), not on the title's ⓘ.
+        onOpenAutoFocus={(e) => { const r = (e.currentTarget as HTMLElement | null)?.querySelector<HTMLElement>('[role="radio"][data-state="checked"]'); if (r) { e.preventDefault(); r.focus() } }}>
         {/* Once the osquery token is shown the picker goes: switching away would lose the only copy of the secret on screen. */}
         {tokenShown ? null : <MethodPicker value={method} onChange={choose} blocked={blocked} />}
         <section aria-label={t(`addDialog.name.${method}`)} className="grid min-w-0 gap-3 border-t border-rule pt-4 [&>*]:min-w-0">

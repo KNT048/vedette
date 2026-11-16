@@ -257,7 +257,6 @@
       "software": "Software",
       "services": "Open services"
     },
-    "breadcrumb": "Breadcrumb",
     "metaLine": "{{kind}}, last seen {{when}}"
   },
   "approval": {

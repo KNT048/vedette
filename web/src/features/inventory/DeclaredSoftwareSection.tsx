@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -7,6 +7,7 @@ import { Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, ModuleOff, QueryState, RequireModule } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
+import { Tooltip } from '@/components/ui/tooltip'
 import { fmtDateTime, fmtRelative, rawProductLine } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan } from '@/lib/session'
@@ -22,6 +23,15 @@ import { VersionDialog } from './VersionDialog'
 // row with only a product, Add with no IP). They are not devices, so they left the Devices list, but they still feed Findings: each one
 // is matched against exploited vulnerabilities by its product (D-515, D-598). Same API as Devices: GET /inventory/devices, rows where
 // declaredSoftwareOnly holds; add = POST /inventory/devices with only a product; remove = DELETE the row; version = PATCH its software.
+
+/** An icon-only action: its name in a Tooltip (UI.md §8); without the role it is disabled and the tooltip says why. */
+function IconButton({ label, needRole, onClick, children }: { label: string; needRole: string | undefined; onClick: () => void; children: ReactNode }) {
+  return (
+    <Tooltip content={needRole ?? label} side="top">
+      <span className="inline-flex"><Button size="icon" variant="ghost" aria-label={label} disabled={!!needRole} onClick={onClick}>{children}</Button></span>
+    </Tooltip>
+  )
+}
 
 type Row = { d: DeviceRow; sw: DeviceRow['software'][number] | undefined }
 
@@ -66,8 +76,8 @@ function Body() {
       const name = r.sw?.display ?? ''
       return (
         <span className="flex justify-end gap-1">
-          {r.sw ? <Button size="icon" variant="ghost" aria-label={t('declaredPage.editVersion', { name })} title={needRole ?? t('declaredPage.editVersion', { name })} disabled={!can} onClick={() => setEditing(r)}><Pencil /></Button> : null}
-          <Button size="icon" variant="ghost" aria-label={t('declaredPage.remove', { name })} title={needRole ?? t('declaredPage.remove', { name })} disabled={!can} onClick={() => setRemoving(r)}><Trash2 /></Button>
+          {r.sw ? <IconButton label={t('declaredPage.editVersion', { name })} needRole={needRole} onClick={() => setEditing(r)}><Pencil /></IconButton> : null}
+          <IconButton label={t('declaredPage.remove', { name })} needRole={needRole} onClick={() => setRemoving(r)}><Trash2 /></IconButton>
         </span>
       )
     } },
@@ -84,8 +94,8 @@ function Body() {
                 <div className="flex items-start justify-between gap-2">
                   <Link to={`/devices/${r.d.id}`} className="min-w-0 font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{r.sw?.display ?? t('declaredPage.noProduct')}</Link>
                   <span className="flex shrink-0 gap-1">
-                    {r.sw ? <Button size="icon" variant="ghost" aria-label={t('declaredPage.editVersion', { name: r.sw.display })} disabled={!can} onClick={() => setEditing(r)}><Pencil /></Button> : null}
-                    <Button size="icon" variant="ghost" aria-label={t('declaredPage.remove', { name: r.sw?.display ?? '' })} disabled={!can} onClick={() => setRemoving(r)}><Trash2 /></Button>
+                    {r.sw ? <IconButton label={t('declaredPage.editVersion', { name: r.sw.display })} needRole={needRole} onClick={() => setEditing(r)}><Pencil /></IconButton> : null}
+                    <IconButton label={t('declaredPage.remove', { name: r.sw?.display ?? '' })} needRole={needRole} onClick={() => setRemoving(r)}><Trash2 /></IconButton>
                   </span>
                 </div>
                 <span className="flex flex-wrap gap-x-3 text-[13px] text-muted">

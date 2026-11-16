@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -23,7 +23,8 @@ function words(q: string): string[] {
 const unquote = (s: string) => s.replace(/"/g, '')
 const lc = (s: string) => s.toLowerCase()
 
-/** Splits a query into free-text words and the tokens of known keys (case-insensitive). An unknown `foo:bar` is free text. */
+/** Splits a query into free-text words and the tokens of known keys (case-insensitive). An unknown `foo:bar` is free text; a known
+ *  key with no value yet (`type:` while it is typed) filters nothing, so the list does not empty under the cursor. */
 export function parseQuery(q: string, keys: TokenKey[]): ParsedQuery {
   const byKey = new Map(keys.map((k) => [lc(k.key), k]))
   const out: ParsedQuery = { text: [], tokens: [] }
@@ -98,6 +99,14 @@ export function TokenSearch({ value, onChange, keys, chips, label, placeholder, 
   const [open, setOpen] = useState(false)
   const [caret, setCaret] = useState(value.length)
   const [active, setActive] = useState(0)
+  // After a pick the caret goes right after the inserted token, once React has written the new value (not a frame later: typing
+  // that follows at once must land there).
+  const caretTo = useRef<number | null>(null)
+  useLayoutEffect(() => {
+    if (caretTo.current === null || !input.current) return
+    input.current.setSelectionRange(caretTo.current, caretTo.current)
+    caretTo.current = null
+  })
   const [start, end] = currentWord(value, Math.min(caret, value.length))
   const word = value.slice(start, end)
   const options = useMemo(() => (open ? optionsFor(word, keys, value) : []), [open, word, keys, value])
@@ -114,7 +123,8 @@ export function TokenSearch({ value, onChange, keys, chips, label, placeholder, 
     setCaret(pos)
     setActive(0)
     setOpen(!o.done)
-    requestAnimationFrame(() => { input.current?.focus(); input.current?.setSelectionRange(pos, pos) })
+    caretTo.current = pos
+    input.current?.focus()
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
@@ -183,7 +193,7 @@ export function TokenSearch({ value, onChange, keys, chips, label, placeholder, 
                 className={cn('inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] sm:h-7',
                   on ? 'border-accent bg-accent-soft font-medium text-ink' : 'border-rule bg-surface text-muted hover:text-ink')}>
                 {c.label}
-                {c.count !== undefined ? <span className="tabular-nums text-muted">{c.count}</span> : null}
+                {c.count !== undefined ? <>{' '}<span className="tabular-nums text-muted">{c.count}</span></> : null}
                 {on ? <X className="size-3" aria-hidden /> : null}
               </button>
             )

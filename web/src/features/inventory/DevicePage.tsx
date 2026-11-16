@@ -3,7 +3,9 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { Notice, PageHeader, Section, Panel } from '@/components/common/PageHeader'
+import { Breadcrumbs } from '@/components/common/Breadcrumbs'
+import { Card } from '@/components/common/Card'
+import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { InfoTip } from '@/components/common/InfoTip'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
@@ -318,12 +320,9 @@ function Body() {
   const act = useDeviceAction(id)
   const [adding, setAdding] = useState(false)
   const [del, setDel] = useState(false)
-  // UI.md §3: breadcrumbs (parents only) above the title. ponytail: swap for components/common/Breadcrumbs once the shell builds it (#842).
-  const back = (
-    <nav aria-label={t('detail.breadcrumb')} className="mb-2 text-[13px] text-muted">
-      <ol className="flex items-center gap-1"><li><Link to="/devices" className="underline-offset-4 hover:text-ink hover:underline">{t('nav.devices')}</Link></li><li aria-hidden>›</li></ol>
-    </nav>
-  )
+  // UI.md §3: breadcrumbs (parents only) above the title; also while the device loads or is missing, so the way back is always there.
+  const crumbs = [{ label: t('nav.devices'), to: '/devices' }]
+  const back = <Breadcrumbs items={crumbs} />
 
   if (q.isPending) return <>{back}<Loading /></>
   if (q.error) {
@@ -337,8 +336,7 @@ function Body() {
   // Khung D-464 / D-543: tiêu đề → thông báo (máy là hộp, chưa duyệt) → dải số → tab ở ?tab=. Các khối module khác cắm vào (slot device.panels) nằm ở tab Overview.
   return (
     <>
-      {back}
-      <PageHeader title={<span className="[overflow-wrap:anywhere]">{name}</span>} stories={['S-INV-1', 'S-INV-2']}
+      <PageHeader breadcrumbs={crumbs} title={<span className="[overflow-wrap:anywhere]">{name}</span>} stories={['S-INV-1', 'S-INV-2']}
         meta={<span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<span>{t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
         actions={<>
           {/* #850: "Check this device now" plugs in here (slot device.actions, props { assetId }). */}
@@ -352,7 +350,7 @@ function Body() {
       <PageTabs label={t('detail.tabs.label')} tabs={[
         { id: 'overview', label: t('detail.tabs.overview'), panel: (
           <>
-            <Section id="overview" title={t('detail.overview')}><Panel className="p-4"><Overview d={d} /></Panel></Section>
+            <Section id="overview" title={t('detail.overview')}><Card><Overview d={d} /></Card></Section>
             {a.is_box || declaredSoftwareOnly(a) ? null : <DeviceSources d={d} />}
             <Slot name="device.panels" props={{ assetId: a.id }} />
             <Section id="notes" title={t('notes.title')}><Notes key={a.notes ?? ''} d={d} /></Section>

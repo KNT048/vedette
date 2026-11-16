@@ -77,8 +77,8 @@ test.describe('page frame (S-UI-1)', () => {
     await page.goto('/devices/setup?from=ways#agents')
     await expect(page).toHaveURL(/\/devices\/setup\?from=ways&tab=agents$/)
     await expect(page.getByRole('tab', { name: 'Agents', exact: true })).toHaveAttribute('aria-selected', 'true')
-    await page.goto('/devices/setup#snmp')
-    await expect(page.getByRole('tab', { name: 'SNMP', exact: true })).toHaveAttribute('aria-selected', 'true')
+    await page.goto('/devices/setup#snmp') // #849: the SNMP credentials moved to Settings › Scanning (#850)
+    await expect(page).toHaveURL(/\/settings\/scanning#snmp$/)
     await page.goto('/settings/network#box-address')
     await expect(page).toHaveURL(/\/settings\/network\?tab=box-address$/)
     await page.goto('/account#two-step') // the two-step prompt's old link, through the /account redirect

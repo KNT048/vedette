@@ -76,11 +76,11 @@ test('add devices from the catalog', async ({ page }) => {
   async function add(query: string, pick: RegExp, fields: { version?: string; name?: string; ip?: string }) {
     await page.getByRole('button', { name: 'Add a device' }).first().click()
     const d = page.getByRole('dialog', { name: 'Add a device' })
-    await d.getByRole('combobox', { name: 'Product' }).fill(query)
+    await d.getByRole('combobox', { name: 'Product it runs' }).fill(query)
     await d.getByRole('option', { name: pick }).first().click()
     if (fields.version) await d.getByRole('textbox', { name: 'Version (optional)' }).fill(fields.version)
-    if (fields.name) await d.getByRole('textbox', { name: 'Name (optional)' }).fill(fields.name)
-    if (fields.ip) await d.getByRole('textbox', { name: 'IP address (optional)' }).fill(fields.ip)
+    if (fields.name) await d.getByRole('textbox', { name: 'Host name' }).fill(fields.name)
+    if (fields.ip) await d.getByRole('textbox', { name: 'IP address' }).fill(fields.ip)
     await d.getByRole('button', { name: 'Add', exact: true }).click()
     await expect(d).toBeHidden()
   }

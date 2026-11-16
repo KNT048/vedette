@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Chip } from '@/components/common/StatusChip'
-import { Panel } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useDeviceAction, useNotifyNew } from './api'
@@ -80,15 +80,15 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
       {notifyNew && notifyAvailable ? <p className="text-[13px] text-muted">{t('pending.notifyVia')} <Link className="text-accent underline-offset-4 hover:underline" to="/settings/channels">{t('pending.openChannels')}</Link></p> : null}
       {total ? search : null}
       {pending.length ? (
-        <Panel>
+        <Card flush>
           <ul className="divide-y divide-rule" aria-label={t('pending.title', { count: pending.length })}>
             {pending.map((d) => <PendingItem key={d.id} d={d} />)}
           </ul>
-        </Panel>
+        </Card>
       ) : filtered ? (
-        <Panel className="px-4 py-6 text-center text-muted">
+        <Card className="py-6 text-center text-muted">
           <span className="inline-flex flex-wrap items-center justify-center gap-x-2">{t('search.none')}{onClear ? <Button size="sm" variant="link" onClick={onClear}>{t('search.clear')}</Button> : null}</span>
-        </Panel>
+        </Card>
       ) : null}
     </section>
   )

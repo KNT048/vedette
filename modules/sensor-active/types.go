@@ -36,6 +36,8 @@ type Asset struct {
 	// Approved: a person approved the device (or its osquery enrolment did). SNMP credentials go only to approved devices (D-512):
 	// a device nobody vouched for may be a rogue one that collects communities.
 	Approved bool
+	// Name is how a person knows the device (its host name, else its model, else what the inventory shows): for plain words only.
+	Name string
 }
 
 // Inventory is what this module asks of the inventory (INV-1, INV-2, INV-5). The real implementation is

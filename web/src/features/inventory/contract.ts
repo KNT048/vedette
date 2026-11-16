@@ -183,6 +183,12 @@ export const SampleResult = z.object({ devices: z.number().int(), software: z.nu
 export const SnmpVersion = z.enum(['v2c', 'v3']).describe('No SNMPv1 (D-512)')
 export const SnmpAuth = z.enum(['sha', 'sha256']).describe('v3 authentication: HMAC-SHA-1 or HMAC-SHA-256 (no MD5)')
 export const SnmpPriv = z.enum(['aes128', 'none']).describe('v3 privacy: AES-128 (authPriv) or none (authNoPriv); no DES')
+/** #829 C4: a device that answered this credential and has since moved to an address outside its scope. It is not read there (the scope is the safety line, D-512) until a person adds the address. */
+export const SnmpMoved = z.object({
+  device_id: z.string(), name: z.string().describe('How a person knows the device: host name, else model, else what the inventory shows'),
+  ip: z.string().describe('Its address now, outside the credential\'s scope'),
+  message: z.string().describe('Plain words, e.g. "ipchg-c4 moved to 192.168.18.206, outside the scope of this credential: add the address to the scope to keep reading it. Nothing is sent there until then."'),
+})
 export const SnmpCredential = z.object({
   id: z.string(), name: z.string(), version: SnmpVersion,
   username: z.string().nullable().describe('v3 user name; null for v2c'),
@@ -193,6 +199,7 @@ export const SnmpCredential = z.object({
   created_at: dt, last_answer_at: dt.nullable().describe('When a device last answered with it (a round in the scan window, or a Test)'),
   answered: z.number().int().describe('Devices that answered with it in its latest round in the scan window; a Test that got an answer makes it at least 1'),
   secret_lost: z.boolean().describe('A saved secret of it cannot be opened on this box (a backup restored without its decryption key, or the box key changed, #868): it is sent nowhere (Test and Read now answer 409 secret_lost, the scan window skips it) until Edit saves it with the secret typed again'),
+  moved_out: z.array(SnmpMoved).describe('Devices that answered with it and moved out of its scope (#829 C4); empty on add and edit responses'),
 })
 export const SnmpCredentialInput = z.object({
   name: z.string().max(64).describe('1 to 64 characters, not < >; unique (case does not matter)'), version: SnmpVersion,
@@ -230,7 +237,7 @@ export const SnmpRead = z.object({
   message: z.string().nullable().describe('Why the read stopped or failed, in plain words; null while running and when done'),
   total: z.number().int().describe('Approved devices of the scope that get one read'), done: z.number().int(), answered: z.number().int(),
   skipped: z.number().int().describe('Devices of the inventory in the credential\'s scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is sent to them, nor to an address with no device'),
-  results: z.array(SnmpTestResult.extend({ ip: z.string() })).describe('One row per device read so far, as Test answers it'),
+  results: z.array(SnmpTestResult.extend({ ip: z.string() })).describe('One row per device read so far, as Test answers it; a device that answered this credential and moved out of its scope is a row with reason not_for_this_credential at its new address, counted in skipped, and is not read (#829 C4)'),
 })
 
 const id = z.object({ id: z.string() })

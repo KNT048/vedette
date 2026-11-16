@@ -166,6 +166,7 @@ var exportPolicy = map[string]tablePolicy{
 	"sa_queue":               {export: "asset_id queued_at reason attempts"},
 	"sa_sweep":               {export: "id cursor updated_at"},
 	"sa_first_pass":          {export: "id started_at"},
+	"sa_snmp_answer":         {export: "credential_id asset_id ip answered_at"},                                                                                                            // #829 C4: which device answered which credential last
 	"sa_snmp":                {export: "id name version username auth priv secret_last4 priv_last4 scope created_at updated_at last_answer_at answered", skip: "secret_id priv_secret_id"}, // the community and v3 passwords stay in core_secret (D-512)
 	"scan_event":             {export: "id ts cve product latency_min run_id result", json: "devices"},
 	"scan_probe":             {export: "id ts run_id ip label template request result"},

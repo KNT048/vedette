@@ -129,6 +129,12 @@ func (s *Service) ReadSNMP(ctx context.Context, actor, id string) (SNMPRead, err
 		return SNMPRead{}, err
 	}
 	run := &SNMPRead{ID: jobID, CredentialID: id, By: actor, StartedAt: s.clock(), Status: StatusRunning, Total: len(targets), Skipped: skipped, Results: []SNMPReadResult{}}
+	// A device that answered this credential and moved out of its scope is not read (D-512): it is a skipped row that says so
+	// (#829 C4), so a read of nothing says why.
+	for _, m := range s.snmpMovedOut(ctx, []snmpRow{*cred})[id] {
+		run.Skipped++
+		run.Results = append(run.Results, SNMPReadResult{IP: m.IP, SNMPTestResult: SNMPTestResult{Reason: SNMPNotForThisCredential, Message: m.Message, DeviceID: m.DeviceID}})
+	}
 	done := make(chan struct{})
 	s.mu.Lock()
 	if s.reads.last == nil {

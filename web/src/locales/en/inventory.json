@@ -37,6 +37,7 @@
     "adminOnly": "An administrator sets this up.",
     "agent": { "off": "Turn on the Agents module in Settings to use osquery or Wazuh.", "add": "Install osquery", "manage": "Agents and tokens" },
     "snmp": {
+      "movedOut": "This device moved to {{ip}}, outside the scope of SNMP credential {{name}}, so it is not read there. To keep reading it, add the address to the scope: Read with SNMP now offers it for that credential, or Edit the credential under Scope and sensors, SNMP.",
       "off": "Turn on active discovery in Settings to read devices with SNMP.",
       "declared": "Added by hand: Vedette sends nothing to it.",
       "approveFirst": "Approve the device first: SNMP reads only approved devices.",
@@ -819,6 +820,8 @@
     "answersLabel": "Answers",
     "scopeLabel": "Sent to",
     "lastAnswered": "Last answered {{when}}",
+    "movedOut": "{{name}} moved to {{ip}}, outside this credential's scope",
+    "movedOutDevice": "Open the device",
     "secretLost": "The saved community or password was not restored",
     "secretLostBody": "The backup was restored without its decryption key, or the box key changed. This credential is sent nowhere until you open Edit, enter it again and save.",
     "answeredBy_one": "answered by {{count}} device",

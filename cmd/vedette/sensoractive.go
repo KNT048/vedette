@@ -243,7 +243,14 @@ func (a sensorInventory) Asset(ctx context.Context, assetID string) (sensoractiv
 		return sensoractive.Asset{}, sensoractive.ErrNotFound
 	}
 	ip, _ := netip.ParseAddr(r.IP) // "—" (no IP known) gives the zero Addr
-	return sensoractive.Asset{ID: r.ID, IP: ip, Approved: r.Approved}, nil
+	name := r.Display
+	switch {
+	case r.Hostname != nil && *r.Hostname != "":
+		name = *r.Hostname
+	case r.Model != "":
+		name = r.Model
+	}
+	return sensoractive.Asset{ID: r.ID, IP: ip, Approved: r.Approved, Name: name}, nil
 }
 
 func (a sensorInventory) Addresses(ctx context.Context) (map[netip.Addr]string, error) {

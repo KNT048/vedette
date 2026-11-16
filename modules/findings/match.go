@@ -272,11 +272,11 @@ func agedSummary(v Vuln) string {
 		AgedNote, v.CVE, FmtDay(v.Published), v.listName(), FmtDay(v.DateAdded))
 }
 
-// agedOthersSummary is the note of a finding the age rule closes because NVD's list names only other products than its row (#904):
-// within MaxNote, so it is never clipped.
+// agedOthersSummary is the note of a finding the age rule closes because NVD's list names only other products than its row (#904).
+// It names the software once; a very long display or product list is clipped by AutoResolve (MaxNote) like any note.
 func agedOthersSummary(v Vuln, m Match) string {
-	return fmt.Sprintf("%s: %s was published on %s and added to %s's list on %s, both more than 12 months ago, and NVD lists it for %s, not %s, so no version could be compared. Vedette reopens this finding if NVD's data names %s or a scan finds it.",
-		AgedNote, v.CVE, FmtDay(v.Published), v.listName(), FmtDay(v.DateAdded), m.others, m.SoftwareDisplay, m.SoftwareDisplay)
+	return fmt.Sprintf("%s: %s was published on %s and added to %s's list on %s, both more than 12 months ago, and NVD lists it for %s, not %s, so no version could be compared. Vedette reopens this finding if NVD's data names this software or a scan finds it.",
+		AgedNote, v.CVE, FmtDay(v.Published), v.listName(), FmtDay(v.DateAdded), m.others, m.SoftwareDisplay)
 }
 
 // SettledKEV is how long a "Multiple Products" entry must have been in KEV before NVD's product list for it is taken as
@@ -398,8 +398,11 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				}
 			case outMatch:
 				// on a tie, a confirmed match wins (NVD says every version, or the agent's row, D-612): it keeps an old CVE whatever
-				// the order of the rows (review r2 #5 of #803; review r2 #1 of #804: an nmap row sorted before the agent's)
-				if best == nil || rank(m.Basis) > rank(best.Basis) || rank(m.Basis) == rank(best.Basis) && confirmedMatch(m) && !confirmedMatch(*best) {
+				// the order of the rows (review r2 #5 of #803; review r2 #1 of #804: an nmap row sorted before the agent's); when neither is
+				// confirmed (#904: NVD lists only other products), the agent's row still wins, so its note and agent_row do not depend on
+				// the order (review r1 M2 of #909)
+				if best == nil || rank(m.Basis) > rank(best.Basis) || rank(m.Basis) == rank(best.Basis) && !confirmedMatch(*best) &&
+					(confirmedMatch(m) || m.Evidence.AgentRow && !best.Evidence.AgentRow) {
 					best = &m
 				}
 			case outNeedVersion:
@@ -723,8 +726,8 @@ func newSWInfo(s Software, osName string) swInfo {
 // product (decide's key), not a product of its vendor whose name starts with the software's (NVD's microsoft:edge_chromium for an
 // Edge row: maybe the same product under NVD's other name), and, for a Windows row (a Windows CPE, or keyed to CISA's "Microsoft
 // Windows"), no Windows row of any release or family (winListedOf) and no component Windows' monthly update services
-// (winOSComponents). "" otherwise: no NVD data yet, an entry that may be this software (vendor or product ANY, unreadable), or one
-// that applies. D-617's case keeps its agent evidence: CVE-2024-43572 lists Windows 11 24H2.
+// (winOSComponents), and no row of the device's own operating system (an Ubuntu release for a kernel row on Ubuntu, review r1 M1 of
+// #909). "" otherwise: no NVD data yet, an entry that may be this software (vendor or product ANY, unreadable), or one that applies. D-617's case keeps its agent evidence: CVE-2024-43572 lists Windows 11 24H2.
 func nvdOthersOnly(in swInfo, v Vuln) string {
 	if len(v.Affected) == 0 {
 		return ""
@@ -766,6 +769,9 @@ func nvdOthersOnly(in swInfo, v Vuln) string {
 		cv, _ := c.Vendor.Literal()
 		cp, _ := c.Product.Literal()
 		if slices.ContainsFunc(ids, func(i identity) bool { return i.ok() && i.vendor == norm(cv) && strings.HasPrefix(norm(cp), i.product) }) {
+			return ""
+		}
+		if in.os.ok() && in.os.matches(norm(cv), norm(cp)) { // the device's own OS (osRulesOut's identity): CVE-2021-3493 lists Ubuntu releases for a kernel flaw (review r1 M1 of #909)
 			return ""
 		}
 	}

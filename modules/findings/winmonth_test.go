@@ -69,7 +69,7 @@ func TestMatchAsset_D618_WinLab01(t *testing.T) {
 	for _, m := range res.Aged {
 		aged[m.CVE] = m.Evidence.Summary
 	}
-	for c, s := range map[string]string{"CVE-2015-1671": "NVD lists it for .net framework, live meeting, lync and 1 more, not Windows Server 2025, so no version could be compared.",
+	for c, s := range map[string]string{"CVE-2015-1671": "NVD lists it for .net framework, live meeting, lync and 1 more, not Windows Server 2025, so no version could be compared. Vedette reopens this finding if NVD's data names this software or a scan finds it.",
 		"CVE-2021-43890": "NVD lists it for app installer, not Windows Server 2025, so no version could be compared."} {
 		if !strings.HasPrefix(aged[c], AgedNote) || !strings.Contains(aged[c], s) || len([]rune(aged[c])) > MaxNote {
 			t.Errorf("%s: aged %q (%d runes), want it to say %q", c, aged[c], len([]rune(aged[c])), s)

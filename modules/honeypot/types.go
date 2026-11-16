@@ -362,6 +362,11 @@ var ErrRefused = errors.New("the host refused")
 // (INV-7), never "IP clashes with a device" (#475).
 var ErrHostFailed = errors.New("the host could not set up the address")
 
+// ErrHostBusy is wrapped by an error of a Host write the host did not take for now: it is busy with another operation (an
+// install, a network change waiting for its confirmation) or rate-limits core. Nothing was done; the next Apply asks again.
+// A container start (or a first address) that waits only on it reads "starting" for up to startBusyFor, then "failed" (#889).
+var ErrHostBusy = errors.New("the host is busy with another operation or rate-limiting core")
+
 // Port is one port a Trap IP answers on (host-api 6.6 `ports`).
 type Port struct {
 	Proto string // "tcp" or "udp"

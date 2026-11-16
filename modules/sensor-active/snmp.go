@@ -46,6 +46,8 @@ const (
 	snmpTestBudget = 40 * time.Second
 	// snmpRoundRun bounds one batch of the window's round (64 devices with up to 4 credentials each).
 	snmpRoundRun = time.Hour
+	// snmpBatchTries bounds the reads of one batch of a round that device changes stop (#882).
+	snmpBatchTries = 4
 	// snmpWait is how long a Test waits for a batch of the window's round to finish before it says busy.
 	snmpWait = 30 * time.Second
 	// The confidence of what a device states about itself; the kind from a family or a phrase is a little less sure.
@@ -103,7 +105,12 @@ type snmpRow struct {
 
 // snmpRun is the SNMP batch in progress, for SettingsChanged, AssetChanged and Stop.
 type snmpRun struct {
-	cancel  context.CancelFunc
+	cancel context.CancelFunc
+	// changed stops the batch because one of its devices changed (AssetChanged), with that device as the cause: the round reads
+	// the batch again instead of ending (#882).
+	changed context.CancelCauseFunc
+	// targets and assets are the batch's addresses and devices: every one it was given until recheckSNMP, then only the ones it
+	// still sends to (set under s.mu), so a change to a device the batch dropped does not stop it (#882).
 	targets []netip.Addr
 	assets  []string
 	picked  bool // a Test: the window does not bind it
@@ -173,6 +180,15 @@ const snmpLostText = "The saved SNMP community or password of this credential wa
 
 // errSNMPSecretLost is a credential's secret found sealed under another master key while a job was built (snmpJob): nothing was sent.
 var errSNMPSecretLost = errors.New("the saved SNMP community or password was not restored")
+
+// snmpDeviceChanged is ErrStopped for a batch stopped only because one of its devices changed (AssetChanged: it moved, another
+// device took its address, a field changed): snmpRound reads the batch again (#882).
+type snmpDeviceChanged struct{ asset string }
+
+func (e *snmpDeviceChanged) Error() string {
+	return "stopped: device " + e.asset + " of the batch changed"
+}
+func (e *snmpDeviceChanged) Is(target error) bool { return target == ErrStopped }
 
 // snmpSecretLost is the answer of a Test, a Read now and an Edit that keeps a secret this box cannot open (#868).
 func snmpSecretLost() *apierr.Error {
@@ -752,11 +768,19 @@ func (s *Service) closeSNMPJob(ctx context.Context, jobID string, targets int, e
 // (SettingsChanged sees it), then the settings, the window (not for a Test) and the scope are read again for every target, then the
 // probe row is written, and only then the secrets are opened and the job handed to the worker. What the devices answered is recorded.
 // The caller holds snmpMu.
-func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, targets []snmpTarget, picked bool) ([]sensorlink.SNMPAnswer, error) {
+// A batch stopped only because one of its devices changed returns *snmpDeviceChanged (an ErrStopped).
+func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, targets []snmpTarget, picked bool) (_ []sensorlink.SNMPAnswer, err error) {
 	v0 := s.ver.Load()
-	rctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	run := &snmpRun{cancel: cancel, picked: picked}
+	rctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	run := &snmpRun{cancel: func() { cancel(nil) }, changed: cancel, picked: picked}
+	defer func() {
+		// The cause of the batch's own context: the first cancel wins, and a deadline that passed first is not a device change.
+		var dc *snmpDeviceChanged
+		if errors.Is(err, ErrStopped) && ctx.Err() == nil && errors.As(context.Cause(rctx), &dc) {
+			err = dc
+		}
+	}()
 	for _, t := range targets {
 		run.targets, run.assets = append(run.targets, t.ip), append(run.assets, t.asset)
 	}
@@ -815,13 +839,19 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 		return nil, nil
 	}
 	// From now on only the credentials this batch carries stop it when edited or deleted; one changed between the read above and
-	// here is caught by snmpJob, which reads each row again with its secrets.
+	// here is caught by snmpJob, which reads each row again with its secrets. Likewise only the devices it still sends to stop it
+	// when they change (#882): one the recheck dropped gets nothing whatever it does now, and one it kept that changed after the
+	// recheck read it is still listed here, so its change stops the batch.
 	ids := make([]string, len(creds))
 	for i, c := range creds {
 		ids[i] = c.ID
 	}
+	ips, assets := make([]netip.Addr, len(targets)), make([]string, len(targets))
+	for i, t := range targets {
+		ips[i], assets[i] = t.ip, t.asset
+	}
 	s.mu.Lock()
-	run.credIDs = ids
+	run.credIDs, run.targets, run.assets = ids, ips, assets
 	s.mu.Unlock()
 	sc := newScope(st)
 	for _, t := range targets {
@@ -861,7 +891,10 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 	}
 	answers, err := s.snmp.RunSNMP(rctx, job)
 	var result string
+	var dc *snmpDeviceChanged
 	switch {
+	case rctx.Err() != nil && !errors.Is(ctx.Err(), context.DeadlineExceeded) && errors.As(context.Cause(rctx), &dc):
+		result, err = "stopped: a device of the batch moved or changed", ErrStopped
 	case rctx.Err() != nil && !errors.Is(ctx.Err(), context.DeadlineExceeded):
 		result, err = stoppedText, ErrStopped
 	case errors.Is(err, ErrSNMPUnavailable):
@@ -1169,10 +1202,30 @@ func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 		return err
 	}
 	done := 0
+	changed := map[string]int{} // the devices whose change stopped a batch of this round, and how many times
 	for batch := range slices.Chunk(targets, sensorlink.MaxSNMPTargets) {
-		s.snmpMu.Lock()
-		_, err = s.snmpBatch(ctx, jobID, creds, batch, false) // its deadline: the window's end or snmpRoundRun (INV-3, review M2)
-		s.snmpMu.Unlock()
+		for try := 1; ; try++ {
+			s.snmpMu.Lock()
+			_, err = s.snmpBatch(ctx, jobID, creds, batch, false) // its deadline: the window's end or snmpRoundRun (INV-3, review M2)
+			s.snmpMu.Unlock()
+			// A batch stopped only because one of its devices changed is read again, not the whole round from its first batch
+			// on the next Tick (#882). The new batch checks everything again: a device that moved or is gone since the round
+			// started is dropped by its recheck (D-512 (3)). A device that stops the round a second time is left out of it (the
+			// next window reads it), so the round ends however often devices change. A batch stopped snmpBatchTries times is
+			// left for the next window and the round goes on with the next batch (review r1 L1: never 128 sends of one batch).
+			var dc *snmpDeviceChanged
+			if !errors.As(err, &dc) {
+				break
+			}
+			if try == snmpBatchTries {
+				s.log.InfoContext(ctx, "sensoractive: snmp batch left for the next window: its devices kept changing", "devices", len(batch))
+				batch, err = nil, nil
+				break
+			}
+			if changed[dc.asset]++; changed[dc.asset] > 1 {
+				batch = slices.DeleteFunc(slices.Clone(batch), func(t snmpTarget) bool { return t.asset == dc.asset })
+			}
+		}
 		if err != nil {
 			break
 		}
@@ -1228,13 +1281,18 @@ func (s *Service) snmpTargets(ctx context.Context, creds []snmpRow) ([]snmpTarge
 func (s *Service) snmpChanged(ctx context.Context, asset string) {
 	s.mu.Lock()
 	run := s.snmpCur
+	var held bool
+	var targets []netip.Addr
+	if run != nil {
+		held, targets = slices.Contains(run.assets, asset), slices.Clone(run.targets)
+	}
 	s.mu.Unlock()
 	if run == nil {
 		return
 	}
 	if asset != "" {
-		if slices.Contains(run.assets, asset) {
-			run.cancel()
+		if held {
+			run.changed(&snmpDeviceChanged{asset: asset})
 		}
 		return
 	}
@@ -1254,7 +1312,7 @@ func (s *Service) snmpChanged(ctx context.Context, asset string) {
 		return
 	}
 	sc := newScope(st)
-	if slices.ContainsFunc(run.targets, func(t netip.Addr) bool { return !sc.contains(t) }) {
+	if slices.ContainsFunc(targets, func(t netip.Addr) bool { return !sc.contains(t) }) {
 		run.cancel()
 	}
 }
@@ -1264,8 +1322,9 @@ func (s *Service) snmpChanged(ctx context.Context, asset string) {
 func (s *Service) snmpCredentialChanged(id string) {
 	s.mu.Lock()
 	run := s.snmpCur
+	held := run != nil && slices.Contains(run.credIDs, id) // credIDs is narrowed under s.mu while the batch runs
 	s.mu.Unlock()
-	if run != nil && slices.Contains(run.credIDs, id) {
+	if held {
 		run.cancel()
 	}
 }

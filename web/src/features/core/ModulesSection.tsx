@@ -13,7 +13,8 @@ import { useModules, type ModuleId, type ModuleState } from '@/lib/modules'
 import { notOffered, scopeOf } from '@/lib/v1'
 import { ScopeBadge, ScopeLine } from '@/components/common/V1Scope'
 import { fmtDate } from '@/lib/format'
-import { useToggleModule, useUsers } from './api'
+import { useOidc, useToggleModule, useUsers } from './api'
+import { Slot } from '@/components/common/Slot'
 import { errMsg, ReadOnlyNote, useGate } from './parts'
 
 type Confirm = { kind: 'disable'; mod: ModuleId; affected: ModuleId[] } | { kind: 'deps'; mod: ModuleId; missing: ModuleId[] } | null
@@ -23,6 +24,13 @@ function EmailCodeWarning() {
   const { t } = useTranslation('core')
   const count = (useUsers().data?.items ?? []).filter((u) => !u.disabled && u.twofa_method === 'email').length
   return count > 0 ? <Notice tone="danger" role="alert" className="mb-0" title={t('modules.disable.emailCodes', { count })} info={t('modules.disable.emailCodesInfo')} /> : null
+}
+
+/** D-624 (M1): turning SSO off here locks out the people who only sign in through it, as on the Users page; in v1 it never comes back. */
+function SsoUsersWarning() {
+  const { t } = useTranslation('core')
+  const n = useOidc(true).data?.sso_users ?? 0
+  return n > 0 ? <Notice tone="danger" role="alert" className="mb-0" title={t('modules.disable.ssoUsers', { count: n })} /> : null
 }
 
 export default function ModulesSection() {
@@ -92,7 +100,8 @@ export default function ModulesSection() {
       </Dialog>
 
       <Dialog open={confirm?.kind === 'disable'} onOpenChange={(o) => !o && setConfirm(null)}>
-        <DialogContent title={confirm?.kind === 'disable' ? t('modules.disable.title', { name: name(confirm.mod) }) : ''} description={t('modules.disable.keep')} info={t('modules.disable.reenable')}>
+        <DialogContent title={confirm?.kind === 'disable' ? t('modules.disable.title', { name: name(confirm.mod) }) : ''} description={t('modules.disable.keep')}
+          info={confirm?.kind === 'disable' && notOffered(confirm.mod) ? t('modules.disable.notOffered') : t('modules.disable.reenable')}>
           {confirm?.kind === 'disable' ? (
             confirm.affected.length ? (
               <div className="grid gap-2 text-sm">
@@ -102,6 +111,9 @@ export default function ModulesSection() {
             ) : <p className="text-sm text-muted">{t('modules.disable.none')}</p>
           ) : null}
           {confirm?.kind === 'disable' && confirm.mod === 'notify' ? <EmailCodeWarning /> : null}
+          {confirm?.kind === 'disable' && confirm.mod === 'auth-oidc' ? <SsoUsersWarning /> : null}
+          {/* what a module says stays in force once it is off (response: CONTRACT "Khi tắt module", D-624) */}
+          {confirm?.kind === 'disable' ? <Slot name="modules.disable" props={{ module: confirm.mod, onClose: () => setConfirm(null) }} /> : null}
           <DialogFooter>
             <Button onClick={() => setConfirm(null)}>{t('common:cancel')}</Button>
             <Button variant="danger" disabled={toggle.isPending} onClick={() => confirm?.kind === 'disable' && void run(confirm.mod, false)}>{t('modules.disable.confirm')}</Button>

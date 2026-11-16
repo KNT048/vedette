@@ -2,15 +2,14 @@
 // this runs alone, and every test puts the switches back. Steps from e2e/qa/core.spec.ts ("modules").
 //   - "External exposure" (exposure) is the module that is turned off: nothing depends on it and it keeps a setting of its own (the
 //     box-IP check interval), which is the data that must still be there after it is turned on again.
-//   - "AI assistant" is turned off to make "AI response" (off in the mid-size bundle, needs it) ask for its dependency. (The credentialed
-//     scan is not listed in v1, D-417.)
+//   - "Findings" is turned off to make "Mitigation" (needs it) ask for its dependency. (AI response, the earlier example, is not offered
+//     in v1, D-624; the credentialed scan is not listed either, D-417.)
 // What a module that is off answers: SYS-5 says its routes answer 404 "as if they did not exist" (core/server/modules.go), not 409
 // `module_off` (that code belongs to the MCP token call and to the email channel of the account page).
 import { expect, request, test, type Page } from '@playwright/test'
 import { api, authFile, box } from './box'
 import { expectAccessible, h1, noErrors, noVietnamese } from './ui'
 import { collectErrors, shot } from '../e2e/helpers'
-import { POST_V1_IN_UI } from '../src/lib/postV1'
 
 test.use({ storageState: authFile('admin'), actionTimeout: 10_000 })
 
@@ -96,52 +95,52 @@ test('turn a module off: the page says so, its routes answer 404, its data is ke
 })
 
 test('turning on a module whose dependency is off asks to turn both on', async ({ page }) => {
-  test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819)')
+  // D-624: AI response is not offered in v1, so the pair is Mitigation, which needs Findings (both v1; modules/mitigation/MANIFEST.yaml)
   test.setTimeout(120_000)
   const errors = collectErrors(page)
   const admin = await request.newContext({ baseURL: box().base_url, storageState: authFile('admin') })
+  const swAny = (name: string) => page.getByRole('switch', { name: new RegExp(`^Turn (on|off) module ${name}$`) })
   try {
-    expect(await state(admin, 'ai'), 'the AI module is on (mid-size bundle)').toBe(true)
-    expect(await state(admin, 'response')).toBe(false)
-    expect((await api(admin, 'PATCH', '/modules/response', { enabled: false })).status).toBe(200)
-    expect((await api(admin, 'PATCH', '/modules/ai', { enabled: false })).status).toBe(200)
+    expect(await state(admin, 'findings'), 'findings is on (every bundle)').toBe(true)
+    expect((await api(admin, 'PATCH', '/modules/mitigation', { enabled: false })).status).toBe(200)
+    expect((await api(admin, 'PATCH', '/modules/findings', { enabled: false })).status).toBe(200)
     // the server: 409 and the full list of what is missing, and nothing was changed
-    const refused = await api<{ error: { code: string; missing?: string[] }; missing?: string[] }>(admin, 'PATCH', '/modules/response', { enabled: true })
+    const refused = await api<{ error: { code: string; missing?: string[] }; missing?: string[] }>(admin, 'PATCH', '/modules/mitigation', { enabled: true })
     expect(refused.status).toBe(409)
     expect(refused.body.error.code).toBe('missing_dependencies')
-    expect(refused.body.error.missing ?? refused.body.missing, 'the full list of what is missing').toEqual(['ai'])
-    expect(await state(admin, 'response')).toBe(false)
+    expect(refused.body.error.missing ?? refused.body.missing, 'the full list of what is missing').toEqual(['findings'])
+    expect(await state(admin, 'mitigation')).toBe(false)
 
-    await onModulesPage(page, 'AI response')
-    await sw(page, 'AI response').click()
+    await onModulesPage(page, 'Mitigation')
+    await sw(page, 'Mitigation').click()
     const dlg = page.getByRole('dialog', { name: 'Turn on the required modules too?' })
     await expect(dlg).toBeVisible()
-    await expect(dlg.getByText('AI assistant')).toBeVisible()
+    await expect(dlg.getByText('Findings')).toBeVisible()
     await shot(page, 'real', 'modules-dependencies')
     await page.keyboard.press('Escape')
-    await expect(sw(page, 'AI response')).not.toBeChecked()
-    expect(await state(admin, 'ai'), 'Escape turns nothing on').toBe(false)
-    await sw(page, 'AI response').click()
+    await expect(swAny('Mitigation')).not.toBeChecked()
+    expect(await state(admin, 'findings'), 'Escape turns nothing on').toBe(false)
+    await sw(page, 'Mitigation').click()
     await dlg.getByRole('button', { name: 'Turn on together' }).click()
-    await toast(page, /AI response is on/)
-    await expect(sw(page, 'AI response')).toBeChecked()
-    expect(await state(admin, 'ai')).toBe(true)
-    expect(await state(admin, 'response')).toBe(true)
-    const log = await api<{ items: { action: string; target: string; detail?: string }[] }>(admin, 'GET', '/core/audit?q=response')
-    expect(log.body.items.some((r) => r.action === 'module.enable' && r.target === 'response' && /\bai\b/.test(r.detail ?? ''))).toBe(true)
+    await toast(page, /Mitigation is on/)
+    await expect(swAny('Mitigation')).toBeChecked()
+    expect(await state(admin, 'findings')).toBe(true)
+    expect(await state(admin, 'mitigation')).toBe(true)
+    const log = await api<{ items: { action: string; target: string; detail?: string }[] }>(admin, 'GET', '/core/audit?q=mitigation')
+    expect(log.body.items.some((r) => r.action === 'module.enable' && r.target === 'mitigation' && /\bfindings\b/.test(r.detail ?? ''))).toBe(true)
 
     // turning the one that is needed off names the module that depends on it, and keeps it on
-    await onModulesPage(page, 'AI assistant')
-    await sw(page, 'AI assistant').click()
-    const off = page.getByRole('dialog', { name: 'Turn off AI assistant?' })
-    await expect(off.getByText('AI response')).toBeVisible()
+    await onModulesPage(page, 'Findings')
+    await swAny('Findings').click()
+    const off = page.getByRole('dialog', { name: 'Turn off Findings?' })
+    await expect(off.getByText('Mitigation')).toBeVisible()
     await off.getByRole('button', { name: 'Cancel' }).click()
-    expect(await state(admin, 'ai')).toBe(true)
+    expect(await state(admin, 'findings')).toBe(true)
     await noVietnamese(page, 'modules dependencies')
     noErrors(errors, /status of 409/)
   } finally {
-    await api(admin, 'PATCH', '/modules/response', { enabled: false })
-    if (!(await state(admin, 'ai'))) await api(admin, 'PATCH', '/modules/ai', { enabled: true })
+    if (!(await state(admin, 'findings'))) await api(admin, 'PATCH', '/modules/findings', { enabled: true })
+    if (!(await state(admin, 'mitigation'))) await api(admin, 'PATCH', '/modules/mitigation', { enabled: true })
     await admin.dispose()
   }
 })

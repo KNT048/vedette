@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Section } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, Loading } from '@/components/common/States'
@@ -9,6 +9,7 @@ import { PlanView } from './parts'
 import { RequestCard } from './RequestCard'
 import { AiSetup, InboxWhy, useSetupDone } from './AiSetup'
 import type { ActionRequest } from './types'
+import { useFrozen } from './frozen'
 
 function Plans() {
   const { t } = useTranslation('response')
@@ -35,7 +36,9 @@ export function RequestsTab() {
   const { t } = useTranslation('response')
   const actions = useActions()
   const setupDone = useSetupDone()
-  const [view, setView] = useState<'pending' | 'history'>('pending')
+  const frozen = useFrozen() // D-624: no guided setup for what this build does not offer
+  // ?view=history: where the turn-off dialog sends you to roll back first (D-624)
+  const [view, setView] = useState<'pending' | 'history'>(useSearchParams()[0].get('view') === 'history' ? 'history' : 'pending')
   const [src, setSrc] = useState<'all' | 'ai' | 'rule' | 'person'>('all')
   const [risk, setRisk] = useState<'all' | Risk>('all')
   if (actions.isPending) return <Loading />
@@ -45,7 +48,7 @@ export function RequestsTab() {
   const filtered = src !== 'all' || risk !== 'all'
   return (
     <div className="grid gap-2">
-      {pending && setupDone === false ? <AiSetup compact /> : null}
+      {pending && setupDone === false && !frozen ? <AiSetup compact /> : null}
       <Section id="requests" title={t('requests.title')} description={t('requests.description')} info={t('requests.descriptionInfo')} stories={['S-RESP-2', 'S-RESP-3']}
         actions={<div className="flex flex-wrap gap-2">
           <Segmented label={t('requests.view')} value={view} onChange={setView} options={[{ value: 'pending', label: t('requests.pending', { count: pending }) }, { value: 'history', label: t('requests.history') }]} />
@@ -55,7 +58,7 @@ export function RequestsTab() {
         {items.length ? <div className="grid gap-4">{items.map((a) => <RequestCard key={a.id} a={a} />)}</div>
           : <EmptyState title={view === 'pending' ? t('requests.emptyPending') : t('requests.empty')} info={filtered ? t('requests.emptyFilteredInfo') : undefined}>{filtered ? t('requests.emptyFiltered') : t('requests.emptyBody')}</EmptyState>}
       </Section>
-      {!pending ? <><AiSetup /><InboxWhy /></> : null}
+      {!pending ? <>{frozen ? null : <AiSetup />}<InboxWhy /></> : null}
       <Plans />
     </div>
   )

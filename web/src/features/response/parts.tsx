@@ -10,6 +10,7 @@ import { Chip, type Tone } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
 import { errText, useEmergencyStop, useRequestApproval } from './api'
+import { useFrozen } from './frozen'
 import type { ActionStatus, Change, ItemStatus, Plan, Proposal, Risk } from './types'
 
 const TONE: Record<ActionStatus, Tone> = { pending: 'warn', approved: 'accent', rejected: 'off', expired: 'off', executed: 'ok', failed: 'danger', rolled_back: 'accent' }
@@ -43,7 +44,8 @@ export function ChangeView({ change }: { change: Change }) {
 function Blocked({ state }: { state: Proposal['state'] }) {
   const { t } = useTranslation('response')
   const admin = useCan('admin')
-  if (state === 'ready') return null
+  const frozen = useFrozen() // D-624 (L2): no reason that invites turning something on; the request button already says why
+  if (state === 'ready' || frozen) return null
   return (
     <div className="flex items-start gap-1 rounded-md border border-dashed border-rule bg-sunken px-3 py-2 text-[13px] text-muted">
       <p>{t(`blocked.${state}`)} {admin && state !== 'tool_unavailable' && state !== 'not_publishable' ?<Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link> : null}</p>
@@ -54,14 +56,15 @@ function Blocked({ state }: { state: Proposal['state'] }) {
 
 function ProposalView({ p }: { p: Proposal }) {
   const { t } = useTranslation('response')
-  const can = useCan('operator')
+  const frozen = useFrozen() // D-624: no new request from a plan
+  const can = useCan('operator') && !frozen
   const req = useRequestApproval()
   return (
     <div className="grid gap-2 rounded-md border border-rule bg-paper p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium">{t('proposal.label')}: {p.title}</p>
         {p.request_id ? <Link className="text-[13px] text-accent underline underline-offset-4" to="/response?tab=requests">{t('proposal.requested')}</Link>
-          : <Button size="sm" disabled={!can || p.state !== 'ready' || req.isPending} title={!can ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
+          : <Button size="sm" disabled={!can || p.state !== 'ready' || req.isPending} title={frozen ? t('leaving.frozen') : !can ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
               onClick={() => req.mutate(p.id, { onSuccess: () => toast.success(t('proposal.sent')), onError: (e) => toast.error(errText(e)) })}>{t('proposal.request')}</Button>}
       </div>
       <p className="text-[13px] text-muted">{t('proposal.via', { connection: p.connection, tool: p.tool })}</p>

@@ -148,3 +148,50 @@ describe('D-624: setup bundles turn on v1 modules only (supervisor 2026-11-16)',
     expect([...on].sort()).toEqual(['core', 'feeds', 'findings', 'inventory', 'mitigation', 'notify', 'sensor-passive'])
   })
 })
+
+describe('D-624: more entry points of the post-v1 modules (review r1, L6)', () => {
+  const APPROVE = 'Approve actions from this channel'
+
+  it('channel Approvals: a channel without them has no section; one with them can turn them off, not change its approvers', async () => {
+    const u = userEvent.setup()
+    renderApp('/settings/channels') // response on in the mock: shown, not offered
+    await u.click(await screen.findByRole('button', { name: 'Edit Telegram' }))
+    let d = await screen.findByRole('dialog')
+    expect(within(d).queryByRole('switch', { name: APPROVE })).toBeNull()
+    await u.click(within(d).getByRole('button', { name: 'Cancel' }))
+    await u.click(screen.getByRole('button', { name: 'Edit Slack' }))
+    d = await screen.findByRole('dialog')
+    const sw = within(d).getByRole('switch', { name: APPROVE })
+    expect(sw).toBeChecked()
+    expect(sw).toBeEnabled()
+    expect(within(d).getByRole('button', { name: 'Add' }).matches(':disabled')).toBe(true)
+    await u.click(sw)
+    expect(sw).not.toBeChecked()
+    expect(sw).toBeDisabled() // off again; cannot be turned back on here
+  })
+
+  it('trap hits: no Respond while the response module is hidden; Respond while it is on', async () => {
+    setModule('response', false)
+    renderApp('/honeypot?tab=hits')
+    await screen.findByRole('table', { name: /hit/i })
+    expect(screen.queryByRole('columnheader', { name: 'Respond' })).toBeNull()
+    expect(screen.queryByRole('link', { name: /^Respond/ })).toBeNull()
+  })
+
+  it('a Settings section of a preview module carries the Preview badge and its line', async () => {
+    renderApp('/settings/ai')
+    const header = (await screen.findByRole('heading', { level: 1 })).closest('header')!
+    expect(within(header).getByText('Preview')).toBeInTheDocument()
+    expect(within(header).getByText('Not part of the v1 promise yet.')).toBeInTheDocument()
+  })
+
+  it('turning off a module this build does not offer says it is hidden once off, and SSO names the people who only sign in through it', async () => {
+    setModule('auth-oidc', true)
+    const u = userEvent.setup()
+    renderApp('/settings/modules')
+    await u.click(await screen.findByRole('switch', { name: 'Turn off module SSO sign-in' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Turn off SSO sign-in?' })
+    expect(within(dlg).queryByText(/Turn it back on any time/)).toBeNull()
+    expect(within(dlg).getByText(/cannot be turned on again here/, { selector: '[hidden], [hidden] *' })).toBeInTheDocument()
+  })
+})

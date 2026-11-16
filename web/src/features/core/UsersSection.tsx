@@ -95,7 +95,8 @@ function OidcPanel({ leaving }: { leaving: boolean }) {
       {leaving ? <OidcLocked cfg={q.data} onDisable={() => setAskOff(true)} busy={toggle.isPending} /> : <OidcForm cfg={q.data} onDisable={() => setAskOff(true)} />}
       {/* D-196 (5): turning SSO off locks out the people who only sign in through it, so say how many first. */}
       <Dialog open={askOff} onOpenChange={setAskOff}>
-        <DialogContent title={t('oidc.offAsk.title')} description={n > 0 ? t('oidc.offAsk.bodyUsers', { count: n }) : t('oidc.offAsk.body')} info={t('oidc.offAsk.keptInfo')}>
+        <DialogContent title={t('oidc.offAsk.title')} info={t('oidc.offAsk.keptInfo')}
+          description={leaving ? (n > 0 ? t('oidc.offAsk.bodyUsersHidden', { count: n }) : t('oidc.offAsk.bodyHidden')) : n > 0 ? t('oidc.offAsk.bodyUsers', { count: n }) : t('oidc.offAsk.body')}>
           <DialogFooter><Button onClick={() => setAskOff(false)}>{t('common:cancel')}</Button><Button variant="danger" disabled={toggle.isPending} onClick={() => void enable(false)}>{t('oidc.disable')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>

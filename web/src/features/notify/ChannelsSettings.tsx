@@ -15,7 +15,7 @@ import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
-import { useScope } from '@/lib/v1'
+import { notOffered } from '@/lib/v1'
 import { useUsers } from '@/features/core/api'
 import { checkFeedUrl } from '@/features/feeds/defaults'
 import History from './History'
@@ -81,7 +81,8 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
   const channel = useChannels().data?.channels.find((c) => c.type === type) ?? opened
   // D-624 (#819): approving actions from a channel belongs to the response module, not offered in v1. A channel that already
   // has approvals on keeps the section, so they can be turned off.
-  const showApprovals = useScope('response') !== 'hidden' || channel.approvals
+  const approvalsFrozen = notOffered('response')
+  const showApprovals = !approvalsFrozen || channel.approvals
   const name = t(`ch.${type}`)
   const [enabled, setEnabled] = useState(channel.configured ? channel.enabled : true)
   const [fields, setFields] = useState<Record<string, string>>(() => ({ ...(type === 'email' ? { port: '587', security: 'starttls', provider: 'custom' } : {}), ...(type === 'webhook' ? {} : channel.fields) })) // the webhook URL is a secret: only its masked form comes back, so the field starts empty (empty = keep)
@@ -298,10 +299,12 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
             {APPROVAL_CHANNELS.includes(type) ? (
               <>
                 <div className="flex items-center gap-3">
-                  <Switch id={`ch-${type}-appr`} checked={approvals} onCheckedChange={setApprovals} />
+                  {/* D-624 (M2): approvals can be turned off here, not on, and the approvers are shown, not changed */}
+                  <Switch id={`ch-${type}-appr`} checked={approvals} disabled={approvalsFrozen && !approvals} onCheckedChange={setApprovals} />
                   <Label htmlFor={`ch-${type}-appr`}>{t('approve.switch')}</Label>
                 </div>
                 <p className="text-[13px] text-muted">{t(`approve.hint.${type}`)}</p>
+                <fieldset disabled={approvalsFrozen} className="m-0 grid min-w-0 gap-3 border-0 p-0">
                 {approvals ? (
                   <div className="grid gap-2" role="group" aria-label={t('approve.listTitle')}>
                     <div className="flex items-center gap-1">
@@ -354,6 +357,7 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
                     </Field>
                   </>
                 ) : null}
+                </fieldset>
               </>
             ) : <p className="text-[13px] text-muted">{t('approve.linkOnly')}</p>}
           </fieldset>) : null}

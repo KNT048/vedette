@@ -40,7 +40,8 @@ function McpSwitch({ on }: { on: boolean }) {
   )
 }
 
-function Body({ s }: { s: McpState }) {
+/** `locked` (D-624, #819: on here, not offered in v1): everything is shown and tokens can be revoked; no new token. */
+function Body({ s, locked = false }: { s: McpState; locked?: boolean }) {
   const { t } = useTranslation('core')
   const gate = useGate('admin')
   const m = useMcpMutations()
@@ -91,7 +92,7 @@ function Body({ s }: { s: McpState }) {
           </Section>
 
           <Section title={t('mcp.token.title')} description={t('mcp.token.desc')}>
-            <form onSubmit={(e) => void create(e)} className="mb-4 grid max-w-xl gap-3" noValidate>
+            {locked ? null : <form onSubmit={(e) => void create(e)} className="mb-4 grid max-w-xl gap-3" noValidate>
               <Field label={t('mcp.token.name')} hint={t('mcp.token.nameHint')} htmlFor="mcp-name" error={formErr ?? undefined}><Input id="mcp-name" value={name} disabled={gate.disabled} aria-invalid={!!formErr} onChange={(e) => setName(e.target.value)} /></Field>
               <fieldset className="grid gap-2">
                 <legend className="text-sm font-medium">{t('mcp.token.scopes')}</legend>
@@ -103,7 +104,7 @@ function Body({ s }: { s: McpState }) {
                 ))}
               </fieldset>
               <div><Button type="submit" variant="primary" disabled={gate.disabled || m.create.isPending} title={gate.title}><Plus />{t('mcp.token.create')}</Button></div>
-            </form>
+            </form>}
             <DataTable data={s.tokens} columns={tokenCols} caption={t('mcp.token.title')} empty={t('mcp.token.empty')} />
           </Section>
 
@@ -135,15 +136,15 @@ function Body({ s }: { s: McpState }) {
 export default function McpSection() {
   const { t } = useTranslation('core')
   const on = useModuleEnabled('mcp-server')
-  // D-624 (#819): left out of v1. A box that has it on keeps the switch to turn it off and nothing else; the line under the
-  // title says so (PageHeader, PageModule from the section).
+  // D-624 (#819): left out of v1. A box that has it on keeps its tokens visible, Revoke and the off switch; no new token. The line
+  // under the title says so (PageHeader, PageModule from the section).
   const leaving = useScope('mcp-server') === 'leaving'
-  const q = useMcp(on === true && !leaving)
+  const q = useMcp(on === true)
   const title = on === false ? t('mcp.titleOff') : q.data ? t('mcp.titleOn', { count: q.data.tokens.length }) : t('settings.mcp')
   return (
     <>
       <PageHeader title={title} meta={t('mcp.meta')} info={t('mcp.metaInfo')} stories={['S-MCP-1']} />
-      {on === undefined ? <Loading /> : leaving ? <McpSwitch on /> : on ? <QueryState query={q}>{(s) => <Body s={s} />}</QueryState> : <McpSwitch on={false} />}
+      {on === undefined ? <Loading /> : on ? <QueryState query={q}>{(s) => <Body s={s} locked={leaving} />}</QueryState> : <McpSwitch on={false} />}
     </>
   )
 }

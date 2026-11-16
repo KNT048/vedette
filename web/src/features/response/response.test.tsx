@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router'
@@ -20,7 +20,7 @@ import FindingPanel from './FindingPanel'
 import { ActionDialog } from './CatalogEditor'
 import { RequestCard } from './RequestCard'
 import { RuleDialog } from './RuleEditor'
-import { actionsStore, buildChange, catalogStore, identityStore } from './state'
+import { actionsStore, buildChange, catalogStore, identityStore, settingsStore } from './state'
 import { newLinkToken } from './identity'
 import { telegramMessagesForTest } from '@/features/notify/mocks'
 
@@ -2053,37 +2053,74 @@ describe('response: Respond from an incident (S-RESP-3, D-509)', () => {
 })
 
 describe('D-624 (#819): a box that had AI response on before v1', () => {
-  it('sees the page and its settings read-only with the note; the only action is turning the module off', async () => {
+  const NOTE = 'Not part of v1: you can turn it off; once off it is hidden.'
+  const enabled = (b: HTMLElement) => !b.matches(':disabled') // inside a disabled fieldset only :disabled tells
+
+  it('no new action, every way back stays: Approve is off, Reject and Roll back work, rules can be deleted not added or edited', async () => {
     postV1.POST_V1_IN_UI = false
     try {
       const u = userEvent.setup()
       renderApp('/response')
       const header = (await screen.findByRole('heading', { level: 1, name: 'Response' })).closest('header')!
-      expect(within(header).getByText('Not part of v1: you can turn it off; once off it is hidden.')).toBeInTheDocument()
-      expect(within(header).queryByRole('button', { name: 'Emergency stop' })).toBeNull()
+      expect(within(header).getByText(NOTE)).toBeInTheDocument()
+      expect(screen.queryByText(/Execution is off\. Turn it on/)).toBeNull() // L2: no invitation to turn on
       const main = screen.getByRole('main')
-      // a control inside a disabled fieldset matches :disabled (its own `disabled` property stays false)
-      const live = () => within(main).getAllByRole('button').filter((b) => !b.matches(':disabled') && !b.closest('[role="tablist"]')).map((b) => b.getAttribute('aria-label') ?? b.textContent?.trim())
-      expect(live().filter((n) => !n?.startsWith('About ') && n !== 'More about this')).toEqual(['Turn off AI response'])
-      await u.click(within(main).getByRole('tab', { name: /Rules/ }))
-      expect(live().filter((n) => !n?.startsWith('About ') && n !== 'More about this')).toEqual(['Turn off AI response'])
+      const approve = await within(main).findAllByRole('button', { name: /^Approve/ })
+      expect(approve.length).toBeGreaterThan(0)
+      for (const b of approve) expect(enabled(b)).toBe(false)
+      for (const b of within(main).getAllByRole('button', { name: 'Reject' })) expect(enabled(b)).toBe(true)
+      await u.click(within(main).getByRole('button', { name: 'History' }))
+      const back = await within(main).findAllByRole('button', { name: 'Roll back' })
+      expect(back.length).toBeGreaterThan(0)
+      for (const b of back) expect(enabled(b)).toBe(true)
+      await u.click(back[0]!)
+      await waitFor(() => expect(actionsStore.get().some((a) => a.items.some((i) => i.status === 'rolled_back'))).toBe(true))
 
+      await u.click(within(main).getByRole('tab', { name: /Rules/ }))
+      expect(await within(main).findAllByRole('button', { name: /^Delete rule / })).not.toHaveLength(0)
+      expect(within(main).queryByRole('button', { name: 'Add a rule' })).toBeNull()
+      expect(within(main).queryByRole('button', { name: /^Edit rule / })).toBeNull()
+    } finally { postV1.POST_V1_IN_UI = true }
+  })
+
+  it('with execution on, Emergency stop stays next to Turn off; the turn-off dialog lists what stays in force and offers to roll back first', async () => {
+    postV1.POST_V1_IN_UI = false
+    settingsStore.update((x) => ({ ...x, execution: true, accepted_by: 'admin@acme.example', accepted_at: new Date().toISOString() }))
+    try {
+      const u = userEvent.setup()
+      renderApp('/response')
+      const header = (await screen.findByRole('heading', { level: 1, name: 'Response' })).closest('header')!
+      expect(await within(header).findByRole('button', { name: 'Emergency stop' })).toBeEnabled()
       await u.click(within(header).getByRole('button', { name: 'Turn off AI response' }))
       const dlg = await screen.findByRole('dialog', { name: 'Turn off AI response?' })
+      const list = await within(dlg).findByRole('list', { name: 'Changes still in force' })
+      expect(within(list).getAllByRole('listitem').length).toBeGreaterThan(0)
+      expect(within(dlg).getByText(/changes? stays? in force, because turning off undoes nothing/)).toBeInTheDocument()
+      expect(within(dlg).getByText(/on the block list\. Firewalls that pull it keep the list they last loaded\./)).toBeInTheDocument()
+      expect(within(dlg).getByText(/wait(s)? for approval/)).toBeInTheDocument()
+      expect(within(dlg).getByRole('link', { name: 'Roll back first: Requests, History' })).toHaveAttribute('href', '/response?tab=requests&view=history')
       await u.click(within(dlg).getByRole('button', { name: 'Turn off AI response' }))
       await waitFor(() => expect(modulesStore.get().find((m) => m.id === 'response')!.enabled).toBe(false))
       expect(await screen.findByText('AI response is not part of v1')).toBeInTheDocument()
     } finally { postV1.POST_V1_IN_UI = true }
   })
 
-  it('Settings, AI response: every control is locked; the execution switch cannot be turned on', async () => {
+  it('Settings, AI response: execution can be turned off, not on; the form is locked; Emergency stop works', async () => {
     postV1.POST_V1_IN_UI = false
     try {
       renderApp('/settings/response')
       expect(await screen.findByRole('switch', { name: /^Let the AI carry out actions I approve/ })).toBeDisabled()
-      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Save' }).matches(':disabled')).toBe(true)
       expect(screen.getByRole('button', { name: 'Turn off AI response' })).toBeEnabled()
-      expect(screen.getByText('Not part of v1: you can turn it off; once off it is hidden.')).toBeInTheDocument()
+      expect(screen.getByText(NOTE)).toBeInTheDocument()
+    } finally { postV1.POST_V1_IN_UI = true }
+    cleanup()
+    postV1.POST_V1_IN_UI = false
+    settingsStore.update((x) => ({ ...x, execution: true, accepted_by: 'admin@acme.example', accepted_at: new Date().toISOString() }))
+    try {
+      renderApp('/settings/response')
+      expect(await screen.findByRole('switch', { name: /^Let the AI carry out actions I approve/ })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Emergency stop' })).toBeEnabled()
     } finally { postV1.POST_V1_IN_UI = true }
   })
 })

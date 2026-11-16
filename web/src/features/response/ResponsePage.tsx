@@ -16,7 +16,7 @@ import { MetricsTab } from './MetricsTab'
 import { IncidentRespond, IncidentRespondOff } from './IncidentRespond'
 import ResponseSettings from './ResponseSettings'
 import { Frozen, TurnOffResponse } from './Leaving'
-import { useScope } from '@/lib/v1'
+import { FrozenCtx, useLeaving } from './frozen'
 
 /** What the AI and the rules may do (the action catalog), what they may never touch, and the block list firewalls pull (D-513). */
 function ActionsTab() {
@@ -35,7 +35,7 @@ function Content() {
   const plans = usePlans()
   const actions = useActions()
   const settings = useSettings(admin)
-  const leaving = useScope('response') === 'leaving' // D-624 (#819): on here but not offered in v1 → read-only, the way out is turning it off
+  const leaving = useLeaving() // D-624 (#819): on here but not offered in v1 → no new action, every way back stays (frozen.ts)
   // Liên kết cũ /response#requests (trước D-464) → /response?tab=requests; #ai là tên cũ của Requests.
   // Hash khác (ví dụ #main của liên kết "Skip to content") để nguyên.
   const old = hash.slice(1) === 'ai' ? 'requests' : hash.slice(1)
@@ -57,10 +57,10 @@ function Content() {
   const s = settings.data
   const incident = new URLSearchParams(search).get('incident') // Respond on an incident (D-509)
   return (
-    <>
+    <FrozenCtx.Provider value={leaving}>
       <PageHeader title={t('page.title')} stories={['S-RESP-1', 'S-RESP-2', 'S-RESP-3', 'S-RESP-4']}
         meta={t('page.meta')} info={t('page.metaInfo')}
-        actions={<><SampleDataNote />{leaving ? <TurnOffResponse /> : execution ? <EmergencyStop /> : null}</>} />
+        actions={<><SampleDataNote />{execution ? <EmergencyStop /> : null}{leaving ? <TurnOffResponse /> : null}</>} />
       {s?.breaker_tripped_at || s?.stopped_at ? (
         <Notice tone="danger" role="alert" className="mb-6" title={t('page.breakerTitle')} info={s.stopped_at ? t('page.stoppedBodyInfo') : t('page.breakerBodyInfo')}>
           {s.stopped_at ? t('page.stoppedBody') : t('page.breakerBody', { max: s.breaker_max_per_hour })} <Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link>
@@ -68,19 +68,19 @@ function Content() {
       ) : null}
       {execution ? (
         <Notice tone="danger" role="status" className="mb-6" title={t('page.onTitle')} info={t('page.onBodyInfo')}>{t('page.onBody', { count: pending })}</Notice>
-      ) : (
+      ) : leaving ? null : ( // L2: no invitation to turn on what this build does not offer
         <Notice tone="off" className="mb-6" title={<>{t('blocked.execution_off')} {admin ? <Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link> : null}</>} />
       )}
       {incident ? <Frozen on={leaving}><IncidentRespond id={incident} /></Frozen> : null}
       {/* D-513: the inbox first, then how requests are made (Rules, Actions), what happened (Log), and the switch and limits (Settings). */}
       <PageTabs label={t('tabs.label')} tabs={[
-        { id: 'requests', label: t('tabs.requests'), panel: <Frozen on={leaving}><RequestsTab /></Frozen>, badge: { count: pending, label: t('tabs.pending') } },
-        { id: 'rules', label: t('tabs.rules'), panel: <Frozen on={leaving}><RulesTab /></Frozen> },
+        { id: 'requests', label: t('tabs.requests'), panel: <RequestsTab />, badge: { count: pending, label: t('tabs.pending') } },
+        { id: 'rules', label: t('tabs.rules'), panel: <RulesTab /> },
         ...(admin ? [{ id: 'actions', label: t('tabs.actions'), panel: <Frozen on={leaving}><ActionsTab /></Frozen> }] : []),
-        { id: 'log', label: t('tabs.log'), panel: <Frozen on={leaving}>{operator ? <LogTab /> : null}<MetricsTab /></Frozen> },
+        { id: 'log', label: t('tabs.log'), panel: <>{operator ? <LogTab /> : null}<Frozen on={leaving}><MetricsTab /></Frozen></> },
         ...(admin ? [{ id: 'settings', label: t('tabs.settings'), panel: <ResponseSettings embedded /> }] : []),
       ]} />
-    </>
+    </FrozenCtx.Provider>
   )
 }
 

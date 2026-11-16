@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
 import { finishClean, sampleStart } from './clean'
+import { POST_V1_IN_UI } from '../../src/lib/postV1'
 
 // QA as a real user for the notify module: Incidents (D-52, S-ALERT-3), Alert channels with per-channel approvers and Zalo personal (D-46, S-NOT-1) and the History section.
 // The UI is English only (D-28). Every test builds its own data and does not depend on the order. No multi-site or MSP digests (owner decision).
@@ -148,6 +149,7 @@ test.describe('notify: alert channels (S-NOT-1)', () => {
   })
 
   test('Telegram: approvals need the numeric chat ID; a public @name is refused at the field with the reason, and is fine for alerts only', async ({ page }) => {
+    test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819): channel approvals belong to AI response, which v1 does not offer')
     const errors = collectErrors(page)
     await startWithSample(page)
     await page.goto('/settings/channels')
@@ -294,17 +296,20 @@ test.describe('notify: alert channels (S-NOT-1)', () => {
 
 test.describe('notify: approvers per channel and Zalo personal (D-46)', () => {
   test('each channel type shows its own fields; Zalo OA and webhook say they only send a link', async ({ page }) => {
+    // D-624 (#819): v1 does not offer AI response, so a channel without approvals has no Approvals section at all; Slack (approvals on
+    // in the sample data) can still turn them off
+    const noApprovals = (d: ReturnType<Page['getByRole']>) => POST_V1_IN_UI ? expect(d.getByText(/This channel cannot take approvals/)).toBeVisible() : expect(d.getByText('Approvals', { exact: true })).toHaveCount(0)
     await startWithSample(page)
     await page.goto('/settings/channels')
     await page.getByRole('button', { name: 'Set up Zalo OA' }).click()
     let d = page.getByRole('dialog')
-    await expect(d.getByText(/This channel cannot take approvals/)).toBeVisible()
+    await noApprovals(d)
     await expect(d.getByRole('switch', { name: APPROVE })).toHaveCount(0)
     await expect(d.getByLabel('SMTP server', { exact: true })).toHaveCount(0)
     await d.getByRole('button', { name: 'Cancel' }).click()
     await page.getByRole('button', { name: 'Set up Webhook' }).click()
     d = page.getByRole('dialog')
-    await expect(d.getByText(/This channel cannot take approvals/)).toBeVisible()
+    await noApprovals(d)
     await expect(d.getByLabel('Chat ID', { exact: true })).toHaveCount(0)
     await d.getByRole('button', { name: 'Cancel' }).click()
     await page.getByRole('button', { name: 'Edit Slack' }).click()
@@ -316,6 +321,7 @@ test.describe('notify: approvers per channel and Zalo personal (D-46)', () => {
   })
 
   test('Zalo personal: warning, sign in by QR, approvals on, two approvers with their own Zalo IDs, a bad ID is refused at the field', async ({ page }) => {
+    test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819): channel approvals belong to AI response, which v1 does not offer')
     const errors = collectErrors(page)
     await startWithSample(page)
     await page.goto('/settings/channels')
@@ -354,6 +360,7 @@ test.describe('notify: approvers per channel and Zalo personal (D-46)', () => {
   })
 
   test('Slack: approvals need at least one approver, and a viewer cannot be added', async ({ page }) => {
+    test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819): channel approvals belong to AI response, which v1 does not offer')
     await startWithSample(page)
     await page.goto('/settings/channels')
     await page.getByRole('button', { name: 'Edit Slack' }).click()
@@ -371,6 +378,7 @@ test.describe('notify: approvers per channel and Zalo personal (D-46)', () => {
 
 test.describe('notify: clean install', () => {
   test('incidents, channels and history say what to do first, with no sample data', async ({ page }) => {
+    test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819): channel approvals belong to AI response, which v1 does not offer')
     const errors = collectErrors(page)
     await finishClean(page)
     await page.goto('/incidents')

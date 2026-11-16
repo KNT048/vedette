@@ -108,7 +108,8 @@ var exportPolicy = map[string]tablePolicy{
 	"inv_setting":            {export: "key updated_at updated_by", json: "value"},
 	"inv_software":           {export: "id asset_id display vendor product version cpe source confidence seen_at packaged pkg_version pkg_source"},
 	"inv_source":             {export: "source first_seen"},
-	"inv_separate":           {export: "a b decided_by decided_at"}, // D-599: pairs a person kept separate
+	"inv_separate":           {export: "a b decided_by decided_at"},         // D-599: pairs a person kept separate
+	"inv_hand_seen":          {export: "asset_id mac first_seen last_seen"}, // #829: MACs seen at a hand-added device's address
 	"inv_software_kev":       {export: "software_id kev_key"},
 	"mit_ai_output":          {export: "finding_id skill model profile created_at activity_id", json: "payload"},
 	"mit_applied":            {export: "finding_id item ts user"},

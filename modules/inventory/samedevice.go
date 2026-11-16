@@ -58,10 +58,11 @@ type SamePairs struct {
 // sameRow is what the pairing reads of a device: its identity, and the MACs any source saw on it (not a chassis mark), split into
 // burned-in and private (locally administered) ones.
 type sameRow struct {
-	id, origin, host, model, first, last, agent string
-	approved, box                               bool
-	burned, private                             []string // sorted
-	lastWire                                    string   // when a sensor last saw any of its MACs on the wire; last when none
+	id, origin, host, model, first, last, agent, ip string
+	approved, box                                   bool
+	burned, private                                 []string // sorted
+	atAddr                                          []string // a hand-added row known by its address only: the MACs seen there since (inv_hand_seen, #829)
+	lastWire                                        string   // when a sensor last saw any of its MACs on the wire; last when none
 }
 
 // lastOnline is when the row was last seen online: a sensor's MAC sighting, else any sighting. A late scan result, software list or
@@ -91,15 +92,15 @@ func loadSameRows(ctx context.Context, q querier, ids []string) (map[string]*sam
 			args = append(args, id)
 		}
 	}
-	rows, err := q.QueryContext(ctx, `SELECT id, origin, approved, is_box, coalesce(hostname, ''), coalesce(model, ''), first_seen, last_seen, coalesce(agent_key, '')
-		FROM inv_asset `+where, args...)
+	rows, err := q.QueryContext(ctx, `SELECT id, origin, approved, is_box, coalesce(hostname, ''), coalesce(model, ''), first_seen, last_seen, coalesce(agent_key, ''),
+		coalesce(ip, '') FROM inv_asset `+where, args...)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read devices: %w", err)
 	}
 	out := map[string]*sameRow{}
 	for rows.Next() {
 		r := &sameRow{}
-		if err := rows.Scan(&r.id, &r.origin, &r.approved, &r.box, &r.host, &r.model, &r.first, &r.last, &r.agent); err != nil {
+		if err := rows.Scan(&r.id, &r.origin, &r.approved, &r.box, &r.host, &r.model, &r.first, &r.last, &r.agent, &r.ip); err != nil {
 			_ = rows.Close()
 			return nil, fmt.Errorf("inventory: read devices: %w", err)
 		}
@@ -146,11 +147,25 @@ func loadSameRows(ctx context.Context, q querier, ids []string) (map[string]*sam
 			r.lastWire = at
 		}
 	}
+	if err := wire.Err(); err != nil {
+		return nil, fmt.Errorf("inventory: read the MAC sightings: %w", err)
+	}
+	seen, err := candidatePairs(ctx, q, `SELECT s.asset_id, s.mac FROM inv_hand_seen s JOIN inv_asset a ON a.id = s.asset_id
+		WHERE a.origin = 'manual' AND a.mac IS NULL AND a.agent_key IS NULL AND a.ip IS NOT NULL`+strings.ReplaceAll(macWhere, "asset_id", "s.asset_id"), args...)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range seen {
+		if r := out[p[0]]; r != nil {
+			r.atAddr = append(r.atAddr, p[1])
+		}
+	}
 	for _, r := range out {
 		slices.Sort(r.burned)
 		slices.Sort(r.private)
+		slices.Sort(r.atAddr)
 	}
-	return out, wire.Err()
+	return out, nil
 }
 
 // sameCandidates is device only and the rows that share its name label, its model or one of its MACs: the only rows a pair of it
@@ -182,15 +197,16 @@ func sameCandidates(ctx context.Context, q *sql.Tx, only string) ([]string, erro
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, fmt.Errorf("inventory: read devices: %w", err)
 	}
-	if all := append(slices.Clone(r.burned), r.private...); len(all) > 0 {
+	if all := slices.Concat(r.burned, r.private, r.atAddr); len(all) > 0 { // the rows carrying a MAC, and the hand-added rows it was seen at
 		in := "(" + strings.TrimSuffix(strings.Repeat("?,", len(all)), ",") + ")"
 		args := []any{}
-		for range 2 {
+		for range 3 {
 			for _, m := range all {
 				args = append(args, m)
 			}
 		}
-		byMAC, err := candidates(ctx, q, `SELECT id FROM inv_asset WHERE is_box = 0 AND (mac IN `+in+` OR id IN (SELECT asset_id FROM inv_observation WHERE field = 'mac' AND value IN `+in+`))`, args...)
+		byMAC, err := candidates(ctx, q, `SELECT id FROM inv_asset WHERE is_box = 0 AND (mac IN `+in+` OR id IN (SELECT asset_id FROM inv_observation WHERE field = 'mac' AND value IN `+in+`)
+			OR id IN (SELECT asset_id FROM inv_hand_seen WHERE mac IN `+in+`))`, args...)
 		if err != nil {
 			return nil, err
 		}
@@ -244,11 +260,13 @@ const (
 	byMAC signal = iota
 	byName
 	byModel
+	byAddress // a MAC seen at the address of a hand-added row known by that address only (#829, n71), and a row carrying that MAC
 )
 
 // samePairs lists the pairs of rows that may be one machine (D-599), only the pairs of device only when it is not "". A pair shares
 // a MAC (an older MAC one row still carries, an agent's claim about its card), else a host name (sameLabel), else a model the devices
-// state (not a scan's guess), the name or model only between rows that may rotate a private Wi-Fi address (one carries a private MAC
+// state (not a scan's guess), else a MAC seen at the address of a hand-added row known by that address only (byAddress, addressWhy,
+// #829 n71), the name or model only between rows that may rotate a private Wi-Fi address (one carries a private MAC
 // and neither carries burned-in MACs only); a group larger than maxSameGroup is skipped. A pair is never offered when a person kept it
 // separate, when strongConflict holds, when the rows state another name, model or OS (facts, differ), or when they were online
 // together (onlineTogether: two phones of one name). The box is never in a pair.
@@ -279,7 +297,7 @@ func (s *Service) samePairs(ctx context.Context, only string) ([]samePair, error
 	for _, p := range sep {
 		separate[p] = true
 	}
-	groups := [3]map[string][]*sameRow{{}, {}, {}}
+	groups := [4]map[string][]*sameRow{{}, {}, {}, {}}
 	ids := make([]string, 0, len(rows))
 	for id := range rows {
 		ids = append(ids, id)
@@ -298,11 +316,22 @@ func (s *Service) samePairs(ctx context.Context, only string) ([]samePair, error
 		if m := strings.ToLower(strings.TrimSpace(r.model)); m != "" {
 			groups[byModel][m] = append(groups[byModel][m], r)
 		}
+		for _, m := range r.atAddr {
+			groups[byAddress][m] = append(groups[byAddress][m], r)
+		}
+	}
+	for m, g := range groups[byAddress] { // with the rows that carry the MAC
+		for _, r := range groups[byMAC][m] {
+			if !slices.Contains(g, r) {
+				g = append(g, r)
+			}
+		}
+		groups[byAddress][m] = g
 	}
 	now := s.clock()
 	recentCut := store.FormatTS(now.Add(-macMemory))
 	recent := func(r *sameRow) bool { return r.last >= recentCut }
-	tried := map[[2]string]bool{}
+	tried, offered := map[[2]string]bool{}, map[[2]string]bool{}
 	var out []samePair
 	for sig, g := range groups {
 		keys := make([]string, 0, len(g))
@@ -318,7 +347,8 @@ func (s *Service) samePairs(ctx context.Context, only string) ([]samePair, error
 			for i, x := range members {
 				for _, y := range members[i+1:] {
 					key := [2]string{min(x.id, y.id), max(x.id, y.id)}
-					if tried[key] || separate[key] || only != "" && x.id != only && y.id != only || !recent(x) && !recent(y) {
+					// a pair another signal tried may still share a hand-added address: that has rules of its own (addressWhy)
+					if tried[key] && (signal(sig) != byAddress || offered[key]) || separate[key] || only != "" && x.id != only && y.id != only || !recent(x) && !recent(y) {
 						continue
 					}
 					tried[key] = true
@@ -327,6 +357,7 @@ func (s *Service) samePairs(ctx context.Context, only string) ([]samePair, error
 						return nil, err
 					}
 					if why != "" {
+						offered[key] = true
 						out = append(out, samePair{x: x, y: y, why: why})
 					}
 				}
@@ -370,6 +401,9 @@ func pairWhy(ctx context.Context, tx *sql.Tx, x, y *sameRow, sig signal, value s
 	if strongConflict(x, y) != "" {
 		return "", nil
 	}
+	if sig == byAddress {
+		return addressWhy(ctx, tx, x, y, value)
+	}
 	if sig != byMAC && (x.burnedOnly() || y.burnedOnly() || len(x.private) == 0 && len(y.private) == 0) {
 		return "", nil
 	}
@@ -403,6 +437,33 @@ func pairWhy(ctx context.Context, tx *sql.Tx, x, y *sameRow, sig signal, value s
 	default:
 		return `Same model "` + fx["model"] + `"` + rotates, nil
 	}
+}
+
+// addressWhy is the reason to offer a hand-added row known by its address only and a row carrying a MAC seen at that address since
+// the person added it (#829, the N100 n71 walk: firstAtHand refused the bind because two machines were seen there, so a person
+// decides). Not offered when neither or both are such a pair, or when they state another model or OS. The person's name for the row
+// is a label, not the machine's own name, and the hand-added row has no life on the wire to compare: neither is held against the pair.
+func addressWhy(ctx context.Context, tx *sql.Tx, x, y *sameRow, mac string) (string, error) {
+	if slices.Contains(y.atAddr, mac) {
+		x, y = y, x
+	}
+	if !slices.Contains(x.atAddr, mac) || slices.Contains(y.atAddr, mac) || !slices.Contains(y.burned, mac) && !slices.Contains(y.private, mac) {
+		return "", nil
+	}
+	fx, err := facts(ctx, tx, x.id)
+	if err != nil {
+		return "", err
+	}
+	fy, err := facts(ctx, tx, y.id)
+	if err != nil {
+		return "", err
+	}
+	delete(fx, "hostname")
+	delete(fy, "hostname")
+	if differ(fx, fy) {
+		return "", nil
+	}
+	return "Its MAC address " + mac + " was seen at " + x.ip + ", the address " + deviceName(ctx, tx, x.id) + " was added with.", nil
 }
 
 // PossibleSameAs lists the devices that may be the same machine as device id (D-599), the one seen last first. None for the box or

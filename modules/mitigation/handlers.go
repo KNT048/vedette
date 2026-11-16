@@ -202,7 +202,14 @@ func sanitizeAI(skill Skill, ts time.Time, o AIOutput) findings.AIResult {
 			r.Shortened = true
 			continue
 		}
-		r.Configs = append(r.Configs, findings.CodeStep{Title: clip(c.Title, 300), Code: code, Note: clip(c.Note, 300), SideEffect: clip(c.SideEffect, maxAIText)})
+		var check []string
+		for _, a := range c.Check[:min(len(c.Check), 20)] {
+			check = append(check, clip(a, 64))
+		}
+		if len(c.Check) > 20 {
+			check = append(check, "and more")
+		}
+		r.Configs = append(r.Configs, findings.CodeStep{Title: clip(c.Title, 300), Code: code, Note: clip(c.Note, 300), SideEffect: clip(c.SideEffect, maxAIText), Check: check})
 	}
 	for _, s := range o.Paragraphs[:min(len(o.Paragraphs), maxAIParagraphs)] {
 		r.Paragraphs = append(r.Paragraphs, clip(s, maxAIText))

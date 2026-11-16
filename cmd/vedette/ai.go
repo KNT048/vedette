@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"net/url"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -190,7 +191,7 @@ func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitiga
 	if req.Skill == mitigation.SkillConfig {
 		q = "Write the configuration for this finding: the device's own workaround and a rule for each firewall in the network block."
 	}
-	ans, err := m.svc.Brief(ctx, ai.BriefRequest{Job: jobOf(req.Skill), Actor: req.User, Target: row.CVE, Question: q, Data: data})
+	ans, err := m.svc.Brief(ctx, ai.BriefRequest{Job: jobOf(req.Skill), Actor: req.User, Target: row.CVE, Question: q, Data: data, Trusted: aiTrusted(row, dev, walls)})
 	if err != nil {
 		// the ai module's own error (not set up, cut off, wrong format, a hook, the provider, the cap) goes to the page as it is: the
 		// handler answers with it, so the person reads what really happened (beta 0.1.0-beta.1: a cut answer read "No AI profile is
@@ -204,7 +205,7 @@ func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitiga
 		if c.BasedOn != "" {
 			note = "Based on: " + c.BasedOn
 		}
-		out.Configs = append(out.Configs, findings.CodeStep{Title: c.Title, Code: c.Code, Note: note, SideEffect: c.SideEffect})
+		out.Configs = append(out.Configs, findings.CodeStep{Title: c.Title, Code: c.Code, Note: note, SideEffect: c.SideEffect, Check: c.Check})
 	}
 	if k := row.Kev; k != nil {
 		for _, l := range k.Links { // the box builds the sources from the feed entry; a model never supplies a link
@@ -257,13 +258,37 @@ func (m aiMitigation) facts(ctx context.Context, req mitigation.AIRequest) (dev 
 // aiMaxPorts caps the open ports one finding sends.
 const aiMaxPorts = 30
 
+// aiTrusted are the addresses the box knows for the finding from structured fields: the device's IP and the firewalls' IPs, never a
+// banner, a name or the Evidence text. A config naming any other address is flagged on the page (#897 r2).
+func aiTrusted(row findings.Row, dev *inventory.Device, walls []inventory.Device) []netip.Addr {
+	var out []netip.Addr
+	add := func(ip string) {
+		if a, err := netip.ParseAddr(ip); err == nil && a.Zone() == "" && !slices.Contains(out, a.Unmap()) {
+			out = append(out, a.Unmap())
+		}
+	}
+	if row.Asset != nil {
+		add(row.Asset.IP)
+	}
+	if dev != nil {
+		add(dev.IP)
+	}
+	for _, w := range walls {
+		add(w.IP)
+	}
+	return out
+}
+
 // aiVal is an inventory or feed value as the AI gets it: one line (a line break in a banner or a name cannot fake a line of the data
 // block), no control characters, at most n characters (#897 r1 M1). The device and the network choose many of these values (a scan's
 // banner, a DHCP name, an SNMP description), so they are data, never more than a short phrase.
 func aiVal(s string, n int) string {
 	s = strings.Join(strings.Fields(strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) {
+		switch {
+		case unicode.IsControl(r), unicode.In(r, unicode.Zl, unicode.Zp):
 			return ' '
+		case unicode.Is(unicode.Cf, r): // bidi controls, zero-width characters (#897 r2 L2)
+			return -1
 		}
 		return r
 	}, strings.ToValidUTF8(s, ""))), " ")
@@ -375,18 +400,20 @@ func aiAttack(c *findings.CVSS) string {
 	return "Attack vector (CVSS): " + av + "; user interaction: " + ui + "."
 }
 
-// aiMatched is the software row the finding is about (the one the Evidence names, or the exploited entry's product), with its version:
-// only that row goes, not the device's whole software list (#897 r1 L3, data minimisation).
+// aiMatched is the software row the finding is about, with its version: the row whose "<name> <version>" the Evidence states (the
+// matcher writes it so), else the row whose product is the exploited entry's product. Only that row goes, not the device's whole
+// software list (#897 r1 L3); a short name that happens to be inside the Evidence ("Go", "R") does not count (r2 L3). findings keeps no
+// software id on a finding, so the Evidence and the product are what name it.
 func aiMatched(row findings.Row, d inventory.Device) string {
 	var out []string
 	for _, s := range d.Software {
-		name := strings.ToLower(s.Display)
-		hit := name != "" && row.Evidence != nil && strings.Contains(strings.ToLower(row.Evidence.Summary), name)
-		if k := row.Kev; !hit && k != nil && k.Product != "" {
-			hit = strings.Contains(name, strings.ToLower(k.Product)) || strings.EqualFold(s.Product, k.Product)
+		v := aiStr(s.Version)
+		hit := v != "" && s.Display != "" && row.Evidence != nil && strings.Contains(strings.ToLower(row.Evidence.Summary), strings.ToLower(s.Display+" "+v))
+		if k := row.Kev; !hit && k != nil && k.Product != "" && s.Product != "" {
+			hit = strings.EqualFold(strings.ReplaceAll(s.Product, "_", " "), k.Product)
 		}
 		if hit && len(out) < 3 {
-			out = append(out, strings.TrimSpace(aiVal(s.Display, 100)+" "+aiVal(aiStr(s.Version), 60)))
+			out = append(out, strings.TrimSpace(aiVal(s.Display, 100)+" "+aiVal(v, 60)))
 		}
 	}
 	return strings.Join(out, "; ")
@@ -435,28 +462,28 @@ func aiFixedIn(f *findings.FixedIn, links bool) string {
 	}
 	switch f.Kind {
 	case "fixed":
-		b.WriteString("fixed in " + f.Fixed)
+		b.WriteString("fixed in " + aiVal(f.Fixed, 60))
 	case "up_to":
-		b.WriteString("affected up to and including " + f.Fixed + ", no fixed release named")
+		b.WriteString("affected up to and including " + aiVal(f.Fixed, 60) + ", no fixed release named")
 	case "distro":
-		b.WriteString("install the security updates of " + cmp.Or(f.Distro, "the distribution") + " (its packages carry the fix under their own numbers)")
+		b.WriteString("install the security updates of " + cmp.Or(aiVal(f.Distro, 40), "the distribution") + " (its packages carry the fix under their own numbers)")
 		if f.DistroFixed != "" {
-			b.WriteString(", fixed package " + f.DistroFixed + " for release " + f.DistroRelease)
+			b.WriteString(", fixed package " + aiVal(f.DistroFixed, 80) + " for release " + aiVal(f.DistroRelease, 20))
 		}
 		if f.DistroPro {
 			b.WriteString(", only in Ubuntu Pro (ESM)")
 		}
 		if f.Fixed != "" {
-			b.WriteString(", upstream fixed release " + f.Fixed)
+			b.WriteString(", upstream fixed release " + aiVal(f.Fixed, 60))
 		}
 	case "feature_update":
-		b.WriteString("no update of this release fixes it; move to a later release from build " + f.Fixed)
+		b.WriteString("no update of this release fixes it; move to a later release from build " + aiVal(f.Fixed, 60))
 	case "esu":
-		b.WriteString("fixed in build " + f.Fixed + ", which comes only with Extended Security Updates")
+		b.WriteString("fixed in build " + aiVal(f.Fixed, 60) + ", which comes only with Extended Security Updates")
 	}
 	var br []string
 	for _, x := range f.Branches {
-		br = append(br, cmp.Or(x.Branch, "a release line")+" fixed in "+x.Fixed)
+		br = append(br, cmp.Or(aiVal(x.Branch, 40), "a release line")+" fixed in "+aiVal(x.Fixed, 60))
 	}
 	if len(br) > 0 {
 		if !strings.HasSuffix(b.String(), ": ") && !strings.HasSuffix(b.String(), "; ") {
@@ -471,10 +498,10 @@ func aiFixedIn(f *findings.FixedIn, links bool) string {
 		fmt.Fprintf(&b, "; %d release lines have no fixed release", f.NoFix)
 	}
 	if f.Kind != "distro" && f.Distro != "" {
-		b.WriteString("; if it was installed from " + f.Distro + "'s packages, install " + f.Distro + "'s security updates instead")
+		b.WriteString("; if it was installed from " + aiVal(f.Distro, 40) + "'s packages, install " + aiVal(f.Distro, 40) + "'s security updates instead")
 	}
 	if s := strings.TrimSuffix(b.String(), "; "); strings.HasSuffix(s, ": ") {
-		return s + "not named; the vendor advisory names it."
+		return s + "not named; not known on this box."
 	}
 	return strings.TrimSuffix(b.String(), "; ")
 }

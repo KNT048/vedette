@@ -76,6 +76,7 @@ export const FindingRow = Finding.extend({
 export const CodeStep = z.object({
   title: z.string(), code: z.string(), note: z.string().optional(),
   side_effect: z.string().optional().describe('Side effect that must be stated before the user pastes the command'),
+  check: z.array(z.string()).optional().describe('#897 r2, AI config blocks only: the IP addresses the block names that are not the device\'s or a sent firewall\'s (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these addresses" above the block. Nothing is left out for an address'),
 })
 export const FirewallGuide = z.object({
   vendor: FirewallVendor, label: z.string(), detected: z.boolean().describe('The user declared a device of this vendor in the inventory'),

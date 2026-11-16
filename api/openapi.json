@@ -32406,6 +32406,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -32441,6 +32448,13 @@
                                             "side_effect": {
                                               "description": "Side effect that must be stated before the user pastes the command",
                                               "type": "string"
+                                            },
+                                            "check": {
+                                              "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
                                             }
                                           },
                                           "required": [
@@ -32475,6 +32489,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -32501,6 +32522,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -32739,6 +32767,13 @@
                                       "side_effect": {
                                         "description": "Side effect that must be stated before the user pastes the command",
                                         "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
                                       }
                                     },
                                     "required": [
@@ -32861,6 +32896,13 @@
                                       "side_effect": {
                                         "description": "Side effect that must be stated before the user pastes the command",
                                         "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
                                       }
                                     },
                                     "required": [
@@ -33780,6 +33822,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -33815,6 +33864,13 @@
                                             "side_effect": {
                                               "description": "Side effect that must be stated before the user pastes the command",
                                               "type": "string"
+                                            },
+                                            "check": {
+                                              "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
                                             }
                                           },
                                           "required": [
@@ -33849,6 +33905,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -33875,6 +33938,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -34113,6 +34183,13 @@
                                       "side_effect": {
                                         "description": "Side effect that must be stated before the user pastes the command",
                                         "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
                                       }
                                     },
                                     "required": [
@@ -34235,6 +34312,13 @@
                                       "side_effect": {
                                         "description": "Side effect that must be stated before the user pastes the command",
                                         "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
                                       }
                                     },
                                     "required": [
@@ -35156,6 +35240,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -35191,6 +35282,13 @@
                                             "side_effect": {
                                               "description": "Side effect that must be stated before the user pastes the command",
                                               "type": "string"
+                                            },
+                                            "check": {
+                                              "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
                                             }
                                           },
                                           "required": [
@@ -35225,6 +35323,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -35251,6 +35356,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -35489,6 +35601,13 @@
                                       "side_effect": {
                                         "description": "Side effect that must be stated before the user pastes the command",
                                         "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
                                       }
                                     },
                                     "required": [
@@ -35611,6 +35730,13 @@
                                       "side_effect": {
                                         "description": "Side effect that must be stated before the user pastes the command",
                                         "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
                                       }
                                     },
                                     "required": [
@@ -36544,6 +36670,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -36579,6 +36712,13 @@
                                             "side_effect": {
                                               "description": "Side effect that must be stated before the user pastes the command",
                                               "type": "string"
+                                            },
+                                            "check": {
+                                              "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
                                             }
                                           },
                                           "required": [
@@ -36613,6 +36753,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -36639,6 +36786,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -36877,6 +37031,13 @@
                                       "side_effect": {
                                         "description": "Side effect that must be stated before the user pastes the command",
                                         "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
                                       }
                                     },
                                     "required": [
@@ -36999,6 +37160,13 @@
                                       "side_effect": {
                                         "description": "Side effect that must be stated before the user pastes the command",
                                         "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
                                       }
                                     },
                                     "required": [

@@ -124060,6 +124060,16 @@ func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -124081,11 +124091,12 @@ func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) encodeFields(e *jx.Encoder)
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKAiConfigConfigsItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsGetFindingsIDOKAiConfigConfigsItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsGetFindingsIDOKAiConfigConfigsItem from json.
@@ -124097,8 +124108,27 @@ func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) Decode(d *jx.Decoder) error
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -124130,7 +124160,7 @@ func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -124151,7 +124181,7 @@ func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) Decode(d *jx.Decoder) error
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -124781,6 +124811,16 @@ func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -124802,11 +124842,12 @@ func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) encodeFields(e *jx.Encoder
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKAiExplainConfigsItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsGetFindingsIDOKAiExplainConfigsItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsGetFindingsIDOKAiExplainConfigsItem from json.
@@ -124818,8 +124859,27 @@ func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) Decode(d *jx.Decoder) erro
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -124851,7 +124911,7 @@ func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) Decode(d *jx.Decoder) erro
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -124872,7 +124932,7 @@ func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) Decode(d *jx.Decoder) erro
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -128396,6 +128456,16 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) Encode(e *
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -128417,11 +128487,12 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) encodeFiel
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem from json.
@@ -128433,8 +128504,27 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) Decode(d *
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -128466,7 +128556,7 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) Decode(d *
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -128487,7 +128577,7 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) Decode(d *
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -128543,6 +128633,16 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) Encode(e *jx.Encoder)
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -128564,11 +128664,12 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) encodeFields(e *jx.En
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKPackFirewallItemStepsItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsGetFindingsIDOKPackFirewallItemStepsItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsGetFindingsIDOKPackFirewallItemStepsItem from json.
@@ -128580,8 +128681,27 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) Decode(d *jx.Decoder)
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -128613,7 +128733,7 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -128634,7 +128754,7 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) Decode(d *jx.Decoder)
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -128690,6 +128810,16 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) Encode(e *jx.Encoder) 
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -128711,11 +128841,12 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) encodeFields(e *jx.Enc
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKPackFirewallItemUndoItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsGetFindingsIDOKPackFirewallItemUndoItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsGetFindingsIDOKPackFirewallItemUndoItem from json.
@@ -128727,8 +128858,27 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) Decode(d *jx.Decoder) 
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -128760,7 +128910,7 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) Decode(d *jx.Decoder) 
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -128781,7 +128931,7 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) Decode(d *jx.Decoder) 
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -128879,6 +129029,16 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) Encode(e *jx.Encoder
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -128900,11 +129060,12 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) encodeFields(e *jx.E
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKPackFirewallItemVerifyItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsGetFindingsIDOKPackFirewallItemVerifyItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsGetFindingsIDOKPackFirewallItemVerifyItem from json.
@@ -128916,8 +129077,27 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) Decode(d *jx.Decoder
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -128949,7 +129129,7 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -128970,7 +129150,7 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) Decode(d *jx.Decoder
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -136507,6 +136687,16 @@ func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -136528,11 +136718,12 @@ func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) encodeFields(e *jx.Encod
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKAiConfigConfigsItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKAiConfigConfigsItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKAiConfigConfigsItem from json.
@@ -136544,8 +136735,27 @@ func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) Decode(d *jx.Decoder) er
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -136577,7 +136787,7 @@ func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) Decode(d *jx.Decoder) er
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -136598,7 +136808,7 @@ func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) Decode(d *jx.Decoder) er
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -137228,6 +137438,16 @@ func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -137249,11 +137469,12 @@ func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) encodeFields(e *jx.Enco
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKAiExplainConfigsItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKAiExplainConfigsItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKAiExplainConfigsItem from json.
@@ -137265,8 +137486,27 @@ func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) Decode(d *jx.Decoder) e
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -137298,7 +137538,7 @@ func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) Decode(d *jx.Decoder) e
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -137319,7 +137559,7 @@ func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) Decode(d *jx.Decoder) e
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -140843,6 +141083,16 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) Encode(
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -140864,11 +141114,12 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) encodeF
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem from json.
@@ -140880,8 +141131,27 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) Decode(
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -140913,7 +141183,7 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) Decode(
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -140934,7 +141204,7 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) Decode(
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -140990,6 +141260,16 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) Encode(e *jx.Encod
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -141011,11 +141291,12 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) encodeFields(e *jx
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKPackFirewallItemStepsItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKPackFirewallItemStepsItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKPackFirewallItemStepsItem from json.
@@ -141027,8 +141308,27 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) Decode(d *jx.Decod
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -141060,7 +141360,7 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -141081,7 +141381,7 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) Decode(d *jx.Decod
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -141137,6 +141437,16 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) Encode(e *jx.Encode
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -141158,11 +141468,12 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) encodeFields(e *jx.
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKPackFirewallItemUndoItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKPackFirewallItemUndoItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKPackFirewallItemUndoItem from json.
@@ -141174,8 +141485,27 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) Decode(d *jx.Decode
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -141207,7 +141537,7 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -141228,7 +141558,7 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) Decode(d *jx.Decode
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -141326,6 +141656,16 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) Encode(e *jx.Enco
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -141347,11 +141687,12 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) encodeFields(e *j
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKPackFirewallItemVerifyItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKPackFirewallItemVerifyItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem from json.
@@ -141363,8 +141704,27 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) Decode(d *jx.Deco
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -141396,7 +141756,7 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) Decode(d *jx.Deco
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -141417,7 +141777,7 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) Decode(d *jx.Deco
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -143412,6 +143772,16 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) Encode(e *jx.Encode
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -143433,11 +143803,12 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) encodeFields(e *jx.
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKAiConfigConfigsItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKAiConfigConfigsItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKAiConfigConfigsItem from json.
@@ -143449,8 +143820,27 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) Decode(d *jx.Decode
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -143482,7 +143872,7 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -143503,7 +143893,7 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) Decode(d *jx.Decode
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -144133,6 +144523,16 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) Encode(e *jx.Encod
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -144154,11 +144554,12 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) encodeFields(e *jx
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKAiExplainConfigsItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKAiExplainConfigsItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKAiExplainConfigsItem from json.
@@ -144170,8 +144571,27 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) Decode(d *jx.Decod
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -144203,7 +144623,7 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) Decode(d *jx.Decod
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -144224,7 +144644,7 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) Decode(d *jx.Decod
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -147748,6 +148168,16 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) En
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -147769,11 +148199,12 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) en
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem from json.
@@ -147785,8 +148216,27 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) De
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -147818,7 +148268,7 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) De
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -147839,7 +148289,7 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) De
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -147895,6 +148345,16 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) Encode(e *jx.
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -147916,11 +148376,12 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) encodeFields(
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem from json.
@@ -147932,8 +148393,27 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) Decode(d *jx.
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -147965,7 +148445,7 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) Decode(d *jx.
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -147986,7 +148466,7 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) Decode(d *jx.
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -148042,6 +148522,16 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) Encode(e *jx.E
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -148063,11 +148553,12 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) encodeFields(e
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem from json.
@@ -148079,8 +148570,27 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) Decode(d *jx.D
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -148112,7 +148622,7 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -148133,7 +148643,7 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) Decode(d *jx.D
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -148231,6 +148741,16 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) Encode(e *jx
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -148252,11 +148772,12 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) encodeFields
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem from json.
@@ -148268,8 +148789,27 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) Decode(d *jx
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -148301,7 +148841,7 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) Decode(d *jx
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -148322,7 +148862,7 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) Decode(d *jx
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -150323,6 +150863,16 @@ func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) Encode(e *jx.Encoder
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -150344,11 +150894,12 @@ func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) encodeFields(e *jx.E
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOKAiConfigConfigsItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOKAiConfigConfigsItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOKAiConfigConfigsItem from json.
@@ -150360,8 +150911,27 @@ func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) Decode(d *jx.Decoder
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -150393,7 +150963,7 @@ func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -150414,7 +150984,7 @@ func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) Decode(d *jx.Decoder
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -151044,6 +151614,16 @@ func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) Encode(e *jx.Encode
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -151065,11 +151645,12 @@ func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) encodeFields(e *jx.
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOKAiExplainConfigsItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOKAiExplainConfigsItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOKAiExplainConfigsItem from json.
@@ -151081,8 +151662,27 @@ func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) Decode(d *jx.Decode
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -151114,7 +151714,7 @@ func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -151135,7 +151735,7 @@ func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) Decode(d *jx.Decode
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -154659,6 +155259,16 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem) Enc
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -154680,11 +155290,12 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem) enc
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem from json.
@@ -154696,8 +155307,27 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem) Dec
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -154729,7 +155359,7 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem) Dec
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -154750,7 +155380,7 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem) Dec
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -154806,6 +155436,16 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem) Encode(e *jx.E
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -154827,11 +155467,12 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem) encodeFields(e
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOKPackFirewallItemStepsItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOKPackFirewallItemStepsItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem from json.
@@ -154843,8 +155484,27 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem) Decode(d *jx.D
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -154876,7 +155536,7 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem) Decode(d *jx.D
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -154897,7 +155557,7 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem) Decode(d *jx.D
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -154953,6 +155613,16 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemUndoItem) Encode(e *jx.En
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDStatusOKPackFirewallItemUndoItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -154974,11 +155644,12 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemUndoItem) encodeFields(e 
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOKPackFirewallItemUndoItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOKPackFirewallItemUndoItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOKPackFirewallItemUndoItem from json.
@@ -154990,8 +155661,27 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemUndoItem) Decode(d *jx.De
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -155023,7 +155713,7 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemUndoItem) Decode(d *jx.De
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -155044,7 +155734,7 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemUndoItem) Decode(d *jx.De
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -155142,6 +155832,16 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem) Encode(e *jx.
 // encodeFields encodes fields.
 func (s *FindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem) encodeFields(e *jx.Encoder) {
 	{
+		if s.Check != nil {
+			e.FieldStart("check")
+			e.ArrStart()
+			for _, elem := range s.Check {
+				e.Str(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
 		e.FieldStart("code")
 		e.Str(s.Code)
 	}
@@ -155163,11 +155863,12 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem) encodeFields(
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem = [4]string{
-	0: "code",
-	1: "note",
-	2: "side_effect",
-	3: "title",
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem = [5]string{
+	0: "check",
+	1: "code",
+	2: "note",
+	3: "side_effect",
+	4: "title",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem from json.
@@ -155179,8 +155880,27 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem) Decode(d *jx.
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
+		case "check":
+			if err := func() error {
+				s.Check = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Check = append(s.Check, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"check\"")
+			}
 		case "code":
-			requiredBitSet[0] |= 1 << 0
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Code = string(v)
@@ -155212,7 +155932,7 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem) Decode(d *jx.
 				return errors.Wrap(err, "decode field \"side_effect\"")
 			}
 		case "title":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Title = string(v)
@@ -155233,7 +155953,7 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem) Decode(d *jx.
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001001,
+		0b00010010,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

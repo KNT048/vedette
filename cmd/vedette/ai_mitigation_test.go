@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -118,5 +119,25 @@ func TestAIFindingData_R1_OneLineValuesAndAttackVector(t *testing.T) {
 	}
 	if !strings.Contains(b[0].Text, "Attack vector (CVSS): local (an account or code on the device); user interaction: needed") {
 		t.Fatalf("attack vector missing: %q", b[0].Text)
+	}
+}
+
+// #897 r2: trusted addresses come from structured fields only (not a banner), and a short software name inside the Evidence is not the
+// finding's software.
+func TestAITrustedAndMatched_R2(t *testing.T) {
+	banner := "Apache httpd 10.66.6.6"
+	goV, apV := "1.22", "2.4.58"
+	dev := inventory.Device{AssetCore: inventory.AssetCore{IP: "192.168.18.5", Services: []inventory.ServiceRow{{Port: 80, Proto: "tcp", Name: "http", Product: &banner}}},
+		Software: []inventory.Software{{Display: "Go", Version: &goV}, {Display: "Apache HTTP Server", Version: &apV}}}
+	row := findings.Row{Asset: &findings.AssetView{IP: "192.168.18.5"}}
+	if err := json.Unmarshal([]byte(`{"evidence":{"summary":"web-01 runs Apache HTTP Server 2.4.58. Going by the version, it is affected.","checked_at":"2026-11-16T00:00:00Z"}}`), &row); err != nil {
+		t.Fatal(err)
+	}
+	walls := []inventory.Device{{AssetCore: inventory.AssetCore{IP: "192.168.18.1"}}, {AssetCore: inventory.AssetCore{IP: "not an ip"}}}
+	if got := fmt.Sprint(aiTrusted(row, &dev, walls)); got != "[192.168.18.5 192.168.18.1]" {
+		t.Fatalf("trusted = %s", got)
+	}
+	if got := aiMatched(row, dev); got != "Apache HTTP Server 2.4.58" {
+		t.Fatalf("matched = %q", got)
 	}
 }

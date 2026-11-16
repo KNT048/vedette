@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/bits"
 	"net/netip"
 	"regexp"
 	"slices"
@@ -27,6 +28,10 @@ type BriefRequest struct {
 	Target   string // the CVE, for the activity summary
 	Question string
 	Data     []DataBlock
+	// Trusted are the addresses the box itself knows for this finding, read from structured fields (the device's IP, the IPs of the
+	// firewalls sent), never from a banner, a name or free text. A config line that names any other address is flagged on the page for
+	// the person to check (#897 r2: warn, not filter).
+	Trusted []netip.Addr
 }
 
 // BriefAnswer is the checked answer. Citations are not part of it: the caller builds them from the feed entry.
@@ -54,6 +59,9 @@ type BriefConfig struct {
 	Code       string // the lines, joined with line breaks
 	SideEffect string // what it can break, shown before the person copies it
 	BasedOn    string // the source the change follows ("the vendor advisory linked in the entry")
+	// Check lists the addresses the block names that are not Trusted (netmasks, wildcards and 0.0.0.0 / :: aside), as written: the page
+	// asks the person to check them before pasting. Nothing is dropped for an address (#897 r2).
+	Check []string
 }
 
 type briefBody struct {
@@ -139,39 +147,31 @@ func parseBrief(text string, job Job) (briefBody, error) {
 	return b, nil
 }
 
-// keptBrief is the answer as it is kept: texts within their limits, cut at a sentence end, and the config blocks that fit whole and
-// name only addresses of the data (data: the blocks sent with the question).
-func keptBrief(b briefBody, data []DataBlock) (a BriefAnswer) {
+// keptBrief is the answer as it is kept: texts within their limits, cut at a sentence end, and the config blocks that fit whole, each
+// with the addresses it names that are not trusted (#897 r2: shown for checking, never dropped).
+func keptBrief(b briefBody, trusted []netip.Addr) (a BriefAnswer) {
 	a.Paragraphs, a.Shortened = sentenceList(b.Paragraphs, briefMaxParagraphs, briefParagraphRune)
 	var cut bool
 	a.Steps, cut = sentenceList(b.Steps, briefMaxSteps, briefStepRunes)
 	a.Shortened = a.Shortened || cut
-	var known addrSet
-	for _, d := range data {
-		known.add(d.Text)
-	}
 	for _, c := range b.Configs {
 		code, ok := codeBlock(c.Lines)
 		if code == "" && ok {
 			continue
 		}
-		// a block over the limits, with a line break inside a line (r1 M2: a masked answer would have joined its two commands into one)
-		// or naming an address that is not in the data (r1 M1: what a banner or a name steered the model to) is left out whole
-		if !ok || !known.allows(code) || len(a.Configs) == briefMaxConfigs {
+		// a block over the limits or with a line break inside a line (a masked answer would have joined its two commands) is left out whole
+		if !ok || len(a.Configs) == briefMaxConfigs {
 			a.Shortened = true
 			continue
 		}
 		title, c1 := clipSentence(cleanText(c.Title), briefTitleRunes)
 		side, c2 := clipSentence(cleanText(c.SideEffect), briefSideRunes)
-		if w := riskyConfig(code); w != "" { // r1 M1: say it before the person copies it
-			side = strings.TrimSpace(w + " " + side)
-		}
 		basis, c3 := clipSentence(cleanText(c.BasedOn), briefTitleRunes)
 		a.Shortened = a.Shortened || c1 || c2 || c3
 		if title == "" {
 			title = "Configuration"
 		}
-		a.Configs = append(a.Configs, BriefConfig{Title: title, Code: code, SideEffect: side, BasedOn: basis})
+		a.Configs = append(a.Configs, BriefConfig{Title: title, Code: code, SideEffect: side, BasedOn: basis, Check: untrustedAddrs(code, trusted)})
 	}
 	var c4 bool
 	a.NoConfigReason, c4 = clipSentence(cleanText(b.NoConfig), briefSideRunes)
@@ -179,73 +179,117 @@ func keptBrief(b briefBody, data []DataBlock) (a BriefAnswer) {
 	return a
 }
 
-// addrSet is the IP addresses named in the data sent with a question.
-type addrSet map[netip.Addr]bool
+var (
+	ipv4Like = regexp.MustCompile(`[0-9]{1,3}(?:\.[0-9]{1,3}){3}(?:/[0-9]{1,2})?`)
+	ipv6Like = regexp.MustCompile(`\[?[0-9A-Fa-f]{0,4}(?::[0-9A-Fa-f]{0,4}){2,7}(?:\.[0-9]{1,3}){0,3}\]?(?:/[0-9]{1,3})?`)
+)
 
-func (k *addrSet) add(text string) {
-	for _, p := range addrsIn(text) {
-		if *k == nil {
-			*k = addrSet{}
+// untrustedAddrs lists, once each and in order, the IPv4 and IPv6 literals of a config that are not trusted. Not listed: a netmask
+// (255.255.255.0, ones then zeros) or a wildcard (0.0.0.255, zeros then ones), 0.0.0.0 and ::, and a prefix of /16 (IPv6 /48) or
+// longer that holds a trusted address. Anything that looks like an address but is not a plain one (leading zeros, which inet_aton reads
+// as octal; a 4-in-6 form of an untrusted address) is listed as written. A version number (15.1R7.9, 10.0.19045.6456) is not taken for
+// one: a digit or a dot touches the match.
+func untrustedAddrs(code string, trusted []netip.Addr) []string {
+	var out []string
+	seen := map[string]bool{}
+	add := func(t string) {
+		if !seen[t] {
+			seen[t] = true
+			out = append(out, t)
 		}
-		(*k)[p.Addr()] = true
 	}
-}
-
-// allows reports whether every IP address or network a config names is one of the data, a network that holds one of them (the
-// device's /24), any address (0.0.0.0/0, ::/0) or loopback: a config only ever names what the box told the model about. Placeholders
-// (<ADMIN_NETWORK>) are not addresses and pass.
-func (k addrSet) allows(code string) bool {
-	for _, p := range addrsIn(code) {
-		a := p.Addr()
-		if k[a] || a.IsUnspecified() || a.IsLoopback() {
-			continue
-		}
-		ok := false
-		if p.Bits() < a.BitLen() {
-			for b := range k {
-				ok = ok || p.Contains(b)
-			}
-		}
-		if !ok {
+	isTrusted := func(a netip.Addr) bool { return slices.Contains(trusted, a) }
+	trustedPrefix := func(p netip.Prefix) bool {
+		if p.Addr().Is4() && p.Bits() < 16 || p.Addr().Is6() && p.Bits() < 48 {
 			return false
 		}
+		return slices.ContainsFunc(trusted, p.Contains)
 	}
-	return true
-}
-
-var ipToken = regexp.MustCompile(`[0-9A-Fa-f:.]*[.:][0-9A-Fa-f:.]*(?:/[0-9]{1,3})?`)
-
-// addrsIn finds the IPv4 and IPv6 literals (with an optional /prefix) in a text. A version number such as 15.1R7.9 or 10.0.19045.6456
-// is not one: it does not parse as an address.
-func addrsIn(text string) []netip.Prefix {
-	var out []netip.Prefix
-	for _, t := range ipToken.FindAllString(text, -1) {
-		t = strings.Trim(t, ".:")
-		if p, err := netip.ParsePrefix(t); err == nil {
-			out = append(out, p)
-		} else if a, err := netip.ParseAddr(t); err == nil && !a.Is4In6() && a.Zone() == "" {
-			out = append(out, netip.PrefixFrom(a, a.BitLen()))
+	ms := ipv4Like.FindAllStringIndex(code, -1)
+	for i := 0; i < len(ms); i++ {
+		m := ms[i]
+		if m[0] > 0 && strings.ContainsRune("0123456789.:", rune(code[m[0]-1])) || m[1] < len(code) && strings.ContainsRune("0123456789.", rune(code[m[1]])) {
+			continue // part of a longer dotted number (a version) or of an IPv6 literal, not an IPv4 address
+		}
+		t := code[m[0]:m[1]]
+		host, _, hasBits := strings.Cut(t, "/")
+		a, err := netip.ParseAddr(host)
+		// "<network> <mask>" (Cisco, FortiOS: 192.168.18.0 255.255.255.0 or the wildcard 0.0.0.255) is one network
+		if err == nil && !hasBits && i+1 < len(ms) && strings.TrimSpace(code[m[1]:ms[i+1][0]]) == "" {
+			if mask, merr := netip.ParseAddr(code[ms[i+1][0]:ms[i+1][1]]); merr == nil && isMask(mask) {
+				if p, perr := a.Prefix(maskBits(mask)); perr == nil {
+					if !isTrusted(a) && !trustedPrefix(p) {
+						add(t)
+					}
+					i++ // the mask is read
+					continue
+				}
+			}
+		}
+		switch {
+		case err != nil: // 010.010.010.010 and the like
+			add(t)
+		case hasBits:
+			p, err := netip.ParsePrefix(t)
+			if err != nil || !(a.IsUnspecified() && p.Bits() == 0 || trustedPrefix(p.Masked())) {
+				add(t)
+			}
+		case isMask(a), a.IsUnspecified(), isTrusted(a):
+		default:
+			add(t)
+		}
+	}
+	for _, t := range ipv6Like.FindAllString(code, -1) {
+		raw := strings.Trim(t, "[]")
+		host, _, hasBits := strings.Cut(raw, "/")
+		if strings.Count(host, ":") < 2 {
+			continue // a time (12:30:00) or a port pair
+		}
+		a, err := netip.ParseAddr(host)
+		switch {
+		case err != nil:
+			if strings.Contains(host, "::") || strings.Count(host, ":") == 7 {
+				add(t) // looks like an address and is not a plain one
+			}
+		case a.Is4In6():
+			if !isTrusted(a.Unmap()) {
+				add(t)
+			}
+		case a.IsUnspecified(), isTrusted(a):
+		case hasBits:
+			if p, err := netip.ParsePrefix(raw); err != nil || !trustedPrefix(p.Masked()) {
+				add(t)
+			}
+		default:
+			add(t)
 		}
 	}
 	return out
 }
 
-// Commands that erase, reload or change accounts and passwords: a config block that has one says so first (r1 M1).
-var (
-	riskyErase   = regexp.MustCompile(`(?i)\b(?:flush\s+ruleset|write\s+erase|erase\s+startup|zeroize|factory-?reset|factoryreset|formatlogdisk|reload|reboot|restart)\b`)
-	riskyAccount = regexp.MustCompile(`(?i)\b(?:username|useradd|adduser|passwd|password|secret|config\s+system\s+admin|system\s+login\s+user)\b`)
-)
-
-func riskyConfig(code string) string {
-	switch {
-	case riskyErase.MatchString(code) && riskyAccount.MatchString(code):
-		return "Check first: it erases or reloads something and changes accounts or passwords."
-	case riskyErase.MatchString(code):
-		return "Check first: it erases or reloads something."
-	case riskyAccount.MatchString(code):
-		return "Check first: it changes accounts or passwords."
+// maskBits is the prefix length of a netmask (255.255.255.0: 24) or of a wildcard mask (0.0.0.255: 24).
+func maskBits(m netip.Addr) int {
+	b := m.As4()
+	v := uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
+	if inv := ^v; inv&(inv+1) == 0 { // a netmask: ones then zeros (255.255.255.255 is /32, not the wildcard of /0)
+		return bits.OnesCount32(v)
 	}
-	return ""
+	return bits.OnesCount32(^v) // a wildcard: zeros then ones
+}
+
+// isMask reports whether an IPv4 value is a netmask (ones then zeros, 255.255.255.0) or a wildcard mask (zeros then ones, 0.0.0.255),
+// not a host.
+func isMask(a netip.Addr) bool {
+	if !a.Is4() {
+		return false
+	}
+	b := a.As4()
+	v := uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
+	if v == 0 {
+		return false
+	}
+	inv := ^v
+	return inv&(inv+1) == 0 || v&(v+1) == 0
 }
 
 // sentenceList cleans a list of texts, drops empty ones and keeps at most n, each cut at a sentence end within runes characters.
@@ -293,13 +337,15 @@ func codeBlock(lines []string) (string, bool) {
 	return strings.Join(out, "\n"), true
 }
 
-// codeLine is one config line as it is kept: control characters go, a tab becomes a space, the indentation stays, the end is trimmed.
+// codeLine is one config line as it is kept: control characters (NEL too), line and paragraph separators (U+2028, U+2029) and
+// invisible format characters (bidi controls such as U+202E, zero-width spaces) go, so the line shown is the line pasted (#897 r2 M4);
+// a tab becomes a space, the indentation stays, the end is trimmed.
 func codeLine(l string) string {
 	return strings.TrimRight(strings.Map(func(r rune) rune {
 		switch {
 		case r == '\t':
 			return ' '
-		case unicode.IsControl(r):
+		case unicode.IsControl(r), unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp):
 			return -1
 		}
 		return r
@@ -376,21 +422,29 @@ func (s *Service) Brief(ctx context.Context, r BriefRequest) (BriefAnswer, error
 	default:
 		return BriefAnswer{}, fmt.Errorf("ai: brief: job %q is not a finding job", r.Job)
 	}
-	var body briefBody
+	var kept BriefAnswer
 	res, err := s.RunJob(ctx, JobSpec{
 		Job: r.Job, Actor: r.Actor, Task: task, Question: r.Question, Data: r.Data,
 		Schema: &provider.Schema{Name: "finding_brief", JSON: json.RawMessage(schema)}, MaxTokens: limit,
 		Summary: fmt.Sprintf("%s for %s", strings.ToUpper(r.Job.Name()[:1])+r.Job.Name()[1:], clipRunes(cleanLine(r.Target, 40), 40)),
+		// the answer is checked as it is kept (#897 r2 M1): a config answer whose every block was left out, and that gives no reason,
+		// is not what the job asked for, so it is a format error, never an empty "Ask my AI"
 		Check: func(text string) error {
-			var perr error
-			body, perr = parseBrief(text, r.Job)
-			return perr
+			body, perr := parseBrief(text, r.Job)
+			if perr != nil {
+				return perr
+			}
+			kept = keptBrief(body, r.Trusted)
+			if r.Job == JobMitigationConfig && len(kept.Configs) == 0 && kept.NoConfigReason == "" {
+				return ErrBadOutput
+			}
+			return nil
 		},
 	})
 	if err != nil {
 		return BriefAnswer{}, err
 	}
-	a := keptBrief(body, r.Data)
+	a := kept
 	a.Model, a.Profile, a.TokensIn, a.TokensOut, a.ActivityID = res.Model, res.Profile, res.TokensIn, res.TokensOut, res.ActivityID
 	return a, nil
 }

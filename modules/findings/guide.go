@@ -20,6 +20,9 @@ type CodeStep struct {
 	Code       string `json:"code"`
 	Note       string `json:"note,omitempty"`
 	SideEffect string `json:"side_effect,omitempty"` // stated before the person copies the command (INV-4)
+	// Check (an AI config block only, #897 r2): the addresses the block names that are not addresses the box knows for the finding;
+	// the page asks the person to check them before pasting.
+	Check []string `json:"check,omitempty"`
 }
 
 // Alternative is the second way of a firewall guide.

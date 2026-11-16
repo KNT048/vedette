@@ -245,7 +245,10 @@
     "openModules": "Open Settings, Modules",
     "configsTitle": "Configuration to review before pasting",
     "noConfigTitle": "Why there is no firewall rule",
-    "shortened": "Vedette shortened or left out part of this answer: a text longer than it keeps, or a configuration that was too long, had two commands on one line, or named an address that is not in your data. Ask again for a new answer."
+    "noteTitle": "Note from the AI",
+    "configCaution": "AI-generated: read every line before pasting; a wrong rule can cut access or erase settings. Save the current config first.",
+    "checkAddresses": "Check these addresses: they are not addresses Vedette knows for this device or your firewalls:",
+    "shortened": "Vedette shortened or left out part of this answer: a text longer than it keeps, or a configuration that was too long or had two commands on one line. Ask again for a new answer."
   },
   "noIp": "No IP address",
   "removedDevice": "A removed device",

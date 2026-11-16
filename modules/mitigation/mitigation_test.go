@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -540,7 +541,7 @@ func TestContract_INV3_M2_2_ConfigAnswerKeepsItsConfigBlocks(t *testing.T) {
 	r.ai.avail[SkillConfig] = true
 	r.ai.out = AIOutput{Model: "m1", Paragraphs: []string{"Junos 15.1R7.9 is inside the range."}, Steps: []string{"Back up."}, Shortened: true, NoConfigReason: "No firewall rule helps for the J-Web port on its own.",
 		Configs: []findings.CodeStep{
-			{Title: "Juniper EX4200-48T", Code: "delete system services web-management\ncommit", Note: "Based on: the vendor advisory", SideEffect: "J-Web stops."},
+			{Title: "Juniper EX4200-48T", Code: "delete system services web-management\ncommit", Note: "Based on: the vendor advisory", SideEffect: "J-Web stops.", Check: []string{"203.0.113.9"}},
 			{Title: "Too big", Code: strings.Repeat("x", maxAICode+1)},
 			{Title: "Blank", Code: "  \n "},
 		}}
@@ -554,7 +555,7 @@ func TestContract_INV3_M2_2_ConfigAnswerKeepsItsConfigBlocks(t *testing.T) {
 		t.Fatalf("config = %v", cfg)
 	}
 	c := blocks[0].(map[string]any)
-	if c["code"] != "delete system services web-management\ncommit" || c["side_effect"] != "J-Web stops." || c["note"] != "Based on: the vendor advisory" || c["title"] != "Juniper EX4200-48T" {
+	if c["code"] != "delete system services web-management\ncommit" || c["side_effect"] != "J-Web stops." || c["note"] != "Based on: the vendor advisory" || c["title"] != "Juniper EX4200-48T" || fmt.Sprint(c["check"]) != "[203.0.113.9]" {
 		t.Fatalf("block = %v", c)
 	}
 	_, b = r.call("GET", "/findings/"+id, "viewer", "")

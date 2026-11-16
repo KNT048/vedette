@@ -62479,11 +62479,20 @@ func (s *FindingsGetFindingsIDOKAiConfigCitationsItem) SetURL(val OptString) {
 }
 
 type FindingsGetFindingsIDOKAiConfigConfigsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -62504,6 +62513,11 @@ func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) GetSideEffect() OptString {
 // GetTitle returns the value of Title.
 func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -62751,11 +62765,20 @@ func (s *FindingsGetFindingsIDOKAiExplainCitationsItem) SetURL(val OptString) {
 }
 
 type FindingsGetFindingsIDOKAiExplainConfigsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -62776,6 +62799,11 @@ func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) GetSideEffect() OptString 
 // GetTitle returns the value of Title.
 func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -64980,11 +65008,20 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemAlternative) SetTitle(val string
 }
 
 type FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -65005,6 +65042,11 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) GetSideEff
 // GetTitle returns the value of Title.
 func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -65028,11 +65070,20 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) SetTitle(v
 }
 
 type FindingsGetFindingsIDOKPackFirewallItemStepsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -65053,6 +65104,11 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) GetSideEffect() OptSt
 // GetTitle returns the value of Title.
 func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -65076,11 +65132,20 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) SetTitle(val string) 
 }
 
 type FindingsGetFindingsIDOKPackFirewallItemUndoItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -65101,6 +65166,11 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) GetSideEffect() OptStr
 // GetTitle returns the value of Title.
 func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -65172,11 +65242,20 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemVendor) UnmarshalText(data []byt
 }
 
 type FindingsGetFindingsIDOKPackFirewallItemVerifyItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -65197,6 +65276,11 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) GetSideEffect() OptS
 // GetTitle returns the value of Title.
 func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -70756,11 +70840,20 @@ func (s *FindingsPostFindingsIDAiOKAiConfigCitationsItem) SetURL(val OptString) 
 }
 
 type FindingsPostFindingsIDAiOKAiConfigConfigsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -70781,6 +70874,11 @@ func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) GetSideEffect() OptStrin
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -71028,11 +71126,20 @@ func (s *FindingsPostFindingsIDAiOKAiExplainCitationsItem) SetURL(val OptString)
 }
 
 type FindingsPostFindingsIDAiOKAiExplainConfigsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -71053,6 +71160,11 @@ func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) GetSideEffect() OptStri
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -73257,11 +73369,20 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternative) SetTitle(val str
 }
 
 type FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -73282,6 +73403,11 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) GetSide
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -73305,11 +73431,20 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) SetTitl
 }
 
 type FindingsPostFindingsIDAiOKPackFirewallItemStepsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -73330,6 +73465,11 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) GetSideEffect() Op
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -73353,11 +73493,20 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) SetTitle(val strin
 }
 
 type FindingsPostFindingsIDAiOKPackFirewallItemUndoItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -73378,6 +73527,11 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) GetSideEffect() Opt
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -73449,11 +73603,20 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemVendor) UnmarshalText(data []
 }
 
 type FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -73474,6 +73637,11 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) GetSideEffect() O
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -74344,11 +74512,20 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfigCitationsItem) SetURL(val OptStr
 }
 
 type FindingsPostFindingsIDAppliedOKAiConfigConfigsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -74369,6 +74546,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) GetSideEffect() Opt
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -74616,11 +74798,20 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplainCitationsItem) SetURL(val OptSt
 }
 
 type FindingsPostFindingsIDAppliedOKAiExplainConfigsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -74641,6 +74832,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) GetSideEffect() Op
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -76845,11 +77041,20 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) SetTitle(va
 }
 
 type FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -76870,6 +77075,11 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) Ge
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -76893,11 +77103,20 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) Se
 }
 
 type FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -76918,6 +77137,11 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) GetSideEffect
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -76941,11 +77165,20 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) SetTitle(val 
 }
 
 type FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -76966,6 +77199,11 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) GetSideEffect(
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -77037,11 +77275,20 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVendor) UnmarshalText(da
 }
 
 type FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -77062,6 +77309,11 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) GetSideEffec
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -77953,11 +78205,20 @@ func (s *FindingsPostFindingsIDStatusOKAiConfigCitationsItem) SetURL(val OptStri
 }
 
 type FindingsPostFindingsIDStatusOKAiConfigConfigsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -77978,6 +78239,11 @@ func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) GetSideEffect() OptS
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -78225,11 +78491,20 @@ func (s *FindingsPostFindingsIDStatusOKAiExplainCitationsItem) SetURL(val OptStr
 }
 
 type FindingsPostFindingsIDStatusOKAiExplainConfigsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -78250,6 +78525,11 @@ func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) GetSideEffect() Opt
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -80454,11 +80734,20 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternative) SetTitle(val
 }
 
 type FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -80479,6 +80768,11 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem) Get
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -80502,11 +80796,20 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem) Set
 }
 
 type FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -80527,6 +80830,11 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem) GetSideEffect(
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -80550,11 +80858,20 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem) SetTitle(val s
 }
 
 type FindingsPostFindingsIDStatusOKPackFirewallItemUndoItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDStatusOKPackFirewallItemUndoItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -80575,6 +80892,11 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemUndoItem) GetSideEffect()
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDStatusOKPackFirewallItemUndoItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDStatusOKPackFirewallItemUndoItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -80646,11 +80968,20 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemVendor) UnmarshalText(dat
 }
 
 type FindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -80671,6 +81002,11 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem) GetSideEffect
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.

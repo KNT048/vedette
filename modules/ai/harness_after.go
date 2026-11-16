@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -69,9 +70,22 @@ func afterHooks(ctx context.Context, hooks *HookRunner, structured bool, text st
 				if k == "lines" && refused { // the refused marker stays as it is
 					continue
 				}
+				var orig []any
+				if k == "lines" {
+					orig, _ = x[k].([]any)
+					orig = slices.Clone(orig)
+				}
 				n, stop, err := walk(x[k])
 				if err != nil || stop {
 					return nil, stop, err
+				}
+				// a config line no hook changed keeps its indentation (codeLine, the form kept) when a mask elsewhere rewrites the answer
+				if arr, ok := n.([]any); ok && len(arr) == len(orig) {
+					for i, e := range arr {
+						if o, ok := orig[i].(string); ok && e == cleanText(o) {
+							arr[i] = codeLine(o)
+						}
+					}
 				}
 				x[k] = n
 			}

@@ -24,12 +24,16 @@ function SideEffect({ text }: { text: string }) {
   return <p className="rounded-md border border-warn/50 bg-warn-soft px-3 py-2 text-meta"><span className="font-medium">{t('rec.sideEffect')}</span> {text}</p>
 }
 
-function Steps({ steps }: { steps: CodeStep[] }) {
+/** caution: a fixed warning shown on every block (the AI's config blocks, #897 r2); `check`: addresses to check, shown above the code. */
+function Steps({ steps, caution }: { steps: CodeStep[]; caution?: string }) {
+  const { t } = useTranslation('findings')
   return (
     <div className="grid gap-3">
       {steps.map((s, i) => (
         // the index too: an AI's titles can repeat (#897 r1 L4)
         <div key={`${i}:${s.title}`} className="grid gap-1.5">
+          {caution ? <p className="rounded-md border border-warn/50 bg-warn-soft px-3 py-2 text-meta">{caution}</p> : null}
+          {s.check?.length ? <p className="rounded-md border border-warn/50 bg-warn-soft px-3 py-2 text-meta"><span className="font-medium">{t('ai.checkAddresses')}</span> {s.check.join(', ')}</p> : null}
           {s.code ? <CodeBlock code={s.code} label={s.title} wrapOnPhone /> : <p className="text-meta font-medium">{s.title}</p>}
           {s.note ? <p className="text-meta text-muted">{s.note}</p> : null}
           {s.side_effect ? <SideEffect text={s.side_effect} /> : null}
@@ -210,9 +214,9 @@ export function AiOutput({ r }: { r: AiResult }) {
       {r.paragraphs.map((p) => <p key={p}>{p}</p>)}
       <ol className="grid list-decimal gap-1 pl-5">{r.steps.map((s) => <li key={s}>{s}</li>)}</ol>
       {/* M2-2: the config blocks to paste, each copyable, with what it is based on and its side effect */}
-      {r.configs?.length ? <div className="grid gap-2"><p className="text-sm font-medium">{t('ai.configsTitle')}</p><Steps steps={r.configs} /></div> : null}
+      {r.configs?.length ? <div className="grid gap-2"><p className="text-sm font-medium">{t('ai.configsTitle')}</p><Steps steps={r.configs} caution={t('ai.configCaution')} /></div> : null}
       {/* #897 r1 H1: when no configuration helps (a local flaw, no open port serves it), the AI says why instead of inventing rules */}
-      {r.no_config_reason ? <div className="grid gap-1"><p className="text-sm font-medium">{t('ai.noConfigTitle')}</p><p>{r.no_config_reason}</p></div> : null}
+      {r.no_config_reason ? <div className="grid gap-1"><p className="text-sm font-medium">{t(r.configs?.length ? 'ai.noteTitle' : 'ai.noConfigTitle')}</p><p>{r.no_config_reason}</p></div> : null}
       {r.shortened ? <p className="text-meta text-muted">{t('ai.shortened')}</p> : null}
     </AiBlock>
   )

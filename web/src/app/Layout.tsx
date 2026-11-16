@@ -7,8 +7,8 @@ import { PageModule } from '@/lib/v1'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/brand/Logo'
 import { Slot } from '@/components/common/Slot'
-import { DrawerContent, Dialog } from '@/components/ui/dialog'
-import { NavList, Sidebar, UserMenu } from './Sidebar'
+import { Dialog, DialogTrigger, DrawerContent } from '@/components/ui/dialog'
+import { Brand, NavList, Sidebar, UserMenu } from './Sidebar'
 import { navItemOf, useNavState } from './nav'
 import { cn } from '@/lib/utils'
 
@@ -44,17 +44,20 @@ export function Layout() {
       <div className="hidden border-r border-rule bg-surface lg:block">
         <Sidebar nav={nav} />
       </div>
-      <div className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-rule bg-surface px-4 lg:hidden">
-        <Button variant="ghost" size="icon" onClick={() => { byLink.current = false; setOpen(true) }} aria-label={t('layout.openMenu')}><Menu /></Button>
-        <Logo className="h-[22px]" />
-        {/* docs/UI.md §2: the shell.status slot (#850 "1 scan running"); the empty box keeps the logo centred. */}
-        <div className="flex min-w-9 justify-end"><Slot name="shell.status" props={{ compact: true }} /></div>
-      </div>
-      <Dialog open={open} onOpenChange={setOpen}>
+      {/* The menu button is the Dialog's trigger, so Esc and ✕ give focus back to it (WCAG 2.4.3); a link gives it to #main. */}
+      <Dialog open={open} onOpenChange={(v) => { if (v) byLink.current = false; setOpen(v) }}>
+        <div className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-rule bg-surface px-4 lg:hidden">
+          <DialogTrigger asChild><Button variant="ghost" size="icon" aria-label={t('layout.openMenu')}><Menu /></Button></DialogTrigger>
+          <Logo className="h-5.5" />
+          {/* docs/UI.md §2: the shell.status slot (#850 "1 scan running"); the empty box keeps the logo centred. */}
+          <div className="flex min-w-9 justify-end"><Slot name="shell.status" props={{ compact: true }} /></div>
+        </div>
         <DrawerContent title={t('layout.nav')} returnFocus={() => !byLink.current}>
+          {/* Header row: brand and org, the ✕ on its right, so the ✕ never sits over an entry. */}
+          <div className="flex min-h-10 items-center pr-10"><Brand /></div>
           <NavList nav={nav} drawer onNavigate={closeByLink} />
           <div className="grid gap-1 border-t border-rule pt-3">
-            <UserMenu />
+            <UserMenu onNavigate={closeByLink} />
             <RunningVersion onNavigate={closeByLink} />
           </div>
         </DrawerContent>

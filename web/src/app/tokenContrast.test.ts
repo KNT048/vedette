@@ -49,6 +49,13 @@ describe('token contrast (docs/UI.md §1)', () => {
       expect(low).toEqual([])
     })
   }
+  // The dashed chip (docs/UI.md §7): warn text on warn-soft at 60 % over surface.
+  const mix = (fg: string, bg: string, a: number) => '#' + [1, 3, 5].map((i) => Math.round(parseInt(fg.slice(i, i + 2), 16) * a + parseInt(bg.slice(i, i + 2), 16) * (1 - a)).toString(16).padStart(2, '0')).join('')
+  for (const [theme, t] of Object.entries(THEMES)) {
+    it(`${theme}: the dashed chip, warn on warn-soft/60 over surface`, () => {
+      expect(ratio(t.warn!, mix(t['warn-soft']!, t.surface!, 0.6))).toBeGreaterThanOrEqual(TEXT)
+    })
+  }
   it('light: white on the solid danger chip', () => {
     expect(ratio('#ffffff', THEMES.light.danger!)).toBeGreaterThanOrEqual(TEXT)
   })

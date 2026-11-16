@@ -85,29 +85,35 @@ groups ([Primer NavList](https://primer.style/product/components/nav-list/)), ic
 - **Groups**: a group with one visible item renders as that plain item (no header, no chevron); a group with none is not
   drawn ([Primer NavList](https://primer.style/product/components/nav-list/) groups related items, never one link). On a
   default v1 box (Preview modules off) Incidents and Lookup are therefore plain items. A real group's header is a disclosure
-  button (`aria-expanded`, chevron); the group holding the current page stays open (closing it would hide where you are). First visit: every group closed except the one holding the current page, which opens by
+  button (`aria-expanded`, chevron); the group holding the current page stays open (closing it would hide where you are), so its header is `aria-disabled` and
+  says "holds this page". Groups are drawn only once `/modules` has answered (no header that turns into an item). First visit: every group closed except the one holding the current page, which opens by
   itself without overwriting the saved state. Open groups and the rail choice are saved per user in `localStorage`
   (`vedette.nav.<userId>`, reads and writes in try/catch; on failure the first-visit default).
 - **Badges** come from one cheap read, `GET /findings/summary` (#825, cached on the box, shared with Home through the same
   query key `['findings','summary']`, 60 s refresh, paused in a hidden tab). A plain selector table in `app/nav.ts` maps it to
-  items: Findings ← `open.confirmed` ("confirmed to handle"), Devices ← `devices.pending` ("to review"); both urgent (red),
-  as work waits for the user. No per-item hook and no list fetch in the shell. A closed group shows only the **urgent** total
+  items: Findings ← `open.confirmed` ("confirmed to handle"), Devices ← `devices.pending` ("to review"), Incidents ←
+  `incidents.urgent` ("high or critical open", J3); all urgent (red), as work waits for the user. An error stops the polling.
+  The summary API PR (#825) merges before the shell PR. No per-item hook and no list fetch in the shell. A closed group shows only the **urgent** total
   of its items; its accessible name lists the parts ("Assets: Devices 15 to review"). No summary (findings off, error): no badges.
-- **Rail**: from `lg`, "Collapse menu" (`aria-pressed`) at the foot shrinks 240 px to 56 px; groups flatten into icons,
+- **Rail**: from `lg`, "Collapse menu" at the foot shrinks 240 px to 56 px (then "Expand menu"; the name always equals the tooltip); groups flatten into icons,
   each group a `role=group` with its own `aria-label` (not a `ul`: page tests query their page's one list), split by a rule. Every nav icon is unique (Internal traps moves from
   `ShieldAlert` to `Radar`). Each icon has a `Tooltip` (**build** `components/ui/tooltip.tsx`, Radix, in `radix-ui`) with the
-  label, the badge words and "Preview" when it is one; the link keeps its label as `sr-only` text, so the tooltip does not
-  repeat it as a description. A badge is a counter on the icon's corner. The logo becomes the mark; the org name hides; the user
+  label, the badge words and "Preview" when it is one; the link keeps its label as `sr-only` text and the tooltip
+  (`describe={false}`) is not its description, so nothing is read twice. One `TooltipProvider` in `App.tsx`. Focus rings of nav
+  entries are drawn inside the entry (`-outline-offset-2`), so a group's clipping never cuts them. A badge is a counter on the icon's corner. The logo becomes the mark; the org name hides; the user
   menu is an icon button with a tooltip; the version lives inside the user menu. The column paints its background and rule the
   full page height at 56 px too (UI-4).
 - **Below `lg`** (tablets included, a choice: no persistent nav under 1024 px): a 56 px top bar (menu button, logo, the
   `shell.status` slot on the right) and the same `Sidebar`, expanded, in a left drawer, 288 px, max 85 vw, focus trapped
-  (**build** `DrawerContent` in `components/ui/dialog.tsx`; replaces the class override in Layout). A link click closes it and
-  focus goes to `#main` (as on every page change); Esc returns focus to the menu button.
+  (**build** `DrawerContent` in `components/ui/dialog.tsx`; the menu button is its `DialogTrigger`). A header row holds the brand,
+  the org and the ✕. A link click (user-menu entries too) closes it and focus goes to `#main` (as on every page change); Esc
+  and ✕ return focus to the menu button.
 - Active item: `aria-current`, `bg-accent-soft`, `font-medium`, 3 px `accent` leading bar, icon in `accent`; items 36 px tall,
   40 px in the drawer. Preview entries keep `ScopeBadge` (expanded) or "Preview" in the tooltip (rail).
 - **`shell.status` slot**: a feature registers `slots: { 'shell.status': Component }` (existing `Slot`), rendered in the
-  phone top bar and in the sidebar foot, with prop `compact` (rail, phone). #850's `ScansRunningIndicator` goes here.
+  phone top bar and in the sidebar foot, with prop `compact` (rail, phone). #850's `ScansRunningIndicator` goes here. Both
+  copies are mounted at every width (one hidden by CSS), so a slot component stays pure: query state only, no toasts or effects.
+  Its icon must not be one the nav uses (`Radar` is Internal traps), and its compact form is named by `Tooltip`, not `title`.
 
 ## 3. Page frame (`PageHeader`, `KpiStrip`, `PageTabs`: exist; **build** `components/common/Breadcrumbs.tsx`)
 
@@ -117,7 +123,8 @@ groups ([Primer NavList](https://primer.style/product/components/nav-list/)), ic
 - `PageHeader`: `h1` (`page-title`) + one short line (`meta`) + ⓘ (`info`) on the left, actions on the right (one primary at
   most), wraps under on phones ([Primer PageHeader](https://primer.style/product/components/page-header/)). New prop
   `breadcrumbs` renders `Breadcrumbs` above the title.
-- Breadcrumbs on every detail page, parents only ("Devices ›"), `text-meta` muted, `nav aria-label="Breadcrumb"`; the `h1`
+- Breadcrumbs on every detail page, parents only ("Devices ›"), `text-meta` muted, `nav aria-label="Breadcrumb"` with an `<ol>`
+  (correct semantics; page tests then scope their list queries, e.g. `within(main)`); the `h1`
   names the current page ([Atlassian page header](https://atlassian.design/components/page-header)).
 - **Standalone pages** (sign-in, first-run setup, change password, SSO return, not found) sit outside the shell: **build**
   `components/common/StandalonePage.tsx`: centred column (`size` sm/md/lg), stacked logo, `h1` in `page-title` (sign-in: the logo is the h1), one `Card`,
@@ -137,15 +144,17 @@ tabs: [tabs](https://m3.material.io/components/tabs/guidelines)). At most 6 tabs
 
 ## 5. Card and table
 
-- **Card** (**build** `components/common/Card.tsx`: `title`, `info`, `actions`, `flush`): `rule` border, `rounded-md`,
-  `surface`, no shadow, `p-4` (`flush`: no padding, for a list or table inside), title row `text-base` 600 with actions on the
-  right. `Panel` (exists, no padding) stays as is until its pages migrate, then goes. No card in a card. Lists of things are
+- **Card** (**build** `components/common/Card.tsx`: `title`, `info`, `actions`, `flush`, `level`): `rule` border, `rounded-md`,
+  `surface`, no shadow, `p-4` (`flush`: no padding, for a divided list of rows; its title row is `px-4 py-3` over a rule),
+  title row `text-base` 600 with actions on the right; `level={3}` inside a `Section` (h2). **A DataTable is its own card:
+  never inside a Card**; title it with a `Section` or its `caption`. `Panel` (exists, no padding) stays as is until its pages migrate, then goes. No card in a card. Lists of things are
   tables, not a grid of identical cards. `Section` (exists) is a titled block without a box.
 - **Table** = `DataTable` (exists; **fix**): header 36 px, `text-caption` muted on `sunken`, not sticky (the scroll box of a
   wide table would make "sticky" a lie); rows 40 px, `rule` between, hover `sunken` only when the row opens something; the
   row's first cell holds a real link (keyboard), the row click is a pointer shortcut; risk bar 3 px inset left (danger, warn);
   numbers right-aligned; 50 rows a page with `Pager` (exists). Below `md` (768 px, as the code) a `mobileRow` list (required
-  over 3 columns). New prop `emptyFiltered` for "filters match nothing" next to `empty` for "nothing yet". Anatomy as
+  over 3 columns). `empty` is "nothing yet"; when filters hide every row (its own text filter, or the page's: `filtered`) it shows
+  `emptyFiltered`, by default "No rows match these filters." with "Clear filters" (`onClearFilters` clears the page's). Anatomy as
   [Primer DataTable](https://primer.style/product/components/data-table/).
 
 ## 6. Empty state (`EmptyState` exists; **fix**: `art` prop; **build** `components/common/Illustration.tsx`)
@@ -153,7 +162,8 @@ tabs: [tabs](https://m3.material.io/components/tabs/guidelines)). At most 6 tabs
 - Nothing exists yet (first run, no devices, no findings): centred, illustration 180×120 (120×80 on phones) in `text-accent`,
   title, one line, one action ([Primer empty states](https://primer.style/product/ui-patterns/empty-states/),
   [Blankslate](https://primer.style/product/components/blankslate/)). `art` is typed as the six names, not a node.
-- A filter or search finds nothing: text only, inside the table (`emptyFiltered`: "No devices match. Clear filters").
+- A filter or search finds nothing: text only, inside the table (`filtered` + `onClearFilters`, or `emptyFiltered`: "No devices
+  match. Clear filters"), never the "nothing yet" art.
 - Illustrations (`web/src/assets/illustrations/`, #827): `no-devices` Devices, `no-findings` Findings and Plan (good news),
   `no-alerts` Incidents, `scanning` a running first scan, `welcome` and `setup-done` first-run setup. `Illustration` inlines the
   static build-time SVG (`?raw`); it is the only `dangerouslySetInnerHTML` in `src`, never fed with data; `aria-hidden`.
@@ -165,7 +175,9 @@ tabs: [tabs](https://m3.material.io/components/tabs/guidelines)). At most 6 tabs
   (danger, interim, question 3) and `Counter`; `dashed` only for `StatusChip` suspected (warn). The 64 direct `Chip` uses in
   features become soft, which is the point: one solid meaning.
 - Exploit markers: **Exploited** / **In KEV** `danger` soft, **Ransomware** `danger` soft, **Not exploited** `off` soft. In a
-  row: certainty (`StatusChip`) → risk (`SeverityChip` / `RiskChip`) → exploit markers; the CVSS line under them.
+  row: certainty (`StatusChip`) → risk (`SeverityChip` / `RiskChip`) → exploit markers; the CVSS line under them. The `Chip`
+  type allows `solid` only with `danger` and `dashed` only with `warn`. Migration list: `feeds/CvePage.tsx` "In KEV" is `accent`
+  today and becomes `danger` soft.
 - `Counter` (**build** `components/common/Counter.tsx`, taken out of `PageTabs`): pill, `text-caption` 600, "99+" cap, `danger`
   solid when work waits for the user, `off` soft for a plain count, words for screen readers inside; used by tabs, nav, KPI
   ([Primer CounterLabel](https://primer.style/product/components/counter-label/)). `ScopeBadge` (exists): Preview / not in v1.
@@ -238,7 +250,8 @@ focus. Status is never colour alone (words, shape). axe runs in the component te
    size. Named exceptions, each with a `// ui-guard: <reason>` on the line: `components/common/QrCode.tsx`, `components/brand/Logo.tsx`
    (`SIGNAL`), hit areas `after:-inset-*`, `translate-x-[…]` of the switch thumb, the inset rule `shadow-[inset…]` of
    `PageTabs`/`UnderlineNav`/`DataTable`, `max-h-[min(…)]` of popovers, layout values (`grid-cols-[minmax(0,1fr)…]`,
-   `max-w-[…]`). Not oxlint: it has no Tailwind class rule, and an ESLint Tailwind plugin is a second linter; the guard needs
+   `grid-rows-[0fr|1fr]` and `transition-[grid-template-rows]` of the nav groups, `max-w-[…]`). The current-entry bar is the
+   `nav-current` utility, not an arbitrary shadow. Not oxlint: it has no Tailwind class rule, and an ESLint Tailwind plugin is a second linter; the guard needs
    no dependency and runs in PR CI with the web tests. Review-only (not guarded): opacity-modified tokens such as
    `border-danger/40` and hand-drawn `rounded-md border border-rule bg-surface` boxes, which move to `Notice` and `Card` as
    pages migrate. (Wiz and Falcon docs are behind sign-in, so no choice here cites them.)
@@ -248,6 +261,9 @@ focus. Status is never colour alone (words, shape). axe runs in the component te
 L1 spacing: the doc now states the code's values. L2: targets softened to the code (§11). L3: checkboxes keep `muted`. L4, L5,
 L6, L7, L8, L9, L10, L11, L13, L14, L15, L16: done in the text above. L12: the guard names its keywords; opacity-modified
 tokens and hand-drawn boxes are review-only, as said in §12.
+
+Review r2 (shell code): M1–M6 and L1–L16 done in the code and the text above; L12 keeps the `<ol>` (note in §3); L14 is on the
+migration list (§7).
 
 ## 14. Open questions for kien
 

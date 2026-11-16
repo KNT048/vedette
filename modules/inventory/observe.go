@@ -592,7 +592,7 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs
 					if shared, err := handShared(ctx, tx, id); err != nil || !shared {
 						return id, false, err
 					}
-					s.staleLog(ctx, id, c, "", "inventory: a list by address only is not given to the hand-added device at that address: another machine was seen there since it was added (on the device page: merge it when it is that machine; else delete the hand-added device, or keep it, and the machine's own lists by address only stay held)")
+					s.staleLog(ctx, id, c, "", staleHandList)
 					return "", false, nil
 				}
 				return id, false, confirmIP(ctx, tx, id, c.ip, c.seenAt)
@@ -607,7 +607,7 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs
 			case !judged:
 				return id, false, nil
 			case c.agent == "" || c.list:
-				s.staleLog(ctx, id, c, confirmed.String, "inventory: reports by address only are not given to the device at that address: the discovery sweep has not seen it there for 3 days (DHCP may have given the address to another machine)")
+				s.staleLog(ctx, id, c, confirmed.String, staleSwept)
 				return "", false, nil
 			}
 			// an agent's observation at a stale address: a device of its own takes the address (below); when the agent reports the old
@@ -735,7 +735,7 @@ func (s *Service) ownDevice(ctx context.Context, tx *sql.Tx, c cleanObs) (string
 		}
 	}
 	if c.agent == "" && c.card == "" { // no key and no card (Wazuh with no network data): nothing would find it again; held, logged
-		s.staleLog(ctx, c.ip.String(), c, "", "inventory: an agent report by address only, with no card and no key, is not given to the hand-added device at that address: another machine was seen there since it was added")
+		s.staleLog(ctx, c.ip.String(), c, "", staleHandNoKey)
 		return "", false, nil
 	}
 	id = store.NewID("a")
@@ -838,7 +838,15 @@ func sweptAway(ctx context.Context, tx *sql.Tx, id, cutoff string) (bool, error)
 	return st.ScopeConfirmedAt != nil && f.addr.IsValid() && st.InScope(f.addr) && !sweepSkips(st, f), nil
 }
 
-// staleLog logs, at most once an hour per device, that a report by address only was not given to the device at the address.
+// Why a report by address only was not given to the device at the address (staleLog).
+const (
+	staleSwept     = "inventory: reports by address only are not given to the device at that address: the discovery sweep has not seen it there for 3 days (DHCP may have given the address to another machine)"
+	staleHandList  = "inventory: a list by address only is not given to the hand-added device at that address: another machine was seen there since it was added (on the device page: merge it when it is that machine; else delete the hand-added device, or keep it, and the machine's own lists by address only stay held)"
+	staleHandNoKey = "inventory: an agent report by address only, with no card and no key, is not given to the hand-added device at that address: another machine was seen there since it was added"
+)
+
+// staleLog logs, at most once an hour per device and reason (one of the stale* messages), that a report by address only was not given
+// to the device at the address.
 func (s *Service) staleLog(ctx context.Context, id string, c cleanObs, confirmed, msg string) {
 	s.staleMu.Lock()
 	if s.stale == nil || len(s.stale) > 4096 {
@@ -853,7 +861,15 @@ func (s *Service) staleLog(ctx context.Context, id string, c cleanObs, confirmed
 	}
 	s.staleMu.Unlock()
 	if due {
-		s.log.InfoContext(ctx, msg, "device", id, "ip", c.ip, "source", c.source, "confirmed_at", confirmed)
+		args := []any{"device", id, "ip", c.ip, "source", c.source, "confirmed_at", confirmed}
+		switch msg {
+		case staleHandList:
+			s.log.InfoContext(ctx, staleHandList, args...)
+		case staleHandNoKey:
+			s.log.InfoContext(ctx, staleHandNoKey, args...)
+		default:
+			s.log.InfoContext(ctx, staleSwept, args...)
+		}
 	}
 }
 

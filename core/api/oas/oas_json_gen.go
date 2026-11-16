@@ -133131,6 +133131,10 @@ func (s *FindingsGetFindingsPlanOK) encodeFields(e *jx.Encoder) {
 		e.Int(s.ComparedDevices)
 	}
 	{
+		e.FieldStart("counts")
+		s.Counts.Encode(e)
+	}
+	{
 		e.FieldStart("data")
 		s.Data.Encode(e)
 	}
@@ -133152,13 +133156,14 @@ func (s *FindingsGetFindingsPlanOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsPlanOK = [6]string{
+var jsonFieldsNameOfFindingsGetFindingsPlanOK = [7]string{
 	0: "compared",
 	1: "compared_devices",
-	2: "data",
-	3: "items",
-	4: "old_evidence",
-	5: "unchecked_devices",
+	2: "counts",
+	3: "data",
+	4: "items",
+	5: "old_evidence",
+	6: "unchecked_devices",
 }
 
 // Decode decodes FindingsGetFindingsPlanOK from json.
@@ -133194,8 +133199,18 @@ func (s *FindingsGetFindingsPlanOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"compared_devices\"")
 			}
-		case "data":
+		case "counts":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Counts.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"counts\"")
+			}
+		case "data":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				if err := s.Data.Decode(d); err != nil {
 					return err
@@ -133205,7 +133220,7 @@ func (s *FindingsGetFindingsPlanOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"data\"")
 			}
 		case "items":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Items = make([]FindingsGetFindingsPlanOKItemsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -133223,7 +133238,7 @@ func (s *FindingsGetFindingsPlanOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"items\"")
 			}
 		case "old_evidence":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				v, err := d.Int()
 				s.OldEvidence = int(v)
@@ -133235,7 +133250,7 @@ func (s *FindingsGetFindingsPlanOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"old_evidence\"")
 			}
 		case "unchecked_devices":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Int()
 				s.UncheckedDevices = int(v)
@@ -133256,7 +133271,7 @@ func (s *FindingsGetFindingsPlanOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -133298,6 +133313,136 @@ func (s *FindingsGetFindingsPlanOK) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *FindingsGetFindingsPlanOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsGetFindingsPlanOKCounts) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsPlanOKCounts) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("all")
+		e.Int(s.All)
+	}
+	{
+		e.FieldStart("likely")
+		e.Int(s.Likely)
+	}
+	{
+		e.FieldStart("recent")
+		e.Int(s.Recent)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsPlanOKCounts = [3]string{
+	0: "all",
+	1: "likely",
+	2: "recent",
+}
+
+// Decode decodes FindingsGetFindingsPlanOKCounts from json.
+func (s *FindingsGetFindingsPlanOKCounts) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsPlanOKCounts to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "all":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.All = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"all\"")
+			}
+		case "likely":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.Likely = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"likely\"")
+			}
+		case "recent":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int()
+				s.Recent = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"recent\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsPlanOKCounts")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsPlanOKCounts) {
+					name = jsonFieldsNameOfFindingsGetFindingsPlanOKCounts[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsPlanOKCounts) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsPlanOKCounts) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

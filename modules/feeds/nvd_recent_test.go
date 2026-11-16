@@ -699,3 +699,41 @@ func TestRecentPull_CursorResetIsDueAtTheNextCheck(t *testing.T) {
 		t.Fatalf("another address: asked %v, %v", n.requests(), err)
 	}
 }
+
+// M2-10 (walk n74, review r1 L3 of #898): NVD's real shapes of 2026. An application CVE "running on" Windows Server 2025 (CVE-2026-23666:
+// .NET Framework vulnerable AND windows_server_2025 vulnerable:false) keeps only its .NET entries as Affected, with the Windows releases
+// as their Platforms: no Affected row names windows_server_2025, so it never counts for a Windows Server row. An OS CVE (CVE-2026-69902)
+// keeps its windows_server_2025 range as Affected, with no platform condition.
+func TestParseNVDRecent_M2_10_RunningOnWindowsIsNotAffected(t *testing.T) {
+	t.Parallel()
+	body := `{"totalResults":2,"vulnerabilities":[
+{"cve":{"id":"CVE-2026-23666","published":"2026-01-13T18:16:00.000","lastModified":"2026-02-01T00:00:00.000","vulnStatus":"Analyzed",
+ "configurations":[
+  {"operator":"AND","nodes":[
+   {"operator":"OR","negate":false,"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:microsoft:.net_framework:3.5:-:*:*:*:*:*:*"},
+    {"vulnerable":true,"criteria":"cpe:2.3:a:microsoft:.net_framework:4.8.1:*:*:*:*:*:*:*"}]},
+   {"operator":"OR","negate":false,"cpeMatch":[{"vulnerable":false,"criteria":"cpe:2.3:o:microsoft:windows_11_24h2:-:*:*:*:*:*:x64:*"},
+    {"vulnerable":false,"criteria":"cpe:2.3:o:microsoft:windows_server_2022:-:*:*:*:*:*:*:*"},
+    {"vulnerable":false,"criteria":"cpe:2.3:o:microsoft:windows_server_2025:-:*:*:*:*:*:x64:*"}]}]}]}},
+{"cve":{"id":"CVE-2026-69902","published":"2026-10-13T17:15:00.000","lastModified":"2026-10-20T00:00:00.000","vulnStatus":"Analyzed",
+ "configurations":[{"nodes":[{"operator":"OR","negate":false,"cpeMatch":[
+  {"vulnerable":true,"criteria":"cpe:2.3:o:microsoft:windows_11_24h2:*:*:*:*:*:*:x64:*","versionEndExcluding":"10.0.26100.9711"},
+  {"vulnerable":true,"criteria":"cpe:2.3:o:microsoft:windows_server_2025:*:*:*:*:*:*:x64:*","versionEndExcluding":"10.0.26100.33650"}]}]}]}}]}`
+	d, err := ParseNVDRecent([]byte(body))
+	if err != nil || len(d.Records) != 2 {
+		t.Fatalf("%+v %v", d, err)
+	}
+	app, os := d.Records[0], d.Records[1]
+	if len(app.Affected) != 2 || len(app.Platforms) != 2 {
+		t.Fatalf(".NET entries only: %+v", app)
+	}
+	for i, r := range app.Affected {
+		if !strings.Contains(r.CPE, ":.net_framework:") || !slices.Contains(app.Platforms[i], "microsoft:windows_server_2025") {
+			t.Fatalf("entry %d: %+v platforms %v", i, r, app.Platforms[i])
+		}
+	}
+	if len(os.Affected) != 2 || os.Affected[1].CPE != "cpe:2.3:o:microsoft:windows_server_2025:*:*:*:*:*:*:x64:*" || os.Affected[1].EndExcl != "10.0.26100.33650" ||
+		len(os.Platforms[1]) != 0 {
+		t.Fatalf("OS entries: %+v", os)
+	}
+}

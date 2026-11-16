@@ -62897,8 +62897,10 @@ type FindingsGetFindingsIDOK struct {
 	History []FindingsGetFindingsIDOKHistoryItem `json:"history"`
 	ID      string                               `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
-	Kev      NilFindingsGetFindingsIDOKKev `json:"kev"`
-	LastSeen time.Time                     `json:"last_seen"`
+	Kev NilFindingsGetFindingsIDOKKev `json:"kev"`
+	// M2-3: null when the matched software has no version or its source is not known.
+	KnownVersion NilFindingsGetFindingsIDOKKnownVersion `json:"known_version"`
+	LastSeen     time.Time                              `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet (D-21).
 	Pack           NilFindingsGetFindingsIDOKPack  `json:"pack"`
 	Recheck        FindingsGetFindingsIDOKRecheck  `json:"recheck"`
@@ -62997,6 +62999,11 @@ func (s *FindingsGetFindingsIDOK) GetID() string {
 // GetKev returns the value of Kev.
 func (s *FindingsGetFindingsIDOK) GetKev() NilFindingsGetFindingsIDOKKev {
 	return s.Kev
+}
+
+// GetKnownVersion returns the value of KnownVersion.
+func (s *FindingsGetFindingsIDOK) GetKnownVersion() NilFindingsGetFindingsIDOKKnownVersion {
+	return s.KnownVersion
 }
 
 // GetLastSeen returns the value of LastSeen.
@@ -63127,6 +63134,11 @@ func (s *FindingsGetFindingsIDOK) SetID(val string) {
 // SetKev sets the value of Kev.
 func (s *FindingsGetFindingsIDOK) SetKev(val NilFindingsGetFindingsIDOKKev) {
 	s.Kev = val
+}
+
+// SetKnownVersion sets the value of KnownVersion.
+func (s *FindingsGetFindingsIDOK) SetKnownVersion(val NilFindingsGetFindingsIDOKKnownVersion) {
+	s.KnownVersion = val
 }
 
 // SetLastSeen sets the value of LastSeen.
@@ -64985,13 +64997,15 @@ type FindingsGetFindingsIDOKFixedIn struct {
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-	// line; distro = a package of the distribution, whose security updates carry the fix under their own
-	// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-	// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
-	// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
-	// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
-	// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
+	// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
+	// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
+	// fix of each release line; distro = a package of the distribution, whose security updates carry the
+	// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+	// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
+	// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
+	// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
+	// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 	Kind FindingsGetFindingsIDOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -65143,18 +65157,21 @@ func (s *FindingsGetFindingsIDOKFixedInBranchesItem) SetFixed(val string) {
 
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-// line; distro = a package of the distribution, whose security updates carry the fix under their own
-// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
-// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
-// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
-// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
+// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
+// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
+// fix of each release line; distro = a package of the distribution, whose security updates carry the
+// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
+// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
+// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
+// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 type FindingsGetFindingsIDOKFixedInKind string
 
 const (
 	FindingsGetFindingsIDOKFixedInKindFixed         FindingsGetFindingsIDOKFixedInKind = "fixed"
 	FindingsGetFindingsIDOKFixedInKindUpTo          FindingsGetFindingsIDOKFixedInKind = "up_to"
+	FindingsGetFindingsIDOKFixedInKindEndListed     FindingsGetFindingsIDOKFixedInKind = "end_listed"
 	FindingsGetFindingsIDOKFixedInKindBranches      FindingsGetFindingsIDOKFixedInKind = "branches"
 	FindingsGetFindingsIDOKFixedInKindDistro        FindingsGetFindingsIDOKFixedInKind = "distro"
 	FindingsGetFindingsIDOKFixedInKindFeatureUpdate FindingsGetFindingsIDOKFixedInKind = "feature_update"
@@ -65166,6 +65183,7 @@ func (FindingsGetFindingsIDOKFixedInKind) AllValues() []FindingsGetFindingsIDOKF
 	return []FindingsGetFindingsIDOKFixedInKind{
 		FindingsGetFindingsIDOKFixedInKindFixed,
 		FindingsGetFindingsIDOKFixedInKindUpTo,
+		FindingsGetFindingsIDOKFixedInKindEndListed,
 		FindingsGetFindingsIDOKFixedInKindBranches,
 		FindingsGetFindingsIDOKFixedInKindDistro,
 		FindingsGetFindingsIDOKFixedInKindFeatureUpdate,
@@ -65179,6 +65197,8 @@ func (s FindingsGetFindingsIDOKFixedInKind) MarshalText() ([]byte, error) {
 	case FindingsGetFindingsIDOKFixedInKindFixed:
 		return []byte(s), nil
 	case FindingsGetFindingsIDOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKFixedInKindEndListed:
 		return []byte(s), nil
 	case FindingsGetFindingsIDOKFixedInKindBranches:
 		return []byte(s), nil
@@ -65201,6 +65221,9 @@ func (s *FindingsGetFindingsIDOKFixedInKind) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsGetFindingsIDOKFixedInKindUpTo:
 		*s = FindingsGetFindingsIDOKFixedInKindUpTo
+		return nil
+	case FindingsGetFindingsIDOKFixedInKindEndListed:
+		*s = FindingsGetFindingsIDOKFixedInKindEndListed
 		return nil
 	case FindingsGetFindingsIDOKFixedInKindBranches:
 		*s = FindingsGetFindingsIDOKFixedInKindBranches
@@ -65454,6 +65477,111 @@ func (s *FindingsGetFindingsIDOKKevSource) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsGetFindingsIDOKKevSourceVulncheckKev:
 		*s = FindingsGetFindingsIDOKKevSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// M2-3: the version the box has for the matched software; the page says it and how a newer one reaches
+// Vedette, never "find which version".
+type FindingsGetFindingsIDOKKnownVersion struct {
+	// Display name of the software the finding was matched on.
+	Software string `json:"software"`
+	// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+	// the network (LLDP), a network scan, or a person on the Devices page.
+	Source  FindingsGetFindingsIDOKKnownVersionSource `json:"source"`
+	Version string                                    `json:"version"`
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsGetFindingsIDOKKnownVersion) GetSoftware() string {
+	return s.Software
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsIDOKKnownVersion) GetSource() FindingsGetFindingsIDOKKnownVersionSource {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsIDOKKnownVersion) GetVersion() string {
+	return s.Version
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsGetFindingsIDOKKnownVersion) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsIDOKKnownVersion) SetSource(val FindingsGetFindingsIDOKKnownVersionSource) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsIDOKKnownVersion) SetVersion(val string) {
+	s.Version = val
+}
+
+// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+// the network (LLDP), a network scan, or a person on the Devices page.
+type FindingsGetFindingsIDOKKnownVersionSource string
+
+const (
+	FindingsGetFindingsIDOKKnownVersionSourceAgent  FindingsGetFindingsIDOKKnownVersionSource = "agent"
+	FindingsGetFindingsIDOKKnownVersionSourceSnmp   FindingsGetFindingsIDOKKnownVersionSource = "snmp"
+	FindingsGetFindingsIDOKKnownVersionSourceStated FindingsGetFindingsIDOKKnownVersionSource = "stated"
+	FindingsGetFindingsIDOKKnownVersionSourceScan   FindingsGetFindingsIDOKKnownVersionSource = "scan"
+	FindingsGetFindingsIDOKKnownVersionSourceManual FindingsGetFindingsIDOKKnownVersionSource = "manual"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKKnownVersionSource values.
+func (FindingsGetFindingsIDOKKnownVersionSource) AllValues() []FindingsGetFindingsIDOKKnownVersionSource {
+	return []FindingsGetFindingsIDOKKnownVersionSource{
+		FindingsGetFindingsIDOKKnownVersionSourceAgent,
+		FindingsGetFindingsIDOKKnownVersionSourceSnmp,
+		FindingsGetFindingsIDOKKnownVersionSourceStated,
+		FindingsGetFindingsIDOKKnownVersionSourceScan,
+		FindingsGetFindingsIDOKKnownVersionSourceManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKKnownVersionSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKKnownVersionSourceAgent:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKKnownVersionSourceSnmp:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKKnownVersionSourceStated:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKKnownVersionSourceScan:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKKnownVersionSourceManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKKnownVersionSource) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKKnownVersionSource(data) {
+	case FindingsGetFindingsIDOKKnownVersionSourceAgent:
+		*s = FindingsGetFindingsIDOKKnownVersionSourceAgent
+		return nil
+	case FindingsGetFindingsIDOKKnownVersionSourceSnmp:
+		*s = FindingsGetFindingsIDOKKnownVersionSourceSnmp
+		return nil
+	case FindingsGetFindingsIDOKKnownVersionSourceStated:
+		*s = FindingsGetFindingsIDOKKnownVersionSourceStated
+		return nil
+	case FindingsGetFindingsIDOKKnownVersionSourceScan:
+		*s = FindingsGetFindingsIDOKKnownVersionSourceScan
+		return nil
+	case FindingsGetFindingsIDOKKnownVersionSourceManual:
+		*s = FindingsGetFindingsIDOKKnownVersionSourceManual
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -71050,8 +71178,10 @@ type FindingsPostFindingsIDAiOK struct {
 	History []FindingsPostFindingsIDAiOKHistoryItem `json:"history"`
 	ID      string                                  `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
-	Kev      NilFindingsPostFindingsIDAiOKKev `json:"kev"`
-	LastSeen time.Time                        `json:"last_seen"`
+	Kev NilFindingsPostFindingsIDAiOKKev `json:"kev"`
+	// M2-3: null when the matched software has no version or its source is not known.
+	KnownVersion NilFindingsPostFindingsIDAiOKKnownVersion `json:"known_version"`
+	LastSeen     time.Time                                 `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet (D-21).
 	Pack           NilFindingsPostFindingsIDAiOKPack  `json:"pack"`
 	Recheck        FindingsPostFindingsIDAiOKRecheck  `json:"recheck"`
@@ -71150,6 +71280,11 @@ func (s *FindingsPostFindingsIDAiOK) GetID() string {
 // GetKev returns the value of Kev.
 func (s *FindingsPostFindingsIDAiOK) GetKev() NilFindingsPostFindingsIDAiOKKev {
 	return s.Kev
+}
+
+// GetKnownVersion returns the value of KnownVersion.
+func (s *FindingsPostFindingsIDAiOK) GetKnownVersion() NilFindingsPostFindingsIDAiOKKnownVersion {
+	return s.KnownVersion
 }
 
 // GetLastSeen returns the value of LastSeen.
@@ -71280,6 +71415,11 @@ func (s *FindingsPostFindingsIDAiOK) SetID(val string) {
 // SetKev sets the value of Kev.
 func (s *FindingsPostFindingsIDAiOK) SetKev(val NilFindingsPostFindingsIDAiOKKev) {
 	s.Kev = val
+}
+
+// SetKnownVersion sets the value of KnownVersion.
+func (s *FindingsPostFindingsIDAiOK) SetKnownVersion(val NilFindingsPostFindingsIDAiOKKnownVersion) {
+	s.KnownVersion = val
 }
 
 // SetLastSeen sets the value of LastSeen.
@@ -73138,13 +73278,15 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-	// line; distro = a package of the distribution, whose security updates carry the fix under their own
-	// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-	// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
-	// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
-	// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
-	// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
+	// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
+	// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
+	// fix of each release line; distro = a package of the distribution, whose security updates carry the
+	// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+	// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
+	// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
+	// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
+	// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 	Kind FindingsPostFindingsIDAiOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -73296,18 +73438,21 @@ func (s *FindingsPostFindingsIDAiOKFixedInBranchesItem) SetFixed(val string) {
 
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-// line; distro = a package of the distribution, whose security updates carry the fix under their own
-// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
-// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
-// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
-// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
+// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
+// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
+// fix of each release line; distro = a package of the distribution, whose security updates carry the
+// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
+// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
+// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
+// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 type FindingsPostFindingsIDAiOKFixedInKind string
 
 const (
 	FindingsPostFindingsIDAiOKFixedInKindFixed         FindingsPostFindingsIDAiOKFixedInKind = "fixed"
 	FindingsPostFindingsIDAiOKFixedInKindUpTo          FindingsPostFindingsIDAiOKFixedInKind = "up_to"
+	FindingsPostFindingsIDAiOKFixedInKindEndListed     FindingsPostFindingsIDAiOKFixedInKind = "end_listed"
 	FindingsPostFindingsIDAiOKFixedInKindBranches      FindingsPostFindingsIDAiOKFixedInKind = "branches"
 	FindingsPostFindingsIDAiOKFixedInKindDistro        FindingsPostFindingsIDAiOKFixedInKind = "distro"
 	FindingsPostFindingsIDAiOKFixedInKindFeatureUpdate FindingsPostFindingsIDAiOKFixedInKind = "feature_update"
@@ -73319,6 +73464,7 @@ func (FindingsPostFindingsIDAiOKFixedInKind) AllValues() []FindingsPostFindingsI
 	return []FindingsPostFindingsIDAiOKFixedInKind{
 		FindingsPostFindingsIDAiOKFixedInKindFixed,
 		FindingsPostFindingsIDAiOKFixedInKindUpTo,
+		FindingsPostFindingsIDAiOKFixedInKindEndListed,
 		FindingsPostFindingsIDAiOKFixedInKindBranches,
 		FindingsPostFindingsIDAiOKFixedInKindDistro,
 		FindingsPostFindingsIDAiOKFixedInKindFeatureUpdate,
@@ -73332,6 +73478,8 @@ func (s FindingsPostFindingsIDAiOKFixedInKind) MarshalText() ([]byte, error) {
 	case FindingsPostFindingsIDAiOKFixedInKindFixed:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKFixedInKindEndListed:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKFixedInKindBranches:
 		return []byte(s), nil
@@ -73354,6 +73502,9 @@ func (s *FindingsPostFindingsIDAiOKFixedInKind) UnmarshalText(data []byte) error
 		return nil
 	case FindingsPostFindingsIDAiOKFixedInKindUpTo:
 		*s = FindingsPostFindingsIDAiOKFixedInKindUpTo
+		return nil
+	case FindingsPostFindingsIDAiOKFixedInKindEndListed:
+		*s = FindingsPostFindingsIDAiOKFixedInKindEndListed
 		return nil
 	case FindingsPostFindingsIDAiOKFixedInKindBranches:
 		*s = FindingsPostFindingsIDAiOKFixedInKindBranches
@@ -73607,6 +73758,111 @@ func (s *FindingsPostFindingsIDAiOKKevSource) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsPostFindingsIDAiOKKevSourceVulncheckKev:
 		*s = FindingsPostFindingsIDAiOKKevSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// M2-3: the version the box has for the matched software; the page says it and how a newer one reaches
+// Vedette, never "find which version".
+type FindingsPostFindingsIDAiOKKnownVersion struct {
+	// Display name of the software the finding was matched on.
+	Software string `json:"software"`
+	// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+	// the network (LLDP), a network scan, or a person on the Devices page.
+	Source  FindingsPostFindingsIDAiOKKnownVersionSource `json:"source"`
+	Version string                                       `json:"version"`
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDAiOKKnownVersion) GetSoftware() string {
+	return s.Software
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAiOKKnownVersion) GetSource() FindingsPostFindingsIDAiOKKnownVersionSource {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDAiOKKnownVersion) GetVersion() string {
+	return s.Version
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDAiOKKnownVersion) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAiOKKnownVersion) SetSource(val FindingsPostFindingsIDAiOKKnownVersionSource) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDAiOKKnownVersion) SetVersion(val string) {
+	s.Version = val
+}
+
+// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+// the network (LLDP), a network scan, or a person on the Devices page.
+type FindingsPostFindingsIDAiOKKnownVersionSource string
+
+const (
+	FindingsPostFindingsIDAiOKKnownVersionSourceAgent  FindingsPostFindingsIDAiOKKnownVersionSource = "agent"
+	FindingsPostFindingsIDAiOKKnownVersionSourceSnmp   FindingsPostFindingsIDAiOKKnownVersionSource = "snmp"
+	FindingsPostFindingsIDAiOKKnownVersionSourceStated FindingsPostFindingsIDAiOKKnownVersionSource = "stated"
+	FindingsPostFindingsIDAiOKKnownVersionSourceScan   FindingsPostFindingsIDAiOKKnownVersionSource = "scan"
+	FindingsPostFindingsIDAiOKKnownVersionSourceManual FindingsPostFindingsIDAiOKKnownVersionSource = "manual"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKKnownVersionSource values.
+func (FindingsPostFindingsIDAiOKKnownVersionSource) AllValues() []FindingsPostFindingsIDAiOKKnownVersionSource {
+	return []FindingsPostFindingsIDAiOKKnownVersionSource{
+		FindingsPostFindingsIDAiOKKnownVersionSourceAgent,
+		FindingsPostFindingsIDAiOKKnownVersionSourceSnmp,
+		FindingsPostFindingsIDAiOKKnownVersionSourceStated,
+		FindingsPostFindingsIDAiOKKnownVersionSourceScan,
+		FindingsPostFindingsIDAiOKKnownVersionSourceManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKKnownVersionSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKKnownVersionSourceAgent:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKKnownVersionSourceSnmp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKKnownVersionSourceStated:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKKnownVersionSourceScan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKKnownVersionSourceManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKKnownVersionSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKKnownVersionSource(data) {
+	case FindingsPostFindingsIDAiOKKnownVersionSourceAgent:
+		*s = FindingsPostFindingsIDAiOKKnownVersionSourceAgent
+		return nil
+	case FindingsPostFindingsIDAiOKKnownVersionSourceSnmp:
+		*s = FindingsPostFindingsIDAiOKKnownVersionSourceSnmp
+		return nil
+	case FindingsPostFindingsIDAiOKKnownVersionSourceStated:
+		*s = FindingsPostFindingsIDAiOKKnownVersionSourceStated
+		return nil
+	case FindingsPostFindingsIDAiOKKnownVersionSourceScan:
+		*s = FindingsPostFindingsIDAiOKKnownVersionSourceScan
+		return nil
+	case FindingsPostFindingsIDAiOKKnownVersionSourceManual:
+		*s = FindingsPostFindingsIDAiOKKnownVersionSourceManual
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -74460,8 +74716,10 @@ type FindingsPostFindingsIDAppliedOK struct {
 	History []FindingsPostFindingsIDAppliedOKHistoryItem `json:"history"`
 	ID      string                                       `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
-	Kev      NilFindingsPostFindingsIDAppliedOKKev `json:"kev"`
-	LastSeen time.Time                             `json:"last_seen"`
+	Kev NilFindingsPostFindingsIDAppliedOKKev `json:"kev"`
+	// M2-3: null when the matched software has no version or its source is not known.
+	KnownVersion NilFindingsPostFindingsIDAppliedOKKnownVersion `json:"known_version"`
+	LastSeen     time.Time                                      `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet (D-21).
 	Pack           NilFindingsPostFindingsIDAppliedOKPack  `json:"pack"`
 	Recheck        FindingsPostFindingsIDAppliedOKRecheck  `json:"recheck"`
@@ -74560,6 +74818,11 @@ func (s *FindingsPostFindingsIDAppliedOK) GetID() string {
 // GetKev returns the value of Kev.
 func (s *FindingsPostFindingsIDAppliedOK) GetKev() NilFindingsPostFindingsIDAppliedOKKev {
 	return s.Kev
+}
+
+// GetKnownVersion returns the value of KnownVersion.
+func (s *FindingsPostFindingsIDAppliedOK) GetKnownVersion() NilFindingsPostFindingsIDAppliedOKKnownVersion {
+	return s.KnownVersion
 }
 
 // GetLastSeen returns the value of LastSeen.
@@ -74690,6 +74953,11 @@ func (s *FindingsPostFindingsIDAppliedOK) SetID(val string) {
 // SetKev sets the value of Kev.
 func (s *FindingsPostFindingsIDAppliedOK) SetKev(val NilFindingsPostFindingsIDAppliedOKKev) {
 	s.Kev = val
+}
+
+// SetKnownVersion sets the value of KnownVersion.
+func (s *FindingsPostFindingsIDAppliedOK) SetKnownVersion(val NilFindingsPostFindingsIDAppliedOKKnownVersion) {
+	s.KnownVersion = val
 }
 
 // SetLastSeen sets the value of LastSeen.
@@ -76548,13 +76816,15 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-	// line; distro = a package of the distribution, whose security updates carry the fix under their own
-	// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-	// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
-	// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
-	// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
-	// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
+	// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
+	// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
+	// fix of each release line; distro = a package of the distribution, whose security updates carry the
+	// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+	// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
+	// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
+	// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
+	// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 	Kind FindingsPostFindingsIDAppliedOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -76706,18 +76976,21 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInBranchesItem) SetFixed(val string
 
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-// line; distro = a package of the distribution, whose security updates carry the fix under their own
-// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
-// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
-// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
-// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
+// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
+// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
+// fix of each release line; distro = a package of the distribution, whose security updates carry the
+// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
+// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
+// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
+// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 type FindingsPostFindingsIDAppliedOKFixedInKind string
 
 const (
 	FindingsPostFindingsIDAppliedOKFixedInKindFixed         FindingsPostFindingsIDAppliedOKFixedInKind = "fixed"
 	FindingsPostFindingsIDAppliedOKFixedInKindUpTo          FindingsPostFindingsIDAppliedOKFixedInKind = "up_to"
+	FindingsPostFindingsIDAppliedOKFixedInKindEndListed     FindingsPostFindingsIDAppliedOKFixedInKind = "end_listed"
 	FindingsPostFindingsIDAppliedOKFixedInKindBranches      FindingsPostFindingsIDAppliedOKFixedInKind = "branches"
 	FindingsPostFindingsIDAppliedOKFixedInKindDistro        FindingsPostFindingsIDAppliedOKFixedInKind = "distro"
 	FindingsPostFindingsIDAppliedOKFixedInKindFeatureUpdate FindingsPostFindingsIDAppliedOKFixedInKind = "feature_update"
@@ -76729,6 +77002,7 @@ func (FindingsPostFindingsIDAppliedOKFixedInKind) AllValues() []FindingsPostFind
 	return []FindingsPostFindingsIDAppliedOKFixedInKind{
 		FindingsPostFindingsIDAppliedOKFixedInKindFixed,
 		FindingsPostFindingsIDAppliedOKFixedInKindUpTo,
+		FindingsPostFindingsIDAppliedOKFixedInKindEndListed,
 		FindingsPostFindingsIDAppliedOKFixedInKindBranches,
 		FindingsPostFindingsIDAppliedOKFixedInKindDistro,
 		FindingsPostFindingsIDAppliedOKFixedInKindFeatureUpdate,
@@ -76742,6 +77016,8 @@ func (s FindingsPostFindingsIDAppliedOKFixedInKind) MarshalText() ([]byte, error
 	case FindingsPostFindingsIDAppliedOKFixedInKindFixed:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindEndListed:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKFixedInKindBranches:
 		return []byte(s), nil
@@ -76764,6 +77040,9 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInKind) UnmarshalText(data []byte) 
 		return nil
 	case FindingsPostFindingsIDAppliedOKFixedInKindUpTo:
 		*s = FindingsPostFindingsIDAppliedOKFixedInKindUpTo
+		return nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindEndListed:
+		*s = FindingsPostFindingsIDAppliedOKFixedInKindEndListed
 		return nil
 	case FindingsPostFindingsIDAppliedOKFixedInKindBranches:
 		*s = FindingsPostFindingsIDAppliedOKFixedInKindBranches
@@ -77017,6 +77296,111 @@ func (s *FindingsPostFindingsIDAppliedOKKevSource) UnmarshalText(data []byte) er
 		return nil
 	case FindingsPostFindingsIDAppliedOKKevSourceVulncheckKev:
 		*s = FindingsPostFindingsIDAppliedOKKevSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// M2-3: the version the box has for the matched software; the page says it and how a newer one reaches
+// Vedette, never "find which version".
+type FindingsPostFindingsIDAppliedOKKnownVersion struct {
+	// Display name of the software the finding was matched on.
+	Software string `json:"software"`
+	// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+	// the network (LLDP), a network scan, or a person on the Devices page.
+	Source  FindingsPostFindingsIDAppliedOKKnownVersionSource `json:"source"`
+	Version string                                            `json:"version"`
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDAppliedOKKnownVersion) GetSoftware() string {
+	return s.Software
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKKnownVersion) GetSource() FindingsPostFindingsIDAppliedOKKnownVersionSource {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDAppliedOKKnownVersion) GetVersion() string {
+	return s.Version
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDAppliedOKKnownVersion) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKKnownVersion) SetSource(val FindingsPostFindingsIDAppliedOKKnownVersionSource) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDAppliedOKKnownVersion) SetVersion(val string) {
+	s.Version = val
+}
+
+// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+// the network (LLDP), a network scan, or a person on the Devices page.
+type FindingsPostFindingsIDAppliedOKKnownVersionSource string
+
+const (
+	FindingsPostFindingsIDAppliedOKKnownVersionSourceAgent  FindingsPostFindingsIDAppliedOKKnownVersionSource = "agent"
+	FindingsPostFindingsIDAppliedOKKnownVersionSourceSnmp   FindingsPostFindingsIDAppliedOKKnownVersionSource = "snmp"
+	FindingsPostFindingsIDAppliedOKKnownVersionSourceStated FindingsPostFindingsIDAppliedOKKnownVersionSource = "stated"
+	FindingsPostFindingsIDAppliedOKKnownVersionSourceScan   FindingsPostFindingsIDAppliedOKKnownVersionSource = "scan"
+	FindingsPostFindingsIDAppliedOKKnownVersionSourceManual FindingsPostFindingsIDAppliedOKKnownVersionSource = "manual"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKKnownVersionSource values.
+func (FindingsPostFindingsIDAppliedOKKnownVersionSource) AllValues() []FindingsPostFindingsIDAppliedOKKnownVersionSource {
+	return []FindingsPostFindingsIDAppliedOKKnownVersionSource{
+		FindingsPostFindingsIDAppliedOKKnownVersionSourceAgent,
+		FindingsPostFindingsIDAppliedOKKnownVersionSourceSnmp,
+		FindingsPostFindingsIDAppliedOKKnownVersionSourceStated,
+		FindingsPostFindingsIDAppliedOKKnownVersionSourceScan,
+		FindingsPostFindingsIDAppliedOKKnownVersionSourceManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKKnownVersionSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceAgent:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceSnmp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceStated:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceScan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKKnownVersionSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKKnownVersionSource(data) {
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceAgent:
+		*s = FindingsPostFindingsIDAppliedOKKnownVersionSourceAgent
+		return nil
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceSnmp:
+		*s = FindingsPostFindingsIDAppliedOKKnownVersionSourceSnmp
+		return nil
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceStated:
+		*s = FindingsPostFindingsIDAppliedOKKnownVersionSourceStated
+		return nil
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceScan:
+		*s = FindingsPostFindingsIDAppliedOKKnownVersionSourceScan
+		return nil
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceManual:
+		*s = FindingsPostFindingsIDAppliedOKKnownVersionSourceManual
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -77891,8 +78275,10 @@ type FindingsPostFindingsIDStatusOK struct {
 	History []FindingsPostFindingsIDStatusOKHistoryItem `json:"history"`
 	ID      string                                      `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
-	Kev      NilFindingsPostFindingsIDStatusOKKev `json:"kev"`
-	LastSeen time.Time                            `json:"last_seen"`
+	Kev NilFindingsPostFindingsIDStatusOKKev `json:"kev"`
+	// M2-3: null when the matched software has no version or its source is not known.
+	KnownVersion NilFindingsPostFindingsIDStatusOKKnownVersion `json:"known_version"`
+	LastSeen     time.Time                                     `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet (D-21).
 	Pack           NilFindingsPostFindingsIDStatusOKPack  `json:"pack"`
 	Recheck        FindingsPostFindingsIDStatusOKRecheck  `json:"recheck"`
@@ -77991,6 +78377,11 @@ func (s *FindingsPostFindingsIDStatusOK) GetID() string {
 // GetKev returns the value of Kev.
 func (s *FindingsPostFindingsIDStatusOK) GetKev() NilFindingsPostFindingsIDStatusOKKev {
 	return s.Kev
+}
+
+// GetKnownVersion returns the value of KnownVersion.
+func (s *FindingsPostFindingsIDStatusOK) GetKnownVersion() NilFindingsPostFindingsIDStatusOKKnownVersion {
+	return s.KnownVersion
 }
 
 // GetLastSeen returns the value of LastSeen.
@@ -78121,6 +78512,11 @@ func (s *FindingsPostFindingsIDStatusOK) SetID(val string) {
 // SetKev sets the value of Kev.
 func (s *FindingsPostFindingsIDStatusOK) SetKev(val NilFindingsPostFindingsIDStatusOKKev) {
 	s.Kev = val
+}
+
+// SetKnownVersion sets the value of KnownVersion.
+func (s *FindingsPostFindingsIDStatusOK) SetKnownVersion(val NilFindingsPostFindingsIDStatusOKKnownVersion) {
+	s.KnownVersion = val
 }
 
 // SetLastSeen sets the value of LastSeen.
@@ -79979,13 +80375,15 @@ type FindingsPostFindingsIDStatusOKFixedIn struct {
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-	// line; distro = a package of the distribution, whose security updates carry the fix under their own
-	// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-	// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
-	// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
-	// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
-	// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
+	// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
+	// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
+	// fix of each release line; distro = a package of the distribution, whose security updates carry the
+	// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+	// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
+	// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
+	// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
+	// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 	Kind FindingsPostFindingsIDStatusOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -80137,18 +80535,21 @@ func (s *FindingsPostFindingsIDStatusOKFixedInBranchesItem) SetFixed(val string)
 
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-// line; distro = a package of the distribution, whose security updates carry the fix under their own
-// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
-// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
-// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
-// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
+// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
+// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
+// fix of each release line; distro = a package of the distribution, whose security updates carry the
+// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
+// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
+// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
+// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 type FindingsPostFindingsIDStatusOKFixedInKind string
 
 const (
 	FindingsPostFindingsIDStatusOKFixedInKindFixed         FindingsPostFindingsIDStatusOKFixedInKind = "fixed"
 	FindingsPostFindingsIDStatusOKFixedInKindUpTo          FindingsPostFindingsIDStatusOKFixedInKind = "up_to"
+	FindingsPostFindingsIDStatusOKFixedInKindEndListed     FindingsPostFindingsIDStatusOKFixedInKind = "end_listed"
 	FindingsPostFindingsIDStatusOKFixedInKindBranches      FindingsPostFindingsIDStatusOKFixedInKind = "branches"
 	FindingsPostFindingsIDStatusOKFixedInKindDistro        FindingsPostFindingsIDStatusOKFixedInKind = "distro"
 	FindingsPostFindingsIDStatusOKFixedInKindFeatureUpdate FindingsPostFindingsIDStatusOKFixedInKind = "feature_update"
@@ -80160,6 +80561,7 @@ func (FindingsPostFindingsIDStatusOKFixedInKind) AllValues() []FindingsPostFindi
 	return []FindingsPostFindingsIDStatusOKFixedInKind{
 		FindingsPostFindingsIDStatusOKFixedInKindFixed,
 		FindingsPostFindingsIDStatusOKFixedInKindUpTo,
+		FindingsPostFindingsIDStatusOKFixedInKindEndListed,
 		FindingsPostFindingsIDStatusOKFixedInKindBranches,
 		FindingsPostFindingsIDStatusOKFixedInKindDistro,
 		FindingsPostFindingsIDStatusOKFixedInKindFeatureUpdate,
@@ -80173,6 +80575,8 @@ func (s FindingsPostFindingsIDStatusOKFixedInKind) MarshalText() ([]byte, error)
 	case FindingsPostFindingsIDStatusOKFixedInKindFixed:
 		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKFixedInKindEndListed:
 		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKFixedInKindBranches:
 		return []byte(s), nil
@@ -80195,6 +80599,9 @@ func (s *FindingsPostFindingsIDStatusOKFixedInKind) UnmarshalText(data []byte) e
 		return nil
 	case FindingsPostFindingsIDStatusOKFixedInKindUpTo:
 		*s = FindingsPostFindingsIDStatusOKFixedInKindUpTo
+		return nil
+	case FindingsPostFindingsIDStatusOKFixedInKindEndListed:
+		*s = FindingsPostFindingsIDStatusOKFixedInKindEndListed
 		return nil
 	case FindingsPostFindingsIDStatusOKFixedInKindBranches:
 		*s = FindingsPostFindingsIDStatusOKFixedInKindBranches
@@ -80448,6 +80855,111 @@ func (s *FindingsPostFindingsIDStatusOKKevSource) UnmarshalText(data []byte) err
 		return nil
 	case FindingsPostFindingsIDStatusOKKevSourceVulncheckKev:
 		*s = FindingsPostFindingsIDStatusOKKevSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// M2-3: the version the box has for the matched software; the page says it and how a newer one reaches
+// Vedette, never "find which version".
+type FindingsPostFindingsIDStatusOKKnownVersion struct {
+	// Display name of the software the finding was matched on.
+	Software string `json:"software"`
+	// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+	// the network (LLDP), a network scan, or a person on the Devices page.
+	Source  FindingsPostFindingsIDStatusOKKnownVersionSource `json:"source"`
+	Version string                                           `json:"version"`
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDStatusOKKnownVersion) GetSoftware() string {
+	return s.Software
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDStatusOKKnownVersion) GetSource() FindingsPostFindingsIDStatusOKKnownVersionSource {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDStatusOKKnownVersion) GetVersion() string {
+	return s.Version
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDStatusOKKnownVersion) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDStatusOKKnownVersion) SetSource(val FindingsPostFindingsIDStatusOKKnownVersionSource) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDStatusOKKnownVersion) SetVersion(val string) {
+	s.Version = val
+}
+
+// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+// the network (LLDP), a network scan, or a person on the Devices page.
+type FindingsPostFindingsIDStatusOKKnownVersionSource string
+
+const (
+	FindingsPostFindingsIDStatusOKKnownVersionSourceAgent  FindingsPostFindingsIDStatusOKKnownVersionSource = "agent"
+	FindingsPostFindingsIDStatusOKKnownVersionSourceSnmp   FindingsPostFindingsIDStatusOKKnownVersionSource = "snmp"
+	FindingsPostFindingsIDStatusOKKnownVersionSourceStated FindingsPostFindingsIDStatusOKKnownVersionSource = "stated"
+	FindingsPostFindingsIDStatusOKKnownVersionSourceScan   FindingsPostFindingsIDStatusOKKnownVersionSource = "scan"
+	FindingsPostFindingsIDStatusOKKnownVersionSourceManual FindingsPostFindingsIDStatusOKKnownVersionSource = "manual"
+)
+
+// AllValues returns all FindingsPostFindingsIDStatusOKKnownVersionSource values.
+func (FindingsPostFindingsIDStatusOKKnownVersionSource) AllValues() []FindingsPostFindingsIDStatusOKKnownVersionSource {
+	return []FindingsPostFindingsIDStatusOKKnownVersionSource{
+		FindingsPostFindingsIDStatusOKKnownVersionSourceAgent,
+		FindingsPostFindingsIDStatusOKKnownVersionSourceSnmp,
+		FindingsPostFindingsIDStatusOKKnownVersionSourceStated,
+		FindingsPostFindingsIDStatusOKKnownVersionSourceScan,
+		FindingsPostFindingsIDStatusOKKnownVersionSourceManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDStatusOKKnownVersionSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceAgent:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceSnmp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceStated:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceScan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDStatusOKKnownVersionSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDStatusOKKnownVersionSource(data) {
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceAgent:
+		*s = FindingsPostFindingsIDStatusOKKnownVersionSourceAgent
+		return nil
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceSnmp:
+		*s = FindingsPostFindingsIDStatusOKKnownVersionSourceSnmp
+		return nil
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceStated:
+		*s = FindingsPostFindingsIDStatusOKKnownVersionSourceStated
+		return nil
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceScan:
+		*s = FindingsPostFindingsIDStatusOKKnownVersionSourceScan
+		return nil
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceManual:
+		*s = FindingsPostFindingsIDStatusOKKnownVersionSourceManual
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -117988,6 +118500,51 @@ func (o NilFindingsGetFindingsIDOKKev) Or(d FindingsGetFindingsIDOKKev) Findings
 	return d
 }
 
+// NewNilFindingsGetFindingsIDOKKnownVersion returns new NilFindingsGetFindingsIDOKKnownVersion with value set to v.
+func NewNilFindingsGetFindingsIDOKKnownVersion(v FindingsGetFindingsIDOKKnownVersion) NilFindingsGetFindingsIDOKKnownVersion {
+	return NilFindingsGetFindingsIDOKKnownVersion{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsIDOKKnownVersion is nullable FindingsGetFindingsIDOKKnownVersion.
+type NilFindingsGetFindingsIDOKKnownVersion struct {
+	Value FindingsGetFindingsIDOKKnownVersion
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsIDOKKnownVersion) SetTo(v FindingsGetFindingsIDOKKnownVersion) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsIDOKKnownVersion) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsIDOKKnownVersion) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsIDOKKnownVersion
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsIDOKKnownVersion) Get() (v FindingsGetFindingsIDOKKnownVersion, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsIDOKKnownVersion) Or(d FindingsGetFindingsIDOKKnownVersion) FindingsGetFindingsIDOKKnownVersion {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsGetFindingsIDOKPack returns new NilFindingsGetFindingsIDOKPack with value set to v.
 func NewNilFindingsGetFindingsIDOKPack(v FindingsGetFindingsIDOKPack) NilFindingsGetFindingsIDOKPack {
 	return NilFindingsGetFindingsIDOKPack{
@@ -118888,6 +119445,51 @@ func (o NilFindingsPostFindingsIDAiOKKev) Or(d FindingsPostFindingsIDAiOKKev) Fi
 	return d
 }
 
+// NewNilFindingsPostFindingsIDAiOKKnownVersion returns new NilFindingsPostFindingsIDAiOKKnownVersion with value set to v.
+func NewNilFindingsPostFindingsIDAiOKKnownVersion(v FindingsPostFindingsIDAiOKKnownVersion) NilFindingsPostFindingsIDAiOKKnownVersion {
+	return NilFindingsPostFindingsIDAiOKKnownVersion{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDAiOKKnownVersion is nullable FindingsPostFindingsIDAiOKKnownVersion.
+type NilFindingsPostFindingsIDAiOKKnownVersion struct {
+	Value FindingsPostFindingsIDAiOKKnownVersion
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDAiOKKnownVersion) SetTo(v FindingsPostFindingsIDAiOKKnownVersion) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDAiOKKnownVersion) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDAiOKKnownVersion) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDAiOKKnownVersion
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDAiOKKnownVersion) Get() (v FindingsPostFindingsIDAiOKKnownVersion, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDAiOKKnownVersion) Or(d FindingsPostFindingsIDAiOKKnownVersion) FindingsPostFindingsIDAiOKKnownVersion {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDAiOKPack returns new NilFindingsPostFindingsIDAiOKPack with value set to v.
 func NewNilFindingsPostFindingsIDAiOKPack(v FindingsPostFindingsIDAiOKPack) NilFindingsPostFindingsIDAiOKPack {
 	return NilFindingsPostFindingsIDAiOKPack{
@@ -119293,6 +119895,51 @@ func (o NilFindingsPostFindingsIDAppliedOKKev) Or(d FindingsPostFindingsIDApplie
 	return d
 }
 
+// NewNilFindingsPostFindingsIDAppliedOKKnownVersion returns new NilFindingsPostFindingsIDAppliedOKKnownVersion with value set to v.
+func NewNilFindingsPostFindingsIDAppliedOKKnownVersion(v FindingsPostFindingsIDAppliedOKKnownVersion) NilFindingsPostFindingsIDAppliedOKKnownVersion {
+	return NilFindingsPostFindingsIDAppliedOKKnownVersion{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDAppliedOKKnownVersion is nullable FindingsPostFindingsIDAppliedOKKnownVersion.
+type NilFindingsPostFindingsIDAppliedOKKnownVersion struct {
+	Value FindingsPostFindingsIDAppliedOKKnownVersion
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDAppliedOKKnownVersion) SetTo(v FindingsPostFindingsIDAppliedOKKnownVersion) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDAppliedOKKnownVersion) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDAppliedOKKnownVersion) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDAppliedOKKnownVersion
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDAppliedOKKnownVersion) Get() (v FindingsPostFindingsIDAppliedOKKnownVersion, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDAppliedOKKnownVersion) Or(d FindingsPostFindingsIDAppliedOKKnownVersion) FindingsPostFindingsIDAppliedOKKnownVersion {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDAppliedOKPack returns new NilFindingsPostFindingsIDAppliedOKPack with value set to v.
 func NewNilFindingsPostFindingsIDAppliedOKPack(v FindingsPostFindingsIDAppliedOKPack) NilFindingsPostFindingsIDAppliedOKPack {
 	return NilFindingsPostFindingsIDAppliedOKPack{
@@ -119692,6 +120339,51 @@ func (o NilFindingsPostFindingsIDStatusOKKev) Get() (v FindingsPostFindingsIDSta
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsPostFindingsIDStatusOKKev) Or(d FindingsPostFindingsIDStatusOKKev) FindingsPostFindingsIDStatusOKKev {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDStatusOKKnownVersion returns new NilFindingsPostFindingsIDStatusOKKnownVersion with value set to v.
+func NewNilFindingsPostFindingsIDStatusOKKnownVersion(v FindingsPostFindingsIDStatusOKKnownVersion) NilFindingsPostFindingsIDStatusOKKnownVersion {
+	return NilFindingsPostFindingsIDStatusOKKnownVersion{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDStatusOKKnownVersion is nullable FindingsPostFindingsIDStatusOKKnownVersion.
+type NilFindingsPostFindingsIDStatusOKKnownVersion struct {
+	Value FindingsPostFindingsIDStatusOKKnownVersion
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDStatusOKKnownVersion) SetTo(v FindingsPostFindingsIDStatusOKKnownVersion) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDStatusOKKnownVersion) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDStatusOKKnownVersion) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDStatusOKKnownVersion
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDStatusOKKnownVersion) Get() (v FindingsPostFindingsIDStatusOKKnownVersion, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDStatusOKKnownVersion) Or(d FindingsPostFindingsIDStatusOKKnownVersion) FindingsPostFindingsIDStatusOKKnownVersion {
 	if v, ok := o.Get(); ok {
 		return v
 	}

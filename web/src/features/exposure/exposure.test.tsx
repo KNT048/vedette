@@ -143,6 +143,8 @@ describe('exposure: list (S-EXP-1)', () => {
       'Your gateway fortigate-hq (192.168.18.1) has 1 open exploited vulnerability: fix these first.', /answered by your gateway, or a device it forwards them to/, '/findings?device=d-gw'],
     ['known without findings', { ip: '192.168.18.1', device_id: 'd-gw', name: 'fortigate-hq', open_exploited: 0 },
       'Your gateway fortigate-hq (192.168.18.1) answers these ports; no open exploited vulnerability is known on it.', /on fortigate-hq does not prove the device it forwards to is safe/, null],
+    ['known, named by its IP (M2-8)', { ip: '192.168.18.1', device_id: 'd-gw', name: '192.168.18.1', open_exploited: 1 },
+      'Your gateway 192.168.18.1 has 1 open exploited vulnerability: fix these first.', /answered by your gateway, or a device it forwards them to/, '/findings?device=d-gw'],
     ['gateway not in the device list', { ip: '192.168.18.1', device_id: null, name: null, open_exploited: 0 },
       'Your gateway (192.168.18.1) answers these ports, but it is not in your device list yet.', /Vedette cannot say what is exploited on it\. Scan your network to add it\./, null],
     ['gateway unknown', { ip: null, device_id: null, name: null, open_exploited: 0 },

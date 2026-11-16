@@ -1,0 +1,89 @@
+import { describe, expect, it } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
+import { renderApp } from '@/test/render'
+import { assetsStore } from '@/mocks/stores'
+import { FixedInNote, NowSteps } from './Recommendation'
+import { overdue } from './accept'
+import type { FindingDetail, KevInfo } from './types'
+
+// Walk n74 (M2-3..M2-6): what "Steps you can take now" and "Fixed version" say on a finding without a confirmed pack.
+const today = new Date(2026, 10, 16)
+const kev = (due: string | null) => ({ display: 'Juniper Junos OS', due_date: due }) as KevInfo
+const finding = (known: FindingDetail['known_version'], name = 'Juniper Networks EX4200-48T', status = 'suspected') =>
+  ({ asset: { id: 'a-ex', name }, known_version: known, status }) as FindingDetail
+const steps = (f: FindingDetail, opts: { due?: string | null; updatable?: boolean; manual?: string } = {}) => {
+  render(<MemoryRouter><NowSteps finding={f} kev={kev(opts.due ?? null)} updatable={opts.updatable ?? false} manual={opts.manual} today={today} /></MemoryRouter>)
+  return screen.getAllByRole('listitem').map((li) => li.textContent)
+}
+
+describe('NowSteps (M2-3, M2-5, M2-6)', () => {
+  it('a version from SNMP is said, not asked for; step 3 names "Read with SNMP now" and links the device', () => {
+    const [s1, , s3] = steps(finding({ software: 'Juniper Junos OS', version: '15.1R7.9', source: 'snmp' }))
+    expect(s1).toBe('Nothing to look up: Juniper Networks EX4200-48T runs Juniper Junos OS 15.1R7.9 (Vedette read it over SNMP).')
+    expect(s3).toMatch(/^Then press "Read with SNMP now" on the page of Juniper Networks EX4200-48T/)
+    // review r1 M2: a newer Junos may not be provably fixed (INV-4c): no promise that it closes, and the Mark as handled way out
+    expect(s3).toMatch(/closes the findings on Juniper Networks EX4200-48T it can prove that version fixes\. If this one stays open, press "Mark as handled" and choose Patched\./)
+    expect(screen.getByRole('link', { name: 'Open the device' })).toHaveAttribute('href', '/devices/a-ex')
+  })
+
+  it.each([
+    ['agent', 'its agent reports it', /^The agent reports the new version by itself/],
+    ['stated', 'it announces it on the network over LLDP', /states its new version on the network by itself/],
+    ['scan', 'a network scan read it', /^Then rescan 192\.168\.18\.1 with the button under Evidence/],
+  ] as const)('a version from %s: step 1 says who gave it, step 3 how the new one arrives', (source, from, s3want) => {
+    const [s1, , s3] = steps(finding({ software: 'OpenSSH', version: '10.2', source }, '192.168.18.1'))
+    expect(s1).toBe(`Nothing to look up: 192.168.18.1 runs OpenSSH 10.2 (${from}).`)
+    expect(s3).toMatch(s3want)
+    expect(`${s1} ${s3}`).not.toMatch(/Find which version|mark this finding as Patched/)
+    expect(s3).toMatch(/it can prove that version fixes[.;] [Ii]f this one stays open, press "Mark as handled" and choose Patched\.$/)
+  })
+
+  it('a typed version names the real "I updated <software>" button; no version and no button names "Mark as handled"', () => {
+    const [, , s3] = steps(finding({ software: 'Juniper Junos OS', version: '15.1R7.9', source: 'manual' }), { updatable: true, manual: 'Junos OS (Juniper)' })
+    expect(s3).toMatch(/^Then press "I updated Junos OS \(Juniper\)" at the top of this page/) // the row's own display, as the button
+  })
+
+  it('a closed finding keeps the plain step, not "rescan" (review r1 L6)', () => {
+    const [, , s3] = steps(finding({ software: 'OpenSSH', version: '10.2', source: 'scan' }, '192.168.18.1', 'patched'))
+    expect(s3).toMatch(/^Then press "Mark as handled"/)
+  })
+
+  it('without a version: asks for it without gluing product and device, and names the dialog\'s choices', () => {
+    const [s1, , s3] = steps(finding(null))
+    expect(s1).toBe('Find which version of Juniper Junos OS runs on Juniper Networks EX4200-48T, and add it to the device on the Devices page so Vedette can compare it.')
+    expect(s3).toBe('Then press "Mark as handled" at the top of this page and choose Patched. If the version was already fixed, choose False positive and write the version in the note.')
+  })
+
+  it('a CISA deadline in the past is "passed on … update now"; a future one stays "by"', () => {
+    expect(steps(finding(null), { due: '2023-11-17' })[1]).toBe("If it is older than the fixed version in the advisory, update it now: CISA's deadline passed on 17 Nov 2023.")
+  })
+
+  it('a future CISA deadline stays "update it by"', () => {
+    expect(steps(finding(null), { due: '2026-12-01' })[1]).toBe('If it is older than the fixed version in the advisory, update it by 1 Dec 2026.')
+  })
+})
+
+describe('FixedInNote end_listed (M2-4)', () => {
+  it('says the range end is not the fix and where the fix is', () => {
+    const fixed_in = { kind: 'end_listed', version: '15.1R7.9', fixed: '20.4', branches: [], more: 0, no_fix: 0, distro: '', distro_fixed: '', distro_release: '', distro_pro: false, source: 'NVD affected versions' } as const
+    render(<FixedInNote finding={{ asset: { name: 'Juniper Networks EX4200-48T' }, fixed_in } as unknown as FindingDetail} />)
+    // review r1 M1: never says a fix exists for this device (an EX4200 runs nothing after 15.1)
+    expect(screen.getByText(/^Juniper Networks EX4200-48T runs 15\.1R7\.9, inside the range NVD lists as "before 20\.4"\. 20\.4 is not the fix: NVD lists 20\.4 itself, or releases of it, as affected too, and names no fixed release for 15\.1R7\.9\. The vendor advisory lists the releases that fix it; if none is one Juniper Networks EX4200-48T can run, protect it another way \(What CISA requires\) or plan to replace it\./)).toBeInTheDocument()
+    expect(screen.queryByText(/Fixed version not known yet/)).not.toBeInTheDocument()
+  })
+})
+
+describe('finding page with a typed version (review r1 L1, L4, L8)', () => {
+  it('NoPack wires the typed row: step 1 says the version, step 3 names the button the page shows; the header says a past deadline passed', async () => {
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-web01'
+      ? { ...a, software: a.software.map((x) => (x.id === 's-web01-wp' ? { ...x, display: 'WordPress', version: '7.1.3', source: 'manual' as const } : x)) }
+      : a)))
+    renderApp('/findings/f-2')
+    expect(await screen.findByText('Nothing to look up: WEB01 runs WordPress 7.1.3 (entered on the Devices page).')).toBeInTheDocument()
+    expect(await screen.findByText(/^Then press "I updated WordPress" at the top of this page/)).toBeInTheDocument() // after the device's software is read
+    expect(await screen.findByRole('button', { name: 'I updated WordPress' })).toBeInTheDocument()
+    expect(screen.getByText(/^Nothing to look up: WordPress 7\.1\.3 was entered for WEB01 on the Devices page \(Evidence above\)/)).toBeInTheDocument() // mock of knownRecheck
+    expect(screen.getByText(overdue('2026-11-06') ? "CISA's deadline passed on 6 Nov 2026." : 'CISA requires action by 6 Nov 2026.')).toBeInTheDocument()
+  })
+})

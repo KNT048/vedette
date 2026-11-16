@@ -35453,6 +35453,24 @@ func (s *FindingsGetFindingsIDOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.KnownVersion.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "known_version",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.Pack.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -36315,6 +36333,8 @@ func (s FindingsGetFindingsIDOKFixedInKind) Validate() error {
 		return nil
 	case "up_to":
 		return nil
+	case "end_listed":
+		return nil
 	case "branches":
 		return nil
 	case "distro":
@@ -36392,6 +36412,46 @@ func (s FindingsGetFindingsIDOKKevSource) Validate() error {
 	case "cisa-kev":
 		return nil
 	case "vulncheck-kev":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *FindingsGetFindingsIDOKKnownVersion) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Source.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "source",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s FindingsGetFindingsIDOKKnownVersionSource) Validate() error {
+	switch s {
+	case "agent":
+		return nil
+	case "snmp":
+		return nil
+	case "stated":
+		return nil
+	case "scan":
+		return nil
+	case "manual":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -39337,6 +39397,24 @@ func (s *FindingsPostFindingsIDAiOK) Validate() error {
 		})
 	}
 	if err := func() error {
+		if value, ok := s.KnownVersion.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "known_version",
+			Error: err,
+		})
+	}
+	if err := func() error {
 		if value, ok := s.Pack.Get(); ok {
 			if err := func() error {
 				if err := value.Validate(); err != nil {
@@ -40199,6 +40277,8 @@ func (s FindingsPostFindingsIDAiOKFixedInKind) Validate() error {
 		return nil
 	case "up_to":
 		return nil
+	case "end_listed":
+		return nil
 	case "branches":
 		return nil
 	case "distro":
@@ -40276,6 +40356,46 @@ func (s FindingsPostFindingsIDAiOKKevSource) Validate() error {
 	case "cisa-kev":
 		return nil
 	case "vulncheck-kev":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *FindingsPostFindingsIDAiOKKnownVersion) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Source.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "source",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s FindingsPostFindingsIDAiOKKnownVersionSource) Validate() error {
+	switch s {
+	case "agent":
+		return nil
+	case "snmp":
+		return nil
+	case "stated":
+		return nil
+	case "scan":
+		return nil
+	case "manual":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -40816,6 +40936,24 @@ func (s *FindingsPostFindingsIDAppliedOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "kev",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.KnownVersion.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "known_version",
 			Error: err,
 		})
 	}
@@ -41682,6 +41820,8 @@ func (s FindingsPostFindingsIDAppliedOKFixedInKind) Validate() error {
 		return nil
 	case "up_to":
 		return nil
+	case "end_listed":
+		return nil
 	case "branches":
 		return nil
 	case "distro":
@@ -41759,6 +41899,46 @@ func (s FindingsPostFindingsIDAppliedOKKevSource) Validate() error {
 	case "cisa-kev":
 		return nil
 	case "vulncheck-kev":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *FindingsPostFindingsIDAppliedOKKnownVersion) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Source.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "source",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s FindingsPostFindingsIDAppliedOKKnownVersionSource) Validate() error {
+	switch s {
+	case "agent":
+		return nil
+	case "snmp":
+		return nil
+	case "stated":
+		return nil
+	case "scan":
+		return nil
+	case "manual":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -42305,6 +42485,24 @@ func (s *FindingsPostFindingsIDStatusOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "kev",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if value, ok := s.KnownVersion.Get(); ok {
+			if err := func() error {
+				if err := value.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "known_version",
 			Error: err,
 		})
 	}
@@ -43171,6 +43369,8 @@ func (s FindingsPostFindingsIDStatusOKFixedInKind) Validate() error {
 		return nil
 	case "up_to":
 		return nil
+	case "end_listed":
+		return nil
 	case "branches":
 		return nil
 	case "distro":
@@ -43248,6 +43448,46 @@ func (s FindingsPostFindingsIDStatusOKKevSource) Validate() error {
 	case "cisa-kev":
 		return nil
 	case "vulncheck-kev":
+		return nil
+	default:
+		return errors.Errorf("invalid value: %v", s)
+	}
+}
+
+func (s *FindingsPostFindingsIDStatusOKKnownVersion) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Source.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "source",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s FindingsPostFindingsIDStatusOKKnownVersionSource) Validate() error {
+	switch s {
+	case "agent":
+		return nil
+	case "snmp":
+		return nil
+	case "stated":
+		return nil
+	case "scan":
+		return nil
+	case "manual":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

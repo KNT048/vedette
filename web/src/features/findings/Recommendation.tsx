@@ -18,6 +18,7 @@ import { useApplied, useAskAi } from './api'
 import type { AiResult, ApplyItem, CodeStep, FindingDetail, FirewallGuide, FirewallVendor, KevInfo } from './types'
 import { isOpen } from './basis'
 import { softwareFor, useDeviceSoftware } from './rematch'
+import { overdue } from './accept'
 
 function SideEffect({ text }: { text: string }) {
   const { t } = useTranslation('findings')
@@ -74,6 +75,7 @@ export function FixedInNote({ finding }: { finding: FindingDetail }) {
   else if (f.kind === 'feature_update') text = t('rec.fixedFeatureUpdate', { fixed: f.fixed, device, version: f.version, branch: f.branches[0]?.branch ?? '' })
   else if (f.kind === 'esu') text = t('rec.fixedEsu', { fixed: f.fixed, device, version: f.version, branch: f.branches[0]?.branch ?? '' })
   else if (f.kind === 'up_to') text = t('rec.fixedUpTo', { fixed: f.fixed, device, version: f.version })
+  else if (f.kind === 'end_listed') text = t('rec.fixedEndListed', { fixed: f.fixed, device, version: f.version }) // M2-4
   else if (f.kind === 'distro') {
     text = t(f.distro ? 'rec.fixedDistro' : 'rec.fixedDistroAny', { device, product, version: f.version, distro: f.distro })
     extra = f.fixed ? t(f.distro ? 'rec.fixedDistroBelow' : 'rec.fixedDistroBelowAny', { distro: f.distro, fixed: f.fixed }) : null
@@ -249,6 +251,44 @@ function linkKind(u: string): 'cisa' | 'nvd' | 'vendor' {
 const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, '') } catch { return u } }
 
 /**
+ * "Steps you can take now" without a pack (W1-31). M2-3: a version the box has (any source: agent, SNMP, LLDP, a scan, a person) is
+ * said, never asked for, and step 3 names how the new version reaches Vedette. M2-5: the controls named are the page's own
+ * ("Mark as handled", then Patched or False positive; "I updated <software>" for a typed row, "I updated it" otherwise).
+ */
+export function NowSteps({ finding, kev, updatable, manual, today }: { finding: FindingDetail; kev: KevInfo; updatable: boolean; manual?: string; today?: Date }) {
+  const { t } = useTranslation('findings')
+  const device = finding.asset?.name || t('removedDevice')
+  const product = kev.display || t('rec.theSoftware')
+  const known = finding.known_version
+  const due = kev.due_date
+  const step2 = !due ? t('rec.step2') : overdue(due, today) ? t('rec.step2Overdue', { date: fmtDate(due) }) : t('rec.step2Due', { date: fmtDate(due) })
+  // review r1 L4: the button is named as the page shows it, the typed row's own display
+  let step3: ReactNode = updatable ? (manual ? t('rec.step3Manual', { device, software: manual }) : t('rec.step3', { device })) : t('rec.step3Mark')
+  // How the new version reaches Vedette, by who gave the old one; a closed finding keeps the plain step (review r1 L6), and a typed
+  // version keeps "I updated <software>"
+  const via = isOpen(finding.status) && known?.source !== 'manual' ? known?.source : undefined
+  if (via === 'agent') step3 = t('rec.step3Agent', { device })
+  else if (via === 'stated') step3 = t('rec.step3Stated', { device })
+  else if (via === 'scan') step3 = t('rec.step3Scan', { device })
+  else if (via === 'snmp') {
+    // docs/UI.md §0: the exact place, the device page that has the button
+    step3 = finding.asset
+      ? <>{t('rec.step3Snmp', { device })} <Link to={`/devices/${encodeURIComponent(finding.asset.id)}`} className="text-accent underline underline-offset-4">{t('evidence.openDevice')}</Link></>
+      : t('rec.step3Snmp', { device })
+  }
+  return (
+    <div className="grid gap-2">
+      <h3 className="text-sm font-semibold">{t('rec.stepsTitle')}</h3>
+      <ol className="grid max-w-3xl list-decimal gap-1 pl-5 text-sm">
+        <li>{known ? t('rec.step1Known', { device, software: known.software, version: known.version, from: t(`rec.from.${known.source}`) }) : t('rec.step1', { device, product })}</li>
+        <li>{step2}</li>
+        <li>{step3}</li>
+      </ol>
+    </div>
+  )
+}
+
+/**
  * Chưa có gói đã xác nhận (S-MIT-1, D-21, W1-31): nói hết điều hộp đang biết, không tự bịa biện pháp: yêu cầu và hạn của CISA,
  * khuyến cáo của hãng và NVD từ ghi chú KEV, các bước kiểm tra phiên bản, rồi "Hỏi AI của tôi". Hộp chưa có dữ liệu phiên bản
  * đã vá (cần feed mới, W1-29), nên trang nói thẳng chỗ lấy nó.
@@ -259,11 +299,11 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
   const vc = k?.source === 'vulncheck-kev'
   const vendor = k?.links.filter((u) => linkKind(u) === 'vendor') ?? []
   const other = k?.links.filter((u) => linkKind(u) !== 'vendor') ?? []
-  const device = finding.asset?.name || t('removedDevice')
   const product = k?.display || t('rec.theSoftware')
   // D-499: step 3 points to "I updated" when the page shows it (the software the CVE was matched to is known).
   const sw = useDeviceSoftware(finding.asset?.id)
-  const updatable = isOpen(finding.status) && softwareFor(sw.data?.asset.software, finding.cve).length > 0
+  const rows = softwareFor(sw.data?.asset.software, finding.cve)
+  const updatable = isOpen(finding.status) && rows.length > 0
   return (
     <div className="grid gap-5">
       <Notice tone="warn" title={t('rec.noPack')} className="mb-0" info={<><p>{t('rec.noPackBodyInfo')}</p><p>{t('rec.noPackAi')}</p></>}>{t('rec.noPackBody')}</Notice>
@@ -273,7 +313,7 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
             <h3 className="text-sm font-semibold">{t(vc ? 'rec.vulncheckTitle' : 'rec.cisaTitle')}</h3>
             <p className="text-meta text-muted">{t(vc ? 'rec.sourceHintVulnCheck' : 'rec.sourceHint', { date: fmtDate(k.date_added) })}</p>
             <blockquote lang="en" className="max-w-3xl border-l-2 border-rule pl-3 text-sm">{k.required_action}</blockquote>
-            {k.due_date ? <p className="text-sm font-medium">{t('rec.dueDate', { date: fmtDate(k.due_date) })}</p> : null}
+            {k.due_date ? <p className="text-sm font-medium">{t(overdue(k.due_date) ? 'rec.dueDatePassed' : 'rec.dueDate', { date: fmtDate(k.due_date) })}</p> : null}
             {k.ransomware ? <p className="text-meta">{t('rec.ransomware')}</p> : null}
           </div>
           <div className="grid gap-2">
@@ -290,14 +330,7 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
               </ul>
             ) : null}
           </div>
-          <div className="grid gap-2">
-            <h3 className="text-sm font-semibold">{t('rec.stepsTitle')}</h3>
-            <ol className="grid max-w-3xl list-decimal gap-1 pl-5 text-sm">
-              <li>{t('rec.step1', { device, product })}</li>
-              <li>{k.due_date ? t('rec.step2Due', { date: fmtDate(k.due_date) }) : t('rec.step2')}</li>
-              <li>{updatable ? t('rec.step3', { device }) : t('rec.step3Mark')}</li>
-            </ol>
-          </div>
+          <NowSteps finding={finding} kev={k} updatable={updatable} manual={rows.find((r) => r.source === 'manual')?.display} />
         </>
       ) : (
         <div className="flex items-center gap-1 text-sm text-muted">

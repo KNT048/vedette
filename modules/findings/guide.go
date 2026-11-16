@@ -218,6 +218,54 @@ type Row struct {
 	// Fix is the one update that fixes this finding together with the device's other open findings of the same software (D-545):
 	// set on the list only, for an open finding; nil when Vedette cannot name one.
 	Fix *RowFix `json:"fix"`
+	// Known is the version of the software the finding was matched on, set by Detail for the guidance (Guidance reads the Row); the
+	// page reads Detail.KnownVersion.
+	Known *KnownVersion `json:"-"`
+}
+
+// Version sources of KnownVersion (M2-3): who told Vedette the version.
+const (
+	VersionByAgent  = "agent"  // the device's own agent (osquery, Wazuh, the box's package list)
+	VersionBySNMP   = "snmp"   // the device answered Vedette's SNMP read of its address
+	VersionByStated = "stated" // the device states it on the network itself (LLDP)
+	VersionByScan   = "scan"   // a network scan read it from a service the device answers with
+	VersionByManual = "manual" // a person typed it on the Devices page
+)
+
+// KnownVersion is the version of the software a finding was matched on, as the device's row gives it, and who gave it (M2-3,
+// widening D-548/D-612 from agent rows to every source): the page says it and how it is refreshed, never "find which version".
+type KnownVersion struct {
+	Software string `json:"software"` // display name of the row
+	Version  string `json:"version"`
+	Source   string `json:"source"` // one of the VersionBy constants
+}
+
+// knownVersion is the KnownVersion of row s of device a; nil when the row has no version or its source is not known.
+func knownVersion(a Asset, s Software) *KnownVersion {
+	if !versionGiven(s.Version) {
+		return nil
+	}
+	src := ""
+	switch {
+	case s.ID == osSoftwareID(a.ID): // the network OS the device states itself (INV-4c): SNMP when its own SNMP answer says it
+		src = VersionByStated
+		if a.SNMPOS != "" && a.SNMPOS == a.StatedOS {
+			src = VersionBySNMP
+		}
+	case s.Source == "agent", s.Source == "snmp", s.Source == "manual":
+		src = s.Source
+	case s.Source == "scan", s.Source == "nmap":
+		src = VersionByScan
+	case s.Source == "passive":
+		src = VersionByStated
+	default:
+		return nil
+	}
+	name := softwareName(s.Display, s.Version)
+	if src == VersionByManual {
+		name = clean(s.Display) // the "I updated <software>" button names the row as inventory does (review r1 L4)
+	}
+	return &KnownVersion{Software: name, Version: clean(s.Version), Source: src}
 }
 
 type historyDoc struct {
@@ -232,6 +280,8 @@ type Detail struct {
 	Row
 	Guide
 	FixedIn *FixedIn `json:"fixed_in"` // null when NVD's ranges do not say which release fixes it (D-488)
+	// KnownVersion is Row.Known on the page: the version the box has for the matched software and who gave it (M2-3); null when none.
+	KnownVersion *KnownVersion `json:"known_version"`
 }
 
 func newRow(r Record, a *AssetView, k *KevInfo, c *CVSS) Row {

@@ -142,9 +142,10 @@ func TestFixedIn_ReviewCases(t *testing.T) {
 	if f := FixedInFor(ub, vuln("CVE-2026-46300")); f == nil || f.Kind != "fixed" || f.Fixed != "7.0.10" || f.Distro != "Ubuntu" {
 		t.Errorf("ubuntu kernel: %+v, want fixed 7.0.10 with distro Ubuntu", f)
 	}
-	// OpenSSH: the same entry also lists 10.6p1 as affected, so 10.6 is not clean ground to name: nothing is said.
-	if f := FixedInFor(ub, vuln("CVE-2026-123158")); f != nil {
-		t.Errorf("ubuntu OpenSSH: %+v, want nil", f)
+	// OpenSSH: the same entry also lists 10.6p1 as affected, so 10.6 is not clean ground to name as a fix: the page says it is not one
+	// (M2-4, end_listed), never "fixed in 10.6".
+	if f := FixedInFor(ub, vuln("CVE-2026-123158")); f == nil || f.Kind != "end_listed" || f.Fixed != "10.6" {
+		t.Errorf("ubuntu OpenSSH: %+v, want end_listed 10.6", f)
 	}
 	// M4: the range the evidence quotes and the fix come from the same range (iPad 17.7.2, CVE-2025-24200).
 	a := dev(iPhone(vulns, "17.7.2"))

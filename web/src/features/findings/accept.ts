@@ -7,6 +7,9 @@ export function dayAfter(from: Date, days: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+/** CISA's deadline is a day before today, on the person's own calendar (M2-6: "passed on", not "requires action by"). */
+export const overdue = (due: string, today = new Date()) => due < dayAfter(today, 0)
+
 /** The first and the last day a risk can be accepted until: tomorrow and a year from today (D-498). */
 export const untilBounds = (today = new Date()) => ({ min: dayAfter(today, 1), max: dayAfter(today, MAX_ACCEPT_DAYS) })
 

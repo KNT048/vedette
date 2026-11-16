@@ -127,14 +127,18 @@ function OpenPorts({ ports, total, gateway }: { ports: (PortRow & { target: Targ
   )
 }
 
+/** The gateway as the note names it: "name (ip)", or the IP alone when the device is named by its IP or has no name (M2-8). */
+const gatewayLabel = (name: string, ip: string) => (name && name !== ip ? `${name} (${ip})` : ip)
+
 /** D-492: which device probably answers the open ports, and what is exploited on it. Never says for sure (a router can forward a port to another device). */
 function GatewayNote({ g }: { g: Gateway }) {
   const { t } = useTranslation('exposure')
   const name = g.name ?? ''
   const ip = g.ip ?? ''
   const known = g.device_id !== null
+  const label = gatewayLabel(name, ip) // M2-8: "192.168.18.1", not "192.168.18.1 (192.168.18.1)"
   const text = !g.ip ? t('gateway.unknown') : !known ? t('gateway.notListed', { ip })
-    : g.open_exploited > 0 ? t('gateway.known', { name, ip, count: g.open_exploited }) : t('gateway.none', { name, ip })
+    : g.open_exploited > 0 ? t('gateway.known', { label, count: g.open_exploited }) : t('gateway.none', { label })
   const info = !g.ip ? t('gateway.unknownInfo') : !known ? t('gateway.notListedInfo') : g.open_exploited > 0 ? t('gateway.knownInfo') : t('gateway.noneInfo', { name })
   return (
     <Notice tone="accent" data-testid="gateway-note" title={text} info={info}

@@ -51,7 +51,7 @@ var (
 type wrongKey struct{}
 
 func (wrongKey) Error() string        { return ErrDecrypt.Error() }
-func (wrongKey) Is(target error) bool { return target == ErrDecrypt } //nolint:errorlint // the sentinel itself
+func (wrongKey) Is(target error) bool { return target == ErrDecrypt }
 
 var purposeRE = regexp.MustCompile(`^[a-z][a-z0-9_.]{0,63}$`)
 

@@ -658,9 +658,8 @@ func TestReserveClosesAPurposeBeforeAnyHolderRestrictsIt(t *testing.T) {
 
 // resealed makes the one row of purpose with a key of OpenOrCreate, then seals it again under another master key, as a backup
 // restored without its decryption key leaves it. It returns the row's id and its ciphertext.
-func resealed(t *testing.T, s *secrets.Store, db *store.DB, purpose string) (id string, ct []byte) {
+func resealed(ctx context.Context, t *testing.T, s *secrets.Store, db *store.DB, purpose string) (id string, ct []byte) {
 	t.Helper()
-	ctx := t.Context()
 	k, err := s.OpenOrCreate(ctx, db, purpose, 32)
 	if err != nil {
 		t.Fatal(err)
@@ -681,13 +680,13 @@ func resealed(t *testing.T, s *secrets.Store, db *store.DB, purpose string) (id 
 	if _, err := s.Open(ctx, db.Reader(), id, purpose); !errors.Is(err, secrets.ErrDecrypt) {
 		t.Fatalf("Open of the resealed row = %v, want ErrDecrypt", err)
 	}
-	return id, rowCiphertext(t, db, id)
+	return id, rowCiphertext(ctx, t, db, id)
 }
 
-func rowCiphertext(t *testing.T, db *store.DB, id string) []byte {
+func rowCiphertext(ctx context.Context, t *testing.T, db *store.DB, id string) []byte {
 	t.Helper()
 	var ct []byte
-	if err := db.Reader().QueryRowContext(t.Context(), "SELECT ciphertext FROM core_secret WHERE id = ?", id).Scan(&ct); err != nil {
+	if err := db.Reader().QueryRowContext(ctx, "SELECT ciphertext FROM core_secret WHERE id = ?", id).Scan(&ct); err != nil {
 		t.Fatal(err)
 	}
 	return ct
@@ -703,7 +702,7 @@ func TestOpenOrCreateReplacesAKeySealedUnderAnotherKey(t *testing.T) {
 	s.SetLog(slog.New(slog.NewTextHandler(&logs, nil)))
 	ctx := t.Context()
 	const purpose = "core_device_cookie.key"
-	id, _ := resealed(t, s, db, purpose)
+	id, _ := resealed(ctx, t, s, db, purpose)
 
 	after, err := s.OpenOrCreate(ctx, db, purpose, 32)
 	if err != nil {
@@ -742,7 +741,7 @@ func TestOpenOrCreateConcurrentCallersOnAResealedKeyGetOneKey(t *testing.T) {
 	s.SetLog(slog.New(slog.DiscardHandler))
 	ctx := t.Context()
 	const purpose = "core_email_code.hmac_key"
-	id, _ := resealed(t, s, db, purpose)
+	id, _ := resealed(ctx, t, s, db, purpose)
 	keys := make(chan []byte, 8)
 	errs := make(chan error, 8)
 	for range 8 {
@@ -782,7 +781,7 @@ func TestOpenOrCreateLeavesTheKeyAloneOnOtherErrors(t *testing.T) {
 	ctx := t.Context()
 	unchanged := func(t *testing.T, db *store.DB, id string, ct []byte) {
 		t.Helper()
-		if !bytes.Equal(rowCiphertext(t, db, id), ct) {
+		if !bytes.Equal(rowCiphertext(ctx, t, db, id), ct) {
 			t.Fatal("the row was changed")
 		}
 		var n int
@@ -804,7 +803,7 @@ func TestOpenOrCreateLeavesTheKeyAloneOnOtherErrors(t *testing.T) {
 		}); err != nil {
 			t.Fatal(err)
 		}
-		ct := rowCiphertext(t, db, id)
+		ct := rowCiphertext(ctx, t, db, id)
 		if _, err := s.OpenOrCreate(ctx, db, purpose, 32); !errors.Is(err, secrets.ErrDecrypt) {
 			t.Fatalf("OpenOrCreate of a version 2 row = %v, want ErrDecrypt", err)
 		}
@@ -814,7 +813,7 @@ func TestOpenOrCreateLeavesTheKeyAloneOnOtherErrors(t *testing.T) {
 		t.Parallel()
 		s, db := newStore(t)
 		const purpose = "restricted.box_key"
-		id, ct := resealed(t, s, db, purpose)
+		id, ct := resealed(ctx, t, s, db, purpose)
 		if _, err := s.Restrict(purpose); err != nil {
 			t.Fatal(err)
 		}
@@ -827,7 +826,7 @@ func TestOpenOrCreateLeavesTheKeyAloneOnOtherErrors(t *testing.T) {
 		t.Parallel()
 		s, db := newStore(t)
 		const purpose = "core_device_cookie.key"
-		id, ct := resealed(t, s, db, purpose)
+		id, ct := resealed(ctx, t, s, db, purpose)
 		cctx, cancel := context.WithCancel(ctx)
 		cancel()
 		if _, err := s.OpenOrCreate(cctx, db, purpose, 32); err == nil || errors.Is(err, secrets.ErrDecrypt) {
@@ -839,7 +838,7 @@ func TestOpenOrCreateLeavesTheKeyAloneOnOtherErrors(t *testing.T) {
 		t.Parallel()
 		s, db := newStore(t)
 		const purpose = "core_device_cookie.key"
-		resealed(t, s, db, purpose)
+		resealed(ctx, t, s, db, purpose)
 		if err := db.Close(); err != nil { // nothing can be written either, so the row stays
 			t.Fatal(err)
 		}

@@ -3,7 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp } from '@/test/render'
 import { assetsStore } from '@/mocks/stores'
-import { adminNetwork } from './Hardening'
+import { adminNetwork } from './adminNetwork'
 
 const code = (label: RegExp) => screen.getAllByLabelText(label)[0]!.textContent ?? ''
 

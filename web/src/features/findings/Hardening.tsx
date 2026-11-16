@@ -10,6 +10,7 @@ import { Field, Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { useCan } from '@/lib/session'
 import { ADMIN_NET_PLACEHOLDER } from './contract'
+import { adminNetwork } from './adminNetwork'
 import type { CodeStep, FindingDetail, FirewallGuide, FirewallVendor } from './types'
 
 // Like HomeDashboard: the Devices dialog loads only when someone opens it.
@@ -17,23 +18,6 @@ const AddDialog = lazy(() => import('@/features/inventory/AddDialog').then((m) =
 
 const STORE_KEY = 'vedette.adminNetwork'
 const UNSET = '<ADMIN-NETWORK>'
-
-/** The admin network as the configs take it (a network, or one address made /32 or /128), or null when it is not one. */
-export function adminNetwork(raw: string, v6: boolean): string | null {
-  const s = raw.trim()
-  const m = /^([^/]+)(?:\/(\d{1,3}))?$/.exec(s)
-  if (!m) return null
-  const [, addr, bits] = m
-  if (!v6) {
-    const parts = addr!.split('.')
-    if (parts.length !== 4 || parts.some((p) => !/^\d{1,3}$/.test(p) || Number(p) > 255)) return null
-    if (bits !== undefined && Number(bits) > 32) return null
-    return `${addr}/${bits ?? '32'}`
-  }
-  if (!/^[0-9a-fA-F:]+$/.test(addr!) || !addr!.includes(':') || addr!.includes(':::') || addr!.split('::').length > 2 || addr!.split(':').length > 8) return null
-  if (bits !== undefined && Number(bits) > 128) return null
-  return `${addr!.toLowerCase()}/${bits ?? '128'}`
-}
 
 function remembered(): string | null {
   try { return localStorage.getItem(STORE_KEY) } catch { return null }
@@ -163,15 +147,11 @@ export function GeneralHardening({ finding }: { finding: FindingDetail }) {
   )
 }
 
-const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, '') } catch { return u } }
-const isVendorLink = (u: string) => { const host = hostOf(u).toLowerCase(); return host !== 'nvd.nist.gov' && host !== 'cisa.gov' && !host.endsWith('.cisa.gov') }
-
 /** M2-1: general "Have I been hit?" checks for the software family when no confirmed pack lists signs for the CVE (INV-8). */
 export function GeneralChecks({ finding }: { finding: FindingDetail }) {
   const { t } = useTranslation('findings')
   const c = finding.hardening?.checks
   if (!c) return null
-  const vendor = finding.kev?.links.filter(isVendorLink) ?? []
   return (
     <div className="grid gap-4" data-testid="general-checks">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -179,11 +159,6 @@ export function GeneralChecks({ finding }: { finding: FindingDetail }) {
         <GeneralLabel />
       </div>
       <p className="max-w-3xl text-sm">{c.summary}</p>
-      {vendor.length > 0 ? (
-        <ul className="grid gap-1 text-sm">
-          {vendor.map((u) => <li key={u}><a className="break-all text-accent underline underline-offset-4" href={u} target="_blank" rel="noopener noreferrer">{t('rec.vendorLink', { host: hostOf(u) })}</a></li>)}
-        </ul>
-      ) : null}
       <ul className="grid gap-4">
         {c.indicators.map((i) => (
           <li key={i.title} className="grid gap-2">

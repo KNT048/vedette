@@ -440,8 +440,30 @@ func (e scanningEngines) active(ctx context.Context, id string) (core.EngineStat
 				s.State = core.EngineError
 			}
 		}
+		// A device that answered a credential and moved out of its scope is not read until a person adds its address (#829 C4).
+		var moved []string
+		for _, c := range creds {
+			for _, m := range c.MovedOut {
+				moved = append(moved, fmt.Sprintf("%s moved to %s, outside the scope of SNMP credential %q", cmpOrName(m.Name), m.IP, c.Name))
+			}
+		}
+		if len(moved) > 0 {
+			text := strings.Join(moved, "; ") + ": add the address to the credential's scope (Devices › Scope and sensors › SNMP, Edit) to keep reading it."
+			if s.Reason != "" {
+				text = s.Reason + " " + text
+			}
+			s.Reason = text
+		}
 	}
 	return s, nil
+}
+
+// cmpOrName is a device's name for the card, or words for one without a name.
+func cmpOrName(name string) string {
+	if name == "" {
+		return "A device"
+	}
+	return name
 }
 
 func orID(id, fallback string) string {

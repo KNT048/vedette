@@ -112,7 +112,7 @@ type fakeSurface struct {
 	domain  string
 	ip      netip.Addr
 	allowed []string
-	started chan struct{} // set: the scan blocks until its context ends
+	started chan struct{}   // set: the scan blocks until its context ends
 	ctx     context.Context // the context of that blocking scan, set before started is closed
 }
 

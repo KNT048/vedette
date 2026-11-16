@@ -39,7 +39,9 @@ func (f *sharedInventory) SaveChecks(_ context.Context, tx *sql.Tx, _ string, c 
 		return f.refuse
 	}
 	f.saved = append(f.saved, c)
-	c.MergedAt = "2099-01-01T00:00:00.000Z" // as the inventory does: the caller wrote back what it read
+	if c.MergedFrom == nil { // as the inventory does: the caller names the copy it wrote in the same transaction
+		return errors.New("SaveChecks without the copy's stamp")
+	}
 	f.checks = c
 	return nil
 }
@@ -53,7 +55,7 @@ func (f *sharedInventory) Settle(_ context.Context, _ *sql.Tx, committed bool) {
 func newSharedEnv(t *testing.T) (*env, *sharedInventory) {
 	t.Helper()
 	e := &env{t: t, db: newDB(t), clock: &fakeClock{now: t0}, inv: &fakeInventory{scope: confirmedScope()}, engine: &fakeEngine{}}
-	inv := &sharedInventory{fakeInventory: e.inv, checks: Checks{Window: Window{Days: []int{1, 2, 3, 4, 5, 6, 7}, From: "21:00", To: "06:00"}, Rate: 7, Exclusions: []string{"192.168.10.9"}, MergedAt: "2026-11-01T00:00:00.000Z"}}
+	inv := &sharedInventory{fakeInventory: e.inv, checks: Checks{Window: Window{Days: []int{1, 2, 3, 4, 5, 6, 7}, From: "21:00", To: "06:00"}, Rate: 7, Exclusions: []string{"192.168.10.9"}, MergedFrom: new(string)}} // the copy nobody saved (updated_at NULL) is taken in
 	svc, err := NewService(Config{DB: e.db, Audit: audit.New(e.clock.Now), Inventory: inv, Engine: e.engine, Pack: testPack(t), Log: slog.New(slog.DiscardHandler), Clock: e.clock.Now})
 	if err != nil {
 		t.Fatal(err)
@@ -141,7 +143,14 @@ func TestContract_INV16_AnUnmergedCopyStillBinds(t *testing.T) {
 	if c := cv.Config; !slices.Equal(c.Exclusions, []string{"192.168.10.9", "192.168.10.50"}) || c.Rate != 3 {
 		t.Fatalf("a copy newer than the merge: %+v, want both lists and the slower rate", c)
 	}
-	inv.checks.MergedAt = ""
+	// review #857 r2 L1: the stamps are compared for equality, never for order: a merge stamp from a clock that ran ahead does not
+	// hide a copy written later with an earlier stamp
+	future := "2099-01-01T00:00:00.000Z"
+	inv.checks.MergedFrom = &future
+	if cv, _ := e.svc.Config(e.ctx()); !slices.Contains(cv.Config.Exclusions, "192.168.10.50") {
+		t.Fatalf("a merge stamp in the future hid the copy: %v", cv.Config.Exclusions)
+	}
+	inv.checks.MergedFrom = nil
 	if cv, _ := e.svc.Config(e.ctx()); !slices.Contains(cv.Config.Exclusions, "192.168.10.50") {
 		t.Fatalf("never merged: %v", cv.Config.Exclusions)
 	}

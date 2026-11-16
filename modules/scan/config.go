@@ -243,10 +243,11 @@ type Checks struct {
 	Window     Window
 	Rate       int // requests per second
 	Exclusions []string
-	// MergedAt is when the inventory last took this module's own copy (scan_setting) in; "" when it never did. While the copy is
-	// newer (a failed merge, or a version before #850 that wrote it after a rollback), settings reads the union of both lists and
-	// the slower rate, so nothing either list excludes is scanned (review #857 M1). Read only.
-	MergedAt string
+	// MergedFrom names the copy of this module (scan_setting) the inventory last took in, by that copy's updated_at ("" for a copy
+	// nobody saved); nil when it never took one in. While the copy's updated_at is not exactly that (a failed merge, or a version
+	// before #850 that wrote it after a rollback), settings reads the union of both lists and the slower rate, so nothing either list
+	// excludes is scanned (review #857 M1; equality only, no clock order: r2 L1). On SaveChecks it is the stamp the save wrote.
+	MergedFrom *string
 }
 
 // SharedChecks is the inventory as the one store of Checks (#850, INV-16). The Inventory adapter of cmd/vedette implements it; an
@@ -289,7 +290,7 @@ func (s *Service) settings(ctx context.Context, q interface {
 	c.Window = Window{Days: slices.Clone(ch.Window.Days), From: ch.Window.From, To: ch.Window.To}
 	c.Rate = ch.Rate
 	c.Exclusions = slices.Clone(ch.Exclusions)
-	if ch.MergedAt == "" || (updated.Valid && updated.String > ch.MergedAt) { // not merged yet: both lists bind, the slower rate wins
+	if ch.MergedFrom == nil || *ch.MergedFrom != updated.String { // not this copy taken in: both lists bind, the slower rate wins
 		for _, x := range own.Exclusions {
 			if !slices.Contains(c.Exclusions, x) {
 				c.Exclusions = append(c.Exclusions, x)

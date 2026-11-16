@@ -92,6 +92,8 @@ type ChecksInput struct {
 	From, To   string
 	CheckRate  int
 	Exclusions []string // IPv4 or CIDR; host bits are dropped (the scan module accepted them)
+	// CopySavedAt is the updated_at the caller wrote on its own copy (scan_setting) in the same transaction: the copy is taken in.
+	CopySavedAt string
 }
 
 // SaveChecks writes the window, the check rate and the exclusions inside the caller's write transaction tx: the scan module's PUT
@@ -131,7 +133,8 @@ func (s *Service) SaveChecks(ctx context.Context, tx *sql.Tx, actor string, in C
 	}
 	act.Days = slices.Compact(slices.Sorted(slices.Values(in.Days)))
 	act.From, act.To, act.CheckRate, act.Exclusions = in.From, in.To, in.CheckRate, excl
-	act.ChecksMergedAt = s.now() // the caller wrote back what it read, the union of both lists while unmerged (M1)
+	from := in.CopySavedAt // the caller wrote back what it read, the union of both lists while unmerged, and this stamp (M1)
+	act.ChecksMergedFrom = &from
 	if err := putSetting(ctx, tx, "active", act, s.now(), actorOrSystem(actor)); err != nil {
 		return err
 	}
@@ -164,9 +167,9 @@ type LegacyChecks struct {
 }
 
 // MergeLegacyChecks takes the scan module's own copy into the one store (#850, INV-32). cmd/vedette runs it at every start and it does
-// something whenever the copy was saved after the last time it was taken in (ChecksMergedAt), or was never taken in: the first start
+// something whenever the copy is not the one last taken in (its updated_at differs from ChecksMergedFrom), or none was: the first start
 // after #850, a merge that failed, or a version before #850 that wrote the copy after a rollback (review #857 M1: it can never be
-// skipped for good; the union is safe to repeat). The check rate becomes the copy's (DefaultCheckRate when out of range); the
+// skipped for good; the union is safe to repeat). The stamps are compared for equality only, never for order (r2 L1). The check rate becomes the copy's (DefaultCheckRate when out of range); the
 // exclusions become the union of both lists, normalized and each once (nothing either list excluded gets scanned: discovery also
 // skips what only the vulnerability checks skipped); the window stays the inventory's. One audit row scanning.safety.merged names
 // both windows and the exclusions added when that changed anything a person sees: a different window a person had saved, or
@@ -177,8 +180,8 @@ func (s *Service) MergeLegacyChecks(ctx context.Context, in LegacyChecks) (merge
 		if err := loadSetting(ctx, tx, "active", &act); err != nil {
 			return err
 		}
-		if act.ChecksMergedAt != "" && in.SavedAt <= act.ChecksMergedAt {
-			return nil // taken in already, and not saved since
+		if act.ChecksMergedFrom != nil && *act.ChecksMergedFrom == in.SavedAt {
+			return nil // this very copy was taken in already
 		}
 		rate := in.Rate
 		if rate < 1 || rate > MaxCheckRate {
@@ -198,8 +201,9 @@ func (s *Service) MergeLegacyChecks(ctx context.Context, in LegacyChecks) (merge
 		}
 		added := len(excl) - len(act.Exclusions)
 		act.Exclusions = excl
-		act.ChecksMergedAt = s.now()
-		if err := putSetting(ctx, tx, "active", act, act.ChecksMergedAt, systemActor); err != nil {
+		from := in.SavedAt
+		act.ChecksMergedFrom = &from
+		if err := putSetting(ctx, tx, "active", act, s.now(), systemActor); err != nil {
 			return err
 		}
 		days := slices.Compact(slices.Sorted(slices.Values(in.Days)))

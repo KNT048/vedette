@@ -929,7 +929,7 @@
   },
   "search": {
     "label": "Search devices",
-    "placeholder": "Name, IP, MAC, maker or model; type: source: fragile",
+    "placeholder": "Name, IP, MAC, maker, or type:switch",
     "chipsLabel": "Common filters",
     "chip": {
       "fragile": "Fragile",
@@ -1002,6 +1002,7 @@
     "findings_one": "{{count}} finding",
     "findings_other": "{{count}} findings",
     "noFindings": "None",
+    "noFindingsLong": "No findings",
     "noProduct": "Product not named",
     "editVersion": "Change the version of {{name}}",
     "remove": "Remove {{name}}",

@@ -11,7 +11,7 @@ import { useMe } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { AddDialog } from './AddDialog'
 import { useSnmp, useSnmpActions } from './api'
-import { errMsg } from './kinds'
+import { credentialLabel, errMsg } from './kinds'
 import { CredentialDialog, SnmpAnswer } from './SnmpSection'
 import type { DeviceDetail, SnmpCredential, SnmpTestResult } from './types'
 
@@ -70,7 +70,7 @@ function SnmpRead({ ip }: { ip: string }) {
       <form onSubmit={submit} noValidate className="flex flex-wrap items-end gap-2">
         <Field label={t('sources.snmp.credential')} htmlFor="device-snmp-cred">
           <Select id="device-snmp-cred" className="w-auto" value={chosen} onChange={(e) => { setCred(e.target.value); setResult(null) }}>
-            {creds.map((c) => <option key={c.id} value={c.id}>{`${c.name} (${t(`snmp.version.${c.version}`)})`}</option>)}
+            {creds.map((c) => <option key={c.id} value={c.id}>{credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`))}</option>)}
           </Select>
         </Field>
         <Button type="submit" size="sm" variant="primary" disabled={test.isPending}>{test.isPending ? t('snmp.run.running') : t('sources.snmp.read')}</Button>

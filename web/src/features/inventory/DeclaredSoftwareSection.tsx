@@ -100,7 +100,7 @@ function Body() {
                 </div>
                 <span className="flex flex-wrap gap-x-3 text-[13px] text-muted">
                   <span>{r.sw?.version || t('software.noVersion')}</span>
-                  {findingsOn ? <span>{r.d.findings_count ? t('declaredPage.findings', { count: r.d.findings_count }) : t('declaredPage.noFindings')}</span> : null}
+                  {findingsOn ? <span>{r.d.findings_count ? t('declaredPage.findings', { count: r.d.findings_count }) : t('declaredPage.noFindingsLong')}</span> : null}
                 </span>
               </div>
             )} />

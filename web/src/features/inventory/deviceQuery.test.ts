@@ -64,3 +64,15 @@ describe('old Devices URLs (#849)', () => {
     expect(to('q=cisco')).toBeNull()
   })
 })
+
+describe('SNMP credential label (#849)', () => {
+  it('shows the version once, whatever the name says', async () => {
+    const { credentialLabel } = await import('./kinds')
+    expect(credentialLabel('Core switches', 'v3', 'v3')).toBe('Core switches (v3)')
+    expect(credentialLabel('Core switches (v3)', 'v3', 'v3')).toBe('Core switches (v3)')
+    expect(credentialLabel('Printers V2C', 'v2c', 'v2c')).toBe('Printers V2C')
+    expect(credentialLabel('Lab [v3]', 'v3', 'v3')).toBe('Lab [v3]')
+    expect(credentialLabel('v3-lab printers', 'v3', 'v3')).toBe('v3-lab printers (v3)') // the version only counts at the end
+    expect(credentialLabel('Branch v2c', 'v3', 'v3')).toBe('Branch v2c (v3)') // another version is not this one
+  })
+})

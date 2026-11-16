@@ -259,6 +259,15 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(within(dlg).getByRole('radio', { name: /^CSV import/ })).toBeEnabled()
   })
 
+  it('#849: SNMP from the dialog lists each saved credential with its version once (a name that says "(v3)" gets no second one)', async () => {
+    renderApp('/devices?add=snmp')
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    const select = await within(dlg).findByLabelText('Credential', undefined, T)
+    const names = within(select).getAllByRole('option').map((o) => o.textContent)
+    expect(names).toContain('Core switches (v3)')
+    expect(names.some((n) => /\((v2c|v3)\) \((v2c|v3)\)$/.test(n ?? ''))).toBe(false)
+  })
+
   it('#849: osquery from the dialog: a token, then the one-line install for the server', async () => {
     const user = userEvent.setup()
     enableModule('agent-intake', true)

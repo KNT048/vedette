@@ -16,7 +16,7 @@ import { AddForm } from './AddDeviceDialog'
 import { OsqueryEnrol, WazuhForm } from './AgentsSection'
 import { useAgents, useDevices, useSnmp, useSnmpActions } from './api'
 import { ImportForm } from './ImportDialog'
-import { errMsg } from './kinds'
+import { credentialLabel, errMsg } from './kinds'
 import { CredentialDialog, CredentialForm, SnmpAnswer } from './SnmpSection'
 import type { SnmpCredential, SnmpTestResult } from './types'
 import { CIDR_RE_UI, cidrRange, IPV4_RE_UI } from './validate'
@@ -95,8 +95,8 @@ function SnmpMethod() {
   const targetId = `${uid}-target`
   return (
     <div className="grid min-w-0 gap-4">
-      <form onSubmit={submit} noValidate className="grid gap-4">
-        <div className="grid gap-4 md:grid-cols-2">
+      <form onSubmit={submit} noValidate className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field label={t('addDialog.snmp.target')} htmlFor={targetId} hint={t('addDialog.snmp.targetHint')} error={targetErr ?? undefined}>
             <Input id={targetId} list={`${uid}-known`} value={target} maxLength={18} inputMode="decimal" autoComplete="off" placeholder="192.168.10.3"
               onChange={(e) => { setTarget(e.target.value); setTargetErr(null); setResult(null) }} />
@@ -104,7 +104,7 @@ function SnmpMethod() {
           </Field>
           <Field label={t('sources.snmp.credential')} htmlFor={`${uid}-cred`}>
             <Select id={`${uid}-cred`} value={chosen?.id ?? ''} onChange={(e) => { if (e.target.value === '+') setAdding(true); else setCred(e.target.value); setResult(null) }}>
-              {creds.map((c) => <option key={c.id} value={c.id}>{`${c.name} (${t(`snmp.version.${c.version}`)})`}</option>)}
+              {creds.map((c) => <option key={c.id} value={c.id}>{credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`))}</option>)}
               {creds.length < 8 ? <option value="+">{t('addDialog.snmp.newCredential')}</option> : null}
             </Select>
           </Field>
@@ -202,7 +202,7 @@ export function AddDialog({ open, onOpenChange, method: initial = 'manual', onMe
         onOpenAutoFocus={(e) => { const r = (e.currentTarget as HTMLElement | null)?.querySelector<HTMLElement>('[role="radio"][data-state="checked"]'); if (r) { e.preventDefault(); r.focus() } }}>
         {/* Once the osquery token is shown the picker goes: switching away would lose the only copy of the secret on screen. */}
         {tokenShown ? null : <MethodPicker value={method} onChange={choose} blocked={blocked} />}
-        <section aria-label={t(`addDialog.name.${method}`)} className="grid min-w-0 gap-3 border-t border-rule pt-4 [&>*]:min-w-0">
+        <section aria-label={t(`addDialog.name.${method}`)} className="grid min-w-0 grid-cols-1 gap-3 border-t border-rule pt-4 [&>*]:min-w-0">
           <div className="flex items-center gap-1">
             <h3 className="text-sm font-semibold">{t(`addDialog.title.${method}`)}</h3>
             <InfoTip topic={t(`addDialog.name.${method}`)}>{t(`addDialog.info.${method}`)}</InfoTip>

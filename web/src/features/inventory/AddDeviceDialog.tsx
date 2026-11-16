@@ -59,9 +59,9 @@ export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-4" noValidate>
+    <form onSubmit={submit} className="grid grid-cols-1 gap-4" noValidate>
       {mode === 'device' ? (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field label={t('add.ip')} htmlFor="add-ip" hint={t('add.ipHint')} error={ipErr ?? undefined}>
             <Input id="add-ip" inputMode="decimal" value={ip} onChange={(e) => { setIp(e.target.value); setIpErr(null) }} placeholder="192.168.10.25" />
           </Field>

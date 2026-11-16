@@ -60,6 +60,11 @@ func TestExposureRunnerFollowsTheExposureModule(t *testing.T) {
 	}
 	_, err := r.Scan(ctx, private)
 	wantOff(err)
+	// scan on, exposure off: still off, the scan module's switch does not start an external scan
+	toggle("scan", true)
+	_, err = r.Scan(ctx, private)
+	wantOff(err)
+	toggle("scan", false)
 	toggle(exposure.ModuleID, true) // v1's MID bundle: exposure on, scan off
 	if s.d.Reg.Enabled("scan") {
 		t.Fatal("turning exposure on turned the scan module on")
@@ -82,9 +87,7 @@ func TestExposureRunnerFollowsTheExposureModule(t *testing.T) {
 	if code, body := s.do("GET", "/scans/config", "admin", ""); code != 404 {
 		t.Fatalf("GET /scans/config (the schedule) with scan off: %d %v", code, body)
 	}
-	// switched off while a scan runs: it is stopped, and nothing it found is kept; switching scan off and on again changes nothing
-	toggle("scan", true)
-	toggle("scan", false)
+	// scan switched on and off while a scan runs: the scan goes on; exposure switched off: it is stopped, and nothing it found is kept
 	blocking := &fakeSurface{started: make(chan struct{})}
 	r.(*exposureRunner).scan = blocking //nolint:forcetypeassert // scanRunner's own type
 	done := make(chan error, 1)
@@ -93,6 +96,12 @@ func TestExposureRunnerFollowsTheExposureModule(t *testing.T) {
 		done <- err
 	}()
 	<-blocking.started
+	toggle("scan", true)
+	toggle("scan", false)
+	// Publish calls the subscribers before it returns and a stop cancels the scan's context at once, so this is not a race
+	if err := context.Cause(blocking.ctx); err != nil {
+		t.Fatalf("switching scan off stopped the external scan: %v", err)
+	}
 	toggle(exposure.ModuleID, false)
 	wantOff(<-done)
 }
@@ -104,6 +113,7 @@ type fakeSurface struct {
 	ip      netip.Addr
 	allowed []string
 	started chan struct{} // set: the scan blocks until its context ends
+	ctx     context.Context // the context of that blocking scan, set before started is closed
 }
 
 func (f *fakeSurface) Domain(ctx context.Context, d string, may func(context.Context, netip.Addr) bool) (surface.Result, error) {
@@ -119,6 +129,7 @@ func (f *fakeSurface) Domain(ctx context.Context, d string, may func(context.Con
 func (f *fakeSurface) IP(ctx context.Context, ip netip.Addr) (surface.Result, error) {
 	f.ip = ip
 	if f.started != nil {
+		f.ctx = ctx
 		close(f.started)
 		<-ctx.Done()
 		return surface.Result{}, ctx.Err()

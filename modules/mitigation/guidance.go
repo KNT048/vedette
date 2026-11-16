@@ -56,6 +56,9 @@ func (p *Provider) Guidance(ctx context.Context, r findings.Row) (findings.Guide
 		}
 	}
 	g.Pack, g.Compromise = pack, compromise
+	if g.Hardening, err = p.hardening(ctx, r, pack, compromise); err != nil { // INV-8
+		return g, err
+	}
 	g.Recheck = genericRecheck(r)
 	if recheck != nil {
 		g.Recheck = *recheck

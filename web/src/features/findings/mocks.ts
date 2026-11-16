@@ -9,6 +9,7 @@ import { epssDate, kevPublished as published, planSeed, recentSince, tierFact, t
 import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
 import { compromise, packs } from './packs'
+import { mockHardening } from './hardeningMock'
 import type { AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, HomeSummary, KevInfo, KnownVersion, MitigationPack, Plan, PlanCve, PlanItem, RowFix, StatusAction } from './types'
 import { fmtDate } from '@/lib/format'
 import { displayName } from '@/features/inventory/nameOf'
@@ -233,7 +234,16 @@ function detail(f: Finding): FindingDetail {
     ai: { explain: outs[`${f.id}:explain`] ?? null, config: outs[`${f.id}:mitigation-config`] ?? null },
     ai_available: { explain: aiAvailable('explain-finding'), config: aiAvailable('mitigation-config') },
     applied: f.history.filter((h) => h.action.startsWith('applied:')).map((h) => ({ item: h.action.slice(8), ts: h.ts, user: h.user })),
+    hardening: hardeningFor(f, r, pack, check),
   }
+}
+
+/** M2-1, mitigation INV-8: the general block fills what the confirmed pack leaves out (its firewall guides, its compromise signs). */
+function hardeningFor(f: Finding, r: FindingRow, pack: MitigationPack | undefined, check: unknown) {
+  if (pack?.firewall.length && check) return null
+  const has = (name: string) => assetsStore.get().some((a) => (a.kind === 'firewall' || a.kind === 'router') && (a.vendor?.value ?? '').toLowerCase() === name)
+  const h = mockHardening(f.cve, r.kev, r.asset, assetsStore.get().find((a) => a.id === f.asset_id), has)
+  return { ...h, firewall: pack?.firewall.length ? [] : h.firewall, checks: check ? null : h.checks }
 }
 
 const who = () => currentUser()?.email ?? 'system'

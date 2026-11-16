@@ -25,6 +25,7 @@ import { useFinding, useSetStatus } from './api'
 import { basisKey, deviceName, hasIp, isOpen, unverified } from './basis'
 import { errMsg } from './errors'
 import { AskAi, NoPack, PackView } from './Recommendation'
+import { GeneralChecks, GeneralHardening } from './Hardening'
 import { RiskChip } from './Risk'
 import { CvssScore } from './Cvss'
 import type { FindingDetail, StatusAction } from './types'
@@ -141,6 +142,8 @@ function Compromise({ f }: { f: FindingDetail }) {
             <ol className="grid list-decimal gap-1 pl-5 text-sm">{c.if_found.map((s) => <li key={s}>{s}</li>)}</ol>
           </div>
         </Card>
+      ) : f.hardening?.checks ? (
+        <Card><GeneralChecks finding={f} /></Card>
       ) : (
         <EmptyState title={t('compromise.none')} info={t('compromise.noneInfo')} />
       )}
@@ -212,7 +215,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
     <>
       <Evidence f={f} />
       <Section id="mitigation" title={t('rec.title')} description={t('rec.description')} info={t('rec.descriptionInfo')} stories={['S-MIT-1']}>
-        <RequireModule module="mitigation">{f.pack ? <PackView finding={f} /> : <NoPack finding={f} />}</RequireModule>
+        <RequireModule module="mitigation">{f.pack ? <><PackView finding={f} /><GeneralHardening finding={f} /></> : <NoPack finding={f} />}</RequireModule>
       </Section>
       <Compromise f={f} />
     </>

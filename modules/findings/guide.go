@@ -101,6 +101,33 @@ type CompromiseCheck struct {
 	IfFound    []string    `json:"if_found"`
 }
 
+// HardeningPort is a port a general hardening config restricts.
+type HardeningPort struct {
+	Port    int    `json:"port"`
+	Proto   string `json:"proto"`   // tcp or udp
+	Service string `json:"service"` // the service name inventory or the software's defaults give ("ssh", "https")
+}
+
+// Hardening is the general hardening of a finding (mitigation INV-8): firewall configs, written by reviewed code, that let only
+// the admin network reach the device, and general compromise checks for its software family. It says nothing about the CVE, so it
+// is not a confirmed recommendation (D-21) and is never shown as one. The configs hold AdminNetPlaceholder; the page fills it in.
+type Hardening struct {
+	Software     string           `json:"software"`      // the software the checks are for ("OpenSSH", "Juniper Junos OS")
+	Family       string           `json:"family"`        // the family the checks are written for ("Linux", "Network device")
+	Target       string           `json:"target"`        // the device address in the configs; "<IP>" when the device has none usable
+	Self         bool             `json:"self"`          // the device is itself the firewall: its own guide protects its admin access
+	PortsFrom    string           `json:"ports_from"`    // seen (open on the device), usual (the software's usual admin ports) or all
+	Ports        []HardeningPort  `json:"ports"`         // empty when PortsFrom is all
+	AdminExample string           `json:"admin_example"` // the example admin network the page starts with
+	Box          []string         `json:"box"`           // the Vedette box's addresses the configs allow as well (its scans)
+	Viewer       string           `json:"viewer"`        // the address the box sees for the browser asking; "" when unknown
+	Firewall     []FirewallGuide  `json:"firewall"`      // empty when the confirmed pack has its own firewall guides
+	Checks       *CompromiseCheck `json:"checks"`        // nil when the confirmed pack has its own compromise signs
+}
+
+// AdminNetPlaceholder is the admin network in the Hardening configs; the page replaces it with the network the person types.
+const AdminNetPlaceholder = "{ADMIN_NET}"
+
 // Recheck says how to check again whether the flaw is still there.
 type Recheck struct {
 	Steps []string `json:"steps"`
@@ -167,6 +194,7 @@ type Guide struct {
 	AI          AIResults        `json:"ai"`
 	AIAvailable AIAvailable      `json:"ai_available"`
 	Applied     []AppliedEntry   `json:"applied"`
+	Hardening   *Hardening       `json:"hardening"` // nil when the confirmed pack has both firewall guides and compromise signs, or mitigation is off
 }
 
 // Normalize makes every list non-nil, because the API schema wants [] and never null.
@@ -190,6 +218,19 @@ func (g *Guide) Normalize() {
 		c.Indicators, c.IfFound = orEmpty(c.Indicators), orEmpty(c.IfFound)
 	}
 	g.Recheck.Steps = orEmpty(g.Recheck.Steps)
+	if h := g.Hardening; h != nil {
+		h.Ports, h.Firewall, h.Box = orEmpty(h.Ports), orEmpty(h.Firewall), orEmpty(h.Box)
+		for i := range h.Firewall {
+			f := &h.Firewall[i]
+			f.Steps, f.Verify, f.Undo = orEmpty(f.Steps), orEmpty(f.Verify), orEmpty(f.Undo)
+			if f.Alternative != nil {
+				f.Alternative.Steps = orEmpty(f.Alternative.Steps)
+			}
+		}
+		if c := h.Checks; c != nil {
+			c.Indicators, c.IfFound = orEmpty(c.Indicators), orEmpty(c.IfFound)
+		}
+	}
 	for _, r := range []*AIResult{g.AI.Explain, g.AI.Config} {
 		if r != nil {
 			r.Paragraphs, r.Steps, r.Citations = orEmpty(r.Paragraphs), orEmpty(r.Steps), orEmpty(r.Citations)

@@ -18,6 +18,7 @@ import { useApplied, useAskAi } from './api'
 import type { AiResult, ApplyItem, CodeStep, FindingDetail, FirewallGuide, FirewallVendor, KevInfo } from './types'
 import { isOpen } from './basis'
 import { softwareFor, useDeviceSoftware } from './rematch'
+import { GeneralHardening } from './Hardening'
 import { overdue } from './accept'
 
 function SideEffect({ text }: { text: string }) {
@@ -349,6 +350,7 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
           <InfoTip topic={t('rec.title')}>{t('rec.noKevInfo')}</InfoTip>
         </div>
       )}
+      <GeneralHardening finding={finding} />
       <div className="grid gap-2">
         <h3 className="text-sm font-semibold">{t('rec.askTitle')}</h3>
         <AskAi finding={finding} skill="mitigation-config" result={finding.ai.config} label={t('rec.askAi')} />

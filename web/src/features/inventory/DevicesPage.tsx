@@ -196,15 +196,17 @@ function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: numbe
     // device page has each value); the OS in muted text after the model.
     { id: 'hw', header: t('col.device'), accessorFn: (d) => [d.vendor?.value, d.model?.value, d.os?.value].filter(Boolean).join(' '), cell: ({ row }) => {
       // #849 review r2 M1: the OS or firmware version decides the CVE match, so it is never the part cut: the maker and model shrink
-      // (ellipsis), the OS keeps its width. The whole text stays in the DOM (screen readers read it) and the name opens the device.
+      // first (ellipsis, down to a few letters), and an OS longer than the column wraps to a second line instead of running over
+      // the next columns (n72: "Windows Server 2025 Standard Evaluation 10.0.26100.1742"). The whole text stays in the DOM (screen
+      // readers read it) and in the tooltip; the name opens the device.
       const d = row.original
       const hw = hardwareLine(d)
       const os = d.os?.value ?? ''
       if (!hw && !os) return dash
       return (
         <span className="flex max-w-64 items-baseline gap-1.5 2xl:max-w-md" title={[hw, os].filter(Boolean).join(', ')}>
-          {hw ? <span className="min-w-0 truncate">{hw}</span> : null}
-          {os ? <span className="shrink-0 whitespace-nowrap text-muted">{os}</span> : null}
+          {hw ? <span className={os ? 'min-w-[6ch] shrink-[1000] truncate' : 'min-w-0 truncate'}>{hw}</span> : null}
+          {os ? <span className="line-clamp-2 min-w-0 break-words text-muted">{os}</span> : null}
         </span>
       )
     } },

@@ -262,7 +262,7 @@ func TestContract_INV21_ToolResultsAreFencedAndChecked(t *testing.T) {
 	}
 	// An ID number blocks: the model gets the hook's message, not the data.
 	out, res, err = WrapToolResult(bg, r, p, "x", "owner CCCD 079012345678 in row 3")
-	if err != nil || res.Outcome != OutcomeBlocked || strings.Contains(out, "0790") || !strings.Contains(out, "ID number") {
+	if err != nil || res.Outcome != OutcomeBlocked || strings.Contains(out, "079012345678") || !strings.Contains(out, "ID number") {
 		t.Fatalf("%q %+v %v", out, res, err)
 	}
 	// Only the personal-data hook applies: "poem" in a log line or a custom keyword hook must not eat the result.

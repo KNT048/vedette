@@ -262,7 +262,6 @@
     "emptyBodyInfo": "Add one to turn on explanations, log digests and asking your data. Anthropic, OpenAI and Gemini keys, a local Ollama or vLLM server, or any compatible service all work.",
     "col": {
       "name": "Profile",
-      "location": "Where it runs",
       "model": "Model",
       "key": "Key",
       "lastTest": "Last test",

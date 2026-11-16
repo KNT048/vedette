@@ -167,8 +167,7 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
             </div>
           )}
           columns={[
-            { id: 'name', header: t('profiles.col.name'), accessorKey: 'name', cell: ({ row }: { row: { original: AiProfile } }) => <span className="grid"><span className="font-medium">{row.original.name}</span><span className="text-caption text-muted">{t(`profiles.kind.${row.original.kind}`)}</span></span> },
-            { id: 'location', header: t('profiles.col.location'), accessorKey: 'location', cell: ({ row }: { row: { original: AiProfile } }) => loc(row.original) },
+            { id: 'name', header: t('profiles.col.name'), accessorKey: 'name', cell: ({ row }: { row: { original: AiProfile } }) => <span className="grid justify-items-start gap-1"><span className="font-medium">{row.original.name}</span><span className="text-caption text-muted">{t(`profiles.kind.${row.original.kind}`)}</span>{loc(row.original)}</span> },
             { id: 'model', header: t('profiles.col.model'), accessorKey: 'model', cell: ({ row }: { row: { original: AiProfile } }) => <span className="whitespace-nowrap">{row.original.model}</span> },
             { id: 'key', header: t('profiles.col.key'), accessorFn: keyText },
             { id: 'lastTest', header: t('profiles.col.lastTest'), enableSorting: false, cell: ({ row }: { row: { original: AiProfile } }) => lastTest(row.original) },
@@ -452,7 +451,7 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
         {note ? <p role="status" className="text-sm">{note}</p> : null}
         {noProfiles ? <EmptyState title={t('assign.noProfiles')} info={t('assign.noProfilesInfo')} action={<Button variant="primary" onClick={() => setAdding(true)} disabled={!admin} title={reason}>{t('profiles.add')}</Button>}>{t('assign.noProfilesBody')}</EmptyState> : (
           <div className="overflow-x-auto rounded-md border border-rule bg-surface">
-            <table className="w-full min-w-[760px] border-collapse text-sm">
+            <table className="w-full min-w-[640px] border-collapse text-sm">
               <caption className="sr-only">{t('assign.caption')}</caption>
               <thead><tr className="border-b border-rule bg-sunken text-left text-caption text-muted">
                 <th scope="col" className="px-3 py-2 font-medium">{t('assign.col.job')}</th>
@@ -474,11 +473,11 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
                       <td className="px-3 py-2"><Chip tone={j.data === 'internal' ? 'warn' : 'off'}>{t(`assign.data.${j.data}`)}</Chip></td>
                       <td className="px-3 py-2">
                         {/* §0: the profile a task needs is created right here and selected */}
-                        <CreatableSelect id={`ai-job-${j.id}`} className="min-w-[13rem]" aria-label={t('assign.primaryFor', { job: t(`jobs.${j.id}.name`) })} value={s.primary ?? ''} onChange={(v) => setSlot(j.id, 'primary', v)} disabled={!admin} title={reason}
+                        <CreatableSelect id={`ai-job-${j.id}`} className="min-w-[11rem]" aria-label={t('assign.primaryFor', { job: t(`jobs.${j.id}.name`) })} value={s.primary ?? ''} onChange={(v) => setSlot(j.id, 'primary', v)} disabled={!admin} title={reason}
                           options={opts('primary')} newLabel={t('assign.newProfile')} canCreate={admin} renderCreate={newProfile} />
                       </td>
                       <td className="px-3 py-2">
-                        <Select className="min-w-[13rem]" aria-label={t('assign.fallbackFor', { job: t(`jobs.${j.id}.name`) })} value={s.fallback ?? ''} onChange={(e) => setSlot(j.id, 'fallback', e.target.value)} disabled={!admin || !s.primary} title={reason ?? (!s.primary ? t('assign.fallbackNeedsPrimary') : undefined)}>
+                        <Select className="min-w-[11rem]" aria-label={t('assign.fallbackFor', { job: t(`jobs.${j.id}.name`) })} value={s.fallback ?? ''} onChange={(e) => setSlot(j.id, 'fallback', e.target.value)} disabled={!admin || !s.primary} title={reason ?? (!s.primary ? t('assign.fallbackNeedsPrimary') : undefined)}>
                           {opts('fallback').map((o) => <option key={o.value} value={o.value} disabled={o.disabled}>{o.label}</option>)}
                         </Select>
                       </td>

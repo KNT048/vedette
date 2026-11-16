@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { Circle, CircleCheck } from 'lucide-react'
 import { Card } from '@/components/common/Card'
 import { KpiGrid, KpiTile } from '@/components/common/KpiTile'
@@ -9,9 +9,9 @@ import { RankedList, RankedRow } from '@/components/common/RankedList'
 import { Sparkline } from '@/components/common/Sparkline'
 import { Illustration } from '@/components/common/Illustration'
 import { EmptyState, ErrorState } from '@/components/common/States'
+import { DependencyLink } from '@/components/common/DependencyLink'
 import { Chip, StatusChip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
-import { api } from '@/lib/api'
 import { fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan, useMe } from '@/lib/session'
@@ -20,24 +20,11 @@ import { CvssScore } from '@/features/findings/Cvss'
 import type { HomeSummary, SummaryItem } from '@/features/findings/types'
 import { useChannels } from '@/features/notify/api'
 import { useAccount } from '@/features/core/api'
+import { KEY, isFirstRun, useHome } from './homeSummary'
 
 // The add-device dialog is inventory's; Home loads it only when the button is pressed, so the Home chunk does not carry it.
 const AddDeviceDialog = lazy(() => import('@/features/inventory/AddDeviceDialog').then((m) => ({ default: m.AddDeviceDialog })))
-
-const KEY = ['findings', 'summary'] as const
-
-/**
- * Home's one read (#825, INV-23): the cached `GET /findings/summary` under the query key the shell's nav badges share (app/nav.ts). The
- * shell is the one poller (every 60 s, paused in a hidden tab, stopped on error); Home only subscribes: a second timer would ask twice a
- * minute. `staleTime` matches the box's 60 s cache, so going back to Home asks nothing new. Finding changes invalidate the key
- * (findings/api.ts useWrite, useBulkStatus), so the page is fresh after a status change.
- */
-export function useHome(enabled: boolean) {
-  return useQuery({ queryKey: KEY, queryFn: () => api.get<HomeSummary>('/findings/summary'), enabled, staleTime: 60_000, retry: false })
-}
-
-/** A box with no device but itself and nothing open: Home shows the first-run path instead of tiles of zeros. */
-export const isFirstRun = (s: HomeSummary) => s.devices.total <= 1 && s.open.total === 0
+const AddRangeDialog = lazy(() => import('./AddRangeDialog').then((m) => ({ default: m.AddRangeDialog })))
 
 const dayFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 
@@ -158,7 +145,7 @@ function writeSetup(user: string, v: 'seen' | 'hidden') {
 type Step = { id: string; done: boolean; title: string; line: string; action?: ReactNode }
 
 /** The first-run steps: what Home needs before it can say anything (devices), then what makes the alert arrive (J3), then the sign-in. */
-function useSteps(s: HomeSummary, onAdd: () => void): Step[] | null {
+function useSteps(s: HomeSummary, onAdd: () => void, onRange: () => void): Step[] | null {
   const { t } = useTranslation('feeds')
   const { data: me } = useMe()
   const op = useCan('operator')
@@ -175,7 +162,7 @@ function useSteps(s: HomeSummary, onAdd: () => void): Step[] | null {
     line: s.devices.total > 1 ? t('start.devices.done', { count: s.devices.total }) : t('start.devices.line'),
     action: (
       <>
-        {admin ? <Button asChild size="sm" variant="primary"><Link to="/devices/setup#range-input">{t('start.devices.range')}</Link></Button> : null}
+        {admin ? <Button size="sm" variant="primary" onClick={onRange}>{t('start.devices.range')}</Button> : null}
         <Button size="sm" variant={admin ? 'secondary' : 'primary'} disabled={!op} title={needRole} onClick={onAdd}>{t('start.devices.add')}</Button>
       </>
     ),
@@ -183,7 +170,8 @@ function useSteps(s: HomeSummary, onAdd: () => void): Step[] | null {
   if (admin && notifyOn && channels.data) {
     const on = channels.data.channels.some((c) => c.configured && c.enabled)
     steps.push({ id: 'alerts', done: on, title: t('start.alerts.title'), line: on ? t('start.alerts.done') : t('start.alerts.line'),
-      action: <Button asChild size="sm"><Link to="/settings/channels">{t('start.alerts.go')}</Link></Button> })
+      // Deep link until notify's channel dialog can open here (docs/UI.md §0.2).
+      action: <DependencyLink reason={t('start.alerts.where')} to="/settings/channels#channels" label={t('start.alerts.go')} /> })
   }
   if (admin && account.data && !account.data.user.sso) {
     steps.push({ id: 'twofa', done: me.twofa, title: t('start.twofa.title'), line: me.twofa ? t('start.twofa.done') : t('start.twofa.line'),
@@ -229,9 +217,9 @@ function GetStarted({ s, steps, onHide }: { s: HomeSummary; steps: Step[]; onHid
 function Onboarding({ s, firstRun, prompts }: { s: HomeSummary; firstRun: boolean; prompts: ReactNode }) {
   const { data: me } = useMe()
   const qc = useQueryClient()
-  const [adding, setAdding] = useState(false)
+  const [adding, setAdding] = useState<'device' | 'range' | null>(null)
   const [hidden, setHidden] = useState(false)
-  const steps = useSteps(s, () => setAdding(true))
+  const steps = useSteps(s, () => setAdding('device'), () => setAdding('range'))
   const stored = me ? readSetup(me.id) : null
   const show = !!me && !!steps && !hidden && stored !== 'hidden' && (firstRun || stored === 'seen')
   const todo = !!steps && steps.some((x) => !x.done)
@@ -244,7 +232,9 @@ function Onboarding({ s, firstRun, prompts }: { s: HomeSummary; firstRun: boolea
       {adding ? (
         <Suspense fallback={null}>
           {/* A device added here changes the counts: ask the summary again (the box drops its cache on the device's findings). */}
-          <AddDeviceDialog open onOpenChange={(o) => { if (!o) { setAdding(false); void qc.invalidateQueries({ queryKey: KEY }) } }} />
+          {adding === 'device'
+            ? <AddDeviceDialog open onOpenChange={(o) => { if (!o) { setAdding(null); void qc.invalidateQueries({ queryKey: KEY }) } }} />
+            : <AddRangeDialog open onOpenChange={(o) => { if (!o) setAdding(null) }} />}
         </Suspense>
       ) : null}
     </>

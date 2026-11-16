@@ -88,7 +88,6 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     const card = await screen.findByRole('region', { name: 'Get started' })
     expect(screen.queryByRole('list', { name: 'Today at a glance' })).toBeNull()
     expect(within(card).getByText('Find your devices')).toBeInTheDocument()
-    expect(within(card).getByRole('link', { name: 'Set the network range' })).toHaveAttribute('href', '/devices/setup#range-input')
     expect(await within(card).findByText('Get alerts')).toBeInTheDocument()
     expect(await within(card).findByText('Turn on two-step sign-in')).toBeInTheDocument()
     // A step not done yet links to its exact place; a done one says so instead.
@@ -101,13 +100,52 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     await expectNoA11yViolations()
   })
 
+  it('first run: the network range is added right on Home with the scope commitment (#825, #860, docs/UI.md §0.1)', async () => {
+    findingsStore.set([])
+    assetsStore.set([])
+    const sent: unknown[] = []
+    server.events.on('request:start', async ({ request }) => { if (request.method === 'POST' && request.url.endsWith('/scanning/safety/ranges')) sent.push(await request.clone().json()) })
+    renderApp('/')
+    const card = await screen.findByRole('region', { name: 'Get started' })
+    await userEvent.click(within(card).getByRole('button', { name: 'Set the network range' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Set the network range' })
+    const input = await within(dlg).findByLabelText('Network range')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Add range' }))
+    expect(await within(dlg).findByText('Write the range, for example 192.168.1.0/24.')).toBeInTheDocument()
+    await userEvent.type(input, '192.168.77.9/24')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Add range' }))
+    expect(await within(dlg).findByText('Tick to confirm the ranges before adding one.')).toBeInTheDocument()
+    expect(sent).toHaveLength(0)
+    await userEvent.click(within(dlg).getByRole('checkbox', { name: 'I confirm these network ranges belong to my company and I am allowed to scan them.' }))
+    await expectNoA11yViolations()
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Add range' }))
+    expect(await screen.findByText('192.168.77.0/24 added. Vedette is looking for devices in it.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Set the network range' })).toBeNull())
+    expect(sent).toEqual([expect.objectContaining({ range: '192.168.77.9/24', confirm: true, shown_ranges: expect.any(Array) })])
+    server.events.removeAllListeners()
+  })
+
+  it('first run: a public range is refused at the field, nothing added (#825, #860)', async () => {
+    findingsStore.set([])
+    assetsStore.set([])
+    renderApp('/')
+    const card = await screen.findByRole('region', { name: 'Get started' })
+    await userEvent.click(within(card).getByRole('button', { name: 'Set the network range' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Set the network range' })
+    await userEvent.type(await within(dlg).findByLabelText('Network range'), '8.8.8.0/24')
+    await userEvent.click(within(dlg).getByRole('checkbox'))
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Add range' }))
+    expect(await within(dlg).findByLabelText('Network range')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('dialog', { name: 'Set the network range' })).toBeInTheDocument()
+  })
+
   it('first run: a viewer sees the steps but cannot add a device (#825)', async () => {
     findingsStore.set([])
     assetsStore.set([])
     renderApp('/', { role: 'viewer' })
     const card = await screen.findByRole('region', { name: 'Get started' })
     expect(within(card).getByRole('button', { name: 'Add a device' })).toBeDisabled()
-    expect(within(card).queryByRole('link', { name: 'Set the network range' })).toBeNull()
+    expect(within(card).queryByRole('button', { name: 'Set the network range' })).toBeNull()
   })
 
   it('Hide keeps the first-run card away (#825)', async () => {

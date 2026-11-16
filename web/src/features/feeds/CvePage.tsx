@@ -1,7 +1,7 @@
 import { Link, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft } from 'lucide-react'
-import { PageHeader, Section, KeyValue, Panel } from '@/components/common/PageHeader'
+import { Notice, PageHeader, Section, KeyValue, Panel } from '@/components/common/PageHeader'
 import { EmptyState, ModuleOff, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Slot } from '@/components/common/Slot'
@@ -67,7 +67,7 @@ export default function CvePage() {
               </div>
               <aside aria-label={t('cve.matched')}>
                 <Section title={t('cve.matched')} stories={['S-FEED-1', 'S-TIER-4']}>
-                  {v.published && v.published < yearAgo() ? <p className="mb-3 rounded-md border border-rule bg-off-soft px-3 py-2 text-[13px]">{t('cve.oldNote', { date: fmtDay(v.published) })}</p> : null}
+                  {v.published && v.published < yearAgo() ? <Notice tone="off" className="mb-3" title={t('cve.oldNote', { date: fmtDay(v.published) })} info={t('cve.oldNoteInfo')} /> : null}
                   {v.matched === null ? <ModuleOff module="inventory" /> : v.matched.length === 0 && v.not_affected ? (
                     <p className="text-sm text-muted">{t('cve.notAffected', { count: v.not_affected })}</p>
                   ) : v.matched.length === 0 ? (

@@ -25,12 +25,12 @@ async function clean(page: Page) {
   await page.goto('/setup')
   await page.getByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }).click() // D-544: the terms of use come first
   await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByLabel('Setup code').fill('setup-code-demo') // D-75: the code the mock accepts
-  await page.getByLabel('Organization name').fill('Test Company')
-  await page.getByLabel('Administrator name').fill('Test Admin')
-  await page.getByLabel('Sign-in email').fill('admin@test.example')
+  await page.getByLabel('Setup code', { exact: true }).fill('setup-code-demo') // D-75: the code the mock accepts
+  await page.getByLabel('Organization name', { exact: true }).fill('Test Company')
+  await page.getByLabel('Administrator name', { exact: true }).fill('Test Admin')
+  await page.getByLabel('Sign-in email', { exact: true }).fill('admin@test.example')
   await page.getByLabel('Password', { exact: true }).fill('a-long-test-password-123')
-  await page.getByLabel('Repeat password').fill('a-long-test-password-123')
+  await page.getByLabel('Repeat password', { exact: true }).fill('a-long-test-password-123')
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByLabel(/^Range 1/).fill('10.20.0.0/24')
   await page.getByRole('button', { name: 'Continue' }).click()

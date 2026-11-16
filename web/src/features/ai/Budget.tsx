@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Button } from '@/components/ui/button'
 import { fmtDate, fmtNumber } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
@@ -30,17 +31,17 @@ export function AiBudgetPrompt() {
   if (!on || !cfg.data) return null
   const c = cfg.data
   const date = fmtDate(c.renews_on)
-  const lines: { key: string; title: string; body: string; stop: boolean }[] = []
+  const lines: { key: string; title: string; body: string; info: string; stop: boolean }[] = []
   const box = budgetPct(c.month_used, c.monthly_budget)
   if (box >= 80) {
     const v = { used: fmtNumber(c.month_used), budget: fmtNumber(c.monthly_budget), pct: box, date }
-    lines.push({ key: 'box', stop: box >= 100, title: t(box >= 100 ? 'budget.home.boxStopTitle' : 'budget.home.boxWarnTitle', v), body: t(box >= 100 ? 'budget.home.boxStop' : 'budget.home.boxWarn', v) })
+    lines.push({ key: 'box', stop: box >= 100, title: t(box >= 100 ? 'budget.home.boxStopTitle' : 'budget.home.boxWarnTitle', v), body: t(box >= 100 ? 'budget.home.boxStop' : 'budget.home.boxWarn', v), info: t(box >= 100 ? 'budget.home.boxStopInfo' : 'budget.home.boxWarnInfo', v) })
   }
   for (const p of profiles.data?.items ?? []) {
     const pct = budgetPct(p.used_month, p.monthly_budget)
     if (pct < 80) continue
     const v = { name: p.name, used: fmtNumber(p.used_month), budget: fmtNumber(p.monthly_budget), pct, date }
-    lines.push({ key: p.id, stop: pct >= 100, title: t(pct >= 100 ? 'budget.home.profileStopTitle' : 'budget.home.profileWarnTitle', v), body: t(pct >= 100 ? 'budget.home.profileStop' : 'budget.home.profileWarn', v) })
+    lines.push({ key: p.id, stop: pct >= 100, title: t(pct >= 100 ? 'budget.home.profileStopTitle' : 'budget.home.profileWarnTitle', v), body: t(pct >= 100 ? 'budget.home.profileStop' : 'budget.home.profileWarn', v), info: t(pct >= 100 ? 'budget.home.profileStopInfo' : 'budget.home.profileWarnInfo', v) })
   }
   if (lines.length === 0) return null
   const stop = lines.some((l) => l.stop)
@@ -48,7 +49,10 @@ export function AiBudgetPrompt() {
     <div role={stop ? 'alert' : 'status'} className={`mb-6 rounded-md border px-4 py-3 text-sm ${stop ? 'border-danger/50 bg-danger-soft/60' : 'border-warn/50 bg-warn-soft/60'}`}>
       {lines.map((l) => (
         <div key={l.key} className="mb-2 last:mb-0">
-          <p className="font-medium">{l.title}</p>
+          <div className="flex items-center gap-1">
+            <p className="font-medium">{l.title}</p>
+            <InfoTip topic={l.title}>{l.info}</InfoTip>
+          </div>
           <p className="mt-1 max-w-prose">{l.body}</p>
         </div>
       ))}

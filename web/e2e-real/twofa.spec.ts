@@ -11,16 +11,16 @@ import { adminApi, codeAfter, masked, newUser, signIn, step, submitSignIn, totp,
 
 test.use({ actionTimeout: 10_000 })
 
-const code = (page: Page) => page.getByLabel('6-digit code')
+const code = (page: Page) => page.getByLabel('6-digit code', { exact: true })
 const logout = (page: Page) => api(page.request, 'POST', '/auth/logout')
 
 /** My account → Two-step sign-in, started with the current password (D-76), for the authenticator app. Returns the manual key. */
 async function startApp(page: Page, pw: string): Promise<string> {
   await page.goto('/account')
   await expect(page.getByRole('heading', { name: 'Two-step sign-in' })).toBeVisible()
-  await page.getByLabel('Your current password').fill(pw)
+  await page.getByLabel('Your current password', { exact: true }).fill(pw)
   await page.getByRole('button', { name: 'Set up authenticator app' }).click()
-  const key = (await page.getByLabel('Manual key').innerText()).trim()
+  const key = (await page.getByLabel('Manual key', { exact: true }).innerText()).trim()
   expect(key).toMatch(/^[A-Z2-7]{32}$/)
   return key
 }
@@ -29,7 +29,7 @@ async function startApp(page: Page, pw: string): Promise<string> {
 async function startEmail(page: Page, email: string, pw: string): Promise<string> {
   const seen = (await codesFor(email)).length
   await page.goto('/account')
-  await page.getByLabel('Your current password').fill(pw)
+  await page.getByLabel('Your current password', { exact: true }).fill(pw)
   await page.getByRole('button', { name: 'Set up email code' }).click()
   await expect(page.getByText(`We sent a 6-digit code to ${masked(email)}.`)).toBeVisible()
   return nextCode(email, seen)
@@ -46,16 +46,16 @@ test('authenticator app: the password comes first, a wrong code is refused, sign
 
   // D-76: the current password comes first: the button waits for it and a wrong one is refused (and no key is made)
   await expect(page.getByRole('button', { name: 'Set up authenticator app' })).toBeDisabled()
-  await page.getByLabel('Your current password').fill('not-my-password')
+  await page.getByLabel('Your current password', { exact: true }).fill('not-my-password')
   await page.getByRole('button', { name: 'Set up authenticator app' }).click()
   await expect(page.getByText(/Wrong password/)).toBeVisible()
-  await expect(page.getByLabel('Manual key')).toHaveCount(0)
+  await expect(page.getByLabel('Manual key', { exact: true })).toHaveCount(0)
 
-  await page.getByLabel('Your current password').fill(who.pw)
+  await page.getByLabel('Your current password', { exact: true }).fill(who.pw)
   await page.getByRole('button', { name: 'Set up authenticator app' }).click()
   await expect(page.getByRole('img', { name: 'QR code for your authenticator app' })).toBeVisible()
-  const key = (await page.getByLabel('Manual key').innerText()).trim()
-  const uri = new URL((await page.getByLabel('otpauth address').innerText()).trim())
+  const key = (await page.getByLabel('Manual key', { exact: true }).innerText()).trim()
+  const uri = new URL((await page.getByLabel('otpauth address', { exact: true }).innerText()).trim())
   expect(key).toMatch(/^[A-Z2-7]{32}$/)
   expect(uri.protocol + uri.host).toBe('otpauth:totp')
   expect(decodeURIComponent(uri.pathname)).toBe(`/Vedette:${who.email}`)
@@ -112,10 +112,10 @@ test('authenticator app: the password comes first, a wrong code is refused, sign
   // turn off: the password again (D-76)
   await page.goto('/account')
   await page.getByRole('button', { name: 'Turn off two-step sign-in' }).click()
-  await page.getByRole('dialog').getByLabel('Current password').fill('not-my-password')
+  await page.getByRole('dialog').getByLabel('Current password', { exact: true }).fill('not-my-password')
   await page.getByRole('button', { name: 'Turn off', exact: true }).click()
   await expect(page.getByText(/Wrong password/)).toBeVisible()
-  await page.getByRole('dialog').getByLabel('Current password').fill(who.pw)
+  await page.getByRole('dialog').getByLabel('Current password', { exact: true }).fill(who.pw)
   await page.getByRole('button', { name: 'Turn off', exact: true }).click()
   await expect(page.getByText('Two-step sign-in is off.').first()).toBeVisible()
   await expect(page.getByRole('button', { name: 'Set up authenticator app' })).toBeVisible()

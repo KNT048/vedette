@@ -4,6 +4,7 @@ import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Notice, KeyValue, Section } from '@/components/common/PageHeader'
 import { Chip, type Tone } from '@/components/common/StatusChip'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -22,13 +23,17 @@ function Status({ iface }: { iface: string | null }) {
   const q = useSpanStatus()
   const s = q.data
   if (!s) return null
+  const adviceInfo = t(`network.span.verdict.${s.verdict}.adviceInfo`, { iface: iface ?? '', defaultValue: '' })
   return (
     <div className="grid gap-3 rounded-md border border-rule bg-surface px-4 py-3" aria-label={t('network.span.statusTitle')} role="group">
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold">{t('network.span.statusTitle')}</h3>
         <Chip tone={TONE[s.verdict]}>{t(`network.span.verdict.${s.verdict}.title`)}</Chip>
       </div>
-      <p className="max-w-2xl text-sm">{t(`network.span.verdict.${s.verdict}.advice`, { iface: iface ?? '' })}</p>
+      <div className="flex items-center gap-1">
+        <p className="max-w-2xl text-sm">{t(`network.span.verdict.${s.verdict}.advice`, { iface: iface ?? '' })}</p>
+        {adviceInfo ? <InfoTip topic={t(`network.span.verdict.${s.verdict}.title`)}>{adviceInfo}</InfoTip> : null}
+      </div>
       {s.verdict !== 'off' ? (
         <KeyValue items={[
           { label: t('network.span.pps'), value: s.packets_per_s },
@@ -62,13 +67,16 @@ export function SpanCard({ d, readOnly = false }: { d: NetworkState; readOnly?: 
     setV({ ...v, filters: [...v.filters, { type: ftype, value }] }); setFvalue(''); setFerror(null)
   }
   return (
-    <Section id="span" title={t('network.span.title')} description={t('network.span.desc')} stories={['S-CORE-8', 'S-INV-1', 'S-LOG-4']}>
+    <Section id="span" title={t('network.span.title')} description={t('network.span.desc')} info={t('network.span.descInfo')} stories={['S-CORE-8', 'S-INV-1', 'S-LOG-4']}>
       <div className="grid max-w-3xl gap-5">
         <Status iface={d.span.interface} />
         <p className="-mt-3 text-[13px] text-muted">{t('network.span.statusNote')}</p>
         {readOnly ? (
           <div className="grid justify-items-start gap-2 rounded-md border border-rule bg-sunken px-3 py-2">
-            <p role="note" className="text-[13px]">{t('network.span.kept')}</p>
+            <div className="flex items-center gap-1">
+              <p role="note" className="text-[13px]">{t('network.span.kept')}</p>
+              <InfoTip topic={t('network.span.title')}>{t('network.span.keptInfo')}</InfoTip>
+            </div>
             <Button disabled={gate.disabled || span.isPending} title={gate.title} onClick={() => {
               setError(null)
               span.mutate({ ...d.span, enabled: false, interface: null }, { onSuccess: () => toast.success(t('network.span.turnedOff')), onError: (er) => setError(errMsg(er, t)) })
@@ -83,7 +91,7 @@ export function SpanCard({ d, readOnly = false }: { d: NetworkState; readOnly?: 
             <Switch id="span-enabled" checked={v.enabled} disabled={locked} title={gate.title} onCheckedChange={(on) => setV({ ...v, enabled: on })} />
             <Label htmlFor="span-enabled">{t('network.span.enabled')}</Label>
           </div>
-          <Field label={t('network.span.port')} htmlFor="span-iface" hint={t('network.span.portHint')} className="max-w-sm">
+          <Field label={t('network.span.port')} htmlFor="span-iface" hint={t('network.span.portHint')} info={t('network.span.portInfo')} className="max-w-sm">
             <Select id="span-iface" value={v.interface ?? ''} disabled={locked} onChange={(e) => setV({ ...v, interface: e.target.value || null })}>
               <option value="">{t('network.span.choose')}</option>
               {d.interfaces.map((i) => (
@@ -105,7 +113,7 @@ export function SpanCard({ d, readOnly = false }: { d: NetworkState; readOnly?: 
           </fieldset>
 
           <fieldset className="grid gap-3">
-            <legend className="mb-1 text-sm font-medium">{t('network.span.filtersTitle')}</legend>
+            <legend className="mb-1 flex items-center gap-1 text-sm font-medium">{t('network.span.filtersTitle')}<InfoTip topic={t('network.span.filtersTitle')}>{t('network.span.filtersInfo')}</InfoTip></legend>
             <p className="max-w-xl text-[13px] text-muted">{t('network.span.filtersDesc')}</p>
             {v.filters.length ? (
               <ul aria-label={t('network.span.filtersTitle')} className="flex flex-wrap gap-2">

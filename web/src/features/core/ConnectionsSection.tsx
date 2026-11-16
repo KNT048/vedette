@@ -4,6 +4,7 @@ import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Notice, PageHeader, Panel } from '@/components/common/PageHeader'
 import { EmptyState, QueryState } from '@/components/common/States'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -52,14 +53,14 @@ export default function ConnectionsSection() {
   const count = conns.data?.items.length ?? 0
   return (
     <>
-      <PageHeader title={t('connections.title')} meta={t('connections.meta')} stories={['S-AI-7', 'S-RESP-4']} actions={count > 0 ? <Button variant="primary" onClick={() => setEdit('new')}>{t('connections.add')}</Button> : undefined} />
+      <PageHeader title={t('connections.title')} meta={t('connections.meta')} info={t('connections.metaInfo')} stories={['S-AI-7', 'S-RESP-4']} actions={count > 0 ? <Button variant="primary" onClick={() => setEdit('new')}>{t('connections.add')}</Button> : undefined} />
       <Panel className="mb-4 grid gap-1.5 p-4 text-sm">
-        <p><strong>{t('connections.writeNoteLead')}</strong> {t('connections.writeNote')}</p>
-        <p className="text-muted">{t('connections.privacyNote')} <Link className="text-accent underline underline-offset-4" to="/settings/privacy">{t('connections.privacyLink')}</Link></p>
+        <div className="flex items-center gap-1"><p><strong>{t('connections.writeNoteLead')}</strong></p><InfoTip topic={t('connections.writeNoteLead')}>{t('connections.writeNote')}</InfoTip></div>
+        <div className="flex items-center gap-1"><p className="text-muted">{t('connections.privacyNote')} <Link className="text-accent underline underline-offset-4" to="/settings/privacy">{t('connections.privacyLink')}</Link></p><InfoTip topic={t('connections.privacyNote')}>{t('connections.privacyNoteInfo')}</InfoTip></div>
       </Panel>
       <QueryState query={conns}>
         {({ items }) => items.length === 0 ? (
-          <EmptyState title={t('connections.empty')} action={<Button variant="primary" onClick={() => setEdit('new')}>{t('connections.add')}</Button>}>{t('connections.emptyBody')}</EmptyState>
+          <EmptyState title={t('connections.empty')} info={t('connections.emptyInfo')} action={<Button variant="primary" onClick={() => setEdit('new')}>{t('connections.add')}</Button>}>{t('connections.emptyBody')}</EmptyState>
         ) : (
           <ul aria-label={t('connections.title')} className="grid gap-4">
             {items.map((c) => {
@@ -79,7 +80,7 @@ export default function ConnectionsSection() {
                           ...(c.username ? [t('connections.asUser', { user: c.username })] : []),
                           c.last_test ? t('connections.tested', { when: fmtRelative(c.last_test) }) : t('connections.neverTested'),
                         ]} />
-                        {c.pin ? <p className="text-[13px] text-muted"><Trans t={t} i18nKey={PIN_LINE[c.pin.kind]} values={{ value: c.pin.value, when: fmtRelative(c.pin.first_seen) }} components={{ code: <code className="break-all font-mono text-[12px] text-ink" /> }} /></p> : unsupported ? null : <p className="text-[13px] text-muted">{t('connections.firstTestNote')}</p>}
+                        {c.pin ? <p className="text-[13px] text-muted"><Trans t={t} i18nKey={PIN_LINE[c.pin.kind]} values={{ value: c.pin.value, when: fmtRelative(c.pin.first_seen) }} components={{ code: <code className="break-all font-mono text-[12px] text-ink" /> }} /></p> : unsupported ? null : <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{t('connections.firstTestNote')}</p><InfoTip topic={t('connections.f.pin')}>{t('connections.firstTestInfo')}</InfoTip></div>}
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <Switch checked={c.enabled} disabled={unsupported && !c.enabled} aria-label={t('connections.enable', { name: c.name })} onCheckedChange={(enabled) => save.mutate({ id: c.id, ...asInput(c, { enabled }) }, { onError: fail })} />
@@ -126,7 +127,7 @@ export default function ConnectionsSection() {
       {edit ? <ConnDialog conn={edit === 'new' ? null : edit} onClose={() => setEdit(null)} onSaved={() => setResult(null)} /> : null}
       {del ? (
         <Dialog open onOpenChange={(o) => { if (!o) setDel(null) }}>
-          <DialogContent title={t('connections.deleteTitle', { name: del.name })} description={t('connections.deleteBody')}>
+          <DialogContent title={t('connections.deleteTitle', { name: del.name })} description={t('connections.deleteBody')} info={t('connections.deleteInfo')}>
             {remove.error ? <Notice tone="danger" role="alert" className="mb-0" title={errMsg(remove.error, t)} /> : null}
             <DialogFooter>
               <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
@@ -205,17 +206,17 @@ function ConnDialog({ conn, onClose, onSaved }: { conn: Connector | null; onClos
   const desc = (k: FieldKey, hint: string) => (errs[k] ? `${FIELD_IDS[k]}-error` : hint)
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent wide title={title} description={t('connections.dialogBody')}>
+      <DialogContent wide title={title} description={t('connections.dialogBody')} info={t('connections.writeNote')}>
         <form noValidate onSubmit={submit} className="grid gap-4" aria-label={title}>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label={t('connections.f.name')} htmlFor="cn-name" error={errs.name}><Input id="cn-name" value={name} maxLength={40} autoComplete="off" onChange={(e) => { setName(e.target.value); clear('name') }} aria-invalid={bad('name')} aria-describedby={errs.name ? 'cn-name-error' : undefined} /></Field>
             <Field label={t('connections.f.kind')} htmlFor="cn-kind"><Select id="cn-kind" value={kind} onChange={(e) => pickKind(e.target.value as ConnectorKind)}>{KINDS.map((k) => <option key={k} value={k} disabled={k === 'mcp-stdio'}>{k === 'mcp-stdio' ? t('connections.kindOptionNo', { kind: t(`connections.kind.${k}`) }) : t(`connections.kind.${k}`)}</option>)}</Select></Field>
             <Field label={t(`connections.f.target_${kind}`)} htmlFor="cn-target" hint={t(kind === 'automation' ? 'connections.f.targetHint_automation' : kind === 'netconf-restconf' ? 'connections.f.targetHint_restconf' : 'connections.f.targetExample', { example: TARGET_EXAMPLE[kind] })} error={errs.target} className="sm:col-span-2"><Input id="cn-target" value={target} autoComplete="off" spellCheck={false} onChange={(e) => { setTarget(e.target.value); clear('target') }} aria-invalid={bad('target')} aria-describedby={desc('target', 'cn-target-hint')} /></Field>
-            <Field label={t('connections.f.auth')} htmlFor="cn-auth" hint={t('connections.f.authHint')}><Select id="cn-auth" value={auth} aria-describedby="cn-auth-hint" onChange={(e) => { setAuth(e.target.value as (typeof AUTHS)[number]); setSecret(''); clear('secret'); clear('username'); clear('auth_header') }}>{AUTHS.map((a) => { const no = !CONNECTOR_AUTH[kind].includes(a); return <option key={a} value={a} disabled={no}>{no ? t('connections.authOptionNo', { auth: t(`connections.auth.${a}`) }) : t(`connections.auth.${a}`)}</option> })}</Select></Field>
+            <Field label={t('connections.f.auth')} htmlFor="cn-auth" hint={t('connections.f.authHint')} info={t('connections.f.authInfo')}><Select id="cn-auth" value={auth} aria-describedby="cn-auth-hint" onChange={(e) => { setAuth(e.target.value as (typeof AUTHS)[number]); setSecret(''); clear('secret'); clear('username'); clear('auth_header') }}>{AUTHS.map((a) => { const no = !CONNECTOR_AUTH[kind].includes(a); return <option key={a} value={a} disabled={no}>{no ? t('connections.authOptionNo', { auth: t(`connections.auth.${a}`) }) : t(`connections.auth.${a}`)}</option> })}</Select></Field>
             {needsUser ? <Field label={t('connections.f.username')} htmlFor="cn-username" hint={t(kind === 'ssh' ? 'connections.f.usernameHintSsh' : 'connections.f.usernameHintBasic')} error={errs.username}><Input id="cn-username" value={username} maxLength={64} autoComplete="off" spellCheck={false} onChange={(e) => { setUsername(e.target.value); clear('username') }} aria-invalid={bad('username')} aria-describedby={desc('username', 'cn-username-hint')} /></Field> : null}
             {auth === 'token' ? <Field label={t('connections.f.authHeader')} htmlFor="cn-auth-header" hint={t('connections.f.authHeaderHint')} error={errs.auth_header}><Input id="cn-auth-header" value={authHeader} maxLength={64} autoComplete="off" spellCheck={false} placeholder="X-API-Key" onChange={(e) => { setAuthHeader(e.target.value); clear('auth_header') }} aria-invalid={bad('auth_header')} aria-describedby={desc('auth_header', 'cn-auth-header-hint')} /></Field> : null}
             {auth !== 'none' ? (
-              <Field label={t(isKey ? 'connections.f.privateKey' : 'connections.f.secret')} htmlFor="cn-secret" error={errs.secret} className={isKey ? 'sm:col-span-2' : undefined}
+              <Field label={t(isKey ? 'connections.f.privateKey' : 'connections.f.secret')} htmlFor="cn-secret" error={errs.secret} info={keep ? undefined : t(isKey ? 'connections.f.keyInfo' : 'connections.f.secretInfo')} className={isKey ? 'sm:col-span-2' : undefined}
                 hint={keep ? (isKey ? t('connections.f.keySaved', { fingerprint: conn!.auth.key_fingerprint ?? '' }) : t('connections.f.secretSaved', { last4: conn!.auth.last4 })) : t(isKey ? 'connections.f.keyHint' : 'connections.f.secretHint')}>
                 {isKey
                   // A key has line breaks that a one-line field would strip, and Go would then find no PEM block.
@@ -233,12 +234,11 @@ function ConnDialog({ conn, onClose, onSaved }: { conn: Connector | null; onClos
                 {pin.kind === 'tls_roots' ? null : <code className="break-all font-mono text-[12px]">{pin.value}</code>}
                 <span className="text-[13px] text-muted">{t('connections.f.pinSeen', { when: fmtRelative(pin.first_seen) })}</span>
               </div>
-              <div className="flex items-center gap-3"><Switch id="cn-forget" checked={forget} onCheckedChange={setForget} aria-describedby="cn-forget-hint" /><Label htmlFor="cn-forget" className="font-normal">{t('connections.f.forget')}</Label></div>
+              <div className="flex items-center gap-3"><Switch id="cn-forget" checked={forget} onCheckedChange={setForget} aria-describedby="cn-forget-hint" /><div className="flex items-center gap-1"><Label htmlFor="cn-forget" className="font-normal">{t('connections.f.forget')}</Label><InfoTip topic={t('connections.f.forget')}>{t('connections.f.forgetInfo')}</InfoTip></div></div>
               <p id="cn-forget-hint" className="text-[13px] text-muted">{t('connections.f.forgetHint')}</p>
             </div>
-          ) : conn ? <p className="text-[13px] text-muted">{t('connections.f.pinNone')}</p> : null}
+          ) : conn ? <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{t('connections.f.pinNone')}</p><InfoTip topic={t('connections.f.pin')}>{t('connections.f.pinNoneInfo')}</InfoTip></div> : null}
           <div className="flex items-center gap-3"><Switch id="cn-enabled" checked={enabled} onCheckedChange={setEnabled} /><Label htmlFor="cn-enabled" className="font-normal">{t('connections.enabled')}</Label></div>
-          <p className="text-[13px] text-muted">{t('connections.writeNote')}</p>
           {save.error && !placed ? <Notice tone="danger" role="alert" className="mb-0" title={errMsg(save.error, t)} /> : null}
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>

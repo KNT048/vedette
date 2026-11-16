@@ -149,8 +149,8 @@ test('the page starts empty: the three steps, switches locked, and each wrong ad
   await expect(page.getByRole('button', { name: `Test trap ${SVC.smb}` })).toBeDisabled()
   await shot(page, 'real', 'honeypot-clean')
 
-  const ip = page.getByLabel('Trap secondary IP')
-  const host = page.getByLabel('Fake hostname')
+  const ip = page.getByLabel('Trap secondary IP', { exact: true })
+  const host = page.getByLabel('Fake hostname', { exact: true })
   const save = page.getByRole('button', { name: 'Save', exact: true })
   await ip.fill('abc'); await host.fill(DECOY_NAME); await save.click()
   await expect(page.getByText(/is not valid/)).toBeVisible()
@@ -185,7 +185,7 @@ test('the page starts empty: the three steps, switches locked, and each wrong ad
 // Issue #270 (fixed, 59da3e7): usable() computed the last address of 192.168.1.0/24 as 192.168.0.255, so the broadcast address was accepted.
 test('the broadcast address is refused as the secondary IP, in the page and by the API (INV-5, FORBID-1)', async ({ page }) => {
   await page.goto('/honeypot')
-  await page.getByLabel('Trap secondary IP').fill('192.168.1.255')
+  await page.getByLabel('Trap secondary IP', { exact: true }).fill('192.168.1.255')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByText(/not the network or broadcast address/)).toBeVisible()
   const admin = await as('admin')
@@ -258,7 +258,7 @@ test('the decoy IP and its MAC are on the host, the written files match what the
   }, 'SMB is Listening once the host restarted the container with the new file').toPass({ timeout: 60_000 })
   // a new configuration file makes a running container restart (D-161): the host was asked once more
   await expect.poll(async () => (await hostHoneypot()).restarts, { message: 'switching SMB on restarted the container' }).toBeGreaterThan(restartsBefore)
-  await expect(page.getByLabel('Trap secondary IP')).toHaveValue(DECOY_IP)
+  await expect(page.getByLabel('Trap secondary IP', { exact: true })).toHaveValue(DECOY_IP)
 
   // D-102: one decoy IP, one MAC of its own: locally administered, unicast
   const hs = await hostHoneypot()
@@ -292,15 +292,15 @@ test('plant a file token and a credential token, and test them (S-HP-2)', async 
   const server = watch5xx(page)
   await page.goto('/honeypot')
   const fileName = uniq('Payroll')
-  await page.getByLabel('Token type').selectOption({ label: 'Decoy file' })
+  await page.getByLabel('Token type', { exact: true }).selectOption({ label: 'Decoy file' })
   await page.getByLabel('File name', { exact: true }).fill(fileName)
-  await page.getByLabel('Where will you plant it?').fill('\\\\SRV-FILE\\HR')
+  await page.getByLabel('Where will you plant it?', { exact: true }).fill('\\\\SRV-FILE\\HR')
   await page.getByRole('button', { name: 'Create token' }).click()
   await toast(page, /Token created/)
   const credName = uniq('svc-old')
-  await page.getByLabel('Token type').selectOption({ label: 'Fake credentials' })
+  await page.getByLabel('Token type', { exact: true }).selectOption({ label: 'Fake credentials' })
   await page.getByLabel('User name', { exact: true }).fill(credName)
-  await page.getByLabel('Where will you plant it?').fill('The IT password manager')
+  await page.getByLabel('Where will you plant it?', { exact: true }).fill('The IT password manager')
   await page.getByRole('button', { name: 'Create token' }).click()
   await expect(page.getByRole('list', { name: 'Honey tokens' }).getByRole('listitem').filter({ hasText: credName })).toHaveCount(1)
 
@@ -523,8 +523,8 @@ test('switching traps off: the host is told, the container stops with the last t
   await expect(h1(page)).toHaveText(/No traps are on/)
   await expect(page.getByText('Listening')).toHaveCount(0)
   // data is kept: the address and the name, the hits, the tokens (and the token file list), the hit detail
-  await expect(page.getByLabel('Trap secondary IP')).toHaveValue(DECOY_IP)
-  await expect(page.getByLabel('Fake hostname')).toHaveValue(DECOY_NAME)
+  await expect(page.getByLabel('Trap secondary IP', { exact: true })).toHaveValue(DECOY_IP)
+  await expect(page.getByLabel('Fake hostname', { exact: true })).toHaveValue(DECOY_NAME)
   await expect(page.getByRole('table', { name: 'Trap hits' }).getByRole('row').filter({ hasText: src.ip }).first()).toBeVisible()
   await expect(page.getByRole('list', { name: 'Honey tokens' }).getByRole('listitem')).toHaveCount(2)
   expect(JSON.parse(readFileSync(join(confDir(), 'honeytokens.json'), 'utf8'))).toEqual({ files: [tokens.file!.value] })

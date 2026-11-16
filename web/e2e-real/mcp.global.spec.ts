@@ -90,7 +90,7 @@ test('create a token: the form refuses an empty name and no scope; the token is 
   const create = page.getByRole('button', { name: 'Create token' })
   await create.click()
   await expect(page.getByText('Name the token so you know which one to revoke later.')).toBeVisible()
-  await page.getByLabel('Token name').fill(NAME)
+  await page.getByLabel('Token name', { exact: true }).fill(NAME)
   for (const s of ['Devices', 'Findings', 'Vulnerability feeds']) await page.getByLabel(s, { exact: true }).uncheck()
   await create.click()
   await expect(page.getByText('Pick at least one scope.')).toBeVisible()

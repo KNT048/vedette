@@ -23,9 +23,9 @@ export default function LogsPanel() {
   if (gate.state === 'off') return <Section title={t('logs.title')}><ModuleOff module="ai" /></Section>
   const d = refresh.data?.digest ?? digest.data?.digest ?? undefined // null = nothing generated yet (INV-6)
   return (
-    <Section title={t('logs.title')} description={t('logs.description')} stories={['S-AI-4']}
+    <Section title={t('logs.title')} description={t('logs.description')} info={t('logs.descriptionInfo')} stories={['S-AI-4']}
       actions={<Button onClick={() => refresh.mutate()} disabled={!gate.canRun || refresh.isPending || d?.empty === true} title={gate.reason ?? (d?.empty ? d.summary : undefined)}>{refresh.isPending ? t('logs.working') : t('logs.refresh')}</Button>}>
-      {gate.state === 'unconfigured' || gate.state === 'unassigned' ? <EmptyState title={t(`gate.${gate.state}`)}>{t(`gate.${gate.state}Body`)} <ToSettings /></EmptyState> : null}
+      {gate.state === 'unconfigured' || gate.state === 'unassigned' ? <EmptyState title={t(`gate.${gate.state}`)} info={t(`gate.${gate.state}Info`)}>{t(`gate.${gate.state}Body`)} <ToSettings /></EmptyState> : null}
       <ActionError error={refresh.error} />
       {gate.state === 'ready' && digest.isPending ? <Loading /> : null}
       {gate.state === 'ready' && digest.error && !d ? <ErrorState error={digest.error} onRetry={() => void digest.refetch()} /> : null}

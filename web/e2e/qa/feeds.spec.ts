@@ -137,8 +137,8 @@ test.describe('feeds: home, lookup, CVE (S-FEED-1, 2, 3)', () => {
 test('real box: signing in through the sign-in form lands on Home with the feeds data', async ({ page }) => {
   test.skip(!REAL, 'the mock has no real sign-in')
   await page.goto('/login')
-  await page.getByLabel('Email').fill(EMAIL.viewer)
-  await page.getByLabel('Password').fill(process.env.FEEDS_QA_PASSWORD!)
+  await page.getByLabel('Email', { exact: true }).fill(EMAIL.viewer)
+  await page.getByLabel('Password', { exact: true }).fill(process.env.FEEDS_QA_PASSWORD!)
   for (let i = 0; i < 5 && !(await h1(page).filter({ hasText: /^Today/ }).isVisible()); i++) { // the box checks one password at a time
     await page.getByRole('button', { name: 'Sign in' }).click()
     await page.waitForTimeout(1500)
@@ -170,26 +170,26 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     await page.getByRole('button', { name: 'Settings for IPsum' }).click()
     const dlg = page.getByRole('dialog', { name: 'IPsum settings' })
     const defaultUrl = (await dlg.locator('#bf-url').inputValue())
-    await dlg.getByLabel('Fetch schedule').selectOption('12')
-    await dlg.getByLabel('Address').fill('ftp://mirror.example.net/ipsum.txt')
+    await dlg.getByLabel('Fetch schedule', { exact: true }).selectOption('12')
+    await dlg.getByLabel('Address', { exact: true }).fill('ftp://mirror.example.net/ipsum.txt')
     await dlg.getByRole('button', { name: 'Save' }).click()
     await expect(dlg.getByRole('alert').or(dlg.locator('#bf-url-error'))).toBeVisible()
-    await dlg.getByLabel('Address').fill('http://mirror.example.net/ipsum.txt')
+    await dlg.getByLabel('Address', { exact: true }).fill('http://mirror.example.net/ipsum.txt')
     await dlg.getByRole('button', { name: 'Save' }).click()
     await expect(dlg.locator('#bf-url-error')).toContainText(/https/)
-    await dlg.getByLabel('Address').fill('http://10.1.2.3/ipsum.txt')
+    await dlg.getByLabel('Address', { exact: true }).fill('http://10.1.2.3/ipsum.txt')
     await dlg.getByRole('button', { name: 'Save' }).click()
     await toast(page, /IPsum saved/)
     await expect(feedRow(page, 'IPsum')).toContainText('Every 12 hours')
     await page.reload()
     await expect(feedRow(page, 'IPsum')).toContainText('Every 12 hours')
     await page.getByRole('button', { name: 'Settings for IPsum' }).click()
-    await expect(page.getByRole('dialog', { name: 'IPsum settings' }).getByLabel('Address')).toHaveValue('http://10.1.2.3/ipsum.txt')
+    await expect(page.getByRole('dialog', { name: 'IPsum settings' }).getByLabel('Address', { exact: true })).toHaveValue('http://10.1.2.3/ipsum.txt')
     await page.getByRole('dialog', { name: 'IPsum settings' }).getByRole('button', { name: 'Reset to default' }).click()
     await page.getByRole('dialog', { name: 'IPsum settings' }).getByRole('button', { name: 'Save' }).click()
     await toast(page, /IPsum saved/)
     await page.getByRole('button', { name: 'Settings for IPsum' }).click()
-    await expect(page.getByRole('dialog', { name: 'IPsum settings' }).getByLabel('Address')).toHaveValue(/^https:\/\//)
+    await expect(page.getByRole('dialog', { name: 'IPsum settings' }).getByLabel('Address', { exact: true })).toHaveValue(/^https:\/\//)
     await page.getByRole('dialog', { name: 'IPsum settings' }).getByRole('button', { name: 'Cancel' }).click()
     expect(defaultUrl.length).toBeGreaterThan(0)
 
@@ -247,9 +247,9 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
   ]
   const AUTHS = [
     { option: 'None', fill: async () => {}, last4: null },
-    { option: 'Custom header', fill: async (d: ReturnType<Page['getByRole']>) => { await d.getByLabel('Header name').fill('X-Feed-Key'); await d.getByLabel('Secret').fill('hdr-secret-4321') }, last4: '4321' },
-    { option: 'Bearer token', fill: async (d: ReturnType<Page['getByRole']>) => { await d.getByLabel('Secret').fill('bearer-token-8765') }, last4: '8765' },
-    { option: 'Basic (user and password)', fill: async (d: ReturnType<Page['getByRole']>) => { await d.getByLabel('User name').fill('svc-feed'); await d.getByLabel('Password').fill('basic-pass-2468') }, last4: '2468' },
+    { option: 'Custom header', fill: async (d: ReturnType<Page['getByRole']>) => { await d.getByLabel('Header name', { exact: true }).fill('X-Feed-Key'); await d.getByLabel('Secret', { exact: true }).fill('hdr-secret-4321') }, last4: '4321' },
+    { option: 'Bearer token', fill: async (d: ReturnType<Page['getByRole']>) => { await d.getByLabel('Secret', { exact: true }).fill('bearer-token-8765') }, last4: '8765' },
+    { option: 'Basic (user and password)', fill: async (d: ReturnType<Page['getByRole']>) => { await d.getByLabel('User name', { exact: true }).fill('svc-feed'); await d.getByLabel('Password', { exact: true }).fill('basic-pass-2468') }, last4: '2468' },
   ]
   const cases = [
     ...MATRIX.map((m) => ({ ...m, auth: AUTHS[0]! })),
@@ -266,8 +266,8 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
       await dlg.locator('#cf-name').fill(name)
       await dlg.getByRole('button', { name: c.kind, exact: true }).click()
       await dlg.locator('#pe-format').selectOption({ label: c.format })
-      await dlg.getByLabel('Address').fill(`http://feeds.lan/${i}.${c.shape === 'JSON' ? 'json' : c.shape === 'CSV' ? 'csv' : 'xml'}`)
-      await dlg.getByLabel('Authentication').selectOption({ label: c.auth.option })
+      await dlg.getByLabel('Address', { exact: true }).fill(`http://feeds.lan/${i}.${c.shape === 'JSON' ? 'json' : c.shape === 'CSV' ? 'csv' : 'xml'}`)
+      await dlg.getByLabel('Authentication', { exact: true }).selectOption({ label: c.auth.option })
       await c.auth.fill(dlg as never)
       await dlg.getByRole('button', { name: 'Test on a sample' }).click()
       await expect(dlg.getByRole('status').filter({ hasText: /rows? accepted/ })).toBeVisible()
@@ -284,13 +284,13 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
       const edit = page.getByRole('dialog', { name: `Edit ${name}` })
       await expect(edit.locator('#cf-name')).toHaveValue(name)
       await expect(edit.locator('#pe-format')).toHaveValue(c.format === 'JSON' ? 'json' : c.format === 'CSV' ? 'csv' : c.format.startsWith('RSS') ? 'rss' : c.format.startsWith('STIX') ? 'stix' : 'lines')
-      await expect(edit.getByLabel('Authentication')).toHaveText(new RegExp(c.auth.option.slice(0, 4)))
-      if (c.auth.option === 'Custom header') await expect(edit.getByLabel('Header name')).toHaveValue('X-Feed-Key')
-      if (c.auth.option.startsWith('Basic')) await expect(edit.getByLabel('User name')).toHaveValue('svc-feed')
+      await expect(edit.getByLabel('Authentication', { exact: true })).toHaveText(new RegExp(c.auth.option.slice(0, 4)))
+      if (c.auth.option === 'Custom header') await expect(edit.getByLabel('Header name', { exact: true })).toHaveValue('X-Feed-Key')
+      if (c.auth.option.startsWith('Basic')) await expect(edit.getByLabel('User name', { exact: true })).toHaveValue('svc-feed')
       if (c.auth.last4) await expect(edit.getByText(`A secret ending in ${c.auth.last4} is saved`)).toBeVisible()
       else await expect(edit.getByText(/A secret ending in/)).toHaveCount(0)
       // edit: change the schedule, keep the secret by leaving it empty
-      await edit.getByLabel('Fetch schedule').selectOption('72')
+      await edit.getByLabel('Fetch schedule', { exact: true }).selectOption('72')
       await edit.getByRole('button', { name: 'Save' }).click()
       await toast(page, new RegExp(`${name} saved`))
       await expect(feedRow(page, name)).toContainText('Every 3 days')
@@ -318,7 +318,7 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     // a name that already exists (built-in names count, upper or lower case)
     let dlg = await open()
     await dlg.locator('#cf-name').fill('cisa kev')
-    await dlg.getByLabel('Address').fill('https://feeds.partner.example/ioc.json')
+    await dlg.getByLabel('Address', { exact: true }).fill('https://feeds.partner.example/ioc.json')
     await dlg.getByRole('button', { name: 'Add feed' }).click()
     await expect(dlg.getByText('A feed with this name already exists.')).toBeVisible()
     await expect(dlg.locator('#cf-name')).toHaveAttribute('aria-invalid', 'true')
@@ -341,7 +341,7 @@ test.describe('feeds: Settings -> Feeds (S-FEED-4, S-FEED-5)', () => {
     await page.getByRole('button', { name: 'Add a feed' }).first().click()
     const dlg = page.getByRole('dialog', { name: 'Add a feed' })
     await dlg.locator('#cf-name').fill('Unreachable partner')
-    await dlg.getByLabel('Address').fill('http://unreachable.lan:1/list.txt') // a loopback address is refused at save (D-420)
+    await dlg.getByLabel('Address', { exact: true }).fill('http://unreachable.lan:1/list.txt') // a loopback address is refused at save (D-420)
     await dlg.locator('#pe-format').selectOption('lines')
     await dlg.getByRole('button', { name: 'Add feed' }).click()
     await toast(page, /Unreachable partner added/)

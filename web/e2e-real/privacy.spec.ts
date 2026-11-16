@@ -31,7 +31,7 @@ test('the page lists the fourteen flows with the state the API reports, and no c
   }
   await expect(page.getByText(/Anonymous signal: not sent\./)).toBeVisible()
   await expect(page.getByRole('switch', { name: 'Send anonymous signal' })).toHaveCount(0)
-  await expect(page.getByLabel('JSON, exactly what would be sent')).toHaveCount(0)
+  await expect(page.getByLabel('JSON, exactly what would be sent', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('switch'), 'the update check is the only switch on the page').toHaveCount(1)
   await shot(page, 'real', 'privacy')
   await noVietnamese(page, 'privacy')

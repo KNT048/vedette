@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, Input, Label, Select, Textarea } from '@/components/ui/input'
 import { CodeBlock } from '@/components/common/CodeBlock'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Chip } from '@/components/common/StatusChip'
 import { DataTable } from '@/components/common/DataTable'
 import { ApiError } from '@/lib/api'
@@ -36,15 +37,18 @@ export function ParserEditor({ kind, parser, onChange, onFormat }: { kind: FeedK
   return (
     <div className="grid gap-4 rounded-md border border-rule p-4" role="group" aria-label={t('parser.title')}>
       <div className="grid gap-1">
-        <h3 className="text-sm font-semibold">{t('parser.title')}</h3>
+        <div className="flex items-center gap-1">
+          <h3 className="text-sm font-semibold">{t('parser.title')}</h3>
+          <InfoTip topic={t('parser.title')}>{t('parser.introInfo')}</InfoTip>
+        </div>
         <p className="text-[13px] text-muted">{t('parser.intro')}</p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t('parser.format')} htmlFor="pe-format">
+        <Field label={t('parser.format')} htmlFor="pe-format" info={t(`parser.noteInfo.${fmt}`, { defaultValue: '' }) || undefined}>
           <Select id="pe-format" value={fmt} onChange={(e) => onFormat(e.target.value as FeedFormat)}>{FORMATS[kind].map((f) => <option key={f} value={f}>{t(`parser.formats.${f}`)}</option>)}</Select>
         </Field>
         {fmt === 'json' ? (
-          <Field label={t('parser.recordsPath')} htmlFor="pe-records" hint={t(`parser.recordsHint.${kind}`)}>
+          <Field label={t('parser.recordsPath')} htmlFor="pe-records" hint={t(`parser.recordsHint.${kind}`)} info={t('parser.recordsInfo')}>
             <Input id="pe-records" value={parser.records_path} onChange={(e) => set({ records_path: e.target.value })} autoComplete="off" spellCheck={false} className="font-mono text-[13px]" />
           </Field>
         ) : null}

@@ -65,7 +65,7 @@ export function EmailSignin({ prov, fields, saved, error, onSignedIn, onFieldErr
     <div className="grid gap-3 rounded-md border border-rule p-3">
       <span className="text-sm font-medium">{t('signin.title', { who })}</span>
       {google ? (
-        <Field label={t('signin.clientSecret')} hint={t('signin.clientSecretHint')} htmlFor="ch-email-client_secret">
+        <Field label={t('signin.clientSecret')} hint={t('signin.clientSecretHint')} info={t('signin.clientSecretInfo')} htmlFor="ch-email-client_secret">
           <Input id="ch-email-client_secret" type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} autoComplete="new-password" />
         </Field>
       ) : null}

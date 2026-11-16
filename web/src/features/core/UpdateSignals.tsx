@@ -48,11 +48,11 @@ export function UpdateNotices({ s, bundle = BUNDLE_IN_UI }: { s: UpdatesState; b
   return (
     <>
       {quiet ? (
-        <Notice tone="warn" role="status" className="mb-6" title={t('updates.revoked.quietTitle', { version: quiet.version })}>{t('updates.revoked.quietBody', { reason: reasonOf(quiet.reason) })}</Notice>
+        <Notice tone="warn" role="status" className="mb-6" title={t('updates.revoked.quietTitle', { version: quiet.version })} info={t('updates.revoked.quietInfo')}>{t('updates.revoked.quietBody', { reason: reasonOf(quiet.reason) })}</Notice>
       ) : null}
       {s.stale_since ? (
-        <Notice tone="warn" role="status" className="mb-6" title={t('updates.stale.title')}>
-          {t('updates.stale.body', { date: fmtDate(s.stale_since) })} {s.check_enabled ? t('updates.stale.checkOn') : bundle ? t('updates.stale.checkOff') : t('updates.stale.checkOffNoBundle')}
+        <Notice tone="warn" role="status" className="mb-6" title={t('updates.stale.title')} info={s.check_enabled ? t('updates.stale.checkOnInfo') : undefined}>
+          {t('updates.stale.body', { date: fmtDate(s.stale_since) })}{s.check_enabled ? '' : ` ${bundle ? t('updates.stale.checkOff') : t('updates.stale.checkOffNoBundle')}`}
         </Notice>
       ) : null}
     </>

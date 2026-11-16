@@ -19,10 +19,9 @@ export function AlertChannelPrompt() {
   const ch = useChannels({ retry: false, enabled: ask })
   if (!ask || !ch.data || ch.data.channels.some((c) => c.configured && c.enabled)) return null
   return (
-    <Notice tone="warn" role="status" className="mb-6" title={t('alertChannelPrompt.title')}
+    <Notice tone="warn" role="status" className="mb-6" title={t('alertChannelPrompt.title')} info={<><p>{t('alertChannelPrompt.bodyInfo')}</p><p>{t('alertChannelPrompt.noAlerts')}</p></>}
       actions={<Button asChild size="sm" variant="primary"><Link to="/settings/channels">{t('alertChannelPrompt.go')}</Link></Button>}>
       <p>{t('alertChannelPrompt.body')}</p>
-      <p className="mt-1 text-[13px]">{t('alertChannelPrompt.noAlerts')}</p>
     </Notice>
   )
 }

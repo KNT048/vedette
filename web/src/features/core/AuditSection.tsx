@@ -51,7 +51,7 @@ export default function AuditSection() {
 
   return (
     <>
-      <PageHeader title={q.data ? t('audit.title', { count: q.data.total }) : t('settings.audit')} meta={t('audit.meta')} stories={['S-CORE-3']} actions={<Button onClick={() => void exportCsv()}><Download />{t('audit.export')}</Button>} />
+      <PageHeader title={q.data ? t('audit.title', { count: q.data.total }) : t('settings.audit')} meta={t('audit.meta')} info={t('audit.metaInfo')} stories={['S-CORE-3']} actions={<Button onClick={() => void exportCsv()}><Download />{t('audit.export')}</Button>} />
       <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Field label={t('audit.filter.text')} htmlFor="au-q"><Input id="au-q" value={f.q} onChange={(e) => set({ q: e.target.value })} /></Field>
         <Field label={t('audit.filter.user')} htmlFor="au-user">

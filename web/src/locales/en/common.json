@@ -93,7 +93,8 @@
     "body": "Existing data is kept. Turn the module on to get new data here.",
     "enable": "Open module settings",
     "notHereTitle": "{{name}} is not on this install",
-    "notHereBody": "It needs the appliance install: this container-only install has no vedette-host to run it. Existing data is kept."
+    "notHereBody": "It needs the appliance install. Existing data is kept.",
+    "notHereInfo": "This container-only install has no vedette-host to run it, so the module cannot be turned on here."
   },
   "modules": {
     "core": {
@@ -123,11 +124,13 @@
     },
     "findings": {
       "name": "Findings",
-      "summary": "Matches your devices against exploited vulnerabilities and tracks each one until it is fixed."
+      "summary": "Matches your devices against exploited vulnerabilities.",
+      "summaryInfo": "Tracks each one until it is fixed."
     },
     "mitigation": {
       "name": "Mitigation",
-      "summary": "Patch steps, temporary fixes and config snippets that confirmed recommendations add to a finding."
+      "summary": "Patch steps, temporary fixes and config snippets for a finding.",
+      "summaryInfo": "Confirmed recommendations add them to the finding."
     },
     "exposure": {
       "name": "External exposure",
@@ -171,7 +174,8 @@
     },
     "response": {
       "name": "AI response",
-      "summary": "AI proposes what to do about critical findings. Letting it carry out approved actions is a separate high-risk switch, off by default."
+      "summary": "AI proposes what to do about critical findings.",
+      "summaryInfo": "Letting it carry out approved actions is a separate high-risk switch, off by default."
     }
   },
   "layout": {

@@ -17,14 +17,13 @@ export function TierCvePage({ v }: { v: TierCve }) {
   const { t } = useTranslation('feeds')
   return (
     <>
-      <PageHeader title={v.cve} stories={['S-TIER-1']}
+      <PageHeader title={v.cve} stories={['S-TIER-1']} info={t(v.tier ? 'tierCve.intro' : 'tierCve.introOld')}
         meta={<span className="flex flex-wrap items-center gap-2">
           {v.tier ? <Chip tone={v.tier === 'likely' ? 'warn' : 'off'}>{t(`tierCve.tier.${v.tier}`)}</Chip> : <Chip tone="off">{t('tierCve.tier.old')}</Chip>}
           <Chip tone="off">{t('tierCve.notExploited')}</Chip>
         </span>} />
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div>
-          <p className="mb-5 max-w-3xl text-sm text-muted">{t(v.tier ? 'tierCve.intro' : 'tierCve.introOld')}</p>
           <Section title={t('cve.facts')}>
             <Panel className="p-4">
               <KeyValue items={[

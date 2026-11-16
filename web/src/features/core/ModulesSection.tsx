@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Notice, PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
+import { InfoTip } from '@/components/common/InfoTip'
 import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -20,11 +21,11 @@ type Confirm = { kind: 'disable'; mod: ModuleId; affected: ModuleId[] } | { kind
 function EmailCodeWarning() {
   const { t } = useTranslation('core')
   const count = (useUsers().data?.items ?? []).filter((u) => !u.disabled && u.twofa_method === 'email').length
-  return count > 0 ? <Notice tone="danger" role="alert" className="mb-0" title={t('modules.disable.emailCodes', { count })} /> : null
+  return count > 0 ? <Notice tone="danger" role="alert" className="mb-0" title={t('modules.disable.emailCodes', { count })} info={t('modules.disable.emailCodesInfo')} /> : null
 }
 
 export default function ModulesSection() {
-  const { t } = useTranslation('core')
+  const { t, i18n } = useTranslation('core')
   const gate = useGate('admin')
   const q = useModules()
   const install = q.data?.install
@@ -50,14 +51,14 @@ export default function ModulesSection() {
 
   return (
     <>
-      <PageHeader title={listed ? t('modules.title', { on: listed.filter((m) => m.enabled).length, total: listed.length }) : t('settings.modules')} meta={t('modules.meta')} stories={['S-CORE-1']} />
+      <PageHeader title={listed ? t('modules.title', { on: listed.filter((m) => m.enabled).length, total: listed.length }) : t('settings.modules')} meta={t('modules.meta')} info={t('modules.metaInfo')} stories={['S-CORE-1']} />
       <ReadOnlyNote role="admin" />
       <QueryState query={q}>
         {(d) => {
           const modules = d.modules.filter((m) => CREDENTIALED_IN_UI || m.id !== 'scan-credentialed')
           const columns: ColumnDef<ModuleState>[] = [
             { id: 'name', header: t('modules.col.module'), accessorFn: (m) => name(m.id), cell: ({ row }) => (
-              <div className="grid max-w-md"><span className="font-medium">{name(row.original.id)}</span><span className="text-[13px] text-muted">{t(`modules.${row.original.id}.${row.original.id === 'sensor-active' && install === 'container' ? 'summaryContainer' : 'summary'}`, { ns: 'common' })}</span>{row.original.available ? null : <span className="text-[13px] text-warn">{t('modules.notHereWhy')}</span>}</div>
+              <div className="grid max-w-md"><div className="flex items-center gap-1 font-medium">{name(row.original.id)}{i18n.exists(`modules.${row.original.id}.summaryInfo`, { ns: 'common' }) ? <InfoTip topic={name(row.original.id)}>{t(`modules.${row.original.id}.summaryInfo`, { ns: 'common' })}</InfoTip> : null}</div><span className="text-[13px] text-muted">{t(`modules.${row.original.id}.${row.original.id === 'sensor-active' && install === 'container' ? 'summaryContainer' : 'summary'}`, { ns: 'common' })}</span>{row.original.available ? null : <span className="text-[13px] text-warn">{t('modules.notHereWhy')}</span>}</div>
             ) },
             { id: 'depends', header: t('modules.col.needs'), enableSorting: false, accessorFn: (m) => m.depends.join(','), cell: ({ row }) => (row.original.depends.length ? <span className="text-[13px]">{row.original.depends.map(name).join(', ')}</span> : <span className="text-muted">–</span>) },
             { id: 'state', header: t('modules.col.state'), accessorFn: (m) => Number(m.enabled), cell: ({ row }) => {
@@ -88,7 +89,7 @@ export default function ModulesSection() {
       </Dialog>
 
       <Dialog open={confirm?.kind === 'disable'} onOpenChange={(o) => !o && setConfirm(null)}>
-        <DialogContent title={confirm?.kind === 'disable' ? t('modules.disable.title', { name: name(confirm.mod) }) : ''} description={t('modules.disable.keep')}>
+        <DialogContent title={confirm?.kind === 'disable' ? t('modules.disable.title', { name: name(confirm.mod) }) : ''} description={t('modules.disable.keep')} info={t('modules.disable.reenable')}>
           {confirm?.kind === 'disable' ? (
             confirm.affected.length ? (
               <div className="grid gap-2 text-sm">
@@ -98,7 +99,6 @@ export default function ModulesSection() {
             ) : <p className="text-sm text-muted">{t('modules.disable.none')}</p>
           ) : null}
           {confirm?.kind === 'disable' && confirm.mod === 'notify' ? <EmailCodeWarning /> : null}
-          <p className="text-[13px] text-muted">{t('modules.disable.reenable')}</p>
           <DialogFooter>
             <Button onClick={() => setConfirm(null)}>{t('common:cancel')}</Button>
             <Button variant="danger" disabled={toggle.isPending} onClick={() => confirm?.kind === 'disable' && void run(confirm.mod, false)}>{t('modules.disable.confirm')}</Button>

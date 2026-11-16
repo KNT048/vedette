@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, Input, Label } from '@/components/ui/input'
@@ -49,7 +50,10 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
   if (install === 'container') {
     return (
       <div className="mt-6 grid gap-4">
-        <p className="text-sm">{t('setup.restore.container')}</p>
+        <div className="flex items-center gap-1">
+          <p className="text-sm">{t('setup.restore.container')}</p>
+          <InfoTip topic={t('setup.restore.title')}>{t('setup.restore.containerInfo')}</InfoTip>
+        </div>
         <ContainerBackup />
         <div><Button onClick={onBack}>{t('setup.back')}</Button></div>
       </div>
@@ -105,7 +109,7 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
           <>
             <p role="status" className="text-sm">{t('setup.restore.running', { org: checked?.org ?? '' })}</p>
             {/* The restored box may serve a new certificate (box CA, D-351): a browser that accepted the old one then fails every poll. */}
-            {poll.isError ? <p className="text-[13px] text-muted">{t('setup.restore.reconnect')}</p> : null}
+            {poll.isError ? <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{t('setup.restore.reconnect')}</p><InfoTip topic={t('setup.restore.reconnect')}>{t('setup.restore.reconnectInfo')}</InfoTip></div> : null}
           </>
         )}
       </div>
@@ -115,14 +119,14 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
   const noKeyLoss = !keyFile && checked !== null && checked.secrets > 0
   return (
     <div className="mt-4 grid gap-4">
-      <Field label={t('setup.account.code')} hint={t('setup.account.codeHintAppliance')} htmlFor="r-code" error={errors.code}>
+      <Field label={t('setup.account.code')} hint={t('setup.account.codeHint')} info={t('setup.account.codeInfoAppliance')} htmlFor="r-code" error={errors.code}>
         <Input id="r-code" autoComplete="off" spellCheck={false} value={code} aria-invalid={!!errors.code} onChange={(e) => setCode(e.target.value)} />
       </Field>
       <Field label={t('setup.restore.file')} hint={t('setup.restore.fileHint')} htmlFor="r-file" error={errors.file}>
         <input id="r-file" type="file" accept=".gz,.tgz,application/gzip" className={FILE_INPUT} aria-invalid={!!errors.file}
           onChange={(e) => { setFile(e.target.files?.[0] ?? null); setChecked(null) }} />
       </Field>
-      <Field label={t('setup.restore.key')} hint={t('setup.restore.keyHint')} htmlFor="r-key" error={errors.key}>
+      <Field label={t('setup.restore.key')} hint={t('setup.restore.keyHint')} info={t('setup.restore.keyInfo')} htmlFor="r-key" error={errors.key}>
         <input id="r-key" type="file" accept=".key" className={FILE_INPUT} aria-invalid={!!errors.key} onChange={(e) => { setKeyFile(e.target.files?.[0] ?? null); setErrors((x) => ({ ...x, key: '' })) }} />
       </Field>
       {!keyFile ? (
@@ -141,7 +145,12 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
                 <li>{t('setup.restore.lost.secrets', { n: checked.secrets })}</li>
                 {checked.twofa_users > 0 ? <li>{t('setup.restore.lost.twofa', { n: checked.twofa_users })}</li> : null}
               </ul>
-              {checked.admins_without_key === 0 ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-[13px]">{t('setup.restore.lost.noAdmin')}</p> : null}
+              {checked.admins_without_key === 0 ? (
+                <div role="alert" className="flex items-center gap-1 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-[13px]">
+                  <p>{t('setup.restore.lost.noAdmin')}</p>
+                  <InfoTip topic={t('setup.restore.key')}>{t('setup.restore.lost.noAdminInfo')}</InfoTip>
+                </div>
+              ) : null}
               <div className="flex items-start gap-2">
                 <Checkbox id="r-sure" checked={sure} onCheckedChange={(on) => setSure(on === true)} className="mt-0.5" />
                 <Label htmlFor="r-sure">{t('setup.restore.understand')}</Label>

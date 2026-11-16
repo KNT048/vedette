@@ -20,7 +20,7 @@ test('email channel off: choosing email codes is refused, and an email-code user
     expect((await api(admin, 'DELETE', '/notify/channels/email')).status, 'the channel is removed').toBe(204)
     await signIn(page, who.email, who.pw)
     await page.goto('/account')
-    await page.getByLabel('Your current password').fill(who.pw)
+    await page.getByLabel('Your current password', { exact: true }).fill(who.pw)
     await expect(page.getByRole('button', { name: 'Set up email code' })).toBeDisabled()
     await expect(page.getByText(/the email alert channel, which is not set up or is turned off/)).toBeVisible()
     await expect(page.getByText('Ask an administrator to set up the email channel.')).toBeVisible() // a viewer cannot open the channel settings
@@ -33,11 +33,11 @@ test('email channel off: choosing email codes is refused, and an email-code user
     // channel on: the user turns email codes on
     await ensureEmailChannel(admin)
     await page.reload()
-    await page.getByLabel('Your current password').fill(who.pw)
+    await page.getByLabel('Your current password', { exact: true }).fill(who.pw)
     const seen = (await codesFor(who.email)).length
     await page.getByRole('button', { name: 'Set up email code' }).click()
     await expect(page.getByText(`We sent a 6-digit code to ${masked(who.email)}.`)).toBeVisible()
-    await page.getByLabel('6-digit code').fill(await nextCode(who.email, seen))
+    await page.getByLabel('6-digit code', { exact: true }).fill(await nextCode(who.email, seen))
     await page.getByRole('button', { name: 'Confirm and turn on' }).click()
     await expect(page.getByText('On: Email code')).toBeVisible()
     await api(page.request, 'POST', '/auth/logout')
@@ -47,7 +47,7 @@ test('email channel off: choosing email codes is refused, and an email-code user
     const sent = (await codesFor(who.email)).length
     await submitSignIn(page, who.email, who.pw)
     await expect(page.getByText('Two-step email codes cannot be sent right now. Ask an administrator to turn the email channel back on, or to reset your two-step sign-in.')).toBeVisible()
-    await expect(page.getByLabel('6-digit code')).toHaveCount(0)
+    await expect(page.getByLabel('6-digit code', { exact: true })).toHaveCount(0)
     await expect(page).toHaveURL(/\/login/)
     await shot(page, 'real', 'twofa-login-channel-off')
     const direct = await api<{ error: { code: string } }>(await fresh(), 'POST', '/auth/login', { email: who.email, password: who.pw })

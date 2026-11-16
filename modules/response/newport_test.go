@@ -93,3 +93,31 @@ func TestNewPortPreApprovalNeverActsOnTheAddress(t *testing.T) {
 		t.Fatalf("pre-approval: %v (want the block of the port's address pending a person, the other one run)", status)
 	}
 }
+
+// M2-7 (#899 review r2 M1): the summary reads the person's label of a port-number guess, while the rule fields keep nmap's name, so
+// a rule "service eq sip" still fires on a guessed SIP port, and "identified eq probed" tells a confirmed one apart.
+func TestNewPortLabelInSummaryNameInFields(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.svc.Subscribe(e.bus)
+	e.must(e.bus.Publish(context.Background(), events.Event{Name: response.EventPortOpened,
+		Data: response.PortOpenedEvent{TargetID: "xt-abc", Date: "2026-11-16", IP: "203.0.113.10", Port: 5060, Service: "sip", Label: "probably SIP", Identified: "port"}}))
+	e.must(e.bus.Publish(context.Background(), events.Event{Name: response.EventPortOpened,
+		Data: response.PortOpenedEvent{TargetID: "xt-abc", Date: "2026-11-16", IP: "203.0.113.10", Port: 3389, Service: "ms-wbt-server", Label: "RDP", Identified: "bogus"}}))
+	if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE summary = 'New open port 5060 on public IP 203.0.113.10 (probably SIP)'
+		AND fields LIKE '%"service":"sip"%' AND fields LIKE '%"identified":"port"%'`); n != 1 {
+		t.Fatal("the guessed SIP port: summary label or rule fields wrong")
+	}
+	if n := e.count(`SELECT COUNT(*) FROM resp_events WHERE summary = 'New open port 3389 on public IP 203.0.113.10 (RDP)' AND fields LIKE '%"identified":""%'`); n != 1 {
+		t.Fatal("an unknown identified word was kept")
+	}
+	e.rule("SIP open", "new_port", []response.RuleAction{{ActionID: "msg_send", Params: map[string]string{"text": "SIP on {{trigger.ip}}"}}},
+		func(in *response.RuleInput) {
+			in.Conditions = []response.Condition{{Field: "service", Op: "eq", Value: "sip"}}
+		})
+	sum, err := e.svc.Evaluate(e.ctx())
+	e.must(err)
+	if sum.Matched != 1 {
+		t.Fatalf("service eq sip matched %d events, want the guessed SIP port", sum.Matched)
+	}
+}

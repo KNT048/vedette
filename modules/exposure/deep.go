@@ -479,7 +479,7 @@ func (s *Service) deepIP(ctx context.Context, st ScanTarget, a deepAddr, c *Cont
 	if sub, err = s.identifyIP(ctx, stD, a.ip, sub); err != nil {
 		return DeepIncomplete, err
 	}
-	c.Ports = addServicePorts(c.Ports, sub.Services, a.ip.String()) // an open port the deep scan found is an open port of the domain (counts, the day diff, INV-22)
+	c.Ports = addServicePorts(c.Ports, sub.Services, sub.Scripts, a.ip.String()) // an open port the deep scan found is an open port of the domain (counts, the day diff, INV-22)
 	c.Services = append(c.Services, sub.Services...)
 	c.Scripts = append(c.Scripts, sub.Scripts...)
 	c.Templates = append(c.Templates, sub.Templates...)

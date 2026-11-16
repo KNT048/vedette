@@ -65,7 +65,8 @@
   "meta": {
     "ransomware": "Used by ransomware",
     "seen": "First seen {{first}}, last seen {{last}}.",
-    "due": "CISA requires action by {{date}}."
+    "due": "CISA requires action by {{date}}.",
+    "duePassed": "CISA's deadline passed on {{date}}."
   },
   "device": {
     "title": "Findings on this device",
@@ -153,6 +154,7 @@
     "sourceHint": "CISA's required action when it added this vulnerability on {{date}} (original English).",
     "sourceHintVulnCheck": "VulnCheck KEV's note of {{date}} (original English). CISA does not list it yet.",
     "dueDate": "CISA's deadline for US federal agencies: {{date}}. Use it as your own deadline.",
+    "dueDatePassed": "CISA's deadline for US federal agencies passed on {{date}}: update now.",
     "askTitle": "Ask your AI",
     "askAi": "Ask my AI",
     "cisaTitle": "What CISA requires",
@@ -163,6 +165,7 @@
     "fixedIn": "Fixed in {{fixed}}: upgrade {{device}} from {{version}} to {{fixed}} or later.",
     "fixedFeatureUpdate": "NVD names the fix for {{branch}} ({{fixed}}), not for the Windows release {{device}} runs ({{version}}): Microsoft no longer updates that release, so no monthly update brings it this fix. Move {{device}} to a Windows release Microsoft still services (a feature update). If Windows Update still offers it monthly updates, install the latest and check Microsoft's advisory.",
     "fixedEsu": "Fixed in {{fixed}}, an Extended Security Update: Microsoft updates {{branch}} past the end of its support only for devices enrolled in Extended Security Updates. If {{device}} (now {{version}}) is enrolled, install it; otherwise move {{device}} to a Windows release Microsoft still services.",
+    "fixedEndListed": "{{device}} runs {{version}}, inside the range NVD lists as \"before {{fixed}}\". {{fixed}} is not the fix: NVD lists {{fixed}} itself, or releases of it, as affected too, and names no fixed release for {{version}}. The vendor advisory lists the releases that fix it; if none is one {{device}} can run, protect it another way (What CISA requires) or plan to replace it.",
     "fixedUpTo": "Versions up to {{fixed}} are affected, and {{device}} runs {{version}}: upgrade to a release after {{fixed}}. The version data does not name it; the vendor advisory does.",
     "fixedBranches": "{{device}} has no version yet, so Vedette lists the fix of each release line: {{list}}. Add the version to see the one for this device.",
     "fixedUnreadable": "Vedette cannot read the version \"{{version}}\" of {{device}}, so it lists the fix of each release line: {{list}}. Correct the version on the Devices page to see the one for this device.",
@@ -184,11 +187,25 @@
     "nvdLink": "NVD entry (affected versions)",
     "cisaLink": "CISA notice",
     "stepsTitle": "Steps you can take now",
-    "step1": "Find which version of {{product}} {{device}} runs, and add it to the device on the Devices page so Vedette can compare it.",
+    "step1": "Find which version of {{product}} runs on {{device}}, and add it to the device on the Devices page so Vedette can compare it.",
+    "step1Known": "Nothing to look up: {{device}} runs {{software}} {{version}} ({{from}}).",
+    "from": {
+      "agent": "its agent reports it",
+      "snmp": "Vedette read it over SNMP",
+      "stated": "it announces it on the network over LLDP",
+      "scan": "a network scan read it",
+      "manual": "entered on the Devices page"
+    },
     "step2Due": "If it is older than the fixed version in the advisory, update it by {{date}}.",
+    "step2Overdue": "If it is older than the fixed version in the advisory, update it now: CISA's deadline passed on {{date}}.",
     "step2": "If it is older than the fixed version in the advisory, update it.",
-    "step3": "Then press \"I updated\" at the top of this page and type the new version: Vedette checks it and closes every finding on {{device}} that version fixes. For software a scan reads, run a scan of {{device}} instead.",
-    "step3Mark": "Then mark this finding as Patched. If the version is already fixed, mark it as False positive and write the version in the note.",
+    "step3": "Then press \"I updated it\" at the top of this page and type the new version: Vedette checks it and closes every finding on {{device}} that version fixes. For software a scan reads, run a scan of {{device}} instead.",
+    "step3Manual": "Then press \"I updated {{software}}\" at the top of this page and type the new version: Vedette checks it and closes every finding on {{device}} that version fixes.",
+    "step3Agent": "The agent reports the new version by itself, usually within two hours (after the restart the update needs). Vedette then closes the findings on {{device}} it can prove that version fixes; if this one stays open, press \"Mark as handled\" and choose Patched.",
+    "step3Snmp": "Then press \"Read with SNMP now\" on the page of {{device}}: Vedette reads the new version (it also does in each scan window) and closes the findings on {{device}} it can prove that version fixes. If this one stays open, press \"Mark as handled\" and choose Patched.",
+    "step3Stated": "{{device}} states its new version on the network by itself after the update, and Vedette then closes the findings on {{device}} it can prove that version fixes. If this one stays open, press \"Mark as handled\" and choose Patched.",
+    "step3Scan": "Then rescan {{device}} with the button under Evidence: the scan reads the new version and Vedette closes the findings on {{device}} it can prove that version fixes. If this one stays open, press \"Mark as handled\" and choose Patched.",
+    "step3Mark": "Then press \"Mark as handled\" at the top of this page and choose Patched. If the version was already fixed, choose False positive and write the version in the note.",
     "theSoftware": "the software",
     "noKev": "This CVE is not on an exploited list this box holds.",
     "noKevInfo": "The list may have dropped it, or VulnCheck KEV was turned off, so there is no source information to show."

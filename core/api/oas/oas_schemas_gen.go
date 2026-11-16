@@ -43528,7 +43528,15 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKMethod) UnmarshalText(data []byte
 }
 
 type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem struct {
-	IP string `json:"ip"`
+	// M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then
+	// DNS alternative names), at most 5.
+	CertNames []string `json:"cert_names"`
+	// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
+	// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+	// the port, or an older scan.
+	Ident OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent `json:"ident"`
+	IP    string                                                      `json:"ip"`
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
@@ -43537,9 +43545,23 @@ type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem struct {
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
+	// M2-7: the HTTP Server header on the port (deep scan, http-server-header).
+	Server  OptString `json:"server"`
 	Service string    `json:"service"`
+	// M2-7: the title of the web page on the port (deep scan, http-title).
+	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetCertNames returns the value of CertNames.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetCertNames() []string {
+	return s.CertNames
+}
+
+// GetIdent returns the value of Ident.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetIdent() OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent {
+	return s.Ident
 }
 
 // GetIP returns the value of IP.
@@ -43567,14 +43589,34 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetProduct() OptSt
 	return s.Product
 }
 
+// GetServer returns the value of Server.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetServer() OptString {
+	return s.Server
+}
+
 // GetService returns the value of Service.
 func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetService() string {
 	return s.Service
 }
 
+// GetTitle returns the value of Title.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetTitle() OptString {
+	return s.Title
+}
+
 // GetUnchecked returns the value of Unchecked.
 func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) GetUnchecked() OptBool {
 	return s.Unchecked
+}
+
+// SetCertNames sets the value of CertNames.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetCertNames(val []string) {
+	s.CertNames = val
+}
+
+// SetIdent sets the value of Ident.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetIdent(val OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) {
+	s.Ident = val
 }
 
 // SetIP sets the value of IP.
@@ -43602,14 +43644,76 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetProduct(val Opt
 	s.Product = val
 }
 
+// SetServer sets the value of Server.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetServer(val OptString) {
+	s.Server = val
+}
+
 // SetService sets the value of Service.
 func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetService(val string) {
 	s.Service = val
 }
 
+// SetTitle sets the value of Title.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetTitle(val OptString) {
+	s.Title = val
+}
+
 // SetUnchecked sets the value of Unchecked.
 func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItem) SetUnchecked(val OptBool) {
 	s.Unchecked = val
+}
+
+// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
+// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+// the port, or an older scan.
+type ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent string
+
+const (
+	ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdentProbed ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent = "probed"
+	ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdentPort   ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent = "port"
+	ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdentNone   ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent = "none"
+)
+
+// AllValues returns all ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent values.
+func (ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) AllValues() []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent {
+	return []ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent{
+		ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdentProbed,
+		ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdentPort,
+		ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdentNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdentProbed:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdentPort:
+		return []byte(s), nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdentNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) UnmarshalText(data []byte) error {
+	switch ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent(data) {
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdentProbed:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdentProbed
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdentPort:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdentPort
+		return nil
+	case ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdentNone:
+		*s = ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdentNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -45695,7 +45799,15 @@ func (s *ExposureGetExposureTargetsIDOKMethod) UnmarshalText(data []byte) error 
 }
 
 type ExposureGetExposureTargetsIDOKOpenPortsItem struct {
-	IP string `json:"ip"`
+	// M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then
+	// DNS alternative names), at most 5.
+	CertNames []string `json:"cert_names"`
+	// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
+	// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+	// the port, or an older scan.
+	Ident OptExposureGetExposureTargetsIDOKOpenPortsItemIdent `json:"ident"`
+	IP    string                                              `json:"ip"`
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
@@ -45704,9 +45816,23 @@ type ExposureGetExposureTargetsIDOKOpenPortsItem struct {
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
+	// M2-7: the HTTP Server header on the port (deep scan, http-server-header).
+	Server  OptString `json:"server"`
 	Service string    `json:"service"`
+	// M2-7: the title of the web page on the port (deep scan, http-title).
+	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetCertNames returns the value of CertNames.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetCertNames() []string {
+	return s.CertNames
+}
+
+// GetIdent returns the value of Ident.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetIdent() OptExposureGetExposureTargetsIDOKOpenPortsItemIdent {
+	return s.Ident
 }
 
 // GetIP returns the value of IP.
@@ -45734,14 +45860,34 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetProduct() OptString {
 	return s.Product
 }
 
+// GetServer returns the value of Server.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetServer() OptString {
+	return s.Server
+}
+
 // GetService returns the value of Service.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetService() string {
 	return s.Service
 }
 
+// GetTitle returns the value of Title.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetTitle() OptString {
+	return s.Title
+}
+
 // GetUnchecked returns the value of Unchecked.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) GetUnchecked() OptBool {
 	return s.Unchecked
+}
+
+// SetCertNames sets the value of CertNames.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetCertNames(val []string) {
+	s.CertNames = val
+}
+
+// SetIdent sets the value of Ident.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetIdent(val OptExposureGetExposureTargetsIDOKOpenPortsItemIdent) {
+	s.Ident = val
 }
 
 // SetIP sets the value of IP.
@@ -45769,14 +45915,76 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetProduct(val OptString) 
 	s.Product = val
 }
 
+// SetServer sets the value of Server.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetServer(val OptString) {
+	s.Server = val
+}
+
 // SetService sets the value of Service.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetService(val string) {
 	s.Service = val
 }
 
+// SetTitle sets the value of Title.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetTitle(val OptString) {
+	s.Title = val
+}
+
 // SetUnchecked sets the value of Unchecked.
 func (s *ExposureGetExposureTargetsIDOKOpenPortsItem) SetUnchecked(val OptBool) {
 	s.Unchecked = val
+}
+
+// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
+// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+// the port, or an older scan.
+type ExposureGetExposureTargetsIDOKOpenPortsItemIdent string
+
+const (
+	ExposureGetExposureTargetsIDOKOpenPortsItemIdentProbed ExposureGetExposureTargetsIDOKOpenPortsItemIdent = "probed"
+	ExposureGetExposureTargetsIDOKOpenPortsItemIdentPort   ExposureGetExposureTargetsIDOKOpenPortsItemIdent = "port"
+	ExposureGetExposureTargetsIDOKOpenPortsItemIdentNone   ExposureGetExposureTargetsIDOKOpenPortsItemIdent = "none"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDOKOpenPortsItemIdent values.
+func (ExposureGetExposureTargetsIDOKOpenPortsItemIdent) AllValues() []ExposureGetExposureTargetsIDOKOpenPortsItemIdent {
+	return []ExposureGetExposureTargetsIDOKOpenPortsItemIdent{
+		ExposureGetExposureTargetsIDOKOpenPortsItemIdentProbed,
+		ExposureGetExposureTargetsIDOKOpenPortsItemIdentPort,
+		ExposureGetExposureTargetsIDOKOpenPortsItemIdentNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDOKOpenPortsItemIdent) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDOKOpenPortsItemIdentProbed:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemIdentPort:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemIdentNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDOKOpenPortsItemIdent) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDOKOpenPortsItemIdent(data) {
+	case ExposureGetExposureTargetsIDOKOpenPortsItemIdentProbed:
+		*s = ExposureGetExposureTargetsIDOKOpenPortsItemIdentProbed
+		return nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemIdentPort:
+		*s = ExposureGetExposureTargetsIDOKOpenPortsItemIdentPort
+		return nil
+	case ExposureGetExposureTargetsIDOKOpenPortsItemIdentNone:
+		*s = ExposureGetExposureTargetsIDOKOpenPortsItemIdentNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -47299,7 +47507,15 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKNotCheckedItem) SetText(val 
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem struct {
-	IP string `json:"ip"`
+	// M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then
+	// DNS alternative names), at most 5.
+	CertNames []string `json:"cert_names"`
+	// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
+	// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+	// the port, or an older scan.
+	Ident OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent `json:"ident"`
+	IP    string                                                       `json:"ip"`
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
@@ -47308,9 +47524,23 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem struct {
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
+	// M2-7: the HTTP Server header on the port (deep scan, http-server-header).
+	Server  OptString `json:"server"`
 	Service string    `json:"service"`
+	// M2-7: the title of the web page on the port (deep scan, http-title).
+	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetCertNames returns the value of CertNames.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetCertNames() []string {
+	return s.CertNames
+}
+
+// GetIdent returns the value of Ident.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetIdent() OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent {
+	return s.Ident
 }
 
 // GetIP returns the value of IP.
@@ -47338,14 +47568,34 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetProduct() OptS
 	return s.Product
 }
 
+// GetServer returns the value of Server.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetServer() OptString {
+	return s.Server
+}
+
 // GetService returns the value of Service.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetService() string {
 	return s.Service
 }
 
+// GetTitle returns the value of Title.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetTitle() OptString {
+	return s.Title
+}
+
 // GetUnchecked returns the value of Unchecked.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) GetUnchecked() OptBool {
 	return s.Unchecked
+}
+
+// SetCertNames sets the value of CertNames.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetCertNames(val []string) {
+	s.CertNames = val
+}
+
+// SetIdent sets the value of Ident.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetIdent(val OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent) {
+	s.Ident = val
 }
 
 // SetIP sets the value of IP.
@@ -47373,9 +47623,19 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetProduct(val Op
 	s.Product = val
 }
 
+// SetServer sets the value of Server.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetServer(val OptString) {
+	s.Server = val
+}
+
 // SetService sets the value of Service.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetService(val string) {
 	s.Service = val
+}
+
+// SetTitle sets the value of Title.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetTitle(val OptString) {
+	s.Title = val
 }
 
 // SetUnchecked sets the value of Unchecked.
@@ -47383,12 +47643,69 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItem) SetUnchecked(val 
 	s.Unchecked = val
 }
 
+// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
+// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+// the port, or an older scan.
+type ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdentProbed ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent = "probed"
+	ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdentPort   ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent = "port"
+	ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdentNone   ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent = "none"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent{
+		ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdentProbed,
+		ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdentPort,
+		ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdentNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdentProbed:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdentPort:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdentNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdentProbed:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdentProbed
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdentPort:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdentPort
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdentNone:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdentNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem struct {
+	// M2-7: nmap's confidence in the name, 1 to 10 (a table name is 3).
+	Conf OptInt `json:"conf"`
 	// The CPE 2.2 URI nmap printed; "" when none.
 	Cpe string `json:"cpe"`
 	// Nmap's extrainfo, e.g. (Debian); "" when none.
 	Extra string `json:"extra"`
 	IP    string `json:"ip"`
+	// M2-7: how nmap named the service: probed (a probe's answer matched) or table (only the usual service
+	// of the port number, not confirmed). Missing: an older scan.
+	Method OptExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod `json:"method"`
 	// Nmap's service name: http, ssh, tcpwrapped.
 	Name string `json:"name"`
 	Port int    `json:"port"`
@@ -47396,6 +47713,11 @@ type ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem struct {
 	Product string `json:"product"`
 	// "" when the service sent none.
 	Version string `json:"version"`
+}
+
+// GetConf returns the value of Conf.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) GetConf() OptInt {
+	return s.Conf
 }
 
 // GetCpe returns the value of Cpe.
@@ -47411,6 +47733,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) GetExtra() str
 // GetIP returns the value of IP.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) GetIP() string {
 	return s.IP
+}
+
+// GetMethod returns the value of Method.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) GetMethod() OptExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod {
+	return s.Method
 }
 
 // GetName returns the value of Name.
@@ -47433,6 +47760,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) GetVersion() s
 	return s.Version
 }
 
+// SetConf sets the value of Conf.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetConf(val OptInt) {
+	s.Conf = val
+}
+
 // SetCpe sets the value of Cpe.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetCpe(val string) {
 	s.Cpe = val
@@ -47446,6 +47778,11 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetExtra(val s
 // SetIP sets the value of IP.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetIP(val string) {
 	s.IP = val
+}
+
+// SetMethod sets the value of Method.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetMethod(val OptExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod) {
+	s.Method = val
 }
 
 // SetName sets the value of Name.
@@ -47466,6 +47803,49 @@ func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetProduct(val
 // SetVersion sets the value of Version.
 func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItem) SetVersion(val string) {
 	s.Version = val
+}
+
+// M2-7: how nmap named the service: probed (a probe's answer matched) or table (only the usual service
+// of the port number, not confirmed). Missing: an older scan.
+type ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod string
+
+const (
+	ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethodProbed ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod = "probed"
+	ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethodTable  ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod = "table"
+)
+
+// AllValues returns all ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod values.
+func (ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod) AllValues() []ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod {
+	return []ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod{
+		ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethodProbed,
+		ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethodTable,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethodProbed:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethodTable:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod(data) {
+	case ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethodProbed:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethodProbed
+		return nil
+	case ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethodTable:
+		*s = ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethodTable
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItem struct {
@@ -49273,7 +49653,15 @@ func (s *ExposureGetExposureTargetsOKItemsItemMethod) UnmarshalText(data []byte)
 }
 
 type ExposureGetExposureTargetsOKItemsItemOpenPortsItem struct {
-	IP string `json:"ip"`
+	// M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then
+	// DNS alternative names), at most 5.
+	CertNames []string `json:"cert_names"`
+	// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
+	// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+	// the port, or an older scan.
+	Ident OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent `json:"ident"`
+	IP    string                                                     `json:"ip"`
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
@@ -49282,9 +49670,23 @@ type ExposureGetExposureTargetsOKItemsItemOpenPortsItem struct {
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
+	// M2-7: the HTTP Server header on the port (deep scan, http-server-header).
+	Server  OptString `json:"server"`
 	Service string    `json:"service"`
+	// M2-7: the title of the web page on the port (deep scan, http-title).
+	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetCertNames returns the value of CertNames.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetCertNames() []string {
+	return s.CertNames
+}
+
+// GetIdent returns the value of Ident.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetIdent() OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent {
+	return s.Ident
 }
 
 // GetIP returns the value of IP.
@@ -49312,14 +49714,34 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetProduct() OptStr
 	return s.Product
 }
 
+// GetServer returns the value of Server.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetServer() OptString {
+	return s.Server
+}
+
 // GetService returns the value of Service.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetService() string {
 	return s.Service
 }
 
+// GetTitle returns the value of Title.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetTitle() OptString {
+	return s.Title
+}
+
 // GetUnchecked returns the value of Unchecked.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) GetUnchecked() OptBool {
 	return s.Unchecked
+}
+
+// SetCertNames sets the value of CertNames.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetCertNames(val []string) {
+	s.CertNames = val
+}
+
+// SetIdent sets the value of Ident.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetIdent(val OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) {
+	s.Ident = val
 }
 
 // SetIP sets the value of IP.
@@ -49347,14 +49769,76 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetProduct(val OptS
 	s.Product = val
 }
 
+// SetServer sets the value of Server.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetServer(val OptString) {
+	s.Server = val
+}
+
 // SetService sets the value of Service.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetService(val string) {
 	s.Service = val
 }
 
+// SetTitle sets the value of Title.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetTitle(val OptString) {
+	s.Title = val
+}
+
 // SetUnchecked sets the value of Unchecked.
 func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItem) SetUnchecked(val OptBool) {
 	s.Unchecked = val
+}
+
+// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
+// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+// the port, or an older scan.
+type ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent string
+
+const (
+	ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdentProbed ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent = "probed"
+	ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdentPort   ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent = "port"
+	ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdentNone   ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent = "none"
+)
+
+// AllValues returns all ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent values.
+func (ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) AllValues() []ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent {
+	return []ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent{
+		ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdentProbed,
+		ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdentPort,
+		ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdentNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdentProbed:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdentPort:
+		return []byte(s), nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdentNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent(data) {
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdentProbed:
+		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdentProbed
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdentPort:
+		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdentPort
+		return nil
+	case ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdentNone:
+		*s = ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdentNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -50165,7 +50649,15 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemMethod) UnmarshalText(data []
 }
 
 type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem struct {
-	IP string `json:"ip"`
+	// M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then
+	// DNS alternative names), at most 5.
+	CertNames []string `json:"cert_names"`
+	// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
+	// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+	// the port, or an older scan.
+	Ident OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent `json:"ident"`
+	IP    string                                                          `json:"ip"`
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
@@ -50174,9 +50666,23 @@ type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem struct {
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
+	// M2-7: the HTTP Server header on the port (deep scan, http-server-header).
+	Server  OptString `json:"server"`
 	Service string    `json:"service"`
+	// M2-7: the title of the web page on the port (deep scan, http-title).
+	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetCertNames returns the value of CertNames.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetCertNames() []string {
+	return s.CertNames
+}
+
+// GetIdent returns the value of Ident.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetIdent() OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent {
+	return s.Ident
 }
 
 // GetIP returns the value of IP.
@@ -50204,14 +50710,34 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetProduct() O
 	return s.Product
 }
 
+// GetServer returns the value of Server.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetServer() OptString {
+	return s.Server
+}
+
 // GetService returns the value of Service.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetService() string {
 	return s.Service
 }
 
+// GetTitle returns the value of Title.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetTitle() OptString {
+	return s.Title
+}
+
 // GetUnchecked returns the value of Unchecked.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) GetUnchecked() OptBool {
 	return s.Unchecked
+}
+
+// SetCertNames sets the value of CertNames.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetCertNames(val []string) {
+	s.CertNames = val
+}
+
+// SetIdent sets the value of Ident.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetIdent(val OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) {
+	s.Ident = val
 }
 
 // SetIP sets the value of IP.
@@ -50239,14 +50765,76 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetProduct(val
 	s.Product = val
 }
 
+// SetServer sets the value of Server.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetServer(val OptString) {
+	s.Server = val
+}
+
 // SetService sets the value of Service.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetService(val string) {
 	s.Service = val
 }
 
+// SetTitle sets the value of Title.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetTitle(val OptString) {
+	s.Title = val
+}
+
 // SetUnchecked sets the value of Unchecked.
 func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItem) SetUnchecked(val OptBool) {
 	s.Unchecked = val
+}
+
+// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
+// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+// the port, or an older scan.
+type ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent string
+
+const (
+	ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdentProbed ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent = "probed"
+	ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdentPort   ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent = "port"
+	ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdentNone   ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent = "none"
+)
+
+// AllValues returns all ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent values.
+func (ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) AllValues() []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent {
+	return []ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent{
+		ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdentProbed,
+		ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdentPort,
+		ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdentNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdentProbed:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdentPort:
+		return []byte(s), nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdentNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent(data) {
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdentProbed:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdentProbed
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdentPort:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdentPort
+		return nil
+	case ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdentNone:
+		*s = ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdentNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -51584,7 +52172,15 @@ func (s *ExposurePostExposureTargetsCreatedMethod) UnmarshalText(data []byte) er
 }
 
 type ExposurePostExposureTargetsCreatedOpenPortsItem struct {
-	IP string `json:"ip"`
+	// M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then
+	// DNS alternative names), at most 5.
+	CertNames []string `json:"cert_names"`
+	// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
+	// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+	// the port, or an older scan.
+	Ident OptExposurePostExposureTargetsCreatedOpenPortsItemIdent `json:"ident"`
+	IP    string                                                  `json:"ip"`
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
@@ -51593,9 +52189,23 @@ type ExposurePostExposureTargetsCreatedOpenPortsItem struct {
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
+	// M2-7: the HTTP Server header on the port (deep scan, http-server-header).
+	Server  OptString `json:"server"`
 	Service string    `json:"service"`
+	// M2-7: the title of the web page on the port (deep scan, http-title).
+	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetCertNames returns the value of CertNames.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetCertNames() []string {
+	return s.CertNames
+}
+
+// GetIdent returns the value of Ident.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetIdent() OptExposurePostExposureTargetsCreatedOpenPortsItemIdent {
+	return s.Ident
 }
 
 // GetIP returns the value of IP.
@@ -51623,14 +52233,34 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetProduct() OptString
 	return s.Product
 }
 
+// GetServer returns the value of Server.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetServer() OptString {
+	return s.Server
+}
+
 // GetService returns the value of Service.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetService() string {
 	return s.Service
 }
 
+// GetTitle returns the value of Title.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetTitle() OptString {
+	return s.Title
+}
+
 // GetUnchecked returns the value of Unchecked.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) GetUnchecked() OptBool {
 	return s.Unchecked
+}
+
+// SetCertNames sets the value of CertNames.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetCertNames(val []string) {
+	s.CertNames = val
+}
+
+// SetIdent sets the value of Ident.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetIdent(val OptExposurePostExposureTargetsCreatedOpenPortsItemIdent) {
+	s.Ident = val
 }
 
 // SetIP sets the value of IP.
@@ -51658,14 +52288,76 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetProduct(val OptStri
 	s.Product = val
 }
 
+// SetServer sets the value of Server.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetServer(val OptString) {
+	s.Server = val
+}
+
 // SetService sets the value of Service.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetService(val string) {
 	s.Service = val
 }
 
+// SetTitle sets the value of Title.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetTitle(val OptString) {
+	s.Title = val
+}
+
 // SetUnchecked sets the value of Unchecked.
 func (s *ExposurePostExposureTargetsCreatedOpenPortsItem) SetUnchecked(val OptBool) {
 	s.Unchecked = val
+}
+
+// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
+// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+// the port, or an older scan.
+type ExposurePostExposureTargetsCreatedOpenPortsItemIdent string
+
+const (
+	ExposurePostExposureTargetsCreatedOpenPortsItemIdentProbed ExposurePostExposureTargetsCreatedOpenPortsItemIdent = "probed"
+	ExposurePostExposureTargetsCreatedOpenPortsItemIdentPort   ExposurePostExposureTargetsCreatedOpenPortsItemIdent = "port"
+	ExposurePostExposureTargetsCreatedOpenPortsItemIdentNone   ExposurePostExposureTargetsCreatedOpenPortsItemIdent = "none"
+)
+
+// AllValues returns all ExposurePostExposureTargetsCreatedOpenPortsItemIdent values.
+func (ExposurePostExposureTargetsCreatedOpenPortsItemIdent) AllValues() []ExposurePostExposureTargetsCreatedOpenPortsItemIdent {
+	return []ExposurePostExposureTargetsCreatedOpenPortsItemIdent{
+		ExposurePostExposureTargetsCreatedOpenPortsItemIdentProbed,
+		ExposurePostExposureTargetsCreatedOpenPortsItemIdentPort,
+		ExposurePostExposureTargetsCreatedOpenPortsItemIdentNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsCreatedOpenPortsItemIdent) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsCreatedOpenPortsItemIdentProbed:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemIdentPort:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemIdentNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsCreatedOpenPortsItemIdent) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsCreatedOpenPortsItemIdent(data) {
+	case ExposurePostExposureTargetsCreatedOpenPortsItemIdentProbed:
+		*s = ExposurePostExposureTargetsCreatedOpenPortsItemIdentProbed
+		return nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemIdentPort:
+		*s = ExposurePostExposureTargetsCreatedOpenPortsItemIdentPort
+		return nil
+	case ExposurePostExposureTargetsCreatedOpenPortsItemIdentNone:
+		*s = ExposurePostExposureTargetsCreatedOpenPortsItemIdentNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -53189,7 +53881,15 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetMethod) UnmarshalText(data [
 }
 
 type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem struct {
-	IP string `json:"ip"`
+	// M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then
+	// DNS alternative names), at most 5.
+	CertNames []string `json:"cert_names"`
+	// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
+	// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+	// the port, or an older scan.
+	Ident OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent `json:"ident"`
+	IP    string                                                           `json:"ip"`
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
@@ -53198,9 +53898,23 @@ type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem struct {
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
+	// M2-7: the HTTP Server header on the port (deep scan, http-server-header).
+	Server  OptString `json:"server"`
 	Service string    `json:"service"`
+	// M2-7: the title of the web page on the port (deep scan, http-title).
+	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetCertNames returns the value of CertNames.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetCertNames() []string {
+	return s.CertNames
+}
+
+// GetIdent returns the value of Ident.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetIdent() OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent {
+	return s.Ident
 }
 
 // GetIP returns the value of IP.
@@ -53228,14 +53942,34 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetProduct() 
 	return s.Product
 }
 
+// GetServer returns the value of Server.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetServer() OptString {
+	return s.Server
+}
+
 // GetService returns the value of Service.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetService() string {
 	return s.Service
 }
 
+// GetTitle returns the value of Title.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetTitle() OptString {
+	return s.Title
+}
+
 // GetUnchecked returns the value of Unchecked.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) GetUnchecked() OptBool {
 	return s.Unchecked
+}
+
+// SetCertNames sets the value of CertNames.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetCertNames(val []string) {
+	s.CertNames = val
+}
+
+// SetIdent sets the value of Ident.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetIdent(val OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) {
+	s.Ident = val
 }
 
 // SetIP sets the value of IP.
@@ -53263,14 +53997,76 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetProduct(va
 	s.Product = val
 }
 
+// SetServer sets the value of Server.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetServer(val OptString) {
+	s.Server = val
+}
+
 // SetService sets the value of Service.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetService(val string) {
 	s.Service = val
 }
 
+// SetTitle sets the value of Title.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetTitle(val OptString) {
+	s.Title = val
+}
+
 // SetUnchecked sets the value of Unchecked.
 func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItem) SetUnchecked(val OptBool) {
 	s.Unchecked = val
+}
+
+// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
+// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+// the port, or an older scan.
+type ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent string
+
+const (
+	ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdentProbed ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent = "probed"
+	ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdentPort   ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent = "port"
+	ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdentNone   ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent = "none"
+)
+
+// AllValues returns all ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent values.
+func (ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) AllValues() []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent {
+	return []ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent{
+		ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdentProbed,
+		ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdentPort,
+		ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdentNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdentProbed:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdentPort:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdentNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent(data) {
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdentProbed:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdentProbed
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdentPort:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdentPort
+		return nil
+	case ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdentNone:
+		*s = ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdentNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -54518,7 +55314,15 @@ func (s *ExposurePutExposureTargetsIDTermsOKMethod) UnmarshalText(data []byte) e
 }
 
 type ExposurePutExposureTargetsIDTermsOKOpenPortsItem struct {
-	IP string `json:"ip"`
+	// M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then
+	// DNS alternative names), at most 5.
+	CertNames []string `json:"cert_names"`
+	// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
+	// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+	// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+	// the port, or an older scan.
+	Ident OptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent `json:"ident"`
+	IP    string                                                   `json:"ip"`
 	// Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last
 	// saw it open (INV-22).
 	LastSeen OptString `json:"last_seen"`
@@ -54527,9 +55331,23 @@ type ExposurePutExposureTargetsIDTermsOKOpenPortsItem struct {
 	Misses  OptInt    `json:"misses"`
 	Port    int       `json:"port"`
 	Product OptString `json:"product"`
+	// M2-7: the HTTP Server header on the port (deep scan, http-server-header).
+	Server  OptString `json:"server"`
 	Service string    `json:"service"`
+	// M2-7: the title of the web page on the port (deep scan, http-title).
+	Title OptString `json:"title"`
 	// The newest scan did not check the address: the row is as an earlier scan left it.
 	Unchecked OptBool `json:"unchecked"`
+}
+
+// GetCertNames returns the value of CertNames.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetCertNames() []string {
+	return s.CertNames
+}
+
+// GetIdent returns the value of Ident.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetIdent() OptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent {
+	return s.Ident
 }
 
 // GetIP returns the value of IP.
@@ -54557,14 +55375,34 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetProduct() OptStrin
 	return s.Product
 }
 
+// GetServer returns the value of Server.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetServer() OptString {
+	return s.Server
+}
+
 // GetService returns the value of Service.
 func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetService() string {
 	return s.Service
 }
 
+// GetTitle returns the value of Title.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetTitle() OptString {
+	return s.Title
+}
+
 // GetUnchecked returns the value of Unchecked.
 func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) GetUnchecked() OptBool {
 	return s.Unchecked
+}
+
+// SetCertNames sets the value of CertNames.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetCertNames(val []string) {
+	s.CertNames = val
+}
+
+// SetIdent sets the value of Ident.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetIdent(val OptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) {
+	s.Ident = val
 }
 
 // SetIP sets the value of IP.
@@ -54592,14 +55430,76 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetProduct(val OptStr
 	s.Product = val
 }
 
+// SetServer sets the value of Server.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetServer(val OptString) {
+	s.Server = val
+}
+
 // SetService sets the value of Service.
 func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetService(val string) {
 	s.Service = val
 }
 
+// SetTitle sets the value of Title.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetTitle(val OptString) {
+	s.Title = val
+}
+
 // SetUnchecked sets the value of Unchecked.
 func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItem) SetUnchecked(val OptBool) {
 	s.Unchecked = val
+}
+
+// M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's
+// GET read a product), port (only the usual service of the port number: not confirmed), none (nothing
+// identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on
+// the port, or an older scan.
+type ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent string
+
+const (
+	ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdentProbed ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent = "probed"
+	ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdentPort   ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent = "port"
+	ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdentNone   ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent = "none"
+)
+
+// AllValues returns all ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent values.
+func (ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) AllValues() []ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent {
+	return []ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent{
+		ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdentProbed,
+		ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdentPort,
+		ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdentNone,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdentProbed:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdentPort:
+		return []byte(s), nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdentNone:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) UnmarshalText(data []byte) error {
+	switch ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent(data) {
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdentProbed:
+		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdentProbed
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdentPort:
+		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdentPort
+		return nil
+	case ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdentNone:
+		*s = ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdentNone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 // Expired only exists for IPs: the box has not seen this IP for more than 30 days.
@@ -61997,8 +62897,10 @@ type FindingsGetFindingsIDOK struct {
 	History []FindingsGetFindingsIDOKHistoryItem `json:"history"`
 	ID      string                               `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
-	Kev      NilFindingsGetFindingsIDOKKev `json:"kev"`
-	LastSeen time.Time                     `json:"last_seen"`
+	Kev NilFindingsGetFindingsIDOKKev `json:"kev"`
+	// M2-3: null when the matched software has no version or its source is not known.
+	KnownVersion NilFindingsGetFindingsIDOKKnownVersion `json:"known_version"`
+	LastSeen     time.Time                              `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet (D-21).
 	Pack           NilFindingsGetFindingsIDOKPack  `json:"pack"`
 	Recheck        FindingsGetFindingsIDOKRecheck  `json:"recheck"`
@@ -62097,6 +62999,11 @@ func (s *FindingsGetFindingsIDOK) GetID() string {
 // GetKev returns the value of Kev.
 func (s *FindingsGetFindingsIDOK) GetKev() NilFindingsGetFindingsIDOKKev {
 	return s.Kev
+}
+
+// GetKnownVersion returns the value of KnownVersion.
+func (s *FindingsGetFindingsIDOK) GetKnownVersion() NilFindingsGetFindingsIDOKKnownVersion {
+	return s.KnownVersion
 }
 
 // GetLastSeen returns the value of LastSeen.
@@ -62227,6 +63134,11 @@ func (s *FindingsGetFindingsIDOK) SetID(val string) {
 // SetKev sets the value of Kev.
 func (s *FindingsGetFindingsIDOK) SetKev(val NilFindingsGetFindingsIDOKKev) {
 	s.Kev = val
+}
+
+// SetKnownVersion sets the value of KnownVersion.
+func (s *FindingsGetFindingsIDOK) SetKnownVersion(val NilFindingsGetFindingsIDOKKnownVersion) {
+	s.KnownVersion = val
 }
 
 // SetLastSeen sets the value of LastSeen.
@@ -64291,13 +65203,15 @@ type FindingsGetFindingsIDOKFixedIn struct {
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-	// line; distro = a package of the distribution, whose security updates carry the fix under their own
-	// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-	// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
-	// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
-	// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
-	// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
+	// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
+	// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
+	// fix of each release line; distro = a package of the distribution, whose security updates carry the
+	// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+	// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
+	// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
+	// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
+	// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 	Kind FindingsGetFindingsIDOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -64449,18 +65363,21 @@ func (s *FindingsGetFindingsIDOKFixedInBranchesItem) SetFixed(val string) {
 
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-// line; distro = a package of the distribution, whose security updates carry the fix under their own
-// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
-// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
-// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
-// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
+// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
+// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
+// fix of each release line; distro = a package of the distribution, whose security updates carry the
+// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
+// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
+// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
+// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 type FindingsGetFindingsIDOKFixedInKind string
 
 const (
 	FindingsGetFindingsIDOKFixedInKindFixed         FindingsGetFindingsIDOKFixedInKind = "fixed"
 	FindingsGetFindingsIDOKFixedInKindUpTo          FindingsGetFindingsIDOKFixedInKind = "up_to"
+	FindingsGetFindingsIDOKFixedInKindEndListed     FindingsGetFindingsIDOKFixedInKind = "end_listed"
 	FindingsGetFindingsIDOKFixedInKindBranches      FindingsGetFindingsIDOKFixedInKind = "branches"
 	FindingsGetFindingsIDOKFixedInKindDistro        FindingsGetFindingsIDOKFixedInKind = "distro"
 	FindingsGetFindingsIDOKFixedInKindFeatureUpdate FindingsGetFindingsIDOKFixedInKind = "feature_update"
@@ -64472,6 +65389,7 @@ func (FindingsGetFindingsIDOKFixedInKind) AllValues() []FindingsGetFindingsIDOKF
 	return []FindingsGetFindingsIDOKFixedInKind{
 		FindingsGetFindingsIDOKFixedInKindFixed,
 		FindingsGetFindingsIDOKFixedInKindUpTo,
+		FindingsGetFindingsIDOKFixedInKindEndListed,
 		FindingsGetFindingsIDOKFixedInKindBranches,
 		FindingsGetFindingsIDOKFixedInKindDistro,
 		FindingsGetFindingsIDOKFixedInKindFeatureUpdate,
@@ -64485,6 +65403,8 @@ func (s FindingsGetFindingsIDOKFixedInKind) MarshalText() ([]byte, error) {
 	case FindingsGetFindingsIDOKFixedInKindFixed:
 		return []byte(s), nil
 	case FindingsGetFindingsIDOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKFixedInKindEndListed:
 		return []byte(s), nil
 	case FindingsGetFindingsIDOKFixedInKindBranches:
 		return []byte(s), nil
@@ -64507,6 +65427,9 @@ func (s *FindingsGetFindingsIDOKFixedInKind) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsGetFindingsIDOKFixedInKindUpTo:
 		*s = FindingsGetFindingsIDOKFixedInKindUpTo
+		return nil
+	case FindingsGetFindingsIDOKFixedInKindEndListed:
+		*s = FindingsGetFindingsIDOKFixedInKindEndListed
 		return nil
 	case FindingsGetFindingsIDOKFixedInKindBranches:
 		*s = FindingsGetFindingsIDOKFixedInKindBranches
@@ -64760,6 +65683,111 @@ func (s *FindingsGetFindingsIDOKKevSource) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsGetFindingsIDOKKevSourceVulncheckKev:
 		*s = FindingsGetFindingsIDOKKevSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// M2-3: the version the box has for the matched software; the page says it and how a newer one reaches
+// Vedette, never "find which version".
+type FindingsGetFindingsIDOKKnownVersion struct {
+	// Display name of the software the finding was matched on.
+	Software string `json:"software"`
+	// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+	// the network (LLDP), a network scan, or a person on the Devices page.
+	Source  FindingsGetFindingsIDOKKnownVersionSource `json:"source"`
+	Version string                                    `json:"version"`
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsGetFindingsIDOKKnownVersion) GetSoftware() string {
+	return s.Software
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsIDOKKnownVersion) GetSource() FindingsGetFindingsIDOKKnownVersionSource {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsIDOKKnownVersion) GetVersion() string {
+	return s.Version
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsGetFindingsIDOKKnownVersion) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsIDOKKnownVersion) SetSource(val FindingsGetFindingsIDOKKnownVersionSource) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsIDOKKnownVersion) SetVersion(val string) {
+	s.Version = val
+}
+
+// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+// the network (LLDP), a network scan, or a person on the Devices page.
+type FindingsGetFindingsIDOKKnownVersionSource string
+
+const (
+	FindingsGetFindingsIDOKKnownVersionSourceAgent  FindingsGetFindingsIDOKKnownVersionSource = "agent"
+	FindingsGetFindingsIDOKKnownVersionSourceSnmp   FindingsGetFindingsIDOKKnownVersionSource = "snmp"
+	FindingsGetFindingsIDOKKnownVersionSourceStated FindingsGetFindingsIDOKKnownVersionSource = "stated"
+	FindingsGetFindingsIDOKKnownVersionSourceScan   FindingsGetFindingsIDOKKnownVersionSource = "scan"
+	FindingsGetFindingsIDOKKnownVersionSourceManual FindingsGetFindingsIDOKKnownVersionSource = "manual"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKKnownVersionSource values.
+func (FindingsGetFindingsIDOKKnownVersionSource) AllValues() []FindingsGetFindingsIDOKKnownVersionSource {
+	return []FindingsGetFindingsIDOKKnownVersionSource{
+		FindingsGetFindingsIDOKKnownVersionSourceAgent,
+		FindingsGetFindingsIDOKKnownVersionSourceSnmp,
+		FindingsGetFindingsIDOKKnownVersionSourceStated,
+		FindingsGetFindingsIDOKKnownVersionSourceScan,
+		FindingsGetFindingsIDOKKnownVersionSourceManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKKnownVersionSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKKnownVersionSourceAgent:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKKnownVersionSourceSnmp:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKKnownVersionSourceStated:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKKnownVersionSourceScan:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKKnownVersionSourceManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKKnownVersionSource) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKKnownVersionSource(data) {
+	case FindingsGetFindingsIDOKKnownVersionSourceAgent:
+		*s = FindingsGetFindingsIDOKKnownVersionSourceAgent
+		return nil
+	case FindingsGetFindingsIDOKKnownVersionSourceSnmp:
+		*s = FindingsGetFindingsIDOKKnownVersionSourceSnmp
+		return nil
+	case FindingsGetFindingsIDOKKnownVersionSourceStated:
+		*s = FindingsGetFindingsIDOKKnownVersionSourceStated
+		return nil
+	case FindingsGetFindingsIDOKKnownVersionSourceScan:
+		*s = FindingsGetFindingsIDOKKnownVersionSourceScan
+		return nil
+	case FindingsGetFindingsIDOKKnownVersionSourceManual:
+		*s = FindingsGetFindingsIDOKKnownVersionSourceManual
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -70412,8 +71440,10 @@ type FindingsPostFindingsIDAiOK struct {
 	History []FindingsPostFindingsIDAiOKHistoryItem `json:"history"`
 	ID      string                                  `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
-	Kev      NilFindingsPostFindingsIDAiOKKev `json:"kev"`
-	LastSeen time.Time                        `json:"last_seen"`
+	Kev NilFindingsPostFindingsIDAiOKKev `json:"kev"`
+	// M2-3: null when the matched software has no version or its source is not known.
+	KnownVersion NilFindingsPostFindingsIDAiOKKnownVersion `json:"known_version"`
+	LastSeen     time.Time                                 `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet (D-21).
 	Pack           NilFindingsPostFindingsIDAiOKPack  `json:"pack"`
 	Recheck        FindingsPostFindingsIDAiOKRecheck  `json:"recheck"`
@@ -70512,6 +71542,11 @@ func (s *FindingsPostFindingsIDAiOK) GetID() string {
 // GetKev returns the value of Kev.
 func (s *FindingsPostFindingsIDAiOK) GetKev() NilFindingsPostFindingsIDAiOKKev {
 	return s.Kev
+}
+
+// GetKnownVersion returns the value of KnownVersion.
+func (s *FindingsPostFindingsIDAiOK) GetKnownVersion() NilFindingsPostFindingsIDAiOKKnownVersion {
+	return s.KnownVersion
 }
 
 // GetLastSeen returns the value of LastSeen.
@@ -70642,6 +71677,11 @@ func (s *FindingsPostFindingsIDAiOK) SetID(val string) {
 // SetKev sets the value of Kev.
 func (s *FindingsPostFindingsIDAiOK) SetKev(val NilFindingsPostFindingsIDAiOKKev) {
 	s.Kev = val
+}
+
+// SetKnownVersion sets the value of KnownVersion.
+func (s *FindingsPostFindingsIDAiOK) SetKnownVersion(val NilFindingsPostFindingsIDAiOKKnownVersion) {
+	s.KnownVersion = val
 }
 
 // SetLastSeen sets the value of LastSeen.
@@ -72706,13 +73746,15 @@ type FindingsPostFindingsIDAiOKFixedIn struct {
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-	// line; distro = a package of the distribution, whose security updates carry the fix under their own
-	// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-	// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
-	// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
-	// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
-	// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
+	// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
+	// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
+	// fix of each release line; distro = a package of the distribution, whose security updates carry the
+	// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+	// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
+	// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
+	// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
+	// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 	Kind FindingsPostFindingsIDAiOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -72864,18 +73906,21 @@ func (s *FindingsPostFindingsIDAiOKFixedInBranchesItem) SetFixed(val string) {
 
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-// line; distro = a package of the distribution, whose security updates carry the fix under their own
-// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
-// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
-// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
-// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
+// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
+// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
+// fix of each release line; distro = a package of the distribution, whose security updates carry the
+// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
+// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
+// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
+// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 type FindingsPostFindingsIDAiOKFixedInKind string
 
 const (
 	FindingsPostFindingsIDAiOKFixedInKindFixed         FindingsPostFindingsIDAiOKFixedInKind = "fixed"
 	FindingsPostFindingsIDAiOKFixedInKindUpTo          FindingsPostFindingsIDAiOKFixedInKind = "up_to"
+	FindingsPostFindingsIDAiOKFixedInKindEndListed     FindingsPostFindingsIDAiOKFixedInKind = "end_listed"
 	FindingsPostFindingsIDAiOKFixedInKindBranches      FindingsPostFindingsIDAiOKFixedInKind = "branches"
 	FindingsPostFindingsIDAiOKFixedInKindDistro        FindingsPostFindingsIDAiOKFixedInKind = "distro"
 	FindingsPostFindingsIDAiOKFixedInKindFeatureUpdate FindingsPostFindingsIDAiOKFixedInKind = "feature_update"
@@ -72887,6 +73932,7 @@ func (FindingsPostFindingsIDAiOKFixedInKind) AllValues() []FindingsPostFindingsI
 	return []FindingsPostFindingsIDAiOKFixedInKind{
 		FindingsPostFindingsIDAiOKFixedInKindFixed,
 		FindingsPostFindingsIDAiOKFixedInKindUpTo,
+		FindingsPostFindingsIDAiOKFixedInKindEndListed,
 		FindingsPostFindingsIDAiOKFixedInKindBranches,
 		FindingsPostFindingsIDAiOKFixedInKindDistro,
 		FindingsPostFindingsIDAiOKFixedInKindFeatureUpdate,
@@ -72900,6 +73946,8 @@ func (s FindingsPostFindingsIDAiOKFixedInKind) MarshalText() ([]byte, error) {
 	case FindingsPostFindingsIDAiOKFixedInKindFixed:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKFixedInKindEndListed:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKFixedInKindBranches:
 		return []byte(s), nil
@@ -72922,6 +73970,9 @@ func (s *FindingsPostFindingsIDAiOKFixedInKind) UnmarshalText(data []byte) error
 		return nil
 	case FindingsPostFindingsIDAiOKFixedInKindUpTo:
 		*s = FindingsPostFindingsIDAiOKFixedInKindUpTo
+		return nil
+	case FindingsPostFindingsIDAiOKFixedInKindEndListed:
+		*s = FindingsPostFindingsIDAiOKFixedInKindEndListed
 		return nil
 	case FindingsPostFindingsIDAiOKFixedInKindBranches:
 		*s = FindingsPostFindingsIDAiOKFixedInKindBranches
@@ -73175,6 +74226,111 @@ func (s *FindingsPostFindingsIDAiOKKevSource) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsPostFindingsIDAiOKKevSourceVulncheckKev:
 		*s = FindingsPostFindingsIDAiOKKevSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// M2-3: the version the box has for the matched software; the page says it and how a newer one reaches
+// Vedette, never "find which version".
+type FindingsPostFindingsIDAiOKKnownVersion struct {
+	// Display name of the software the finding was matched on.
+	Software string `json:"software"`
+	// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+	// the network (LLDP), a network scan, or a person on the Devices page.
+	Source  FindingsPostFindingsIDAiOKKnownVersionSource `json:"source"`
+	Version string                                       `json:"version"`
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDAiOKKnownVersion) GetSoftware() string {
+	return s.Software
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAiOKKnownVersion) GetSource() FindingsPostFindingsIDAiOKKnownVersionSource {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDAiOKKnownVersion) GetVersion() string {
+	return s.Version
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDAiOKKnownVersion) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAiOKKnownVersion) SetSource(val FindingsPostFindingsIDAiOKKnownVersionSource) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDAiOKKnownVersion) SetVersion(val string) {
+	s.Version = val
+}
+
+// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+// the network (LLDP), a network scan, or a person on the Devices page.
+type FindingsPostFindingsIDAiOKKnownVersionSource string
+
+const (
+	FindingsPostFindingsIDAiOKKnownVersionSourceAgent  FindingsPostFindingsIDAiOKKnownVersionSource = "agent"
+	FindingsPostFindingsIDAiOKKnownVersionSourceSnmp   FindingsPostFindingsIDAiOKKnownVersionSource = "snmp"
+	FindingsPostFindingsIDAiOKKnownVersionSourceStated FindingsPostFindingsIDAiOKKnownVersionSource = "stated"
+	FindingsPostFindingsIDAiOKKnownVersionSourceScan   FindingsPostFindingsIDAiOKKnownVersionSource = "scan"
+	FindingsPostFindingsIDAiOKKnownVersionSourceManual FindingsPostFindingsIDAiOKKnownVersionSource = "manual"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKKnownVersionSource values.
+func (FindingsPostFindingsIDAiOKKnownVersionSource) AllValues() []FindingsPostFindingsIDAiOKKnownVersionSource {
+	return []FindingsPostFindingsIDAiOKKnownVersionSource{
+		FindingsPostFindingsIDAiOKKnownVersionSourceAgent,
+		FindingsPostFindingsIDAiOKKnownVersionSourceSnmp,
+		FindingsPostFindingsIDAiOKKnownVersionSourceStated,
+		FindingsPostFindingsIDAiOKKnownVersionSourceScan,
+		FindingsPostFindingsIDAiOKKnownVersionSourceManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKKnownVersionSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKKnownVersionSourceAgent:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKKnownVersionSourceSnmp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKKnownVersionSourceStated:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKKnownVersionSourceScan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKKnownVersionSourceManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKKnownVersionSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKKnownVersionSource(data) {
+	case FindingsPostFindingsIDAiOKKnownVersionSourceAgent:
+		*s = FindingsPostFindingsIDAiOKKnownVersionSourceAgent
+		return nil
+	case FindingsPostFindingsIDAiOKKnownVersionSourceSnmp:
+		*s = FindingsPostFindingsIDAiOKKnownVersionSourceSnmp
+		return nil
+	case FindingsPostFindingsIDAiOKKnownVersionSourceStated:
+		*s = FindingsPostFindingsIDAiOKKnownVersionSourceStated
+		return nil
+	case FindingsPostFindingsIDAiOKKnownVersionSourceScan:
+		*s = FindingsPostFindingsIDAiOKKnownVersionSourceScan
+		return nil
+	case FindingsPostFindingsIDAiOKKnownVersionSourceManual:
+		*s = FindingsPostFindingsIDAiOKKnownVersionSourceManual
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -74084,8 +75240,10 @@ type FindingsPostFindingsIDAppliedOK struct {
 	History []FindingsPostFindingsIDAppliedOKHistoryItem `json:"history"`
 	ID      string                                       `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
-	Kev      NilFindingsPostFindingsIDAppliedOKKev `json:"kev"`
-	LastSeen time.Time                             `json:"last_seen"`
+	Kev NilFindingsPostFindingsIDAppliedOKKev `json:"kev"`
+	// M2-3: null when the matched software has no version or its source is not known.
+	KnownVersion NilFindingsPostFindingsIDAppliedOKKnownVersion `json:"known_version"`
+	LastSeen     time.Time                                      `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet (D-21).
 	Pack           NilFindingsPostFindingsIDAppliedOKPack  `json:"pack"`
 	Recheck        FindingsPostFindingsIDAppliedOKRecheck  `json:"recheck"`
@@ -74184,6 +75342,11 @@ func (s *FindingsPostFindingsIDAppliedOK) GetID() string {
 // GetKev returns the value of Kev.
 func (s *FindingsPostFindingsIDAppliedOK) GetKev() NilFindingsPostFindingsIDAppliedOKKev {
 	return s.Kev
+}
+
+// GetKnownVersion returns the value of KnownVersion.
+func (s *FindingsPostFindingsIDAppliedOK) GetKnownVersion() NilFindingsPostFindingsIDAppliedOKKnownVersion {
+	return s.KnownVersion
 }
 
 // GetLastSeen returns the value of LastSeen.
@@ -74314,6 +75477,11 @@ func (s *FindingsPostFindingsIDAppliedOK) SetID(val string) {
 // SetKev sets the value of Kev.
 func (s *FindingsPostFindingsIDAppliedOK) SetKev(val NilFindingsPostFindingsIDAppliedOKKev) {
 	s.Kev = val
+}
+
+// SetKnownVersion sets the value of KnownVersion.
+func (s *FindingsPostFindingsIDAppliedOK) SetKnownVersion(val NilFindingsPostFindingsIDAppliedOKKnownVersion) {
+	s.KnownVersion = val
 }
 
 // SetLastSeen sets the value of LastSeen.
@@ -76378,13 +77546,15 @@ type FindingsPostFindingsIDAppliedOKFixedIn struct {
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-	// line; distro = a package of the distribution, whose security updates carry the fix under their own
-	// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-	// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
-	// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
-	// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
-	// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
+	// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
+	// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
+	// fix of each release line; distro = a package of the distribution, whose security updates carry the
+	// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+	// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
+	// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
+	// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
+	// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 	Kind FindingsPostFindingsIDAppliedOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -76536,18 +77706,21 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInBranchesItem) SetFixed(val string
 
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-// line; distro = a package of the distribution, whose security updates carry the fix under their own
-// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
-// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
-// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
-// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
+// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
+// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
+// fix of each release line; distro = a package of the distribution, whose security updates carry the
+// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
+// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
+// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
+// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 type FindingsPostFindingsIDAppliedOKFixedInKind string
 
 const (
 	FindingsPostFindingsIDAppliedOKFixedInKindFixed         FindingsPostFindingsIDAppliedOKFixedInKind = "fixed"
 	FindingsPostFindingsIDAppliedOKFixedInKindUpTo          FindingsPostFindingsIDAppliedOKFixedInKind = "up_to"
+	FindingsPostFindingsIDAppliedOKFixedInKindEndListed     FindingsPostFindingsIDAppliedOKFixedInKind = "end_listed"
 	FindingsPostFindingsIDAppliedOKFixedInKindBranches      FindingsPostFindingsIDAppliedOKFixedInKind = "branches"
 	FindingsPostFindingsIDAppliedOKFixedInKindDistro        FindingsPostFindingsIDAppliedOKFixedInKind = "distro"
 	FindingsPostFindingsIDAppliedOKFixedInKindFeatureUpdate FindingsPostFindingsIDAppliedOKFixedInKind = "feature_update"
@@ -76559,6 +77732,7 @@ func (FindingsPostFindingsIDAppliedOKFixedInKind) AllValues() []FindingsPostFind
 	return []FindingsPostFindingsIDAppliedOKFixedInKind{
 		FindingsPostFindingsIDAppliedOKFixedInKindFixed,
 		FindingsPostFindingsIDAppliedOKFixedInKindUpTo,
+		FindingsPostFindingsIDAppliedOKFixedInKindEndListed,
 		FindingsPostFindingsIDAppliedOKFixedInKindBranches,
 		FindingsPostFindingsIDAppliedOKFixedInKindDistro,
 		FindingsPostFindingsIDAppliedOKFixedInKindFeatureUpdate,
@@ -76572,6 +77746,8 @@ func (s FindingsPostFindingsIDAppliedOKFixedInKind) MarshalText() ([]byte, error
 	case FindingsPostFindingsIDAppliedOKFixedInKindFixed:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindEndListed:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKFixedInKindBranches:
 		return []byte(s), nil
@@ -76594,6 +77770,9 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInKind) UnmarshalText(data []byte) 
 		return nil
 	case FindingsPostFindingsIDAppliedOKFixedInKindUpTo:
 		*s = FindingsPostFindingsIDAppliedOKFixedInKindUpTo
+		return nil
+	case FindingsPostFindingsIDAppliedOKFixedInKindEndListed:
+		*s = FindingsPostFindingsIDAppliedOKFixedInKindEndListed
 		return nil
 	case FindingsPostFindingsIDAppliedOKFixedInKindBranches:
 		*s = FindingsPostFindingsIDAppliedOKFixedInKindBranches
@@ -76847,6 +78026,111 @@ func (s *FindingsPostFindingsIDAppliedOKKevSource) UnmarshalText(data []byte) er
 		return nil
 	case FindingsPostFindingsIDAppliedOKKevSourceVulncheckKev:
 		*s = FindingsPostFindingsIDAppliedOKKevSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// M2-3: the version the box has for the matched software; the page says it and how a newer one reaches
+// Vedette, never "find which version".
+type FindingsPostFindingsIDAppliedOKKnownVersion struct {
+	// Display name of the software the finding was matched on.
+	Software string `json:"software"`
+	// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+	// the network (LLDP), a network scan, or a person on the Devices page.
+	Source  FindingsPostFindingsIDAppliedOKKnownVersionSource `json:"source"`
+	Version string                                            `json:"version"`
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDAppliedOKKnownVersion) GetSoftware() string {
+	return s.Software
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKKnownVersion) GetSource() FindingsPostFindingsIDAppliedOKKnownVersionSource {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDAppliedOKKnownVersion) GetVersion() string {
+	return s.Version
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDAppliedOKKnownVersion) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKKnownVersion) SetSource(val FindingsPostFindingsIDAppliedOKKnownVersionSource) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDAppliedOKKnownVersion) SetVersion(val string) {
+	s.Version = val
+}
+
+// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+// the network (LLDP), a network scan, or a person on the Devices page.
+type FindingsPostFindingsIDAppliedOKKnownVersionSource string
+
+const (
+	FindingsPostFindingsIDAppliedOKKnownVersionSourceAgent  FindingsPostFindingsIDAppliedOKKnownVersionSource = "agent"
+	FindingsPostFindingsIDAppliedOKKnownVersionSourceSnmp   FindingsPostFindingsIDAppliedOKKnownVersionSource = "snmp"
+	FindingsPostFindingsIDAppliedOKKnownVersionSourceStated FindingsPostFindingsIDAppliedOKKnownVersionSource = "stated"
+	FindingsPostFindingsIDAppliedOKKnownVersionSourceScan   FindingsPostFindingsIDAppliedOKKnownVersionSource = "scan"
+	FindingsPostFindingsIDAppliedOKKnownVersionSourceManual FindingsPostFindingsIDAppliedOKKnownVersionSource = "manual"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKKnownVersionSource values.
+func (FindingsPostFindingsIDAppliedOKKnownVersionSource) AllValues() []FindingsPostFindingsIDAppliedOKKnownVersionSource {
+	return []FindingsPostFindingsIDAppliedOKKnownVersionSource{
+		FindingsPostFindingsIDAppliedOKKnownVersionSourceAgent,
+		FindingsPostFindingsIDAppliedOKKnownVersionSourceSnmp,
+		FindingsPostFindingsIDAppliedOKKnownVersionSourceStated,
+		FindingsPostFindingsIDAppliedOKKnownVersionSourceScan,
+		FindingsPostFindingsIDAppliedOKKnownVersionSourceManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKKnownVersionSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceAgent:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceSnmp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceStated:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceScan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKKnownVersionSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKKnownVersionSource(data) {
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceAgent:
+		*s = FindingsPostFindingsIDAppliedOKKnownVersionSourceAgent
+		return nil
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceSnmp:
+		*s = FindingsPostFindingsIDAppliedOKKnownVersionSourceSnmp
+		return nil
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceStated:
+		*s = FindingsPostFindingsIDAppliedOKKnownVersionSourceStated
+		return nil
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceScan:
+		*s = FindingsPostFindingsIDAppliedOKKnownVersionSourceScan
+		return nil
+	case FindingsPostFindingsIDAppliedOKKnownVersionSourceManual:
+		*s = FindingsPostFindingsIDAppliedOKKnownVersionSourceManual
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -77777,8 +79061,10 @@ type FindingsPostFindingsIDStatusOK struct {
 	History []FindingsPostFindingsIDStatusOKHistoryItem `json:"history"`
 	ID      string                                      `json:"id"`
 	// Read from KEV, not from the project recommendation pack.
-	Kev      NilFindingsPostFindingsIDStatusOKKev `json:"kev"`
-	LastSeen time.Time                            `json:"last_seen"`
+	Kev NilFindingsPostFindingsIDStatusOKKev `json:"kev"`
+	// M2-3: null when the matched software has no version or its source is not known.
+	KnownVersion NilFindingsPostFindingsIDStatusOKKnownVersion `json:"known_version"`
+	LastSeen     time.Time                                     `json:"last_seen"`
 	// Null = no recommendation confirmed by Vedette maintainers yet (D-21).
 	Pack           NilFindingsPostFindingsIDStatusOKPack  `json:"pack"`
 	Recheck        FindingsPostFindingsIDStatusOKRecheck  `json:"recheck"`
@@ -77877,6 +79163,11 @@ func (s *FindingsPostFindingsIDStatusOK) GetID() string {
 // GetKev returns the value of Kev.
 func (s *FindingsPostFindingsIDStatusOK) GetKev() NilFindingsPostFindingsIDStatusOKKev {
 	return s.Kev
+}
+
+// GetKnownVersion returns the value of KnownVersion.
+func (s *FindingsPostFindingsIDStatusOK) GetKnownVersion() NilFindingsPostFindingsIDStatusOKKnownVersion {
+	return s.KnownVersion
 }
 
 // GetLastSeen returns the value of LastSeen.
@@ -78007,6 +79298,11 @@ func (s *FindingsPostFindingsIDStatusOK) SetID(val string) {
 // SetKev sets the value of Kev.
 func (s *FindingsPostFindingsIDStatusOK) SetKev(val NilFindingsPostFindingsIDStatusOKKev) {
 	s.Kev = val
+}
+
+// SetKnownVersion sets the value of KnownVersion.
+func (s *FindingsPostFindingsIDStatusOK) SetKnownVersion(val NilFindingsPostFindingsIDStatusOKKnownVersion) {
+	s.KnownVersion = val
 }
 
 // SetLastSeen sets the value of LastSeen.
@@ -80071,13 +81367,15 @@ type FindingsPostFindingsIDStatusOKFixedIn struct {
 	Fixed string `json:"fixed"`
 	// Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 	// range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-	// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-	// line; distro = a package of the distribution, whose security updates carry the fix under their own
-	// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-	// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
-	// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
-	// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
-	// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+	// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
+	// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
+	// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
+	// fix of each release line; distro = a package of the distribution, whose security updates carry the
+	// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+	// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
+	// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
+	// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
+	// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 	Kind FindingsPostFindingsIDStatusOKFixedInKind `json:"kind"`
 	// Release lines with a fix left out of branches.
 	More int `json:"more"`
@@ -80229,18 +81527,21 @@ func (s *FindingsPostFindingsIDStatusOKFixedInBranchesItem) SetFixed(val string)
 
 // Fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every
 // range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release
-// named); branches = the version is unknown or unreadable, `branches` lists the fix of each release
-// line; distro = a package of the distribution, whose security updates carry the fix under their own
-// numbers: an agent read it from the device's package database (deb/rpm), or the version carries a
-// marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list
-// for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has:
-// Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build
-// `fixed` comes only with Extended Security Updates for `branches[0].branch`.
+// named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of
+// `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix,
+// the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the
+// fix of each release line; distro = a package of the distribution, whose security updates carry the
+// fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the
+// version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release
+// NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from
+// build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the
+// fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`.
 type FindingsPostFindingsIDStatusOKFixedInKind string
 
 const (
 	FindingsPostFindingsIDStatusOKFixedInKindFixed         FindingsPostFindingsIDStatusOKFixedInKind = "fixed"
 	FindingsPostFindingsIDStatusOKFixedInKindUpTo          FindingsPostFindingsIDStatusOKFixedInKind = "up_to"
+	FindingsPostFindingsIDStatusOKFixedInKindEndListed     FindingsPostFindingsIDStatusOKFixedInKind = "end_listed"
 	FindingsPostFindingsIDStatusOKFixedInKindBranches      FindingsPostFindingsIDStatusOKFixedInKind = "branches"
 	FindingsPostFindingsIDStatusOKFixedInKindDistro        FindingsPostFindingsIDStatusOKFixedInKind = "distro"
 	FindingsPostFindingsIDStatusOKFixedInKindFeatureUpdate FindingsPostFindingsIDStatusOKFixedInKind = "feature_update"
@@ -80252,6 +81553,7 @@ func (FindingsPostFindingsIDStatusOKFixedInKind) AllValues() []FindingsPostFindi
 	return []FindingsPostFindingsIDStatusOKFixedInKind{
 		FindingsPostFindingsIDStatusOKFixedInKindFixed,
 		FindingsPostFindingsIDStatusOKFixedInKindUpTo,
+		FindingsPostFindingsIDStatusOKFixedInKindEndListed,
 		FindingsPostFindingsIDStatusOKFixedInKindBranches,
 		FindingsPostFindingsIDStatusOKFixedInKindDistro,
 		FindingsPostFindingsIDStatusOKFixedInKindFeatureUpdate,
@@ -80265,6 +81567,8 @@ func (s FindingsPostFindingsIDStatusOKFixedInKind) MarshalText() ([]byte, error)
 	case FindingsPostFindingsIDStatusOKFixedInKindFixed:
 		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKFixedInKindUpTo:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKFixedInKindEndListed:
 		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKFixedInKindBranches:
 		return []byte(s), nil
@@ -80287,6 +81591,9 @@ func (s *FindingsPostFindingsIDStatusOKFixedInKind) UnmarshalText(data []byte) e
 		return nil
 	case FindingsPostFindingsIDStatusOKFixedInKindUpTo:
 		*s = FindingsPostFindingsIDStatusOKFixedInKindUpTo
+		return nil
+	case FindingsPostFindingsIDStatusOKFixedInKindEndListed:
+		*s = FindingsPostFindingsIDStatusOKFixedInKindEndListed
 		return nil
 	case FindingsPostFindingsIDStatusOKFixedInKindBranches:
 		*s = FindingsPostFindingsIDStatusOKFixedInKindBranches
@@ -80540,6 +81847,111 @@ func (s *FindingsPostFindingsIDStatusOKKevSource) UnmarshalText(data []byte) err
 		return nil
 	case FindingsPostFindingsIDStatusOKKevSourceVulncheckKev:
 		*s = FindingsPostFindingsIDStatusOKKevSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// M2-3: the version the box has for the matched software; the page says it and how a newer one reaches
+// Vedette, never "find which version".
+type FindingsPostFindingsIDStatusOKKnownVersion struct {
+	// Display name of the software the finding was matched on.
+	Software string `json:"software"`
+	// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+	// the network (LLDP), a network scan, or a person on the Devices page.
+	Source  FindingsPostFindingsIDStatusOKKnownVersionSource `json:"source"`
+	Version string                                           `json:"version"`
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsPostFindingsIDStatusOKKnownVersion) GetSoftware() string {
+	return s.Software
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDStatusOKKnownVersion) GetSource() FindingsPostFindingsIDStatusOKKnownVersionSource {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDStatusOKKnownVersion) GetVersion() string {
+	return s.Version
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsPostFindingsIDStatusOKKnownVersion) SetSoftware(val string) {
+	s.Software = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDStatusOKKnownVersion) SetSource(val FindingsPostFindingsIDStatusOKKnownVersionSource) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDStatusOKKnownVersion) SetVersion(val string) {
+	s.Version = val
+}
+
+// Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on
+// the network (LLDP), a network scan, or a person on the Devices page.
+type FindingsPostFindingsIDStatusOKKnownVersionSource string
+
+const (
+	FindingsPostFindingsIDStatusOKKnownVersionSourceAgent  FindingsPostFindingsIDStatusOKKnownVersionSource = "agent"
+	FindingsPostFindingsIDStatusOKKnownVersionSourceSnmp   FindingsPostFindingsIDStatusOKKnownVersionSource = "snmp"
+	FindingsPostFindingsIDStatusOKKnownVersionSourceStated FindingsPostFindingsIDStatusOKKnownVersionSource = "stated"
+	FindingsPostFindingsIDStatusOKKnownVersionSourceScan   FindingsPostFindingsIDStatusOKKnownVersionSource = "scan"
+	FindingsPostFindingsIDStatusOKKnownVersionSourceManual FindingsPostFindingsIDStatusOKKnownVersionSource = "manual"
+)
+
+// AllValues returns all FindingsPostFindingsIDStatusOKKnownVersionSource values.
+func (FindingsPostFindingsIDStatusOKKnownVersionSource) AllValues() []FindingsPostFindingsIDStatusOKKnownVersionSource {
+	return []FindingsPostFindingsIDStatusOKKnownVersionSource{
+		FindingsPostFindingsIDStatusOKKnownVersionSourceAgent,
+		FindingsPostFindingsIDStatusOKKnownVersionSourceSnmp,
+		FindingsPostFindingsIDStatusOKKnownVersionSourceStated,
+		FindingsPostFindingsIDStatusOKKnownVersionSourceScan,
+		FindingsPostFindingsIDStatusOKKnownVersionSourceManual,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDStatusOKKnownVersionSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceAgent:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceSnmp:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceStated:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceScan:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceManual:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDStatusOKKnownVersionSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDStatusOKKnownVersionSource(data) {
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceAgent:
+		*s = FindingsPostFindingsIDStatusOKKnownVersionSourceAgent
+		return nil
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceSnmp:
+		*s = FindingsPostFindingsIDStatusOKKnownVersionSourceSnmp
+		return nil
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceStated:
+		*s = FindingsPostFindingsIDStatusOKKnownVersionSourceStated
+		return nil
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceScan:
+		*s = FindingsPostFindingsIDStatusOKKnownVersionSourceScan
+		return nil
+	case FindingsPostFindingsIDStatusOKKnownVersionSourceManual:
+		*s = FindingsPostFindingsIDStatusOKKnownVersionSourceManual
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -118136,6 +119548,51 @@ func (o NilFindingsGetFindingsIDOKKev) Or(d FindingsGetFindingsIDOKKev) Findings
 	return d
 }
 
+// NewNilFindingsGetFindingsIDOKKnownVersion returns new NilFindingsGetFindingsIDOKKnownVersion with value set to v.
+func NewNilFindingsGetFindingsIDOKKnownVersion(v FindingsGetFindingsIDOKKnownVersion) NilFindingsGetFindingsIDOKKnownVersion {
+	return NilFindingsGetFindingsIDOKKnownVersion{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsIDOKKnownVersion is nullable FindingsGetFindingsIDOKKnownVersion.
+type NilFindingsGetFindingsIDOKKnownVersion struct {
+	Value FindingsGetFindingsIDOKKnownVersion
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsIDOKKnownVersion) SetTo(v FindingsGetFindingsIDOKKnownVersion) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsIDOKKnownVersion) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsIDOKKnownVersion) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsIDOKKnownVersion
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsIDOKKnownVersion) Get() (v FindingsGetFindingsIDOKKnownVersion, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsIDOKKnownVersion) Or(d FindingsGetFindingsIDOKKnownVersion) FindingsGetFindingsIDOKKnownVersion {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsGetFindingsIDOKPack returns new NilFindingsGetFindingsIDOKPack with value set to v.
 func NewNilFindingsGetFindingsIDOKPack(v FindingsGetFindingsIDOKPack) NilFindingsGetFindingsIDOKPack {
 	return NilFindingsGetFindingsIDOKPack{
@@ -119036,6 +120493,51 @@ func (o NilFindingsPostFindingsIDAiOKKev) Or(d FindingsPostFindingsIDAiOKKev) Fi
 	return d
 }
 
+// NewNilFindingsPostFindingsIDAiOKKnownVersion returns new NilFindingsPostFindingsIDAiOKKnownVersion with value set to v.
+func NewNilFindingsPostFindingsIDAiOKKnownVersion(v FindingsPostFindingsIDAiOKKnownVersion) NilFindingsPostFindingsIDAiOKKnownVersion {
+	return NilFindingsPostFindingsIDAiOKKnownVersion{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDAiOKKnownVersion is nullable FindingsPostFindingsIDAiOKKnownVersion.
+type NilFindingsPostFindingsIDAiOKKnownVersion struct {
+	Value FindingsPostFindingsIDAiOKKnownVersion
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDAiOKKnownVersion) SetTo(v FindingsPostFindingsIDAiOKKnownVersion) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDAiOKKnownVersion) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDAiOKKnownVersion) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDAiOKKnownVersion
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDAiOKKnownVersion) Get() (v FindingsPostFindingsIDAiOKKnownVersion, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDAiOKKnownVersion) Or(d FindingsPostFindingsIDAiOKKnownVersion) FindingsPostFindingsIDAiOKKnownVersion {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDAiOKPack returns new NilFindingsPostFindingsIDAiOKPack with value set to v.
 func NewNilFindingsPostFindingsIDAiOKPack(v FindingsPostFindingsIDAiOKPack) NilFindingsPostFindingsIDAiOKPack {
 	return NilFindingsPostFindingsIDAiOKPack{
@@ -119441,6 +120943,51 @@ func (o NilFindingsPostFindingsIDAppliedOKKev) Or(d FindingsPostFindingsIDApplie
 	return d
 }
 
+// NewNilFindingsPostFindingsIDAppliedOKKnownVersion returns new NilFindingsPostFindingsIDAppliedOKKnownVersion with value set to v.
+func NewNilFindingsPostFindingsIDAppliedOKKnownVersion(v FindingsPostFindingsIDAppliedOKKnownVersion) NilFindingsPostFindingsIDAppliedOKKnownVersion {
+	return NilFindingsPostFindingsIDAppliedOKKnownVersion{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDAppliedOKKnownVersion is nullable FindingsPostFindingsIDAppliedOKKnownVersion.
+type NilFindingsPostFindingsIDAppliedOKKnownVersion struct {
+	Value FindingsPostFindingsIDAppliedOKKnownVersion
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDAppliedOKKnownVersion) SetTo(v FindingsPostFindingsIDAppliedOKKnownVersion) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDAppliedOKKnownVersion) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDAppliedOKKnownVersion) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDAppliedOKKnownVersion
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDAppliedOKKnownVersion) Get() (v FindingsPostFindingsIDAppliedOKKnownVersion, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDAppliedOKKnownVersion) Or(d FindingsPostFindingsIDAppliedOKKnownVersion) FindingsPostFindingsIDAppliedOKKnownVersion {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDAppliedOKPack returns new NilFindingsPostFindingsIDAppliedOKPack with value set to v.
 func NewNilFindingsPostFindingsIDAppliedOKPack(v FindingsPostFindingsIDAppliedOKPack) NilFindingsPostFindingsIDAppliedOKPack {
 	return NilFindingsPostFindingsIDAppliedOKPack{
@@ -119840,6 +121387,51 @@ func (o NilFindingsPostFindingsIDStatusOKKev) Get() (v FindingsPostFindingsIDSta
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsPostFindingsIDStatusOKKev) Or(d FindingsPostFindingsIDStatusOKKev) FindingsPostFindingsIDStatusOKKev {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDStatusOKKnownVersion returns new NilFindingsPostFindingsIDStatusOKKnownVersion with value set to v.
+func NewNilFindingsPostFindingsIDStatusOKKnownVersion(v FindingsPostFindingsIDStatusOKKnownVersion) NilFindingsPostFindingsIDStatusOKKnownVersion {
+	return NilFindingsPostFindingsIDStatusOKKnownVersion{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDStatusOKKnownVersion is nullable FindingsPostFindingsIDStatusOKKnownVersion.
+type NilFindingsPostFindingsIDStatusOKKnownVersion struct {
+	Value FindingsPostFindingsIDStatusOKKnownVersion
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDStatusOKKnownVersion) SetTo(v FindingsPostFindingsIDStatusOKKnownVersion) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDStatusOKKnownVersion) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDStatusOKKnownVersion) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDStatusOKKnownVersion
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDStatusOKKnownVersion) Get() (v FindingsPostFindingsIDStatusOKKnownVersion, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDStatusOKKnownVersion) Or(d FindingsPostFindingsIDStatusOKKnownVersion) FindingsPostFindingsIDStatusOKKnownVersion {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -135040,6 +136632,98 @@ func (o OptExposureDeleteExposureTargetsIDIgnore) Or(d ExposureDeleteExposureTar
 	return d
 }
 
+// NewOptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent returns new OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent with value set to v.
+func NewOptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent(v ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent {
+	return OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent is optional ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent.
+type OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent struct {
+	Value ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent
+	Set   bool
+}
+
+// IsSet returns true if OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent was set.
+func (o OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) Reset() {
+	var v ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) SetTo(v ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) Get() (v ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) Or(d ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposureGetExposureTargetsIDOKOpenPortsItemIdent returns new OptExposureGetExposureTargetsIDOKOpenPortsItemIdent with value set to v.
+func NewOptExposureGetExposureTargetsIDOKOpenPortsItemIdent(v ExposureGetExposureTargetsIDOKOpenPortsItemIdent) OptExposureGetExposureTargetsIDOKOpenPortsItemIdent {
+	return OptExposureGetExposureTargetsIDOKOpenPortsItemIdent{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureGetExposureTargetsIDOKOpenPortsItemIdent is optional ExposureGetExposureTargetsIDOKOpenPortsItemIdent.
+type OptExposureGetExposureTargetsIDOKOpenPortsItemIdent struct {
+	Value ExposureGetExposureTargetsIDOKOpenPortsItemIdent
+	Set   bool
+}
+
+// IsSet returns true if OptExposureGetExposureTargetsIDOKOpenPortsItemIdent was set.
+func (o OptExposureGetExposureTargetsIDOKOpenPortsItemIdent) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposureGetExposureTargetsIDOKOpenPortsItemIdent) Reset() {
+	var v ExposureGetExposureTargetsIDOKOpenPortsItemIdent
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureGetExposureTargetsIDOKOpenPortsItemIdent) SetTo(v ExposureGetExposureTargetsIDOKOpenPortsItemIdent) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureGetExposureTargetsIDOKOpenPortsItemIdent) Get() (v ExposureGetExposureTargetsIDOKOpenPortsItemIdent, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureGetExposureTargetsIDOKOpenPortsItemIdent) Or(d ExposureGetExposureTargetsIDOKOpenPortsItemIdent) ExposureGetExposureTargetsIDOKOpenPortsItemIdent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep returns new OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep with value set to v.
 func NewOptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep(v ExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep) OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep {
 	return OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemIpsItemDeep{
@@ -135134,6 +136818,98 @@ func (o OptExposureGetExposureTargetsIDSnapshotsDateOKHostsItemSource) Or(d Expo
 	return d
 }
 
+// NewOptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent returns new OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent with value set to v.
+func NewOptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent(v ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent) OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent {
+	return OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent is optional ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent.
+type OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent struct {
+	Value ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent
+	Set   bool
+}
+
+// IsSet returns true if OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent was set.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent) Reset() {
+	var v ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent) SetTo(v ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent) Get() (v ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent) Or(d ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent) ExposureGetExposureTargetsIDSnapshotsDateOKPortsItemIdent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod returns new OptExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod with value set to v.
+func NewOptExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod(v ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod) OptExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod {
+	return OptExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod is optional ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod.
+type OptExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod struct {
+	Value ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod
+	Set   bool
+}
+
+// IsSet returns true if OptExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod was set.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod) Reset() {
+	var v ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod) SetTo(v ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod) Get() (v ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod) Or(d ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod) ExposureGetExposureTargetsIDSnapshotsDateOKServicesItemMethod {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity returns new OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity with value set to v.
 func NewOptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity(v ExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity) OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity {
 	return OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity{
@@ -135182,6 +136958,144 @@ func (o OptExposureGetExposureTargetsIDSnapshotsDateOKTemplatesItemSeverity) Or(
 	return d
 }
 
+// NewOptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent returns new OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent with value set to v.
+func NewOptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent(v ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent {
+	return OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent is optional ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent.
+type OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent struct {
+	Value ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent
+	Set   bool
+}
+
+// IsSet returns true if OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent was set.
+func (o OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) Reset() {
+	var v ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) SetTo(v ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) Get() (v ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) Or(d ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent returns new OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent with value set to v.
+func NewOptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent(v ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent {
+	return OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent is optional ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent.
+type OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent struct {
+	Value ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent
+	Set   bool
+}
+
+// IsSet returns true if OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent was set.
+func (o OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) Reset() {
+	var v ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) SetTo(v ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) Get() (v ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) Or(d ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposurePostExposureTargetsCreatedOpenPortsItemIdent returns new OptExposurePostExposureTargetsCreatedOpenPortsItemIdent with value set to v.
+func NewOptExposurePostExposureTargetsCreatedOpenPortsItemIdent(v ExposurePostExposureTargetsCreatedOpenPortsItemIdent) OptExposurePostExposureTargetsCreatedOpenPortsItemIdent {
+	return OptExposurePostExposureTargetsCreatedOpenPortsItemIdent{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposurePostExposureTargetsCreatedOpenPortsItemIdent is optional ExposurePostExposureTargetsCreatedOpenPortsItemIdent.
+type OptExposurePostExposureTargetsCreatedOpenPortsItemIdent struct {
+	Value ExposurePostExposureTargetsCreatedOpenPortsItemIdent
+	Set   bool
+}
+
+// IsSet returns true if OptExposurePostExposureTargetsCreatedOpenPortsItemIdent was set.
+func (o OptExposurePostExposureTargetsCreatedOpenPortsItemIdent) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposurePostExposureTargetsCreatedOpenPortsItemIdent) Reset() {
+	var v ExposurePostExposureTargetsCreatedOpenPortsItemIdent
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposurePostExposureTargetsCreatedOpenPortsItemIdent) SetTo(v ExposurePostExposureTargetsCreatedOpenPortsItemIdent) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposurePostExposureTargetsCreatedOpenPortsItemIdent) Get() (v ExposurePostExposureTargetsCreatedOpenPortsItemIdent, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposurePostExposureTargetsCreatedOpenPortsItemIdent) Or(d ExposurePostExposureTargetsCreatedOpenPortsItemIdent) ExposurePostExposureTargetsCreatedOpenPortsItemIdent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptExposurePostExposureTargetsIDScanReq returns new OptExposurePostExposureTargetsIDScanReq with value set to v.
 func NewOptExposurePostExposureTargetsIDScanReq(v ExposurePostExposureTargetsIDScanReq) OptExposurePostExposureTargetsIDScanReq {
 	return OptExposurePostExposureTargetsIDScanReq{
@@ -135222,6 +137136,98 @@ func (o OptExposurePostExposureTargetsIDScanReq) Get() (v ExposurePostExposureTa
 
 // Or returns value if set, or given parameter if does not.
 func (o OptExposurePostExposureTargetsIDScanReq) Or(d ExposurePostExposureTargetsIDScanReq) ExposurePostExposureTargetsIDScanReq {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent returns new OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent with value set to v.
+func NewOptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent(v ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent {
+	return OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent is optional ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent.
+type OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent struct {
+	Value ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent
+	Set   bool
+}
+
+// IsSet returns true if OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent was set.
+func (o OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) Reset() {
+	var v ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) SetTo(v ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) Get() (v ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) Or(d ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent returns new OptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent with value set to v.
+func NewOptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent(v ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) OptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent {
+	return OptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent is optional ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent.
+type OptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent struct {
+	Value ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent
+	Set   bool
+}
+
+// IsSet returns true if OptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent was set.
+func (o OptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) Reset() {
+	var v ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) SetTo(v ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) Get() (v ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) Or(d ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent {
 	if v, ok := o.Get(); ok {
 		return v
 	}

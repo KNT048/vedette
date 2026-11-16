@@ -65,7 +65,7 @@ func TestSNMPADeviceThatMovedOutOfTheScopeIsNamedAndNeverSentTo(t *testing.T) {
 
 	got := w.movedOf("ipchg-c4")
 	if len(got) != 1 || got[0].DeviceID != "a-sw" || got[0].Name != "device a-sw" || got[0].IP != "192.168.10.30" ||
-		!strings.Contains(got[0].Message, "device a-sw moved to 192.168.10.30, outside the scope of this credential. If it is still device a-sw, add the address to the scope") {
+		!strings.Contains(got[0].Message, "device a-sw moved to 192.168.10.30, outside the scope of this credential. If it is still device a-sw, first check on the device itself") {
 		t.Fatalf("moved out %+v", got)
 	}
 	if o := w.movedOf("printers"); len(o) != 0 {

@@ -28,9 +28,9 @@ type SNMPMoved struct {
 // snmpMovedText is what a person is told about a device that moved out of a credential's scope.
 func snmpMovedText(name string, ip netip.Addr) string {
 	if name == "" {
-		return fmt.Sprintf("A device that answered this credential moved to %s, outside the scope of this credential. If it is still that device, add the address to the scope to keep reading it. Nothing is sent there until then.", ip)
+		return fmt.Sprintf("A device that answered this credential moved to %s, outside the scope of this credential. If it is still that device, first check on the device itself that this is its address now (a copied network card looks the same), then add the address to the scope to keep reading it. Nothing is sent there until then.", ip)
 	}
-	return fmt.Sprintf("%s moved to %s, outside the scope of this credential. If it is still %s, add the address to the scope to keep reading it. Nothing is sent there until then.", name, ip, name)
+	return fmt.Sprintf("%s moved to %s, outside the scope of this credential. If it is still %s, first check on the device itself that this is its address now (a copied network card looks the same), then add the address to the scope to keep reading it. Nothing is sent there until then.", name, ip, name)
 }
 
 // snmpMovedOut lists, by credential id, the devices whose newest answer was with that credential at an address its scope holds, and

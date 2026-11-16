@@ -87,6 +87,10 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Today: add your devices so Vedette can check them' })).toBeInTheDocument()
     const card = await screen.findByRole('region', { name: 'Get started' })
     expect(screen.queryByRole('list', { name: 'Today at a glance' })).toBeNull()
+    // No device known yet: "In your network?" cannot say No, it says why it does not know.
+    const hot = await screen.findByRole('table', { name: 'Newly exploited' })
+    expect((await within(hot).findAllByText('No devices yet')).length).toBeGreaterThan(0)
+    expect(within(hot).queryByText('No', { exact: true })).toBeNull()
     expect(within(card).getByText('Find your devices')).toBeInTheDocument()
     expect(await within(card).findByText('Get alerts')).toBeInTheDocument()
     expect(await within(card).findByText('Turn on two-step sign-in')).toBeInTheDocument()

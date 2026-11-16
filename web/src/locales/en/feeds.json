@@ -51,6 +51,7 @@
     "maybe": "Maybe",
     "maybeHint": "Same vendor, but not sure it is the same product. Open the details to see which devices.",
     "no": "No",
+    "noDevices": "No devices yet",
     "off": "Inventory is off"
   },
   "weekly": {

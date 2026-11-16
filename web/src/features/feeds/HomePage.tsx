@@ -53,7 +53,7 @@ function useKevNotice() {
   return { never, notice }
 }
 
-function HotBoard() {
+function HotBoard({ noDevices }: { noDevices: boolean }) {
   const { t } = useTranslation('feeds')
   const { notice } = useKevNotice()
   const navigate = useNavigate()
@@ -82,7 +82,7 @@ function HotBoard() {
     } },
     { id: 'template', header: t('hot.col.template'), accessorFn: (r) => Number(r.has_template), cell: ({ row }) => (row.original.has_template ? t('hot.yes') : <span className="text-muted">–</span>) },
     { id: 'ransomware', header: t('hot.col.ransomware'), accessorFn: (r) => Number(r.ransomware), cell: ({ row }) => (row.original.ransomware ? <span className="font-medium text-danger">{t('hot.yes')}</span> : <span className="text-muted">–</span>) },
-    { id: 'youHave', header: t('hot.col.youHave'), accessorFn: (r) => (r.you_have === 'yes' ? 2 : r.you_have === 'maybe' ? 1 : 0), cell: ({ row }) => <YouHaveCell value={row.original.you_have} /> },
+    { id: 'youHave', header: t('hot.col.youHave'), accessorFn: (r) => (r.you_have === 'yes' ? 2 : r.you_have === 'maybe' ? 1 : 0), cell: ({ row }) => <YouHaveCell value={row.original.you_have} noDevices={noDevices} /> },
   ]
   return (
     <Section id="hot" title={t('hot.title')} description={t('hot.description')} info={t('hot.descriptionInfo')} stories={['S-FEED-1']}
@@ -184,7 +184,7 @@ export default function HomePage() {
       />
       <AiBudgetPrompt />
       <HomeDashboard kevNotice={kevTitle} prompts={<><AlertChannelPrompt /><TwoStepPrompt /></>} />
-      <HotBoard />
+      <HotBoard noDevices={s ? s.devices.total <= 1 : false} />
       <Weekly />
     </>
   )

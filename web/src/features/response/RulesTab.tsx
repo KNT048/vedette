@@ -21,6 +21,7 @@ import { RuleDialog, SimResult } from './RuleEditor'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { Rule, RuleInput, Simulation } from './types'
+import { useFrozen } from './frozen'
 
 const toInput = (r: Rule): RuleInput => ({ name: r.name, enabled: r.enabled, live: r.live, trigger: r.trigger, match: r.match, conditions: r.conditions, actions: r.actions, pre_approved: r.pre_approved, max_per_hour: r.max_per_hour, schedule_min: r.schedule_min })
 const mins = (m: number) => (m >= 1440 && m % 1440 === 0 ? `${m / 1440} d` : m >= 60 ? `${Math.round((m / 60) * 10) / 10} h` : `${m} min`)
@@ -64,6 +65,7 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
   const { t } = useTranslation('response')
   const admin = useCan('admin')
   const operator = useCan('operator')
+  const frozen = useFrozen() // D-624: a rule can be turned off, put back to dry run or deleted, not turned on, edited or made live
   const save = useSaveRule()
   const del = useDeleteRule()
   const sim = useSimulate()
@@ -78,7 +80,7 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
     <Panel className="grid gap-3 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-3">
-          <Switch id={`rs-${rule.id}`} checked={rule.enabled} disabled={!admin || save.isPending} aria-label={t('rules.enabledLabel', { name: rule.name })}
+          <Switch id={`rs-${rule.id}`} checked={rule.enabled} disabled={!admin || save.isPending || (frozen && !rule.enabled)} title={frozen && !rule.enabled ? t('leaving.frozen') : undefined} aria-label={t('rules.enabledLabel', { name: rule.name })}
             onCheckedChange={(v) => save.mutate({ id: rule.id, rule: { ...toInput(rule), enabled: v } }, { onSuccess: () => toast.success(t(v ? 'rules.nowOn' : 'rules.nowOff', { name: rule.name })), onError: (e) => toast.error(errText(e)) })} />
           <h3 className="text-sm font-semibold">{rule.name}</h3>
           <Chip tone={rule.live ? 'warn' : 'off'}>{rule.live ? t('rules.live') : t('rules.dryRun')}</Chip>
@@ -90,8 +92,8 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
             onClick={() => sim.mutate(toInput(rule), { onSuccess: setResult, onError: (e) => toast.error(errText(e)) })}><FlaskConical className="size-4" aria-hidden />{t('rules.simulateShort')}</Button>
           {admin ? (
             <>
-              <Button size="sm" variant="ghost" onClick={() => setLive(true)} aria-label={t(rule.live ? 'rules.backToDryFor' : 'rules.goLiveFor', { name: rule.name })}>{rule.live ? t('rules.backToDry') : t('rules.goLive')}</Button>
-              <Button size="sm" variant="ghost" onClick={onEdit} aria-label={t('rules.edit', { name: rule.name })}><Pencil className="size-4" aria-hidden />{t('common:edit')}</Button>
+              {frozen && !rule.live ? null : <Button size="sm" variant="ghost" onClick={() => setLive(true)} aria-label={t(rule.live ? 'rules.backToDryFor' : 'rules.goLiveFor', { name: rule.name })}>{rule.live ? t('rules.backToDry') : t('rules.goLive')}</Button>}
+              {frozen ? null : <Button size="sm" variant="ghost" onClick={onEdit} aria-label={t('rules.edit', { name: rule.name })}><Pencil className="size-4" aria-hidden />{t('common:edit')}</Button>}
               <Button size="sm" variant="ghost" disabled={del.isPending} aria-label={t('rules.delete', { name: rule.name })} onClick={() => { del.reset(); setConfirmDel(true) }}><Trash2 className="size-4" aria-hidden />{t('common:delete')}</Button>
             </>
           ) : null}
@@ -105,7 +107,7 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
       </dl>
       <p className="text-[12px] text-muted">{t('rules.limit', { n: rule.max_per_hour })} {rule.last_fired ? t('rules.lastFired', { time: fmtDateTime(rule.last_fired) }) : t('rules.neverFired')}</p>
       {!rule.live && rule.enabled ? <div className="flex items-center gap-1 text-[13px] text-muted"><p>{t('rules.dryNote')}</p><InfoTip topic={t('rules.dryRun')}>{t('rules.dryNoteInfo')}</InfoTip></div> : null}
-      {rule.trigger === 'manual' ? <ManualRun rule={rule} /> : null}
+      {rule.trigger === 'manual' && !frozen ? <ManualRun rule={rule} /> : null}
       {result ? <SimResult s={result} /> : null}
       {live ? <LiveDialog rule={rule} onClose={() => setLive(false)} /> : null}
       {confirmDel ? (
@@ -125,7 +127,8 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
 
 function Templates() {
   const { t } = useTranslation('response')
-  const admin = useCan('admin')
+  const frozen = useFrozen() // D-624: no new rule from a template
+  const admin = useCan('admin') && !frozen
   const q = useTemplates()
   const clone = useCloneTemplate()
   // S-CORE-9 G5: a template whose trigger needs a module this install cannot run (the honeypot on a container-only install) is shown but cannot be cloned
@@ -158,12 +161,13 @@ function Templates() {
 function Events() {
   const { t } = useTranslation('response')
   const operator = useCan('operator')
+  const frozen = useFrozen()
   const q = useEvents()
   const run = useRunRules()
   const noHoneypot = useModuleAvailable('honeypot') === false // D-390: the text does not promise honeypot touches where there are none
   return (
     <Section title={t('det.title')} description={t('det.description')} info={t(noHoneypot ? 'det.descriptionNoTrapsInfo' : 'det.descriptionInfo')} stories={['S-RESP-3']}
-      actions={import.meta.env.VITE_API_MOCK !== 'off' ? <Button disabled={!operator || run.isPending} title={!operator ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
+      actions={import.meta.env.VITE_API_MOCK !== 'off' && !frozen ? <Button disabled={!operator || run.isPending} title={!operator ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
         onClick={() => run.mutate(undefined, { onSuccess: (r) => toast.success(t('det.ran', r)), onError: (e) => toast.error(errText(e)) })}>{t('det.run')}</Button> : undefined}>
       {q.isPending ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : q.data.items.length ? (
         <>
@@ -194,6 +198,7 @@ function Events() {
 export function RulesTab() {
   const { t } = useTranslation('response')
   const admin = useCan('admin')
+  const frozen = useFrozen() // D-624: no new rule
   const rules = useRules()
   const [edit, setEdit] = useState<Rule | 'new' | null>(null)
   if (rules.isPending) return <Loading />
@@ -201,7 +206,7 @@ export function RulesTab() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
       <Section title={t('rules.title')} description={t('rules.description')} info={t('rules.descriptionInfo')} stories={['S-RESP-3']}
-        actions={admin ? <Button variant="primary" onClick={() => setEdit('new')}><Plus className="size-4" aria-hidden />{t('rules.add')}</Button> : undefined}>
+        actions={admin && !frozen ? <Button variant="primary" onClick={() => setEdit('new')}><Plus className="size-4" aria-hidden />{t('rules.add')}</Button> : undefined}>
         <div className="grid gap-4">
           <p className="rounded-md border border-rule bg-surface px-4 py-3 text-sm">{t('rules.safetyNote')} {admin ? <Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link> : null}</p>
           {rules.data.items.length ? rules.data.items.map((r) => <RuleCard key={r.id} rule={r} onEdit={() => setEdit(r)} />) : <p className="text-sm text-muted">{t('rules.empty')}</p>}

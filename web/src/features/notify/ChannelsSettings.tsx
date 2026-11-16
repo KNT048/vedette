@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
+import { notOffered } from '@/lib/v1'
 import { useUsers } from '@/features/core/api'
 import { checkFeedUrl } from '@/features/feeds/defaults'
 import History from './History'
@@ -78,6 +79,10 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
   const type = opened.type
   // The channel as the box has it now: a Zalo personal dialog stays open after Save to show each approver's link state (D-447).
   const channel = useChannels().data?.channels.find((c) => c.type === type) ?? opened
+  // D-624 (#819): approving actions from a channel belongs to the response module, not offered in v1. A channel that already
+  // has approvals on keeps the section, so they can be turned off.
+  const approvalsFrozen = notOffered('response')
+  const showApprovals = !approvalsFrozen || channel.approvals
   const name = t(`ch.${type}`)
   const [enabled, setEnabled] = useState(channel.configured ? channel.enabled : true)
   const [fields, setFields] = useState<Record<string, string>>(() => ({ ...(type === 'email' ? { port: '587', security: 'starttls', provider: 'custom' } : {}), ...(type === 'webhook' ? {} : channel.fields) })) // the webhook URL is a secret: only its masked form comes back, so the field starts empty (empty = keep)
@@ -122,7 +127,8 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
     save.mutate({ type, enabled, fields: sent, secret: secret || undefined, ...(type === 'email' && signin ? { signin } : {}), min_severity: min, ...zalo, ...(canApprove ? { approvals, approvers: approvals ? approvers : [] } : {}), ...(type === 'slack' && approvals ? { app_token: appToken || undefined, bot_token: botToken || undefined } : {}), ...(type === 'zalo' ? { secret_key: zaloKey || undefined, refresh_token: zaloRefresh || undefined } : {}) }, {
       onSuccess: () => {
         toast.success(t('channels.saved', { name }))
-        if (type === 'zalo-personal' && approvals && !thenTest) { setZaloSigned(null); toast.info(t('zp.codesSent')); return } // stay: show who is linked
+        // D-624 (N-L3): frozen approvers get no new codes, so nothing to stay for
+        if (type === 'zalo-personal' && approvals && !thenTest && !approvalsFrozen) { setZaloSigned(null); toast.info(t('zp.codesSent')); return } // stay: show who is linked
         onSaved(thenTest)
       },
       onError: (er) => {
@@ -282,7 +288,7 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
               </div>
             </Field>
           )}
-          <fieldset className="grid gap-3 rounded-md border border-rule bg-sunken p-3">
+          {showApprovals ? (<fieldset className="grid gap-3 rounded-md border border-rule bg-sunken p-3">
             <legend className="flex items-center gap-1 px-1 text-sm font-medium">{t('approve.title')}
               <InfoTip topic={t('approve.title')}>{APPROVAL_CHANNELS.includes(type) ? (
                 <>
@@ -294,10 +300,12 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
             {APPROVAL_CHANNELS.includes(type) ? (
               <>
                 <div className="flex items-center gap-3">
-                  <Switch id={`ch-${type}-appr`} checked={approvals} onCheckedChange={setApprovals} />
+                  {/* D-624 (M2): approvals can be turned off here, not on, and the approvers are shown, not changed */}
+                  <Switch id={`ch-${type}-appr`} checked={approvals} disabled={approvalsFrozen && !approvals} onCheckedChange={setApprovals} />
                   <Label htmlFor={`ch-${type}-appr`}>{t('approve.switch')}</Label>
                 </div>
                 <p className="text-[13px] text-muted">{t(`approve.hint.${type}`)}</p>
+                <fieldset disabled={approvalsFrozen} className="m-0 grid min-w-0 gap-3 border-0 p-0">
                 {approvals ? (
                   <div className="grid gap-2" role="group" aria-label={t('approve.listTitle')}>
                     <div className="flex items-center gap-1">
@@ -350,9 +358,10 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
                     </Field>
                   </>
                 ) : null}
+                </fieldset>
               </>
             ) : <p className="text-[13px] text-muted">{t('approve.linkOnly')}</p>}
-          </fieldset>
+          </fieldset>) : null}
           <Field label={t('channels.minSeverity')} hint={t('channels.minSeverityHint')} htmlFor={`ch-${type}-min`}>
             <Select id={`ch-${type}-min`} value={min} onChange={(e) => setMin(e.target.value as RouteSeverity)} aria-describedby={`ch-${type}-min-hint`}>
               {ROUTE_SEVERITIES.map((s) => <option key={s} value={s}>{t('channels.min', { sev: t(`common:severity.${s}`) })}</option>)}

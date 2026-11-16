@@ -31285,6 +31285,57 @@
                             ],
                             "description": "Read from KEV, not from the project recommendation pack"
                           },
+                          "cvss": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "score": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 10,
+                                    "description": "The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or NVD's v2 table (2.0: Low, Medium, High; no Critical)"
+                                  },
+                                  "version": {
+                                    "type": "string",
+                                    "enum": [
+                                      "4.0",
+                                      "3.1",
+                                      "3.0",
+                                      "2.0"
+                                    ],
+                                    "description": "The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has nothing newer)"
+                                  },
+                                  "source": {
+                                    "type": "string",
+                                    "enum": [
+                                      "nvd",
+                                      "cna"
+                                    ],
+                                    "description": "nvd = NVD's own score (\"Primary\"); cna = another scorer NVD lists as \"Secondary\" (the CVE Numbering Authority or CISA's ADP), used only when NVD gives none for that version"
+                                  },
+                                  "vector": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200,
+                                    "description": "NVD's vector string of the score (\"CVSS:3.1/AV:N/AC:L/…\"; 2.0: \"AV:N/AC:L/Au:N/…\"): FIRST asks that a score be shown with its vector, so a score without a valid one is not shown"
+                                  }
+                                },
+                                "required": [
+                                  "score",
+                                  "version",
+                                  "source",
+                                  "vector"
+                                ],
+                                "additionalProperties": false,
+                                "description": "#825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "null = no CVSS score known: the pages say \"No score\", never 0"
+                          },
                           "fix": {
                             "description": "GET /findings only, open findings: the update that fixes it with others (D-545); null when there is none to name",
                             "anyOf": [
@@ -31366,7 +31417,8 @@
                           "accepted_until",
                           "history",
                           "asset",
-                          "kev"
+                          "kev",
+                          "cvss"
                         ],
                         "additionalProperties": false
                       }
@@ -31993,6 +32045,57 @@
                       ],
                       "description": "Read from KEV, not from the project recommendation pack"
                     },
+                    "cvss": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 10,
+                              "description": "The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or NVD's v2 table (2.0: Low, Medium, High; no Critical)"
+                            },
+                            "version": {
+                              "type": "string",
+                              "enum": [
+                                "4.0",
+                                "3.1",
+                                "3.0",
+                                "2.0"
+                              ],
+                              "description": "The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has nothing newer)"
+                            },
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "nvd",
+                                "cna"
+                              ],
+                              "description": "nvd = NVD's own score (\"Primary\"); cna = another scorer NVD lists as \"Secondary\" (the CVE Numbering Authority or CISA's ADP), used only when NVD gives none for that version"
+                            },
+                            "vector": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "description": "NVD's vector string of the score (\"CVSS:3.1/AV:N/AC:L/…\"; 2.0: \"AV:N/AC:L/Au:N/…\"): FIRST asks that a score be shown with its vector, so a score without a valid one is not shown"
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "version",
+                            "source",
+                            "vector"
+                          ],
+                          "additionalProperties": false,
+                          "description": "#825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null = no CVSS score known: the pages say \"No score\", never 0"
+                    },
                     "fix": {
                       "description": "GET /findings only, open findings: the update that fixes it with others (D-545); null when there is none to name",
                       "anyOf": [
@@ -32775,6 +32878,7 @@
                     "history",
                     "asset",
                     "kev",
+                    "cvss",
                     "fixed_in",
                     "pack",
                     "compromise",
@@ -33245,6 +33349,57 @@
                       ],
                       "description": "Read from KEV, not from the project recommendation pack"
                     },
+                    "cvss": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 10,
+                              "description": "The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or NVD's v2 table (2.0: Low, Medium, High; no Critical)"
+                            },
+                            "version": {
+                              "type": "string",
+                              "enum": [
+                                "4.0",
+                                "3.1",
+                                "3.0",
+                                "2.0"
+                              ],
+                              "description": "The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has nothing newer)"
+                            },
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "nvd",
+                                "cna"
+                              ],
+                              "description": "nvd = NVD's own score (\"Primary\"); cna = another scorer NVD lists as \"Secondary\" (the CVE Numbering Authority or CISA's ADP), used only when NVD gives none for that version"
+                            },
+                            "vector": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "description": "NVD's vector string of the score (\"CVSS:3.1/AV:N/AC:L/…\"; 2.0: \"AV:N/AC:L/Au:N/…\"): FIRST asks that a score be shown with its vector, so a score without a valid one is not shown"
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "version",
+                            "source",
+                            "vector"
+                          ],
+                          "additionalProperties": false,
+                          "description": "#825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null = no CVSS score known: the pages say \"No score\", never 0"
+                    },
                     "fix": {
                       "description": "GET /findings only, open findings: the update that fixes it with others (D-545); null when there is none to name",
                       "anyOf": [
@@ -34027,6 +34182,7 @@
                     "history",
                     "asset",
                     "kev",
+                    "cvss",
                     "fixed_in",
                     "pack",
                     "compromise",
@@ -34499,6 +34655,57 @@
                       ],
                       "description": "Read from KEV, not from the project recommendation pack"
                     },
+                    "cvss": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 10,
+                              "description": "The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or NVD's v2 table (2.0: Low, Medium, High; no Critical)"
+                            },
+                            "version": {
+                              "type": "string",
+                              "enum": [
+                                "4.0",
+                                "3.1",
+                                "3.0",
+                                "2.0"
+                              ],
+                              "description": "The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has nothing newer)"
+                            },
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "nvd",
+                                "cna"
+                              ],
+                              "description": "nvd = NVD's own score (\"Primary\"); cna = another scorer NVD lists as \"Secondary\" (the CVE Numbering Authority or CISA's ADP), used only when NVD gives none for that version"
+                            },
+                            "vector": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "description": "NVD's vector string of the score (\"CVSS:3.1/AV:N/AC:L/…\"; 2.0: \"AV:N/AC:L/Au:N/…\"): FIRST asks that a score be shown with its vector, so a score without a valid one is not shown"
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "version",
+                            "source",
+                            "vector"
+                          ],
+                          "additionalProperties": false,
+                          "description": "#825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null = no CVSS score known: the pages say \"No score\", never 0"
+                    },
                     "fix": {
                       "description": "GET /findings only, open findings: the update that fixes it with others (D-545); null when there is none to name",
                       "anyOf": [
@@ -35281,6 +35488,7 @@
                     "history",
                     "asset",
                     "kev",
+                    "cvss",
                     "fixed_in",
                     "pack",
                     "compromise",
@@ -35765,6 +35973,57 @@
                       ],
                       "description": "Read from KEV, not from the project recommendation pack"
                     },
+                    "cvss": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 10,
+                              "description": "The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or NVD's v2 table (2.0: Low, Medium, High; no Critical)"
+                            },
+                            "version": {
+                              "type": "string",
+                              "enum": [
+                                "4.0",
+                                "3.1",
+                                "3.0",
+                                "2.0"
+                              ],
+                              "description": "The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has nothing newer)"
+                            },
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "nvd",
+                                "cna"
+                              ],
+                              "description": "nvd = NVD's own score (\"Primary\"); cna = another scorer NVD lists as \"Secondary\" (the CVE Numbering Authority or CISA's ADP), used only when NVD gives none for that version"
+                            },
+                            "vector": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 200,
+                              "description": "NVD's vector string of the score (\"CVSS:3.1/AV:N/AC:L/…\"; 2.0: \"AV:N/AC:L/Au:N/…\"): FIRST asks that a score be shown with its vector, so a score without a valid one is not shown"
+                            }
+                          },
+                          "required": [
+                            "score",
+                            "version",
+                            "source",
+                            "vector"
+                          ],
+                          "additionalProperties": false,
+                          "description": "#825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null = no CVSS score known: the pages say \"No score\", never 0"
+                    },
                     "fix": {
                       "description": "GET /findings only, open findings: the update that fixes it with others (D-545); null when there is none to name",
                       "anyOf": [
@@ -36547,6 +36806,7 @@
                     "history",
                     "asset",
                     "kev",
+                    "cvss",
                     "fixed_in",
                     "pack",
                     "compromise",

@@ -6,9 +6,12 @@ import { api, authFile, uniq } from './box'
 import { as } from './findings-seed'
 import { expectAccessible, h1, noErrors, noVietnamese } from './ui'
 import { collectErrors, shot } from '../e2e/helpers'
+import { POST_V1_IN_UI } from '../src/lib/postV1'
 
 test.use({ storageState: authFile('admin'), actionTimeout: 10_000 })
 test.describe.configure({ mode: 'serial' })
+// D-624 (#819): the MCP server is hidden in the v1 GUI; the walk is serial (the first test turns it on through the page), so the whole file waits for post-v1.
+test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819)')
 
 interface Tok { id: string; name: string; scopes: string[]; last4: string; last_used: string | null }
 interface State { enabled: boolean; listening: boolean; bind: string; port: number; endpoint: string; tokens: Tok[]; tools: { name: string; scope: string }[]; scopes: string[] }

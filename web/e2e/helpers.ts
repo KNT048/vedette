@@ -74,3 +74,22 @@ export async function startClean(page: Page, org = 'Acme Test Ltd') {
 export async function shot(page: Page, mod: string, name: string) {
   await page.screenshot({ path: `qa-shots/${mod}/${name}.png`, fullPage: true })
 }
+
+/** D-624 (supervisor 2026-11-16): a setup bundle turns on v1 modules only. A spec that needs a preview module turns it on as a
+ *  customer does, from its own row in Settings → Modules (names as listed there, e.g. 'Vulnerability scan', 'Internal traps',
+ *  'Logs', 'AI assistant', 'Reports'); a dependency dialog is accepted. */
+export async function turnOnModules(page: Page, names: string[]) {
+  await page.goto('/settings/modules')
+  for (const name of names) {
+    const sw = page.getByRole('switch', { name: new RegExp(`^Turn (on|off) module ${name}$`) })
+    await expect(sw).toBeVisible()
+    if (await sw.isChecked()) continue
+    await sw.click()
+    const deps = page.getByRole('dialog', { name: 'Turn on the required modules too?' })
+    if (await deps.isVisible().catch(() => false)) await deps.getByRole('button', { name: 'Turn on together' }).click()
+    await expect(sw).toBeChecked()
+  }
+}
+
+/** Every preview module (scan, honeypot, logs, ai, reports): what the mid-size bundle turned on before D-624. */
+export const PREVIEW_NAMES = ['Vulnerability scan', 'Internal traps', 'Logs', 'AI assistant', 'Reports']

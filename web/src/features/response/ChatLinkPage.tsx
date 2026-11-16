@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { api, ApiError } from '@/lib/api'
 import { useMe } from '@/lib/session'
 import type { Identity, IdentityList } from './types'
+import { useLeaving } from './frozen'
 
 /** The path's last part → the approval channel whose link it is. */
 const CHANNEL = { telegram: 'telegram', zalo: 'zalo-personal' } as const
@@ -30,6 +31,7 @@ export default function ChatLinkPage() {
   const confirm = useMutation({ mutationFn: () => api.post<Identity>(`/response/me/identities/${channel}/confirm`, { code: token }),
     onSettled: () => { void qc.invalidateQueries({ queryKey: ['response'] }) } })
   const [done, setDone] = useState<Identity | null>(null)
+  const frozen = useLeaving() // D-624 (N-L3): AI response on but not offered: no new approver link
   const row = ids.data?.items.find((r) => r.channel === channel)
   const name = t(`chatLink.name.${kind}`)
   // The ID first and plain: a name is free text an administrator typed, the ID is what Vedette will trust.
@@ -43,7 +45,7 @@ export default function ChatLinkPage() {
         {!token ? <p role="alert" className="text-sm">{t('chatLink.noToken', { name })}</p>
           : done ? (
             <p role="status" className="flex items-start gap-2 text-sm"><CircleCheck className="mt-0.5 size-4 shrink-0 text-ok" aria-hidden />{t(`chatLink.linked.${kind}`, { account })}</p>
-          ) : row?.linked ? <p role="status" className="text-sm">{t('chatLink.already', { account })}</p> : (
+          ) : row?.linked ? <p role="status" className="text-sm">{t('chatLink.already', { account })}</p> : frozen ? <p role="status" className="text-sm">{t('leaving.linkFrozen')}</p> : (
             <>
               <p className="text-sm font-medium">{row ? t('chatLink.question', { name, id: row.address, who }) : t('chatLink.questionNoId', { name, who })}</p>
               {row ? (

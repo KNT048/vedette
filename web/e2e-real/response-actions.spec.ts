@@ -8,8 +8,11 @@ import { expect, request, test, type APIRequestContext, type Locator, type Page 
 import { api, authFile, box, device, uniq, type DeviceKind } from './box'
 import { expectAccessible, h1, noErrors, noVietnamese } from './ui'
 import { collectErrors, shot } from '../e2e/helpers'
+import { POST_V1_IN_UI } from '../src/lib/postV1'
 
 test.use({ storageState: authFile('admin'), actionTimeout: 10_000 })
+// D-624 (#819): AI response is read-only in the v1 GUI (a box that has it on can only turn it off), and this walk acts on its screens.
+test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819)')
 
 const BRANDS = /forti|pfsense|cisco|mikrotik|palo ?alto|juniper|ubiquiti|unifi|aruba|sophos|opnsense|checkpoint|sonicwall|huawei|tp-?link|omada/i
 const EMPTY = { cli: '', method: '', path: '', body: '', headers: '' }

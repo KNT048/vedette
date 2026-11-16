@@ -10,9 +10,11 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import { useModules, type ModuleId, type ModuleState } from '@/lib/modules'
-import { CREDENTIALED_IN_UI } from '@/lib/credentialed'
+import { notOffered, scopeOf } from '@/lib/v1'
+import { ScopeBadge, ScopeLine } from '@/components/common/V1Scope'
 import { fmtDate } from '@/lib/format'
-import { useToggleModule, useUsers } from './api'
+import { useOidc, useToggleModule, useUsers } from './api'
+import { Slot } from '@/components/common/Slot'
 import { errMsg, ReadOnlyNote, useGate } from './parts'
 
 type Confirm = { kind: 'disable'; mod: ModuleId; affected: ModuleId[] } | { kind: 'deps'; mod: ModuleId; missing: ModuleId[] } | null
@@ -24,6 +26,13 @@ function EmailCodeWarning() {
   return count > 0 ? <Notice tone="danger" role="alert" className="mb-0" title={t('modules.disable.emailCodes', { count })} info={t('modules.disable.emailCodesInfo')} /> : null
 }
 
+/** D-624 (M1): turning SSO off here locks out the people who only sign in through it, as on the Users page; in v1 it never comes back. */
+function SsoUsersWarning() {
+  const { t } = useTranslation('core')
+  const n = useOidc(true).data?.sso_users ?? 0
+  return n > 0 ? <Notice tone="danger" role="alert" className="mb-0" title={t('modules.disable.ssoUsers', { count: n })} /> : null
+}
+
 export default function ModulesSection() {
   const { t, i18n } = useTranslation('core')
   const gate = useGate('admin')
@@ -32,8 +41,9 @@ export default function ModulesSection() {
   const toggle = useToggleModule()
   const [confirm, setConfirm] = useState<Confirm>(null)
   const name = (id: ModuleId) => t(`modules.${id}.name`, { ns: 'common' })
-  // D-417: a module this build has no backend for is not listed (it would read "On" and do nothing).
-  const listed = q.data?.modules.filter((m) => CREDENTIALED_IN_UI || m.id !== 'scan-credentialed')
+  // D-624 (#819), D-417: a module this build does not offer is not listed unless this box has it on; then it is listed
+  // read-only, and its switch can only turn it off.
+  const listed = q.data?.modules.filter((m) => scopeOf(m.id, m.enabled) !== 'hidden')
 
   async function run(id: ModuleId, enabled: boolean, withDependencies = false) {
     try {
@@ -45,6 +55,7 @@ export default function ModulesSection() {
   }
 
   function onSwitch(all: ModuleState[], m: ModuleState, next: boolean) {
+    if (next && notOffered(m.id)) return // D-624: only the way out
     if (next) { void run(m.id, true); return }
     setConfirm({ kind: 'disable', mod: m.id, affected: all.filter((x) => x.enabled && x.depends.includes(m.id)).map((x) => x.id) })
   }
@@ -55,10 +66,10 @@ export default function ModulesSection() {
       <ReadOnlyNote role="admin" />
       <QueryState query={q}>
         {(d) => {
-          const modules = d.modules.filter((m) => CREDENTIALED_IN_UI || m.id !== 'scan-credentialed')
+          const modules = d.modules.filter((m) => scopeOf(m.id, m.enabled) !== 'hidden')
           const columns: ColumnDef<ModuleState>[] = [
             { id: 'name', header: t('modules.col.module'), accessorFn: (m) => name(m.id), cell: ({ row }) => (
-              <div className="grid max-w-md"><div className="flex items-center gap-1 font-medium">{name(row.original.id)}{i18n.exists(`modules.${row.original.id}.summaryInfo`, { ns: 'common' }) ? <InfoTip topic={name(row.original.id)}>{t(`modules.${row.original.id}.summaryInfo`, { ns: 'common' })}</InfoTip> : null}</div><span className="text-[13px] text-muted">{t(`modules.${row.original.id}.${row.original.id === 'sensor-active' && install === 'container' ? 'summaryContainer' : 'summary'}`, { ns: 'common' })}</span>{row.original.available ? null : <span className="text-[13px] text-warn">{t('modules.notHereWhy')}</span>}</div>
+              <div className="grid max-w-md"><div className="flex items-center gap-1 font-medium">{name(row.original.id)}{i18n.exists(`modules.${row.original.id}.summaryInfo`, { ns: 'common' }) ? <InfoTip topic={name(row.original.id)}>{t(`modules.${row.original.id}.summaryInfo`, { ns: 'common' })}</InfoTip> : null}{' '}<ScopeBadge scope={scopeOf(row.original.id, row.original.enabled)} className="ml-1.5" /></div><span className="text-[13px] text-muted">{t(`modules.${row.original.id}.${row.original.id === 'sensor-active' && install === 'container' ? 'summaryContainer' : 'summary'}`, { ns: 'common' })}</span>{row.original.available ? null : <span className="text-[13px] text-warn">{t('modules.notHereWhy')}</span>}<ScopeLine scope={scopeOf(row.original.id, row.original.enabled)} /></div>
             ) },
             { id: 'depends', header: t('modules.col.needs'), enableSorting: false, accessorFn: (m) => m.depends.join(','), cell: ({ row }) => (row.original.depends.length ? <span className="text-[13px]">{row.original.depends.map(name).join(', ')}</span> : <span className="text-muted">–</span>) },
             { id: 'state', header: t('modules.col.state'), accessorFn: (m) => Number(m.enabled), cell: ({ row }) => {
@@ -89,7 +100,8 @@ export default function ModulesSection() {
       </Dialog>
 
       <Dialog open={confirm?.kind === 'disable'} onOpenChange={(o) => !o && setConfirm(null)}>
-        <DialogContent title={confirm?.kind === 'disable' ? t('modules.disable.title', { name: name(confirm.mod) }) : ''} description={t('modules.disable.keep')} info={t('modules.disable.reenable')}>
+        <DialogContent title={confirm?.kind === 'disable' ? t('modules.disable.title', { name: name(confirm.mod) }) : ''} description={t('modules.disable.keep')}
+          info={confirm?.kind === 'disable' && notOffered(confirm.mod) ? t('modules.disable.notOffered') : t('modules.disable.reenable')}>
           {confirm?.kind === 'disable' ? (
             confirm.affected.length ? (
               <div className="grid gap-2 text-sm">
@@ -99,6 +111,9 @@ export default function ModulesSection() {
             ) : <p className="text-sm text-muted">{t('modules.disable.none')}</p>
           ) : null}
           {confirm?.kind === 'disable' && confirm.mod === 'notify' ? <EmailCodeWarning /> : null}
+          {confirm?.kind === 'disable' && confirm.mod === 'auth-oidc' ? <SsoUsersWarning /> : null}
+          {/* what a module says stays in force once it is off (response: CONTRACT "Khi tắt module", D-624) */}
+          {confirm?.kind === 'disable' ? <Slot name="modules.disable" props={{ module: confirm.mod, onClose: () => setConfirm(null) }} /> : null}
           <DialogFooter>
             <Button onClick={() => setConfirm(null)}>{t('common:cancel')}</Button>
             <Button variant="danger" disabled={toggle.isPending} onClick={() => confirm?.kind === 'disable' && void run(confirm.mod, false)}>{t('modules.disable.confirm')}</Button>

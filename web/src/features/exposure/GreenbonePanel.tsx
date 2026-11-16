@@ -154,6 +154,7 @@ export function GreenboneSection({ s }: { s: Snapshot }) {
     : run.state === 'done' ? t('greenbone.results.noneBody')
     : run.state === 'partial' ? t('greenbone.results.partialNoneBody')
     : why?.text ?? t(run.state === 'not_run' ? 'greenbone.results.notRunBody' : run.state === 'failed' ? 'greenbone.results.failedBody' : run.state === 'ended' ? 'greenbone.results.endedBody' : 'greenbone.results.stoppedBody')
+  const emptyInfo = run.state === 'done' ? t('greenbone.results.noneBodyInfo') : run.state === 'partial' ? t('greenbone.results.partialNoneBodyInfo') : undefined
   return (
     <>
       <Section id="greenbone-results" title={t('greenbone.results.title')} description={t('greenbone.results.header')} info={t('greenbone.results.headerInfo')}>
@@ -161,7 +162,7 @@ export function GreenboneSection({ s }: { s: Snapshot }) {
         {shown ? (
           <DataTable caption={t('greenbone.results.caption')} data={findings} columns={cols} pageSize={20} initialSort={[{ id: 'severity', desc: true }]} rowTone={(r) => (r.severity >= 7 ? 'warn' : undefined)} />
         ) : (
-          <EmptyState title={t(EMPTY_TITLE[run.state])}>{emptyBody}</EmptyState>
+          <EmptyState title={t(EMPTY_TITLE[run.state])} info={emptyInfo}>{emptyBody}</EmptyState>
         )}
         {started && run.state !== 'running' ? <p className="mt-2 text-[12px] text-muted">{t('greenbone.results.startedAt', { time: started })}</p> : null}
       </Section>

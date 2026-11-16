@@ -11,6 +11,7 @@ import { fmtPercent } from '@/lib/format'
 import { fmtDay } from '@/features/feeds/dates'
 import { usePlanAction } from './fix'
 import type { Plan, PlanCve, PlanItem } from './types'
+import { InfoTip } from '@/components/common/InfoTip'
 
 function Severity({ c }: { c: PlanCve }) {
   const { t } = useTranslation('findings')
@@ -21,12 +22,13 @@ function Severity({ c }: { c: PlanCve }) {
 /** The evidence chip of D-615: how Vedette knows the device has the flaw. */
 export function EvidenceChip({ basis }: { basis: PlanCve['basis'] }) {
   const { t } = useTranslation('findings')
-  return <Chip tone={basis === 'version' ? 'off' : 'accent'} title={t(`plan.evidence.${basis}Hint`)}>{t(`plan.evidence.${basis}`)}</Chip>
+  // #824: the explanation is behind an ⓘ, not a hover-only title.
+  return <span className="inline-flex items-center gap-1"><Chip tone={basis === 'version' ? 'off' : 'accent'}>{t(`plan.evidence.${basis}`)}</Chip><InfoTip topic={t(`plan.evidence.${basis}`)}>{t(`plan.evidence.${basis}Hint`)}</InfoTip></span>
 }
 
 export function TierChip({ tier }: { tier: PlanCve['tier'] }) {
   const { t } = useTranslation('findings')
-  return <Chip tone={tier === 'likely' ? 'warn' : 'off'} title={t(`plan.tier.${tier}Hint`)}>{t(`plan.tier.${tier}`)}</Chip>
+  return <span className="inline-flex items-center gap-1"><Chip tone={tier === 'likely' ? 'warn' : 'off'}>{t(`plan.tier.${tier}`)}</Chip><InfoTip topic={t(`plan.tier.${tier}`)}>{t(`plan.tier.${tier}Hint`)}</InfoTip></span>
 }
 
 function yearAgo() {

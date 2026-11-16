@@ -7,6 +7,7 @@ import { Segmented } from '@/components/ui/segmented'
 import { fmtDate } from '@/lib/format'
 import { dayAfter, untilBounds } from './accept'
 import type { FindingRow } from './types'
+import { InfoTip } from '@/components/common/InfoTip'
 
 const PRESETS = ['30', '90', '180'] as const
 
@@ -36,7 +37,8 @@ export function AcceptUntil({ id, value, onChange, error }: { id: string; value:
 export function FindingStatusChip({ f }: { f: { status: FindingRow['status']; accepted_until?: string | null; evidence?: { agent?: boolean } | null; agent?: boolean } }) {
   const { t } = useTranslation('findings')
   // D-548: a finding carries it in its evidence, a report row (weekly, PDPL) as agent.
-  if (f.status === 'suspected' && (f.evidence?.agent || f.agent)) return <Chip tone="warn" title={t('agentChipHint')}>{t('agentChip')}</Chip>
+  // #824: the explanation is behind an ⓘ, not a hover-only title; the click stays off a clickable row; no ⓘ on paper (weekly, PDPL print).
+  if (f.status === 'suspected' && (f.evidence?.agent || f.agent)) return <span className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}><Chip tone="warn">{t('agentChip')}</Chip><InfoTip topic={t('agentChip')} className="print:hidden">{t('agentChipHint')}</InfoTip></span>
   if (f.status !== 'risk_accepted') return <StatusChip status={f.status} />
   return <Chip tone="off" title={f.accepted_until ? t('accept.chipUntil', { date: fmtDate(f.accepted_until) }) : undefined}>{t('accept.chip')}</Chip>
 }

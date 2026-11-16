@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Chip } from '@/components/common/StatusChip'
 import { Notice, PageHeader } from '@/components/common/PageHeader'
 import { ErrorState, Loading, ModuleOff } from '@/components/common/States'
+import { InfoTip } from '@/components/common/InfoTip'
 import { useIncident } from '@/features/notify/api'
 import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
@@ -98,7 +99,7 @@ export function IncidentRespondOff({ id }: { id: string }) {
             <Notice tone="off" className="mb-0" title={t('incident.offNothing')}>
               <ol className="ml-5 grid list-decimal gap-1 text-ink">
                 <li>{t('incident.doNow')} {q.data.incident.action}</li>
-                <li>{t('incident.offNext')}</li>
+                <li><span className="inline-flex items-center gap-1">{t('incident.offNext')}<InfoTip topic={t('incident.offNextTopic')}>{t('incident.offNextInfo')}</InfoTip></span></li>
               </ol>
             </Notice>
           </>

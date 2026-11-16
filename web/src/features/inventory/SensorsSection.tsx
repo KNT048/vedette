@@ -81,8 +81,8 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
   const [errorAt, setErrorAt] = useState<'card' | 'span' | 'form'>('form')
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent title={t('sensors.configTitle', { name: sensor.name })} description={t(SPAN_IN_UI ? 'sensors.card.body' : 'sensors.card.bodyNoSpan')}
-        info={SPAN_IN_UI || showSpan ? <>{SPAN_IN_UI ? <p>{t('sensors.card.bodyInfo')}</p> : null}{showSpan ? <p>{t('sensors.spanHint')}</p> : null}</> : undefined}>
+      <DialogContent title={t('sensors.configTitle', { name: sensor.name })} description={t('sensors.card.body')}
+        info={<><p>{t(SPAN_IN_UI ? 'sensors.card.bodyInfo' : 'sensors.card.bodyNoSpanInfo')}</p>{showSpan ? <p>{t('sensors.spanHint')}</p> : null}</>}>
         <div className="grid gap-4">
           <Hearing sensor={sensor} />
           {cards.length === 0 ? (

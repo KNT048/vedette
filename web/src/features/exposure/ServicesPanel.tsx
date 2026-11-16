@@ -7,6 +7,7 @@ import { dateText, dateTimeText } from './dates'
 import { PortMark } from './PortMark'
 import { InfoLine } from './InfoLine'
 import type { ServiceRow, Snapshot, TemplateRow, VulnRow } from './types'
+import { InfoTip } from '@/components/common/InfoTip'
 
 const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4, unknown: 5 } as const
 
@@ -26,7 +27,7 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
   const serviceCols: ColumnDef<ServiceRow>[] = [
     ...ipCol<ServiceRow>(),
     { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="grid gap-1"><span className="tabular-nums">{row.original.port}</span>{mark(row.original.ip, row.original.port)}</span> },
-    { id: 'service', header: t('col.service'), accessorFn: (r) => r.name, cell: ({ row }) => row.original.name === 'tcpwrapped' ? <span title={t('vulns.tcpwrapped')}>{t('vulns.tcpwrappedShort')}</span> : row.original.name },
+    { id: 'service', header: t('col.service'), accessorFn: (r) => r.name, cell: ({ row }) => row.original.name === 'tcpwrapped' ? <span className="inline-flex items-center gap-1">{t('vulns.tcpwrappedShort')}<InfoTip topic={t('vulns.tcpwrappedShort')}>{t('vulns.tcpwrapped')}</InfoTip></span> : row.original.name },
     { id: 'product', header: t('col.product'), accessorFn: (r) => r.product, cell: ({ row }) => row.original.product || <span className="text-muted">{t('vulns.noProduct')}</span> },
     { id: 'version', header: t('col.version'), accessorFn: (r) => r.version, cell: ({ row }) => row.original.version || <span className="text-muted">{t('vulns.noVersion')}</span> },
     { id: 'cves', header: t('col.exploited'), accessorFn: count, cell: ({ row }) => {

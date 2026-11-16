@@ -97,7 +97,7 @@ function OverviewTab({ data, lan }: { data: HpOverview; lan: string }) {
   return (
     <>
       {data.trap_ips.total === 0 ? (
-        <EmptyState title={t('start.title')}>
+        <EmptyState title={t('start.title')} info={t('start.info', { lan })}>
           <ol className="mt-1 grid list-decimal gap-1 pl-5">
             <li>{t('start.step1', { lan })}</li>
             <li>{t('start.step2')}</li>

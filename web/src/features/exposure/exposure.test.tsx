@@ -1617,7 +1617,7 @@ describe('exposure: the OpenVAS heading follows its one state, its start in the 
   })
 
   it.each([
-    ['done', 'OpenVAS reported no high or medium result with QoD 70 or more', 'That is one outside look'],
+    ['done', 'OpenVAS reported no high or medium result with QoD 70 or more', 'Not proof that the services are not affected: the exploited CVEs above still stand.'],
     ['not_run', 'OpenVAS did not scan this time', 'OpenVAS did not scan: this scan found no open port to check.'],
     ['failed', 'OpenVAS did not finish this scan', 'OpenVAS failed, so its results are not shown. The box log has the error.'],
     ['stopped', 'OpenVAS was stopped before it finished', 'OpenVAS was stopped before it finished (the box restarted or the scan was stopped), so its results are not shown. The results of the other checks above are kept.'],

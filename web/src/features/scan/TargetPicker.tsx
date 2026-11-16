@@ -105,7 +105,7 @@ function TargetRow({ t: target, checked, onChange }: { t: ScanTarget; checked: b
       </label>
       {extra ? <span className="text-[12px] text-muted">{extra}</span> : null}
       {target.findings > 0 ? <Chip tone="warn">{t('start.findings', { count: target.findings })}</Chip> : null}
-      {target.fragile && target.selectable ? <Chip tone="off" title={t('start.fragileHint')}>{t('start.fragile')}</Chip> : null}
+      {target.fragile && target.selectable ? <span className="inline-flex items-center gap-1"><Chip tone="off">{t('start.fragile')}</Chip><InfoTip topic={t('start.fragile')}>{t('start.fragileHint')}</InfoTip></span> : null}
       {target.pick_only ? <span className="text-[13px] text-muted">{t(target.box ? 'start.pickBox' : target.device_kind === 'unknown' ? 'start.pickUnknown' : target.fragile ? 'start.pickFragile' : 'start.pickManual')}</span> : null}
       {target.reason ? <span className="text-[13px] text-muted">{t(`reason.${target.reason}`)}</span> : null}
       {target.reason && target.kind === 'internal' ? (

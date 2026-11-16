@@ -503,7 +503,7 @@
     "card": {
       "body": "Choose the card the sensor listens on.",
       "bodyInfo": "Pick among the cards it reported, and say whether it is a SPAN card that receives mirrored traffic. This machine's network is yours: Vedette does not change the card.",
-      "bodyNoSpan": "Choose the card the sensor listens on among the cards it reported. This machine's network is yours: Vedette does not change the card.",
+      "bodyNoSpanInfo": "Pick among the cards it reported. This machine's network is yours: Vedette does not change the card.",
       "spanKept": "{{name}} is saved as a SPAN port. This version of Vedette no longer sets SPAN up: you can untick it, not tick it again.",
       "label": "Listen on",
       "hint": "Choose the card on the network you want to discover.",

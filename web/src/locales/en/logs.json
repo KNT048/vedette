@@ -91,9 +91,13 @@
     "ipHint": "The box only accepts logs from this IP. Example: 192.168.10.1.",
     "proto": "Protocol",
     "protoHint": {
-      "udp": "The box listens on UDP and TCP and keeps this device's lines from either.",
-      "tcp": "The box listens on UDP and TCP but keeps only TCP from this device: UDP is easy to forge.",
+      "udp": "Keeps this device's lines over UDP or TCP.",
+      "tcp": "Keeps only TCP from this device.",
       "tls": "The box keeps only TLS from this device, on port 6514."
+    },
+    "protoInfo": {
+      "udp": "The box listens on UDP and TCP and keeps this device's lines from either.",
+      "tcp": "The box listens on UDP and TCP but keeps only TCP from this device: UDP is easy to forge."
     },
     "port": "Port the box listens on",
     "portHint": "Usually 514, or 6514 for TLS.",

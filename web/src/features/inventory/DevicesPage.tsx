@@ -66,10 +66,10 @@ function DevicesTable({ items, filter, category, now }: { items: DeviceRow[]; fi
       return (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <Link to={`/devices/${d.id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-accent underline-offset-4 hover:underline">{nameOf(d, kindLabel(d.kind))}</Link>
-          {d.is_box ? <Chip tone="accent" title={t('box.noDelete')}>{t('box.badge')}</Chip> : null}
+          {d.is_box ? <span className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}><Chip tone="accent">{t('box.badge')}</Chip><InfoTip topic={t('box.badge')}>{t('box.noDelete')}</InfoTip></span> : null}
           {!d.approved ? <Chip tone="warn">{t('chip.pending')}</Chip> : null}
           {d.suspicious ? <Chip tone="warn">{t('chip.suspicious')}</Chip> : null}
-          {d.fragile ? <Chip tone="off" title={t('chip.fragileHint')}>{t('chip.fragile')}</Chip> : null}
+          {d.fragile ? <span className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}><Chip tone="off">{t('chip.fragile')}</Chip><InfoTip topic={t('chip.fragile')}>{t('chip.fragileHint')}</InfoTip></span> : null}
         </div>
       )
     } },
@@ -93,7 +93,7 @@ function DevicesTable({ items, filter, category, now }: { items: DeviceRow[]; fi
               {d.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}
               {!d.approved ? <Chip tone="warn">{t('chip.pending')}</Chip> : null}
               {d.suspicious ? <Chip tone="warn">{t('chip.suspicious')}</Chip> : null}
-              {d.fragile ? <Chip tone="off" title={t('chip.fragileHint')}>{t('chip.fragile')}</Chip> : null}
+              {d.fragile ? <span className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}><Chip tone="off">{t('chip.fragile')}</Chip><InfoTip topic={t('chip.fragile')}>{t('chip.fragileHint')}</InfoTip></span> : null}
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
               <TypeCell d={d} />

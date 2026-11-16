@@ -212,7 +212,8 @@
     "title": "Get started with internal traps in three steps",
     "step1": "On the Trap IPs tab, add a Trap IP at an unused address in {{lan}}.",
     "step2": "Check that its status says Listening.",
-    "step3": "On the Services tab, select Test trap. Hits then show up under Hits."
+    "step3": "On the Services tab, select Test trap. Hits then show up under Hits.",
+    "info": "A Trap IP is an address in {{lan}} that no device uses, with a name and what it should look like. Test trap makes sure the trap is recording; from then on every connection to a Trap IP shows up under Hits."
   },
   "lanUnknown": "your LAN (add it first under Devices, Scope and sensors)",
   "trapIp": {

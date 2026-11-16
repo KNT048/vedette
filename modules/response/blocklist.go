@@ -305,7 +305,7 @@ func (s *Service) RegenerateToken(ctx context.Context, who Actor) (BlocklistView
 		return BlocklistView{}, err
 	}
 	if lost {
-		s.cfg.Log.WarnContext(ctx, "response: the block list token could not be opened with this box's master key (restored without the decryption key, or the key file was made again); an administrator made a new one", "user", who.Email)
+		s.cfg.Log.WarnContext(ctx, "response: the block list token could not be opened with this box's master key (restored without the decryption key, or the key file was made again); an administrator made a new one", "user", who.ID)
 	}
 	return s.Blocklist(ctx)
 }
@@ -410,7 +410,7 @@ func (s *Service) FetchBlocklist(ctx context.Context, token, from string) ([]byt
 	s.allowFetch("ok:"+key, fetchPerMin, true)
 	var out []byte
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `UPDATE resp_blocklist SET last_fetch_at = ?, last_fetch_from = ? WHERE id = 1`, s.ts(), oneLine(from, 64)); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE resp_blocklist SET last_fetch_at = ?, last_fetch_from = ? WHERE id = 1 AND token_hash = ?`, s.ts(), oneLine(from, 64), stored); err != nil {
 			return err
 		}
 		es, err := s.blockEntries(ctx, tx)

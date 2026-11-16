@@ -10,7 +10,8 @@ import { http, HttpResponse } from 'msw'
 import { Toaster } from 'sonner'
 import { makeQueryClient } from '@/app/App'
 import { server } from '@/test/server'
-import { sessionStore } from '@/mocks/stores'
+import { aiConfigStore, sessionStore } from '@/mocks/stores'
+import { renderApp } from '@/test/render'
 import AiSettings from './AiSettings'
 
 const LOST = 'The saved API key of the AI profile "Claude" was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter the key again and save, then test it. Nothing was sent.'
@@ -67,5 +68,35 @@ describe('AI profiles after a restore without the decryption key', () => {
     expect(saved).toMatchObject({ id: 'p-claude', api_key: 'new-secret-key-2222' })
     await waitFor(() => expect(screen.queryByText('Claude: the saved API key was not restored')).not.toBeInTheDocument(), T)
     expect(screen.queryByText(`Claude: ${LOST}`)).not.toBeInTheDocument() // the failed Test of the old key is gone too
+  })
+})
+
+// J7 (#875 r1): with every key lost the box reads "not configured", but the profiles (and their tasks) are still there. The AI panels
+// send the customer to the lost profile's key, never to "Add AI profile" (a duplicate that leaves the lost one assigned).
+describe('AI panels after a restore without the decryption key', () => {
+  const lostProfiles = () => {
+    aiConfigStore.update((c) => ({ ...c, configured: false }))
+    server.use(http.get('*/api/v1/ai/profiles', () => HttpResponse.json({ items: [
+      { id: 'p-claude', name: 'Claude', kind: 'anthropic', api_style: 'anthropic', base_url: 'https://api.anthropic.com', model: 'claude-haiku-5-5', key_last4: '1111', key_lost: true, location: 'cloud', monthly_budget: 6_000_000, usable: false, used_month: 0, last_test: null },
+    ] })))
+  }
+
+  it('an administrator is sent to enter the key again, not to add a profile', async () => {
+    lostProfiles()
+    renderApp('/assistant')
+    expect(await screen.findByRole('heading', { level: 1, name: /The AI key was not restored/ }, T)).toBeInTheDocument()
+    expect(await screen.findByText('The AI key was not restored', undefined, T)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Enter the key again in Settings, AI assistant' })).toHaveAttribute('href', '/settings/ai#ai-profiles')
+    expect(screen.queryByRole('button', { name: 'Add AI profile' })).toBeNull()
+    expect(screen.queryByText('No AI profile yet')).toBeNull()
+  })
+
+  it('the CVE panels say the same; an operator is told to ask an administrator', async () => {
+    lostProfiles()
+    renderApp('/cve/CVE-2022-27593', { role: 'operator' })
+    expect((await screen.findAllByText('The AI key was not restored', undefined, T)).length).toBe(2)
+    expect(screen.getAllByText('Ask an administrator to enter the AI key again.')).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: 'Add AI profile' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Explain' })).toBeDisabled()
   })
 })

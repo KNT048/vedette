@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from '@/lib/api'
 import { Loading } from '@/components/common/States'
+import { Card } from '@/components/common/Card'
+import { StandalonePage } from '@/components/common/StandalonePage'
 import { takeSsoFlow } from './ssoFlow'
 
 /**
@@ -40,18 +42,15 @@ export default function SsoCallbackPage() {
   }, [params, navigate, qc, t])
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-paper px-4">
-      <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-semibold tracking-[-0.01em]">{error ? t('sso.failed') : t('sso.title')}</h1>
-        {error ? (
-          <div className="mt-4 grid gap-4 rounded-md border border-rule bg-surface p-5">
-            <p role="alert" className="text-sm">{error}</p>
-            <Link to="/login" className="text-sm font-medium text-accent underline underline-offset-2">{t('sso.back')}</Link>
-          </div>
-        ) : (
-          <div className="mt-4" role="status"><p className="mb-3 text-sm text-muted">{t('sso.working')}</p><Loading /></div>
-        )}
-      </div>
-    </main>
+    <StandalonePage title={error ? t('sso.failed') : t('sso.title')}>
+      {error ? (
+        <Card className="grid gap-4">
+          <p role="alert" className="text-sm">{error}</p>
+          <Link to="/login" className="text-sm font-medium text-accent underline underline-offset-2">{t('sso.back')}</Link>
+        </Card>
+      ) : (
+        <div role="status"><p className="mb-3 text-center text-sm text-muted">{t('sso.working')}</p><Loading /></div>
+      )}
+    </StandalonePage>
   )
 }

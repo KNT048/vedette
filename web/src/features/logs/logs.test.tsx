@@ -312,7 +312,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
 
   it('the box certificate of the TLS port is shown with its fingerprint and a download (S-LOG-1, D-434)', async () => {
     renderApp('/logs?tab=sources')
-    const card = (await screen.findByRole('heading', { name: 'Box certificate for syslog over TLS' })).closest('div')!
+    const card = (await screen.findByRole('heading', { name: 'Box certificate for syslog over TLS' })).closest('section')!
     expect(within(card).getByText(/box's own certificate authority.*port 6514.*Do not pin the server certificate/)).toBeInTheDocument()
     expect(within(card).getByText(/^[0-9a-f]{64}$/)).toBeInTheDocument()
     expect(within(card).getByRole('button', { name: 'Download certificate (.pem)' })).toBeEnabled()
@@ -368,6 +368,9 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     await userEvent.clear(input)
     await userEvent.type(input, 'no-such-line')
     expect(await screen.findByText(/No matching line/)).toBeInTheDocument()
+    // the page's filters are cleared from the empty table (docs/UI.md §5)
+    await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
+    expect(input).toHaveValue('')
   })
 
   it('a keyword search that stopped early says how far back it looked and Search older lines continues it (S-LOG-1, D-441)', async () => {
@@ -452,11 +455,28 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     })))
     renderApp('/logs?tab=sources')
     expect(await screen.findByText(/add your LAN range first \(Devices, Scope and sensors\)/)).toBeInTheDocument()
+    // docs/UI.md §0: the missing range is one link away, on its field
+    expect(screen.getByRole('link', { name: 'Add the LAN range in Devices, Scope and sensors' })).toHaveAttribute('href', '/devices/setup?tab=scope#range-input')
     await userEvent.click(await screen.findByRole('button', { name: 'Device setup for WEB-1' }))
     const dialog = await screen.findByRole('dialog', { name: /Set up WEB-1/ })
     expect(within(dialog).getByRole('alert')).toHaveTextContent('Add your LAN range first')
+    expect(within(dialog).getByRole('link', { name: 'Add the LAN range in Devices, Scope and sensors' })).toHaveAttribute('href', '/devices/setup?tab=scope#range-input')
     expect(within(dialog).getByText(/access_log syslog:server=<VEDETTE_BOX_IP>:514/)).toBeInTheDocument()
     expect(dialog).not.toHaveTextContent('192.168.10.250')
+  })
+
+  it('the box address is unknown and the reader is not an administrator: no link to the administrator\'s Devices setup, who to ask instead (#875 r1)', async () => {
+    server.use(http.get('*/api/v1/logs/sources', () => HttpResponse.json({
+      box: { ip: null, hostname: 'vedette', lan: null, iface: 'eth0' }, retention_days: 30,
+      sources: [{ id: 'ls-9', kind: 'nginx', name: 'WEB-1', sender_ip: '10.0.0.5', asset_id: null, asset_name: null, proto: 'udp', port: 514, last_received: null, lines_per_hour: 0, state: 'never', created_at: new Date().toISOString() }],
+    })))
+    renderApp('/logs?tab=sources', { role: 'operator' })
+    expect(await screen.findByText(/Ask an administrator to add the LAN range in Devices, Scope and sensors\./)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Add the LAN range in Devices, Scope and sensors' })).toBeNull()
+    await userEvent.click(await screen.findByRole('button', { name: 'Device setup for WEB-1' }))
+    const dialog = await screen.findByRole('dialog', { name: /Set up WEB-1/ })
+    expect(within(dialog).getByText('Ask an administrator to add the LAN range in Devices, Scope and sensors.')).toBeInTheDocument()
+    expect(within(dialog).queryByRole('link', { name: 'Add the LAN range in Devices, Scope and sensors' })).toBeNull()
   })
 
   it('a container that cannot see its own address in the declared LAN range says to use the address of the machine, not to add a range (user walk)', async () => {
@@ -507,7 +527,7 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'feeds' ? { ...m, enabled: false } : m)))
     renderApp('/logs')
     expect(await screen.findByRole('heading', { level: 1, name: 'Today: 1 new log type, 0 spikes.' })).toBeInTheDocument()
-    expect(await screen.findByRole('link', { name: 'Open Settings, Modules' })).toHaveAttribute('href', '/settings/modules')
+    expect(await screen.findByRole('link', { name: 'Open Settings, Modules' })).toHaveAttribute('href', '/settings/modules#module-feeds')
   })
 
   it('the headline says one connection, and counts a blocked attempt apart (D-227, QA walk 3)', async () => {

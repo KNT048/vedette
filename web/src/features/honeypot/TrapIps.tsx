@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { FlaskConical, Pencil, Plus, Trash2 } from 'lucide-react'
 import { InfoTip } from '@/components/common/InfoTip'
-import { Notice, Section, Panel } from '@/components/common/PageHeader'
+import { Notice, Section } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
+import { DependencyLink } from '@/components/common/DependencyLink'
 import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -29,11 +31,15 @@ const FIELD_OF: Record<string, FieldId> = {
 const INPUT_ID: Record<Exclude<FieldId, 'form'>, string> = { preset: 'tip-preset', name: 'tip-name', ip: 'tip-ip', vendor: 'tip-vendor', services: 'tip-svc-smb' }
 
 /** D-466: one list of Trap IPs; each is a profile (name, address, vendor, its own services). S-HP-1, S-HP-2. */
-export default function TrapIpsTab({ hits, lan, smbName }: { hits: Hit[]; lan: string; smbName: string | null }) {
+export default function TrapIpsTab({ hits, lan, lanKnown = true, smbName }: { hits: Hit[]; lan: string; lanKnown?: boolean; smbName: string | null }) {
   const { t } = useTranslation('honeypot')
   const q = useTrapIps()
+  const admin = useCan('admin') // /devices/setup is the administrator's (#875 r1)
   return (
     <Section id="trap-ips" title={t('trapIp.title')} description={t('trapIp.description', { lan })} info={t('trapIp.descriptionInfo')}>
+      {/* §0: a Trap IP goes on the LAN range; while the box does not know it, the way to the exact field */}
+      {lanKnown ? null : admin ? <DependencyLink className="mb-4" reason={t('trapIp.noLan')} to="/devices/setup?tab=scope#range-input" label={t('trapIp.noLanLink')} />
+        : <p className="mb-4 text-meta text-muted">{t('trapIp.noLan')} {t('trapIp.noLanAskAdmin')}</p>}
       <QueryState query={q}>{(d) => <Inner data={d} hits={hits} smbName={smbName} />}</QueryState>
     </Section>
   )
@@ -62,7 +68,7 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
   return (
     <div className="grid gap-4">
       {data.suggestions.length ? (
-        <Panel className="p-4">
+        <Card>
           <p className="text-sm font-medium">{t('trapIp.suggestTitle')}</p>
           <ul className="mt-2 grid gap-1.5 text-sm">
             {data.suggestions.map((s) => (
@@ -74,26 +80,27 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
               </li>
             ))}
           </ul>
-        </Panel>
+        </Card>
       ) : null}
 
       {editing ? (
         <TrapIpForm key={editing.mode === 'edit' ? editing.item.id : `add-${editing.preset}`} data={data} editing={editing} onDone={() => setEditing(null)} />
       ) : (
         <div>
-          <Button variant="primary" disabled={!admin} title={needAdmin} onClick={() => open({ mode: 'add', preset: data.suggestions[0]?.preset ?? 'file_server' })}><Plus />{t('trapIp.add')}</Button>
+          <Button id="trap-ip-add" variant="primary" disabled={!admin} title={needAdmin} onClick={() => open({ mode: 'add', preset: data.suggestions[0]?.preset ?? 'file_server' })}><Plus />{t('trapIp.add')}</Button>
         </div>
       )}
 
       {data.items.length ? (
-        <ul className="grid divide-y divide-rule rounded-md border border-rule bg-surface" aria-label={t('trapIp.listLabel')}>
+        <Card flush>
+        <ul className="grid divide-y divide-rule" aria-label={t('trapIp.listLabel')}>
           {data.items.map((d) => (
             <li key={d.id} className="grid gap-2 px-4 py-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="grid min-w-0">
-                  <span className="font-medium">{d.name} <span className="text-[13px] font-normal text-muted tabular-nums">{d.ip}</span></span>
-                  {firstSmb?.id === d.id ? <span className="text-[12px] text-muted">{t('trapIp.smbName')}</span> : null}
-                  {d.reason ? <span className={d.state === 'failed' || d.state === 'conflict' ? 'text-[12px] text-danger' : 'text-[12px] text-muted'}>{d.reason}</span> : null}
+                  <span className="font-medium">{d.name} <span className="text-meta font-normal text-muted tabular-nums">{d.ip}</span></span>
+                  {firstSmb?.id === d.id ? <span className="text-caption text-muted">{t('trapIp.smbName')}</span> : null}
+                  {d.reason ? <span className={d.state === 'failed' || d.state === 'conflict' ? 'text-caption text-danger' : 'text-caption text-muted'}>{d.reason}</span> : null}
                 </span>
                 <span className="flex items-center gap-3">
                   <TrapStateChip state={d.state} />
@@ -108,24 +115,25 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
             </li>
           ))}
         </ul>
+        </Card>
       ) : <div className="flex items-center gap-1 text-sm text-muted"><p>{t('trapIp.none')}</p><InfoTip topic={t('trapIp.title')}>{t('trapIp.noneInfo')}</InfoTip></div>}
-      {!admin ? <p className="text-[13px] text-muted">{t('needAdmin')}</p> : null}
+      {!admin ? <p className="text-meta text-muted">{t('needAdmin')}</p> : null}
 
-      <Panel className="p-4">
+      <Card>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="grid max-w-3xl gap-1">
             <div className="flex items-center gap-1">
               <p className="text-sm font-medium">{t('trapIp.scan.title')}</p>
               <InfoTip topic={t('trapIp.scan.title')}>{t('trapIp.scan.bodyInfo')}</InfoTip>
             </div>
-            <p className="text-[13px] text-muted">{t('trapIp.scan.body')}</p>
-            <p className="text-[13px] text-muted">{lastScan ? t('trapIp.scan.last', { when: fmtRelative(lastScan.ts), src: lastScan.src_name ?? lastScan.src_ip, trapIps: lastScan.trap_hostname || lastScan.trap_ip }) : t('trapIp.scan.never')}</p>
+            <p className="text-meta text-muted">{t('trapIp.scan.body')}</p>
+            <p className="text-meta text-muted">{lastScan ? t('trapIp.scan.last', { when: fmtRelative(lastScan.ts), src: lastScan.src_name ?? lastScan.src_ip, trapIps: lastScan.trap_hostname || lastScan.trap_ip }) : t('trapIp.scan.never')}</p>
           </div>
           <Button size="sm" disabled={!!scanReason || scan.isPending} title={scanReason} onClick={() => scan.mutate(undefined, { onSuccess: () => toast.success(t('trapIp.scan.testToast')), onError: (e) => toast.error(errMsg(e)) })}>
             <FlaskConical />{t('trapIp.scan.test')}
           </Button>
         </div>
-      </Panel>
+      </Card>
     </div>
   )
 }
@@ -181,7 +189,7 @@ function TrapIpForm({ data, editing, onDone }: { data: TrapIPsResponse; editing:
   const ipInfo = t(data.spare_ips.length ? (data.spare_checked ? 'trapIp.form.ipHintInfo' : 'trapIp.form.ipHintUncheckedInfo') : 'trapIp.form.ipHintNoneInfo')
   const described = (f: Exclude<FieldId, 'form'>, id: string) => (errors[f] ? `${id}-error` : `${id}-hint`)
   return (
-    <Panel className="p-4">
+    <Card>
       <form onSubmit={submit} noValidate aria-labelledby="tip-form-title" className="grid gap-4">
         <p id="tip-form-title" className="text-sm font-medium">{cur ? t('trapIp.form.editTitle', { name: cur.name }) : t('trapIp.form.addTitle')}</p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -215,7 +223,7 @@ function TrapIpForm({ data, editing, onDone }: { data: TrapIPsResponse; editing:
               </div>
             ))}
           </div>
-          {errors.services ? <p id="tip-services-error" className="text-[13px] text-danger">{errors.services}</p> : <p id="tip-services-hint" className="text-[13px] text-muted">{t('trapIp.form.servicesHint')}</p>}
+          {errors.services ? <p id="tip-services-error" className="text-meta text-danger">{errors.services}</p> : <p id="tip-services-hint" className="text-meta text-muted">{t('trapIp.form.servicesHint')}</p>}
         </fieldset>
         {errors.form ? <Notice tone="danger" role="alert" className="mb-0" title={errors.form} /> : null}
         <div className="flex flex-wrap gap-2">
@@ -223,7 +231,7 @@ function TrapIpForm({ data, editing, onDone }: { data: TrapIPsResponse; editing:
           <Button type="button" onClick={onDone}>{t('trapIp.form.cancel')}</Button>
         </div>
       </form>
-    </Panel>
+    </Card>
   )
 }
 
@@ -246,7 +254,7 @@ function TrapIpDetails({ d }: { d: TrapIP }) {
   ]
   if (d.device_id) rows.push({ k: 'device', label: t('trapIp.where.device'), value: <Link className="text-accent underline-offset-4 hover:underline" to={`/devices/${d.device_id}`}>{t('trapIp.where.deviceLink', { name: d.device_name ?? d.ip })}</Link> })
   return (
-    <dl aria-label={t('trapIp.detailsLabel', { name: d.name })} className="grid gap-x-6 gap-y-1 text-[13px] sm:grid-cols-[max-content_1fr]">
+    <dl aria-label={t('trapIp.detailsLabel', { name: d.name })} className="grid gap-x-6 gap-y-1 text-meta sm:grid-cols-[max-content_1fr]">
       {rows.map((r) => (
         <div key={r.k} className="contents">
           <dt className="text-muted">{r.label}</dt>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { CalendarClock, Power, RefreshCw, ShieldCheck } from 'lucide-react'
@@ -7,6 +8,7 @@ import { Notice } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
 import { InfoTip } from '@/components/common/InfoTip'
+import { Card } from '@/components/common/Card'
 import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
@@ -64,9 +66,9 @@ function WindowForm({ s, disabled, title }: { s: OsState; disabled: boolean; tit
           </div>
         </div>
       ) : null}
-      {s.reboot_scheduled_at && !same ? <p className="max-w-2xl text-[13px] text-warn">{t('updates.os.window.rebootWarn', { time: fmtDateTime(s.reboot_scheduled_at) })}</p> : null}
-      <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{w.mode === 'always' ? t('updates.os.window.hintAnytime') : t('updates.os.window.hintWindow')}</p>{w.mode === 'always' ? null : <InfoTip topic={t('updates.os.windowLabel')}>{t('updates.os.window.windowInfo')}</InfoTip>}</div>
-      {problem ? <p role="alert" className="text-[13px] text-danger">{problem}</p> : null}
+      {s.reboot_scheduled_at && !same ? <p className="max-w-2xl text-meta text-warn">{t('updates.os.window.rebootWarn', { time: fmtDateTime(s.reboot_scheduled_at) })}</p> : null}
+      <div className="flex items-center gap-1"><p className="text-meta text-muted">{w.mode === 'always' ? t('updates.os.window.hintAnytime') : t('updates.os.window.hintWindow')}</p>{w.mode === 'always' ? null : <InfoTip topic={t('updates.os.windowLabel')}>{t('updates.os.window.windowInfo')}</InfoTip>}</div>
+      {problem ? <p role="alert" className="text-meta text-danger">{problem}</p> : null}
       <div><Button disabled={disabled || same || !!problem || m.settings.isPending} onClick={() => void m.settings.mutateAsync({ window: w }).then((r) => (s.reboot_scheduled_at && !r.reboot_scheduled_at ? toast.warning(t('updates.os.window.savedCancelled')) : toast.success(t('updates.os.window.saved')))).catch((e) => toast.error(errMsg(e, t)))}>{t('updates.os.window.save')}</Button></div>
     </fieldset>
   )
@@ -95,7 +97,7 @@ function RebootDialog({ s, open, onClose }: { s: OsState; open: boolean; onClose
             <RadioItem id="rb-window" value="window" disabled={noWindow} />
             <Label htmlFor="rb-window" className="font-normal">{t('updates.os.reboot.optWindow')}</Label>
           </span>
-          {noWindow ? <p className="ml-6 text-[13px] text-muted">{t('updates.os.reboot.windowLocked')}</p> : null}
+          {noWindow ? <p className="ml-6 text-meta text-muted">{t('updates.os.reboot.windowLocked')}</p> : null}
           <span className="inline-flex items-center gap-2 text-sm">
             <RadioItem id="rb-custom" value="custom" />
             <Label htmlFor="rb-custom" className="font-normal">{t('updates.os.reboot.optCustom')}</Label>
@@ -105,7 +107,7 @@ function RebootDialog({ s, open, onClose }: { s: OsState; open: boolean; onClose
           <div className="ml-6 grid max-w-xs gap-1.5">
             <Label htmlFor="rb-at">{t('updates.os.reboot.at')}</Label>
             <Input id="rb-at" type="time" value={at} onChange={(e) => setAt(e.target.value)} />
-            <p className="text-[13px] text-muted">{noWindow ? t('updates.os.reboot.atHintAny') : t('updates.os.reboot.atHintWindow')}</p>
+            <p className="text-meta text-muted">{noWindow ? t('updates.os.reboot.atHintAny') : t('updates.os.reboot.atHintWindow')}</p>
           </div>
         ) : null}
         <DialogFooter>
@@ -136,25 +138,25 @@ function RunPanel({ run }: { run: OsRun }) {
   }, [run.id, run.status, run.error, run.result?.installed, qc, t])
   const r = run.result
   return (
-    <div className="grid gap-3 rounded-md border border-rule bg-surface p-4" aria-live="polite">
+    <Card className="grid gap-3"><div className="contents" aria-live="polite">
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold">{t('updates.os.run.title')}</h3>
         {run.status === 'running' ? <Chip tone="accent">{t('updates.os.run.running')}</Chip> : run.status === 'failed' ? <Chip tone="danger">{t('updates.os.run.failedChip')}</Chip> : <Chip tone="ok">{t('updates.os.run.done')}</Chip>}
-        <span className="text-[13px] text-muted">{t(`updates.os.run.scope.${run.scope}`)}, {fmtDateTime(run.started_at)}, {run.user}</span>
+        <span className="text-meta text-muted">{t(`updates.os.run.scope.${run.scope}`)}, {fmtDateTime(run.started_at)}, {run.user}</span>
       </div>
       {run.status === 'failed' ? <p role="alert" className="text-sm text-danger">{run.error ?? t('updates.os.run.failedToast')}</p> : null}
-      <pre ref={log} tabIndex={0} role="log" aria-label={t('updates.os.run.log')} className="max-h-60 overflow-auto whitespace-pre-wrap rounded-md border border-rule bg-sunken p-3 font-mono text-[12px] leading-5 [overflow-wrap:anywhere]">{run.lines.join('\n') || ' '}</pre>
+      <pre ref={log} tabIndex={0} role="log" aria-label={t('updates.os.run.log')} className="max-h-60 overflow-auto whitespace-pre-wrap rounded-md border border-rule bg-sunken p-3 font-mono text-caption leading-5 [overflow-wrap:anywhere]">{run.lines.join('\n') || ' '}</pre>
       {r ? (
         <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-[minmax(140px,max-content)_1fr]">
-          <dt className="text-[13px] text-muted">{t('updates.os.run.installed')}</dt><dd>{t('updates.os.run.installedValue', { count: r.installed, security: r.security })}</dd>
-          <dt className="text-[13px] text-muted">{t('updates.os.run.backup')}</dt><dd className="font-mono text-[12.5px] [overflow-wrap:anywhere]">{r.backup}</dd>
-          <dt className="text-[13px] text-muted">{t('updates.os.run.health')}</dt>
+          <dt className="text-meta text-muted">{t('updates.os.run.installed')}</dt><dd>{t('updates.os.run.installedValue', { count: r.installed, security: r.security })}</dd>
+          <dt className="text-meta text-muted">{t('updates.os.run.backup')}</dt><dd className="font-mono text-meta [overflow-wrap:anywhere]">{r.backup}</dd>
+          <dt className="text-meta text-muted">{t('updates.os.run.health')}</dt>
           <dd className="flex flex-wrap gap-1.5">{r.health.map((h) => <Chip key={h.name} tone={h.ok ? 'ok' : 'danger'}>{h.name}{h.ok ? '' : `: ${t('updates.os.run.failed')}`}</Chip>)}</dd>
-          <dt className="text-[13px] text-muted">{t('updates.os.run.reboot')}</dt>
+          <dt className="text-meta text-muted">{t('updates.os.run.reboot')}</dt>
           <dd>{r.reboot_required ? <Chip tone="warn">{t('updates.os.rebootRequired')}</Chip> : <Chip tone="ok">{t('updates.os.rebootNotNeeded')}</Chip>}</dd>
         </dl>
       ) : null}
-    </div>
+    </div></Card>
   )
 }
 
@@ -177,11 +179,11 @@ function Body({ s }: { s: CheckedOs }) {
   const install = (scope: 'security' | 'all') => void m.install.mutateAsync(scope).then(() => toast.success(t('updates.os.run.started'))).catch((e) => toast.error(errMsg(e, t)))
 
   const cols: ColumnDef<OsPackage>[] = [
-    { id: 'name', header: t('updates.os.col.package'), accessorFn: (p) => p.name, cell: ({ row }) => <span className="font-mono text-[12.5px]">{row.original.name}</span> },
-    { id: 'cur', header: t('updates.os.col.current'), accessorFn: (p) => p.current, cell: ({ getValue }) => <span className="font-mono text-[12.5px] text-muted">{getValue() as string}</span> },
-    { id: 'new', header: t('updates.os.col.new'), accessorFn: (p) => p.new, cell: ({ getValue }) => <span className="font-mono text-[12.5px]">{getValue() as string}</span> },
+    { id: 'name', header: t('updates.os.col.package'), accessorFn: (p) => p.name, cell: ({ row }) => <span className="font-mono text-meta">{row.original.name}</span> },
+    { id: 'cur', header: t('updates.os.col.current'), accessorFn: (p) => p.current, cell: ({ getValue }) => <span className="font-mono text-meta text-muted">{getValue() as string}</span> },
+    { id: 'new', header: t('updates.os.col.new'), accessorFn: (p) => p.new, cell: ({ getValue }) => <span className="font-mono text-meta">{getValue() as string}</span> },
     { id: 'sec', header: t('updates.os.col.security'), accessorFn: (p) => Number(p.security), cell: ({ row }) => (row.original.security ? <Chip tone="danger">{t('common:yes')}</Chip> : <span className="text-muted">{t('common:no')}</span>) },
-    { id: 'cves', header: t('updates.os.col.cves'), accessorFn: (p) => p.cves.join(' '), cell: ({ row }) => (row.original.cves.length ? <div className="flex flex-wrap gap-x-2">{row.original.cves.map((c) => <span key={c} className="whitespace-nowrap text-[12.5px]">{c}</span>)}</div> : <span className="text-muted">–</span>) },
+    { id: 'cves', header: t('updates.os.col.cves'), accessorFn: (p) => p.cves.join(' '), cell: ({ row }) => (row.original.cves.length ? <div className="flex flex-wrap gap-x-2">{row.original.cves.map((c) => <span key={c} className="whitespace-nowrap text-meta">{c}</span>)}</div> : <span className="text-muted">–</span>) },
   ]
 
   return (
@@ -190,14 +192,14 @@ function Body({ s }: { s: CheckedOs }) {
         <Band id="os-band" n="1" title={t('updates.os.title')} desc={t('updates.os.desc')} info={<><p>{t('updates.os.info')}</p><p>{t('updates.os.helper')}</p></>}
           actions={<Button onClick={() => void act(() => m.check.mutateAsync(), t('updates.os.checked'))} disabled={operator.disabled || m.check.isPending} title={operator.title}><RefreshCw />{t('updates.os.checkNow')}</Button>} />
         <div className="grid gap-5">
-          <div className="grid gap-x-6 gap-y-3 rounded-md border border-rule bg-surface p-4 sm:grid-cols-[minmax(160px,max-content)_1fr]">
-            <span className="text-[13px] text-muted">{t('updates.os.distro')}</span>
+          <Card className="grid gap-x-6 gap-y-3 sm:grid-cols-[minmax(160px,max-content)_1fr]">
+            <span className="text-meta text-muted">{t('updates.os.distro')}</span>
             <span className="flex flex-wrap items-center gap-2 text-sm font-medium">{s.os.name}</span>
-            <span className="text-[13px] text-muted">{t('updates.os.kernel')}</span>
-            <span className="font-mono text-[12.5px]">{s.os.kernel}</span>
-            <span className="text-[13px] text-muted">{t('updates.os.lastCheck')}</span>
+            <span className="text-meta text-muted">{t('updates.os.kernel')}</span>
+            <span className="font-mono text-meta">{s.os.kernel}</span>
+            <span className="text-meta text-muted">{t('updates.os.lastCheck')}</span>
             <span className="text-sm">{isNever(s.os.last_check) ? t('updates.os.neverChecked') : `${fmtDateTime(s.os.last_check)} (${fmtRelative(s.os.last_check)})`}</span>
-            <span className="text-[13px] text-muted">{t('updates.os.support')}</span>
+            <span className="text-meta text-muted">{t('updates.os.support')}</span>
             <span className="grid gap-1 text-sm">
               <span className="flex flex-wrap items-center gap-2">
                 {t('updates.os.supportUntil', { date: monthYear(s.os.support_end) })}
@@ -206,33 +208,33 @@ function Body({ s }: { s: CheckedOs }) {
                 {sup === 'extended' ? <Chip tone="warn">{t('updates.os.sup.extended')}</Chip> : null}
                 {sup === 'ended' ? <Chip tone="danger">{t('updates.os.sup.ended')}</Chip> : null}
               </span>
-              {s.os.extended_end ? <span className="text-[13px] text-muted">{t('updates.os.extendedUntil', { date: monthYear(s.os.extended_end) })}</span> : null}
-              {sup === 'extended' || sup === 'ended' || sup === 'soon' ? <span className="max-w-2xl text-[13px]">{t(`updates.os.supHint.${sup}`)}</span> : null}
+              {s.os.extended_end ? <span className="text-meta text-muted">{t('updates.os.extendedUntil', { date: monthYear(s.os.extended_end) })}</span> : null}
+              {sup === 'extended' || sup === 'ended' || sup === 'soon' ? <span className="max-w-2xl text-meta">{t(`updates.os.supHint.${sup}`)}</span> : null}
             </span>
-            <span className="text-[13px] text-muted">{t('updates.os.rebootLabel')}</span>
+            <span className="text-meta text-muted">{t('updates.os.rebootLabel')}</span>
             <span className="grid gap-1 text-sm">
               <span className="flex flex-wrap items-center gap-2">
                 {s.reboot_required ? <Chip tone="warn">{t('updates.os.rebootRequired')}</Chip> : <Chip tone="ok">{t('updates.os.rebootNotNeeded')}</Chip>}
-                <span className="text-[13px] text-muted">{t('updates.os.bootedAt', { time: fmtRelative(s.os.booted_at) })}</span>
+                <span className="text-meta text-muted">{t('updates.os.bootedAt', { time: fmtRelative(s.os.booted_at) })}</span>
               </span>
-              {s.reboot_required ? <span className="text-[13px]">{t('updates.os.rebootWhy', { packages: s.reboot_reasons.join(', ') })}</span> : null}
+              {s.reboot_required ? <span className="text-meta">{t('updates.os.rebootWhy', { packages: s.reboot_reasons.join(', ') })}</span> : null}
               {s.reboot_scheduled_at ? (
-                <span className="flex flex-wrap items-center gap-2 text-[13px]">
+                <span className="flex flex-wrap items-center gap-2 text-meta">
                   <CalendarClock className="size-4" aria-hidden />{t('updates.os.rebootScheduled', { time: fmtDateTime(s.reboot_scheduled_at) })}
                   <Button size="sm" variant="ghost" disabled={admin.disabled || m.cancelReboot.isPending} title={admin.title} onClick={() => void act(() => m.cancelReboot.mutateAsync(), t('updates.os.reboot.cancelled'))}>{t('updates.os.reboot.cancel')}</Button>
                 </span>
               ) : null}
             </span>
-            <span className="text-[13px] text-muted"><Label htmlFor="os-auto" className="text-[13px] font-normal text-muted">{t('updates.os.auto')}</Label></span>
+            <span className="text-meta text-muted"><Label htmlFor="os-auto" className="text-meta font-normal text-muted">{t('updates.os.auto')}</Label></span>
             <span className="flex flex-wrap items-center gap-3">
               <Switch id="os-auto" checked={s.auto_security} disabled={admin.disabled || m.settings.isPending} title={admin.title}
                 onCheckedChange={(v) => void act(() => m.settings.mutateAsync({ auto_security: v }), v ? t('updates.os.autoOn') : t('updates.os.autoOff'))} />
-              <span className="max-w-xl text-[13px] text-muted">{s.auto_security ? t('updates.os.autoHintOn') : t('updates.os.autoHintOff')}</span>
+              <span className="max-w-xl text-meta text-muted">{s.auto_security ? t('updates.os.autoHintOn') : t('updates.os.autoHintOff')}</span>
               {s.auto_security ? <InfoTip topic={t('updates.os.auto')}>{t('updates.os.autoInfoOn')}</InfoTip> : null}
             </span>
-            <span className="text-[13px] text-muted">{t('updates.os.windowLabel')}</span>
+            <span className="text-meta text-muted">{t('updates.os.windowLabel')}</span>
             <span className="text-sm"><WindowSummary w={s.window} /></span>
-          </div>
+          </Card>
 
           <WindowForm key={JSON.stringify(s.window)} s={s} disabled={admin.disabled} title={admin.title} />
 
@@ -248,9 +250,9 @@ function Body({ s }: { s: CheckedOs }) {
             <DataTable data={s.pending} columns={cols} caption={t('updates.os.pendingCaption')} pageSize={20} empty={t('updates.os.pendingEmpty')}
               mobileRow={(p) => (
                 <div className="grid gap-1">
-                  <div className="flex flex-wrap items-center gap-2"><span className="font-mono text-[13px] font-medium [overflow-wrap:anywhere]">{p.name}</span>{p.security ? <Chip tone="danger">{t('updates.os.col.security')}</Chip> : null}</div>
-                  <span className="font-mono text-[12px] text-muted [overflow-wrap:anywhere]">{p.current} {'>'} {p.new}</span>
-                  {p.cves.length ? <span className="text-[12px]">{p.cves.join(', ')}</span> : null}
+                  <div className="flex flex-wrap items-center gap-2"><span className="font-mono text-meta font-medium [overflow-wrap:anywhere]">{p.name}</span>{p.security ? <Chip tone="danger">{t('updates.os.col.security')}</Chip> : null}</div>
+                  <span className="font-mono text-caption text-muted [overflow-wrap:anywhere]">{p.current} {'>'} {p.new}</span>
+                  {p.cves.length ? <span className="text-caption">{p.cves.join(', ')}</span> : null}
                 </div>
               )} />
           </div>
@@ -261,6 +263,8 @@ function Body({ s }: { s: CheckedOs }) {
             <Notice tone="warn" className="mb-0" title={t('updates.os.upgrade.title', { to: s.release_upgrade.to })} info={t('updates.os.upgrade.warnInfo')}>
               <p>{t('updates.os.upgrade.warn')}</p>
               <ol className="mt-2 grid list-decimal gap-1 pl-5 text-ink">{s.release_upgrade.steps.map((st) => <li key={st} className="[overflow-wrap:anywhere]">{st}</li>)}</ol>
+              {/* §0: the backup the first step asks for is one click away */}
+              <Link to="/settings/data#backup-download" className="mt-2 inline-block font-medium text-accent underline underline-offset-4">{t('updates.os.upgrade.backupLink')}</Link>
             </Notice>
           ) : null}
         </div>

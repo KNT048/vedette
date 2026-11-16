@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { QueryState } from '@/components/common/States'
-import { InfoTip } from '@/components/common/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
@@ -38,17 +38,19 @@ function Form({ initial }: { initial: GeneralSettings }) {
     }
   }
   return (
-    <form onSubmit={(e) => void submit(e)} className="grid max-w-xl gap-4" noValidate>
+    <Card className="mb-8 max-w-xl">
+    <form onSubmit={(e) => void submit(e)} className="grid gap-4" noValidate>
       <Field label={t('general.name')} hint={t('general.nameHint')} htmlFor="org-name" error={error ?? undefined}>
         <Input id="org-name" value={v.name} disabled={gate.disabled} maxLength={80} aria-invalid={!!error} onChange={(e) => setV({ ...v, name: e.target.value })} />
       </Field>
       <Field label={t('general.timezone')} hint={t('general.timezoneHint')} info={t('general.timezoneInfo')} htmlFor="org-tz" error={tzError ?? undefined}>
         <Input id="org-tz" list="org-tz-list" autoComplete="off" spellCheck={false} value={v.timezone} disabled={gate.disabled} aria-invalid={!!tzError} onChange={(e) => setV({ ...v, timezone: e.target.value })} />
         <datalist id="org-tz-list">{TIMEZONES.map((z) => <option key={z} value={z} />)}</datalist>
-        {here && here !== v.timezone && !gate.disabled ? <button type="button" className="mt-1 w-fit text-[13px] text-accent underline-offset-4 hover:underline" onClick={() => setV({ ...v, timezone: here })}>{t('general.useBrowserZone', { zone: here })}</button> : null}
+        {here && here !== v.timezone && !gate.disabled ? <button type="button" className="mt-1 w-fit text-meta text-accent underline-offset-4 hover:underline" onClick={() => setV({ ...v, timezone: here })}>{t('general.useBrowserZone', { zone: here })}</button> : null}
       </Field>
       <div><Button type="submit" variant="primary" disabled={gate.disabled || !dirty || save.isPending} title={gate.title}>{t('common:save')}</Button></div>
     </form>
+    </Card>
   )
 }
 
@@ -58,18 +60,16 @@ function Terms({ s }: { s: TermsState }) {
   const [open, setOpen] = useState(false)
   const a = s.accepted
   return (
-    <section className="mt-8 grid max-w-xl gap-2" aria-labelledby="terms-title">
-      <div className="flex items-center gap-1">
-        <h2 id="terms-title" className="text-base font-semibold">{t('general.terms.title')}</h2>
-        {a ? null : <InfoTip topic={t('general.terms.title')}>{t('general.terms.noneInfo')}</InfoTip>}
+    <Card id="terms" title={t('general.terms.title')} info={a ? undefined : t('general.terms.noneInfo')} className="max-w-xl">
+      <div className="grid gap-2">
+        <p className="text-sm">{a
+          ? t(a.by === null ? 'general.terms.at' : a.via === 'restore' ? 'general.terms.byRestore' : 'general.terms.by', { by: a.by, when: fmtDateTime(a.at), version: a.version })
+          : t('general.terms.none')}</p>
+        {a && a.version !== s.version ? <p className="text-meta text-muted">{t('general.terms.changed', { version: s.version })}</p> : null}
+        <div><Button size="sm" aria-expanded={open} aria-controls="terms-text" onClick={() => setOpen((x) => !x)}>{t(open ? 'general.terms.hide' : 'general.terms.read')}</Button></div>
+        {open ? <TermsText id="terms-text" /> : null}
       </div>
-      <p className="text-sm">{a
-        ? t(a.by === null ? 'general.terms.at' : a.via === 'restore' ? 'general.terms.byRestore' : 'general.terms.by', { by: a.by, when: fmtDateTime(a.at), version: a.version })
-        : t('general.terms.none')}</p>
-      {a && a.version !== s.version ? <p className="text-[13px] text-muted">{t('general.terms.changed', { version: s.version })}</p> : null}
-      <div><Button size="sm" aria-expanded={open} aria-controls="terms-text" onClick={() => setOpen((x) => !x)}>{t(open ? 'general.terms.hide' : 'general.terms.read')}</Button></div>
-      {open ? <TermsText id="terms-text" /> : null}
-    </section>
+    </Card>
   )
 }
 
@@ -79,7 +79,7 @@ export default function GeneralSection() {
   const terms = useTerms()
   return (
     <>
-      <PageHeader title={q.data ? t('general.title', { name: q.data.name }) : t('settings.general')} stories={['S-CORE-1']} />
+      <PageHeader title={q.data ? t('general.title', { name: q.data.name }) : t('settings.general')} meta={t('general.meta')} info={t('general.metaInfo')} stories={['S-CORE-1']} />
       <ReadOnlyNote role="admin" />
       <QueryState query={q}>{(d) => <Form initial={d} />}</QueryState>
       <QueryState query={terms}>{(d) => <Terms s={d} />}</QueryState>

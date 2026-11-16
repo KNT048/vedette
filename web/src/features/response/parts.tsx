@@ -31,8 +31,8 @@ export function ChangeView({ change }: { change: Change }) {
       <KeyValue items={[{ label: t('change.before'), value: change.before }, { label: t('change.after'), value: change.after }]} />
       {change.cli ? <CodeBlock code={change.cli} label={t('change.cli')} /> : null}
       {change.rest ? <CodeBlock code={restText(change.rest)} label={t('change.rest')} /> : null}
-      {change.precheck ? <div className="grid gap-1"><CodeBlock code={change.precheck} label={t('change.precheck')} />{change.precheck_rules ? <p className="text-[13px] text-muted">{change.precheck_rules}</p> : null}</div> : null}
-      {change.verify ? <div className="grid gap-1"><CodeBlock code={change.verify} label={t('change.verify')} />{change.verify_rule ? <p className="text-[13px] text-muted">{change.verify_rule}</p> : null}</div> : null}
+      {change.precheck ? <div className="grid gap-1"><CodeBlock code={change.precheck} label={t('change.precheck')} />{change.precheck_rules ? <p className="text-meta text-muted">{change.precheck_rules}</p> : null}</div> : null}
+      {change.verify ? <div className="grid gap-1"><CodeBlock code={change.verify} label={t('change.verify')} />{change.verify_rule ? <p className="text-meta text-muted">{change.verify_rule}</p> : null}</div> : null}
       <div className="grid gap-1 border-t border-rule pt-2">
         <p className="text-sm font-medium">{t('change.rollback')}: {change.rollback.title}</p>
         {change.rollback.cli ? <CodeBlock code={change.rollback.cli} label={t('change.cli')} /> : null}
@@ -42,6 +42,12 @@ export function ChangeView({ change }: { change: Change }) {
   )
 }
 
+const BLOCKED_PLACE: Partial<Record<Proposal['state'], { to: string; label: string }>> = {
+  execution_off: { to: '/settings/response#resp-exec', label: 'blocked.toSettings' },
+  tool_not_allowed: { to: '/response?tab=actions#catalog', label: 'blocked.toCatalog' },
+  tool_unavailable: { to: '/settings/connections', label: 'blocked.toConnections' },
+}
+
 /** The reason an action cannot be requested, in the owner's wording. */
 function Blocked({ state }: { state: Proposal['state'] }) {
   const { t } = useTranslation('response')
@@ -49,8 +55,9 @@ function Blocked({ state }: { state: Proposal['state'] }) {
   const frozen = useFrozen() // D-624 (L2): no reason that invites turning something on; the request button already says why
   if (state === 'ready' || frozen) return null
   return (
-    <div className="flex items-start gap-1 rounded-md border border-dashed border-rule bg-sunken px-3 py-2 text-[13px] text-muted">
-      <p>{t(`blocked.${state}`)} {admin && state !== 'tool_unavailable' && state !== 'not_publishable' ?<Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link> : null}</p>
+    <div className="flex items-start gap-1 rounded-md border border-dashed border-rule bg-sunken px-3 py-2 text-meta text-muted">
+      {/* §0: each reason links to the exact place that lifts it */}
+      <p>{t(`blocked.${state}`)} {admin && BLOCKED_PLACE[state] ? <Link className="text-accent underline underline-offset-4" to={BLOCKED_PLACE[state]!.to}>{t(BLOCKED_PLACE[state]!.label)}</Link> : null}</p>
       {state === 'not_publishable' ? <InfoTip topic={t('proposal.label')}>{t('blocked.not_publishableInfo')}</InfoTip> : null}
     </div>
   )
@@ -65,14 +72,14 @@ function ProposalView({ p }: { p: Proposal }) {
     <div className="grid gap-2 rounded-md border border-rule bg-paper p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium">{t('proposal.label')}: {p.title}</p>
-        {p.request_id ? <Link className="text-[13px] text-accent underline underline-offset-4" to="/response?tab=requests">{t('proposal.requested')}</Link>
+        {p.request_id ? <Link className="text-meta text-accent underline underline-offset-4" to="/response?tab=requests">{t('proposal.requested')}</Link>
           : <Button size="sm" disabled={!can || p.state !== 'ready' || req.isPending} title={frozen ? t('leaving.frozen') : !can ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
               onClick={() => req.mutate(p.id, { onSuccess: () => toast.success(t('proposal.sent')), onError: (e) => toast.error(errText(e)) })}>{t('proposal.request')}</Button>}
       </div>
-      <p className="text-[13px] text-muted">{t('proposal.via', { connection: p.connection, tool: p.tool })}</p>
+      <p className="text-meta text-muted">{t('proposal.via', { connection: p.connection, tool: p.tool })}</p>
       <Blocked state={p.state} />
       <details>
-        <summary className="cursor-pointer text-[13px] text-accent">{t('proposal.exact')}</summary>
+        <summary className="cursor-pointer text-meta text-accent">{t('proposal.exact')}</summary>
         <div className="mt-2"><ChangeView change={p.change} /></div>
       </details>
     </div>
@@ -87,17 +94,17 @@ export function PlanView({ plan, heading }: { plan: Plan; heading?: boolean }) {
       {heading ? <h3 className="text-sm font-semibold"><Link className="text-accent underline-offset-4 hover:underline" to={`/findings/${plan.finding_id}`}>{plan.cve}</Link> · <Link className="text-accent underline-offset-4 hover:underline" to={`/devices/${plan.asset_id}`}>{plan.asset_name}</Link></h3> : null}
       <AiBlock model={`${plan.model} (${plan.profile})`}>
         <p>{plan.path}</p>
-        {plan.reads.length ? <ul className="ml-5 list-disc text-[13px] text-muted">{plan.reads.map((r) => <li key={r.tool}>{t('plan.read', { connection: r.connection, tool: r.tool })} {r.summary}</li>)}</ul> : null}
+        {plan.reads.length ? <ul className="ml-5 list-disc text-meta text-muted">{plan.reads.map((r) => <li key={r.tool}>{t('plan.read', { connection: r.connection, tool: r.tool })} {r.summary}</li>)}</ul> : null}
         <ol className="grid gap-3">
           {plan.steps.map((s, i) => (
             <li key={i} className="grid gap-1.5">
-              <p><span className="font-medium">{i + 1}. {s.title}</span> <span className="text-[12px] text-muted">({t(`plan.kind.${s.kind}`)})</span></p>
-              <p className="text-[13px]">{s.detail}</p>
+              <p><span className="font-medium">{i + 1}. {s.title}</span> <span className="text-caption text-muted">({t(`plan.kind.${s.kind}`)})</span></p>
+              <p className="text-meta">{s.detail}</p>
               {s.proposal ? <ProposalView p={s.proposal} /> : null}
             </li>
           ))}
         </ol>
-        {plan.sent_to.length ? <p className="text-[13px] text-muted">{t('plan.sentTo', { channels: plan.sent_to.join(', ') })}</p> : null}
+        {plan.sent_to.length ? <p className="text-meta text-muted">{t('plan.sentTo', { channels: plan.sent_to.join(', ') })}</p> : null}
       </AiBlock>
     </div>
   )

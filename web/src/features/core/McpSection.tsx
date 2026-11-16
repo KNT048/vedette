@@ -7,6 +7,7 @@ import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { Chip } from '@/components/common/StatusChip'
 import { InfoTip } from '@/components/common/InfoTip'
+import { Card } from '@/components/common/Card'
 import { Loading, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -30,13 +31,13 @@ function McpSwitch({ on }: { on: boolean }) {
     try { await toggle.mutateAsync({ id: 'mcp-server', enabled: v }); toast.success(v ? t('mcp.enabledToast') : t('mcp.disabledToast')) } catch (e) { toast.error(errMsg(e, t)) }
   }
   return (
-    <div className="mb-6 flex flex-wrap items-center gap-3 rounded-md border border-rule bg-surface px-4 py-3">
+    <Card className="mb-6 flex flex-wrap items-center gap-3">
       <Switch id="mcp-switch" checked={on} disabled={gate.disabled || toggle.isPending} title={gate.title} aria-label={on ? t('mcp.switchOff') : t('mcp.switch')} onCheckedChange={(v) => void flip(v)} />
       <label htmlFor="mcp-switch" className="text-sm font-medium">{on ? t('mcp.switchOff') : t('mcp.switch')}</label>
       {on ? <Chip tone="ok">{t('mcp.readOnly')}</Chip> : null}
-      <span className="text-[13px] text-muted">{on ? t(container ? 'mcp.onHintContainer' : 'mcp.onHint') : t('mcp.offHint')}</span>
+      <span className="text-meta text-muted">{on ? t(container ? 'mcp.onHintContainer' : 'mcp.onHint') : t('mcp.offHint')}</span>
       {on && container ? <InfoTip topic={t('mcp.onHintContainer')}>{t('mcp.onHintContainerInfo')}</InfoTip> : null}
-    </div>
+    </Card>
   )
 }
 
@@ -66,13 +67,13 @@ function Body({ s, locked = false }: { s: McpState; locked?: boolean }) {
   const tokenCols: ColumnDef<McpToken>[] = [
     { id: 'name', header: t('mcp.token.col.name'), accessorFn: (x) => x.name, cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
     { id: 'scopes', header: t('mcp.token.col.scopes'), accessorFn: (x) => x.scopes.join(','), cell: ({ row }) => row.original.scopes.map((x) => t(`mcp.scope.${x}`)).join(', ') },
-    { id: 'last4', header: t('mcp.token.col.last4'), accessorFn: (x) => x.last4, cell: ({ row }) => <span className="font-mono text-[12.5px]">…{row.original.last4}</span> },
+    { id: 'last4', header: t('mcp.token.col.last4'), accessorFn: (x) => x.last4, cell: ({ row }) => <span className="font-mono text-meta">…{row.original.last4}</span> },
     { id: 'created', header: t('mcp.token.col.created'), accessorFn: (x) => x.created_at, cell: ({ row }) => fmtDateTime(row.original.created_at) },
     { id: 'used', header: t('mcp.token.col.used'), accessorFn: (x) => x.last_used ?? '', cell: ({ row }) => (row.original.last_used ? fmtRelative(row.original.last_used) : t('mcp.token.never')) },
     { id: 'rev', header: t('mcp.token.col.revoke'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => <Button size="sm" variant="danger" aria-label={t('mcp.token.revokeOf', { name: row.original.name })} disabled={gate.disabled || m.revoke.isPending} title={gate.title} onClick={() => setAskRevoke(row.original)}>{t('mcp.token.revoke')}</Button> },
   ]
   const toolCols: ColumnDef<{ name: string; scope: string }>[] = [
-    { id: 'name', header: t('mcp.tools.col.name'), accessorFn: (x) => x.name, cell: ({ row }) => <span className="font-mono text-[12.5px]">{row.original.name}</span> },
+    { id: 'name', header: t('mcp.tools.col.name'), accessorFn: (x) => x.name, cell: ({ row }) => <span className="font-mono text-meta">{row.original.name}</span> },
     { id: 'what', header: t('mcp.tools.col.what'), accessorFn: (x) => x.name, cell: ({ row }) => t(`mcp.tools.${row.original.name}`) },
     { id: 'scope', header: t('mcp.tools.col.scope'), accessorFn: (x) => x.scope, cell: ({ row }) => t(`mcp.scope.${row.original.scope}`) },
   ]
@@ -85,8 +86,8 @@ function Body({ s, locked = false }: { s: McpState; locked?: boolean }) {
           {!s.listening ? <Notice tone="danger" role="alert" className="mb-6" title={s.listen_error ?? t('mcp.notListening')} info={t('mcp.notListeningInfo')}>{t('mcp.notListeningHint')}</Notice> : null}
           <Section title={t('mcp.connect')} description={t('mcp.connectDesc')} info={<><p>{t(container ? 'mcp.remoteContainer' : 'mcp.remote')}</p><p>{t('mcp.verify')}</p></>}>
             <KeyValue items={[
-              { label: t('mcp.bind'), value: <span><span className="font-mono text-[12.5px]">{s.bind}:{s.port}</span> {t('mcp.bindNote')}</span> },
-              { label: t('mcp.endpoint'), value: <span className="font-mono text-[12.5px]">{s.endpoint}</span> },
+              { label: t('mcp.bind'), value: <span><span className="font-mono text-meta">{s.bind}:{s.port}</span> {t('mcp.bindNote')}</span> },
+              { label: t('mcp.endpoint'), value: <span className="font-mono text-meta">{s.endpoint}</span> },
             ]} />
             <div className="mt-3"><CodeBlock label={t('mcp.clientConfig')} code={JSON.stringify({ mcpServers: { vedette: { type: 'http', url: s.endpoint, headers: { Authorization: 'Bearer <token>' } } } }, null, 2)} /></div>
           </Section>

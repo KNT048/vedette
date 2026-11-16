@@ -17,7 +17,7 @@ export default function FindingPanel({ findingId }: Record<string, unknown>) {
   if (!on || !plan) return null
   return (
     <Section id="response" title={t('panel.title')} description={t('panel.description')} stories={['S-RESP-1']}
-      actions={<Link to="/response" className="text-[13px] text-accent underline-offset-4 hover:underline">{t('panel.open')}</Link>}>
+      actions={<Link to="/response" className="text-meta text-accent underline-offset-4 hover:underline">{t('panel.open')}</Link>}>
       <FrozenCtx.Provider value={leaving}><PlanView plan={plan} /></FrozenCtx.Provider>
     </Section>
   )

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Send } from 'lucide-react'
 import { Notice, PageHeader } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { QueryState, RequireModule } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -106,7 +107,7 @@ function SiemForm({ cfg }: { cfg: SiemConfig }) {
             <div key={ev} className="flex flex-wrap items-center gap-x-2">
               <Checkbox id={`siem-ev-${ev}`} checked={shown(ev) && events.includes(ev)} disabled={!shown(ev)} aria-describedby={shown(ev) ? undefined : 'siem-ev-honeypot-why'} onCheckedChange={(c) => toggleEvent(ev, c === true)} />
               <Label htmlFor={`siem-ev-${ev}`} className={shown(ev) ? 'font-normal' : 'font-normal text-muted'}>{t(`siem.event.${ev}`)}</Label>
-              {shown(ev) ? null : <span id="siem-ev-honeypot-why" className="text-[13px] text-muted">{t('siem.noHoneypot')}</span>}
+              {shown(ev) ? null : <span id="siem-ev-honeypot-why" className="text-meta text-muted">{t('siem.noHoneypot')}</span>}
             </div>
           ))}
         </div>
@@ -127,7 +128,7 @@ export default function SiemSettings() {
   return (
     <RequireModule module="logs">
       <PageHeader title={t('siem.title')} meta={t('siem.description')} info={t('siem.descriptionInfo')} stories={['S-LOG-3']} />
-      <QueryState query={q}>{(cfg) => <SiemForm cfg={cfg} />}</QueryState>
+      <QueryState query={q}>{(cfg) => <Card className="max-w-2xl"><SiemForm cfg={cfg} /></Card>}</QueryState>
     </RequireModule>
   )
 }

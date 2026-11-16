@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { Download } from 'lucide-react'
 import { PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { EmptyState, QueryState } from '@/components/common/States'
+import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select } from '@/components/ui/input'
 import { download } from '@/lib/api'
@@ -22,7 +22,7 @@ const ID_RE = /\b[af]-[a-z0-9]{1,64}\b/g // the same as auditIDRE in modules/cor
 function Named({ text, names }: { text: string; names: Record<string, string> }) {
   const shown = text.replace(ID_RE, (id) => names[id] ?? id)
   if (shown === text) return <>{text}</>
-  return <div className="grid"><span>{shown}</span><span className="break-all font-mono text-[11.5px] text-muted">{text}</span></div>
+  return <div className="grid"><span>{shown}</span><span className="break-all font-mono text-caption text-muted">{text}</span></div>
 }
 
 export default function AuditSection() {
@@ -32,6 +32,7 @@ export default function AuditSection() {
   const q = useAudit(deferred)
   const set = (patch: Partial<AuditQuery>) => setF({ ...f, ...patch })
   const filtered = Object.values(f).some(Boolean)
+  const clear = () => setF({ q: '', user: '', group: '', from: '', to: '', actor: '' })
 
   async function exportCsv() {
     try { await download(auditExportPath(f), 'vedette-audit.csv') } catch (e) { toast.error(errMsg(e, t)) }
@@ -43,7 +44,7 @@ export default function AuditSection() {
     { id: 'ts', header: t('audit.col.time'), accessorFn: (r) => r.ts, cell: ({ row }) => <span className="whitespace-nowrap">{fmtDateTime(row.original.ts)}</span> },
     { id: 'user', header: t('audit.col.user'), accessorFn: (r) => r.user },
     { id: 'action', header: t('audit.col.action'), accessorFn: (r) => r.action, cell: ({ row }) => (
-      <div className="grid"><span>{t(`audit.action.${row.original.action}`, { defaultValue: row.original.action })}</span><span className="font-mono text-[11.5px] text-muted">{row.original.action}</span></div>
+      <div className="grid"><span>{t(`audit.action.${row.original.action}`, { defaultValue: row.original.action })}</span><span className="font-mono text-caption text-muted">{row.original.action}</span></div>
     ) },
     { id: 'target', header: t('audit.col.target'), accessorFn: (r) => named(r.target), cell: ({ row }) => <Named text={row.original.target} names={names} /> },
     { id: 'detail', header: t('audit.col.detail'), accessorFn: (r) => named(r.detail ?? ''), cell: ({ row }) => (row.original.detail ? <Named text={row.original.detail} names={names} /> : <span className="text-muted">–</span>) },
@@ -52,7 +53,7 @@ export default function AuditSection() {
   return (
     <>
       <PageHeader title={q.data ? t('audit.title', { count: q.data.total }) : t('settings.audit')} meta={t('audit.meta')} info={t('audit.metaInfo')} stories={['S-CORE-3']} actions={<Button onClick={() => void exportCsv()}><Download />{t('audit.export')}</Button>} />
-      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div role="search" aria-label={t('audit.filter.label')} className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Field label={t('audit.filter.text')} htmlFor="au-q"><Input id="au-q" value={f.q} onChange={(e) => set({ q: e.target.value })} /></Field>
         <Field label={t('audit.filter.user')} htmlFor="au-user">
           <Select id="au-user" value={f.actor === 'people' ? PEOPLE : f.user} onChange={(e) => set(e.target.value === PEOPLE ? { actor: 'people', user: '' } : { actor: '', user: e.target.value })}>
@@ -70,16 +71,17 @@ export default function AuditSection() {
       <QueryState query={q}>
         {(d) => (
           <>
-            {d.total > d.items.length ? <p className="mb-2 text-[13px] text-muted">{t('audit.truncated', { shown: d.items.length, total: d.total })}</p> : null}
+            {d.total > d.items.length ? <p className="mb-2 text-meta text-muted">{t('audit.truncated', { shown: d.items.length, total: d.total })}</p> : null}
             <DataTable data={d.items} columns={columns} caption={t('audit.caption')} pageSize={25}
               mobileRow={(r) => (
-                <div className="grid gap-0.5 text-[13px]">
+                <div className="grid gap-0.5 text-meta">
                   <span className="font-medium">{t(`audit.action.${r.action}`, { defaultValue: r.action })}</span>
                   <span className="break-words">{named(r.target)}{r.detail ? `: ${named(r.detail)}` : ''}</span>
-                  <span className="text-[12px] text-muted">{fmtDateTime(r.ts)}, {r.user}</span>
+                  <span className="text-caption text-muted">{fmtDateTime(r.ts)}, {r.user}</span>
                 </div>
               )}
-              empty={<EmptyState title={filtered ? t('audit.emptyFiltered') : t('audit.empty')} />} />
+              empty={t('audit.empty')} filtered={filtered} onClearFilters={clear}
+              emptyFiltered={<span className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1">{t('audit.emptyFiltered')}<Button size="sm" variant="link" onClick={clear}>{t('common:table.clearFilters')}</Button></span>} />
           </>
         )}
       </QueryState>

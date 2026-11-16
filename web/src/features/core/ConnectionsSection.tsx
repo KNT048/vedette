@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Notice, PageHeader, Panel } from '@/components/common/PageHeader'
+import { Notice, PageHeader } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Chip } from '@/components/common/StatusChip'
@@ -28,7 +29,7 @@ const asInput = (c: Connector, over: Partial<ConnectorInput> = {}): ConnectorInp
 
 /** The parts of one meta line, with a dot between them drawn as its own element (no string is glued together). */
 function Meta({ parts }: { parts: React.ReactNode[] }) {
-  return <p className="flex min-w-0 flex-wrap gap-x-2 text-[13px] text-muted">{parts.map((p, i) => <span key={i} className="min-w-0 break-all">{i > 0 ? <span aria-hidden className="mr-2">·</span> : null}{p}</span>)}</p>
+  return <p className="flex min-w-0 flex-wrap gap-x-2 text-meta text-muted">{parts.map((p, i) => <span key={i} className="min-w-0 break-all">{i > 0 ? <span aria-hidden className="mr-2">·</span> : null}{p}</span>)}</p>
 }
 
 /**
@@ -53,14 +54,13 @@ export default function ConnectionsSection() {
   const count = conns.data?.items.length ?? 0
   return (
     <>
-      <PageHeader title={t('connections.title')} meta={t('connections.meta')} info={t('connections.metaInfo')} stories={['S-AI-7', 'S-RESP-4']} actions={count > 0 ? <Button variant="primary" onClick={() => setEdit('new')}>{t('connections.add')}</Button> : undefined} />
-      <Panel className="mb-4 grid gap-1.5 p-4 text-sm">
-        <div className="flex items-center gap-1"><p><strong>{t('connections.writeNoteLead')}</strong></p><InfoTip topic={t('connections.writeNoteLead')}>{t('connections.writeNote')}</InfoTip></div>
-        <div className="flex items-center gap-1"><p className="text-muted">{t('connections.privacyNote')} <Link className="text-accent underline underline-offset-4" to="/settings/privacy">{t('connections.privacyLink')}</Link></p><InfoTip topic={t('connections.privacyNote')}>{t('connections.privacyNoteInfo')}</InfoTip></div>
-      </Panel>
+      <PageHeader title={t('connections.title')} meta={t('connections.meta')} info={t('connections.metaInfo')} stories={['S-AI-7', 'S-RESP-4']} actions={count > 0 ? <Button id="connections-add" variant="primary" onClick={() => setEdit('new')}>{t('connections.add')}</Button> : undefined} />
+      <Notice tone="off" role="note" title={t('connections.writeNoteLead')} info={t('connections.writeNote')}>
+        <span className="inline-flex flex-wrap items-center gap-1">{t('connections.privacyNote')} <Link className="text-accent underline underline-offset-4" to="/settings/privacy#flow-12">{t('connections.privacyLink')}</Link><InfoTip topic={t('connections.privacyNote')}>{t('connections.privacyNoteInfo')}</InfoTip></span>
+      </Notice>
       <QueryState query={conns}>
         {({ items }) => items.length === 0 ? (
-          <EmptyState title={t('connections.empty')} info={t('connections.emptyInfo')} action={<Button variant="primary" onClick={() => setEdit('new')}>{t('connections.add')}</Button>}>{t('connections.emptyBody')}</EmptyState>
+          <EmptyState title={t('connections.empty')} info={t('connections.emptyInfo')} action={<Button id="connections-add" variant="primary" onClick={() => setEdit('new')}>{t('connections.add')}</Button>}>{t('connections.emptyBody')}</EmptyState>
         ) : (
           <ul aria-label={t('connections.title')} className="grid gap-4">
             {items.map((c) => {
@@ -68,19 +68,19 @@ export default function ConnectionsSection() {
               const mcp = c.kind === 'mcp-http'
               return (
                 <li key={c.id}>
-                  <Panel className={`grid gap-3 p-4 ${c.enabled && !unsupported ? '' : 'opacity-70'}`}>
+                  <Card className={`grid gap-3 ${c.enabled && !unsupported ? '' : 'opacity-70'}`}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="grid min-w-0 gap-1">
                         <h2 className="flex flex-wrap items-center gap-2 text-sm font-semibold">{c.name} <Chip tone="off">{t(`connections.kind.${c.kind}`)}</Chip>
                           {unsupported ? <Chip tone="warn">{t('connections.unsupported')}</Chip> : <Chip tone={c.status === 'ok' ? 'ok' : c.status === 'error' ? 'danger' : 'warn'}>{t(`connections.status.${c.status}`)}</Chip>}</h2>
-                        <p className="break-all font-mono text-[12.5px] text-muted">{c.target}</p>
+                        <p className="break-all font-mono text-meta text-muted">{c.target}</p>
                         <Meta parts={[
                           c.auth.type === 'none' ? t('connections.noAuth') : c.auth.type === 'ssh-key' ? t('connections.authKey', { fingerprint: c.auth.key_fingerprint ?? '' }) : t('connections.authEnds', { type: t(`connections.auth.${c.auth.type}`), last4: c.auth.last4 }),
                           ...(c.auth.header ? [t('connections.inHeader', { header: c.auth.header })] : []),
                           ...(c.username ? [t('connections.asUser', { user: c.username })] : []),
                           c.last_test ? t('connections.tested', { when: fmtRelative(c.last_test) }) : t('connections.neverTested'),
                         ]} />
-                        {c.pin ? <p className="text-[13px] text-muted"><Trans t={t} i18nKey={PIN_LINE[c.pin.kind]} values={{ value: c.pin.value, when: fmtRelative(c.pin.first_seen) }} components={{ code: <code className="break-all font-mono text-[12px] text-ink" /> }} /></p> : unsupported ? null : <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{t('connections.firstTestNote')}</p><InfoTip topic={t('connections.f.pin')}>{t('connections.firstTestInfo')}</InfoTip></div>}
+                        {c.pin ? <p className="text-meta text-muted"><Trans t={t} i18nKey={PIN_LINE[c.pin.kind]} values={{ value: c.pin.value, when: fmtRelative(c.pin.first_seen) }} components={{ code: <code className="break-all font-mono text-caption text-ink" /> }} /></p> : unsupported ? null : <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('connections.firstTestNote')}</p><InfoTip topic={t('connections.f.pin')}>{t('connections.firstTestInfo')}</InfoTip></div>}
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         <Switch checked={c.enabled} disabled={unsupported && !c.enabled} aria-label={t('connections.enable', { name: c.name })} onCheckedChange={(enabled) => save.mutate({ id: c.id, ...asInput(c, { enabled }) }, { onError: fail })} />
@@ -89,20 +89,20 @@ export default function ConnectionsSection() {
                         <Button size="sm" onClick={() => { remove.reset(); setDel(c) }} aria-label={t('connections.deleteNamed', { name: c.name })}>{t('connections.delete')}</Button>
                       </div>
                     </div>
-                    {unsupported ? <p className="text-[13px]">{t('connections.unsupportedBody')}</p> : null}
+                    {unsupported ? <p className="text-meta">{t('connections.unsupportedBody')}</p> : null}
                     {result?.id === c.id ? (result.ok ? <p role="status" className="text-sm"><Chip tone="ok">{t('connections.testOk')}</Chip> {result.ok}</p> : <Notice tone="danger" role="alert" className="mb-0" title={result.error} />) : null}
                     <div>
-                      <h3 className="mb-1 text-[13px] font-medium">{t('connections.allowTitle')}</h3>
-                      <ul aria-label={t('connections.allowFor', { name: c.name })} className="flex flex-wrap gap-1.5">{c.allow.map((a) => <li key={a}><code className="rounded-[4px] border border-rule bg-sunken px-1.5 py-0.5 font-mono text-[12px]">{a}</code></li>)}</ul>
+                      <h3 className="mb-1 text-meta font-medium">{t('connections.allowTitle')}</h3>
+                      <ul aria-label={t('connections.allowFor', { name: c.name })} className="flex flex-wrap gap-1.5">{c.allow.map((a) => <li key={a}><code className="rounded-sm border border-rule bg-sunken px-1.5 py-0.5 font-mono text-caption">{a}</code></li>)}</ul>
                     </div>
                     {!unsupported ? (
                       <div>
-                        <h3 className="mb-1 text-[13px] font-medium">{t('connections.toolsTitle')}</h3>
+                        <h3 className="mb-1 text-meta font-medium">{t('connections.toolsTitle')}</h3>
                         <ul aria-label={t('connections.toolsFor', { name: c.name })} className="grid gap-1.5">
                           {c.tools.map((tl) => (
-                            <li key={tl.name} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+                            <li key={tl.name} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
                               <Switch checked={tl.enabled} aria-label={t('connections.toolEnable', { tool: tl.name, name: c.name })} onCheckedChange={(enabled) => save.mutate({ id: c.id, ...asInput(c, { tools: c.tools.map((x) => ({ name: x.name, enabled: x.name === tl.name ? enabled : x.enabled })) }) }, { onError: fail })} />
-                              <code className="font-mono text-[12.5px]">{tl.name}</code>
+                              <code className="font-mono text-meta">{tl.name}</code>
                               {mcp ? (
                                 // D-94 (3): the tools of an MCP server are found at Test and start as write; the administrator marks the ones that only read.
                                 <Select className="h-8 w-auto sm:h-8" aria-label={t('connections.toolAccess', { tool: tl.name, name: c.name })} value={tl.access} onChange={(e) => save.mutate({ id: c.id, ...asInput(c, { tools: c.tools.map((x) => ({ name: x.name, enabled: x.enabled, access: x.name === tl.name ? (e.target.value as 'read' | 'write') : x.access })) }) }, { onError: fail })}>
@@ -113,11 +113,11 @@ export default function ConnectionsSection() {
                             </li>
                           ))}
                         </ul>
-                        {c.kind === 'http' || c.kind === 'netconf-restconf' || c.kind === 'automation' ? <p className="mt-2 text-[13px] text-muted">{t('connections.getMayChange')}</p> : null}
-                        {c.tools.some((x) => x.access === 'write') ? <p className="mt-2 text-[13px] text-muted">{t('connections.writeOnlyApproved')}</p> : null}
+                        {c.kind === 'http' || c.kind === 'netconf-restconf' || c.kind === 'automation' ? <p className="mt-2 text-meta text-muted">{t('connections.getMayChange')}</p> : null}
+                        {c.tools.some((x) => x.access === 'write') ? <p className="mt-2 text-meta text-muted">{t('connections.writeOnlyApproved')}</p> : null}
                       </div>
                     ) : null}
-                  </Panel>
+                  </Card>
                 </li>
               )
             })}
@@ -220,24 +220,24 @@ function ConnDialog({ conn, onClose, onSaved }: { conn: Connector | null; onClos
                 hint={keep ? (isKey ? t('connections.f.keySaved', { fingerprint: conn!.auth.key_fingerprint ?? '' }) : t('connections.f.secretSaved', { last4: conn!.auth.last4 })) : t(isKey ? 'connections.f.keyHint' : 'connections.f.secretHint')}>
                 {isKey
                   // A key has line breaks that a one-line field would strip, and Go would then find no PEM block.
-                  ? <Textarea id="cn-secret" className="font-mono text-[12px]" rows={5} autoComplete="off" spellCheck={false} value={secret} placeholder={keep ? t('connections.f.keyKeep') : ''} onChange={(e) => { setSecret(e.target.value); clear('secret') }} aria-invalid={bad('secret')} aria-describedby={desc('secret', 'cn-secret-hint')} />
+                  ? <Textarea id="cn-secret" className="font-mono text-caption" rows={5} autoComplete="off" spellCheck={false} value={secret} placeholder={keep ? t('connections.f.keyKeep') : ''} onChange={(e) => { setSecret(e.target.value); clear('secret') }} aria-invalid={bad('secret')} aria-describedby={desc('secret', 'cn-secret-hint')} />
                   : <Input id="cn-secret" type="password" autoComplete="off" value={secret} placeholder={keep ? `••••${conn!.auth.last4}` : ''} onChange={(e) => { setSecret(e.target.value); clear('secret') }} aria-invalid={bad('secret')} aria-describedby={desc('secret', 'cn-secret-hint')} />}
               </Field>
             ) : null}
-            <Field label={t('connections.f.allow')} htmlFor="cn-allow" hint={t(`connections.f.allowHint_${kind}`, { example: ALLOW_EXAMPLE[kind].includes('\n') ? ALLOW_EXAMPLE[kind].split('\n').map((x) => `"${x}"`).join(', ') : ALLOW_EXAMPLE[kind] })} error={errs.allow} className="sm:col-span-2"><Textarea id="cn-allow" className="font-mono text-[13px]" value={allow} onChange={(e) => { setAllow(e.target.value); clear('allow') }} aria-invalid={bad('allow')} aria-describedby={desc('allow', 'cn-allow-hint')} /></Field>
+            <Field label={t('connections.f.allow')} htmlFor="cn-allow" hint={t(`connections.f.allowHint_${kind}`, { example: ALLOW_EXAMPLE[kind].includes('\n') ? ALLOW_EXAMPLE[kind].split('\n').map((x) => `"${x}"`).join(', ') : ALLOW_EXAMPLE[kind] })} error={errs.allow} className="sm:col-span-2"><Textarea id="cn-allow" className="font-mono text-meta" value={allow} onChange={(e) => { setAllow(e.target.value); clear('allow') }} aria-invalid={bad('allow')} aria-describedby={desc('allow', 'cn-allow-hint')} /></Field>
           </div>
           {pin ? (
             <div className="grid gap-2 rounded-md border border-rule bg-sunken px-3 py-3 text-sm">
               <div role="group" aria-label={t('connections.f.pin')} className="grid gap-0.5">
-                <span className="text-[13px] font-medium" aria-hidden>{t('connections.f.pin')}</span>
-                <span className="text-[13px] text-muted">{t(PIN_LABEL[pin.kind])}</span>
-                {pin.kind === 'tls_roots' ? null : <code className="break-all font-mono text-[12px]">{pin.value}</code>}
-                <span className="text-[13px] text-muted">{t('connections.f.pinSeen', { when: fmtRelative(pin.first_seen) })}</span>
+                <span className="text-meta font-medium" aria-hidden>{t('connections.f.pin')}</span>
+                <span className="text-meta text-muted">{t(PIN_LABEL[pin.kind])}</span>
+                {pin.kind === 'tls_roots' ? null : <code className="break-all font-mono text-caption">{pin.value}</code>}
+                <span className="text-meta text-muted">{t('connections.f.pinSeen', { when: fmtRelative(pin.first_seen) })}</span>
               </div>
               <div className="flex items-center gap-3"><Switch id="cn-forget" checked={forget} onCheckedChange={setForget} aria-describedby="cn-forget-hint" /><div className="flex items-center gap-1"><Label htmlFor="cn-forget" className="font-normal">{t('connections.f.forget')}</Label><InfoTip topic={t('connections.f.forget')}>{t('connections.f.forgetInfo')}</InfoTip></div></div>
-              <p id="cn-forget-hint" className="text-[13px] text-muted">{t('connections.f.forgetHint')}</p>
+              <p id="cn-forget-hint" className="text-meta text-muted">{t('connections.f.forgetHint')}</p>
             </div>
-          ) : conn ? <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{t('connections.f.pinNone')}</p><InfoTip topic={t('connections.f.pin')}>{t('connections.f.pinNoneInfo')}</InfoTip></div> : null}
+          ) : conn ? <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('connections.f.pinNone')}</p><InfoTip topic={t('connections.f.pin')}>{t('connections.f.pinNoneInfo')}</InfoTip></div> : null}
           <div className="flex items-center gap-3"><Switch id="cn-enabled" checked={enabled} onCheckedChange={setEnabled} /><Label htmlFor="cn-enabled" className="font-normal">{t('connections.enabled')}</Label></div>
           {save.error && !placed ? <Notice tone="danger" role="alert" className="mb-0" title={errMsg(save.error, t)} /> : null}
           <DialogFooter>

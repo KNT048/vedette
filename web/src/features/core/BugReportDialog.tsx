@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Download, ExternalLink } from 'lucide-react'
 import { CodeBlock } from '@/components/common/CodeBlock'
+import { Notice } from '@/components/common/PageHeader'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -22,10 +23,7 @@ export function BugReportDialog({ open, onOpenChange }: { open: boolean; onOpenC
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent wide title={t('bug.title')} description={t('bug.desc')}>
         <div className="grid gap-4">
-          <div role="note" className="flex items-center gap-1 rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">
-            <p>{t('bug.noSend')}</p>
-            <InfoTip topic={t('bug.title')}>{t('bug.noSendInfo')}</InfoTip>
-          </div>
+          <Notice tone="off" role="note" className="mb-0" title={t('bug.noSend')} info={t('bug.noSendInfo')} />
           <Field label={t('bug.what')} htmlFor="bug-what"><Textarea id="bug-what" rows={3} value={text.what} onChange={set('what')} /></Field>
           <Field label={t('bug.steps')} htmlFor="bug-steps"><Textarea id="bug-steps" rows={3} value={text.steps} onChange={set('steps')} /></Field>
           <Field label={t('bug.expected')} htmlFor="bug-expected"><Textarea id="bug-expected" rows={2} value={text.expected} onChange={set('expected')} /></Field>
@@ -34,11 +32,11 @@ export function BugReportDialog({ open, onOpenChange }: { open: boolean; onOpenC
               <p className="text-sm font-medium">{t('bug.bundle')}</p>
               <InfoTip topic={t('bug.bundle')}>{t('bug.bundleInfo')}</InfoTip>
             </div>
-            <p className="text-[13px] text-muted">{t('bug.bundleDesc')}</p>
+            <p className="text-meta text-muted">{t('bug.bundleDesc')}</p>
             <CodeBlock label={t('bug.bundleLabel')} code={JSON.stringify(bundle, null, 2)} />
           </div>
           <div className="flex items-center gap-1">
-            <p className="text-[13px] text-muted">{t('bug.attach')}</p>
+            <p className="text-meta text-muted">{t('bug.attach')}</p>
             <InfoTip topic={t('bug.open')}>{t('bug.attachInfo')}</InfoTip>
           </div>
         </div>

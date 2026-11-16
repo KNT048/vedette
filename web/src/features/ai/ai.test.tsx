@@ -177,7 +177,10 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
     renderApp('/assistant')
     expect(await screen.findByRole('heading', { level: 1, name: /No AI profile yet/ })).toBeInTheDocument()
     expect(screen.getByText(/Add an AI profile \(provider, model and key\)/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open Settings, AI assistant' })).toHaveAttribute('href', '/settings/ai')
+    expect(screen.getByRole('link', { name: 'Open Settings, AI assistant' })).toHaveAttribute('href', '/settings/ai#ai-profiles')
+    // docs/UI.md §0: the first profile is added right here
+    await userEvent.click(screen.getByRole('button', { name: 'Add AI profile' }))
+    expect(await screen.findByRole('dialog', { name: 'Add AI profile' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Question')).toBeNull()
     expect(aiAvailable()).toBe(false)
   })
@@ -186,6 +189,8 @@ describe('ai: assistant (S-AI-5, S-AI-6)', () => {
     aiAssignStore.update((a) => ({ ...a, jobs: { ...a.jobs, 'ask-my-data': { primary: null, fallback: null } } }))
     renderApp('/assistant')
     expect(await screen.findByText('No AI profile is assigned to this task')).toBeInTheDocument()
+    // the link lands on this task's primary-profile select in the routing table
+    expect(screen.getByRole('link', { name: 'Assign a profile in Settings, AI assistant' })).toHaveAttribute('href', '/settings/ai#ai-job-ask-my-data')
     expect(aiAvailable('ask-my-data')).toBe(false)
     expect(aiAvailable('log-digest')).toBe(true)
   })
@@ -264,7 +269,7 @@ describe('ai: token meter, monthly budget, fallback (S-AI-4, D-531)', () => {
     const v = renderApp('/')
     expect(await screen.findByText("This month's AI budget is at 85 %")).toBeInTheDocument()
     expect(screen.getByText(/At 100 % every AI job .* stops until the budget renews on/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Raise the AI budget' })).toHaveAttribute('href', '/settings/ai')
+    expect(screen.getByRole('link', { name: 'Raise the AI budget' })).toHaveAttribute('href', '/settings/ai#ai-cap')
     v.unmount()
     spend(2_000_000)
     aiProfilesStore.update((l) => l.map((p) => (p.id === 'p-sonnet' ? { ...p, monthly_budget: 100_000_000 } : p)))
@@ -600,6 +605,71 @@ describe('ai: settings, job routing and privacy rule', () => {
     await enabled(save)
     await userEvent.click(save)
     await waitFor(() => expect(aiAssignStore.get().jobs['log-digest']).toEqual({ primary: 'p-haiku', fallback: 'p-ollama' }))
+  })
+
+  it('"+ New AI profile" in a task\'s primary select adds the profile there and selects it (docs/UI.md §0)', async () => {
+    const v = renderUi(<AiSettings />)
+    await v.ready
+    const table = await screen.findByRole('table', { name: 'AI job routing' })
+    const primary = within(table).getByLabelText('Primary profile for Log summaries')
+    await enabled(primary)
+    await userEvent.selectOptions(primary, '+ New AI profile')
+    const dlg = await screen.findByRole('dialog', { name: 'Add AI profile' })
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider type'), 'openai-compatible')
+    await userEvent.clear(within(dlg).getByLabelText('Profile name'))
+    await userEvent.type(within(dlg).getByLabelText('Profile name'), 'Lab GPU')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Add profile' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    const p = aiProfilesStore.get().find((x) => x.name === 'Lab GPU')!
+    expect(p).toBeTruthy()
+    await waitFor(() => expect(within(table).getByLabelText('Primary profile for Log summaries')).toHaveValue(p.id))
+    expect(await screen.findByText('Lab GPU added and selected.')).toBeInTheDocument()
+  })
+
+  it('"+ New AI profile" keeps the other rows\' unsaved edits, the row it was made from and focus while the box gives the new profile to tasks that had none (#875 r1)', async () => {
+    aiAssignStore.update((a) => ({ ...a, jobs: { ...a.jobs, 'weekly-report': { primary: null, fallback: null } } }))
+    const v = renderUi(<AiSettings />)
+    await v.ready
+    const table = await screen.findByRole('table', { name: 'AI job routing' })
+    const explain = within(table).getByLabelText('Primary profile for Explain findings')
+    await enabled(explain)
+    await userEvent.selectOptions(explain, 'p-haiku') // an unsaved edit in another row
+    const primary = within(table).getByLabelText('Primary profile for Log summaries')
+    await userEvent.selectOptions(primary, '+ New AI profile')
+    const dlg = await screen.findByRole('dialog', { name: 'Add AI profile' })
+    await userEvent.selectOptions(within(dlg).getByLabelText('Provider type'), 'openai-compatible')
+    await userEvent.clear(within(dlg).getByLabelText('Profile name'))
+    await userEvent.type(within(dlg).getByLabelText('Profile name'), 'Lab GPU')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Add profile' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    const p = aiProfilesStore.get().find((x) => x.name === 'Lab GPU')!
+    // the box gave it to the task that had none; the refetch reaches the table without rebuilding it
+    await waitFor(() => expect(within(table).getByLabelText('Primary profile for Weekly report comments')).toHaveValue(p.id))
+    expect(within(table).getByLabelText('Primary profile for Log summaries')).toBe(primary)
+    expect(primary).toHaveValue(p.id)
+    expect(primary).toHaveFocus()
+    expect(within(table).getByLabelText('Primary profile for Explain findings')).toHaveValue('p-haiku')
+    expect(screen.getByText('Lab GPU added and selected.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save routing' })).toBeEnabled()
+  })
+
+  it('"+ New AI profile" in a row the privacy rule closes to cloud profiles adds a cloud profile but does not select it, and says why (#875 r1)', async () => {
+    aiAssignStore.update((a) => ({ ...a, internal_only: true }))
+    const v = renderUi(<AiSettings />)
+    await v.ready
+    const table = await screen.findByRole('table', { name: 'AI job routing' })
+    const primary = within(table).getByLabelText('Primary profile for Log summaries')
+    await enabled(primary)
+    await userEvent.selectOptions(primary, '+ New AI profile')
+    const dlg = await screen.findByRole('dialog', { name: 'Add AI profile' })
+    await userEvent.click(within(dlg).getByRole('checkbox', { name: /I understand/ }))
+    await userEvent.type(within(dlg).getByLabelText('API key'), 'sk-ant-demo-key-9z9z')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Add profile' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(await screen.findByText('Claude added, not selected for this task: the privacy rule allows only a profile inside your network for this data.')).toBeInTheDocument()
+    expect(primary).toHaveValue('p-ollama')
+    expect(screen.queryByText(/added and selected/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Save routing' })).toBeDisabled()
   })
 
   it('fallback needs a primary; a fallback cannot equal the primary; save is off until something changes', async () => {

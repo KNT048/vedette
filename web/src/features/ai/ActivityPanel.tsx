@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { Section } from '@/components/common/PageHeader'
+import { Notice, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
+import { DependencyLink } from '@/components/common/DependencyLink'
 import { QueryState } from '@/components/common/States'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Field, Select, Input } from '@/components/ui/input'
 import { fmtDateTime, fmtNumber } from '@/lib/format'
+import { useCan } from '@/lib/session'
 import { useScope } from '@/lib/v1'
 import { useActivity, useVerifyChain, type ActivityFilter } from './api'
 import type { ActivityEntry, ActivityResult } from './types'
@@ -24,6 +26,7 @@ export default function ActivityPanel() {
   const { t } = useTranslation('ai')
   const [f, setF] = useState<ActivityFilter>({ job: '', result: '', from: '', to: '' })
   const [open, setOpen] = useState<ActivityEntry | null>(null)
+  const admin = useCan('admin') // the retention is set in Settings, AI assistant (administrators)
   const list = useActivity(f)
   const verify = useVerifyChain()
   const v = verify.data
@@ -40,9 +43,7 @@ export default function ActivityPanel() {
   return (
     <Section title={t('activity.title')} description={t('activity.description')} info={t('activity.descriptionInfo')} stories={['S-AI-8']}>
       <div className="grid gap-4">
-        <p role="status" className={`rounded-md border px-3 py-2 text-sm ${v && !v.ok ? 'border-danger/50 bg-danger-soft' : 'border-rule bg-surface'}`}>
-          {!v ? t('activity.verifying') : v.ok ? t('activity.verified', { n: fmtNumber(v.count) }) : t('activity.broken', { n: v.broken_at })}
-        </p>
+        <Notice tone={v && !v.ok ? 'danger' : 'off'} role="status" className="mb-0" title={!v ? t('activity.verifying') : v.ok ? t('activity.verified', { n: fmtNumber(v.count) }) : t('activity.broken', { n: v.broken_at })} />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Field label={t('activity.filter.job')} htmlFor="act-job">
             <Select id="act-job" value={f.job} onChange={(e) => setF({ ...f, job: e.target.value })}>
@@ -60,9 +61,10 @@ export default function ActivityPanel() {
           <Field label={t('activity.filter.to')} htmlFor="act-to"><Input id="act-to" type="date" value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} /></Field>
         </div>
         <QueryState query={list}>
-          {(r) => <DataTable<ActivityEntry> caption={t('activity.caption')} data={r.items} columns={cols} initialSort={[{ id: 'ts', desc: true }]} empty={t('activity.empty')} pageSize={20} />}
+          {(r) => <DataTable<ActivityEntry> caption={t('activity.caption')} data={r.items} columns={cols} initialSort={[{ id: 'ts', desc: true }]} empty={t('activity.empty')} pageSize={20}
+            filtered={!!(f.job || f.result || f.from || f.to)} onClearFilters={() => setF({ job: '', result: '', from: '', to: '' })} />}
         </QueryState>
-        <p className="text-[13px] text-muted">{t('activity.readOnly', { days: list.data?.retention_days ?? 365 })}</p>
+        <p className="text-meta text-muted">{t('activity.readOnly', { days: list.data?.retention_days ?? 365 })}{admin ? <>{' '}<Link to="/settings/ai#ai-retention" className="font-medium text-accent underline underline-offset-4">{t('activity.retentionLink')}</Link></> : null}</p>
       </div>
       <Dialog open={!!open} onOpenChange={(o) => { if (!o) setOpen(null) }}>
         {open ? <Detail e={open} job={job(open.job)} /> : null}
@@ -74,8 +76,9 @@ export default function ActivityPanel() {
 function Detail({ e, job }: { e: ActivityEntry; job: string }) {
   const { t } = useTranslation('ai')
   const respond = useScope('response') !== 'hidden' // D-624 (#819): no link into a module this build does not offer
+  const admin = useCan('admin') // Settings, Data (the log download) is the administrator's
   const row = (k: string, v: React.ReactNode) => <div className="grid gap-0.5 sm:grid-cols-[9rem_minmax(0,1fr)]"><dt className="text-muted">{k}</dt><dd className="min-w-0 break-words">{v}</dd></div>
-  const mono = (s: string) => <code className="break-all font-mono text-[12px]">{s}</code>
+  const mono = (s: string) => <code className="break-all font-mono text-caption">{s}</code>
   return (
     <DialogContent wide title={t('activity.detail.title', { job })} description={fmtDateTime(e.ts)} info={t('activity.detail.note')}>
       <dl className="grid gap-2 text-sm">
@@ -92,6 +95,7 @@ function Detail({ e, job }: { e: ActivityEntry; job: string }) {
         {row(t('activity.detail.prev'), mono(e.prev_hash))}
         {row(t('activity.detail.hash'), mono(e.hash))}
       </dl>
+      {admin ? <DependencyLink reason={t('activity.detail.verify')} to="/settings/data#log-from" label={t('activity.detail.verifyLink')} /> : null}
     </DialogContent>
   )
 }

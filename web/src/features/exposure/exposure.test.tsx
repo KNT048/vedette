@@ -1352,14 +1352,16 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
       http.get('*/api/v1/exposure/targets/xt-2/snapshots', () => HttpResponse.json({ items: [{ id: snap.id, date, scanned_at: at, counts: snap.counts }] })),
       http.get('*/api/v1/exposure/targets/xt-2/snapshots/:date', () => HttpResponse.json(snap)),
     )
-    renderApp('/exposure/xt-2')
+    const first = renderApp('/exposure/xt-2')
     const section = await screen.findByRole('region', { name: 'Web findings (passive)' })
     expect(await within(section).findByText('No page was scanned')).toBeInTheDocument()
     expect(within(section).getByText('Passive web scan (ZAP) is not set up on this box yet.')).toBeInTheDocument()
     expect(within(section).queryByRole('table')).toBeNull()
+    first.unmount() // one app at a time: two mounted apps doubled the work and ran past the 1 s default wait on a busy CI runner
     snap.checks = [{ kind: 'web', text: 'Passive web scan (ZAP baseline: spider and passive rules, no form sent) of 1 page: https://203.0.113.10/. 0 alerts.', at }]
     renderApp('/exposure/xt-2')
-    expect((await screen.findAllByText('ZAP noticed nothing on the pages it looked at')).length).toBeGreaterThan(0)
+    const again = await screen.findByRole('region', { name: 'Web findings (passive)' }, { timeout: 5000 })
+    expect(await within(again).findByText('ZAP noticed nothing on the pages it looked at', {}, { timeout: 5000 })).toBeInTheDocument()
   })
 
   it('INV-24: a domain gets web findings for its own names', async () => {

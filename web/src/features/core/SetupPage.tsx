@@ -4,6 +4,10 @@ import { useTranslation } from 'react-i18next'
 import { Check, Plus, Trash2 } from 'lucide-react'
 import { ErrorState, Loading } from '@/components/common/States'
 import { InfoTip } from '@/components/common/InfoTip'
+import { Card } from '@/components/common/Card'
+import { Notice } from '@/components/common/PageHeader'
+import { StandalonePage } from '@/components/common/StandalonePage'
+import { Illustration } from '@/components/common/Illustration'
 import { Button } from '@/components/ui/button'
 import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Field, Input } from '@/components/ui/input'
@@ -154,65 +158,60 @@ export default function SetupPage() {
 
   if (restoring) {
     return (
-      <main className="mx-auto min-h-dvh w-full max-w-2xl px-4 py-10">
-        <h1 className="text-2xl font-semibold tracking-[-0.01em]">{t('setup.title')}</h1>
-        <section className="mt-6 rounded-md border border-rule bg-surface p-5" aria-labelledby="restore-title">
+      <StandalonePage size="lg" title={t('setup.title')}>
+        <Card>
           <div className="flex items-center gap-1">
-            <h2 id="restore-title" className="text-lg font-semibold">{t('setup.restore.title')}</h2>
+            <h2 id="restore-title" className="text-base font-semibold">{t('setup.restore.title')}</h2>
             <InfoTip topic={t('setup.restore.title')}><p>{t('setup.restore.descInfo')}</p><p>{t('setup.restore.terms')}</p></InfoTip>
           </div>
           <p className="mt-1 text-sm text-muted">{t('setup.restore.desc')}</p>
           <SetupRestore install={install} termsAccepted={s.terms} onBack={() => setRestoring(false)} />
-        </section>
-      </main>
+        </Card>
+      </StandalonePage>
     )
   }
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-2xl px-4 py-10">
-      <div className="flex items-center gap-1">
-        <h1 className="text-2xl font-semibold tracking-[-0.01em]">{t('setup.title')}</h1>
-        <InfoTip topic={t('setup.title')}>{t('setup.subtitleInfo')}</InfoTip>
-      </div>
-      <p className="mt-1 text-sm text-muted">{t('setup.subtitle')}</p>
-
-      <ol aria-label={t('setup.steps')} className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+    // UI.md §3: a standalone page (outside the shell), the welcome drawing on the first step.
+    <StandalonePage size="lg" title={t('setup.title')} subtitle={<span className="inline-flex items-center gap-1">{t('setup.subtitle')}<InfoTip topic={t('setup.title')}>{t('setup.subtitleInfo')}</InfoTip></span>}>
+      {step === 'terms' ? <Illustration name="welcome" className="mx-auto" /> : null}
+      <ol aria-label={t('setup.steps')} className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
         {STEPS.map((k, i) => (
           <li key={k} aria-current={i === idx ? 'step' : undefined} className={cn('flex items-center gap-1.5', i === idx ? 'font-medium text-ink' : 'text-muted')}>
-            <span className={cn('grid size-5 place-items-center rounded-full border text-[11px]', i < idx ? 'border-ok bg-ok-soft text-ok' : i === idx ? 'border-accent bg-accent text-accent-ink' : 'border-rule')}>{i < idx ? <Check className="size-3" aria-hidden /> : i + 1}</span>
+            <span className={cn('grid size-5 place-items-center rounded-full border text-caption', i < idx ? 'border-ok bg-ok-soft text-ok' : i === idx ? 'border-accent bg-accent text-accent-ink' : 'border-rule')}>{i < idx ? <Check className="size-3" aria-hidden /> : i + 1}</span>
             {t(`setup.step.${k}`)}
           </li>
         ))}
       </ol>
 
       {step === 'account' && import.meta.env.VITE_API_MOCK !== 'off' ? (
-        <section className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed border-rule px-5 py-3" aria-labelledby="sample-title">
+        <Card className="flex flex-wrap items-center justify-between gap-3">
           <div className="grid max-w-md gap-0.5">
             <div className="flex items-center gap-1">
               <h2 id="sample-title" className="text-sm font-semibold">{t('setup.sample.title')}</h2>
               <InfoTip topic={t('setup.sample.title')}>{t('setup.sample.descInfo')}</InfoTip>
             </div>
-            <p className="text-[13px] text-muted">{t('setup.sample.desc')}</p>
+            <p className="text-meta text-muted">{t('setup.sample.desc')}</p>
           </div>
           <Button onClick={() => void startWithSample()} disabled={submit.isPending}>{t('setup.sample.button')}</Button>
-        </section>
+        </Card>
       ) : null}
       {step === 'account' ? (
-        <section className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-rule px-5 py-3" aria-labelledby="restore-entry">
+        <Card className="flex flex-wrap items-center justify-between gap-3">
           <div className="grid max-w-md gap-0.5">
             <div className="flex items-center gap-1">
               <h2 id="restore-entry" className="text-sm font-semibold">{t('setup.restore.entryTitle')}</h2>
               <InfoTip topic={t('setup.restore.entryTitle')}>{t('setup.restore.entryInfo')}</InfoTip>
             </div>
-            <p className="text-[13px] text-muted">{t('setup.restore.entryDesc')}</p>
+            <p className="text-meta text-muted">{t('setup.restore.entryDesc')}</p>
           </div>
           <Button onClick={() => setRestoring(true)}>{t('setup.restore.entryButton')}</Button>
-        </section>
+        </Card>
       ) : null}
-      <section className="mt-6 rounded-md border border-rule bg-surface p-5" aria-labelledby="step-title">
+      <Card>
         <form noValidate onSubmit={(e) => { e.preventDefault(); if (step === 'modules') void finish(); else next() }}>
         <div className="flex items-center gap-1">
-          <h2 id="step-title" ref={heading} tabIndex={-1} className="text-lg font-semibold outline-none">{t(`setup.${step}.title`)}</h2>
+          <h2 id="step-title" ref={heading} tabIndex={-1} className="text-base font-semibold outline-none">{t(`setup.${step}.title`)}</h2>
           {stepInfo ? <InfoTip topic={t(`setup.${step}.title`)}>{stepInfo}</InfoTip> : null}
         </div>
         <p className="mt-1 text-sm text-muted">{t(`setup.${step}.desc`)}</p>
@@ -226,7 +225,7 @@ export default function SetupPage() {
                   onCheckedChange={(v) => { set({ terms: v === true }); setErrors({}) }} className="mt-0.5" />
                 <label htmlFor="s-terms" className="text-sm font-medium">{t('setup.terms.agree')}</label>
               </div>
-              {errors.terms ? <p role="alert" className="text-[13px] text-danger">{errors.terms}</p> : null}
+              {errors.terms ? <p role="alert" className="text-meta text-danger">{errors.terms}</p> : null}
             </div>
           </div>
         ) : null}
@@ -246,7 +245,7 @@ export default function SetupPage() {
           <div className="mt-4 grid gap-4">
             <fieldset className="grid gap-2">
               <legend className="flex items-center gap-1 text-sm font-medium">{t('setup.network.lan')}<InfoTip topic={t('setup.network.lan')}><p>{t('setup.network.lanInfo')}</p>{boxLan && s.lan[0] === boxLan ? <p>{t('setup.network.lanFromBoxInfo', { lan: boxLan })}</p> : null}</InfoTip></legend>
-              <p className="text-[13px] text-muted">{t('setup.network.lanHint')}{boxLan && s.lan[0] === boxLan ? ` ${t('setup.network.lanFromBox', { lan: boxLan })}` : ''}</p>
+              <p className="text-meta text-muted">{t('setup.network.lanHint')}{boxLan && s.lan[0] === boxLan ? ` ${t('setup.network.lanFromBox', { lan: boxLan })}` : ''}</p>
               {s.lan.map((v, i) => (
                 <div key={i} className="grid gap-1">
                   <div className="flex items-center gap-2">
@@ -260,30 +259,30 @@ export default function SetupPage() {
                     <Button variant="ghost" size="icon" aria-label={t('setup.network.lanRemove', { n: i + 1 })} disabled={s.lan.length === 1} title={s.lan.length === 1 ? t('setup.network.lanKeepOne') : undefined}
                       onClick={() => set({ lan: s.lan.filter((_, k) => k !== i) })}><Trash2 /></Button>
                   </div>
-                  {errors[`lan${i}`] ? <p role="alert" className="text-[13px] text-danger">{errors[`lan${i}`]}</p> : null}
+                  {errors[`lan${i}`] ? <p role="alert" className="text-meta text-danger">{errors[`lan${i}`]}</p> : null}
                 </div>
               ))}
-              {errors.lanAll ? <p role="alert" className="text-[13px] text-danger">{errors.lanAll}</p> : null}
+              {errors.lanAll ? <p role="alert" className="text-meta text-danger">{errors.lanAll}</p> : null}
               <div><Button size="sm" onClick={() => set({ lan: [...s.lan, ''] })} disabled={s.lan.length >= 16}><Plus />{t('setup.network.lanAdd')}</Button></div>
-              {s.notes.some((n) => s.lan.includes(n.to)) ? <ul className="grid gap-1 text-[13px] text-muted" aria-label={t('setup.network.noteLabel')}>{s.notes.filter((n) => s.lan.includes(n.to)).map((n) => <li key={n.to}>{n.text}</li>)}</ul> : null}
+              {s.notes.some((n) => s.lan.includes(n.to)) ? <ul className="grid gap-1 text-meta text-muted" aria-label={t('setup.network.noteLabel')}>{s.notes.filter((n) => s.lan.includes(n.to)).map((n) => <li key={n.to}>{n.text}</li>)}</ul> : null}
             </fieldset>
-            <div className="grid gap-3 rounded-md border border-rule bg-sunken p-4">
+            <div className="grid gap-3 border-t border-rule pt-4">
               <div className="flex items-start gap-2.5">
                 <Checkbox id="s-commit" checked={s.commitment} onCheckedChange={(v) => set({ commitment: v === true })} className="mt-0.5" />
                 <label htmlFor="s-commit" className="text-sm">{t('setup.network.commitment')}</label>
               </div>
               <div className="flex items-center gap-1">{/* D-501 */}
-                <p className="text-[13px] text-muted">{t(s.commitment ? 'setup.network.firstPass' : 'setup.network.passiveOnly')}</p>
+                <p className="text-meta text-muted">{t(s.commitment ? 'setup.network.firstPass' : 'setup.network.passiveOnly')}</p>
                 <InfoTip topic={t('setup.network.scanTopic')}>{t(s.commitment ? 'setup.network.firstPassInfo' : 'setup.network.passiveOnlyInfo')}</InfoTip>
               </div>
-              <p className="text-[13px] text-muted">{t('setup.network.license')}</p>
+              <p className="text-meta text-muted">{t('setup.network.license')}</p>
             </div>
           </div>
         ) : null}
 
         {step === 'modules' ? <ModulesStep s={s} set={set} error={errors.modules} /> : null}
 
-        {formError ? <p role="alert" className="mt-4 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{formError}</p> : null}
+        {formError ? <Notice tone="danger" role="alert" className="mb-0 mt-4" title={formError} /> : null}
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
           {/* W2-8: the first step has nowhere to go back to, so it has no Back (the span keeps Continue on the right). */}
@@ -295,14 +294,13 @@ export default function SetupPage() {
             ? <Button key="finish" type="submit" variant="primary" disabled={finished} onClick={noRepeat}>{t('setup.finish')}</Button>
             : <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
                 {/* D-544: Continue waits for the tick, and says so next to it. */}
-                {step === 'terms' && !s.terms ? <p id="s-terms-why" className="text-[13px] text-muted">{t('setup.terms.needTick')}</p> : null}
+                {step === 'terms' && !s.terms ? <p id="s-terms-why" className="text-meta text-muted">{t('setup.terms.needTick')}</p> : null}
                 <Button key="next" type="submit" variant="primary" onClick={noRepeat} disabled={step === 'terms' && !s.terms} aria-describedby={step === 'terms' && !s.terms ? 's-terms-why' : undefined}>{t('setup.next')}</Button>
               </div>}
         </div>
         </form>
-      </section>
-
-    </main>
+      </Card>
+    </StandalonePage>
   )
 }
 
@@ -327,27 +325,27 @@ function ModulesStep({ s, set, error }: { s: State; set: (p: Partial<State>) => 
             <RadioItem id={`bundle-${b}`} value={b} className="mt-0.5" />
             <label htmlFor={`bundle-${b}`} className="grid flex-1 gap-0.5 text-sm">
               <span className="font-medium">{t(`setup.modules.${b}.name`)}</span>
-              <span className="text-[13px] text-muted">{t(`setup.modules.${b}.desc`)}</span>
-              {b !== 'custom' ? <span className="text-[13px] text-muted">{bundle(b).filter((m) => m !== 'core').map(name).join(', ')}</span> : null}
+              <span className="text-meta text-muted">{t(`setup.modules.${b}.desc`)}</span>
+              {b !== 'custom' ? <span className="text-meta text-muted">{bundle(b).filter((m) => m !== 'core').map(name).join(', ')}</span> : null}
             </label>
             {b !== 'custom' ? <InfoTip topic={t(`setup.modules.${b}.name`)}>{t(`setup.modules.${b}.descInfo`)}</InfoTip> : null}
           </div>
         ))}
       </RadioGroup>
-      {notHere.length ? <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{t('setup.modules.notHere', { list: notHere.map(name).join(', ') })}</p><InfoTip topic={t('setup.modules.notHereOne')}>{t('setup.modules.notHereInfo')}</InfoTip></div> : null}
+      {notHere.length ? <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('setup.modules.notHere', { list: notHere.map(name).join(', ') })}</p><InfoTip topic={t('setup.modules.notHereOne')}>{t('setup.modules.notHereInfo')}</InfoTip></div> : null}
       {s.bundle === 'custom' ? (
-        <fieldset className="grid gap-2 rounded-md border border-rule p-3">
-          <legend className="flex items-center gap-1 px-1 text-sm font-medium">{t('setup.modules.pick')}<InfoTip topic={t('setup.modules.pick')}>{t('setup.modules.pickInfo')}</InfoTip></legend>
-          <p className="text-[13px] text-muted">{t('setup.modules.pickHint')}</p>
+        <fieldset className="grid gap-2 border-t border-rule pt-3">
+          <legend className="flex items-center gap-1 text-sm font-medium">{t('setup.modules.pick')}<InfoTip topic={t('setup.modules.pick')}>{t('setup.modules.pickInfo')}</InfoTip></legend>
+          <p className="text-meta text-muted">{t('setup.modules.pickHint')}</p>
           {all.filter((m) => m.tier !== 'core').map((m) => (
             <div key={m.id} className="flex items-start gap-2.5">
               <Checkbox id={`m-${m.id}`} checked={s.picked.has(m.id)} disabled={!m.available} onCheckedChange={(v) => toggle(m.id, v === true)} className="mt-0.5" />
-              <label htmlFor={`m-${m.id}`} className="grid text-sm"><span className="flex items-center gap-1.5">{name(m.id)}{' '}<ScopeBadge scope={scopeOf(m.id, false)} className="h-5 px-1.5 text-[11px]" /></span>{m.available ? null : <span className="text-[12px] text-muted">{t('setup.modules.notHereOne')}</span>}{m.depends.filter((d) => d !== 'core').length ? <span className="text-[12px] text-muted">{t('setup.modules.needs', { list: m.depends.filter((d) => d !== 'core').map(name).join(', ') })}</span> : null}</label>
+              <label htmlFor={`m-${m.id}`} className="grid text-sm"><span className="flex items-center gap-1.5">{name(m.id)}{' '}<ScopeBadge scope={scopeOf(m.id, false)} className="h-5 px-1.5 text-caption" /></span>{m.available ? null : <span className="text-caption text-muted">{t('setup.modules.notHereOne')}</span>}{m.depends.filter((d) => d !== 'core').length ? <span className="text-caption text-muted">{t('setup.modules.needs', { list: m.depends.filter((d) => d !== 'core').map(name).join(', ') })}</span> : null}</label>
             </div>
           ))}
         </fieldset>
       ) : null}
-      {error ? <p role="alert" className="text-[13px] text-danger">{error}</p> : null}
+      {error ? <p role="alert" className="text-meta text-danger">{error}</p> : null}
     </div>
   )
 }

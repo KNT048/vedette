@@ -90,7 +90,7 @@ describe('Settings, AI assistant tabs', () => {
   it('opens a tab from ?tab= and shows built-in rules read-only plus a custom rule', async () => {
     renderAt('/settings/ai?tab=rules')
     expect(await screen.findByText("Only help with the security of this company's network.")).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Rules' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('tab', { name: 'Rules' })).toHaveAttribute('aria-selected', 'true')
     expect(await screen.findByText(/Name every device by its hostname/)).toBeInTheDocument()
   })
   it('the Connections tab only points to Settings → Connections (D-93)', async () => {

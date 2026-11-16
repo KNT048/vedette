@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Section, Panel } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
+import { Section } from '@/components/common/PageHeader'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -39,7 +40,7 @@ export default function HooksTab() {
                   actions={<>{b.locked ? <Chip tone="ok">{t('harness.hooks.locked')}</Chip> : null}<Toggle checked={b.enabled} disabled={b.locked} title={b.locked ? t('harness.hooks.lockedWhy') : undefined} label={t('harness.hooks.enable', { name: b.name })} onChange={(enabled) => toggle.mutate({ id: b.id, enabled }, { onError: fail })} /></>}>
                   <p className="font-medium">{b.name}</p>
                   <p className="text-muted">{b.description}</p>
-                  {b.locked ? <p className="text-[13px] text-muted">{t('harness.hooks.lockedWhy')}</p> : null}
+                  {b.locked ? <p className="text-meta text-muted">{t('harness.hooks.lockedWhy')}</p> : null}
                 </Row>
               ))}
             </List>
@@ -55,8 +56,8 @@ export default function HooksTab() {
                       <Button size="sm" onClick={() => setDel(x)} aria-label={t('harness.deleteNamed', { name: x.name })}>{t('harness.delete')}</Button>
                     </>}>
                     <p className="flex flex-wrap items-center gap-2 font-medium">{x.name} <Chip tone={tone(x.action)}>{t(`harness.hooks.action.${x.action}`)}</Chip></p>
-                    <p className="text-[13px] text-muted">{t(`harness.hooks.when.${x.when}`)} · {t(`harness.hooks.matchType.${x.match.type}`)}: <code className="font-mono">{x.match.pattern}</code></p>
-                    <p className="text-[13px] text-muted">{t('harness.hooks.shows', { message: x.message })}</p>
+                    <p className="text-meta text-muted">{t(`harness.hooks.when.${x.when}`)} · {t(`harness.hooks.matchType.${x.match.type}`)}: <code className="font-mono">{x.match.pattern}</code></p>
+                    <p className="text-meta text-muted">{t('harness.hooks.shows', { message: x.message })}</p>
                   </Row>
                 ))}
               </List>
@@ -87,7 +88,7 @@ function TestBox({ idPrefix, hook }: { idPrefix: string; hook?: HookInput }) {
     test.mutate({ text: text.trim(), when: stage, hook }, { onSuccess: (r) => setRan({ r, draft }) })
   }
   return (
-    <Panel className="grid gap-3 p-4">
+    <Card className="grid gap-3">
       <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
         <Field label={t('harness.hooks.sample')} htmlFor={`${idPrefix}-text`} hint={t('harness.hooks.sampleHint')}><Textarea id={`${idPrefix}-text`} className="min-h-16" value={text} maxLength={1000} onChange={(e) => { setText(e.target.value); setRan(null) }} /></Field>
         {!hook ? <Field label={t('harness.hooks.stage')} htmlFor={`${idPrefix}-when`}><Select id={`${idPrefix}-when`} value={when} onChange={(e) => { setWhen(e.target.value as HookWhen); setRan(null) }}>{WHENS.map((w) => <option key={w} value={w}>{t(`harness.hooks.when.${w}`)}</option>)}</Select></Field> : null}
@@ -100,7 +101,7 @@ function TestBox({ idPrefix, hook }: { idPrefix: string; hook?: HookInput }) {
           <p className="rounded-md border border-rule bg-sunken px-3 py-2">{res.output}</p>
         </div>
       ) : null}
-    </Panel>
+    </Card>
   )
 }
 
@@ -141,7 +142,7 @@ function HookDialog({ hook, onClose }: { hook: CustomHook | null; onClose: () =>
             <Field label={t('harness.hooks.f.when')} htmlFor="hk-when"><Select id="hk-when" value={when} onChange={(e) => setWhen(e.target.value as HookWhen)}>{WHENS.map((w) => <option key={w} value={w}>{t(`harness.hooks.when.${w}`)}</option>)}</Select></Field>
             <Field label={t('harness.hooks.f.matchType')} htmlFor="hk-type"><Select id="hk-type" value={type} onChange={(e) => { setType(e.target.value as 'keywords' | 'regex'); setPattern(''); clear('pattern') }}>{(['keywords', 'regex'] as const).map((m) => <option key={m} value={m}>{t(`harness.hooks.matchType.${m}`)}</option>)}</Select></Field>
             <Field label={t('harness.hooks.f.action')} htmlFor="hk-action" hint={t(`harness.hooks.f.actionHint_${action}`)}><Select id="hk-action" value={action} onChange={(e) => setAction(e.target.value as HookAction)}>{ACTIONS.map((a) => <option key={a} value={a}>{t(`harness.hooks.action.${a}`)}</option>)}</Select></Field>
-            <Field label={t(`harness.hooks.f.pattern_${type}`)} htmlFor="hk-pattern" hint={t(`harness.hooks.f.patternHint_${type}`)} error={err('pattern')} className="sm:col-span-2"><Input id="hk-pattern" className="font-mono text-[13px]" value={pattern} maxLength={200} autoComplete="off" onChange={(e) => { setPattern(e.target.value); clear('pattern') }} {...aria('pattern', true)} /></Field>
+            <Field label={t(`harness.hooks.f.pattern_${type}`)} htmlFor="hk-pattern" hint={t(`harness.hooks.f.patternHint_${type}`)} error={err('pattern')} className="sm:col-span-2"><Input id="hk-pattern" className="font-mono text-meta" value={pattern} maxLength={200} autoComplete="off" onChange={(e) => { setPattern(e.target.value); clear('pattern') }} {...aria('pattern', true)} /></Field>
             <Field label={t('harness.hooks.f.message')} htmlFor="hk-message" hint={t('harness.hooks.f.messageHint')} error={err('message')} className="sm:col-span-2"><Input id="hk-message" value={message} maxLength={200} onChange={(e) => { setMessage(e.target.value); clear('message') }} {...aria('message', true)} /></Field>
           </div>
           <div className="flex items-center gap-3"><Switch id="hk-enabled" checked={enabled} onCheckedChange={setEnabled} /><Label htmlFor="hk-enabled" className="font-normal">{t('harness.enabled')}</Label></div>

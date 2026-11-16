@@ -458,7 +458,7 @@ func (s *Service) PossibleSamePairs(ctx context.Context) (SamePairs, error) {
 
 // Merge is a person's answer "the same device" (D-599, POST /inventory/devices/{into}/merge): device from joins device into with the
 // join rules' own primitive (joinAs, a machine join): into keeps its id, its approval, its notes and its findings; from's MACs, address
-// (when from was seen later and into is not declared), sources, software, open ports, agent binding and findings move to it; from is
+// (when from was seen later and into is not a declared row known by its address only, #829), sources, software, open ports, agent binding and findings move to it; from is
 // gone. A person decides, so unlike the join rules: into is approved when from was (approved_at from from, the suspicious mark cleared
 // as Approve does), both notes are kept, and an approved into keeps its own suspicious mark only (from's mark is answered by the merge).
 // Refused: the same device twice (400 invalid), an unknown device (404), the box (409 box_device), two rows strongConflict says are two

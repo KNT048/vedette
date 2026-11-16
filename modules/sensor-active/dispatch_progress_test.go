@@ -77,25 +77,30 @@ func TestNoProgressAfterTheResult(t *testing.T) {
 			late.Store(true)
 		}
 	})
-	ch := probe(progress.WithSink(t.Context(), sink), r.d, argvOf(t, nmapargv.Normal, 100, "192.168.10.20"))
+	ctx, cancel := probeCtx(t, time.Hour) // the job's timeout: the reporter's clock (at most 1500 s) never reaches it
+	defer cancel()
+	ch := probe(progress.WithSink(ctx, sink), r.d, argvOf(t, nmapargv.Normal, 100, "192.168.10.20"))
 	j := r.poll(t, "", 5*time.Second).Jobs[0]
 	var wg sync.WaitGroup
-	stop := make(chan struct{})
+	stop, posting := make(chan struct{}), make(chan struct{})
 	wg.Add(1)
 	go func() { // a worker that keeps reporting while its result goes in (the Dispatcher's clock moves, so none is throttled)
 		defer wg.Done()
-		// at most a minute of the Dispatcher's clock: unbounded, a slow scheduler let it pass the job's timeout and its grace before
-		// the result went in (404 unknown_job, seen in the remote run of TestSuiteThroughTheDispatcher)
-		for range 12 {
+		<-posting
+		// Review r1 #4: it reports until the result is in, a few hundred times at most, polling with the job named at every step so
+		// the moving clock never makes the job lost (a poll naming it is the worker being alive; 90 s without one is not).
+		for range 300 {
 			select {
 			case <-stop:
 				return
 			default:
 			}
 			r.clk.Advance(5 * time.Second)
+			_, _ = r.d.Jobs(t.Context(), 0, []string{j.ID})
 			_ = r.d.JobProgress(t.Context(), j.ID, &sensorlink.JobProgress{Phase: "ports", Percent: 50})
 		}
 	}()
+	close(posting) // the reports start as the result is sent
 	if err := r.worker.PostResult(t.Context(), j.ID, okResult("<nmaprun/>")); err != nil {
 		t.Fatal(err)
 	}

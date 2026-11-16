@@ -569,6 +569,97 @@ func TestBackupDownloadsAreOneAtATimeAndOnePerMinute(t *testing.T) {
 	}
 }
 
+// otherWrite starts a write command on the real host (os.check stands in for a module's container starting, #866) and
+// answers backup.create the way the host does while it runs: 409 busy naming it.
+func otherWrite(t *testing.T, hh *hookHost, n int64) error {
+	t.Helper()
+	run, err := hh.h().OSCheck(t.Context(), fmt.Sprintf("00000000-0000-4000-8000-%012d", n), "test")
+	if err != nil {
+		t.Errorf("os.check: %v", err)
+	}
+	return &hostclient.Error{Status: 409, Code: api.CodeBusy, Message: "Another write command is already running.", RunID: run.RunID}
+}
+
+// #866: a download asked for while the host finishes another write command follows that command to its end and asks
+// again under a new request id: the backup is made, with one intent row and no failure.
+func TestBackupDownloadWaitsWhileTheHostFinishesAnotherCommand(t *testing.T) {
+	t.Parallel()
+	e, hh := newHookEnv(t)
+	var mu sync.Mutex
+	var ids []string
+	hh.onBackupCreate = func(ctx context.Context, args api.BackupCreateArgs, id, actor string) (api.Run, error) {
+		mu.Lock()
+		ids = append(ids, id)
+		n := len(ids)
+		mu.Unlock()
+		if n <= 2 {
+			return api.Run{}, otherWrite(t, hh, int64(n))
+		}
+		return hh.h().BackupCreate(ctx, args, id, actor)
+	}
+	r := e.admin.get("/core/data/backup")
+	if r.Code != 200 || !strings.HasPrefix(r.Raw, "\x1f\x8b") {
+		t.Fatalf("download = %d %.80q", r.Code, r.Raw)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(ids) != 3 || ids[0] == ids[1] || ids[1] == ids[2] || ids[0] == ids[2] {
+		t.Errorf("request ids of the tries = %q, want three different ones", ids)
+	}
+	if got := e.actions(); slices.Contains(got, "data.backup_failed") || !slices.Contains(got, "data.backup") {
+		t.Errorf("audit rows: %v", got)
+	}
+	if d := e.snapshotDirs(); len(d) != 0 {
+		t.Errorf("snapshot directories left: %v", d)
+	}
+}
+
+// #866: an update of this core that starts while the host is busy is not waited for: the download is refused at once
+// with the update's sentence.
+func TestBackupDownloadDoesNotWaitForAnUpdateRun(t *testing.T) {
+	t.Parallel()
+	e, hh := newHookEnv(t)
+	hh.onBackupCreate = func(context.Context, api.BackupCreateArgs, string, string) (api.Run, error) {
+		e.setting("core_update_run", `{"id":"u1","action":"update","component":"software","to":"1.4.0","status":"running","steps":[],"started_at":"2026-11-09T12:00:00Z","user":"admin@acme.example"}`)
+		return api.Run{}, otherWrite(t, hh, 1)
+	}
+	r := e.admin.get("/core/data/backup")
+	wantStatus(t, r, 409, "busy")
+	if msg := r.str("error", "message"); !strings.Contains(msg, "update run is in progress") {
+		t.Errorf("message = %q", msg)
+	}
+	if n := hh.backupCalls.Load(); n != 1 {
+		t.Errorf("%d backup.create calls, want 1", n)
+	}
+	if d := e.snapshotDirs(); len(d) != 0 {
+		t.Errorf("snapshot directories left: %v", d)
+	}
+}
+
+// #866: the wait is bounded: a host that stays busy past it gets the busy refusal, worded for what it is (not an update).
+func TestBackupDownloadGivesUpWhenTheHostStaysBusy(t *testing.T) {
+	t.Parallel()
+	e, hh := newHookEnv(t)
+	hh.onBackupCreate = func(context.Context, api.BackupCreateArgs, string, string) (api.Run, error) {
+		e.clock.Advance(61 * time.Second)
+		return api.Run{}, otherWrite(t, hh, hh.backupCalls.Load())
+	}
+	r := e.admin.get("/core/data/backup")
+	wantStatus(t, r, 409, "busy")
+	if msg := r.str("error", "message"); strings.Contains(msg, "update") || !strings.Contains(msg, "busy with another task") {
+		t.Errorf("message = %q", msg)
+	}
+	if n := hh.backupCalls.Load(); n != 2 {
+		t.Errorf("%d backup.create calls, want 2 (the second is past the two minutes)", n)
+	}
+	if got := e.actions(); !slices.Contains(got, "data.backup_failed") {
+		t.Errorf("audit rows: %v", got)
+	}
+	if d := e.snapshotDirs(); len(d) != 0 {
+		t.Errorf("snapshot directories left: %v", d)
+	}
+}
+
 // The backup exists on the box but cannot be handed over: its own audit row, and a clear code.
 func TestBackupDownloadFailureAfterTheBackupIsAudited(t *testing.T) {
 	t.Parallel()

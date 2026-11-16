@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/knt048/vedette/core/audit"
@@ -48,7 +49,8 @@ type Have struct {
 type Service struct {
 	cfg  ServiceConfig
 	now  func() time.Time
-	plan planState // "Updates to plan" (D-617): in memory, see planpass.go
+	plan planState     // "Updates to plan" (D-617): in memory, see planpass.go
+	gen  atomic.Uint64 // counts committed writes: GET /findings/summary drops its cached answer when it moves (summary.go)
 }
 
 // NewService returns the service. DB, Audit, Inventory, Feeds and Log are required.
@@ -92,6 +94,7 @@ func (s *Service) write(ctx context.Context, fn func(tx *sql.Tx, now time.Time, 
 	if err != nil {
 		return err
 	}
+	s.gen.Add(1)
 	if s.cfg.Publisher == nil {
 		return nil
 	}

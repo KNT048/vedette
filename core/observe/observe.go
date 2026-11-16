@@ -75,8 +75,9 @@ func ValidField(f Field) bool {
 	return false
 }
 
-// AssetHint identifies the device an observation is about: the agent first, then the MAC, then the IP. A MAC or an IP
-// must be set. A hint that matches no device creates one (unapproved, DATA_MODEL 5.1).
+// AssetHint identifies the device an observation is about: the agent first, then the MAC, then the IP. A MAC, an IP or an
+// Agent must be set. A hint that matches no device creates one (unapproved, DATA_MODEL 5.1), except a hint with only an Agent:
+// it reaches the device that agent is bound to, or nothing.
 type AssetHint struct {
 	IP  netip.Addr // IPv4 only; the zero value means unknown
 	MAC string     // any common notation; stored lower-case aa:bb:cc:dd:ee:ff
@@ -84,6 +85,11 @@ type AssetHint struct {
 	// chose; only an Agent source may set it (D-598). The device it is bound to keeps receiving that agent's reports when its
 	// address changes. Lower-case letters, then ':', then 1 to 64 of [A-Za-z0-9._-].
 	Agent string
+	// From is the address an agent's report came from when the agent did not confirm it as one of its own (agent-intake: the
+	// connection's address, not among the interfaces the node declared, as after a DHCP move before its next interfaces answer, or
+	// behind NAT). Only with Agent and no IP (#829). It never finds, creates or moves a device; the inventory only compares it with
+	// where a sensor last saw the bound device, to tell a moved machine from a spoofed binding.
+	From netip.Addr
 }
 
 // ValidAgentKey reports whether k has the shape of AssetHint.Agent.

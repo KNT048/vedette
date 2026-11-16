@@ -144,7 +144,7 @@ func (s *Service) auditTx(ctx context.Context, tx *sql.Tx, actor, action, target
 // stays unmatched must not fill the log.
 func (s *Service) warnUnmatched(ctx context.Context, key string, args ...any) {
 	if s.warnDue(time.Hour, key) {
-		s.cfg.Log.WarnContext(ctx, "agent-intake: a node's address is not among the IPv4 it declared; nothing written to the inventory", args...)
+		s.cfg.Log.WarnContext(ctx, "agent-intake: a node's address is not among the IPv4 it declared; nothing written to the inventory unless a sensor saw the node's device at that address", args...)
 	}
 }
 
@@ -397,7 +397,7 @@ func (s *Service) Config(ctx context.Context, src netip.Addr, nodeKey string) (*
 	if err := s.touch(ctx, n, configTouch); err != nil {
 		return nil, err
 	}
-	return configResponse(nodeSchedule(n, s.now())), nil
+	return configResponse(nodeSchedule(n, s.now(), src)), nil
 }
 
 // touch records that the node called, at most once per every.

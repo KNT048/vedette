@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { ExternalLink } from 'lucide-react'
 import { Section } from '@/components/common/PageHeader'
 import { CodeBlock } from '@/components/common/CodeBlock'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Chip } from '@/components/common/StatusChip'
 import { Field, Select } from '@/components/ui/input'
 import { GUIDES, type Check, type GuideId } from './guideData'
@@ -15,7 +16,7 @@ export function SpanGuides({ spanPort }: { spanPort: string }) {
   const [id, setId] = useState<GuideId | ''>('')
   const g = GUIDES.find((x) => x.id === id)
   return (
-    <Section id="guides" title={t('network.guides.title')} description={t('network.guides.desc', { port: spanPort })} stories={['S-CORE-8']}>
+    <Section id="guides" title={t('network.guides.title')} description={t('network.guides.desc')} info={t('network.guides.descInfo', { port: spanPort })} stories={['S-CORE-8']}>
       <div className="grid max-w-3xl gap-4">
         <Field label={t('network.guides.pick')} htmlFor="guide-vendor" className="max-w-sm">
           <Select id="guide-vendor" value={id} onChange={(e) => setId(e.target.value as GuideId | '')}>
@@ -29,14 +30,20 @@ export function SpanGuides({ spanPort }: { spanPort: string }) {
               <h3 className="text-sm font-semibold">{g.vendor}</h3>
               <Chip tone={TONE[g.check]}>{t(`network.guides.check.${g.check}`)}</Chip>
             </div>
-            <p className="text-[13px] text-muted">{t('network.guides.replace', { port: spanPort })}</p>
+            <div className="flex items-center gap-1">
+              <p className="text-[13px] text-muted">{t('network.guides.replace')}</p>
+              <InfoTip topic={g.vendor}>{t('network.guides.replaceInfo', { port: spanPort })}</InfoTip>
+            </div>
             {g.steps ? <ol className="grid max-w-2xl list-decimal gap-1 pl-5 text-sm">{g.steps.map((s) => <li key={s}>{s}</li>)}</ol> : null}
             {g.commands?.map((c) => <CodeBlock key={c.label} label={c.label} code={c.code} />)}
             {g.notes.length ? <ul className="grid max-w-2xl list-disc gap-1 pl-5 text-[13px] text-muted">{g.notes.map((n) => <li key={n}>{n}</li>)}</ul> : null}
             {g.source ? <a href={g.source} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1.5 text-[13px] text-accent underline-offset-4 hover:underline">{t('network.guides.source')}<ExternalLink className="size-3.5" aria-hidden /></a> : null}
           </div>
         ) : <p className="text-sm text-muted">{t('network.guides.prompt')}</p>}
-        <p className="max-w-2xl text-[13px] text-muted">{t('network.guides.after', { port: spanPort })}</p>
+        <div className="flex items-center gap-1">
+          <p className="max-w-2xl text-[13px] text-muted">{t('network.guides.after')}</p>
+          <InfoTip topic={t('network.guides.title')}>{t('network.guides.afterInfo', { port: spanPort })}</InfoTip>
+        </div>
       </div>
     </Section>
   )

@@ -5,6 +5,7 @@ import { Plus, Trash2 } from 'lucide-react'
 import { PageHeader, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { CodeBlock } from '@/components/common/CodeBlock'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Chip } from '@/components/common/StatusChip'
 import { QueryState, Loading, ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -48,7 +49,7 @@ function AddDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenCha
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={t('users.add.title')} description={t('users.add.body')}>
+      <DialogContent title={t('users.add.title')} description={t('users.add.body')} info={t('users.add.bodyInfo')}>
         <form onSubmit={(e) => void submit(e)} className="grid gap-4" noValidate>
           <Field label={t('users.add.name')} htmlFor="u-name" error={err.name}><Input id="u-name" value={v.name} maxLength={80} aria-invalid={!!err.name} onChange={(e) => setV({ ...v, name: e.target.value })} /></Field>
           <Field label={t('users.add.email')} htmlFor="u-email" error={err.email}><Input id="u-email" type="email" value={v.email} aria-invalid={!!err.email} onChange={(e) => setV({ ...v, email: e.target.value })} /></Field>
@@ -76,7 +77,10 @@ function OidcPanel() {
   if (!on) {
     return (
       <div className="rounded-md border border-dashed border-rule bg-surface px-5 py-4">
-        <p className="text-sm">{t('oidc.off')}</p>
+        <div className="flex items-center gap-1">
+          <p className="text-sm">{t('oidc.off')}</p>
+          <InfoTip topic={t('oidc.title')}>{t('oidc.offInfo')}</InfoTip>
+        </div>
         <Button className="mt-3" onClick={() => void enable(true)} disabled={toggle.isPending}>{t('oidc.enable')}</Button>
       </div>
     )
@@ -89,7 +93,7 @@ function OidcPanel() {
       <OidcForm cfg={q.data} onDisable={() => setAskOff(true)} />
       {/* D-196 (5): turning SSO off locks out the people who only sign in through it, so say how many first. */}
       <Dialog open={askOff} onOpenChange={setAskOff}>
-        <DialogContent title={t('oidc.offAsk.title')} description={n > 0 ? t('oidc.offAsk.bodyUsers', { count: n }) : t('oidc.offAsk.body')}>
+        <DialogContent title={t('oidc.offAsk.title')} description={n > 0 ? t('oidc.offAsk.bodyUsers', { count: n }) : t('oidc.offAsk.body')} info={t('oidc.offAsk.keptInfo')}>
           <DialogFooter><Button onClick={() => setAskOff(false)}>{t('common:cancel')}</Button><Button variant="danger" disabled={toggle.isPending} onClick={() => void enable(false)}>{t('oidc.disable')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
@@ -137,16 +141,19 @@ function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }
     <form onSubmit={(e) => void save(e)} className="grid max-w-xl gap-4" noValidate>
       <div className="grid gap-1">
         <CodeBlock label={t('oidc.redirect')} code={cfg.redirect_uri} />
-        <p className="text-[13px] text-muted">{t('oidc.redirectHint')}</p>
+        <div className="flex items-center gap-1">
+          <p className="text-[13px] text-muted">{t('oidc.redirectHint')}</p>
+          <InfoTip topic={t('oidc.redirect')}>{t('oidc.redirectInfo')}</InfoTip>
+        </div>
       </div>
       <Field label={t('oidc.issuer')} hint={t('oidc.issuerHint')} htmlFor="oidc-issuer" error={errOf('issuer')}><Input id="oidc-issuer" value={v.issuer} aria-invalid={!!errOf('issuer')} onChange={(e) => setV({ ...v, issuer: e.target.value })} placeholder="https://sso.acme.example/realms/main" /></Field>
       <Field label={t('oidc.clientId')} htmlFor="oidc-client" error={errOf('client')}><Input id="oidc-client" value={v.client_id} aria-invalid={!!errOf('client')} onChange={(e) => setV({ ...v, client_id: e.target.value })} /></Field>
       <Field label={t('oidc.secret')} hint={cfg.secret_last4 ? t('oidc.secretSaved', { last4: cfg.secret_last4 }) : t('oidc.secretHint')} htmlFor="oidc-secret" error={errOf('secret')}><Input id="oidc-secret" type="password" autoComplete="off" value={v.client_secret} aria-invalid={!!errOf('secret')} onChange={(e) => setV({ ...v, client_secret: e.target.value })} /></Field>
-      <Field label={t('oidc.scopes')} hint={t('oidc.scopesHint')} htmlFor="oidc-scopes" error={errOf('scopes')}><Input id="oidc-scopes" value={v.scopes} spellCheck={false} aria-invalid={!!errOf('scopes')} onChange={(e) => setV({ ...v, scopes: e.target.value })} /></Field>
+      <Field label={t('oidc.scopes')} hint={t('oidc.scopesHint')} info={t('oidc.scopesInfo')} htmlFor="oidc-scopes" error={errOf('scopes')}><Input id="oidc-scopes" value={v.scopes} spellCheck={false} aria-invalid={!!errOf('scopes')} onChange={(e) => setV({ ...v, scopes: e.target.value })} /></Field>
       <Field label={t('oidc.claim')} hint={t('oidc.claimHint')} htmlFor="oidc-claim" error={errOf('claim')}><Input id="oidc-claim" className="max-w-56" value={v.groups_claim} spellCheck={false} aria-invalid={!!errOf('claim')} onChange={(e) => setV({ ...v, groups_claim: e.target.value })} /></Field>
       <OidcCaField cfg={cfg} value={v.ca_pem} error={errOf('ca')} onChange={(ca_pem) => setV({ ...v, ca_pem })} />
       <fieldset className="grid gap-2">
-        <legend className="text-sm font-medium">{t('oidc.map')}</legend>
+        <legend className="flex items-center gap-1 text-sm font-medium">{t('oidc.map')}<InfoTip topic={t('oidc.map')}>{t('oidc.mapInfo')}</InfoTip></legend>
         <p className="text-[13px] text-muted">{t('oidc.mapHint')}</p>
         {v.role_map.map((r, i) => (
           <div key={i} className="flex flex-wrap items-center gap-2">
@@ -157,7 +164,7 @@ function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }
         ))}
         {v.role_map.length < 10 ? <div><Button size="sm" onClick={() => setV({ ...v, role_map: [...v.role_map, { group: '', role: 'viewer' }] })}><Plus />{t('oidc.mapAdd')}</Button></div> : null}
       </fieldset>
-      <Field label={t('oidc.defaultRole')} hint={t('oidc.defaultRoleHint')} htmlFor="oidc-default">
+      <Field label={t('oidc.defaultRole')} hint={t('oidc.defaultRoleHint')} info={t('oidc.defaultRoleInfo')} htmlFor="oidc-default">
         <Select id="oidc-default" className="max-w-56" value={v.default_role ?? NO_ACCESS} onChange={(e) => setV({ ...v, default_role: e.target.value === NO_ACCESS ? null : (e.target.value as Role) })}>
           <option value={NO_ACCESS}>{t('oidc.noAccess')}</option>
           {ROLES.map((r) => <option key={r} value={r}>{t(`common:role.${r}`)}</option>)}
@@ -206,7 +213,7 @@ export default function UsersSection() {
     <>
       <PageHeader
         title={q.data ? t('users.title', { count: q.data.items.filter((u) => !u.disabled).length }) : t('settings.users')}
-        meta={t('users.meta')} stories={['S-CORE-3']}
+        meta={t('users.meta')} info={t('users.metaInfo')} stories={['S-CORE-3']}
         actions={<Button variant="primary" onClick={() => setAdding(true)}><Plus />{t('users.add.open')}</Button>}
       />
       <QueryState query={q}>
@@ -249,19 +256,19 @@ export default function UsersSection() {
       </QueryState>
 
       <div className="mt-8">
-        <Section title={t('oidc.title')} description={t('oidc.desc')} stories={['S-CORE-3']}><OidcPanel /></Section>
+        <Section title={t('oidc.title')} description={t('oidc.desc')} info={t('oidc.descInfo')} stories={['S-CORE-3']}><OidcPanel /></Section>
       </div>
 
       <AddDialog open={adding} onOpenChange={setAdding} onCreated={(u, p) => setTemp({ email: u.email, password: p, kind: 'create' })} />
 
       <Dialog open={!!askReset} onOpenChange={(o) => !o && setAskReset(null)}>
-        <DialogContent title={t('users.resetAsk.title', { name: askReset?.name ?? '' })} description={t('users.resetAsk.body')}>
+        <DialogContent title={t('users.resetAsk.title', { name: askReset?.name ?? '' })} description={t('users.resetAsk.body')} info={t('users.resetAsk.bodyInfo')}>
           <DialogFooter><Button onClick={() => setAskReset(null)}>{t('common:cancel')}</Button><Button variant="danger" disabled={m.reset.isPending} onClick={() => askReset && void reset(askReset)}>{t('users.resetAsk.confirm')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={!!askReset2fa} onOpenChange={(o) => !o && setAskReset2fa(null)}>
-        <DialogContent title={t('users.resetTwofaAsk.title', { name: askReset2fa?.name ?? '' })} description={t('users.resetTwofaAsk.body')}>
+        <DialogContent title={t('users.resetTwofaAsk.title', { name: askReset2fa?.name ?? '' })} description={t('users.resetTwofaAsk.body')} info={t('users.resetTwofaAsk.bodyInfo')}>
           <DialogFooter><Button onClick={() => setAskReset2fa(null)}>{t('common:cancel')}</Button><Button variant="danger" disabled={m.reset2fa.isPending} onClick={() => askReset2fa && void reset2fa(askReset2fa)}>{t('users.resetTwofaAsk.confirm')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>

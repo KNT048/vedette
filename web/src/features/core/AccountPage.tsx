@@ -10,6 +10,7 @@ import { PageHeader, Section, KeyValue } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { OldHashToTab, PageTabs } from '@/components/common/PageFrame'
 import { CodeBlock } from '@/components/common/CodeBlock'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Chip } from '@/components/common/StatusChip'
 import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -69,7 +70,7 @@ function Password() {
     }
   }
   return (
-    <Section title={t('account.password.title')} description={t('account.password.desc', { min: MIN_PASSWORD })}>
+    <Section title={t('account.password.title')} description={t('account.password.desc', { min: MIN_PASSWORD })} info={t('account.password.descInfo')}>
       <form onSubmit={(e) => void save(e)} className="grid max-w-md gap-4" noValidate>
         <Field label={t('account.password.current')} htmlFor="pw-current" error={err.current}><Input id="pw-current" type="password" autoComplete="current-password" value={v.current} aria-invalid={!!err.current} onChange={(e) => setV({ ...v, current: e.target.value })} /></Field>
         <Field label={t('account.password.next')} htmlFor="pw-next" error={err.next}><Input id="pw-next" type="password" autoComplete="new-password" value={v.next} aria-invalid={!!err.next} onChange={(e) => setV({ ...v, next: e.target.value })} /></Field>
@@ -130,14 +131,17 @@ function TwoFactor({ a }: { a: Account }) {
   const busy = m.confirm2fa.isPending || m.confirmEmail2fa.isPending
   const reason = email.reason === 'module_off' ? t('account.twofa.email.moduleOff') : t('account.twofa.email.notReady')
   return (
-    <Section id="two-step" title={t('account.twofa.title')} description={t('account.twofa.desc')} actions={method ? <Chip tone="ok">{t('account.twofa.onWith', { method: t(`account.twofa.method.${method}`) })}</Chip> : <Chip tone="off">{t('account.twofa.off')}</Chip>}>
+    <Section id="two-step" title={t('account.twofa.title')} description={t('account.twofa.desc')} info={t('account.twofa.descInfo')} actions={method ? <Chip tone="ok">{t('account.twofa.onWith', { method: t(`account.twofa.method.${method}`) })}</Chip> : <Chip tone="off">{t('account.twofa.off')}</Chip>}>
       {method ? (
         <div className="grid max-w-xl gap-4">
           <p className="text-sm">{method === 'email' ? t('account.twofa.emailActive', { to: email.sent_to }) : t('account.twofa.appActive')}</p>
           {/* D-389: the way back in without the phone or mailbox; for the sole administrator, the box console. */}
           {isAdmin ? (
             <div className="grid gap-2">
-              <p className="text-[13px] text-muted">{t('account.twofa.lostAdmin')}</p>
+              <div className="flex items-center gap-1">
+                <p className="text-[13px] text-muted">{t('account.twofa.lostAdmin')}</p>
+                <InfoTip topic={t('account.twofa.lostAdminCommand')}>{t('account.twofa.lostAdminInfo')}</InfoTip>
+              </div>
               <CodeBlock label={t('account.twofa.lostAdminCommand')} code={`docker exec vedette-core /vedette reset-admin ${shellQuote(a.user.email)}`} wrapOnPhone />
             </div>
           ) : <p className="text-[13px] text-muted">{t('account.twofa.lostUser')}</p>}
@@ -156,11 +160,14 @@ function TwoFactor({ a }: { a: Account }) {
             </>
           ) : (
             <>
-              <p className="text-sm" role="status">{t('account.twofa.email.sent', { to: setup.sentTo })}</p>
+              <div className="flex items-center gap-1">
+                <p className="text-sm" role="status">{t('account.twofa.email.sent', { to: setup.sentTo })}</p>
+                <InfoTip topic={t('account.twofa.code')}>{t('account.twofa.email.sentInfo')}</InfoTip>
+              </div>
               <PreviewCode code={setup.preview} />
             </>
           )}
-          <Field label={t('account.twofa.code')} hint={setup.kind === 'app' ? t('account.twofa.codeHint') : t('account.twofa.email.codeHint')} htmlFor="totp-code" error={codeErr ?? undefined}>
+          <Field label={t('account.twofa.code')} info={setup.kind === 'app' ? t('account.twofa.codeHint') : t('account.twofa.email.codeHint')} htmlFor="totp-code" error={codeErr ?? undefined}>
             <Input id="totp-code" inputMode="numeric" autoComplete="one-time-code" maxLength={7} value={code} aria-invalid={!!codeErr} onChange={(e) => setCode(e.target.value)} className="max-w-40" />
           </Field>
           <div className="flex flex-wrap gap-2">
@@ -215,13 +222,15 @@ function AuthenticatorGuide() {
   const store = (href: string, label: string) => <a className="text-accent underline-offset-4 hover:underline" href={href} target="_blank" rel="noreferrer">{label}</a>
   return (
     <div className="grid gap-1.5 rounded-md border border-rule bg-sunken px-3 py-2">
-      <p className="text-sm font-medium">{t('account.twofa.guide.title')}</p>
-      <ol className="grid list-decimal gap-1 pl-5 text-[13px]">
-        <li>{t('account.twofa.guide.install')} {store(STORE.ios, t('account.twofa.guide.appStore'))} · {store(STORE.android, t('account.twofa.guide.googlePlay'))}</li>
-        <li>{t('account.twofa.guide.scan')}</li>
-        <li>{t('account.twofa.guide.type')}</li>
-      </ol>
-      <p className="text-[12px] text-muted">{t('account.twofa.guide.other')}</p>
+      <div className="flex items-center gap-1">
+        <p className="text-sm font-medium">{t('account.twofa.guide.title')}</p>
+        {/* #824: the how-to steps sit behind ⓘ; the store links stay visible. */}
+        <InfoTip topic={t('account.twofa.method.app')}>
+          <ol className="grid list-decimal gap-1 pl-5"><li>{t('account.twofa.guide.scan')}</li><li>{t('account.twofa.guide.type')}</li></ol>
+          <p>{t('account.twofa.guide.other')}</p>
+        </InfoTip>
+      </div>
+      <p className="text-[13px]">{t('account.twofa.guide.install')} {store(STORE.ios, t('account.twofa.guide.appStore'))} · {store(STORE.android, t('account.twofa.guide.googlePlay'))}</p>
     </div>
   )
 }
@@ -230,7 +239,7 @@ function AuthenticatorGuide() {
 function SsoNote() {
   const { t } = useTranslation('core')
   return (
-    <Section title={t('account.sso.title')}>
+    <Section title={t('account.sso.title')} info={t('account.sso.bodyInfo')}>
       <p className="max-w-prose text-sm">{t('account.sso.body')}</p>
     </Section>
   )

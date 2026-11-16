@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select } from '@/components/ui/input'
@@ -55,9 +56,9 @@ export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => vo
       <DialogContent title={t('dialog.builtinTitle', { name: feed.name })} description={t('dialog.builtinBody')}>
         <form noValidate onSubmit={submit} className="grid gap-4" aria-label={t('dialog.builtinTitle', { name: feed.name })}>
           <Interval id="bf-hours" value={hours} onChange={setHours} />
-          {byok ? <p className="text-[13px] text-muted">{t('dialog.vulncheckNoMirror')}</p> : (
+          {byok ? <div className="flex items-center gap-1 text-[13px] text-muted"><p>{t('dialog.vulncheckNoMirror')}</p><InfoTip topic={t('dialog.address')}>{t('dialog.vulncheckNoMirrorInfo')}</InfoTip></div> : (
             <>
-              <Field label={t('dialog.address')} htmlFor="bf-url" hint={t('dialog.mirrorHint')} error={urlErr}>
+              <Field label={t('dialog.address')} htmlFor="bf-url" hint={t('dialog.mirrorHint')} info={t('dialog.mirrorInfo')} error={urlErr}>
                 <Input id="bf-url" value={url} onChange={(e) => { setUrl(e.target.value); setErr(undefined) }} inputMode="url" autoComplete="off" aria-invalid={urlErr ? true : undefined} aria-describedby={urlErr ? 'bf-url-error' : 'bf-url-hint'} />
               </Field>
               <div className="flex flex-wrap items-center gap-3 text-[13px] text-muted">
@@ -67,12 +68,12 @@ export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => vo
             </>
           )}
           {byok ? (
-            <Field label={t('dialog.vulncheckKey')} htmlFor="bf-key" error={keyErr ?? (serverField(patch.error) === 'auth' ? (patch.error as Error).message : undefined)} hint={last4 ? t('dialog.vulncheckKeySaved', { last4 }) : t('dialog.vulncheckKeyHint')}>
+            <Field label={t('dialog.vulncheckKey')} htmlFor="bf-key" error={keyErr ?? (serverField(patch.error) === 'auth' ? (patch.error as Error).message : undefined)} hint={last4 ? t('dialog.vulncheckKeySaved', { last4 }) : t('dialog.vulncheckKeyHint')} info={t('dialog.vulncheckKeyInfo')}>
               <Input id="bf-key" type="password" value={key} onChange={(e) => { setKey(e.target.value); setKeyErr(undefined) }} autoComplete="off" placeholder={last4 ? `••••${last4}` : ''} aria-invalid={keyErr ? true : undefined} />
               {last4 && !confirmRemove ? <Button type="button" size="sm" onClick={() => setConfirmRemove(true)}>{t('dialog.vulncheckKeyRemove')}</Button> : null}
               {last4 && confirmRemove ? (
                 <div role="alert" className="grid gap-2 rounded-md border border-warn bg-warn-soft/60 p-3 text-sm">
-                  <p>{t('dialog.vulncheckRemoveBody', { count: onlyVulnCheck, n: onlyVulnCheck })}</p>
+                  <div className="flex items-center gap-1"><p>{t('dialog.vulncheckRemoveBody', { count: onlyVulnCheck, n: onlyVulnCheck })}</p><InfoTip topic={t('dialog.vulncheckKeyRemove')}>{t('dialog.vulncheckRemoveInfo', { count: onlyVulnCheck, n: onlyVulnCheck })}</InfoTip></div>
                   <span className="flex gap-2">
                     <Button type="button" size="sm" variant="primary" disabled={patch.isPending} onClick={() => patch.mutate({ id: feed.id, api_key: '' }, { onSuccess: () => { toast.success(t('dialog.vulncheckKeyRemoved', { name: feed.name })); onClose() } })}>{t('dialog.vulncheckRemoveConfirm')}</Button>
                     <Button type="button" size="sm" onClick={() => setConfirmRemove(false)}>{t('common:cancel')}</Button>
@@ -160,11 +161,11 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
               <Input id="cf-name" value={name} maxLength={60} onChange={(e) => { setName(e.target.value); clear('name') }} autoComplete="off" {...aria('name')} />
             </Field>
             <div className="grid gap-1.5">
-              <span id="cf-kind-label" className="text-sm font-medium">{t('dialog.type')}</span>
+              <div className="flex items-center gap-1"><span id="cf-kind-label" className="text-sm font-medium">{t('dialog.type')}</span><InfoTip topic={t('dialog.type')}>{t(`dialog.typeInfo.${kind}`)}</InfoTip></div>
               <Segmented<FeedKind> label={t('dialog.type')} value={kind} onChange={pickKind} options={[{ value: 'ioc', label: t('kind.ioc') }, { value: 'vulnerabilities', label: t('kind.vulnerabilities') }]} />
               <p className="text-[13px] text-muted">{t(`dialog.typeHint.${kind}`)}</p>
             </div>
-            <Field label={t('dialog.address')} htmlFor="cf-url" hint={t('dialog.urlHint')} error={err('url')} className="sm:col-span-2">
+            <Field label={t('dialog.address')} htmlFor="cf-url" hint={t('dialog.urlHint')} info={t('dialog.urlInfo')} error={err('url')} className="sm:col-span-2">
               <Input id="cf-url" value={url} onChange={(e) => { setUrl(e.target.value); clear('url') }} inputMode="url" autoComplete="off" placeholder="https://" {...aria('url')} />
             </Field>
             <Interval id="cf-hours" value={hours} onChange={setHours} />
@@ -174,7 +175,7 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
             {auth === 'header' ? <Field label={t('dialog.headerName')} htmlFor="cf-header" error={badHeader ? authErr : undefined}><Input id="cf-header" aria-invalid={badHeader ? true : undefined} value={header} onChange={(e) => { setHeader(e.target.value); clear('auth') }} autoComplete="off" spellCheck={false} /></Field> : null}
             {auth === 'basic' ? <Field label={t('dialog.username')} htmlFor="cf-user" error={badUser ? authErr : undefined}><Input id="cf-user" aria-invalid={badUser ? true : undefined} value={user} onChange={(e) => { setUser(e.target.value); clear('auth') }} autoComplete="off" /></Field> : null}
             {auth !== 'none' ? (
-              <Field label={auth === 'basic' ? t('dialog.password') : t('dialog.secret')} htmlFor="cf-secret" error={badHeader || badUser ? undefined : authErr} hint={hadSecret ? t('dialog.secretSaved', { last4 }) : t('dialog.secretHint')}>
+              <Field label={auth === 'basic' ? t('dialog.password') : t('dialog.secret')} htmlFor="cf-secret" error={badHeader || badUser ? undefined : authErr} hint={hadSecret ? t('dialog.secretSaved', { last4 }) : t('dialog.secretHint')} info={t('dialog.secretInfo')}>
                 <Input id="cf-secret" type="password" value={secret} onChange={(e) => { setSecret(e.target.value); clear('auth') }} autoComplete="off" placeholder={hadSecret ? `••••${last4}` : ''} {...(badHeader || badUser ? {} : aria('auth'))} />
               </Field>
             ) : null}

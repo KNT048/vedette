@@ -1,15 +1,20 @@
 import type { ReactNode, Ref } from 'react'
 import { cn } from '@/lib/utils'
+import { InfoTip } from './InfoTip'
 import { StoryTag } from './StoryTag'
 
 /** Dòng đầu mỗi trang trả lời câu hỏi của persona (FRONTEND §3 "thứ bậc thông tin").
  *  Khung trang D-464: tiêu đề ~20 px và mô tả ngắn chung một dòng (mô tả xuống dòng khi không đủ chỗ); sau đó KpiStrip, PageTabs (`PageFrame.tsx`). */
-export function PageHeader({ title, meta, actions, stories }: { title: ReactNode; meta?: ReactNode; actions?: ReactNode; stories?: string[] }) {
+/*  `meta` là một dòng ngắn (≈ 12 từ); giải thích dài hơn vào `info` (ⓘ cạnh tiêu đề, #824). */
+export function PageHeader({ title, meta, info, actions, stories }: { title: ReactNode; meta?: ReactNode; info?: ReactNode; actions?: ReactNode; stories?: string[] }) {
   return (
     <header className="mb-5 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
       <div className="grid min-w-0 max-w-4xl gap-1">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h1 className="text-xl font-semibold leading-tight tracking-[-0.01em]">{title}</h1>
+          <div className="flex items-center gap-1">
+            <h1 className="text-xl font-semibold leading-tight tracking-[-0.01em]">{title}</h1>
+            {info ? <InfoTip topic={typeof title === 'string' ? title : undefined}>{info}</InfoTip> : null}
+          </div>
           {meta ? <div className="text-[13px] text-muted">{meta}</div> : null}
         </div>
         {stories ? <StoryTag ids={stories} /> : null}
@@ -20,12 +25,16 @@ export function PageHeader({ title, meta, actions, stories }: { title: ReactNode
 }
 
 /** Khối nội dung có tiêu đề; không phải card — viền chỉ khi nội dung là bảng/khối dữ liệu. */
-export function Section({ title, description, actions, children, id, stories }: { title: ReactNode; description?: ReactNode; actions?: ReactNode; children: ReactNode; id?: string; stories?: string[] }) {
+/*  `description` là một dòng ngắn (≈ 12 từ); cách hoạt động, lý do, ví dụ vào `info` (ⓘ cạnh tiêu đề, #824). */
+export function Section({ title, description, info, actions, children, id, stories }: { title: ReactNode; description?: ReactNode; info?: ReactNode; actions?: ReactNode; children: ReactNode; id?: string; stories?: string[] }) {
   return (
     <section className="mb-8" aria-labelledby={id ? `${id}-title` : undefined} id={id}>
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div className="grid gap-0.5">
-          <h2 className="text-base font-semibold" id={id ? `${id}-title` : undefined}>{title}</h2>
+          <div className="flex items-center gap-1">
+            <h2 className="text-base font-semibold" id={id ? `${id}-title` : undefined}>{title}</h2>
+            {info ? <InfoTip topic={typeof title === 'string' ? title : undefined}>{info}</InfoTip> : null}
+          </div>
           {description ? <p className="max-w-3xl text-[13px] text-muted">{description}</p> : null}
           {stories ? <StoryTag ids={stories} /> : null}
         </div>
@@ -46,13 +55,17 @@ const NOTICE = {
 /** Khung báo một trạng thái của trang (D-543, một kiểu cho cả ứng dụng): tiêu đề, một đoạn giải thích, nút hành động bên phải (xuống dòng trên điện thoại).
  *  `tone` mang nghĩa cố định của FRONTEND §3: danger = hỏng/khẩn, warn = cần người xem, accent = thông tin của sản phẩm, off = tắt/không có. */
 /*  `className` thắng lớp mặc định (cn), ví dụ `mb-0` cho lỗi nằm trong một form có `gap`. */
-export function Notice({ tone, title, children, actions, role, className, ref, id, ...rest }: {
-  tone: keyof typeof NOTICE; title: ReactNode; children?: ReactNode; actions?: ReactNode; role?: 'alert' | 'status' | 'note'; className?: string; 'data-testid'?: string; ref?: Ref<HTMLDivElement>; id?: string
+/*  Cảnh báo, lỗi, trạng thái luôn hiện (#824): `title` + tối đa một dòng `children`; chi tiết vào `info`. */
+export function Notice({ tone, title, children, info, actions, role, className, ref, id, ...rest }: {
+  tone: keyof typeof NOTICE; title: ReactNode; children?: ReactNode; info?: ReactNode; actions?: ReactNode; role?: 'alert' | 'status' | 'note'; className?: string; 'data-testid'?: string; ref?: Ref<HTMLDivElement>; id?: string
 }) {
   return (
     <div ref={ref} id={id} role={role} data-testid={rest['data-testid']} className={cn('mb-5 grid gap-3 rounded-md border px-4 py-3 text-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center', NOTICE[tone], className)}>
       <div className="grid min-w-0 gap-1">
-        <p className={tone === 'danger' ? 'font-medium text-danger' : 'font-medium'}>{title}</p>
+        <div className="flex items-center gap-1">
+          <p className={tone === 'danger' ? 'font-medium text-danger' : 'font-medium'}>{title}</p>
+          {info ? <InfoTip topic={typeof title === 'string' ? title : undefined}>{info}</InfoTip> : null}
+        </div>
         {children ? <div className="max-w-3xl text-muted">{children}</div> : null}
       </div>
       {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}

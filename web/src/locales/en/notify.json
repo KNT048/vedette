@@ -13,8 +13,10 @@
   "channels": {
     "nav": "Alert channels",
     "title": "Alert channels",
-    "description": "Choose where Vedette sends alerts. With no channel on, alerts only appear in the app.",
-    "privacy": "Alert content (device names, CVE IDs) leaves the box only to the channels you turn on here and nowhere else. A channel that is off sends no data.",
+    "description": "Choose where Vedette sends alerts.",
+    "descriptionInfo": "With no channel on, alerts only appear in the app. Each channel has its own minimum severity, and quiet hours and grouping below apply to all of them.",
+    "privacy": "Alert content leaves the box only through channels you turn on.",
+    "privacyInfo": "Alert content (device names, CVE IDs) leaves the box only to the channels you turn on here and nowhere else. A channel that is off sends no data.",
     "caption": "Alert channels",
     "col": {
       "channel": "Channel",
@@ -40,7 +42,7 @@
     "testOk": "Tested {{time}}: success",
     "testFail": "Tested {{time}}: failed",
     "testing": "Sending test…",
-    "onButFailed": "The channel is on, but its last test failed: alerts sent through it may not arrive. Fix the settings and send a test again.",
+    "onButFailed": "Alerts may not arrive: fix the settings and test again.",
     "configure": "Set up",
     "edit": "Edit",
     "test": "Send test",
@@ -52,12 +54,12 @@
     "removeBody": "Deletes this channel's settings and saved key. Future alerts will not be sent through it.",
     "removed": "Channel {{name}} and its saved key were removed.",
     "dialogTitle": "Channel {{name}}",
-    "dialogDesc": "Enter the details, save, then send a test to be sure messages arrive.",
+    "dialogDesc": "Enter the details, save, then send a test message.",
     "enabled": "Turn this channel on",
     "minSeverity": "Send from severity",
     "minSeverityHint": "Alerts below this severity are not sent through this channel.",
     "secretSaved": "Saved, ending in {{last4}}. Leave empty to keep it.",
-    "urlSaved": "Saved: {{url}}. The rest of the address is a secret and is not shown. Leave empty to keep it.",
+    "urlSaved": "Saved: {{url}} (the rest stays hidden). Leave empty to keep it.",
     "generate": "Generate random",
     "err": {
       "badUrl": "The webhook URL must start with https:// (or http:// on an internal network). Example: https://hooks.company.com/vedette.",
@@ -75,47 +77,57 @@
       "telegram": {
         "chat_id": {
           "label": "Chat ID",
-          "hint": "Number of the chat or group that receives messages. Easiest: type the bot token below, send any message to the bot (or add the bot to a group and post there), then press Find my chat and pick the chat. By hand: open https://api.telegram.org/bot<TOKEN>/getUpdates in a browser and read the number in \"chat\":{\"id\":…}. Groups usually look like -1001234567890; for a public channel enter @channelname."
+          "hint": "Chat or group number, like -1001234567890, or @channelname.",
+          "info": "Number of the chat or group that receives messages. Easiest: type the bot token below, send any message to the bot (or add the bot to a group and post there), then press Find my chat and pick the chat. By hand: open https://api.telegram.org/bot<TOKEN>/getUpdates in a browser and read the number in \"chat\":{\"id\":…}. Groups usually look like -1001234567890; for a public channel enter @channelname."
         },
         "secret": {
           "label": "Bot token",
-          "hint": "Message @BotFather, send /newbot and paste the token you get (like 123456789:AAH…). The token is the bot's password: share it with nobody. To send to a group, add the bot to the group first."
+          "hint": "From @BotFather, like 123456789:AAH…",
+          "info": "Message @BotFather, send /newbot and paste the token you get (like 123456789:AAH…). The token is the bot's password: share it with nobody. To send to a group, add the bot to the group first."
         }
       },
       "zalo": {
         "oa_id": {
           "label": "OA ID",
-          "hint": "The Official Account ID number, shown in the OA management page or your app in Zalo Developers."
+          "hint": "The Official Account ID number.",
+          "info": "Shown in the OA management page or in your app in Zalo Developers."
         },
         "secret": {
           "label": "Access token (optional)",
-          "hint": "The current OA access token, if you have one. Leave it empty: Vedette gets one with the refresh token.",
-          "hintGrant": "Leave it empty: Vedette gets a new access token with the refresh token before the old one ends (about 25 hours)."
+          "hint": "Optional: the current OA access token.",
+          "info": "Leave it empty: Vedette gets one with the refresh token.",
+          "hintGrant": "Leave it empty: Vedette renews the access token itself.",
+          "infoGrant": "Vedette gets a new access token with the refresh token before the old one ends (about 25 hours)."
         },
         "user_id": {
           "label": "Recipient ID (user_id)",
-          "hint": "The Zalo ID of the person who receives alerts. They must have followed or messaged the OA, and Zalo only lets an OA send consultation messages within about 48 hours of their last interaction. Check the Zalo Developers documentation."
+          "hint": "The Zalo ID of the person who receives alerts.",
+          "info": "They must have followed or messaged the OA, and Zalo only lets an OA send consultation messages within about 48 hours of their last interaction. Check the Zalo Developers documentation."
         },
         "app_id": {
           "label": "App ID",
-          "hint": "The number of your Zalo app, shown in Zalo Developers next to the app name. The app must be linked to the OA."
+          "hint": "Your Zalo app number, from Zalo Developers.",
+          "info": "Shown in Zalo Developers next to the app name. The app must be linked to the OA."
         },
         "secret_key": {
           "label": "Secret key",
-          "hint": "The Secret key of the Zalo app (Zalo Developers, your app, Settings). It stays on the box, encrypted."
+          "hint": "Zalo Developers, your app, Settings.",
+          "info": "The Secret key of the Zalo app (Zalo Developers, your app, Settings). It stays on the box, encrypted."
         },
         "refresh_token": {
           "label": "Refresh token",
-          "hint": "The OA refresh token from Zalo Developers (API Explorer, OA access token). It lasts about 3 months and works once: Vedette renews the access token by itself every day and keeps the new refresh token it gets back."
+          "hint": "From Zalo Developers: API Explorer, OA access token.",
+          "info": "The OA refresh token from Zalo Developers (API Explorer, OA access token). It lasts about 3 months and works once: Vedette renews the access token by itself every day and keeps the new refresh token it gets back."
         },
         "helpTitle": "Zalo OA tokens",
-        "help": "Vedette renews the Zalo access token by itself with the refresh token, the App ID and the Secret key, so you set this up once, not every day. Get the OA's refresh token once in Zalo Developers; only if Vedette cannot reach Zalo for about 3 months does it run out, and then you save a new one.",
+        "help": "Set up once: Vedette renews the Zalo access token itself.",
+        "helpInfo": "Vedette renews the Zalo access token by itself with the refresh token, the App ID and the Secret key, so you set this up once, not every day. Get the OA's refresh token once in Zalo Developers; only if Vedette cannot reach Zalo for about 3 months does it run out, and then you save a new one.",
         "doc": "Zalo's guide to OA access and refresh tokens"
       },
       "email": {
         "provider": {
           "label": "Provider",
-          "hint": "Choosing a provider fills in the server, the port and the encryption. You can still change them.",
+          "hint": "Fills in the server, port and encryption; you can still change them.",
           "group": {
             "password": "Mailbox with a password or app password",
             "service": "Email sending service",
@@ -140,6 +152,23 @@
             "google-workspace": "Google Workspace (service account)"
           },
           "help": {
+            "gmail": "Gmail needs an app password; the normal password does not work.",
+            "yahoo": "Yahoo needs an app password from Account security.",
+            "icloud": "iCloud needs an app-specific password from account.apple.com.",
+            "zoho": "Use your Zoho address and password, or an app-specific password.",
+            "fastmail": "Fastmail needs an app password with SMTP access.",
+            "sendgrid": "Username apikey; the password is an API key with Mail Send.",
+            "mailgun": "Use your sending domain's SMTP credentials, not the API key.",
+            "ses": "Use Amazon SES SMTP credentials, not your AWS access keys.",
+            "postmark": "Paste the Server API token: it is both username and password.",
+            "brevo": "Use the Brevo SMTP login and an SMTP key, not an API key.",
+            "microsoft365": "Vedette signs in as an app with OAuth2, set up once by an administrator.",
+            "google-workspace": "Vedette signs in as a service account, set up once by a super administrator.",
+            "microsoft365-user": "Sign in once as the mailbox user with a code; no password is stored.",
+            "outlook": "Sign in once with a code through your own app registration.",
+            "gmail-oauth": "Sign in once with your own Google OAuth client instead of a password."
+          },
+          "helpInfo": {
             "gmail": "Gmail needs an app password: turn on 2-Step Verification for the Google account, create an app password, and paste it below. The normal Gmail password does not work.",
             "yahoo": "Yahoo needs an app password: generate one in your Yahoo account under Account security. The username is your full Yahoo address.",
             "icloud": "iCloud needs an app-specific password, made at account.apple.com under Sign-In and Security. The username is your full iCloud address.",
@@ -193,11 +222,12 @@
         "host": {
           "label": "SMTP server",
           "hint": "For example smtp.company.com.",
-          "hint_oauth": "Fixed for this sign-in: Vedette sends the token to the provider's own server only."
+          "hint_oauth": "Fixed for this sign-in: the token goes only to the provider's own server."
         },
         "port": {
           "label": "Port",
-          "hint": "587 for STARTTLS or no encryption, 465 for SSL/TLS. Changing the encryption changes the port to match."
+          "hint": "587 for STARTTLS or none, 465 for SSL/TLS.",
+          "info": "Changing the encryption changes the port to match."
         },
         "security": {
           "label": "Encryption",
@@ -208,20 +238,22 @@
         "username": {
           "label": "Username",
           "hint": "Usually the sending email address.",
-          "hint_oauth": "The mailbox Vedette sends as, for example alerts@company.com. Send from must be this address or one it may send as.",
+          "hint_oauth": "The mailbox Vedette sends as, like alerts@company.com.",
+          "info_oauth": "Send from must be this address or one it may send as.",
           "label_oauth": "Mailbox to send as",
           "hint_sendgrid": "Always apikey for SendGrid.",
           "hint_mailgun": "The SMTP login of the domain, for example postmaster@mg.company.com.",
-          "hint_ses": "The SMTP user name from the SES console, not an AWS access key.",
+          "hint_ses": "The SMTP user name from the SES console, not an AWS key.",
           "hint_brevo": "The SMTP login from Brevo, for example 8a1b2c001@smtp-brevo.com.",
           "hint_mailbox": "Your full email address.",
           "label_user": "Mailbox",
-          "hint_user": "Filled in by the sign-in: Vedette sends as the account that signed in."
+          "hint_user": "Filled in by the sign-in: Vedette sends as that account."
         },
         "tenant_id": {
           "label": "Tenant ID",
           "hint": "The Directory (tenant) ID on the app registration's Overview page.",
-          "hint_microsoft365-user": "The Directory (tenant) ID, your domain, or organizations for any work or school account."
+          "hint_microsoft365-user": "The Directory (tenant) ID, your domain, or organizations.",
+          "info_microsoft365-user": "Enter organizations to allow any work or school account."
         },
         "client_id": {
           "label": "Client ID",
@@ -238,7 +270,7 @@
         },
         "secret": {
           "label": "SMTP password",
-          "hint": "The password of the account on your mail server. Prefer a dedicated account for Vedette.",
+          "hint": "The mail account password; prefer a dedicated account for Vedette.",
           "label_app": "App password",
           "label_zoho": "Password or app password",
           "label_sendgrid": "API key",
@@ -246,9 +278,11 @@
           "label_brevo": "SMTP key",
           "label_microsoft_oauth": "Client secret",
           "label_google_oauth": "Service account key (JSON file)",
-          "hint_service": "Stays on this box, encrypted. Only the last 4 characters show after saving.",
-          "hint_microsoft_oauth": "The Value of a client secret of the app registration (not its Secret ID). Client secrets expire: make a new one before then.",
-          "hint_google_oauth": "Choose the JSON key file you downloaded. It stays on this box, encrypted; Vedette never sends the key itself, only a token request signed with it.",
+          "hint_service": "Stays on this box, encrypted; only the last 4 characters show.",
+          "hint_microsoft_oauth": "The client secret's Value, not its Secret ID.",
+          "info_microsoft_oauth": "Client secrets expire: make a new one before then.",
+          "hint_google_oauth": "The JSON key file you downloaded.",
+          "info_google_oauth": "It stays on this box, encrypted; Vedette never sends the key itself, only a token request signed with it.",
           "loaded": "Key of {{email}} chosen. Save to keep it.",
           "notKey": "This file is not a service account key file from Google Cloud."
         }
@@ -256,33 +290,39 @@
       "webhook": {
         "url": {
           "label": "Webhook URL",
-          "hint": "The box sends a POST with a JSON body to this address. Use https:// (http:// only on an internal network)."
+          "hint": "Receives a JSON POST. https:// (http:// only on an internal network).",
+          "info": "The box sends a POST with a JSON body to this address. Use https:// (http:// only on an internal network)."
         },
         "secret": {
           "label": "Signing key",
-          "hint": "Each request carries two headers: X-Vedette-Timestamp (Unix seconds) and X-Vedette-Signature (sha256=<hex>). The hex is HMAC-SHA256 with this key over the timestamp, a dot and the raw body (timestamp + \".\" + body). The receiver recomputes it the same way, compares in constant time and rejects an old timestamp. At least 16 characters."
+          "hint": "At least 16 characters; signs each request with HMAC-SHA256.",
+          "info": "Each request carries two headers: X-Vedette-Timestamp (Unix seconds) and X-Vedette-Signature (sha256=<hex>). The hex is HMAC-SHA256 with this key over the timestamp, a dot and the raw body (timestamp + \".\" + body). The receiver recomputes it the same way, compares in constant time and rejects an old timestamp. At least 16 characters."
         }
       },
       "slack": {
         "label": {
           "label": "Channel label (optional)",
-          "hint": "A name to recognise this channel in the list, for example #it-alerts. It is only shown in Vedette."
+          "hint": "A name for the list, like #it-alerts; shown only in Vedette."
         },
         "secret": {
           "label": "Incoming Webhook URL",
-          "hint": "In your Slack app turn on Incoming Webhooks, add it to a channel and paste the URL (starts with https://hooks.slack.com/services/). The URL is a secret: anyone with it can post to that channel."
+          "hint": "Incoming Webhook URL: https://hooks.slack.com/services/…",
+          "info": "In your Slack app turn on Incoming Webhooks, add it to a channel and paste the URL (starts with https://hooks.slack.com/services/). The URL is a secret: anyone with it can post to that channel."
         },
         "channel_id": {
           "label": "Channel ID",
-          "hint": "The channel where approval requests appear, like C04ABCDEF12. In Slack open the channel details and copy the ID at the bottom. Invite the bot to that channel."
+          "hint": "Where approval requests appear, like C04ABCDEF12.",
+          "info": "In Slack open the channel details and copy the ID at the bottom. Invite the bot to that channel."
         },
         "app_token": {
           "label": "App-level token (xapp-…)",
-          "hint": "Slack app, Basic Information, App-Level Tokens: create one with the connections:write scope. Used to open the Socket Mode connection."
+          "hint": "An App-Level Token with the connections:write scope.",
+          "info": "Slack app, Basic Information, App-Level Tokens: create one with the connections:write scope. Used to open the Socket Mode connection."
         },
         "bot_token": {
           "label": "Bot token (xoxb-…)",
-          "hint": "Slack app, OAuth & Permissions, after installing the app to your workspace. Needs the chat:write scope."
+          "hint": "The bot token, with the chat:write scope.",
+          "info": "Slack app, OAuth & Permissions, after installing the app to your workspace. Needs the chat:write scope."
         }
       }
     },
@@ -296,7 +336,8 @@
   "rules": {
     "quiet": {
       "title": "Quiet hours",
-      "description": "During these hours Vedette holds messages and sends them together when the period ends. Times use the box time zone. Crossing midnight is fine: 22:00 to 06:30 means from evening to the next morning.",
+      "description": "Messages are held during these hours, then sent together.",
+      "descriptionInfo": "Times use the box time zone. Crossing midnight is fine: 22:00 to 06:30 means from evening to the next morning. Critical alerts can still go through (the option below).",
       "enabled": "Turn on quiet hours",
       "from": "From",
       "to": "Until",
@@ -306,7 +347,8 @@
     },
     "grouping": {
       "title": "Grouping",
-      "description": "Several alerts for the same product within this window become one message. Critical is always sent right away, never held for grouping.",
+      "description": "Alerts for the same product within the window become one message.",
+      "descriptionInfo": "Critical is always sent right away, never held for grouping.",
       "enabled": "Group messages for the same product",
       "window": "Grouping window",
       "w15": "15 minutes",
@@ -326,7 +368,8 @@
     "addLabel": "Add approver",
     "add": "Add",
     "remove": "Remove {{who}}",
-    "viewers": "Viewers cannot be added: only operators and administrators may approve. A response counts only when it comes from a listed address.",
+    "viewers": "Only operators and administrators can approve.",
+    "viewersInfo": "Viewers cannot be added: only operators and administrators may approve. A response counts only when it comes from a listed address.",
     "address": {
       "slack": "Slack member ID",
       "telegram": "Telegram user ID",
@@ -338,8 +381,14 @@
       "email": "name@company.com"
     },
     "hint": {
+      "slack": "Approve and Reject buttons appear in Slack.",
+      "telegram": "Approve and Reject buttons appear in the chat.",
+      "email": "Each approver gets an email with an Approve button.",
+      "zalo-personal": "Each approver approves with Zalo codes of their own."
+    },
+    "hintInfo": {
       "slack": "Approval requests show Approve and Reject buttons in Slack. This uses Slack Socket Mode: the box opens the connection outward to Slack, so you open no inbound port and need no public address.",
-      "telegram": "Approval requests show inline Approve and Reject buttons in the chat. This uses the bot above with long polling: the box asks Telegram for new button presses, so you open no inbound port. When you save, the bot sends each approver a confirm link; their presses count once they open it and confirm while signed in to Vedette as themselves.",
+      "telegram": "Approval requests show inline Approve and Reject buttons in the chat. This uses the bot above with long polling: the box asks Telegram for new button presses, so you open no inbound port. When you save, the bot sends each approver a confirm link; their presses count once they open it and confirm while signed in to Vedette as themselves. The bot can write to an approver only after they press Start once in a private chat with the bot; otherwise a note in this chat asks them to.",
       "email": "Each approver receives an email with an Approve button that opens a confirmation page on Vedette.",
       "zalo-personal": "Add each approver with their Zalo account: pick a friend of this account or find them by phone number. When you save, this account sends each of them a confirm link; they are linked once they open it and confirm while signed in to Vedette as themselves (your own Zalo you confirm here). Then each approval request reaches them privately with two codes of their own, one to approve and one to reject. High-risk actions are approved only in Vedette."
     },
@@ -349,16 +398,18 @@
       "p3": "The box must be reachable from where the approver opens the email (office LAN or VPN).",
       "p4": "Replying to the email does not approve anything, because replies are easy to forge."
     },
-    "linkOnly": "This channel cannot take approvals. Messages sent here carry a link that opens Vedette, where an operator or administrator approves."
+    "linkOnly": "This channel cannot take approvals.",
+    "linkOnlyInfo": "Messages sent here carry a link that opens Vedette, where an operator or administrator approves."
   },
   "zp": {
-    "warning": "Unofficial channel: Zalo may lock the account it signs in with, so use a separate Zalo account, not your own.",
+    "warning": "Unofficial channel: Zalo may lock this account. Use a separate account, not yours.",
     "login": "Zalo sign-in",
-    "none": "Not signed in yet. Sign in with the Zalo account that will send the alerts.",
+    "none": "Not signed in. Sign in with the Zalo account that sends alerts.",
     "show": "Sign in with a QR code",
     "relogin": "Sign in again",
     "qrAlt": "QR code to sign in to Zalo",
-    "scan": "On the phone of that Zalo account, open Zalo, tap the QR scanner and scan this code. It expires at {{time}}.",
+    "scan": "Scan with Zalo on that account's phone. Expires at {{time}}.",
+    "scanInfo": "On the phone of that Zalo account, open Zalo, tap the QR scanner and scan this code.",
     "sessionSaved": "A Zalo session is saved.",
     "signedSaved": "Signed in as {{name}}.",
     "signedNew": "Signed in as {{name}}. Press Save to keep this sign-in.",
@@ -384,7 +435,7 @@
     "find": "Find",
     "findLabel": "Or find by invite link, phone number or ID",
     "findHint": "A group invite link looks like https://zalo.me/g/abcdef123; a phone number like 0912345678.",
-    "notMember": "The signed-in account is not a member of {{name}}. Join the group with that account in the Zalo app, or alerts will not arrive.",
+    "notMember": "The account is not a member of {{name}}: join it in Zalo, or alerts will not arrive.",
     "notAGroup": "An approver is a person, not a group.",
     "approverIs": "Zalo: {{name}} (ID {{id}})",
     "approverNone": "No Zalo account yet.",
@@ -393,18 +444,19 @@
     "approverFindHint": "The phone number of their Zalo account, for example 0912345678.",
     "codesSent": "Each new approver gets a confirm link from this Zalo account. They are linked once they open it and confirm while signed in to Vedette.",
     "link": {
-      "unsaved": "Save to send this person a confirm link on Zalo (your own Zalo too, unless it is this box's signed-in account: that one you confirm here).",
+      "unsaved": "Save to send this person a confirm link on Zalo.",
       "linked": "Linked",
       "sending": "Sending the link",
       "waiting": "Waiting",
       "not_sent": "Not linked",
-      "waitingFor": "Waiting for {{name}} to open the link sent at {{time}} and confirm it while signed in to Vedette.",
+      "waitingFor": "Waiting for {{name}} to open the link sent at {{time}} and confirm it.",
       "again": "Send again",
       "sentToast": "A new confirm link was sent to {{name}}. The old one no longer works.",
-      "yours": "This is the box's own Zalo account, which you signed in with: link it to your Vedette account now.",
+      "yours": "This is the box's own Zalo account: link it to you now.",
       "mine": "Link my Zalo now"
     },
-    "signOutHint": "Zalo has no sign-out for this kind of session: a sign-in you cancel, replace or do not save stays signed in on Zalo until it expires or you log it out of the account's devices in the Zalo app."
+    "signOutHint": "Zalo has no sign-out for this kind of session: a sign-in you cancel, replace or do not save stays signed in on Zalo until it expires or you log it out of the account's devices in the Zalo app.",
+    "loginInfo": "Sign in with a QR code from the Zalo app of the account that sends the alerts. Save keeps the session on the box."
   },
   "incidents": {
     "title_one": "{{count}} new incident",
@@ -455,10 +507,12 @@
     "respond": "Respond",
     "respondFor": "Respond to {{title}}",
     "emptyOpenTitle": "No open incidents",
-    "emptyBody": "When a trap is touched, a machine connects to a known-bad address, a log looks wrong or an unknown device appears, it shows up here and is sent through the channels you turned on.",
-    "emptyBodyNoTraps": "When a machine connects to a known-bad address, a log looks wrong or an unknown device appears, it shows up here and is sent through the channels you turned on.",
+    "emptyBody": "Trap hits, bad connections, odd logs and unknown devices show up here.",
+    "emptyBodyInfo": "When a trap is touched, a machine connects to a known-bad address, a log looks wrong or an unknown device appears, it shows up here and is sent through the channels you turned on.",
+    "emptyBodyNoTraps": "Bad connections, odd logs and unknown devices show up here.",
+    "emptyBodyNoTrapsInfo": "When a machine connects to a known-bad address, a log looks wrong or an unknown device appears, it shows up here and is sent through the channels you turned on.",
     "setupChannels": "Set up alert channels",
-    "noChannelTitle": "No alert channel is set up, so no incident is sent. Set one up in Settings → Alert channels.",
+    "noChannelTitle": "No alert channel is set up, so incidents are not sent.",
     "sentDelayed": "{{channel}} delayed",
     "fix": {
       "no_channel": "Set up alert channels",
@@ -499,7 +553,8 @@
     "sentDescription": "Exactly what was sent to each channel.",
     "subject": "Subject: {{subject}}",
     "noSendsTitle": "Not sent through any channel",
-    "noSendsBody": "No channel was on when this incident was raised. An administrator sets up channels in Settings.",
+    "noSendsBody": "No channel was on when this incident was raised.",
+    "noSendsBodyInfo": "An administrator sets up channels in Settings → Alert channels.",
     "logTitle": "Delivery log",
     "logCaption": "Delivery log of the incident",
     "log": {
@@ -536,10 +591,11 @@
     "title": "History",
     "description": "Every message Vedette sent: incidents, vulnerability notices and approval requests.",
     "retention": "History and resolved incidents are kept for 1 year.",
-    "meta": "Vedette only alerts for products you own. {{count}} new vulnerabilities in the last {{days}} days match none of your devices, so nothing was sent. The first download of the vulnerability lists is not counted.",
-    "meta_one": "Vedette only alerts for products you own. {{count}} new vulnerability in the last {{days}} days matches none of your devices, so nothing was sent. The first download of the vulnerability lists is not counted.",
-    "meta_other": "Vedette only alerts for products you own. {{count}} new vulnerabilities in the last {{days}} days match none of your devices, so nothing was sent. The first download of the vulnerability lists is not counted.",
-    "metaNone": "Vedette only alerts for products you own. In the last {{days}} days no new vulnerability was skipped for matching none of your devices. The first download of the vulnerability lists is not counted.",
+    "meta": "{{count}} new vulnerabilities in {{days}} days matched none of your devices: not sent.",
+    "meta_one": "{{count}} new vulnerability in {{days}} days matched none of your devices: not sent.",
+    "meta_other": "{{count}} new vulnerabilities in {{days}} days matched none of your devices: not sent.",
+    "metaNone": "No new vulnerability was skipped in the last {{days}} days.",
+    "metaInfo": "Vedette only alerts for products you own: a new vulnerability that matches none of your devices is not sent. The first download of the vulnerability lists is not counted.",
     "caption": "Sent messages",
     "col": {
       "time": "Time",
@@ -560,7 +616,8 @@
     "resendFor": "Send again via {{channel}}",
     "resendOk": "Sent again via {{channel}}.",
     "emptyTitle": "Nothing sent yet",
-    "emptyBody": "Messages appear here once a channel is on and something worth telling you happens. Test messages are not listed here; each channel shows its last test.",
+    "emptyBody": "Messages appear here once a channel is on and something happens.",
+    "emptyBodyInfo": "Test messages are not listed here; each channel shows its last test.",
     "delayed": "Delayed"
   },
   "signin": {
@@ -587,7 +644,8 @@
     "pasteLabel": "Address from the browser",
     "finish": "Finish sign-in",
     "clientSecret": "Client secret of the Desktop client",
-    "clientSecretHint": "Used to sign in and kept on this box, encrypted. Enter it again when you sign in again."
+    "clientSecretHint": "Kept on this box, encrypted.",
+    "clientSecretInfo": "Used to sign in. Enter it again when you sign in again."
   },
   "tgFind": {
     "button": "Find my chat",
@@ -604,7 +662,7 @@
     }
   },
   "tg": {
-    "unsaved": "Save to send this person a confirm link on Telegram, privately. The bot can write to them only after they press Start once in a private chat with the bot; otherwise a note in this chat asks them to. They confirm the link while signed in to Vedette as themselves."
+    "unsaved": "Save to send this person a confirm link on Telegram."
   },
   "bulk": {
     "region": "Selected incidents",
@@ -623,7 +681,8 @@
       "resolved_one": "Resolve {{count}} incident",
       "resolved_other": "Resolve {{count}} incidents"
     },
-    "description": "One note for every selected incident. Resolved incidents keep their state and note. Each incident keeps its own audit line, so others can see who changed it and why.",
+    "description": "One note for every selected incident.",
+    "descriptionInfo": "Resolved incidents keep their state and note. Each incident keeps its own audit line, so others can see who changed it and why.",
     "noteHint": "The same note is saved on each incident.",
     "submit": {
       "acknowledged_one": "Acknowledge {{count}} incident",

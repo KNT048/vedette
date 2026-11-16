@@ -93,7 +93,7 @@ function Content() {
                 a.not_sent ? (
                   // D-551: why no channel has it, from the box's decision, and where to fix it
                   <EmptyState title={a.not_sent.reason === 'queued' || a.not_sent.reason === 'quiet_hours' ? t('detail.notYetTitle') : t('detail.noSendsTitle')} action={<NotSentFix notSent={a.not_sent} admin={admin} />}>{a.not_sent.text}</EmptyState>
-                ) : <EmptyState title={t('detail.noSendsTitle')} action={<Link to="/settings/channels" className={link}>{t('incidents.setupChannels')}</Link>}>{t('detail.noSendsBody')}</EmptyState>
+                ) : <EmptyState title={t('detail.noSendsTitle')} action={<Link to="/settings/channels" className={link}>{t('incidents.setupChannels')}</Link>} info={t('detail.noSendsBodyInfo')}>{t('detail.noSendsBody')}</EmptyState>
               ) : (
                 <Tabs defaultValue={d.previews[0]!.channel}>
                   <TabsList>{d.previews.map((p) => <TabsTrigger key={p.channel} value={p.channel}>{t(`ch.${p.channel}`)}</TabsTrigger>)}</TabsList>

@@ -44,8 +44,10 @@ describe('core: system helper update (S-CORE-2 criterion D-316)', () => {
     expect(await screen.findByText('Includes system helper 0.9.4.')).toBeInTheDocument()
     const row = helperRow()
     expect(row).toHaveTextContent('0.9.3')
-    expect(row).toHaveTextContent('Updated together with Vedette. If a new version does not start, the box goes back to the one before by itself.')
-    expect(within(row).queryByRole('button')).toBeNull() // no Apply of its own, no Rollback
+    expect(within(row).getByText('Updated together with Vedette.')).toBeVisible()
+    // The rollback detail sits behind the row's ⓘ (#824); the ⓘ is the row's only button: no Apply of its own, no Rollback.
+    expect(within(row).getByRole('button', { name: 'About System helper' })).toHaveAccessibleDescription('If a new version does not start, the box goes back to the one before by itself.')
+    expect(within(row).getAllByRole('button')).toHaveLength(1)
   })
 
   it('while the helper updates: step 1 is the helper with its sentence, Apply and Rollback are off', async () => {
@@ -55,7 +57,7 @@ describe('core: system helper update (S-CORE-2 criterion D-316)', () => {
     expect(await screen.findAllByText('Step 1 of 4: update the system helper')).not.toHaveLength(0)
     expect(screen.getAllByText('Updating the system helper. Vedette keeps running; settings that need the helper cannot be changed until this step ends.')).not.toHaveLength(0)
     for (const b of screen.getAllByRole('button', { name: /^Back to .*Vedette software/ })) expect(b).toBeDisabled()
-    expect(within(helperRow()).queryByRole('button')).toBeNull()
+    expect(within(helperRow()).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['About System helper']) // only the ⓘ
   })
 
   it('success: the helper is on the new version, history has a host row, the run goes on to the images', async () => {

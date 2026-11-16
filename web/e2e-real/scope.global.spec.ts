@@ -69,7 +69,7 @@ test('ranges: invalid, public, overlapping and duplicate ones are refused with t
   await expect(page.getByLabel(/I confirm these network ranges/)).not.toBeChecked()
   await expect(page.locator('#scope').getByRole('status').first()).toContainText('Tick to confirm before saving.')
   await page.getByLabel(/I confirm these network ranges/).check()
-  await page.getByLabel('Turn on active scanning').check()
+  await page.getByLabel('Turn on active scanning', { exact: true }).check()
   await page.locator('#active-to').fill('23:00')
   await save(page).click()
   await expect(page.getByRole('alert').filter({ hasText: 'cannot be the same' })).toBeVisible()
@@ -96,7 +96,7 @@ test('the scope is confirmed again only when the set of ranges changed; Enter ad
   const bar = page.locator('#scope')
   const confirm = bar.getByLabel(/I confirm these network ranges/)
   await expect(confirm).toBeChecked() // the known scope was confirmed
-  await page.getByLabel('Turn on active scanning').check()
+  await page.getByLabel('Turn on active scanning', { exact: true }).check()
   await page.locator('#active-from').fill('21:00')
   await bar.getByRole('button', { name: 'Save changes' }).click()
   await expect(page.getByText('You have unsaved changes.')).toBeHidden()

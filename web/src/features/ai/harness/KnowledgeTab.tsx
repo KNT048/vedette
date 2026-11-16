@@ -50,7 +50,7 @@ export default function KnowledgeTab() {
         const chosen = list.find((p) => p.id === k.index_profile)
         return (
           <>
-            <Section title={t('harness.knowledge.indexTitle')} description={t('harness.knowledge.indexBody')} stories={['S-AI-7']}>
+            <Section title={t('harness.knowledge.indexTitle')} description={t('harness.knowledge.indexBody')} info={t('harness.knowledge.indexInfo')} stories={['S-AI-7']}>
               <Panel className="grid gap-3 p-4">
                 <Field label={t('harness.knowledge.indexLabel')} htmlFor="kb-index" hint={t('harness.knowledge.indexHint')}>
                   <Select id="kb-index" className="max-w-sm" value={k.index_profile ?? ''} disabled={index.isPending}
@@ -59,18 +59,18 @@ export default function KnowledgeTab() {
                     {list.map((p) => <option key={p.id} value={p.id} disabled={!p.usable}>{p.name} ({t(`profiles.location.${p.location}`)}){!p.usable ? ` - ${t('assign.optNoKey')}` : ''}</option>)}
                   </Select>
                 </Field>
-                {chosen?.location === 'cloud' ? <Notice tone="warn" role="alert" title={t('harness.knowledge.cloudWarn', { host: hostOf(chosen.base_url) })} /> : null}
+                {chosen?.location === 'cloud' ? <Notice tone="warn" role="alert" title={t('harness.knowledge.cloudWarn', { host: hostOf(chosen.base_url) })} info={t('harness.knowledge.cloudWarnInfo')} /> : null}
                 {chosen?.location === 'internal' ? <p className="text-[13px] text-muted">{t('harness.knowledge.internalNote')}</p> : null}
                 <ActionError error={index.error} />
               </Panel>
             </Section>
-            <Section title={t('harness.knowledge.title')} description={t('harness.knowledge.body')}
+            <Section title={t('harness.knowledge.title')} description={t('harness.knowledge.body')} info={t('harness.knowledge.bodyInfo')}
               actions={<><Button variant="primary" onClick={() => file.current?.click()} disabled={add.isPending || !k.index_profile} title={!k.index_profile ? t('harness.knowledge.needIndex') : undefined}>{add.isPending ? t('harness.knowledge.uploading') : t('harness.knowledge.upload')}</Button>
                 <input ref={file} type="file" hidden tabIndex={-1} aria-hidden="true" accept=".pdf,.md,.txt,.docx" onChange={(e) => { void onFile(e) }} data-testid="kb-file" /></>}>
               <div className="grid gap-3">
                 {pickErr ? <Notice tone="danger" role="alert" title={pickErr} /> : null}
                 <ActionError error={add.error} />
-                {k.items.length === 0 ? <EmptyState title={t('harness.knowledge.empty')}>{t('harness.knowledge.emptyBody')}</EmptyState> : (
+                {k.items.length === 0 ? <EmptyState title={t('harness.knowledge.empty')} info={t('harness.knowledge.emptyBodyInfo')}>{t('harness.knowledge.emptyBody')}</EmptyState> : (
                   <List label={t('harness.knowledge.title')}>
                     {k.items.map((d) => (
                       <Row key={d.id} actions={<>

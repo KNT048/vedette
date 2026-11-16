@@ -59,7 +59,7 @@ function BulkDialog({ ids, status, onOpenChange, opener, onDone }: { ids: string
   }
   return (
     <Dialog open={status !== null} onOpenChange={onOpenChange}>
-      <DialogContent title={status ? t(`bulk.title.${status}`, { count: ids.length }) : ''} description={t('bulk.description')} onCloseAutoFocus={(e) => { e.preventDefault(); opener.current?.focus() }}>
+      <DialogContent title={status ? t(`bulk.title.${status}`, { count: ids.length }) : ''} description={t('bulk.description')} info={t('bulk.descriptionInfo')} onCloseAutoFocus={(e) => { e.preventDefault(); opener.current?.focus() }}>
         <Field htmlFor="bulk-inc-note" label={t('detail.note')} hint={t('bulk.noteHint')} error={error}>
           <Textarea id="bulk-inc-note" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} placeholder={t('detail.notePlaceholder')} />
         </Field>
@@ -185,7 +185,7 @@ function Content() {
             </div>
           ) : null}
           {rows.length === 0 ? (
-            <EmptyState title={tab === 'open' ? t('incidents.emptyOpenTitle') : t('incidents.emptyResolvedTitle')} action={noChannel ? <Link to="/settings/channels" className={link}>{t('incidents.setupChannels')}</Link> : undefined}>{t(noTraps ? 'incidents.emptyBodyNoTraps' : 'incidents.emptyBody')}</EmptyState>
+            <EmptyState title={tab === 'open' ? t('incidents.emptyOpenTitle') : t('incidents.emptyResolvedTitle')} action={noChannel ? <Link to="/settings/channels" className={link}>{t('incidents.setupChannels')}</Link> : undefined} info={t(noTraps ? 'incidents.emptyBodyNoTrapsInfo' : 'incidents.emptyBodyInfo')}>{t(noTraps ? 'incidents.emptyBodyNoTraps' : 'incidents.emptyBody')}</EmptyState>
           ) : (
             <DataTable caption={t('incidents.caption')} data={rows} columns={columns} onRowClick={(r) => navigate(`/incidents/${r.id}`)} rowTone={(r) => (r.status === 'new' ? (r.severity === 'critical' ? 'danger' : 'warn') : undefined)} initialSort={[{ id: 'seen', desc: true }]}
               mobileRow={(r) => (
@@ -209,7 +209,7 @@ function Content() {
   )
   return (
     <>
-      <PageHeader title={title} stories={['S-ALERT-3', 'S-UI-1']} meta={q.data ? <span className="inline-flex flex-wrap items-center gap-2">{t('incidents.meta')} {t('incidents.retention')}<SampleDataNote /></span> : null} />
+      <PageHeader title={title} stories={['S-ALERT-3', 'S-UI-1']} info={t('incidents.retention')} meta={q.data ? <span className="inline-flex flex-wrap items-center gap-2">{t('incidents.meta')}<SampleDataNote /></span> : null} />
       {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
       <PageTabs label={t('tabs.label')} tabs={[
         { id: 'open', label: t('tabs.open'), panel, badge: { count: openRows.length, label: t('tabs.openBadge') } },

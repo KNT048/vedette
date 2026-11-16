@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/common/PageHeader'
 import { QueryState } from '@/components/common/States'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
@@ -41,7 +42,7 @@ function Form({ initial }: { initial: GeneralSettings }) {
       <Field label={t('general.name')} hint={t('general.nameHint')} htmlFor="org-name" error={error ?? undefined}>
         <Input id="org-name" value={v.name} disabled={gate.disabled} maxLength={80} aria-invalid={!!error} onChange={(e) => setV({ ...v, name: e.target.value })} />
       </Field>
-      <Field label={t('general.timezone')} hint={t('general.timezoneHint')} htmlFor="org-tz" error={tzError ?? undefined}>
+      <Field label={t('general.timezone')} hint={t('general.timezoneHint')} info={t('general.timezoneInfo')} htmlFor="org-tz" error={tzError ?? undefined}>
         <Input id="org-tz" list="org-tz-list" autoComplete="off" spellCheck={false} value={v.timezone} disabled={gate.disabled} aria-invalid={!!tzError} onChange={(e) => setV({ ...v, timezone: e.target.value })} />
         <datalist id="org-tz-list">{TIMEZONES.map((z) => <option key={z} value={z} />)}</datalist>
         {here && here !== v.timezone && !gate.disabled ? <button type="button" className="mt-1 w-fit text-[13px] text-accent underline-offset-4 hover:underline" onClick={() => setV({ ...v, timezone: here })}>{t('general.useBrowserZone', { zone: here })}</button> : null}
@@ -58,7 +59,10 @@ function Terms({ s }: { s: TermsState }) {
   const a = s.accepted
   return (
     <section className="mt-8 grid max-w-xl gap-2" aria-labelledby="terms-title">
-      <h2 id="terms-title" className="text-base font-semibold">{t('general.terms.title')}</h2>
+      <div className="flex items-center gap-1">
+        <h2 id="terms-title" className="text-base font-semibold">{t('general.terms.title')}</h2>
+        {a ? null : <InfoTip topic={t('general.terms.title')}>{t('general.terms.noneInfo')}</InfoTip>}
+      </div>
       <p className="text-sm">{a
         ? t(a.by === null ? 'general.terms.at' : a.via === 'restore' ? 'general.terms.byRestore' : 'general.terms.by', { by: a.by, when: fmtDateTime(a.at), version: a.version })
         : t('general.terms.none')}</p>

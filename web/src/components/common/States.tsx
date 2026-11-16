@@ -4,13 +4,17 @@ import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { useModuleEnabled, useModules, type ModuleId } from '@/lib/modules'
 import { ApiError, api } from '@/lib/api'
+import { InfoTip } from './InfoTip'
 import { useQuery } from '@tanstack/react-query'
 
-/** Màn trống là hướng dẫn hành động (FRONTEND §3). */
-export function EmptyState({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
+/** Màn trống là hướng dẫn hành động (FRONTEND §3). `children` một dòng ngắn; giải thích dài vào `info` (ⓘ cạnh tiêu đề, #824). */
+export function EmptyState({ title, children, info, action }: { title: string; children?: ReactNode; info?: ReactNode; action?: ReactNode }) {
   return (
     <div className="rounded-md border border-dashed border-rule bg-surface px-6 py-8">
-      <p className="font-medium">{title}</p>
+      <div className="flex items-center gap-1">
+        <p className="font-medium">{title}</p>
+        {info ? <InfoTip topic={title}>{info}</InfoTip> : null}
+      </div>
       {children ? <div className="mt-1 max-w-2xl text-sm text-muted">{children}</div> : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
@@ -68,7 +72,10 @@ export function ModuleOff({ module, children }: { module: ModuleId; children?: R
   if (notHere) {
     return (
       <div className="rounded-md border border-rule bg-off-soft px-4 py-3 text-sm">
-        <p className="font-medium">{t('moduleOff.notHereTitle', { name: t(`modules.${module}.name`) })}</p>
+        <div className="flex items-center gap-1">
+          <p className="font-medium">{t('moduleOff.notHereTitle', { name: t(`modules.${module}.name`) })}</p>
+          <InfoTip topic={t(`modules.${module}.name`)}>{t('moduleOff.notHereInfo')}</InfoTip>
+        </div>
         <p className="mt-1 text-muted">{t('moduleOff.notHereBody')}</p>
       </div>
     )

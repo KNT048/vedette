@@ -7,6 +7,7 @@ import { useMe } from '@/lib/session'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { Loading } from '@/components/common/States'
+import { InfoTip } from '@/components/common/InfoTip'
 import { MIN_PASSWORD } from './util'
 
 /** D-180 (S-CORE-3): the screen of a user who signed in with a password an administrator set. Same rules as My account → Change password. */
@@ -56,7 +57,10 @@ export default function ChangePasswordPage() {
   return (
     <main className="grid min-h-dvh place-items-center bg-paper px-4">
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-semibold tracking-[-0.01em]">{t('changePassword.title')}</h1>
+        <div className="flex items-center gap-1">
+          <h1 className="text-2xl font-semibold tracking-[-0.01em]">{t('changePassword.title')}</h1>
+          <InfoTip topic={t('changePassword.title')}>{t('changePassword.descInfo')}</InfoTip>
+        </div>
         <p className="mt-1 text-sm text-muted">{t('changePassword.desc', { min: MIN_PASSWORD })}</p>
         <form onSubmit={(e) => void submit(e)} className="mt-6 grid gap-4 rounded-md border border-rule bg-surface p-5" noValidate>
           <Field label={t('changePassword.current')} htmlFor="cp-current" error={err.current}><Input id="cp-current" type="password" autoComplete="current-password" autoFocus value={v.current} aria-invalid={!!err.current} onChange={(e) => setV({ ...v, current: e.target.value })} /></Field>

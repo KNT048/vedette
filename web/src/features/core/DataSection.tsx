@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Download } from 'lucide-react'
 import { PageHeader, Section } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input } from '@/components/ui/input'
 import { api, download } from '@/lib/api'
@@ -68,22 +69,22 @@ export default function DataSection() {
 
   return (
     <>
-      <PageHeader title={t('data.title')} meta={install === 'container' ? t('container.data.meta') : t('data.meta')} stories={['S-CORE-1']} />
+      <PageHeader title={t('data.title')} meta={install === 'container' ? t('container.data.meta') : t('data.meta')} info={install === 'container' ? t('container.data.metaInfo') : t('data.metaInfo')} stories={['S-CORE-1']} />
       {install === 'container' ? <ContainerBackup /> : install === 'appliance' ? (
         <>
-          <Section title={t('data.backup.title')} description={t('data.backup.desc')}>
+          <Section title={t('data.backup.title')} description={t('data.backup.desc')} info={t('data.backup.info')}>
             <Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/backup', `vedette-backup-${day}.tar.gz`)}><Download />{t('data.backup.button')}</Button>
             <KeyAside disabled={gate.disabled} title={gate.title} />
           </Section>
-          <Section title={t('data.restore.title')} description={t('data.restore.desc')}>
+          <Section title={t('data.restore.title')} description={t('data.restore.desc')} info={t('data.restore.info')}>
             <BoxBackups disabled={gate.disabled} title={gate.title} />
           </Section>
         </>
       ) : <InstallPending />}
-      <Section title={t('data.export.title')} description={t('data.export.desc')}>
+      <Section title={t('data.export.title')} description={t('data.export.desc')} info={t('data.export.info')}>
         <Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/export', `vedette-export-${day}.json`)}><Download />{t('data.export.button')}</Button>
       </Section>
-      <Section title={t('data.logs.title')} description={t('data.logs.desc')} stories={['S-CORE-6']}>
+      <Section title={t('data.logs.title')} description={t('data.logs.desc')} info={<><p>{t('data.logs.info')}</p><p>{t('data.logs.verify')}</p></>} stories={['S-CORE-6']}>
         <div className="grid max-w-3xl gap-4">
           <fieldset className="grid gap-2">
             <legend className="mb-1 text-sm font-medium">{t('data.logs.categories')}</legend>
@@ -103,21 +104,20 @@ export default function DataSection() {
           </div>
           {logsErr ? <p role="alert" className="text-sm text-danger">{logsErr}</p> : null}
           <div><Button disabled={gate.disabled || !!logsErr} title={gate.title} onClick={dl(`/core/logs/export?${logsExportQuery(cats, fmt, from, to)}`, `vedette-logs-${day}.${fmt}`)}><Download />{t('data.logs.button')}</Button></div>
-          <p className="text-[13px] text-muted">{t('data.logs.verify')}</p>
         </div>
       </Section>
-      <Section title={t('data.purge.title')} description={t('data.purge.desc')}>
+      <Section title={t('data.purge.title')} description={t('data.purge.desc')} info={t('data.purge.info')}>
         <Button variant="danger" disabled={gate.disabled} title={gate.title} onClick={() => { setPurgeErr(null); setTyped(''); setPassword(''); setCode(''); setAskPurge(true) }}>{t('data.purge.button')}</Button>
       </Section>
       {isPreview() ? (
-        <Section title={t('data.sample.title')} description={t('data.sample.desc')}>
+        <Section title={t('data.sample.title')} description={t('data.sample.desc')} info={t('data.sample.info')}>
           <Button disabled={gate.disabled} title={gate.title} onClick={() => setAskReset(true)}>{t('data.sample.button')}</Button>
         </Section>
       ) : null}
 
       <Dialog open={askPurge} onOpenChange={setAskPurge}>
-        <DialogContent title={t('data.purge.ask.title')} description={t('data.purge.ask.body')}>
-          <ul className="list-disc pl-5 text-sm"><li>{t('data.purge.ask.removes')}</li><li>{t('data.purge.ask.keeps')}</li></ul>
+        <DialogContent title={t('data.purge.ask.title')} description={t('data.purge.ask.body')} info={<><p>{t('data.purge.ask.info')}</p><p>{t('data.purge.ask.keeps')}</p></>}>
+          <p className="text-sm">{t('data.purge.ask.removes')}</p>
           <Field label={t('data.purge.ask.type', { org })} htmlFor="purge-confirm" error={purgeErr ?? undefined}>
             <Input id="purge-confirm" autoComplete="off" value={typed} aria-invalid={!!purgeErr} onChange={(e) => setTyped(e.target.value)} />
           </Field>
@@ -138,7 +138,7 @@ export default function DataSection() {
 
       {isPreview() ? (
         <Dialog open={askReset} onOpenChange={setAskReset}>
-          <DialogContent title={t('data.sample.ask.title')} description={t('data.sample.ask.body')}>
+          <DialogContent title={t('data.sample.ask.title')} description={t('data.sample.ask.body')} info={t('data.sample.ask.info')}>
             <DialogFooter><Button onClick={() => setAskReset(false)}>{t('common:cancel')}</Button><Button variant="danger" onClick={() => void doReset()}>{t('data.sample.ask.confirm')}</Button></DialogFooter>
           </DialogContent>
         </Dialog>
@@ -198,12 +198,8 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
         </table>
       ) : null}
       <Dialog open={pick !== null} onOpenChange={(o) => { if (!o) setPick(null) }}>
-        <DialogContent title={t('data.restore.ask.title', { when: pick ? fmtDateTime(pick.created_at) : '' })} description={t('data.restore.ask.lost')}>
-          <ul className="list-disc pl-5 text-sm">
-            <li>{t('data.restore.ask.kept')}</li>
-            <li>{t('data.restore.ask.retention')}{pushedOut ? ' ' + t('data.restore.ask.pushesOut', { when: fmtDateTime(pushedOut.created_at) }) : ''}</li>
-            <li>{t('data.restore.ask.restart')}</li>
-          </ul>
+        <DialogContent title={t('data.restore.ask.title', { when: pick ? fmtDateTime(pick.created_at) : '' })} description={t('data.restore.ask.lost')} info={<><p>{t('data.restore.ask.kept')}</p><p>{t('data.restore.ask.retention')}</p><p>{t('data.restore.ask.restart')}</p></>}>
+          {pushedOut ? <p className="text-sm">{t('data.restore.ask.pushesOut', { when: fmtDateTime(pushedOut.created_at) })}</p> : null}
           <Field label={t('data.restore.ask.password')} htmlFor="restore-password">
             <Input id="restore-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
           </Field>
@@ -248,11 +244,11 @@ function KeyAside({ disabled, title }: { disabled: boolean; title?: string }) {
   }
   return (
     <div className="mt-4 grid max-w-3xl gap-2 rounded-md border border-rule bg-sunken p-3">
-      <p className="text-sm font-medium">{t('data.key.title')}</p>
+      <div className="flex items-center gap-1"><p className="text-sm font-medium">{t('data.key.title')}</p><InfoTip topic={t('data.key.title')}>{t('data.key.descInfo')}</InfoTip></div>
       <p className="text-[13px] text-muted">{t('data.key.desc')}</p>
-      {sso ? <p className="text-[13px]">{t('data.key.sso')}</p> : <div><Button disabled={disabled} title={title} onClick={() => { setErr(null); setPassword(''); setCode(''); setOpen(true) }}><Download />{t('data.key.button')}</Button></div>}
+      {sso ? <div className="flex items-center gap-1"><p className="text-[13px]">{t('data.key.sso')}</p><InfoTip topic={t('data.key.sso')}>{t('data.key.ssoInfo')}</InfoTip></div> : <div><Button disabled={disabled} title={title} onClick={() => { setErr(null); setPassword(''); setCode(''); setOpen(true) }}><Download />{t('data.key.button')}</Button></div>}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent title={t('data.key.ask.title')} description={t('data.key.ask.body')}>
+        <DialogContent title={t('data.key.ask.title')} description={t('data.key.ask.body')} info={t('data.key.ask.info')}>
           <Field label={t('data.restore.ask.password')} htmlFor="key-password">
             <Input id="key-password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
           </Field>

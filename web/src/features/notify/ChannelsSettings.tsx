@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { LoaderCircle, Send, X } from 'lucide-react'
 import { Notice, PageHeader } from '@/components/common/PageHeader'
+import { InfoTip } from '@/components/common/InfoTip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
 import { QueryState, RequireModule } from '@/components/common/States'
@@ -52,7 +53,7 @@ function keyAccount(text: string): string | null {
 }
 
 /** Translation keys of an email field's label or hint, most specific first: the preset, its sign-in, its kind, then the plain one (D-449). */
-function emailKeys(p: EmailProvider, k: string, part: 'label' | 'hint') {
+function emailKeys(p: EmailProvider, k: string, part: 'label' | 'hint' | 'info') {
   const mailbox = p.group === 'password' && p.id !== 'custom'
   const variants = k === 'username' ? [p.id, isUserSignin(p.auth) ? 'user' : isOAuth(p.auth) ? 'oauth' : mailbox ? 'mailbox' : '']
     : k === 'secret' ? [p.id, p.auth, mailbox && p.id !== 'zoho' ? 'app' : '', p.id !== 'custom' ? 'service' : ''] : [p.id, k === 'host' && isOAuth(p.auth) ? 'oauth' : '']
@@ -66,7 +67,13 @@ function randomKey() {
 }
 
 function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { channel: Channel; codeUsers: number; onClose: () => void; onSaved: (thenTest: boolean) => void }) {
-  const { t } = useTranslation('notify')
+  const { t, i18n } = useTranslation('notify')
+  // #824: a field's hint is one short line; its explanation, when it has one, is the sibling `info` key of the hint actually shown.
+  const infoOf = (keys: string[]) => {
+    const hint = keys.find((k) => i18n.exists(k, { ns: 'notify' }))
+    const key = hint?.replace(/\.hint(_|$)/, '.info$1')
+    return key && key !== hint && i18n.exists(key, { ns: 'notify' }) ? t(key) : undefined
+  }
   const save = useSaveChannel()
   const type = opened.type
   // The channel as the box has it now: a Zalo personal dialog stays open after Save to show each approver's link state (D-447).
@@ -151,6 +158,7 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
     const u = free.find((x) => x.id === pick) ?? free[0]
     if (u) { setApprovers((l) => [...l, { user_id: u.id, address: type === 'email' ? u.email : '' }]); setPick('') }
   }
+  const secretInfo = type === 'zalo' && (zaloGrant || zaloRefresh) ? t('channels.f.zalo.secret.infoGrant') : type === 'email' ? infoOf(emailKeys(prov, 'secret', 'hint')) : infoOf([`channels.f.${type}.secret.hint`])
   const secretHint = type === 'zalo' && (zaloGrant || zaloRefresh) ? t('channels.f.zalo.secret.hintGrant') : type === 'email' && keyOf ? t('channels.f.email.secret.loaded', { email: keyOf }) : keepsSecret ? t('channels.secretSaved', { last4: channel.secret_last4 }) : type === 'email' ? t(emailKeys(prov, 'secret', 'hint')) : t(`channels.f.${type}.secret.hint`)
   const shown = (k: string) => type !== 'email' || (k !== 'username' || prov.auth !== 'token_as_user') &&
     (k !== 'tenant_id' || prov.auth === 'microsoft_oauth' || prov.id === 'microsoft365-user') && (k !== 'client_id' || ['microsoft_oauth', 'microsoft_user', 'google_user'].includes(prov.auth))
@@ -193,9 +201,13 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
                   </Field>
                   {prov.doc ? (
                     <div role="note" aria-label={t(`channels.f.email.provider.name.${prov.id}`)}>
-                      <Notice tone="accent" title={t(`channels.f.email.provider.help.${prov.id}`)} className="mb-0">
-                        <div className="grid gap-1.5">
+                      <Notice tone="accent" title={t(`channels.f.email.provider.help.${prov.id}`)} className="mb-0" info={(
+                        <>
+                          <p>{t(`channels.f.email.provider.helpInfo.${prov.id}`)}</p>
                           {Object.keys(steps).length ? <ol className="list-decimal pl-5">{Object.entries(steps).map(([s, text]) => <li key={s}>{text}</li>)}</ol> : null}
+                        </>
+                      )}>
+                        <div className="grid gap-1.5">
                           <a className="w-fit text-accent underline underline-offset-4" href={prov.doc} target="_blank" rel="noopener noreferrer">{t('channels.f.email.provider.doc', { name: t(`channels.f.email.provider.name.${prov.id}`) })}</a>
                         </div>
                       </Notice>
@@ -219,8 +231,9 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
               )
             }
             const hint = type === 'webhook' && k === 'url' && channel.fields.url ? t('channels.urlSaved', { url: channel.fields.url }) : type === 'email' ? t(emailKeys(prov, k, 'hint')) : t(`channels.f.${type}.${k}.hint`)
+            const info = infoOf(type === 'email' ? emailKeys(prov, k, 'hint') : [`channels.f.${type}.${k}.hint`])
             const input = (
-              <Field key={k} label={label} hint={hint} htmlFor={id} error={fieldErr[k]}>
+              <Field key={k} label={label} hint={hint} info={info} htmlFor={id} error={fieldErr[k]}>
                 <Input id={id} value={fields[k] ?? ''} type={k === 'port' ? 'number' : 'text'} readOnly={type === 'email' && ((k === 'host' && !!OAUTH_HOST[prov.id]) || (k === 'username' && isUserSignin(prov.auth)))} onChange={(e) => set(k, e.target.value)} autoComplete="off" {...aria(id, k)} />
               </Field>
             )
@@ -235,14 +248,14 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
           {type === 'zalo' ? (
             <div className="grid gap-3">
               <div role="note" aria-label={t('channels.f.zalo.helpTitle')}>
-                <Notice tone="accent" title={t('channels.f.zalo.help')} className="mb-0">
+                <Notice tone="accent" title={t('channels.f.zalo.help')} info={t('channels.f.zalo.helpInfo')} className="mb-0">
                   <a className="w-fit text-accent underline underline-offset-4" href={ZALO_OA_DOC} target="_blank" rel="noopener noreferrer">{t('channels.f.zalo.doc')}</a>
                 </Notice>
               </div>
-              <Field label={t('channels.f.zalo.secret_key.label')} hint={zaloGrant ? t('channels.keepSaved') : t('channels.f.zalo.secret_key.hint')} htmlFor="ch-zalo-secret_key" error={fieldErr.secret_key}>
+              <Field label={t('channels.f.zalo.secret_key.label')} hint={zaloGrant ? t('channels.keepSaved') : t('channels.f.zalo.secret_key.hint')} info={t('channels.f.zalo.secret_key.info')} htmlFor="ch-zalo-secret_key" error={fieldErr.secret_key}>
                 <Input id="ch-zalo-secret_key" type="password" value={zaloKey} onChange={(e) => { setZaloKey(e.target.value); fixed('secret_key') }} autoComplete="new-password" {...aria('ch-zalo-secret_key', 'secret_key')} />
               </Field>
-              <Field label={t('channels.f.zalo.refresh_token.label')} hint={zaloGrant ? t('channels.secretSaved', { last4: channel.secret_last4 }) : t('channels.f.zalo.refresh_token.hint')} htmlFor="ch-zalo-refresh_token" error={fieldErr.refresh_token}>
+              <Field label={t('channels.f.zalo.refresh_token.label')} hint={zaloGrant ? t('channels.secretSaved', { last4: channel.secret_last4 }) : t('channels.f.zalo.refresh_token.hint')} info={t('channels.f.zalo.refresh_token.info')} htmlFor="ch-zalo-refresh_token" error={fieldErr.refresh_token}>
                 <Input id="ch-zalo-refresh_token" type="password" value={zaloRefresh} onChange={(e) => { setZaloRefresh(e.target.value); fixed('refresh_token') }} autoComplete="new-password" {...aria('ch-zalo-refresh_token', 'refresh_token')} />
               </Field>
             </div>
@@ -258,11 +271,11 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
               onSignedIn={(id, mailbox) => { setSignin(id); if (id) { setFields((f) => ({ ...f, username: mailbox })); fixed('secret'); fixed('username') } }}
               onFieldError={(f, m) => showErrors({ [f]: m })} />
           ) : type === 'email' && prov.auth === 'google_oauth' ? (
-            <Field label={t(emailKeys(prov, 'secret', 'label'))} hint={secretHint} htmlFor="ch-email-secret" error={fieldErr.secret}>
+            <Field label={t(emailKeys(prov, 'secret', 'label'))} hint={secretHint} info={secretInfo} htmlFor="ch-email-secret" error={fieldErr.secret}>
               <Input id="ch-email-secret" type="file" accept=".json,application/json" onChange={(e) => void chooseKey(e.target.files?.[0])} {...aria('ch-email-secret', 'secret')} />
             </Field>
           ) : (
-            <Field label={type === 'email' ? t(emailKeys(prov, 'secret', 'label')) : t(`channels.f.${type}.secret.label`)} hint={secretHint} htmlFor={`ch-${type}-secret`} error={fieldErr.secret}>
+            <Field label={type === 'email' ? t(emailKeys(prov, 'secret', 'label')) : t(`channels.f.${type}.secret.label`)} hint={secretHint} info={secretInfo} htmlFor={`ch-${type}-secret`} error={fieldErr.secret}>
               <div className="flex gap-2">
                 <Input id={`ch-${type}-secret`} type="password" value={secret} onChange={(e) => { setSecret(e.target.value); fixed('secret') }} autoComplete="new-password" {...aria(`ch-${type}-secret`, 'secret')} />
                 {type === 'webhook' ? <Button onClick={() => { setSecret(randomKey()); fixed('secret') }}>{t('channels.generate')}</Button> : null}
@@ -270,7 +283,14 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
             </Field>
           )}
           <fieldset className="grid gap-3 rounded-md border border-rule bg-sunken p-3">
-            <legend className="px-1 text-sm font-medium">{t('approve.title')}</legend>
+            <legend className="flex items-center gap-1 px-1 text-sm font-medium">{t('approve.title')}
+              <InfoTip topic={t('approve.title')}>{APPROVAL_CHANNELS.includes(type) ? (
+                <>
+                  <p>{t(`approve.hintInfo.${type}`)}</p>
+                  {type === 'email' ? <ul className="list-disc pl-5">{(['p1', 'p2', 'p3', 'p4'] as const).map((k) => <li key={k}>{t(`approve.email.${k}`)}</li>)}</ul> : null}
+                </>
+              ) : t('approve.linkOnlyInfo')}</InfoTip>
+            </legend>
             {APPROVAL_CHANNELS.includes(type) ? (
               <>
                 <div className="flex items-center gap-3">
@@ -278,10 +298,12 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
                   <Label htmlFor={`ch-${type}-appr`}>{t('approve.switch')}</Label>
                 </div>
                 <p className="text-[13px] text-muted">{t(`approve.hint.${type}`)}</p>
-                {type === 'email' ? <ul className="list-disc pl-5 text-[13px] text-muted">{(['p1', 'p2', 'p3', 'p4'] as const).map((k) => <li key={k}>{t(`approve.email.${k}`)}</li>)}</ul> : null}
                 {approvals ? (
                   <div className="grid gap-2" role="group" aria-label={t('approve.listTitle')}>
-                    <span className="text-sm font-medium">{t('approve.listTitle')}</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-medium">{t('approve.listTitle')}</span>
+                      <InfoTip topic={t('approve.listTitle')}>{t('approve.viewersInfo')}</InfoTip>
+                    </div>
                     {approvers.length === 0 ? <p className="text-[13px] text-muted">{t('approve.empty')}</p> : null}
                     {approvers.map((a) => {
                       const u = eligible.find((x) => x.id === a.user_id)
@@ -313,18 +335,17 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
                       </Field>
                       <Button disabled={free.length === 0} onClick={addApprover}>{t('approve.add')}</Button>
                     </div>
-                    <p className="text-[13px] text-muted">{t('approve.viewers')}</p>
                   </div>
                 ) : null}
                 {type === 'slack' && approvals ? (
                   <>
-                    <Field label={t('channels.f.slack.channel_id.label')} hint={t('channels.f.slack.channel_id.hint')} htmlFor="ch-slack-channel_id" error={fieldErr.channel_id}>
+                    <Field label={t('channels.f.slack.channel_id.label')} hint={t('channels.f.slack.channel_id.hint')} info={t('channels.f.slack.channel_id.info')} htmlFor="ch-slack-channel_id" error={fieldErr.channel_id}>
                       <Input id="ch-slack-channel_id" value={fields.channel_id ?? ''} onChange={(e) => set('channel_id', e.target.value)} autoComplete="off" {...aria('ch-slack-channel_id', 'channel_id')} />
                     </Field>
-                    <Field label={t('channels.f.slack.app_token.label')} hint={channel.approval_last4.app_token ? t('channels.secretSaved', { last4: channel.approval_last4.app_token }) : t('channels.f.slack.app_token.hint')} htmlFor="ch-slack-app_token" error={fieldErr.app_token}>
+                    <Field label={t('channels.f.slack.app_token.label')} hint={channel.approval_last4.app_token ? t('channels.secretSaved', { last4: channel.approval_last4.app_token }) : t('channels.f.slack.app_token.hint')} info={t('channels.f.slack.app_token.info')} htmlFor="ch-slack-app_token" error={fieldErr.app_token}>
                       <Input id="ch-slack-app_token" type="password" value={appToken} onChange={(e) => { setAppToken(e.target.value); fixed('app_token') }} autoComplete="new-password" {...aria('ch-slack-app_token', 'app_token')} />
                     </Field>
-                    <Field label={t('channels.f.slack.bot_token.label')} hint={channel.approval_last4.bot_token ? t('channels.secretSaved', { last4: channel.approval_last4.bot_token }) : t('channels.f.slack.bot_token.hint')} htmlFor="ch-slack-bot_token" error={fieldErr.bot_token}>
+                    <Field label={t('channels.f.slack.bot_token.label')} hint={channel.approval_last4.bot_token ? t('channels.secretSaved', { last4: channel.approval_last4.bot_token }) : t('channels.f.slack.bot_token.hint')} info={t('channels.f.slack.bot_token.info')} htmlFor="ch-slack-bot_token" error={fieldErr.bot_token}>
                       <Input id="ch-slack-bot_token" type="password" value={botToken} onChange={(e) => { setBotToken(e.target.value); fixed('bot_token') }} autoComplete="new-password" {...aria('ch-slack-bot_token', 'bot_token')} />
                     </Field>
                   </>
@@ -461,7 +482,7 @@ function Rules({ init }: { init: { quiet: Quiet; grouping: Grouping } }) {
     <form onSubmit={submit} className="grid max-w-2xl gap-8" noValidate>
       {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{error}</p> : null}
       <fieldset disabled={!isAdmin} className="grid gap-3 border-0 p-0">
-        <legend className="mb-1 text-base font-semibold">{t('rules.quiet.title')}</legend>
+        <legend className="mb-1 flex items-center gap-1 text-base font-semibold">{t('rules.quiet.title')}<InfoTip topic={t('rules.quiet.title')}>{t('rules.quiet.descriptionInfo')}</InfoTip></legend>
         <p className="text-[13px] text-muted">{t('rules.quiet.description')}</p>
         <div className="flex items-center gap-3"><Switch id="q-on" checked={quiet.enabled} onCheckedChange={(v) => setQuiet({ ...quiet, enabled: v })} /><Label htmlFor="q-on">{t('rules.quiet.enabled')}</Label></div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -472,7 +493,7 @@ function Rules({ init }: { init: { quiet: Quiet; grouping: Grouping } }) {
         <div className="flex items-center gap-2"><Checkbox id="q-crit" checked={quiet.allow_critical} onCheckedChange={(c) => setQuiet({ ...quiet, allow_critical: c === true })} /><Label htmlFor="q-crit" className="font-normal">{t('rules.quiet.allowCritical')}</Label></div>
       </fieldset>
       <fieldset disabled={!isAdmin} className="grid gap-3 border-0 p-0">
-        <legend className="mb-1 text-base font-semibold">{t('rules.grouping.title')}</legend>
+        <legend className="mb-1 flex items-center gap-1 text-base font-semibold">{t('rules.grouping.title')}<InfoTip topic={t('rules.grouping.title')}>{t('rules.grouping.descriptionInfo')}</InfoTip></legend>
         <p className="text-[13px] text-muted">{t('rules.grouping.description')}</p>
         <div className="flex items-center gap-3"><Switch id="g-on" checked={grouping.enabled} onCheckedChange={(v) => setGrouping({ ...grouping, enabled: v })} /><Label htmlFor="g-on">{t('rules.grouping.enabled')}</Label></div>
         <Field label={t('rules.grouping.window')} htmlFor="g-win" className="max-w-xs">
@@ -491,8 +512,8 @@ export default function ChannelsSettings() {
   const q = useChannels()
   return (
     <RequireModule module="notify">
-      <PageHeader title={t('channels.title')} meta={t('channels.description')} stories={['S-NOT-1', 'S-NOT-2', 'S-RESP-2']} />
-        <Notice tone="accent" title={t('channels.privacy')} />
+      <PageHeader title={t('channels.title')} meta={t('channels.description')} info={t('channels.descriptionInfo')} stories={['S-NOT-1', 'S-NOT-2', 'S-RESP-2']} />
+        <Notice tone="accent" title={t('channels.privacy')} info={t('channels.privacyInfo')} />
         <QueryState query={q}>
           {(d) => (
             <div className="grid gap-8">

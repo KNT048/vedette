@@ -6,6 +6,7 @@ import { Link } from 'react-router'
 import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
+import { InfoTip } from '@/components/common/InfoTip'
 import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -137,8 +138,11 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
     : c.signature === 'unsigned' && c.version.endsWith('-dev') ? <Chip tone="off">{t('updates.sig.dev')}</Chip>
     : <Chip tone="danger">{t(`updates.sig.${c.signature}`)}</Chip>)
 
+  // The helper row: one short line, the rollback detail behind ⓘ (#824).
+  const hostHow = <div className="flex items-center gap-1"><span className="text-[12px] text-muted">{t('updates.host.how')}</span><InfoTip topic={comp('host')}>{t('updates.host.howInfo')}</InfoTip></div>
+
   const columns: ColumnDef<UpdateComponent>[] = [
-    { id: 'name', header: t('updates.col.component'), accessorFn: (c) => comp(c.id), cell: ({ row }) => <div className="grid"><span className="font-medium">{comp(row.original.id)}</span>{row.original.id === 'host' ? <span className="max-w-xs text-[12px] text-muted">{t('updates.host.how')}</span> : <span className="text-[12px] text-muted">{t(`updates.kind.${row.original.kind}`)}</span>}</div> },
+    { id: 'name', header: t('updates.col.component'), accessorFn: (c) => comp(c.id), cell: ({ row }) => <div className="grid"><span className="font-medium">{comp(row.original.id)}</span>{row.original.id === 'host' ? hostHow : <span className="text-[12px] text-muted">{t(`updates.kind.${row.original.kind}`)}</span>}</div> },
     { id: 'version', header: t('updates.col.version'), accessorFn: (c) => c.version, cell: ({ row }) => <div className="grid"><span className="font-mono text-[12.5px]">{row.original.version}</span><span className="text-[12px] text-muted">{fmtDateTime(row.original.installed_at)}</span></div> },
     { id: 'sig', header: t('updates.col.signature'), accessorFn: (c) => c.signature, cell: ({ row }) => sigChip(row.original) },
     { id: 'available', header: t('updates.col.available'), enableSorting: false, accessorFn: (c) => availableOf(c.id)?.version ?? '', cell: ({ row }) => {
@@ -174,16 +178,16 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
   return (
     <>
       <section id="managed" aria-labelledby="managed-band" className="mt-12">
-        <Band id="managed-band" n="2" title={t('updates.managed.title')} desc={t('updates.managed.desc')} />
+        <Band id="managed-band" n="2" title={t('updates.managed.title')} desc={t('updates.managed.desc')} info={t('updates.managed.info')} />
         {/* No empty table (D-407): the list comes from the running release's signed manifest, which a build without a release never gets. */}
         {s.managed.length ? (
           <DataTable data={s.managed} columns={managedCols} caption={t('updates.managed.title')} pageSize={20}
             mobileRow={(p) => <div className="flex flex-wrap items-center justify-between gap-2"><div className="grid"><span className="font-medium">{p.name}</span><span className="font-mono text-[12px] text-muted">{p.version}</span></div>{p.status === 'ok' ? <Chip tone="ok">{t('updates.managed.pinned')}</Chip> : <Chip tone="warn">{t('updates.managed.pending')}</Chip>}</div>} />
-        ) : <p className="max-w-3xl text-sm text-muted">{t('updates.managed.none')}</p>}
+        ) : <div className="flex items-center gap-1"><p className="text-sm text-muted">{t('updates.managed.none')}</p><InfoTip topic={t('updates.managed.none')}>{t('updates.managed.noneInfo')}</InfoTip></div>}
       </section>
 
       <section id="vedette" aria-labelledby="vedette-band" className="mt-12">
-        <Band id="vedette-band" n="3" title={t('updates.vedette.title')} desc={t('updates.vedette.desc')} />
+        <Band id="vedette-band" n="3" title={t('updates.vedette.title')} desc={t('updates.vedette.desc')} info={t('updates.vedette.info')} />
       {s.run ? <RunPanel run={s.run} name={comp(s.run.component)} reconnecting={reconnecting} after={after} /> : null}
       <UpdateNotices s={s} />
       {affected.length ? (
@@ -198,7 +202,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
             <p className="text-[13px] text-muted">{t(`updates.channelHint.${s.channel}`)}</p>
           </div>
           <div className="grid gap-1.5">
-            <span className="text-sm font-medium">{t('updates.mode')}</span>
+            <div className="flex items-center gap-1"><span className="text-sm font-medium">{t('updates.mode')}</span><InfoTip topic={t('updates.mode')}>{t('updates.modeInfo')}</InfoTip></div>
             <Segmented label={t('updates.mode')} value={s.mode} onChange={(v) => admin.ok && void m.settings.mutateAsync({ mode: v }).catch((e) => toast.error(errMsg(e, t)))} options={[{ value: 'manual', label: t('updates.manual') }, { value: 'auto', label: t('updates.auto') }]} />
             <p className="text-[13px] text-muted">{t(`updates.modeHint.${s.mode}`)}</p>
           </div>
@@ -210,18 +214,18 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
         </p>
       </Section>
 
-      <Section title={t('updates.sources.title')}>
+      <Section title={t('updates.sources.title')} info={t('updates.sources.info')}>
         <p className="max-w-3xl text-sm">{t('updates.sources.body')} <Link className="text-accent underline-offset-4 hover:underline" to="/settings/feeds">{t('updates.sources.link')}</Link></p>
       </Section>
 
-      <Section title={t('updates.components')} description={t('updates.componentsDesc')}>
+      <Section title={t('updates.components')} description={t('updates.componentsDesc')} info={t('updates.componentsInfo')}>
         <DataTable data={s.components} columns={columns} caption={t('updates.components')} pageSize={20}
           mobileRow={(c) => {
             const a = availableOf(c.id)
             return (
               <div className="grid gap-1.5">
                 <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{comp(c.id)}</span>{sigChip(c)}</div>
-                {c.id === 'host' ? <span className="text-[12px] text-muted">{t('updates.host.how')}</span> : null}
+                {c.id === 'host' ? hostHow : null}
                 <span className="font-mono text-[12.5px]">{c.version} <span className="font-sans text-[12px] text-muted">{fmtDateTime(c.installed_at)}</span></span>
                 {c.id === 'host' ? (hostNext ? <span className="text-[13px]">{t('updates.col.available')}: <span className="font-mono">{hostNext}</span></span> : <span className="text-[13px] text-muted">{t('updates.latest')}</span>)
                 : a ? <div className="flex flex-wrap items-center gap-2"><span className="text-[13px]">{t('updates.col.available')}: <span className="font-mono">{a.version}</span></span><Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} title={admin.title} onClick={() => void apply(a.component)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button></div> : <span className="text-[13px] text-muted">{t('updates.latest')}</span>}
@@ -232,7 +236,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
           }} />
       </Section>
 
-      <Section title={t('updates.advisories')} description={t('updates.advisoriesDesc')}>
+      <Section title={t('updates.advisories')} description={t('updates.advisoriesDesc')} info={t('updates.advisoriesInfo')}>
         {s.advisories.length ? (
         <ul className="grid gap-2">
           {s.advisories.map((a) => (
@@ -250,7 +254,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
       </Section>
 
       {BUNDLE_IN_UI ? (
-      <Section title={t('updates.bundle.title')} description={t('updates.bundle.desc')}>
+      <Section title={t('updates.bundle.title')} description={t('updates.bundle.desc')} info={t('updates.bundle.info')}>
         <div className="flex flex-wrap items-center gap-2">
           <Button disabled={operator.disabled} title={operator.title} onClick={() => void download('/core/updates/bundle', 'vedette-bundle.json').catch((e) => toast.error(errMsg(e, t)))}><Download />{t('updates.bundle.export')}</Button>
           <input ref={file} type="file" hidden tabIndex={-1} aria-label={t('updates.bundle.file')} accept=".json,application/json" onChange={(e) => void importBundle(e.target.files?.[0])} />
@@ -265,9 +269,9 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
       </Section>
 
       <Dialog open={!!rollback} onOpenChange={(o) => !o && setRollback(null)}>
-        <DialogContent title={t('updates.rollbackAsk.title', { name: rollback ? comp(rollback.id) : '' })} description={rollback ? t('updates.rollbackAsk.body', { from: rollback.version, to: rollback.previous ?? '' }) : undefined}>
+        <DialogContent title={t('updates.rollbackAsk.title', { name: rollback ? comp(rollback.id) : '' })} description={rollback ? t('updates.rollbackAsk.body', { from: rollback.version, to: rollback.previous ?? '' }) : undefined} info={t('updates.rollbackAsk.manualInfo')}>
           {rollback?.rollback_restores_data ? (
-            <Notice tone="danger" className="mb-0" title={t('updates.rollbackAsk.dataLoss')}>
+            <Notice tone="danger" className="mb-0" title={t('updates.rollbackAsk.dataLoss')} info={t('updates.rollbackAsk.dataLossInfo')}>
               <p>{t('updates.rollbackAsk.dataLossWhy')}</p>
               <label className="mt-2 flex items-start gap-2 text-ink"><Checkbox checked={dataLossOk} onCheckedChange={(v) => setDataLossOk(v === true)} className="mt-0.5" />{t('updates.rollbackAsk.dataLossOk')}</label>
             </Notice>
@@ -287,7 +291,7 @@ export default function UpdatesSection() {
   // D-381: a container-only install has no spare slot, rollback, channels or packages: the customer pulls the new images (S-CORE-9 G4).
   if (install === 'container') return (
     <>
-      <PageHeader title={t('settings.updates')} meta={t('container.updates.meta')} stories={['S-CORE-2', 'S-CORE-9']} />
+      <PageHeader title={t('settings.updates')} meta={t('container.updates.meta')} info={t('container.updates.metaInfo')} stories={['S-CORE-2', 'S-CORE-9']} />
       <ContainerNotices />
       <ContainerUpdates />
     </>
@@ -310,7 +314,7 @@ function ApplianceUpdates() {
   const title = !name ? t('settings.updates') : sec ? t('updates.titleOs', { name, count: sec }) : t('updates.titleOsClean', { name })
   return (
     <>
-      <PageHeader title={title} meta={t('updates.meta')} stories={['S-CORE-2', 'S-CORE-7']} />
+      <PageHeader title={title} meta={t('updates.meta')} info={t('updates.metaInfo')} stories={['S-CORE-2', 'S-CORE-7']} />
       <ReadOnlyNote role="admin" />
       <OsBlock />
       {/* The software part has its own query: when it fails or is not built yet (501), the operating system part above still shows (issue #230). */}

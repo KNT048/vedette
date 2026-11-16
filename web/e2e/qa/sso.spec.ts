@@ -45,7 +45,7 @@ async function look(page: Page, info: TestInfo, name: string) {
 }
 async function loginPw(page: Page, email = EMAIL, password = PW) {
   await page.goto('/login')
-  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Email', { exact: true }).fill(email)
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page).not.toHaveURL(/\/login/)
@@ -73,7 +73,7 @@ test('A-C, E: admin sets up SSO, a person signs in, admin sees them, admin turns
   await expect(page.getByText(/SSO sign-in is off\./)).toBeVisible()
   await look(page, info, 'a1-sso-off')
   await page.getByRole('button', { name: 'Turn on SSO sign-in' }).click()
-  await expect(page.getByLabel('Issuer')).toBeVisible()
+  await expect(page.getByLabel('Issuer', { exact: true })).toBeVisible()
   await expect(page.getByText('Redirect URI: register this address at your identity provider')).toBeVisible()
   await expect(page.getByText(/\/sso\/callback$/).first()).toBeVisible()
   // Test connection is not usable before the first save, and says why
@@ -81,28 +81,28 @@ test('A-C, E: admin sets up SSO, a person signs in, admin sees them, admin turns
   await look(page, info, 'a2-sso-on-empty')
 
   // http is refused with a clear sentence beside the field
-  await page.getByLabel('Issuer').fill('http://sso.testco.example/realms/main')
-  await page.getByLabel('Client ID').fill('vedette')
-  await page.getByLabel('Client secret').fill('client-secret-123')
+  await page.getByLabel('Issuer', { exact: true }).fill('http://sso.testco.example/realms/main')
+  await page.getByLabel('Client ID', { exact: true }).fill('vedette')
+  await page.getByLabel('Client secret', { exact: true }).fill('client-secret-123')
   await oidcForm(page).getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByText(/The issuer must be an https address/)).toBeVisible()
-  await expect(page.getByLabel('Issuer')).toHaveAttribute('aria-invalid', 'true')
-  await expect(page.getByLabel('Issuer')).toHaveValue('http://sso.testco.example/realms/main') // what I typed is kept
+  await expect(page.getByLabel('Issuer', { exact: true })).toHaveAttribute('aria-invalid', 'true')
+  await expect(page.getByLabel('Issuer', { exact: true })).toHaveValue('http://sso.testco.example/realms/main') // what I typed is kept
   await look(page, info, 'a3-http-error')
 
-  await page.getByLabel('Issuer').fill(ISSUER)
-  await page.getByLabel('Scopes').fill('openid email profile groups')
-  await expect(page.getByLabel('Groups claim')).toHaveValue('groups')
+  await page.getByLabel('Issuer', { exact: true }).fill(ISSUER)
+  await page.getByLabel('Scopes', { exact: true }).fill('openid email profile groups')
+  await expect(page.getByLabel('Groups claim', { exact: true })).toHaveValue('groups')
   await page.getByRole('button', { name: 'Add row' }).click()
-  await page.getByLabel('Group name, row 1').fill(GROUP)
-  await page.getByLabel('Role, row 1').selectOption({ label: 'Operator' })
-  await expect(page.getByLabel('People in none of these groups')).toHaveValue(/./) // No access is the default
-  await expect(page.getByLabel('People in none of these groups').locator('option:checked')).toHaveText('No access')
+  await page.getByLabel('Group name, row 1', { exact: true }).fill(GROUP)
+  await page.getByLabel('Role, row 1', { exact: true }).selectOption({ label: 'Operator' })
+  await expect(page.getByLabel('People in none of these groups', { exact: true })).toHaveValue(/./) // No access is the default
+  await expect(page.getByLabel('People in none of these groups', { exact: true }).locator('option:checked')).toHaveText('No access')
   await look(page, info, 'a4-filled')
   await oidcForm(page).getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByText('Saved', { exact: true }).first()).toBeVisible()
   await expect(page.getByText('Saved, ending in -123. Leave empty to keep it.')).toBeVisible()
-  await expect(page.getByLabel('Client secret')).toHaveValue('') // the secret is not echoed back
+  await expect(page.getByLabel('Client secret', { exact: true })).toHaveValue('') // the secret is not echoed back
   await page.waitForTimeout(1500) // let the "Saved" toast finish its fade-in, or axe measures contrast mid-animation
   await look(page, info, 'a5-saved')
 
@@ -144,7 +144,7 @@ test('A-C, E: admin sets up SSO, a person signs in, admin sees them, admin turns
   await expect(page.getByRole('heading', { name: 'Password and two-step sign-in' })).toBeVisible()
   await expect(page.getByText(/You sign in through your company account \(SSO\)/)).toBeVisible()
   await expect(page.getByText(/not in Vedette/)).toBeVisible()
-  await expect(page.getByLabel('Your current password')).toHaveCount(0)
+  await expect(page.getByLabel('Your current password', { exact: true })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Set up authenticator app/ })).toHaveCount(0)
   await look(page, info, 'b4-my-account-sso')
 
@@ -173,7 +173,7 @@ test('A-C, E: admin sets up SSO, a person signs in, admin sees them, admin turns
   await look(page, info, 'e1-turn-off-dialog')
   await dlg.getByRole('button', { name: 'Cancel' }).click()
   await expect(dlg).toHaveCount(0)
-  await expect(page.getByLabel('Issuer')).toHaveValue(ISSUER) // cancel changed nothing
+  await expect(page.getByLabel('Issuer', { exact: true })).toHaveValue(ISSUER) // cancel changed nothing
   await page.getByRole('button', { name: 'Turn off SSO' }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Turn off SSO' }).click()
   await expect(page.getByText(/SSO sign-in is off\. The settings are kept\./).first()).toBeVisible()
@@ -231,9 +231,9 @@ test('D: refusals have a clear sentence and a way back', async ({ page, context 
   // the admin removes the only group row; the same person is now refused
   await loginPw(page)
   await page.goto('/settings/users')
-  await expect(page.getByLabel('Group name, row 1')).toHaveValue(GROUP)
+  await expect(page.getByLabel('Group name, row 1', { exact: true })).toHaveValue(GROUP)
   await page.getByRole('button', { name: 'Remove row 1' }).click()
-  await expect(page.getByLabel('Group name, row 1')).toHaveCount(0)
+  await expect(page.getByLabel('Group name, row 1', { exact: true })).toHaveCount(0)
   await oidcForm(page).getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByText('Saved', { exact: true }).first()).toBeVisible()
   await look(page, info, 'd4-group-row-removed')

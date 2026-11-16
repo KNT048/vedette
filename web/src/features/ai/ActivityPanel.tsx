@@ -37,7 +37,7 @@ export default function ActivityPanel() {
     { id: 'open', header: t('activity.col.details'), enableSorting: false, cell: ({ row }) => <Button size="sm" onClick={() => setOpen(row.original)} aria-label={t('activity.openFor', { job: job(row.original.job), time: fmtDateTime(row.original.ts) })}>{t('activity.open')}</Button> },
   ]
   return (
-    <Section title={t('activity.title')} description={t('activity.description')} stories={['S-AI-8']}>
+    <Section title={t('activity.title')} description={t('activity.description')} info={t('activity.descriptionInfo')} stories={['S-AI-8']}>
       <div className="grid gap-4">
         <p role="status" className={`rounded-md border px-3 py-2 text-sm ${v && !v.ok ? 'border-danger/50 bg-danger-soft' : 'border-rule bg-surface'}`}>
           {!v ? t('activity.verifying') : v.ok ? t('activity.verified', { n: fmtNumber(v.count) }) : t('activity.broken', { n: v.broken_at })}
@@ -75,7 +75,7 @@ function Detail({ e, job }: { e: ActivityEntry; job: string }) {
   const row = (k: string, v: React.ReactNode) => <div className="grid gap-0.5 sm:grid-cols-[9rem_minmax(0,1fr)]"><dt className="text-muted">{k}</dt><dd className="min-w-0 break-words">{v}</dd></div>
   const mono = (s: string) => <code className="break-all font-mono text-[12px]">{s}</code>
   return (
-    <DialogContent wide title={t('activity.detail.title', { job })} description={fmtDateTime(e.ts)}>
+    <DialogContent wide title={t('activity.detail.title', { job })} description={fmtDateTime(e.ts)} info={t('activity.detail.note')}>
       <dl className="grid gap-2 text-sm">
         {row(t('activity.col.result'), <Chip tone={TONE[e.result]}>{t(`activity.result.${e.result}`)}</Chip>)}
         {row(t('activity.detail.summary'), e.summary)}
@@ -90,7 +90,6 @@ function Detail({ e, job }: { e: ActivityEntry; job: string }) {
         {row(t('activity.detail.prev'), mono(e.prev_hash))}
         {row(t('activity.detail.hash'), mono(e.hash))}
       </dl>
-      <p className="text-[13px] text-muted">{t('activity.detail.note')}</p>
     </DialogContent>
   )
 }

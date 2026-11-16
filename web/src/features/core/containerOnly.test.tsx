@@ -55,7 +55,8 @@ describe('container-only install (D-381)', () => {
     expect(screen.getByText(/^podman compose --env-file vedette.env stop core/)).toBeInTheDocument()
     expect(screen.getByText(/^podman compose --env-file vedette.env create core/)).toBeInTheDocument()
     expect(screen.queryByText(/docker (run|compose)/)).toBeNull()
-    expect(screen.getByText(/SELinux/)).toBeInTheDocument()
+    expect(screen.getByText('With SELinux (Fedora, RHEL), the /backup mounts need :Z.')).toBeInTheDocument()
+    expect(screen.getByText(/add :Z to the "\$PWD":\/backup mount of the backup command and :ro,Z to the same mount of the restore command/)).toBeInTheDocument() // the detail, behind ⓘ (#824)
   })
 
   it('Updates names the offered release and its notes, with the update and cosign blocks for Docker or Podman and no Apply (S-CORE-9 G4)', async () => {
@@ -75,7 +76,8 @@ describe('container-only install (D-381)', () => {
     // a kept folder already there holds the good files: put them back before moving it aside (QA r2), never rename it alone
     const keep = [...items[0]!.querySelectorAll('code')].map((c) => c.textContent)
     expect(keep[1]).toBe('cp vedette-0.9.3/* .\nmv vedette-0.9.3 vedette-0.9.3-before')
-    expect(within(items[0]!).getByText(/If vedette-0\.9\.3 is already there .*first put its files back, then rename it, and run this step again/)).toBeInTheDocument()
+    expect(within(items[0]!).getByText('If vedette-0.9.3 is already there, put its files back and rename it first:')).toBeInTheDocument()
+    expect(within(items[0]!).getByText(/an update you stopped, or a way back you took\. Then run this step again/)).toBeInTheDocument() // behind ⓘ (#824)
     expect(within(items[0]!).getByText('Only if vedette-0.9.3 is already there')).toBeInTheDocument()
     // the four files and their signatures of the offered version, from the release assets; the loop stops at the first failure
     expect(steps[1]).toBe(`u=https://github.com/KNT048/vedette/releases/download/v0.9.4\nfor f in ${four}; do curl -fsSLO "$u/$f" && curl -fsSLO "$u/$f.minisig" || { echo "download failed: $f"; break; }; done`)
@@ -149,7 +151,7 @@ describe('container-only install (D-381)', () => {
   })
 
   it.each([
-    ['no check has run', { last_check: null }, /No release information yet: no update check has run on this install\./],
+    ['no check has run', { last_check: null }, /No release information yet: no update check has run\./],
     ['the check is off', { check_enabled: false }, /The update check is off/],
     ['nothing newer', { last_check: '2026-11-12T00:00:00Z' }, /No newer release is offered to this install\./],
   ])('Updates without a newer release says why (%s) and keeps the general pull and up -d block', async (_, over, said) => {
@@ -173,7 +175,8 @@ describe('container-only install (D-381)', () => {
     renderApp('/settings/updates')
     expect(await screen.findByText(`Last check failed 1 hour ago: ${message}`)).toBeInTheDocument()
     expect(screen.queryByText(/No check has run yet/)).toBeNull()
-    expect(screen.getByText('No release information yet: no update check has succeeded on this install. Vedette tries again every 6 hours.')).toBeInTheDocument()
+    expect(screen.getByText('No release information yet: no update check has succeeded.')).toBeInTheDocument()
+    expect(screen.getByText('Vedette tries again every 6 hours.')).toBeInTheDocument() // behind ⓘ (#824)
     expect(screen.queryByText(/cannot reach github\.com/)).toBeNull() // the failure line says the real reason
   })
 
@@ -264,7 +267,8 @@ describe('container-only install (D-381)', () => {
     expect(await screen.findByText(/publishes the port on 127\.0\.0\.1 of the machine that runs Docker or Podman, never on the LAN/)).toBeInTheDocument()
     expect(screen.getByText(/with an older compose\.yaml no tool can connect until you update it/)).toBeInTheDocument()
     expect(screen.getByText(/must go through an SSH tunnel to that machine/)).toBeInTheDocument()
-    expect(screen.getByText('Listening inside the vedette-core container. The compose.yaml of this release publishes it on the localhost of the machine that runs the container only.')).toBeInTheDocument()
+    expect(screen.getByText('Listening inside the vedette-core container.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'About Listening inside the vedette-core container.' })).toHaveAccessibleDescription('The compose.yaml of this release publishes it on the localhost of the machine that runs the container only.')
     expect(screen.queryByText(/not published/)).toBeNull()
   })
 

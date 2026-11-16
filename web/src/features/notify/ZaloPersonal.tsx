@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { QrCode, TriangleAlert } from 'lucide-react'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select } from '@/components/ui/input'
@@ -60,7 +61,10 @@ export function ZaloSignIn({ channel, onSigned }: { channel: Channel; onSigned: 
   const saved = channel.fields.account
   return (
     <div className="grid gap-2 rounded-md border border-rule p-3">
-      <span className="text-sm font-medium">{t('zp.login')}</span>
+      <div className="flex items-center gap-1">
+        <span className="text-sm font-medium">{t('zp.login')}</span>
+        <InfoTip topic={t('zp.login')}><p>{t('zp.loginInfo')} {t('zp.scanInfo')}</p><p>{t('zp.signOutHint')}</p></InfoTip>
+      </div>
       <p className="text-[13px] text-muted">{signedName ? t('zp.signedNew', { name: signedName }) : saved ? t('zp.signedSaved', { name: saved }) : channel.secret_last4 ? t('zp.sessionSaved') : t('zp.none')}</p>
       {v && v.qr && (v.state === 'waiting' || v.state === 'scanned') ? (
         <div className="grid justify-items-start gap-2">
@@ -70,7 +74,6 @@ export function ZaloSignIn({ channel, onSigned }: { channel: Channel; onSigned: 
       ) : null}
       {v && NEW_QR.includes(v.state) ? <p role="status" className="text-[13px] text-danger">{v.state === 'failed' ? v.error : t(`zp.state.${v.state}`)}</p> : null}
       {err ? <p role="alert" className="text-[13px] text-danger">{err}</p> : null}
-      <p className="text-[13px] text-muted">{t('zp.signOutHint')}</p>
       {!v || v.state === 'none' || NEW_QR.includes(v.state) || v.state === 'signed_in' ? (
         <div><Button disabled={start.isPending} onClick={() => void begin()}><QrCode />{v && v.state !== 'none' && v.state !== 'signed_in' ? t('zp.newQr') : saved || channel.secret_last4 || signedName ? t('zp.relogin') : t('zp.show')}</Button></div>
       ) : null}

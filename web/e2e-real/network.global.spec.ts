@@ -27,9 +27,9 @@ const save = (page: Page) => page.getByRole('button', { name: 'Save management s
 
 async function fillManagement(page: Page, v: { address: string; gateway: string; dns: string }) {
   await page.getByLabel('IP address', { exact: true }).fill(v.address)
-  await page.getByLabel('Prefix length').fill('24')
-  await page.getByLabel('Gateway').fill(v.gateway)
-  await page.getByLabel('DNS servers').fill(v.dns)
+  await page.getByLabel('Prefix length', { exact: true }).fill('24')
+  await page.getByLabel('Gateway', { exact: true }).fill(v.gateway)
+  await page.getByLabel('DNS servers', { exact: true }).fill(v.dns)
 }
 
 async function audit(action: string) {
@@ -96,8 +96,8 @@ test('before any management address is saved the host refuses other network chan
   const errors = collectErrors(page)
   const said = "Vedette has not set up this box's network yet. Save the management address first, then change the other settings."
   await page.goto('/settings/network')
-  await page.getByLabel('Time source').selectOption('custom')
-  await page.getByLabel('NTP servers').fill('ntp1.example.com')
+  await page.getByLabel('Time source', { exact: true }).selectOption('custom')
+  await page.getByLabel('NTP servers', { exact: true }).fill('ntp1.example.com')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByRole('alert').filter({ hasText: said })).toBeVisible()
   expect((await net()).body.ntp.mode, 'nothing was changed').toBe('default')
@@ -207,7 +207,7 @@ test('SPAN: eth1 gets the role, the port, what is read and an exclusion are save
   expect((await net()).body.interfaces.find((i) => i.name === 'eth1')?.role).toBe('span')
   const want = async (name: string, on: boolean) => { const sw = page.getByRole('switch', { name }); if ((await sw.isChecked()) !== on) await sw.click() }
   await want('Capture mirrored traffic', true)
-  await page.getByLabel('Capture port').selectOption('eth1')
+  await page.getByLabel('Capture port', { exact: true }).selectOption('eth1')
   await want('DNS queries', true)
   await want('TLS server names', true)
   await want('HTTP hosts', true)
@@ -225,13 +225,13 @@ test('SPAN: eth1 gets the role, the port, what is read and an exclusion are save
   expect(span.span).toMatchObject({ enabled: true, interface: 'eth1', extract: { dns: true, tls_sni: true, http_host: true, flows: false }, filters: [{ type: 'cidr', value: '10.0.5.0/24' }] })
   await page.reload()
   await expect(page.getByRole('switch', { name: 'Capture mirrored traffic' })).toBeChecked()
-  await expect(page.getByLabel('Capture port')).toHaveValue('eth1')
+  await expect(page.getByLabel('Capture port', { exact: true })).toHaveValue('eth1')
   await expect(page.getByRole('switch', { name: 'HTTP hosts' })).toBeChecked()
   await expect(page.getByRole('switch', { name: 'Connection metadata' })).not.toBeChecked()
   await expect(page.getByRole('list', { name: 'Exclusions' }).getByText('10.0.5.0/24')).toBeVisible()
   await shot(page, 'real', 'network-span')
   // the guide for a switch: pick one, see its steps for eth1
-  await page.getByLabel('Switch or device').selectOption({ index: 1 })
+  await page.getByLabel('Switch or device', { exact: true }).selectOption({ index: 1 })
   await expect(page.getByText('Port names and numbers are examples.')).toBeVisible()
   await expect(page.getByText('the destination is the port plugged into eth1')).toBeVisible()
   await expect(page.getByRole('heading', { level: 3 }).filter({ hasText: /\S/ }).last()).toBeVisible()
@@ -242,7 +242,7 @@ test('DHCP: the confirm dialog says where to find the new address instead of sho
   const errors = collectErrors(page)
   const before = (await net()).body
   await page.goto('/settings/network')
-  await page.getByLabel('How the box gets its address').selectOption('dhcp')
+  await page.getByLabel('How the box gets its address', { exact: true }).selectOption('dhcp')
   await save(page).click()
   const dlg = page.getByRole('dialog', { name: 'Change the management address?' })
   await expect(dlg).toContainText('Your DHCP server picks the new address: find it there (or in your router\'s client list), open it on port 8443 within 5 minutes and confirm, or the box returns to the old settings.')
@@ -268,20 +268,20 @@ test('cancelling a waiting change tells the person the box went back', async () 
 test('time servers and DNS are applied at once: no countdown, and the page shows them after a reload', async ({ page }) => {
   const errors = collectErrors(page)
   await page.goto('/settings/network')
-  await page.getByLabel('Time source').selectOption('custom')
-  await page.getByLabel('NTP servers').fill('ntp1.example.com') // a name the fake chronyc lists: the host reads the sources back
+  await page.getByLabel('Time source', { exact: true }).selectOption('custom')
+  await page.getByLabel('NTP servers', { exact: true }).fill('ntp1.example.com') // a name the fake chronyc lists: the host reads the sources back
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   await toast(page, /Time servers saved\./)
   await expect(pendingBox(page)).toHaveCount(0)
   expect((await net()).body.ntp).toMatchObject({ mode: 'custom', servers: ['ntp1.example.com'] })
-  await page.getByLabel('DNS servers').fill('9.9.9.9')
+  await page.getByLabel('DNS servers', { exact: true }).fill('9.9.9.9')
   await save(page).click()
   await toast(page, /Management settings saved\./)
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(pendingBox(page)).toHaveCount(0)
   await page.reload()
-  await expect(page.getByLabel('NTP servers')).toHaveValue('ntp1.example.com')
-  await expect(page.getByLabel('DNS servers')).toHaveValue('9.9.9.9')
+  await expect(page.getByLabel('NTP servers', { exact: true })).toHaveValue('ntp1.example.com')
+  await expect(page.getByLabel('DNS servers', { exact: true })).toHaveValue('9.9.9.9')
   noErrors(errors, /status of 4\d\d/)
 })
 

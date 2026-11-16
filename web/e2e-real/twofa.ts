@@ -49,7 +49,7 @@ export async function newUser(prefix = 'tf') {
 /** Opens the sign-in page and submits email and password; the page is left on whatever the box answers. */
 export async function submitSignIn(page: Page, email: string, pw: string) {
   await page.goto('/login')
-  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Email', { exact: true }).fill(email)
   await page.getByLabel('Password', { exact: true }).fill(pw)
   await page.getByRole('button', { name: 'Sign in' }).click()
 }

@@ -49,12 +49,12 @@ export default function History() {
     </div>
   )
   return (
-    <Section id="history" title={t('history.title')} description={`${t('history.description')} ${t('history.retention')}`}>
+    <Section id="history" title={t('history.title')} description={t('history.description')} info={<><p>{t('history.metaInfo')}</p><p>{t('history.retention')}</p></>}>
       <QueryState query={q}>
         {(d) => (
           <>
             <p className="mb-3 max-w-3xl text-[13px] text-muted">{d.suppressed.count > 0 ? t('history.meta', { count: d.suppressed.count, days: d.suppressed.days }) : t('history.metaNone', { days: d.suppressed.days })}</p>
-            {d.items.length === 0 ? <EmptyState title={t('history.emptyTitle')}>{t('history.emptyBody')}</EmptyState>
+            {d.items.length === 0 ? <EmptyState title={t('history.emptyTitle')} info={t('history.emptyBodyInfo')}>{t('history.emptyBody')}</EmptyState>
               : <DataTable caption={t('history.caption')} data={d.items} columns={columns} mobileRow={mobileRow} initialSort={[{ id: 'time', desc: true }]} />}
           </>
         )}

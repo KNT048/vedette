@@ -1,5 +1,6 @@
 import type { ComponentProps } from 'react'
 import { cn } from '@/lib/utils'
+import { InfoTip } from '@/components/common/InfoTip'
 
 const field = 'w-full min-w-0 rounded-md border border-rule bg-surface px-3 text-base text-ink sm:text-sm placeholder:text-muted disabled:opacity-60 aria-[invalid=true]:border-danger'
 
@@ -20,11 +21,16 @@ export function Label({ className, ...props }: ComponentProps<'label'>) {
   return <label className={cn('text-sm font-medium text-ink', className)} {...props} />
 }
 
-/** Ô nhập kèm nhãn, gợi ý và lỗi — dùng cho mọi form. */
-export function Field({ label, hint, error, htmlFor, children, className }: { label: string; hint?: string; error?: string; htmlFor: string; children: React.ReactNode; className?: string }) {
+/** Ô nhập kèm nhãn, gợi ý và lỗi — dùng cho mọi form. `hint` chỉ là ví dụ/định dạng một dòng ngắn; giải thích vào `info` (ⓘ cạnh nhãn, #824). */
+export function Field({ label, hint, info, error, htmlFor, children, className }: { label: string; hint?: string; info?: React.ReactNode; error?: string; htmlFor: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={cn('grid content-start gap-1.5', className)}>
-      <Label htmlFor={htmlFor}>{label}</Label>
+      {info ? (
+        <div className="flex items-center gap-1">
+          <Label htmlFor={htmlFor}>{label}</Label>
+          <InfoTip topic={label}>{info}</InfoTip>
+        </div>
+      ) : <Label htmlFor={htmlFor}>{label}</Label>}
       {children}
       {error ? <p className="text-[13px] text-danger [overflow-wrap:anywhere]" id={`${htmlFor}-error`}>{error}</p> : hint ? <p className="text-[13px] text-muted [overflow-wrap:anywhere]" id={`${htmlFor}-hint`}>{hint}</p> : null}
     </div>

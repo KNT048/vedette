@@ -86,7 +86,7 @@ function HotBoard() {
     { id: 'youHave', header: t('hot.col.youHave'), accessorFn: (r) => (r.you_have === 'yes' ? 2 : r.you_have === 'maybe' ? 1 : 0), cell: ({ row }) => <YouHaveCell value={row.original.you_have} /> },
   ]
   return (
-    <Section id="hot" title={t('hot.title')} description={t('hot.description')} stories={['S-FEED-1']}
+    <Section id="hot" title={t('hot.title')} description={t('hot.description')} info={t('hot.descriptionInfo')} stories={['S-FEED-1']}
       actions={
         <Segmented label={t('hot.window')} value={win} onChange={setWin} options={[{ value: '24h', label: t('hot.24h') }, { value: '7d', label: t('hot.7d') }]} />
       }>
@@ -135,7 +135,7 @@ function Weekly() {
     })
   }
   return (
-    <Section id="weekly" title={t('weekly.title')} description={t('weekly.description')} stories={['S-FEED-2']}>
+    <Section id="weekly" title={t('weekly.title')} description={t('weekly.description')} info={t('weekly.descriptionInfo')} stories={['S-FEED-2']}>
       <QueryState query={weekly}>
         {(d) => (
           <ol className="grid divide-y divide-rule rounded-md border border-rule bg-surface">

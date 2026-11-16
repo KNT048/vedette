@@ -26,12 +26,12 @@ export default function RulesTab() {
     <QueryState query={rules}>
       {(r) => (
         <>
-          <Section title={t('harness.rules.builtinTitle')} description={t('harness.rules.builtinBody')} stories={['S-AI-7']}>
+          <Section title={t('harness.rules.builtinTitle')} description={t('harness.rules.builtinBody')} info={t('harness.rules.builtinInfo')} stories={['S-AI-7']}>
             <List label={t('harness.rules.builtinTitle')}>
               {r.builtin.map((b) => <Row key={b.id} actions={<Chip tone="off">{t('harness.builtIn')}</Chip>}><p>{b.text}</p></Row>)}
             </List>
           </Section>
-          <Section title={t('harness.rules.customTitle')} description={t('harness.rules.customBody')} actions={<Button variant="primary" onClick={() => setEdit('new')}>{t('harness.rules.add')}</Button>}>
+          <Section title={t('harness.rules.customTitle')} description={t('harness.rules.customBody')} info={t('harness.rules.customInfo')} actions={<Button variant="primary" onClick={() => setEdit('new')}>{t('harness.rules.add')}</Button>}>
             {r.custom.length === 0 ? <EmptyState title={t('harness.rules.empty')} action={<Button variant="primary" onClick={() => setEdit('new')}>{t('harness.rules.add')}</Button>}>{t('harness.rules.emptyBody')}</EmptyState> : (
               <List label={t('harness.rules.customTitle')}>
                 {r.custom.map((x) => (

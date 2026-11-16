@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { PageHeader, Section } from '@/components/common/PageHeader'
 import { DataTable } from '@/components/common/DataTable'
 import { EmptyState, QueryState } from '@/components/common/States'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -21,7 +22,7 @@ export default function FeedsSettings() {
   const sources = useFeedSources()
   return (
     <div className="grid max-w-5xl gap-2">
-      <PageHeader title={t('settings.title')} meta={t('settings.direct')} stories={['S-FEED-4', 'S-FEED-5']} />
+      <PageHeader title={t('settings.title')} meta={t('settings.direct')} info={t('settings.directInfo')} stories={['S-FEED-4', 'S-FEED-5']} />
       <QueryState query={sources}>{(d) => <Tables items={d.items} />}</QueryState>
     </div>
   )
@@ -34,7 +35,7 @@ function Hosts({ items }: { items: Feed[] }) {
   const { t } = useTranslation('feeds')
   const rows = [...items].sort((a, b) => Number(b.builtin) - Number(a.builtin))
   return (
-    <Section id="feeds-hosts" title={t('hosts.title')} description={t('hosts.description')} stories={['S-FEED-4']}>
+    <Section id="feeds-hosts" title={t('hosts.title')} description={t('hosts.description')} info={t('hosts.descriptionInfo')} stories={['S-FEED-4']}>
       <ul className="grid max-w-3xl gap-1 text-sm">
         {rows.map((f) => (
           <li key={f.id} className="flex flex-wrap items-baseline gap-x-2">
@@ -126,7 +127,7 @@ function Tables({ items }: { items: Feed[] }) {
 
   return (
     <>
-      <Section id="feeds-builtin" title={t('builtin.title')} description={t('builtin.description')} stories={['S-FEED-4']}>
+      <Section id="feeds-builtin" title={t('builtin.title')} description={t('builtin.description')} info={t('builtin.descriptionInfo')} stories={['S-FEED-4']}>
         <DataTable<Feed> caption={t('builtin.caption')} data={builtins} mobileRow={(f) => mobile(f, builtinActions(f))}
           columns={[
             { id: 'name', header: t('col.feed'), accessorKey: 'name', cell: ({ row }: R) => name(row.original) },
@@ -134,12 +135,12 @@ function Tables({ items }: { items: Feed[] }) {
             { id: 'actions', header: t('col.actions'), enableSorting: false, cell: ({ row }: R) => <span className="flex flex-wrap gap-2">{builtinActions(row.original)}</span> },
           ]} />
       </Section>
-      <Section id="feeds-custom" title={t('custom.title')} description={t('custom.description')} actions={customs.length ? addBtn : undefined} stories={['S-FEED-4', 'S-FEED-5']}>
+      <Section id="feeds-custom" title={t('custom.title')} description={t('custom.description')} info={t('custom.descriptionInfo')} actions={customs.length ? addBtn : undefined} stories={['S-FEED-4', 'S-FEED-5']}>
         {customs.length === 0 ? (
-          <EmptyState title={t('custom.empty')} action={addBtn}>{t('custom.emptyBody')}</EmptyState>
+          <EmptyState title={t('custom.empty')} info={t('custom.emptyBodyInfo')} action={addBtn}>{t('custom.emptyBody')}</EmptyState>
         ) : (
           <>
-          {customs.some((f) => f.kind === 'vulnerabilities') ? <p className="mb-2 max-w-3xl text-[13px] text-muted">{t('custom.vulnNote')}</p> : null}
+          {customs.some((f) => f.kind === 'vulnerabilities') ? <div className="mb-2 flex items-center gap-1 text-[13px] text-muted"><p>{t('custom.vulnNote')}</p><InfoTip topic={t('custom.title')}>{t('custom.vulnNoteInfo')}</InfoTip></div> : null}
           <DataTable<Feed> caption={t('custom.caption')} data={customs} mobileRow={(f) => mobile(f, customActions(f))}
             columns={[
               { id: 'name', header: t('col.feed'), accessorKey: 'name', cell: ({ row }: R) => name(row.original) },

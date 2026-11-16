@@ -51,8 +51,8 @@ export default function MemoryTab() {
               </div>
             ) : m.suggest_enabled ? <p className="mt-3 text-sm text-muted">{t('harness.memory.queueEmpty')}</p> : null}
           </Section>
-          <Section title={t('harness.memory.title')} description={t('harness.memory.body')} actions={<Button variant="primary" onClick={() => setEdit('new')}>{t('harness.memory.add')}</Button>}>
-            {m.items.length === 0 ? <EmptyState title={t('harness.memory.empty')} action={<Button variant="primary" onClick={() => setEdit('new')}>{t('harness.memory.add')}</Button>}>{t('harness.memory.emptyBody')}</EmptyState> : (
+          <Section title={t('harness.memory.title')} description={t('harness.memory.body')} info={t('harness.memory.bodyInfo')} actions={<Button variant="primary" onClick={() => setEdit('new')}>{t('harness.memory.add')}</Button>}>
+            {m.items.length === 0 ? <EmptyState title={t('harness.memory.empty')} info={t('harness.memory.emptyBodyInfo')} action={<Button variant="primary" onClick={() => setEdit('new')}>{t('harness.memory.add')}</Button>}>{t('harness.memory.emptyBody')}</EmptyState> : (
               <List label={t('harness.memory.title')}>
                 {m.items.map((x) => (
                   <Row key={x.id} dim={!x.enabled}

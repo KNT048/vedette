@@ -32,7 +32,7 @@ async function addEmailChannel(page: Page) {
 }
 async function login(page: Page, email: string, password: string) {
   await page.goto('/login')
-  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Email', { exact: true }).fill(email)
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Sign in' }).click()
 }
@@ -74,7 +74,7 @@ test('authenticator app: QR and manual key, turn on, sign out, sign in with the 
   await shot(page, 'twofa', 'account-choose-light')
   // D-76: the current password comes first; the buttons stay disabled without it
   await expect(page.getByRole('button', { name: 'Set up authenticator app' })).toBeDisabled()
-  await page.getByLabel('Your current password').fill(PW)
+  await page.getByLabel('Your current password', { exact: true }).fill(PW)
   await page.getByRole('button', { name: 'Set up authenticator app' }).click()
 
   const qr = page.getByRole('img', { name: 'QR code for your authenticator app' })
@@ -94,17 +94,17 @@ test('authenticator app: QR and manual key, turn on, sign out, sign in with the 
   await scheme(page, 'light')
 
   const key = (await page.getByText(/^[A-Z2-7]{32}$/).innerText()).trim()
-  await page.getByLabel('6-digit code').fill('000000')
+  await page.getByLabel('6-digit code', { exact: true }).fill('000000')
   await page.getByRole('button', { name: 'Confirm and turn on' }).click()
   await expect(page.getByText(/Wrong code/)).toBeVisible()
-  await page.getByLabel('6-digit code').fill(totp(key))
+  await page.getByLabel('6-digit code', { exact: true }).fill(totp(key))
   await page.getByRole('button', { name: 'Confirm and turn on' }).click()
   await expect(page.getByText('On: Authenticator app')).toBeVisible()
   await shot(page, 'twofa', 'account-app-on')
 
   await logout(page)
   await login(page, EMAIL, PW)
-  const code = page.getByLabel('6-digit code')
+  const code = page.getByLabel('6-digit code', { exact: true })
   await expect(code).toBeVisible()
   await expect(code).toBeFocused()
   await expect(page.getByText(/Get the code from your authenticator app/)).toBeVisible()
@@ -137,7 +137,7 @@ test('email code: disabled on a clean install, then set up, sign in with the pre
 
   await addEmailChannel(page)
   await page.reload()
-  await page.getByLabel('Your current password').fill(PW)
+  await page.getByLabel('Your current password', { exact: true }).fill(PW)
   await expect(setupEmail).toBeEnabled()
   await expect(page.getByText('Email codes need the email alert channel')).toHaveCount(0)
   await setupEmail.click()
@@ -149,10 +149,10 @@ test('email code: disabled on a clean install, then set up, sign in with the pre
   await scheme(page, 'dark')
   await shot(page, 'twofa', 'account-email-code-dark')
   await scheme(page, 'light')
-  await page.getByLabel('6-digit code').fill(setupCode === '000000' ? '111111' : '000000')
+  await page.getByLabel('6-digit code', { exact: true }).fill(setupCode === '000000' ? '111111' : '000000')
   await page.getByRole('button', { name: 'Confirm and turn on' }).click()
   await expect(page.getByText('Wrong code. 4 tries left.')).toBeVisible()
-  await page.getByLabel('6-digit code').fill(setupCode)
+  await page.getByLabel('6-digit code', { exact: true }).fill(setupCode)
   await page.getByRole('button', { name: 'Confirm and turn on' }).click()
   await expect(page.getByText('On: Email code')).toBeVisible()
   await expect(page.getByText(`emails to ${MASKED}`)).toBeVisible()
@@ -163,7 +163,7 @@ test('email code: disabled on a clean install, then set up, sign in with the pre
 
   await logout(page)
   await login(page, EMAIL, PW)
-  const code = page.getByLabel('6-digit code')
+  const code = page.getByLabel('6-digit code', { exact: true })
   await expect(code).toBeVisible()
   await expect(code).toBeFocused()
   await expect(code).toHaveAttribute('autocomplete', 'one-time-code')
@@ -200,7 +200,7 @@ test('email channel off: an email-code user is refused, never signed in with the
   await logout(page)
   await login(page, EMAIL, PW)
   await expect(page.getByText('Two-step email codes cannot be sent right now. Ask an administrator to turn the email channel back on, or to reset your two-step sign-in.')).toBeVisible()
-  await expect(page.getByLabel('6-digit code')).toHaveCount(0)
+  await expect(page.getByLabel('6-digit code', { exact: true })).toHaveCount(0)
   await expect(page).toHaveURL(/\/login/)
   await shot(page, 'twofa', 'login-channel-off')
   await expectAccessible(page, 'login channel off')
@@ -254,6 +254,6 @@ test('admin resets another user: status shows, confirm dialog, audit entry, user
   // Sam signs in with the password alone again
   await logout(page)
   await login(page, 'sam@testco.example', temp)
-  await expect(page.getByLabel('6-digit code')).toHaveCount(0)
+  await expect(page.getByLabel('6-digit code', { exact: true })).toHaveCount(0)
   await expect(page).not.toHaveURL(/\/login/)
 })

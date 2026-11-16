@@ -6,6 +6,7 @@ import { CalendarClock, Power, RefreshCw, ShieldCheck } from 'lucide-react'
 import { Notice } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
+import { InfoTip } from '@/components/common/InfoTip'
 import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
@@ -64,7 +65,7 @@ function WindowForm({ s, disabled, title }: { s: OsState; disabled: boolean; tit
         </div>
       ) : null}
       {s.reboot_scheduled_at && !same ? <p className="max-w-2xl text-[13px] text-warn">{t('updates.os.window.rebootWarn', { time: fmtDateTime(s.reboot_scheduled_at) })}</p> : null}
-      <p className="max-w-2xl text-[13px] text-muted">{w.mode === 'always' ? t('updates.os.window.hintAnytime') : t('updates.os.window.hintWindow')}</p>
+      <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{w.mode === 'always' ? t('updates.os.window.hintAnytime') : t('updates.os.window.hintWindow')}</p>{w.mode === 'always' ? null : <InfoTip topic={t('updates.os.windowLabel')}>{t('updates.os.window.windowInfo')}</InfoTip>}</div>
       {problem ? <p role="alert" className="text-[13px] text-danger">{problem}</p> : null}
       <div><Button disabled={disabled || same || !!problem || m.settings.isPending} onClick={() => void m.settings.mutateAsync({ window: w }).then((r) => (s.reboot_scheduled_at && !r.reboot_scheduled_at ? toast.warning(t('updates.os.window.savedCancelled')) : toast.success(t('updates.os.window.saved')))).catch((e) => toast.error(errMsg(e, t)))}>{t('updates.os.window.save')}</Button></div>
     </fieldset>
@@ -186,7 +187,7 @@ function Body({ s }: { s: CheckedOs }) {
   return (
     <>
       <section id="os" aria-labelledby="os-band">
-        <Band id="os-band" n="1" title={t('updates.os.title')} desc={t('updates.os.desc')}
+        <Band id="os-band" n="1" title={t('updates.os.title')} desc={t('updates.os.desc')} info={<><p>{t('updates.os.info')}</p><p>{t('updates.os.helper')}</p></>}
           actions={<Button onClick={() => void act(() => m.check.mutateAsync(), t('updates.os.checked'))} disabled={operator.disabled || m.check.isPending} title={operator.title}><RefreshCw />{t('updates.os.checkNow')}</Button>} />
         <div className="grid gap-5">
           <div className="grid gap-x-6 gap-y-3 rounded-md border border-rule bg-surface p-4 sm:grid-cols-[minmax(160px,max-content)_1fr]">
@@ -227,6 +228,7 @@ function Body({ s }: { s: CheckedOs }) {
               <Switch id="os-auto" checked={s.auto_security} disabled={admin.disabled || m.settings.isPending} title={admin.title}
                 onCheckedChange={(v) => void act(() => m.settings.mutateAsync({ auto_security: v }), v ? t('updates.os.autoOn') : t('updates.os.autoOff'))} />
               <span className="max-w-xl text-[13px] text-muted">{s.auto_security ? t('updates.os.autoHintOn') : t('updates.os.autoHintOff')}</span>
+              {s.auto_security ? <InfoTip topic={t('updates.os.auto')}>{t('updates.os.autoInfoOn')}</InfoTip> : null}
             </span>
             <span className="text-[13px] text-muted">{t('updates.os.windowLabel')}</span>
             <span className="text-sm"><WindowSummary w={s.window} /></span>
@@ -240,7 +242,6 @@ function Body({ s }: { s: CheckedOs }) {
             <Button disabled={admin.disabled} title={admin.title} onClick={() => setRebooting(true)}><Power />{t('updates.os.reboot.now')}</Button>
             <Button disabled={admin.disabled} title={admin.title} onClick={() => setScheduling(true)}><CalendarClock />{t('updates.os.reboot.schedule')}</Button>
           </div>
-          <p className="max-w-3xl text-[13px] text-muted">{t('updates.os.helper')}</p>
 
           <div>
             <h3 className="mb-2 text-sm font-semibold">{t('updates.os.pending', { count: s.pending.length, security: sec })}</h3>
@@ -257,7 +258,7 @@ function Body({ s }: { s: CheckedOs }) {
           {run ? <RunPanel run={run} /> : null}
 
           {s.release_upgrade ? (
-            <Notice tone="warn" className="mb-0" title={t('updates.os.upgrade.title', { to: s.release_upgrade.to })}>
+            <Notice tone="warn" className="mb-0" title={t('updates.os.upgrade.title', { to: s.release_upgrade.to })} info={t('updates.os.upgrade.warnInfo')}>
               <p>{t('updates.os.upgrade.warn')}</p>
               <ol className="mt-2 grid list-decimal gap-1 pl-5 text-ink">{s.release_upgrade.steps.map((st) => <li key={st} className="[overflow-wrap:anywhere]">{st}</li>)}</ol>
             </Notice>
@@ -266,7 +267,7 @@ function Body({ s }: { s: CheckedOs }) {
       </section>
 
       <Dialog open={rebooting} onOpenChange={(o) => !o && setRebooting(false)}>
-        <DialogContent title={t('updates.os.reboot.nowTitle')} description={t('updates.os.reboot.nowBody')}>
+        <DialogContent title={t('updates.os.reboot.nowTitle')} description={t('updates.os.reboot.nowBody')} info={t('updates.os.reboot.nowInfo')}>
           <DialogFooter>
             <Button onClick={() => setRebooting(false)}>{t('common:cancel')}</Button>
             <Button variant="danger" disabled={m.reboot.isPending} onClick={() => void act(() => m.reboot.mutateAsync({ when: 'now' }), t('updates.os.reboot.done')).then(() => setRebooting(false))}>{t('updates.os.reboot.nowConfirm')}</Button>
@@ -274,7 +275,7 @@ function Body({ s }: { s: CheckedOs }) {
         </DialogContent>
       </Dialog>
       <Dialog open={installAll} onOpenChange={(o) => !o && setInstallAll(false)}>
-        <DialogContent title={t('updates.os.installAllTitle', { count: s.pending.length })} description={t('updates.os.installAllBody')}>
+        <DialogContent title={t('updates.os.installAllTitle', { count: s.pending.length })} description={t('updates.os.installAllBody')} info={t('updates.os.installAllInfo')}>
           <DialogFooter>
             <Button onClick={() => setInstallAll(false)}>{t('common:cancel')}</Button>
             <Button variant="primary" disabled={m.install.isPending} onClick={() => { install('all'); setInstallAll(false) }}>{t('updates.os.installAllConfirm')}</Button>
@@ -294,7 +295,7 @@ function NoCheckYet() {
   const m = useOsMutations()
   return (
     <section id="os" aria-labelledby="os-band">
-      <Band id="os-band" n="1" title={t('updates.os.title')} desc={t('updates.os.desc')}
+      <Band id="os-band" n="1" title={t('updates.os.title')} desc={t('updates.os.desc')} info={t('updates.os.info')}
         actions={<Button onClick={() => void m.check.mutateAsync().then(() => toast.success(t('updates.os.checked'))).catch((e) => toast.error(errMsg(e, t)))} disabled={operator.disabled || m.check.isPending} title={operator.title}><RefreshCw />{t('updates.os.checkNow')}</Button>} />
       <p role="status" className="text-sm">{t('updates.os.noCheckYet')}</p>
     </section>
@@ -307,7 +308,7 @@ export function OsBlock() {
   // Band 1 stays when this part shows only an error, so the page numbers 1, 2, 3 whichever part loads (issue #241).
   if (q.error) return (
     <section id="os" aria-labelledby="os-band">
-      <Band id="os-band" n="1" title={t('updates.os.title')} desc={t('updates.os.desc')} />
+      <Band id="os-band" n="1" title={t('updates.os.title')} desc={t('updates.os.desc')} info={t('updates.os.info')} />
       <QueryState query={q}>{(s) => (s.os ? <Body s={{ ...s, os: s.os }} /> : <NoCheckYet />)}</QueryState>
     </section>
   )

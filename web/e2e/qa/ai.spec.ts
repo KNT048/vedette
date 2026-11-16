@@ -34,7 +34,7 @@ test.describe('ai: clean install', () => {
     await finishClean(page)
     await page.goto('/assistant')
     await expect(page.getByRole('heading', { level: 1 })).toContainText('No AI profile yet')
-    await expect(page.getByText('Add an AI profile (provider, model and key) to use this.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'About No AI profile yet' }).first()).toHaveAccessibleDescription(/^Add an AI profile \(provider, model and key\) to use this\./) // #824: behind the empty state's ⓘ
     await expect(page.getByRole('link', { name: 'Open Settings, AI assistant' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Token meter' })).toHaveCount(0) // chưa nối và chưa chạy: không phô số 0
     await expect(page.getByText('claude-haiku')).toHaveCount(0)
@@ -58,20 +58,20 @@ test.describe('ai: clean install', () => {
     await expectAccessible(page, 'settings, clean')
     await addProfile(page)
     const dlg = page.getByRole('dialog', { name: 'Add AI profile' })
-    await expect(dlg.getByLabel('Model')).toHaveValue('claude-haiku-5-5') // không để trống model
+    await expect(dlg.getByLabel('Model', { exact: true })).toHaveValue('claude-haiku-5-5') // không để trống model
     await expect(dlg.getByRole('radio', { name: /Inside your network/ })).toBeDisabled() // Anthropic chỉ chạy đám mây
-    await dlg.getByLabel('Profile name').fill('Claude Haiku')
+    await dlg.getByLabel('Profile name', { exact: true }).fill('Claude Haiku')
     await dlg.getByRole('checkbox', { name: /I understand/ }).check()
     await dlg.getByRole('button', { name: 'Add profile' }).click()
     await expect(dlg.getByText(/Enter the provider's API key/)).toBeVisible()
-    await expect(dlg.getByLabel('Profile name')).toHaveValue('Claude Haiku') // dữ liệu đã gõ không mất
-    await dlg.getByLabel('API key').fill('abc def')
+    await expect(dlg.getByLabel('Profile name', { exact: true })).toHaveValue('Claude Haiku') // dữ liệu đã gõ không mất
+    await dlg.getByLabel('API key', { exact: true }).fill('abc def')
     await dlg.getByRole('button', { name: 'Test connection' }).click()
     await expect(dlg.getByText(/too short or contains spaces/)).toBeVisible()
-    await dlg.getByLabel('API key').fill('bad-key-1234567')
+    await dlg.getByLabel('API key', { exact: true }).fill('bad-key-1234567')
     await dlg.getByRole('button', { name: 'Test connection' }).click()
     await expect(dlg.getByRole('alert')).toContainText('The provider rejected the key')
-    await dlg.getByLabel('API key').fill('sk-ant-demo-key-9z9z')
+    await dlg.getByLabel('API key', { exact: true }).fill('sk-ant-demo-key-9z9z')
     await openAdvanced(dlg)
     await dlg.getByLabel('Server address', { exact: true }).fill('https://unreachable.example.com')
     await dlg.getByRole('button', { name: 'Test connection' }).click()
@@ -79,18 +79,18 @@ test.describe('ai: clean install', () => {
     await dlg.getByLabel('Server address', { exact: true }).fill('https://api.anthropic.com')
     await dlg.getByRole('button', { name: 'Test connection' }).click()
     await expect(dlg.getByText('Connected')).toBeVisible()
-    await dlg.getByLabel('Monthly budget for this profile (tokens)').fill('50')
+    await dlg.getByLabel('Monthly budget for this profile (tokens)', { exact: true }).fill('50')
     await dlg.getByRole('button', { name: 'Add profile' }).click()
     await expect(dlg.getByText(/The budget must be a whole number/)).toBeVisible()
-    await dlg.getByLabel('Monthly budget for this profile (tokens)').fill('20000')
-    await dlg.getByLabel('API key').press('Enter') // Enter gửi form
+    await dlg.getByLabel('Monthly budget for this profile (tokens)', { exact: true }).fill('20000')
+    await dlg.getByLabel('API key', { exact: true }).press('Enter') // Enter gửi form
     await expect(page.getByText('AI profile added').first()).toBeVisible()
     await expect(page.getByRole('region', { name: 'AI profiles' }).getByText('Key ends in 9z9z')).toBeVisible()
     await page.reload()
     await expect(page.getByRole('region', { name: 'AI profiles' }).getByText('Key ends in 9z9z')).toBeVisible()
     await expect(page.getByText('sk-ant-demo-key')).toHaveCount(0) // khoá không bao giờ hiện lại
     // việc chưa có hồ sơ chính tự lấy hồ sơ mới: dùng được ngay
-    await expect(page.getByLabel('Primary profile for Ask your data')).toHaveValue(/.+/)
+    await expect(page.getByLabel('Primary profile for Ask your data', { exact: true })).toHaveValue(/.+/)
     await page.goto('/assistant')
     await expect(page.getByRole('heading', { level: 1 })).toContainText('tokens used this month')
     await page.getByRole('button', { name: 'Which machines still expose RDP?' }).click()
@@ -111,27 +111,27 @@ test.describe('ai: clean install', () => {
     await page.goto('/settings/ai')
     await addProfile(page)
     const dlg = page.getByRole('dialog', { name: 'Add AI profile' })
-    const kind = dlg.getByLabel('Provider type')
+    const kind = dlg.getByLabel('Provider type', { exact: true })
     await kind.selectOption({ label: 'OpenAI' })
     await expect(dlg.getByLabel('Server address', { exact: true })).toHaveValue('https://api.openai.com/v1')
-    await expect(dlg.getByLabel('Model')).toHaveValue('gpt-6-luna')
+    await expect(dlg.getByLabel('Model', { exact: true })).toHaveValue('gpt-6-luna')
     await kind.selectOption({ label: 'Google Gemini' })
     await expect(dlg.getByLabel('Server address', { exact: true })).toHaveValue('https://generativelanguage.googleapis.com')
-    await expect(dlg.getByLabel('Model')).toHaveValue('gemini-3.6-flash')
+    await expect(dlg.getByLabel('Model', { exact: true })).toHaveValue('gemini-3.6-flash')
     await kind.selectOption({ label: 'OpenAI-compatible (Ollama, vLLM, LM Studio)' })
     await expect(dlg.getByLabel('Server address', { exact: true })).toHaveValue('http://host.containers.internal:11434/v1')
     await expect(dlg.getByRole('radio', { name: /Inside your network/ })).toBeChecked()
-    await expect(dlg.getByText(/may leave if it forwards to a cloud provider/)).toBeVisible()
+    await expect(dlg.getByRole('button', { name: 'About Where does it run?' })).toHaveAccessibleDescription(/may leave if it forwards to a cloud provider/) // #824: behind the field's ⓘ
     await expect(dlg.getByRole('checkbox', { name: /I understand/ })).toHaveCount(0) // nội bộ: không cần xác nhận gửi ra ngoài
     await dlg.getByRole('button', { name: 'Test connection' }).click() // không cần khoá
     await expect(dlg.getByText('Connected')).toBeVisible()
     await kind.selectOption({ label: 'Custom' })
-    await expect(dlg.getByLabel('API style')).toBeVisible()
-    await dlg.getByLabel('API style').selectOption({ label: 'Anthropic Messages' })
-    await dlg.getByLabel('Profile name').fill('Gateway')
+    await expect(dlg.getByLabel('API style', { exact: true })).toBeVisible()
+    await dlg.getByLabel('API style', { exact: true }).selectOption({ label: 'Anthropic Messages' })
+    await dlg.getByLabel('Profile name', { exact: true }).fill('Gateway')
     await openAdvanced(dlg)
     await dlg.getByLabel('Server address', { exact: true }).fill('http://10.0.0.5:8080')
-    await dlg.getByLabel('Model').fill('my-model')
+    await dlg.getByLabel('Model', { exact: true }).fill('my-model')
     await dlg.getByRole('button', { name: 'Test connection' }).click() // đám mây + http: bị từ chối đúng ô
     await expect(dlg.getByText(/must start with https:\/\//)).toBeVisible()
     await expect(dlg.getByLabel('Server address', { exact: true })).toHaveAttribute('aria-invalid', 'true')
@@ -160,7 +160,7 @@ test.describe('ai: sample data', () => {
     await page.getByRole('button', { name: 'Edit Claude Haiku' }).click()
     const dlg = page.getByRole('dialog', { name: 'Edit Claude Haiku' })
     await expect(dlg.getByText(/A key ending in 7Qk2 is stored/)).toBeVisible()
-    await dlg.getByLabel('Model').fill('claude-haiku-5-6')
+    await dlg.getByLabel('Model', { exact: true }).fill('claude-haiku-5-6')
     await dlg.getByRole('button', { name: 'Save', exact: true }).click()
     await expect(page.getByText('AI profile saved').first()).toBeVisible()
     await expect(table.getByText('claude-haiku-5-6')).toBeVisible()
@@ -174,7 +174,7 @@ test.describe('ai: sample data', () => {
     await page.getByRole('dialog').getByRole('button', { name: 'Remove profile' }).click()
     await expect(page.getByText('Claude Sonnet removed').first()).toBeVisible()
     await expect(table.getByText('Claude Sonnet')).toHaveCount(0)
-    await expect(page.getByLabel('Primary profile for Explain findings')).toHaveValue(/.+/) // dự phòng lên làm chính
+    await expect(page.getByLabel('Primary profile for Explain findings', { exact: true })).toHaveValue(/.+/) // dự phòng lên làm chính
     await noVietnamese(page)
     expect(errors).toEqual([])
   })
@@ -183,32 +183,32 @@ test.describe('ai: sample data', () => {
     await sampleStart(page)
     await page.goto('/settings/ai')
     const rule = page.getByRole('switch', { name: 'Logs and device data go only to profiles inside your network' })
-    await expect(page.getByText(/Tasks on public data \(CVE news, translating vendor advisories\) may still use cloud profiles/)).toBeVisible()
+    await expect(page.getByText('Logs and device data go only to profiles inside your network', { exact: true }).locator('xpath=..').getByRole('button', { name: 'More about this' })).toHaveAccessibleDescription(/Tasks on public data \(CVE news, translating vendor advisories\) may still use cloud profiles/) // #824: behind the rule's ⓘ
     await rule.click()
     await expect(page.getByText(/cloud assignment\(s\) were cleared/)).toBeVisible()
-    await expect(page.getByLabel('Primary profile for Explain findings')).toHaveValue('') // cả chính lẫn dự phòng đều đám mây
+    await expect(page.getByLabel('Primary profile for Explain findings', { exact: true })).toHaveValue('') // cả chính lẫn dự phòng đều đám mây
     const optionsOf = (label: string) => page.getByLabel(label).locator('option')
     await expect(optionsOf('Primary profile for Ask your data').filter({ hasText: 'Claude Haiku' })).toBeDisabled()
     await expect(optionsOf('Primary profile for Ask your data').filter({ hasText: 'Claude Haiku' })).toContainText('cloud, not allowed for internal data')
     await expect(optionsOf('Primary profile for CVE news').filter({ hasText: 'Claude Haiku' })).toBeEnabled()
     await page.getByRole('button', { name: 'Apply suggestion' }).click()
     await expect(page.getByText(/Suggestion applied below/)).toBeVisible()
-    await expect(page.getByLabel('Primary profile for Explain findings')).toHaveValue(/.+/)
+    await expect(page.getByLabel('Primary profile for Explain findings', { exact: true })).toHaveValue(/.+/)
     await shot(page, 'ai', `routing-${device(page)}`)
     await expectAccessible(page, 'routing')
     await page.getByRole('button', { name: 'Save routing' }).click()
     await expect(page.getByText('Job routing saved').first()).toBeVisible()
     await page.reload()
     await expect(rule).toBeChecked()
-    await expect(page.getByLabel('Primary profile for Explain findings')).toHaveValue(/.+/)
+    await expect(page.getByLabel('Primary profile for Explain findings', { exact: true })).toHaveValue(/.+/)
     // luật riêng tư chặn việc gửi dữ liệu nội bộ tới đám mây: câu hỏi vẫn chạy nhờ hồ sơ nội bộ
     await page.goto('/assistant')
     await page.getByRole('button', { name: 'Which machines still expose RDP?' }).click()
     await expect(page.getByText(/Model qwen3:8b \(Company Ollama server\)/)).toBeVisible()
     // bỏ hồ sơ chính: dự phòng cần hồ sơ chính
     await page.goto('/settings/ai')
-    await page.getByLabel('Primary profile for Weekly report comments').selectOption({ label: 'None' })
-    await expect(page.getByLabel('Fallback profile for Weekly report comments')).toBeDisabled()
+    await page.getByLabel('Primary profile for Weekly report comments', { exact: true }).selectOption({ label: 'None' })
+    await expect(page.getByLabel('Fallback profile for Weekly report comments', { exact: true })).toBeDisabled()
   })
 
   test('fallback: when the primary stops answering the fallback takes over and the run log and the answer say so', async ({ page }) => {
@@ -218,7 +218,7 @@ test.describe('ai: sample data', () => {
     const dlg = page.getByRole('dialog', { name: 'Edit Claude Sonnet' })
     await openAdvanced(dlg)
     await dlg.getByLabel('Server address', { exact: true }).fill('https://timeout.example.com')
-    await dlg.getByLabel('API key').fill('sk-ant-demo-key-9z9z') // another address needs the key again (the stored key never follows it)
+    await dlg.getByLabel('API key', { exact: true }).fill('sk-ant-demo-key-9z9z') // another address needs the key again (the stored key never follows it)
     await dlg.getByRole('checkbox', { name: /I understand/ }).check()
     await dlg.getByRole('button', { name: 'Save', exact: true }).click()
     await expect(page.getByText('AI profile saved').first()).toBeVisible()
@@ -266,7 +266,7 @@ test.describe('ai: sample data', () => {
     const errors = collectErrors(page)
     await sampleStart(page)
     await page.goto('/settings/ai')
-    await page.getByLabel('Monthly AI budget for all profiles together (tokens)').fill('1000')
+    await page.getByLabel('Monthly AI budget for all profiles together (tokens)', { exact: true }).fill('1000')
     await page.getByRole('radio', { name: /Maximum/ }).check()
     await page.getByRole('form', { name: 'Token level' }).getByRole('button', { name: 'Save', exact: true }).click()
     await expect(page.getByText('Token level saved').first()).toBeVisible()
@@ -288,7 +288,7 @@ test.describe('ai: sample data', () => {
     await sampleStart(page)
     await page.goto('/cve/CVE-2022-27593')
     await page.getByRole('button', { name: 'Explain', exact: true }).click()
-    await expect(page.getByText('You are affected').or(page.getByText(/You may be affected/)).first()).toBeVisible()
+    await expect(page.getByText('You are affected').or(page.getByText(/You may be affected/)).filter({ visible: true }).first()).toBeVisible() // #824: the panel's ⓘ text names both verdicts too
     await expect(page.getByText('AI-generated, needs human review').first()).toBeVisible()
     await expect(page.getByText(/Model claude-sonnet-5-5 \(Claude Sonnet\)/)).toBeVisible()
     await page.reload()

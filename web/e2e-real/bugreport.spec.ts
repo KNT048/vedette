@@ -35,7 +35,7 @@ async function openDialog(page: Page, visit = true) {
   await expect(dlg).toBeVisible()
   return dlg
 }
-const bundleOf = (dlg: ReturnType<Page['getByRole']>) => dlg.getByLabel('JSON, preview of the diagnostic bundle')
+const bundleOf = (dlg: ReturnType<Page['getByRole']>) => dlg.getByLabel('JSON, preview of the diagnostic bundle', { exact: true })
 
 test('the dialog shows what would be sent, with emails and IPs removed, and nothing leaves the box until the person opens GitHub', async ({ browser }) => {
   test.setTimeout(90_000)
@@ -67,9 +67,9 @@ test('the dialog shows what would be sent, with emails and IPs removed, and noth
   expect(JSON.parse(await page.evaluate(() => navigator.clipboard.readText()))).toEqual(shown)
 
   // the person's words, with an email and an address in them
-  await dlg.getByLabel('What happened').fill(`The page for ${SECRET_IP} fails, mail me at ${SECRET_EMAIL}`)
-  await dlg.getByLabel('Steps to reproduce').fill('1. Open Devices\n2. Click Add')
-  await dlg.getByLabel('What you expected').fill('A form')
+  await dlg.getByLabel('What happened', { exact: true }).fill(`The page for ${SECRET_IP} fails, mail me at ${SECRET_EMAIL}`)
+  await dlg.getByLabel('Steps to reproduce', { exact: true }).fill('1. Open Devices\n2. Click Add')
+  await dlg.getByLabel('What you expected', { exact: true }).fill('A form')
   expect(outside, 'nothing was requested outside the box while the report was written').toEqual([])
 
   // Download report: a file on this computer

@@ -29,7 +29,8 @@
     "nameHint": "Shown in the sidebar, reports and alert messages.",
     "nameError": "The organization name needs at least 2 characters.",
     "timezone": "Time zone",
-    "timezoneHint": "Used for scan windows, quiet hours and the weekly report. Start typing a city or region to search.",
+    "timezoneHint": "Start typing a city or region, for example Europe/Berlin.",
+    "timezoneInfo": "Used for scan windows, quiet hours and the weekly report.",
     "timezoneError": "Pick a time zone from the list, for example Europe/Berlin or UTC.",
     "useBrowserZone": "Use this browser's time zone ({{zone}})",
     "terms": {
@@ -37,7 +38,8 @@
       "by": "Accepted by {{by}} on {{when}} during first-time setup (version {{version}}).",
       "byRestore": "Accepted on {{when}} by the operator who restored this box from a backup with the setup code (version {{version}}).",
       "at": "Accepted on {{when}} (version {{version}}). Administrators see who accepted them.",
-      "none": "No acceptance is recorded in this box's data: it was set up, or restored from a backup made, before Vedette asked for one.",
+      "none": "No acceptance is recorded in this box's data.",
+      "noneInfo": "This box was set up, or restored from a backup made, before Vedette asked for one.",
       "changed": "The terms changed since then: this version of Vedette ships version {{version}}.",
       "read": "Read the terms of use",
       "hide": "Hide the terms of use"
@@ -45,7 +47,8 @@
   },
   "modules": {
     "title": "{{on}} of {{total}} modules are on",
-    "meta": "Turning a module off stops that work but keeps its data. Turn it back on and it is all there.",
+    "meta": "Turning a module off stops its work and keeps its data.",
+    "metaInfo": "Turn it back on and it is all there. A module that needs another one asks before turning that one on too.",
     "caption": "Modules",
     "filter": "Find a module",
     "col": {
@@ -75,16 +78,18 @@
       "keep": "The module's data is kept. Only new work stops.",
       "affected": "These modules are on and depend on it, so they will be missing data:",
       "none": "No module that is on depends on this one.",
-      "reenable": "Turn it back on any time from this page.",
+      "reenable": "Turn it back on any time from Settings → Modules; its data is still there.",
       "confirm": "Turn off",
-      "emailCodes_one": "{{count}} user signs in with email codes. They will not be able to sign in until the email channel is back on or an administrator resets their two-step sign-in.",
-      "emailCodes_other": "{{count}} users sign in with email codes. They will not be able to sign in until the email channel is back on or an administrator resets their two-step sign-in."
+      "emailCodes_one": "{{count}} user signs in with email codes and will be locked out.",
+      "emailCodes_other": "{{count}} users sign in with email codes and will be locked out.",
+      "emailCodesInfo": "They will not be able to sign in until the email channel is back on or an administrator resets their two-step sign-in."
     }
   },
   "users": {
     "title_one": "{{count}} active user",
     "title_other": "{{count}} active users",
-    "meta": "Three roles: viewer (read), operator (daily handling), admin (system settings). Every change is written to the audit log.",
+    "meta": "Three roles: viewer, operator and admin.",
+    "metaInfo": "Viewer reads, operator does the daily handling, admin changes system settings. Every change is written to the audit log.",
     "caption": "Users",
     "filter": "Find a user",
     "you": "(you)",
@@ -116,13 +121,15 @@
     "resetOf": "Reset password of {{name}}",
     "resetAsk": {
       "title": "Reset the password of {{name}}?",
-      "body": "The old password stops working and this person is signed out everywhere. You get a temporary password, shown once.",
+      "body": "The old password stops working; they are signed out everywhere.",
+      "bodyInfo": "You get a temporary password, shown once.",
       "confirm": "Reset"
     },
     "add": {
       "open": "Add user",
       "title": "Add user",
-      "body": "The box makes a temporary password. You pass it on through a private channel and they change it at first sign-in.",
+      "body": "The box makes a temporary password for this person.",
+      "bodyInfo": "You pass it on through a private channel and they change it at first sign-in.",
       "name": "Display name",
       "email": "Sign-in email",
       "role": "Role",
@@ -133,7 +140,7 @@
     "temp": {
       "titleCreate": "Account created",
       "titleReset": "Password reset",
-      "body": "Temporary password for {{email}}. Copy it now: once you close this dialog it cannot be shown again.",
+      "body": "Temporary password for {{email}}. Copy it now: it is shown only once.",
       "label": "Temporary password",
       "done": "I have copied it"
     },
@@ -147,7 +154,8 @@
     "resetTwofaDone": "Two-step sign-in was reset.",
     "resetTwofaAsk": {
       "title": "Reset two-step sign-in for {{name}}?",
-      "body": "Two-step sign-in is turned off for this person, so the account is protected by the password alone until they set it up again. Use this when they lost their phone or can no longer read their mailbox. The reset is written to the audit log.",
+      "body": "Until they set it up again, the password alone protects this account.",
+      "bodyInfo": "Two-step sign-in is turned off for this person. Use this when they lost their phone or can no longer read their mailbox. The reset is written to the audit log.",
       "confirm": "Reset two-step sign-in"
     },
     "sso": "Through SSO",
@@ -155,8 +163,10 @@
   },
   "oidc": {
     "title": "SSO sign-in (OIDC)",
-    "desc": "Let staff sign in with their company account (Keycloak, Entra ID, Okta, Authentik, Google Workspace). Their groups at the identity provider decide their role.",
-    "off": "SSO sign-in is off. Turn it on to add a \"Sign in with SSO\" button on the sign-in page. Email and password accounts keep working.",
+    "desc": "Let staff sign in with their company account.",
+    "descInfo": "Works with Keycloak, Entra ID, Okta, Authentik and Google Workspace. Their groups at the identity provider decide their role.",
+    "off": "SSO sign-in is off.",
+    "offInfo": "Turn it on to add a \"Sign in with SSO\" button on the sign-in page. Email and password accounts keep working.",
     "enable": "Turn on SSO sign-in",
     "disable": "Turn off SSO",
     "enabledToast": "SSO module is on. Fill in the settings below.",
@@ -169,9 +179,11 @@
     "secretHint": "Enter to save. After saving only the last 4 characters show.",
     "secretSaved": "Saved, ending in {{last4}}. Leave empty to keep it.",
     "defaultRole": "People in none of these groups",
-    "defaultRoleHint": "No access is the safe choice: only people in a mapped group can sign in. A role here lets everyone at the identity provider in.",
+    "defaultRoleHint": "No access is safest: a role lets everyone at the provider in.",
+    "defaultRoleInfo": "With No access, only people in a mapped group can sign in. A role here lets everyone at the identity provider in.",
     "map": "Groups and roles",
-    "mapHint": "Which group at the identity provider gets which role. A person in several groups gets the highest role. Up to 10 rows. The role is set again at every SSO sign-in.",
+    "mapHint": "Which group at the identity provider gets which role.",
+    "mapInfo": "A person in several groups gets the highest role. Up to 10 rows. The role is set again at every SSO sign-in.",
     "group": "Group name, row {{n}}",
     "mapRole": "Role, row {{n}}",
     "mapRemove": "Remove row {{n}}",
@@ -186,11 +198,13 @@
     },
     "noAccess": "No access",
     "scopes": "Scopes",
-    "scopesHint": "Separated by spaces; must include openid. Add groups if your identity provider needs it to send groups (Okta, Authentik).",
+    "scopesHint": "Separated by spaces; must include openid.",
+    "scopesInfo": "Add groups if your identity provider needs it to send groups (Okta, Authentik).",
     "claim": "Groups claim",
     "claimHint": "Name of the ID token claim that lists the groups. Usually groups.",
     "ca": "Identity provider CA certificate (optional)",
-    "caHint": "Only if your identity provider uses a certificate from an internal CA. Paste the CA certificate (PEM, up to 5). The box trusts it for calls to the identity provider only, in addition to the usual public CAs.",
+    "caHint": "Only for an identity provider behind an internal CA.",
+    "caInfo": "Paste the CA certificate (PEM, up to 5). The box trusts it for calls to the identity provider only, in addition to the usual public CAs.",
     "caSavedList": "Saved CA certificates",
     "caSaved": "Saved: {{subject}}, expires {{date}}",
     "caExpiring": "Saved: {{subject}}, expires {{date}}. Replace it soon or SSO sign-in stops working.",
@@ -204,16 +218,19 @@
     },
     "offAsk": {
       "title": "Turn off SSO sign-in?",
-      "body": "The Sign in with SSO button goes away. Password accounts keep working and the settings are kept.",
-      "bodyUsers_one": "{{count}} person signs in only through SSO and cannot sign in until SSO is on again. Password accounts keep working and the settings are kept.",
-      "bodyUsers_other": "{{count}} people sign in only through SSO and cannot sign in until SSO is on again. Password accounts keep working and the settings are kept."
+      "body": "The Sign in with SSO button goes away.",
+      "bodyUsers_one": "{{count}} person signs in only through SSO and cannot sign in until SSO is on again.",
+      "bodyUsers_other": "{{count}} people sign in only through SSO and cannot sign in until SSO is on again.",
+      "keptInfo": "Password accounts keep working and the settings are kept."
     },
-    "redirectHint": "Set from the address you use now when you save. People must open Vedette at this address to sign in with SSO."
+    "redirectHint": "People must open Vedette at this address to sign in with SSO.",
+    "redirectInfo": "It is set from the address you use now when you save."
   },
   "audit": {
     "title_one": "{{count}} log line matches the filters",
     "title_other": "{{count}} log lines match the filters",
-    "meta": "Who did what, when, and to what. Every configuration change has a line. The box keeps the lines of the last 365 days, at most 200,000; the oldest go first.",
+    "meta": "Who did what, when, and to what.",
+    "metaInfo": "Every configuration change has a line. The box keeps the lines of the last 365 days, at most 200,000; the oldest go first.",
     "caption": "Audit log",
     "export": "Export CSV",
     "empty": "No log lines yet. Each configuration change adds one here.",
@@ -570,7 +587,8 @@
   "updates": {
     "title": "Software {{version}}, {{count}} updates available",
     "titleLatest": "Software {{version}}, up to date",
-    "meta": "This box maintains itself: the operating system and its packages, the packages Vedette pins, and Vedette itself. Software updates come only from signed GitHub releases; the box refuses packages that are unsigned or badly signed.",
+    "meta": "This box maintains its operating system, pinned packages and Vedette itself.",
+    "metaInfo": "The operating system and its packages, the packages Vedette pins, and Vedette itself. Software updates come only from signed GitHub releases; the box refuses packages that are unsigned or badly signed.",
     "settings": "Channel and update method",
     "channel": "Software channel",
     "stable": "Stable",
@@ -583,9 +601,10 @@
     "auto": "Automatic",
     "manual": "Manual",
     "modeHint": {
-      "auto": "The box installs new builds when a check finds them. Boxes get them in waves to limit risk.",
+      "auto": "The box installs new builds when a check finds them.",
       "manual": "The box only tells you there is a new build; you press Update when ready."
     },
+    "modeInfo": "With automatic updates, boxes get new builds in waves to limit risk.",
     "check": "Check for Vedette releases",
     "checkOff": "Update checks are off in Privacy.",
     "lastCheck": "Last checked {{time}}.",
@@ -597,7 +616,8 @@
     "checkedNew": "{{count}} new items. Press Update on the matching row.",
     "checkedNone": "You're on the latest version ({{version}}).",
     "components": "Versions in use",
-    "componentsDesc": "Software and confirmed recommendation packs (mitigation guides, scan templates, log parsers) arrive inside signed updates. Vulnerability data is not an update: the box fetches it directly from each source.",
+    "componentsDesc": "Software and recommendation packs arrive inside signed updates.",
+    "componentsInfo": "Confirmed recommendation packs (mitigation guides, scan templates, log parsers) arrive inside signed updates with the software. Vulnerability data is not an update: the box fetches it directly from each source.",
     "comp": {
       "software": "Vedette software",
       "data": "Vulnerability data",
@@ -626,7 +646,8 @@
       "dev": "Development build"
     },
     "host": {
-      "how": "Updated together with Vedette. If a new version does not start, the box goes back to the one before by itself.",
+      "how": "Updated together with Vedette.",
+      "howInfo": "If a new version does not start, the box goes back to the one before by itself.",
       "includes": "Includes system helper {{version}}."
     },
     "latest": "Up to date",
@@ -641,39 +662,44 @@
     "rollbackAsk": {
       "title": "Roll {{name}} back?",
       "body": "Change from {{from}} back to {{to}}.",
-      "manual": "The box switches to manual updates so it does not climb back to the old build. Turn automatic on again on this page when you want.",
+      "manual": "The box switches to manual updates.",
+      "manualInfo": "So it does not climb back to the old build. Turn automatic on again on this page when you want.",
       "confirm": "Roll back",
       "dataLoss": "Data written since the update is lost.",
-      "dataLossWhy": "This release changed how Vedette stores its data, so the box also puts back the database it saved just before the update. Findings, logs and settings changed since then are gone.",
+      "dataLossWhy": "Findings, logs and settings changed since then are gone.",
+      "dataLossInfo": "This release changed how Vedette stores its data, so the box also puts back the database it saved just before the update.",
       "dataLossOk": "I understand that data written since the update is lost."
     },
     "advisories": "Vedette security advisories",
-    "advisoriesDesc": "Vulnerabilities in Vedette itself, with the fix. The box tells administrators when a new one appears.",
+    "advisoriesDesc": "Vulnerabilities in Vedette itself, with the fix.",
+    "advisoriesInfo": "The box tells administrators when a new one appears. Advisories arrive with the signed update information, read at a successful update check.",
     "advisoryBanner": "The Vedette build you run has {{count}} known vulnerabilities",
     "advisoryFix": "Update the software to get the fix for {{id}} (fixed in {{version}}).",
     "advisoryAffected": "Affects you",
     "advisoryFixed": "Fixed in your build",
     "advisoriesNone": "None: no known vulnerability in Vedette.",
     "advisoriesStale": "None in the update information this box holds, but that information is out of date: a newer advisory may be missing.",
-    "advisoriesNotYet": "None known yet. Advisories arrive with the signed update information, read at a successful update check.",
+    "advisoriesNotYet": "None known yet.",
     "fixedIn": "Fixed in {{version}}.",
     "revoked": {
       "title": "Vedette {{version}}, which this box runs, has been withdrawn",
       "body": "Reason given by the Vedette project: {{reason}}. Replace it with another release as soon as you can.",
       "open": "Open Updates",
       "quietTitle": "Vedette {{version}} has been withdrawn",
-      "quietBody": "Reason given by the Vedette project: {{reason}}. No box installs it any more; this box keeps running it until the next update."
+      "quietBody": "Reason given by the Vedette project: {{reason}}.",
+      "quietInfo": "No box installs it any more; this box keeps running it until the next update."
     },
     "stale": {
       "title": "The update information on this box is out of date",
       "body": "It ran out on {{date}}, so newer releases and withdrawn ones may be missing.",
-      "checkOn": "The box gets new information at its next update check; if it stays out of date, make sure the box can reach github.com over HTTPS.",
+      "checkOnInfo": "The box gets new information at its next update check; if it stays out of date, make sure the box can reach github.com over HTTPS.",
       "checkOff": "Update checks are off in Privacy: turn them on or import an offline bundle.",
       "checkOffNoBundle": "Update checks are off in Privacy: turn them on."
     },
     "bundle": {
       "title": "Bundle for air-gapped networks",
-      "desc": "If the box cannot reach GitHub or the Internet, export a bundle on a connected machine, carry it over on USB and import it here. A bundle must carry a valid signature too.",
+      "desc": "For a box that cannot reach GitHub: bring a signed bundle over.",
+      "info": "If the box cannot reach GitHub or the Internet, export a bundle on a connected machine, carry it over on USB and import it here. A bundle must carry a valid signature too.",
       "export": "Export bundle",
       "import": "Import bundle",
       "file": "Bundle file",
@@ -697,7 +723,8 @@
     },
     "sources": {
       "title": "Where updates and feeds come from",
-      "body": "Software updates come only from signed GitHub releases. Feeds (CISA KEV, FIRST EPSS, NVD, vendor advisories, IOC feeds and your own) are fetched by the box directly from each source, never through GitHub. Confirmed recommendation packs ship inside updates.",
+      "body": "Software updates come only from signed GitHub releases.",
+      "info": "Feeds (CISA KEV, FIRST EPSS, NVD, vendor advisories, IOC feeds and your own) are fetched by the box directly from each source, never through GitHub. Confirmed recommendation packs ship inside updates.",
       "link": "Open Settings, Feeds"
     },
     "titleOs_one": "{{name}}: {{count}} security update waiting",
@@ -705,7 +732,8 @@
     "titleOsClean": "{{name}}: no security updates waiting",
     "managed": {
       "title": "Packages managed by Vedette",
-      "desc": "Tools Vedette installs and pins itself. They are not taken from the operating system's package mirrors.",
+      "desc": "Tools Vedette installs and pins itself.",
+      "info": "They are not taken from the operating system's package mirrors.",
       "col": {
         "package": "Package",
         "version": "Pinned version",
@@ -715,15 +743,18 @@
       "pinned": "Pinned, up to date",
       "pending": "New version in the next release",
       "how": "Updated together with Vedette releases",
-      "none": "None listed. This list comes from the signed release information of the version this box runs, which the box reads at a successful update check. The tools themselves, such as nmap in the scan image, ship with the release whether or not they are listed here."
+      "none": "None listed.",
+      "noneInfo": "This list comes from the signed release information of the version this box runs, which the box reads at a successful update check. The tools themselves, such as nmap in the scan image, ship with the release whether or not they are listed here."
     },
     "vedette": {
       "title": "Vedette software",
-      "desc": "Signed releases from GitHub, with a spare slot and a one-click rollback. Channel and history are here."
+      "desc": "Signed releases from GitHub, with a spare slot and one-click rollback.",
+      "info": "The channel, the update method and the update history are in this part."
     },
     "os": {
       "title": "Operating system of this box",
-      "desc": "This box is a security appliance, so it keeps its own operating system patched. Ubuntu and Debian are supported.",
+      "desc": "This box keeps its own operating system patched.",
+      "info": "This box is a security appliance, so it patches its own operating system. Ubuntu and Debian are supported.",
       "distro": "Distribution",
       "kernel": "Kernel",
       "lastCheck": "Last checked",
@@ -752,7 +783,8 @@
       "auto": "Automatic security updates",
       "autoOn": "Automatic security updates are on.",
       "autoOff": "Automatic security updates are off.",
-      "autoHintOn": "unattended-upgrades installs security updates by itself, on the system's own daily apt timer. It does not wait for the maintenance window and never reboots the box; a reboot is yours to schedule.",
+      "autoHintOn": "Security updates install by themselves daily; the box never reboots itself.",
+      "autoInfoOn": "unattended-upgrades installs security updates by itself, on the system's own daily apt timer. It does not wait for the maintenance window and never reboots the box; a reboot is yours to schedule.",
       "autoHintOff": "Nothing is installed until you press a button below. Security fixes can wait for days.",
       "windowLabel": "Maintenance window",
       "dayShort": {
@@ -782,7 +814,8 @@
         "until": "until",
         "to": "to",
         "hintAnytime": "Automatic Vedette updates and scheduled reboots can happen at any time of day.",
-        "hintWindow": "Automatic Vedette updates and scheduled reboots happen only on these days and hours. A window that ends before it starts crosses midnight.",
+        "hintWindow": "Automatic Vedette updates and scheduled reboots happen only in this window.",
+        "windowInfo": "They happen only on these days and hours. A window that ends before it starts crosses midnight.",
         "noDays": "Pick at least one day.",
         "empty": "The start and the end are the same, so the window is empty.",
         "save": "Save window",
@@ -794,7 +827,8 @@
       "installSecurity": "Install security updates",
       "installAll": "Install all updates",
       "installAllTitle": "Install all {{count}} updates?",
-      "installAllBody": "This installs security and normal updates. Services may restart for a few seconds. A database backup is taken first.",
+      "installAllBody": "This installs security and normal updates. Services may restart for a few seconds.",
+      "installAllInfo": "A database backup is taken first.",
       "installAllConfirm": "Install all",
       "helper": "A separate privileged helper, vedette-host, runs a fixed list of apt commands. The web app never runs shell commands. A database backup is taken before every run, and only one run can go at a time.",
       "checked": "Checked the package mirrors.",
@@ -811,7 +845,8 @@
       "reboot": {
         "now": "Reboot now",
         "nowTitle": "Reboot the box now?",
-        "nowBody": "The Vedette web interface, sensors and traps are offline for a minute or two. Choose a quiet moment.",
+        "nowBody": "The Vedette web interface, sensors and traps are offline for a minute or two.",
+        "nowInfo": "Choose a quiet moment.",
         "nowConfirm": "Reboot now",
         "done": "Reboot started. The box is back in a minute or two.",
         "schedule": "Schedule reboot",
@@ -850,7 +885,8 @@
       },
       "upgrade": {
         "title": "Release upgrade to {{to}} is available",
-        "warn": "Vedette does not do this for you. A release upgrade changes the whole system and can fail halfway. Do it by hand, in a console, at a quiet time, with a snapshot or backup."
+        "warn": "Vedette does not do this for you: upgrade by hand, with a backup.",
+        "warnInfo": "A release upgrade changes the whole system and can fail halfway. Do it by hand, in a console, at a quiet time, with a snapshot or backup."
       },
       "checkNow": "Check now"
     },
@@ -901,9 +937,31 @@
   },
   "privacy": {
     "title": "The box connects out only for the flows listed below",
-    "meta": "Assets, logs, findings and AI keys never leave the machine. Below is every data flow that goes out to the Internet.",
+    "meta": "Assets, logs, findings and AI keys never leave the machine.",
+    "metaInfo": "Below is every data flow that goes out to the Internet.",
     "flows": "Data flows that leave the box",
-    "flowsDesc": "A flow that only runs when you configure it says so. There is no other flow. Reporting a problem is not a flow: the box sends nothing, and your own browser opens GitHub.",
+    "flowsDesc": "There is no other flow. Flows that need set-up say so.",
+    "flowsInfo": "A flow that only runs when you configure it says so. Reporting a problem is not a flow: the box sends nothing, and your own browser opens GitHub.",
+    "flowFull": "{{flow}}: {{part}}",
+    "flowShort": {
+      "1": { "what": "Plain HTTPS requests for public feed files; none of your data.", "to": "Each feed's own public source, such as CISA, FIRST and the NVD.", "control": "Not as a whole; turn off single built-in feeds in Settings → Feeds." },
+      "2": { "what": "Not sent. The box sends nothing to the Vedette project." },
+      "3": { "what": "The data you choose, job by job, to your provider with your key.", "to": "The AI providers you add, or a model inside your network.", "control": "No AI profile, no flow. You choose the profile for each job." },
+      "5": { "what": "Alert content, sign-in codes, and approval links and codes.", "to": "The Slack, Telegram, Zalo, webhook or email server you set up.", "control": "Remove the channel, or turn off approvals in chat." },
+      "6": { "what": "Your Vedette version, and the apt and image requests of updates.", "to": "GitHub releases, ghcr.io and your distribution's package mirrors.", "control": "Yes — switch update checks off to update by hand only.",
+        "container": { "what": "Your current Vedette version, in the request to GitHub.", "to": "GitHub releases (signed software updates).", "control": "Yes — switch update checks off." } },
+      "7": { "what": "The Vedette events you choose, as syslog, CEF or JSON; no log lines." },
+      "8": { "what": "The CVE ID, in lookups at the NVD, GitHub and vendor sites.", "to": "The NVD, GitHub, 16 listed vendor sites and six security-blog feeds.", "control": "If you do not press it, nothing is sent." },
+      "9": { "what": "Your verified domains and IPs, for lookups and the scans you allow.", "to": "crt.sh, this box's DNS resolver, your own targets, public-IP checkers.", "control": "Turn off auto-detect, or turn off the External exposure module." },
+      "10": { "what": "A time request (UDP port 123); no Vedette data in it.", "to": "Your distribution's own chrony time sources, left as installed.", "control": "Not from Vedette's screens: the operating system's own time sources stay.",
+        "container": { "what": "Nothing from Vedette.", "to": "Nowhere from Vedette.", "control": "Not sent by Vedette. Keep that machine's clock right." } },
+      "11": { "what": "Only if you set up SSO: sign-in requests to your issuer." },
+      "12": { "what": "The requests, actions and credentials you set up, to its own address.", "control": "Delete the connection, or turn it off." },
+      "13": { "what": "Only while it is on: answers to tools you gave a token to." },
+      "14": { "what": "Only while connected: read-only requests to your Wazuh server API.", "control": "Disconnect Wazuh in Inventory → Agents, or turn off agent intake." },
+      "15": { "what": "One verified public IP, to Shodan InternetDB, only on a confirmed click.", "control": "Off until an administrator clicks: if nobody clicks, nothing is sent." },
+      "16": { "what": "The OpenVAS container images and the Greenbone Community Feed.", "to": "Greenbone's community registry and your package mirrors.", "control": "Off until an administrator enables OpenVAS in External exposure." }
+    },
     "col": {
       "flow": "Flow",
       "what": "What is sent",
@@ -1060,28 +1118,33 @@
     },
     "telemetry": {
       "title": "Anonymous signal",
-      "statement": "Anonymous signal: not sent. The box sends nothing to the Vedette project. The project runs no server that could receive it, and this version has no code that sends it."
+      "statement": "Anonymous signal: not sent. The box sends nothing to the Vedette project.",
+      "statementInfo": "The project runs no server that could receive it, and this version has no code that sends it."
     },
     "cookie": {
       "title": "Cookies",
-      "body": "One sign-in session cookie only (__Host-vedette_session). No tracking, no analytics, no resources loaded from outside servers."
+      "body": "One sign-in session cookie only (__Host-vedette_session). No tracking.",
+      "bodyInfo": "No analytics, no resources loaded from outside servers."
     },
     "bugNote": {
       "title": "Report a problem",
-      "body": "The box sends nothing when you report a problem. You download a filtered diagnostic file and press Open GitHub issue; your own browser opens GitHub with your text filled in."
+      "body": "The box sends nothing when you report a problem.",
+      "bodyInfo": "You download a filtered diagnostic file and press Open GitHub issue; your own browser opens GitHub with your text filled in."
     }
   },
   "mcp": {
     "titleOn": "MCP server is on, read-only, {{count}} tokens",
     "titleOff": "MCP server is off",
-    "meta": "Lets outside AI tools or a SIEM look up the box's devices, findings and vulnerability feeds. Read-only; there are no write tools.",
+    "meta": "Outside AI tools or a SIEM read devices, findings and feeds; read-only.",
+    "metaInfo": "Lets outside AI tools or a SIEM look up the box's devices, findings and vulnerability feeds. There are no write tools.",
     "switch": "Turn on MCP server",
     "switchOff": "Turn off MCP server",
     "enabledToast": "MCP server is on.",
     "disabledToast": "MCP server is off. Tokens are kept but do not work.",
     "readOnly": "Read-only",
     "onHint": "Listening on this machine only (localhost).",
-    "onHintContainer": "Listening inside the vedette-core container. The compose.yaml of this release publishes it on the localhost of the machine that runs the container only.",
+    "onHintContainer": "Listening inside the vedette-core container.",
+    "onHintContainerInfo": "The compose.yaml of this release publishes it on the localhost of the machine that runs the container only.",
     "offHint": "No port is open. Turn it on to create tokens and connect.",
     "connect": "Connect",
     "connectDesc": "Paste this config into your MCP tool and replace <token> with a token below.",
@@ -1092,7 +1155,8 @@
     "remote": "A tool on another machine must go through an SSH tunnel or a reverse proxy you set up. Vedette does not open this port to the LAN. Tools that run inside a web browser cannot connect: the server refuses requests from web pages.",
     "remoteContainer": "The compose.yaml of this release publishes the port on 127.0.0.1 of the machine that runs Docker or Podman, never on the LAN; with an older compose.yaml no tool can connect until you update it. A tool on another machine must go through an SSH tunnel to that machine or a reverse proxy you set up. Tools that run inside a web browser cannot connect: the server refuses requests from web pages.",
     "notListening": "The port is not open yet.",
-    "notListeningHint": "Do not give a token to this address until the port is open: another program listening there would receive it.",
+    "notListeningHint": "Do not give a token to this address until the port is open.",
+    "notListeningInfo": "Another program listening there would receive it.",
     "verify": "The format above follows the Claude Code MCP docs (type http, url, headers). Other tools may name the fields differently: check that tool's docs.",
     "scope": {
       "assets": "Devices",
@@ -1109,7 +1173,8 @@
       "scopeError": "Pick at least one scope.",
       "create": "Create token",
       "createdTitle": "Token {{name}} created",
-      "createdBody": "Copy the token now: once you close this dialog it cannot be shown again. The box keeps only the last 4 characters.",
+      "createdBody": "Copy the token now: it cannot be shown again.",
+      "createdInfo": "Once you close this dialog the token is gone for good. The box keeps only the last 4 characters.",
       "label": "Token",
       "done": "I have copied it",
       "empty": "No tokens yet. Create one so an outside tool can connect.",
@@ -1119,7 +1184,8 @@
       "revoked": "Token {{name}} revoked.",
       "revokeAsk": {
         "title": "Revoke token {{name}}?",
-        "body": "The tool that uses it loses access at once. This cannot be undone: to connect it again, create a new token."
+        "body": "The tool that uses it loses access at once. This cannot be undone.",
+        "info": "To connect the tool again, create a new token."
       },
       "col": {
         "name": "Name",
@@ -1132,7 +1198,8 @@
     },
     "tools": {
       "title": "Tools the MCP server offers",
-      "desc": "All are read tools. None can edit devices, change a finding's status or run a scan.",
+      "desc": "All are read tools.",
+      "info": "None can edit devices, change a finding's status or run a scan.",
       "col": {
         "name": "Tool",
         "what": "What it does",
@@ -1149,29 +1216,35 @@
   },
   "data": {
     "title": "Back up, export and delete the box's data",
-    "meta": "All of this works from here, no command line. Your data stays on this machine.",
+    "meta": "Your data stays on this machine.",
+    "metaInfo": "All of this works from here, no command line.",
     "downloaded": "Downloaded {{file}}",
     "backup": {
       "title": "Backup",
-      "desc": "Settings, users (with their password hashes, never the passwords themselves), modules, devices, findings and the log. No AI keys or tokens. Keep the file as safe as the box: the hashes could be attacked offline.",
+      "desc": "No AI keys or tokens. Keep the file as safe as the box.",
+      "info": "Settings, users (with their password hashes, never the passwords themselves), modules, devices, findings and the log. The hashes could be attacked offline.",
       "button": "Download backup"
     },
     "key": {
       "title": "Keep the decryption key apart",
-      "desc": "The backup file has no decryption key. On another box it brings back your devices, findings, users and settings, but not the saved secrets (AI and feed keys, alert channel passwords, tokens), and users with two-step sign-in cannot sign in. Download the key once and keep it somewhere other than your backups, like an emergency kit: with both files a new box comes back whole.",
+      "desc": "Without it, a backup on another box loses the saved secrets.",
+      "descInfo": "The backup file has no decryption key. On another box it brings back your devices, findings, users and settings, but not the saved secrets (AI and feed keys, alert channel passwords, tokens), and users with two-step sign-in cannot sign in. Download the key once and keep it somewhere other than your backups, like an emergency kit: with both files a new box comes back whole.",
       "button": "Download decryption key",
-      "sso": "You sign in with single sign-on, so there is no Vedette password to confirm this download with. An administrator who signs in with a password can download the key.",
+      "sso": "Single sign-on accounts cannot confirm this download.",
+      "ssoInfo": "You sign in with single sign-on, so there is no Vedette password to confirm this download with. An administrator who signs in with a password can download the key.",
       "saved": "Saved {{file}}. Keep it apart from your backups: whoever has both can read the saved secrets.",
       "ask": {
         "title": "Download the decryption key?",
-        "body": "Anyone with this key and a backup can read the saved secrets. Keep it offline, away from the backups. The download is recorded in the audit log.",
+        "body": "Anyone with this key and a backup can read the saved secrets.",
+        "info": "Keep it offline, away from the backups. The download is recorded in the audit log.",
         "codeEmail": "Click Download once to get a code by email, then type it here and click again.",
         "confirm": "Download"
       }
     },
     "restore": {
       "title": "Backups on this box",
-      "desc": "Copies the operating system helper keeps on the box: the ones you made and the ones the box takes by itself before an operating system install, a Vedette update or a restore. Restoring one puts the box's data back to that moment.",
+      "desc": "Restoring a copy puts the box's data back to that moment.",
+      "info": "Copies the operating system helper keeps on the box: the ones you made and the ones the box takes by itself before an operating system install, a Vedette update or a restore.",
       "empty": "No backups on this box yet.",
       "col": {
         "when": "Taken",
@@ -1207,22 +1280,26 @@
     },
     "export": {
       "title": "Export data",
-      "desc": "Every table of the box as JSON, to take to another tool: devices, findings, logs, settings and users with their names and email addresses. Passwords, keys, tokens and webhook addresses are never included (a webhook shows only its host).",
+      "desc": "Every table of the box as JSON; secrets are never included.",
+      "info": "To take to another tool: devices, findings, logs, settings and users with their names and email addresses. Passwords, keys, tokens and webhook addresses are never included (a webhook shows only its host).",
       "button": "Export JSON"
     },
     "purge": {
       "title": "Delete all data",
-      "desc": "Deletes all data on this box: devices, findings, logs, users, settings, every module's data and every backup. The decryption key is replaced, so no old copy can be opened. The box restarts and returns to a fresh install. This cannot be undone.",
+      "desc": "Deletes all data and every backup. This cannot be undone.",
+      "info": "Deletes all data on this box: devices, findings, logs, users, settings, every module's data and every backup. The decryption key is replaced, so no old copy can be opened. The box restarts and returns to a fresh install.",
       "button": "Delete all data",
       "restarting": {
         "title": "The box is deleting your data and restarting…",
-        "body": "This takes a few seconds. This page opens first-run setup by itself when the box is back.",
+        "body": "This takes a few seconds.",
+        "bodyInfo": "This page opens first-run setup by itself when the box is back.",
         "slow": "The box has not come back yet. Check that it is powered on and reachable, then reload the page.",
         "reload": "Reload the page"
       },
       "ask": {
         "title": "Delete all data on the box?",
-        "body": "Download an export first if you still need the data. You are signed out, the box restarts (the page is unreachable for a few seconds) and first-run setup opens again.",
+        "body": "Download an export first if you still need the data.",
+        "info": "You are signed out, the box restarts (the page is unreachable for a few seconds) and first-run setup opens again.",
         "removes": "Deleted: all data, users and backups, including the data of every module. The decryption key is replaced.",
         "keeps": "Kept: the TLS certificate, the system journal (the operating system rotates it; Vedette does not control it), the box's network settings and the honeypot's raw log (its container owns it).",
         "type": "Type the organization name \"{{org}}\" to confirm",
@@ -1245,17 +1322,20 @@
     },
     "sample": {
       "title": "Restore sample data",
-      "desc": "Trial build only: puts everything back to the original sample data, including anything you entered.",
+      "desc": "Trial build only: puts everything back to the original sample data.",
+      "info": "Anything you entered is erased too.",
       "button": "Restore sample data",
       "ask": {
         "title": "Restore sample data?",
-        "body": "Everything you entered in this trial build is erased. The page reloads with the original sample data and signs you in again as the sample administrator.",
+        "body": "Everything you entered in this trial build is erased.",
+        "info": "The page reloads with the original sample data and signs you in again as the sample administrator.",
         "confirm": "Restore and reload"
       }
     },
     "logs": {
       "title": "Download logs",
-      "desc": "One file with the box's logs. Secrets (passwords, keys, tokens, webhook addresses) are never included. Hash-chained logs include their hashes so you can verify them offline.",
+      "desc": "One file with the box's logs; secrets are never included.",
+      "info": "Secrets (passwords, keys, tokens, webhook addresses) are never included. Hash-chained logs include their hashes so you can verify them offline.",
       "categories": "Logs to include",
       "from": "From",
       "to": "To",
@@ -1291,7 +1371,8 @@
     },
     "password": {
       "title": "Change password",
-      "desc": "At least {{min}} characters. A long sentence is easier to remember than random characters.",
+      "desc": "At least {{min}} characters.",
+      "descInfo": "A long sentence is easier to remember than random characters.",
       "current": "Current password",
       "next": "New password",
       "again": "Repeat new password",
@@ -1303,7 +1384,8 @@
     },
     "twofa": {
       "title": "Two-step sign-in",
-      "desc": "On top of your password, signing in needs a 6-digit code. Pick one method; to switch, turn it off and set up the other.",
+      "desc": "On top of your password, signing in needs a 6-digit code.",
+      "descInfo": "Pick one method; to switch, turn it off and set up the other.",
       "on": "On",
       "off": "Off",
       "onWith": "On: {{method}}",
@@ -1329,7 +1411,8 @@
         "openChannels": "Open alert channels",
         "openModules": "Open modules",
         "askAdmin": "Ask an administrator to set up the email channel.",
-        "sent": "We sent a 6-digit code to {{to}}. Enter it to confirm that this mailbox works. The code expires in 10 minutes.",
+        "sent": "We sent a 6-digit code to {{to}}.",
+        "sentInfo": "Enter it to confirm that this mailbox works. The code expires in 10 minutes.",
         "codeHint": "The code can be used once. After 5 wrong tries it is cancelled and you need a new one.",
         "resend": "Send a new code",
         "resendIn": "Send a new code in {{s}} s"
@@ -1343,8 +1426,9 @@
       "confirm": "Confirm and turn on",
       "enabled": "Two-step sign-in is on.",
       "disabled": "Two-step sign-in is off.",
-      "lostUser": "Lost your phone or mailbox? Ask an administrator to turn two-step sign-in off for you in Settings → Users.",
-      "lostAdmin": "Lost your phone or mailbox? Another administrator can turn two-step sign-in off for you in Settings → Users. If you are the only one, run this on the machine that runs Vedette (on an appliance: sudo podman instead of docker). It gives a temporary password and turns two-step sign-in off.",
+      "lostUser": "Lost your phone or mailbox? Ask an administrator to reset it in Settings → Users.",
+      "lostAdmin": "Lost your phone or mailbox? Another administrator can reset it in Settings → Users.",
+      "lostAdminInfo": "Another administrator can turn two-step sign-in off for you in Settings → Users. If you are the only one, run the command below on the machine that runs Vedette (on an appliance: sudo podman instead of docker). It gives a temporary password and turns two-step sign-in off.",
       "lostAdminCommand": "Reset from the box console",
       "offAsk": {
         "title": "Turn off two-step sign-in?",
@@ -1364,7 +1448,7 @@
     },
     "sessions": {
       "title": "Where you are signed in",
-      "desc": "If you see a session you do not know, end it and change your password.",
+      "desc": "A session you do not know? End it and change your password.",
       "device": "Device",
       "ip": "IP address",
       "started": "Started",
@@ -1379,7 +1463,8 @@
     },
     "sso": {
       "title": "Password and two-step sign-in",
-      "body": "You sign in through your company account (SSO). Your password and two-step sign-in are set at your identity provider, not in Vedette. Your role comes from your groups there and is updated each time you sign in."
+      "body": "You sign in through your company account (SSO).",
+      "bodyInfo": "Your password and two-step sign-in are set at your identity provider, not in Vedette. Your role comes from your groups there and is updated each time you sign in."
     },
     "tabs": {
       "label": "Parts of My account",
@@ -1391,20 +1476,23 @@
   },
   "twoStepPrompt": {
     "title": "Turn on two-step sign-in for this administrator account",
-    "body": "An administrator can change every setting of the box. With two-step sign-in, a password that leaks is not enough: signing in also needs a code from an authenticator app or an email.",
+    "body": "With two-step sign-in, a leaked password is not enough to sign in.",
+    "bodyInfo": "An administrator can change every setting of the box. With two-step sign-in, signing in also needs a code from an authenticator app or an email.",
     "go": "Turn on two-step sign-in",
     "later_one": "Remind me in {{count}} day",
     "later_other": "Remind me in {{count}} days"
   },
   "alertChannelPrompt": {
     "title": "No alert channel yet",
-    "body": "Until an alert channel is set up and switched on, Vedette can only show what it finds here: nobody is told when a device matches an exploited vulnerability.",
+    "body": "Nobody is told when a device matches an exploited vulnerability.",
+    "bodyInfo": "Until an alert channel is set up and switched on, Vedette can only show what it finds here.",
     "go": "Set up an alert channel",
     "noAlerts": "Not using alerts? Switch off Notifications in Settings, Modules, and this goes away."
   },
   "changePassword": {
     "title": "Choose a new password",
-    "desc": "An administrator set your current password. Choose your own before you continue: at least {{min}} characters, and not the temporary one.",
+    "desc": "Choose your own: at least {{min}} characters, not the temporary one.",
+    "descInfo": "An administrator set your current password. Choose your own before you continue.",
     "current": "Temporary password",
     "currentError": "Enter the temporary password you signed in with.",
     "sameError": "The new password must differ from the temporary one.",
@@ -1422,7 +1510,8 @@
   },
   "setup": {
     "title": "First-time Vedette setup",
-    "subtitle": "Four steps, a few minutes. You can change your choices later in Settings, and set up alert channels there once setup is done.",
+    "subtitle": "Four steps, a few minutes.",
+    "subtitleInfo": "You can change your choices later in Settings, and set up alert channels there once setup is done.",
     "steps": "Setup steps",
     "step": {
       "terms": "Terms of use",
@@ -1435,7 +1524,7 @@
     "finish": "Finish setup",
     "terms": {
       "title": "Terms of use",
-      "desc": "Read the terms of use of Vedette. You accept them once, for this box.",
+      "desc": "Read the terms of use. You accept them once, for this box.",
       "region": "Terms of use of Vedette",
       "agree": "I have read, understood and agree to the terms of use",
       "needTick": "Tick that you agree to the terms of use to continue.",
@@ -1451,22 +1540,26 @@
       "email": "Sign-in email",
       "emailError": "The email does not look right, for example name@example.com.",
       "password": "Password",
-      "passwordHint": "At least {{min}} characters. A long sentence is easier to remember than random characters.",
+      "passwordHint": "At least {{min}} characters.",
+      "passwordInfo": "A long sentence is easier to remember than random characters.",
       "passwordError": "The password needs at least {{min}} characters, it has {{count}} so far.",
       "again": "Repeat password",
       "againError": "The two entries do not match.",
       "code": "Setup code",
-      "codeHint": "Vedette prints a one-time code in its log each time it starts while setup is open. On the appliance run \"journalctl -u vedette-core | grep setup_code\"; on a container-only install run \"docker logs vedette-core 2>&1 | grep setup_code\" (or podman logs). Copy the code.",
-      "codeHintAppliance": "Vedette prints a one-time code in its log each time it starts while setup is open. On the box run \"journalctl -u vedette-core | grep setup_code\" and copy the code.",
-      "codeHintContainer": "Vedette prints a one-time code in its log each time it starts while setup is open. Run \"docker logs vedette-core 2>&1 | grep setup_code\" (or \"podman logs vedette-core\") on the machine that runs it, and copy the code.",
+      "codeHint": "The one-time code printed in Vedette's log.",
+      "codeInfo": "Vedette prints a one-time code in its log each time it starts while setup is open. On the appliance run \"journalctl -u vedette-core | grep setup_code\"; on a container-only install run \"docker logs vedette-core 2>&1 | grep setup_code\" (or podman logs). Copy the code.",
+      "codeInfoAppliance": "Vedette prints a one-time code in its log each time it starts while setup is open. On the box run \"journalctl -u vedette-core | grep setup_code\" and copy the code.",
+      "codeInfoContainer": "Vedette prints a one-time code in its log each time it starts while setup is open. Run \"docker logs vedette-core 2>&1 | grep setup_code\" (or \"podman logs vedette-core\") on the machine that runs it, and copy the code.",
       "codeError": "Enter the setup code from the box's log."
     },
     "network": {
       "title": "Network to watch",
       "desc": "Vedette listens and (if you confirm) scans only inside these ranges.",
       "lan": "Network ranges",
-      "lanHint": "One range per row, like 192.168.10.0/24. Write the prefix length too: a bare address such as 192.168.10.0 is refused. Printers and cameras should be inside the list.",
-      "lanFromBox": "The first row is the box's own network ({{lan}}); change it or add others.",
+      "lanHint": "One range per row, like 192.168.10.0/24.",
+      "lanInfo": "Write the prefix length too: a bare address such as 192.168.10.0 is refused. Printers and cameras should be inside the list.",
+      "lanFromBox": "Row 1 is the box's own network ({{lan}}).",
+      "lanFromBoxInfo": "The first row is the box's own network ({{lan}}); change it or add others.",
       "lanRow": "Range {{n}}",
       "lanAdd": "Add range",
       "lanRemove": "Remove range {{n}}",
@@ -1483,51 +1576,63 @@
         "network": "\"{{from}}\" was changed to {{to}}, the first address of that range."
       },
       "commitment": "I confirm these ranges belong to my company and I am allowed to scan them.",
-      "passiveOnly": "Not ticked: Vedette only listens passively and does not scan yet. You can confirm later under Devices, Scope and sensors.",
-      "firstPass": "Ticked: active scanning is turned on. Vedette makes one first pass over these ranges right away (once, at most an hour), then scans only in the time window under Devices, Scope and sensors (22:00 to 05:00 by default).",
+      "scanTopic": "Scanning",
+      "passiveOnly": "Not ticked: Vedette only listens passively and does not scan yet.",
+      "passiveOnlyInfo": "You can confirm later under Devices, Scope and sensors.",
+      "firstPass": "Ticked: active scanning is on; a first pass starts right away.",
+      "firstPassInfo": "Vedette makes one first pass over these ranges right away (once, at most an hour), then scans only in the time window under Devices, Scope and sensors (22:00 to 05:00 by default).",
       "license": "Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it.",
       "saveFailed": "Setup finished but the scan scope was not saved: {{message}} Open Devices, Scope and sensors to enter it again.",
       "lanNoPrefix": "\"{{value}}\" has no prefix length. Add it so Vedette scans the right size of network, for example {{value}}/24 or {{value}}/25."
     },
     "modules": {
       "title": "Choose a module bundle",
-      "desc": "Modules are separate pieces of work you switch on and off. Pick the closest bundle and change it later in Settings, Modules.",
+      "desc": "Pick the closest bundle; change it later in Settings, Modules.",
+      "descInfo": "Modules are separate pieces of work you switch on and off.",
       "smb": {
         "name": "Small business",
-        "desc": "Know your devices, see exploited vulnerabilities that match them, alert through a channel, internal traps, weekly report. Light, little upkeep.",
-        "descNoTraps": "Know your devices, see exploited vulnerabilities that match them, alert through a channel, weekly report. Light, little upkeep."
+        "desc": "Your devices and the exploited vulnerabilities that match them. Light upkeep.",
+        "descInfo": "Know your devices, see exploited vulnerabilities that match them, alert through a channel, internal traps, weekly report. Light, little upkeep.",
+        "descNoTrapsInfo": "Know your devices, see exploited vulnerabilities that match them, alert through a channel, weekly report. Light, little upkeep."
       },
       "mid": {
         "name": "Mid-size business",
-        "desc": "The small bundle plus confirming scans, external surface, firewall logs and the AI assistant (with your own key)."
+        "desc": "The small bundle plus scans, external surface, logs and AI.",
+        "descInfo": "The small bundle plus confirming scans, external surface, firewall logs and the AI assistant (with your own key)."
       },
       "custom": {
         "name": "Custom",
         "desc": "Pick each module yourself. A module that needs another gets it picked too."
       },
       "pick": "Modules to turn on",
-      "pickHint": "Core is always on. Picking a module that needs others picks them too; dropping a module also drops those that depend on it.",
+      "pickHint": "Core is always on.",
+      "pickInfo": "Picking a module that needs others picks them too; dropping a module also drops those that depend on it.",
       "needs": "Needs: {{list}}",
       "customEmpty": "Pick at least one module.",
-      "notHere": "Not on this install: {{list}}. They need the appliance install (vedette-host); this container-only install leaves them out.",
+      "notHere": "Not on this install: {{list}}.",
+      "notHereInfo": "They need the appliance install (vedette-host); this container-only install leaves them out.",
       "notHereOne": "Needs the appliance install"
     },
     "sample": {
       "title": "Just want a look?",
-      "desc": "Use sample data: 30 made-up devices, a few findings, and you are signed in at once as the sample administrator. Restore or delete it in Settings, Data.",
+      "desc": "Sample data: 30 made-up devices and a few findings.",
+      "descInfo": "You are signed in at once as the sample administrator. Restore or delete the sample data in Settings, Data.",
       "button": "Use sample data"
     },
     "restore": {
       "entryTitle": "Moving to a new box?",
-      "entryDesc": "Restore from a backup you downloaded in Settings, Data on your old box, instead of creating a new organization.",
+      "entryDesc": "Restore the backup of your old box.",
+      "entryInfo": "Restore from a backup you downloaded in Settings, Data on your old box, instead of creating a new organization.",
       "entryButton": "Restore from a backup",
       "title": "Restore from a backup",
-      "desc": "Your organization, users, devices, findings and settings come back as they were in the backup. You sign in with your password from the old box.",
+      "desc": "Everything comes back as it was in the backup.",
+      "descInfo": "Your organization, users, devices, findings and settings come back as they were in the backup. You sign in with your password from the old box.",
       "file": "Backup file",
       "fileHint": "The vedette-backup-<date>.tar.gz file that Download backup saved.",
       "fileMissing": "Choose the backup file.",
       "key": "Decryption key file (optional)",
-      "keyHint": "The vedette-key-<date>.key file that Download decryption key saved. With it, saved secrets and two-step sign-in come back.",
+      "keyHint": "The vedette-key-<date>.key file.",
+      "keyInfo": "The file that Download decryption key saved. With it, saved secrets and two-step sign-in come back.",
       "keyBad": "This is not a Vedette decryption key file.",
       "noKey": {
         "title": "Without the decryption key:",
@@ -1543,19 +1648,22 @@
       "lost": {
         "secrets": "{{n}} saved secrets will be lost and must be entered again.",
         "twofa": "{{n}} users sign in with two-step and will not be able to sign in.",
-        "noAdmin": "No administrator could sign in after this restore: every one uses two-step sign-in or single sign-on. Add the key file. Without it, the box is not usable until an administrator is reset from the box console (RUNBOOK, section 7)."
+        "noAdmin": "No administrator could sign in after this restore. Add the key file.",
+        "noAdminInfo": "Every administrator uses two-step sign-in or single sign-on. Without the key file, the box is not usable until an administrator is reset from the box console (RUNBOOK, section 7)."
       },
       "understand": "I understand that without the key these are lost",
       "restore": "Restore",
       "importing": "Storing the backup…",
       "running": "Restoring the backup of {{org}}. Vedette restarts during the restore; this page reconnects by itself.",
-      "reconnect": "Waiting for Vedette to come back. If this stays for more than two minutes, reload the page: after a restore the box may show a new certificate, which you accept as on your first visit.",
+      "reconnect": "Waiting for Vedette to come back.",
+      "reconnectInfo": "If this stays for more than two minutes, reload the page: after a restore the box may show a new certificate, which you accept as on your first visit.",
       "done": "Your data is back. Sign in with your email and password from the old box.",
       "signIn": "Go to sign in",
       "reverted": "The restored data did not start correctly, so the box went back to a fresh install. Nothing was lost; check the backup file and try again.",
       "failed": "The restore failed: {{error}}",
       "again": "Try again",
-      "container": "A container-only install has no system helper, so it cannot restore a backup here. Your backup is the copy of the vedette_data volume (it includes the key): restore it with the commands below, from docs/INSTALL-CONTAINER.md section 6, then open this page again.",
+      "container": "Restore the copy of the vedette_data volume with the commands below.",
+      "containerInfo": "A container-only install has no system helper, so it cannot restore a backup here. Your backup is the copy of the vedette_data volume (it includes the key): restore it with the commands below, from docs/INSTALL-CONTAINER.md section 6, then open this page again.",
       "terms": "You accepted the terms of use on the first step; the restored box records that acceptance."
     }
   },
@@ -1565,20 +1673,24 @@
   "bug": {
     "title": "Report a problem",
     "desc": "Describe what went wrong. You review everything before it leaves your hands.",
-    "noSend": "The box sends nothing itself. \"Download report\" saves a file on your computer, and \"Open GitHub issue\" opens GitHub in your own browser with the text below filled in. You decide what to post.",
+    "noSend": "The box sends nothing itself. You decide what to post.",
+    "noSendInfo": "\"Download report\" saves a file on your computer, and \"Open GitHub issue\" opens GitHub in your own browser with the text below filled in.",
     "what": "What happened",
     "steps": "Steps to reproduce",
     "expected": "What you expected",
     "bundle": "Diagnostic bundle",
-    "bundleDesc": "Exactly what the downloaded file contains besides your text. It never includes devices, logs, findings, keys, email addresses or IP addresses; those are removed from error messages.",
+    "bundleDesc": "Exactly what the downloaded file contains besides your text.",
+    "bundleInfo": "It never includes devices, logs, findings, keys, email addresses or IP addresses; those are removed from error messages.",
     "bundleLabel": "JSON, preview of the diagnostic bundle",
-    "attach": "The GitHub issue holds your text and a short summary only. Attach the downloaded file to it so the maintainer can see the full bundle.",
+    "attach": "Attach the downloaded file to the GitHub issue.",
+    "attachInfo": "The GitHub issue holds your text and a short summary only. With the file attached, the maintainer can see the full bundle.",
     "download": "Download report",
     "open": "Open GitHub issue"
   },
   "network": {
     "meta": "Where the box sits on your network and how it listens to a switch mirror.",
-    "metaNoSpan": "Where the box sits on your network: its ports, management address, Trap IPs and time source.",
+    "metaNoSpan": "Where the box sits on your network.",
+    "metaNoSpanInfo": "Its ports, management address, Trap IPs and time source.",
     "helper": "Changes here are applied by vedette-host, a small helper on the box that runs a fixed list of commands. The web app never runs shell commands.",
     "role": {
       "management": "Management",
@@ -1606,11 +1718,13 @@
     },
     "management": {
       "title": "Management interface",
-      "desc": "The address you use to open Vedette and the box's route to the rest of the network.",
+      "desc": "The address you use to open Vedette.",
+      "info": "This part also sets the box's route to the rest of the network: its gateway and DNS.",
       "mode": "How the box gets its address",
       "static": "Fixed address (static)",
       "dhcp": "From a DHCP server",
-      "dhcpNote": "The address, gateway and DNS come from your DHCP server. Reserve the address on the server so it does not change.",
+      "dhcpNote": "The address, gateway and DNS come from your DHCP server.",
+      "dhcpNoteInfo": "Reserve the address on the server so it does not change.",
       "dhcpNow": "Now: address {{ip}}, gateway {{gateway}}, DNS {{dns}}.",
       "address": "IP address",
       "prefix": "Prefix length",
@@ -1629,7 +1743,8 @@
       "body": "You will lose this page. Open https://{{ip}}:8443 within 5 minutes and confirm, or the box returns to the old settings.",
       "lose": "If the new address is wrong or unreachable from your computer, do nothing: after 5 minutes the box goes back to the old address by itself.",
       "signIn": "You will need to sign in again at the new address (two-step code included): it is a different address for your browser.",
-      "bodyDhcp": "You will lose this page. Your DHCP server picks the new address: find it there (or in your router's client list), open it on port 8443 within 5 minutes and confirm, or the box returns to the old settings.",
+      "bodyDhcp": "You will lose this page: open the new address within 5 minutes and confirm.",
+      "bodyDhcpInfo": "Your DHCP server picks the new address: find it there (or in your router's client list), open it on port 8443 within 5 minutes and confirm, or the box returns to the old settings.",
       "loseDhcp": "If you cannot find the new address, do nothing: after 5 minutes the box goes back to the old address by itself.",
       "go": "Apply and start the 5-minute timer"
     },
@@ -1646,10 +1761,12 @@
     },
     "span": {
       "title": "SPAN capture",
-      "desc": "Your switch sends a copy of the traffic of other ports to one port of the box. Vedette only listens: it never sends on that port and never blocks traffic.",
+      "desc": "Vedette listens to a copy of your switch's traffic; it never blocks.",
+      "descInfo": "Your switch sends a copy of the traffic of other ports to one port of the box. Vedette only listens: it never sends on that port and never blocks traffic.",
       "enabled": "Capture mirrored traffic",
       "port": "Capture port",
-      "portHint": "The port the switch's mirror (SPAN) port is plugged into. It has no IP address and only listens. The management port cannot be used.",
+      "portHint": "The port the switch's mirror (SPAN) port is plugged into.",
+      "portInfo": "It has no IP address and only listens. The management port cannot be used.",
       "choose": "Choose a port",
       "isManagement": "(management)",
       "noLink": "(no link)",
@@ -1662,7 +1779,7 @@
       },
       "extractHint": {
         "dns": "The names devices look up, to spot lookups of known-bad domains.",
-        "tls_sni": "The server name a device asks for when it starts an encrypted connection (the name only, not the content).",
+        "tls_sni": "The server name of an encrypted connection (the name only, not the content).",
         "http_host": "The Host header of plain HTTP requests.",
         "flows": "Who talked to whom: addresses, ports, byte counts and times."
       },
@@ -1670,7 +1787,8 @@
       "reading": "Reading: {{list}}.",
       "readingNone": "Nothing selected. SPAN cannot be turned on until you choose at least one.",
       "filtersTitle": "Exclusions",
-      "filtersDesc": "Traffic matching these is dropped before anything is read, for example a backup server or a port you do not want looked at.",
+      "filtersDesc": "Traffic matching these is dropped before anything is read.",
+      "filtersInfo": "For example a backup server or a port you do not want looked at.",
       "filtersNone": "No exclusions.",
       "ftypeLabel": "Exclude by",
       "ftype": {
@@ -1713,7 +1831,8 @@
       "last": "Last packet",
       "never": "None yet",
       "statusNote": "The status shows the saved settings and refreshes every 5 seconds.",
-      "kept": "This version of Vedette no longer sets up SPAN capture. What this box already has keeps working as saved and is shown here read-only: you can turn it off, not on again.",
+      "kept": "SPAN capture is read-only in this version: you can turn it off, not on.",
+      "keptInfo": "This version of Vedette no longer sets up SPAN capture. What this box already has keeps working as saved and is shown here read-only.",
       "turnOff": "Turn off SPAN capture",
       "turnedOff": "SPAN capture turned off.",
       "verdict": {
@@ -1727,40 +1846,48 @@
         },
         "own_only": {
           "title": "Only the box's own traffic",
-          "advice": "Packets arrive on {{iface}} but none come from other devices. The switch is not mirroring other ports: check that the mirror session lists the ports you want to watch and that its destination is the port plugged into {{iface}}."
+          "advice": "Packets arrive on {{iface}} but none come from other devices.",
+          "adviceInfo": "The switch is not mirroring other ports: check that the mirror session lists the ports you want to watch and that its destination is the port plugged into {{iface}}."
         },
         "no_traffic": {
           "title": "Nothing is arriving",
-          "advice": "The link is up on {{iface}} but no packets arrive. Check the mirror session on the switch: is it enabled, is the destination the right port, and is the cable in that port?"
+          "advice": "The link is up on {{iface}} but no packets arrive.",
+          "adviceInfo": "Check the mirror session on the switch: is it enabled, is the destination the right port, and is the cable in that port?"
         },
         "sensor_unreachable": {
           "title": "The listener did not start",
-          "advice": "Vedette saved the port but could not tell the passive sensor to listen on {{iface}}. It tries again every few seconds; if this stays, turn the passive sensor module off and on in Settings, Modules."
+          "advice": "The passive sensor was not told to listen on {{iface}} yet.",
+          "adviceInfo": "Vedette saved the port but could not tell the passive sensor to listen on {{iface}}. It tries again every few seconds; if this stays, turn the passive sensor module off and on in Settings, Modules."
         },
         "no_link": {
           "title": "No cable signal",
-          "advice": "{{iface}} has no link. Check the cable and that the switch port is on. A port set as a mirror destination must be enabled."
+          "advice": "{{iface}} has no link. Check the cable and that the switch port is on.",
+          "adviceInfo": "A port set as a mirror destination must be enabled."
         }
       }
     },
     "guides": {
       "title": "Set up the mirror on your switch",
-      "desc": "Pick your switch to see the steps. Plug the switch's mirror destination port into {{port}} on the box.",
+      "desc": "Pick your switch to see the steps.",
+      "descInfo": "Plug the switch's mirror destination port into {{port}} on the box.",
       "pick": "Switch or device",
       "choose": "Choose your switch",
       "prompt": "Choose a switch above to see the exact steps and commands.",
-      "replace": "Port names and numbers are examples. Replace them: the destination is the port plugged into {{port}}, the sources are the ports whose traffic you want to see.",
+      "replace": "Port names and numbers are examples: replace them.",
+      "replaceInfo": "The destination is the port plugged into {{port}}, the sources are the ports whose traffic you want to see.",
       "check": {
         "vendor": "Checked against vendor documentation",
         "partial": "Partly verified, test on your model",
         "general": "General guidance, no single source"
       },
       "source": "Source page",
-      "after": "After the switch is set up, open SPAN capture above and check that {{port}} shows traffic from other devices."
+      "after": "After the switch is set up, check SPAN capture above.",
+      "afterInfo": "Open SPAN capture above and check that {{port}} shows traffic from other devices."
     },
     "decoys": {
       "title": "Trap IPs",
-      "desc": "Extra IP addresses the box answers on for the traps, besides its own. Read only here.",
+      "desc": "Extra IP addresses the box answers on for the traps.",
+      "info": "The box answers on these besides its own address. They are read only here.",
       "none": "No Trap IPs yet.",
       "link": "Change them in Internal traps"
     },
@@ -1770,18 +1897,23 @@
       "mode": "Time source",
       "default": "Default",
       "custom": "Your own servers (added)",
-      "defaultNote": "The box uses the time sources its operating system already has. Once you save Box network with Default, the box also asks the public {{pool}}.",
+      "defaultNote": "The box uses the time sources its operating system already has.",
+      "defaultInfo": "Once you save Box network with Default, the box also asks the public {{pool}}.",
       "servers": "NTP servers",
-      "serversHint": "One to four names or addresses, separated by commas. They are added to the time sources the operating system already uses; those stay.",
+      "serversHint": "One to four names or addresses, separated by commas.",
+      "serversInfo": "They are added to the time sources the operating system already uses; those stay.",
       "saved": "Time servers saved.",
+      "privacyShort": "Time requests still reach public servers, which see the box's IP.",
       "privacy": "The operating system keeps its own time sources, so time requests still reach public servers (they see the box's IP address). Servers you enter here are added, not substituted.",
       "privacyLink": "See Privacy, flow 10"
     },
     "boxAddress": {
       "title": "Box address",
-      "desc": "The name or address people and devices on your network use to reach the box. Every link the box sends uses it: alert messages, approval links, sign-in emails, the block list URL, URL honey tokens and agent install commands.",
+      "desc": "The name or address people and devices use to reach the box.",
+      "info": "People and devices on your network use it. Every link the box sends uses it: alert messages, approval links, sign-in emails, the block list URL, URL honey tokens and agent install commands.",
       "label": "Host name or IP address",
-      "hint": "Leave it empty to use the management address. Enter a name only if your network's DNS resolves it to the box. No https:// and no port.",
+      "hint": "A name or IP address, no https:// and no port.",
+      "hintInfo": "Leave it empty to use the management address. Enter a name only if your network's DNS resolves it to the box.",
       "default": "Default: {{address}} (the management address)",
       "noDefault": "Default: the management address, once the box has one",
       "links": "Links now start with {{url}}",
@@ -1817,7 +1949,8 @@
     "getMayChange": "Some devices change state on a GET (reboot, config). Turn this on only for read-only endpoints.",
     "writeOnlyApproved": "Write tools run only through an action you approve in the AI response module.",
     "empty": "No connections yet",
-    "emptyBody": "Add a connection so response actions can reach a firewall or switch, and the AI can read a device instead of guessing.",
+    "emptyBody": "Lets response actions and the AI reach a device.",
+    "emptyInfo": "Add a connection so response actions can reach a firewall or switch, and the AI can read a device instead of guessing.",
     "kind": {
       "http": "HTTP API",
       "ssh": "SSH / CLI",
@@ -1856,7 +1989,8 @@
       "write": "Write"
     },
     "deleteTitle": "Delete {{name}}?",
-    "deleteBody": "Response actions and the AI lose access to this system. Actions that used it can no longer run.",
+    "deleteBody": "Response actions and the AI lose access to this system.",
+    "deleteInfo": "Actions that used it can no longer run.",
     "deleted": "Connection deleted",
     "addTitle": "Add connection",
     "editTitle": "Edit {{name}}",
@@ -1879,9 +2013,11 @@
       "target_mcp-stdio": "Command that starts the MCP server",
       "targetExample": "For example {{example}}",
       "auth": "Sign-in",
-      "authHint": "Changing it clears the secret you typed (a password is not a token); the user name and the other fields stay.",
+      "authHint": "Changing it clears the secret you typed.",
+      "authInfo": "A password is not a token, so a new sign-in type needs its own secret. The user name and the other fields stay.",
       "secret": "Secret",
-      "secretHint": "Token, password or key. Stored encrypted; only the last 4 characters are shown afterwards.",
+      "secretHint": "Token, password or key.",
+      "secretInfo": "Stored encrypted; only the last 4 characters are shown afterwards.",
       "secretSaved": "Saved, ending {{last4}}. Leave blank to keep it.",
       "allow": "Allow-list (one per line)",
       "allowHint_ssh": "Exact commands the AI may run. Use a read-only device account.",
@@ -1899,18 +2035,23 @@
       "pinRoots": "Trusted through a public certificate authority",
       "pinSsh": "SSH host key",
       "pinSeen": "First seen {{when}}.",
-      "pinNone": "Nothing pinned yet. The first test trusts whatever answers at this address and pins it. Compare the fingerprint with the one the device shows. A device that a public certificate authority vouches for is not pinned by its key: from then on every test requires that trust.",
+      "pinNone": "Nothing pinned yet.",
+      "pinNoneInfo": "The first test trusts whatever answers at this address and pins it. Compare the fingerprint with the one the device shows. A device that a public certificate authority vouches for is not pinned by its key: from then on every test requires that trust.",
       "forget": "Forget pinned key",
-      "forgetHint": "The next test trusts whatever answers at this address and pins it. Compare the fingerprint with the one the device shows. Do this only when you know the device changed its certificate or key.",
+      "forgetHint": "Only when you know the device changed its certificate or key.",
+      "forgetInfo": "The next test trusts whatever answers at this address and pins it. Compare the fingerprint with the one the device shows.",
       "privateKey": "Private key (OpenSSH or PEM, no passphrase)",
-      "keyHint": "Paste the whole key, including the BEGIN and END lines. A key protected by a passphrase is refused. It is stored encrypted; afterwards only its fingerprint is shown.",
+      "keyHint": "Paste the whole key, BEGIN and END lines included.",
+      "keyInfo": "A key protected by a passphrase is refused. It is stored encrypted; afterwards only its fingerprint is shown.",
       "keySaved": "Saved, {{fingerprint}}. Leave blank to keep it.",
       "keyKeep": "Leave blank to keep the saved key",
       "targetHint_automation": "A platform such as Ansible AWX or n8n. For example {{example}}",
       "targetHint_restconf": "RESTCONF over HTTPS only. For example {{example}}"
     },
-    "meta": "Devices and services that response actions and the AI reach: HTTP APIs, SSH or CLI, RESTCONF, automation platforms and MCP servers. Each connection only uses what is on its allow-list.",
-    "privacyNote": "Vedette sends requests only to the address you enter for each connection, when you press Test and when an approved action or an allowed read runs. The credentials you enter go to that address too. A public address is allowed when you add it on purpose.",
+    "meta": "Devices and services that response actions and the AI reach.",
+    "metaInfo": "HTTP APIs, SSH or CLI, RESTCONF, automation platforms and MCP servers. Each connection only uses what is on its allow-list.",
+    "privacyNote": "Requests and credentials go only to the address you enter.",
+    "privacyNoteInfo": "Vedette sends requests to each connection's address when you press Test and when an approved action or an allowed read runs. The credentials you enter go to that address too. A public address is allowed when you add it on purpose.",
     "privacyLink": "See privacy flow 12",
     "unsupported": "Not supported",
     "unsupportedBody": "Vedette does not start an MCP server from a command. Delete this connection and add the server by its web address instead.",
@@ -1928,7 +2069,8 @@
     "authKey": "SSH key {{fingerprint}}",
     "pinLineTls": "Pinned certificate key: <code>{{value}}</code>, first seen {{when}}",
     "pinLineRoots": "Trusted through a public certificate authority since {{when}}. A certificate that no public authority vouches for is refused.",
-    "firstTestNote": "The first test trusts whatever answers at this address and pins it. Compare the fingerprint with the one the device shows.",
+    "firstTestNote": "The first test trusts whatever answers at this address and pins it.",
+    "firstTestInfo": "Compare the fingerprint with the one the device shows.",
     "pinLineSsh": "Pinned host key: <code>{{value}}</code>, first seen {{when}}",
     "testOff": "Turn the connection on to test it.",
     "toolAccess": "Access of {{tool}} on {{name}}",
@@ -1944,65 +2086,85 @@
   },
   "container": {
     "updates": {
-      "meta": "This is a container-only install on your own Docker or Podman, without the helper vedette-host, so you update Vedette and this machine yourself.",
+      "meta": "You update Vedette and this machine yourself.",
+      "metaInfo": "This is a container-only install on your own Docker or Podman, without the helper vedette-host.",
       "title": "Update Vedette",
-      "desc": "Vedette looks for a new release by itself and says so here. You update it on the machine that runs it: keep the files you run now, download the four files of the new release and check their signatures, then pull the new images and start them.",
+      "desc": "You update Vedette on the machine that runs it.",
+      "descInfo": "Vedette looks for a new release by itself and says so here. To update, keep the files you run now, download the four files of the new release and check their signatures, then pull the new images and start them.",
       "engine": "Commands for",
       "label": "In the folder of compose.yaml",
-      "again": "These two commands pull again the images that vedette.env names (the release you run) and start them, for example after you change a line of vedette.env. They do not move you to a new release: the image digests are fixed in vedette.env. When a release is offered, this page shows its steps; they are also in docs/INSTALL-CONTAINER.md section 5. If you run the sensors or syslog too, add {{files}} after --env-file vedette.env in both commands (leave out the add-on you do not run).",
+      "again": "These commands pull and start the release you run again.",
+      "againInfo": "They pull again the images that vedette.env names and start them, for example after you change a line of vedette.env. They do not move you to a new release: the image digests are fixed in vedette.env. When a release is offered, this page shows its steps; they are also in docs/INSTALL-CONTAINER.md section 5. If you run the sensors or syslog too, add {{files}} after --env-file vedette.env in both commands (leave out the add-on you do not run).",
       "offer": "Vedette {{version}} is available. This machine runs {{running}}.",
       "offerUnknown": "Vedette {{version}} is available. This machine's version is not known.",
-      "checkOff": "The update check is off, so Vedette cannot tell you here when a new release is out. Watch the release page, or turn the check on under",
+      "checkOff": "The update check is off. Watch the release page, or turn it on under",
+      "checkOffInfo": "With the check off, Vedette cannot tell you here when a new release is out.",
       "privacyLink": "Privacy",
-      "notYet": "No release information yet: no update check has run on this install. Vedette checks a few minutes after setup or a restart, then every 6 hours.",
-      "notYetFailed": "No release information yet: no update check has succeeded on this install. Vedette tries again every 6 hours.",
+      "notYet": "No release information yet: no update check has run.",
+      "notYetInfo": "Vedette checks a few minutes after setup or a restart, then every 6 hours.",
+      "notYetFailed": "No release information yet: no update check has succeeded.",
+      "notYetFailedInfo": "Vedette tries again every 6 hours.",
       "latest": "No newer release is offered to this install.",
       "running": "Running version {{version}}.",
       "runningUnknown": "This machine's version is not known.",
       "checked": "Update information last read {{when}}.",
       "neverChecked": "No check has run yet.",
       "block1": "Update to {{version}}",
-      "unsafe": "The version offered ({{version}}) or the version this machine runs ({{running}}) cannot be put into a command as it is, so no commands are shown here. Follow docs/INSTALL-CONTAINER.md section 5 by hand.",
-      "unsafeUnknown": "This machine's version is not known, so no commands are shown here. Follow docs/INSTALL-CONTAINER.md section 5 by hand.",
-      "stepKeep": "In the folder of compose.yaml, move the four files you run now into a new folder {{kept}}, named after the version they run: that is the way back. An update replaces all four; your own settings are the two lines of vedette.env. mkdir refuses a folder that is already there, so nothing kept is overwritten.",
-      "keptThere": "If {{kept}} is already there (an update you stopped, or a way back you took), first put its files back, then rename it, and run this step again:",
+      "unsafe": "No commands shown: follow docs/INSTALL-CONTAINER.md section 5 by hand.",
+      "unsafeInfo": "The version offered ({{version}}) or the version this machine runs ({{running}}) cannot be put into a command as it is.",
+      "unsafeUnknownInfo": "This machine's version is not known, so no commands are shown here.",
+      "stepKeep": "Move the four files you run now into {{kept}}: that is the way back.",
+      "stepKeepInfo": "Do it in the folder of compose.yaml; the new folder is named after the version they run. An update replaces all four; your own settings are the two lines of vedette.env. mkdir refuses a folder that is already there, so nothing kept is overwritten.",
+      "keptThere": "If {{kept}} is already there, put its files back and rename it first:",
+      "keptThereInfo": "That happens after an update you stopped, or a way back you took. Then run this step again.",
       "keptThereLabel": "Only if {{kept}} is already there",
       "keepLabel": "Keep the files you run now",
-      "stepFetch": "Download the four files of Vedette {{version}} and their signatures from its release page into this folder. The loop stops at the first file that fails:",
+      "stepFetch": "Download the four files of Vedette {{version}} and their signatures:",
+      "stepFetchInfo": "They come from its release page, into this folder. The loop stops at the first file that fails.",
       "fetchLabel": "Download the files",
-      "stepVerify": "Check each one with the vedette.pub you kept from the install (in this folder, not one taken from the release page). The signed comment of each file must name that file and version {{version}}: every line must print \"<file> ok\". At the first FAILED, stop:",
+      "stepVerify": "Check each signature: every line must print \"<file> ok\". At the first FAILED, stop:",
+      "stepVerifyInfo": "Use the vedette.pub you kept from the install (in this folder, not one taken from the release page). The signed comment of each file must name that file and version {{version}}.",
       "checkLabel": "Check the signatures",
       "matchLabel": "Check that vedette.env names these images",
       "pullLabel": "Pull the new images and start them",
       "failStop": "If any check fails, stop and put your files back.",
-      "backOffer": "Putting your files back is also the way back after the update. If you run the sensors or syslog too, add {{files}} after --env-file vedette.env (leave out the add-on you do not run). A version that changes the database may not go back: read the release notes and back up first.",
+      "backOffer": "Back up first: a version that changes the database may not go back.",
+      "backOfferInfo": "Putting your files back is also the way back after the update. If you run the sensors or syslog too, add {{files}} after --env-file vedette.env (leave out the add-on you do not run). Read the release notes before you update.",
       "backLabel": "Put the files of {{kept}} back and start them",
-      "verifyWhy": "Check that each image of {{version}} is the one the Vedette project signed, with the cosign.pub you kept from the install:",
+      "verifyWhy": "Check each image of {{version}} with the cosign.pub you kept:",
+      "verifyWhyInfo": "This checks that each image is the one the Vedette project signed. Use the cosign.pub you kept from the install.",
       "verifyLabel": "One line per image, by the digest in the signed release information",
       "matchWhy_one": "Check that the new vedette.env names this image; it must print {{count}}, or do not go on:",
       "matchWhy_other": "Check that the new vedette.env names these same images; it must print {{count}}, or do not go on:",
-      "stepLines": "Copy your two lines VEDETTE_BIND_IP and VEDETTE_HOSTS from {{kept}}/vedette.env into the new vedette.env (a release leaves them empty), then pull the new images and start them. If you run the sensors or syslog too, add {{files}} after --env-file vedette.env in both commands (leave out the add-on you do not run):"
+      "stepLines": "Copy VEDETTE_BIND_IP and VEDETTE_HOSTS from {{kept}}/vedette.env into the new vedette.env:",
+      "stepLinesInfo": "A release leaves those two lines empty. Then pull the new images and start them. If you run the sensors or syslog too, add {{files}} after --env-file vedette.env in both commands (leave out the add-on you do not run)."
     },
     "os": {
       "title": "Operating system",
-      "desc": "Update the operating system of this machine yourself, with its own tools; Vedette only updates its own images here."
+      "desc": "Update this machine's operating system yourself, with its own tools.",
+      "descInfo": "Vedette only updates its own images here."
     },
     "data": {
-      "meta": "Export, log downloads and deleting the data work from here. A backup of this container-only install is a copy of its Docker volume, made on the machine that runs it."
+      "meta": "Export, log downloads and deleting the data work from here.",
+      "metaInfo": "A backup of this container-only install is a copy of its Docker volume, made on the machine that runs it."
     },
     "backup": {
       "title": "Backup",
-      "desc": "Everything Vedette keeps, the key that unlocks its secrets included, is in the Docker or Podman volume vedette_data. Copy it with core stopped.",
+      "desc": "Everything Vedette keeps is in the volume vedette_data. Copy it with core stopped.",
+      "descInfo": "That includes the key that unlocks its secrets. vedette_data is a Docker or Podman volume.",
       "label": "Back up (in the folder of compose.yaml)",
-      "keep": "vedette-data.tgz holds the key: keep it as safe as a password. The sensors' creds-passive and creds-active volumes need no backup: core writes them again from vedette_data at every start.",
+      "keep": "vedette-data.tgz holds the key: keep it as safe as a password.",
+      "keepInfo": "The sensors' creds-passive and creds-active volumes need no backup: core writes them again from vedette_data at every start.",
       "restoreLabel": "Restore into a fresh volume",
-      "podmanNote": "On a machine with SELinux (Fedora, RHEL), add :Z to the \"$PWD\":/backup mount of the backup command and :ro,Z to the same mount of the restore command."
+      "podmanNote": "With SELinux (Fedora, RHEL), the /backup mounts need :Z.",
+      "podmanNoteInfo": "On a machine with SELinux (Fedora, RHEL), add :Z to the \"$PWD\":/backup mount of the backup command and :ro,Z to the same mount of the restore command."
     },
     "network": {
       "meta": "This is a container-only install: the network of this machine is yours to set up.",
       "title": "Network of this machine",
-      "desc": "Prepare the SPAN card on this machine yourself (promiscuous, no address), start the sensor with compose.sensors.yaml, then choose the card under Sensors. The address, extra IP and time server of the machine are set with its own tools.",
-      "descNoSpan": "Start the sensor with compose.sensors.yaml, then choose the card it listens on under Sensors. The address, extra IP and time server of the machine are set with its own tools."
+      "desc": "Set up this machine's network and the sensor with its own tools.",
+      "descInfo": "Prepare the SPAN card on this machine yourself (promiscuous, no address), start the sensor with compose.sensors.yaml, then choose the card under Sensors. The address, extra IP and time server of the machine are set with its own tools.",
+      "descNoSpanInfo": "Start the sensor with compose.sensors.yaml, then choose the card it listens on under Sensors. The address, extra IP and time server of the machine are set with its own tools."
     }
   }
 }

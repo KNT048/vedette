@@ -12,7 +12,7 @@ export default function SkillsTab() {
   const skills = useSkills()
   const toggle = useToggleSkill()
   return (
-    <Section title={t('harness.skills.title')} description={t('harness.skills.body')} stories={['S-AI-7']}>
+    <Section title={t('harness.skills.title')} description={t('harness.skills.body')} info={t('harness.skills.bodyInfo')} stories={['S-AI-7']}>
       <QueryState query={skills}>
         {({ items }) => (
           <List label={t('harness.skills.title')}>

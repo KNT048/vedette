@@ -107,7 +107,7 @@ describe('Download logs sends the days as YYYY-MM-DD (D-132)', () => {
     renderApp('/settings/data')
     fireEvent.change(await screen.findByLabelText('From'), { target: { value: '2026-11-05' } })
     fireEvent.change(screen.getByLabelText('To'), { target: { value: '2026-11-09' } })
-    fireEvent.click(screen.getByRole('button', { name: /Download logs/ }))
+    fireEvent.click(screen.getByRole('button', { name: /^Download logs/ }))
     await waitFor(() => expect(seen).not.toBeNull())
     expect(seen!.searchParams.get('from')).toBe('2026-11-05')
     expect(seen!.searchParams.get('to')).toBe('2026-11-09')

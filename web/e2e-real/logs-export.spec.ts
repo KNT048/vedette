@@ -175,7 +175,7 @@ test('CSV from the Data page: (no source) sections, and no cell that starts with
   await slot()
   await page.goto('/settings/data')
   await expect(h1(page)).toBeVisible()
-  await page.getByLabel('Format').selectOption('csv')
+  await page.getByLabel('Format', { exact: true }).selectOption('csv')
   const saved = page.waitForEvent('download', { timeout: 60_000 })
   lastStart = Date.now()
   await page.getByRole('button', { name: 'Download logs' }).click()

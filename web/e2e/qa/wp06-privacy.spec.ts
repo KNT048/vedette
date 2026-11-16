@@ -26,7 +26,7 @@ for (const theme of THEMES) {
     expect(n, 'every flow of PRIVACY.md is on one page (no hidden second page)').toBe(16)
     FLOWS.forEach((re, i) => expect(names[i], `flow ${i + 1}`).toMatch(re))
     // flow texts
-    const all = await flows.innerText()
+    const all = await flows.textContent() ?? '' // #824: a long flow text is behind its ⓘ; its full copy stays in the DOM as the button's description
     console.log('TABLE', all)
     expect.soft(all, 'PRIVACY.md flow 6 names the privileged helper vedette-host; the screen does not').toMatch(/vedette-host/)
     expect(all).not.toMatch(/vedette-updater/)

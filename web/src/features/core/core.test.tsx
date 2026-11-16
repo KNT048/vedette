@@ -1296,8 +1296,10 @@ describe('core: cập nhật (S-CORE-2)', () => {
     expect(line).not.toHaveTextContent(/github\.com|Never checked/)
     expect(screen.queryByText(/^Never checked/)).toBeNull()
     expect(screen.queryByText('No rows.')).toBeNull()
-    expect(screen.getByText(/^None listed\. This list comes from the signed release information/)).toBeInTheDocument()
-    expect(screen.getByText(/^None known yet\. Advisories arrive with the signed update information/)).toBeInTheDocument()
+    expect(screen.getByText('None listed.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'About None listed.' })).toHaveAccessibleDescription(/^This list comes from the signed release information/)
+    expect(screen.getByText('None known yet.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'About Vedette security advisories' })).toHaveAccessibleDescription(/Advisories arrive with the signed update information/)
     const running = s.components.find((c: { id: string }) => c.id === 'software').version
     expect(screen.getAllByRole('link', { name: `Vedette ${running}` })[0]).toHaveAttribute('href', '/settings/updates')
   })
@@ -1501,7 +1503,7 @@ describe('core: tài khoản', () => {
     expect(await screen.findByText("docker exec vedette-core /vedette reset-admin 'admin@acme.example'")).toBeInTheDocument()
     unmount()
     renderApp('/settings/account?tab=sign-in', { role: 'operator' })
-    expect(await screen.findByText(/Ask an administrator to turn two-step sign-in off for you/)).toBeInTheDocument()
+    expect(await screen.findByText(/Ask an administrator to reset it in Settings → Users/)).toBeInTheDocument()
     expect(screen.queryByText(/reset-admin/)).not.toBeInTheDocument()
   })
 })
@@ -1819,7 +1821,9 @@ describe('core: turning off Notifications warns about email-code users (D-35)', 
     setUser('u-view', { twofa: true, twofa_method: 'email' })
     await u.click(screen.getByRole('switch', { name: 'Turn off module Notifications' }))
     const dlg = await screen.findByRole('dialog', { name: 'Turn off Notifications?' })
-    expect(await within(dlg).findByText(/2 users sign in with email codes\. They will not be able to sign in until the email channel is back on or an administrator resets their two-step sign-in\./)).toBeInTheDocument()
+    expect(await within(dlg).findByText('2 users sign in with email codes and will be locked out.')).toBeInTheDocument()
+    // A sentence title is not repeated in the ⓘ's name (#824 L1): the ⓘ next to it reads "More about this".
+    expect(within(within(dlg).getByText('2 users sign in with email codes and will be locked out.').parentElement!).getByRole('button', { name: 'More about this' })).toHaveAccessibleDescription('They will not be able to sign in until the email channel is back on or an administrator resets their two-step sign-in.')
   })
 })
 
@@ -1900,7 +1904,7 @@ describe('core: operating system of the box (S-CORE-7, D-53)', () => {
     // release upgrade: guidance only, no button that does it
     expect(os.getByText('Release upgrade to Ubuntu 26.04 LTS is available')).toBeInTheDocument()
     expect(os.getByText(/sudo do-release-upgrade/)).toBeInTheDocument()
-    expect(os.queryByRole('button', { name: /upgrade/i })).toBeNull()
+    expect(os.queryByRole('button', { name: /^(?!About ).*upgrade/i })).toBeNull() // the ⓘ next to the notice title only explains
     expect(os.getByText(/vedette-host, runs a fixed list of apt commands/)).toBeInTheDocument()
     // block 2
     const managed = screen.getByRole('table', { name: 'Packages managed by Vedette' })

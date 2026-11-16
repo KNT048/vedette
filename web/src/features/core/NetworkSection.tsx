@@ -8,6 +8,7 @@ import { OldHashToTab, PageTabs } from '@/components/common/PageFrame'
 import { QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
@@ -46,7 +47,8 @@ function Interfaces({ d }: { d: NetworkState }) {
   // card is never offered Management; with SPAN hidden (D-403) a card that is not the SPAN port has one possible role, shown as text.
   const roleControl = (row: { original: NetInterface }) => {
     const r = row.original.role
-    if (r === 'management') return <span title={t('network.interfaces.mgmtLocked')}><Chip tone="accent">{t('network.role.management')}</Chip></span>
+    // #824: the why is behind ⓘ (reachable by keyboard and touch), not a hover-only title.
+    if (r === 'management') return <span className="flex items-center gap-1"><Chip tone="accent">{t('network.role.management')}</Chip><InfoTip topic={t('network.role.management')}>{t('network.interfaces.mgmtLocked')}</InfoTip></span>
     if (!SPAN_IN_UI && r !== 'span') return <Chip tone="off">{t('network.role.unused')}</Chip>
     return (
       <Select aria-label={t('network.interfaces.roleOf', { name: row.original.name })} value={r} disabled={gate.disabled || roles.isPending} title={gate.title} className="w-44" onChange={(e) => setRole(row.original.name, e.target.value as IfaceRole)}>
@@ -161,7 +163,10 @@ function ManagementForm({ d }: { d: NetworkState }) {
           </Select>
         </Field>
         {mode === 'dhcp' ? (
-          <p className="max-w-lg rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">{t('network.management.dhcpNote')}{m.mode === 'dhcp' && m.address ? ` ${t('network.management.dhcpNow', { ip: `${m.address}/${m.prefix ?? '?'}`, gateway: m.gateway ?? '–', dns: m.dns.join(', ') || '–' })}` : ''}</p>
+          <div className="flex max-w-lg items-start gap-1 rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">
+            <p className="min-w-0 flex-1">{t('network.management.dhcpNote')}{m.mode === 'dhcp' && m.address ? ` ${t('network.management.dhcpNow', { ip: `${m.address}/${m.prefix ?? '?'}`, gateway: m.gateway ?? '–', dns: m.dns.join(', ') || '–' })}` : ''}</p>
+            <InfoTip topic={t('network.management.dhcp')}>{t('network.management.dhcpNoteInfo')}</InfoTip>
+          </div>
         ) : (
           <>
             <div className="grid grid-cols-[minmax(0,1fr)_96px] gap-3">
@@ -178,8 +183,8 @@ function ManagementForm({ d }: { d: NetworkState }) {
       </form>
       {ask ? (
         <Dialog open onOpenChange={(o) => { if (!o) setAsk(null) }}>
-          <DialogContent title={t('network.confirm.title')} description={ask.ip ? t('network.confirm.body', { ip: ask.ip }) : t('network.confirm.bodyDhcp')}>
-            <p className="text-sm">{t(ask.ip ? 'network.confirm.lose' : 'network.confirm.loseDhcp')}</p>
+          <DialogContent title={t('network.confirm.title')} description={ask.ip ? t('network.confirm.body', { ip: ask.ip }) : t('network.confirm.bodyDhcp')}
+            info={<>{ask.ip ? null : <p>{t('network.confirm.bodyDhcpInfo')}</p>}<p>{t(ask.ip ? 'network.confirm.lose' : 'network.confirm.loseDhcp')}</p></>}>
             <p className="text-sm">{t('network.confirm.signIn')}</p>
             <DialogFooter>
               <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
@@ -211,8 +216,8 @@ function NtpForm({ d }: { d: NetworkState }) {
         </Select>
       </Field>
       {mode === 'custom'
-        ? <Field label={t('network.ntp.servers')} htmlFor="ntp-servers" hint={t('network.ntp.serversHint')}><Input id="ntp-servers" autoComplete="off" value={servers} disabled={gate.disabled} placeholder="ntp.company.lan" onChange={(e) => setServers(e.target.value)} /></Field>
-        : <p className="text-[13px] text-muted">{t('network.ntp.defaultNote', { pool: d.default_ntp })}</p>}
+        ? <Field label={t('network.ntp.servers')} htmlFor="ntp-servers" hint={t('network.ntp.serversHint')} info={t('network.ntp.serversInfo')}><Input id="ntp-servers" autoComplete="off" value={servers} disabled={gate.disabled} placeholder="ntp.company.lan" onChange={(e) => setServers(e.target.value)} /></Field>
+        : <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{t('network.ntp.defaultNote')}</p><InfoTip topic={t('network.ntp.default')}>{t('network.ntp.defaultInfo', { pool: d.default_ntp })}</InfoTip></div>}
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       <div><Button type="submit" variant="primary" disabled={gate.disabled || ntp.isPending} title={gate.title}>{t('common:save')}</Button></div>
     </form>
@@ -243,7 +248,7 @@ function BoxAddressForm({ d }: { d: NetworkState }) {
       if (b.address && v !== b.address) setAsk(v)
       else save(v)
     }}>
-      <Field label={t('network.boxAddress.label')} htmlFor="box-address-input" error={error ?? undefined} hint={t('network.boxAddress.hint')}>
+      <Field label={t('network.boxAddress.label')} htmlFor="box-address-input" error={error ?? undefined} hint={t('network.boxAddress.hint')} info={t('network.boxAddress.hintInfo')}>
         <Input id="box-address-input" autoComplete="off" spellCheck={false} value={value} disabled={gate.disabled} aria-invalid={error ? true : undefined} aria-describedby={error ? 'box-address-input-error' : 'box-address-input-hint'}
           onChange={(e) => { setValue(e.target.value); setError(null) }} />
       </Field>
@@ -265,8 +270,7 @@ function BoxAddressForm({ d }: { d: NetworkState }) {
       <div><Button type="submit" variant="primary" disabled={gate.disabled || boxAddress.isPending} title={gate.title}>{t('common:save')}</Button></div>
       {ask !== null && b.address ? (
         <Dialog open onOpenChange={(o) => { if (!o) setAsk(null) }}>
-          <DialogContent title={t('network.boxAddress.confirm.title')} description={t(ask ? 'network.boxAddress.confirm.body' : 'network.boxAddress.confirm.bodyDefault', { from: b.address, to: ask, def: b.default ?? '' })}>
-            <p className="text-sm">{t('network.boxAddress.confirm.keeps', { from: b.address })}</p>
+          <DialogContent title={t('network.boxAddress.confirm.title')} description={t(ask ? 'network.boxAddress.confirm.body' : 'network.boxAddress.confirm.bodyDefault', { from: b.address, to: ask, def: b.default ?? '' })} info={t('network.boxAddress.confirm.keeps', { from: b.address })}>
             <DialogFooter>
               <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
               <Button variant="primary" disabled={boxAddress.isPending} onClick={() => save(ask)}>{t('network.boxAddress.confirm.go')}</Button>
@@ -292,7 +296,6 @@ function Body({ d }: { d: NetworkState }) {
     <>
       <OldHashToTab map={OLD_HASH} />
       <ReadOnlyNote role="admin" />
-      <p className="mb-6 max-w-3xl rounded-md border border-rule bg-sunken px-4 py-2.5 text-[13px]">{t('network.helper')}</p>
       {/* A pending address change counts down on every tab: it must be confirmed from the new address or the box goes back. */}
       <Pending d={d} />
       <PageTabs label={t('network.tabs.label')} tabs={[
@@ -301,7 +304,7 @@ function Body({ d }: { d: NetworkState }) {
             <Interfaces d={d} />
             {SPAN_IN_UI || spanSetUp(d) ? <SpanCard key={JSON.stringify(d.span)} d={d} readOnly={!SPAN_IN_UI} /> : null}
             {SPAN_IN_UI ? <SpanGuides spanPort={d.span.interface ?? d.interfaces.find((i) => i.role === 'span')?.name ?? 'eth1'} /> : null}
-            <Section id="decoys" title={t('network.decoys.title')} description={t('network.decoys.desc')} stories={['S-CORE-8']}>
+            <Section id="decoys" title={t('network.decoys.title')} description={t('network.decoys.desc')} info={t('network.decoys.info')} stories={['S-CORE-8']}>
               {d.decoy_ips.length
                 ? <ul aria-label={t('network.decoys.title')} className="flex flex-wrap gap-2">{d.decoy_ips.map((ip) => <li key={ip} className="rounded-md border border-rule bg-surface px-2.5 py-1 font-mono text-[12.5px]">{ip}</li>)}</ul>
                 : <p className="text-sm text-muted">{t('network.decoys.none')}</p>}
@@ -310,19 +313,19 @@ function Body({ d }: { d: NetworkState }) {
           </>
         ) },
         { id: 'management', label: t('network.tabs.management'), panel: (
-          <Section id="management" title={t('network.management.title')} description={t('network.management.desc')} stories={['S-CORE-8']}>
+          <Section id="management" title={t('network.management.title')} description={t('network.management.desc')} info={t('network.management.info')} stories={['S-CORE-8']}>
             <ManagementForm key={JSON.stringify(d.management) + String(!!d.pending)} d={d} />
           </Section>
         ) },
         { id: 'box-address', label: t('network.tabs.boxAddress'), panel: (
-          <Section id="box-address" title={t('network.boxAddress.title')} description={t('network.boxAddress.desc')} stories={['S-CORE-8', 'S-NOT-1', 'S-RESP-3']}>
+          <Section id="box-address" title={t('network.boxAddress.title')} description={t('network.boxAddress.desc')} info={t('network.boxAddress.info')} stories={['S-CORE-8', 'S-NOT-1', 'S-RESP-3']}>
             <BoxAddressForm key={d.box_address.address ?? ''} d={d} />
           </Section>
         ) },
         { id: 'time', label: t('network.tabs.time'), panel: (
           <Section id="ntp" title={t('network.ntp.title')} description={t('network.ntp.desc')} stories={['S-CORE-8']}>
             <NtpForm key={JSON.stringify(d.ntp)} d={d} />
-            <p className="mt-3 text-[13px] text-muted">{t('network.ntp.privacy')} <Link to="/settings/privacy" className="text-accent underline-offset-4 hover:underline">{t('network.ntp.privacyLink')}</Link></p>
+            <div className="mt-3 flex items-center gap-1"><p className="text-[13px] text-muted">{t('network.ntp.privacyShort')} <Link to="/settings/privacy" className="text-accent underline-offset-4 hover:underline">{t('network.ntp.privacyLink')}</Link></p><InfoTip topic={t('network.ntp.title')}>{t('network.ntp.privacy')}</InfoTip></div>
           </Section>
         ) },
       ]} />
@@ -336,7 +339,8 @@ export default function NetworkSection() {
   const q = useNetwork(install === 'appliance') // D-381: never asked on a container-only install, where it can only answer 409
   return (
     <>
-      <PageHeader title={t('settings.network')} meta={install === 'container' ? t('container.network.meta') : t(SPAN_IN_UI ? 'network.meta' : 'network.metaNoSpan')} stories={['S-CORE-8', 'S-INV-1', 'S-LOG-4']} />
+      <PageHeader title={t('settings.network')} meta={install === 'container' ? t('container.network.meta') : t(SPAN_IN_UI ? 'network.meta' : 'network.metaNoSpan')}
+        info={install === 'appliance' ? <>{SPAN_IN_UI ? null : <p>{t('network.metaNoSpanInfo')}</p>}<p>{t('network.helper')}</p></> : undefined} stories={['S-CORE-8', 'S-INV-1', 'S-LOG-4']} />
       {install === 'container' ? <ContainerNetwork /> : install ? <QueryState query={q}>{(d) => <Body d={d} />}</QueryState> : <InstallPending />}
     </>
   )

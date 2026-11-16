@@ -69,13 +69,13 @@ function Ask() {
 
   if (gate.state === 'off') return <Section title={t('ask.title')}><ModuleOff module="ai" /></Section>
   return (
-    <Section title={t('ask.title')} description={t('ask.description')} stories={['S-AI-5']}>
+    <Section title={t('ask.title')} description={t('ask.description')} info={t('ask.descriptionInfo')} stories={['S-AI-5']}>
       {gate.state === 'unconfigured' || gate.state === 'unassigned' ? (
-        <EmptyState title={t(`gate.${gate.state}`)}>{t(`gate.${gate.state}Body`)} <ToSettings /></EmptyState>
+        <EmptyState title={t(`gate.${gate.state}`)} info={t(`gate.${gate.state}Info`, { defaultValue: '' }) || undefined}>{t(`gate.${gate.state}Body`)} <ToSettings /></EmptyState>
       ) : (
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <form className="grid grid-cols-[minmax(0,1fr)] gap-3" onSubmit={(e) => { e.preventDefault(); run(q) }}>
-            <Field label={t('ask.label')} htmlFor="ai-q" hint={t('ask.hint')} error={long ? t('ask.tooLong', { max: ASK_MAX, n: q.length }) : undefined}>
+            <Field label={t('ask.label')} htmlFor="ai-q" hint={t('ask.hint')} info={t('ask.hintInfo')} error={long ? t('ask.tooLong', { max: ASK_MAX, n: q.length }) : undefined}>
               <div className="flex flex-wrap gap-2">
                 <Input id="ai-q" className="min-w-0 flex-1 basis-72" value={q} onChange={(e) => setQ(e.target.value)} maxLength={ASK_MAX} placeholder={t('ask.placeholder')} disabled={!gate.canRun} aria-invalid={long ? true : undefined} aria-describedby={long ? 'ai-q-error' : q.length >= ASK_MAX * 0.8 ? 'ai-q-hint ai-q-count' : 'ai-q-hint'} />
                 <Button type="submit" variant="primary" disabled={!gate.canRun || ask.isPending || q.trim().length < 3 || long} title={gate.reason}>{ask.isPending ? t('ask.asking') : t('ask.submit')}</Button>
@@ -170,7 +170,7 @@ function Answer({ r }: { r: AskResult }) {
 function Meter({ query, renews }: { query: { data: Usage | undefined; error: unknown; isPending: boolean; refetch: () => unknown }; renews: string | undefined }) {
   const { t } = useTranslation('ai')
   return (
-    <Section title={t('meter.title')} description={t('meter.description')} stories={['S-AI-4']}>
+    <Section title={t('meter.title')} description={t('meter.description')} info={<><p>{t('meter.callsNote')}</p><p>{t('meter.noDowngradesInfo')}</p></>} stories={['S-AI-4']}>
       <QueryState query={query}>
         {(u) => {
           // D-531: the bar is this month against the monthly budget (the box's count, rounded down like its 80 % and 100 % alerts)
@@ -196,7 +196,6 @@ function Meter({ query, renews }: { query: { data: Usage | undefined; error: unk
                   { id: 'runs', header: t('meter.col.runs'), accessorKey: 'runs' },
                   { id: 'tokens', header: t('meter.col.tokens'), accessorKey: 'tokens', cell: ({ getValue }: { getValue: () => unknown }) => fmtNumber(getValue() as number) },
                 ]} empty={t('meter.skillEmpty')} />
-              {u.by_skill.length ? <p className="-mt-3 text-[13px] text-muted">{t('meter.callsNote')}</p> : null}
               <div>
                 <h3 className="mb-1 text-sm font-medium">{t('meter.downgrades')}</h3>
                 {u.downgrades.length === 0 ? <p className="text-sm text-muted">{t('meter.noDowngrades')}</p> : (
@@ -219,7 +218,7 @@ function RunLog() {
   const statusTone = { ok: 'ok', schema_error: 'warn', capped: 'warn', failed: 'danger' } as const
   const num = ({ getValue }: { getValue: () => unknown }) => fmtNumber(getValue() as number)
   return (
-    <Section title={t('runs.title')} description={t('runs.description')} stories={['S-AI-4']}>
+    <Section title={t('runs.title')} description={t('runs.description')} info={t('runs.descriptionInfo')} stories={['S-AI-4']}>
       <QueryState query={runs}>
         {(r) => (
           <DataTable<AiRun> caption={t('runs.caption')} data={r.items} filterPlaceholder={t('runs.filter')} initialSort={[{ id: 'ts', desc: true }]} empty={t('runs.empty')}

@@ -3,12 +3,14 @@ import { Dialog as DialogPrimitive } from 'radix-ui'
 import { X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
+import { InfoTip } from '@/components/common/InfoTip'
 
 export const Dialog = DialogPrimitive.Root
 export const DialogTrigger = DialogPrimitive.Trigger
 export const DialogClose = DialogPrimitive.Close
 
-export function DialogContent({ className, children, title, description, wide, onCloseAutoFocus, ...props }: ComponentProps<typeof DialogPrimitive.Content> & { title: string; description?: ReactNode; wide?: boolean }) {
+/** `description`: một dòng ngắn (≈ 12 từ); giải thích dài vào `info` (ⓘ cạnh tiêu đề, #824). */
+export function DialogContent({ className, children, title, description, info, wide, onCloseAutoFocus, ...props }: ComponentProps<typeof DialogPrimitive.Content> & { title: string; description?: ReactNode; info?: ReactNode; wide?: boolean }) {
   const { t } = useTranslation()
   // Hộp thoại mở bằng state (không có DialogTrigger): Radix không biết trả focus về đâu khi đóng.
   // Nhớ phần tử đang focus lúc mở và trả focus về đó (WCAG 2.4.3).
@@ -25,7 +27,10 @@ export function DialogContent({ className, children, title, description, wide, o
         {...props}
       >
         <div className="grid gap-1 pr-10">
-          <DialogPrimitive.Title className="text-base font-semibold">{title}</DialogPrimitive.Title>
+          <div className="flex items-center gap-1">
+            <DialogPrimitive.Title className="text-base font-semibold">{title}</DialogPrimitive.Title>
+            {info ? <InfoTip topic={title}>{info}</InfoTip> : null}
+          </div>
           {description ? <DialogPrimitive.Description className="text-sm text-muted">{description}</DialogPrimitive.Description> : <DialogPrimitive.Description className="sr-only">{title}</DialogPrimitive.Description>}
         </div>
         {children}

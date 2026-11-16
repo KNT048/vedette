@@ -2020,7 +2020,7 @@ describe('response: Respond from an incident (S-RESP-3, D-509)', () => {
     expect(within(panel).getByText((_, el) => el?.tagName === 'LI' && el.textContent === `Do this now: ${inc.action}`)).toBeInTheDocument()
     expect(within(panel).getByRole('button', { name: 'About Blocking next time' })).toHaveAccessibleDescription(/turns on the response module in Settings, Modules, connects your firewall or switch in Settings, Connections, and turns on a trap rule/) // #824: the how-to is behind ⓘ
     expect(within(panel).queryAllByRole('button').filter((b) => !b.getAttribute('aria-label')?.startsWith('About '))).toEqual([]) // no action button; only the ⓘ
-    expect(screen.getByRole('link', { name: 'Open module settings' })).toHaveAttribute('href', '/settings/modules')
+    expect(screen.getByRole('link', { name: 'Open module settings' })).toHaveAttribute('href', '/settings/modules#module-response')
   })
 
   it('the panel with execution on: Ask for approval sends one request and says nothing changes until approved', async () => {

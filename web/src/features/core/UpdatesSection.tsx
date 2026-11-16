@@ -138,8 +138,11 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
     : c.signature === 'unsigned' && c.version.endsWith('-dev') ? <Chip tone="off">{t('updates.sig.dev')}</Chip>
     : <Chip tone="danger">{t(`updates.sig.${c.signature}`)}</Chip>)
 
+  // The helper row: one short line, the rollback detail behind ⓘ (#824).
+  const hostHow = <div className="flex items-center gap-1"><span className="text-[12px] text-muted">{t('updates.host.how')}</span><InfoTip topic={comp('host')}>{t('updates.host.howInfo')}</InfoTip></div>
+
   const columns: ColumnDef<UpdateComponent>[] = [
-    { id: 'name', header: t('updates.col.component'), accessorFn: (c) => comp(c.id), cell: ({ row }) => <div className="grid"><span className="font-medium">{comp(row.original.id)}</span>{row.original.id === 'host' ? <span className="max-w-xs text-[12px] text-muted">{t('updates.host.how')}</span> : <span className="text-[12px] text-muted">{t(`updates.kind.${row.original.kind}`)}</span>}</div> },
+    { id: 'name', header: t('updates.col.component'), accessorFn: (c) => comp(c.id), cell: ({ row }) => <div className="grid"><span className="font-medium">{comp(row.original.id)}</span>{row.original.id === 'host' ? hostHow : <span className="text-[12px] text-muted">{t(`updates.kind.${row.original.kind}`)}</span>}</div> },
     { id: 'version', header: t('updates.col.version'), accessorFn: (c) => c.version, cell: ({ row }) => <div className="grid"><span className="font-mono text-[12.5px]">{row.original.version}</span><span className="text-[12px] text-muted">{fmtDateTime(row.original.installed_at)}</span></div> },
     { id: 'sig', header: t('updates.col.signature'), accessorFn: (c) => c.signature, cell: ({ row }) => sigChip(row.original) },
     { id: 'available', header: t('updates.col.available'), enableSorting: false, accessorFn: (c) => availableOf(c.id)?.version ?? '', cell: ({ row }) => {
@@ -222,7 +225,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
             return (
               <div className="grid gap-1.5">
                 <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{comp(c.id)}</span>{sigChip(c)}</div>
-                {c.id === 'host' ? <span className="text-[12px] text-muted">{t('updates.host.how')}</span> : null}
+                {c.id === 'host' ? hostHow : null}
                 <span className="font-mono text-[12.5px]">{c.version} <span className="font-sans text-[12px] text-muted">{fmtDateTime(c.installed_at)}</span></span>
                 {c.id === 'host' ? (hostNext ? <span className="text-[13px]">{t('updates.col.available')}: <span className="font-mono">{hostNext}</span></span> : <span className="text-[13px] text-muted">{t('updates.latest')}</span>)
                 : a ? <div className="flex flex-wrap items-center gap-2"><span className="text-[13px]">{t('updates.col.available')}: <span className="font-mono">{a.version}</span></span><Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} title={admin.title} onClick={() => void apply(a.component)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button></div> : <span className="text-[13px] text-muted">{t('updates.latest')}</span>}
@@ -288,7 +291,7 @@ export default function UpdatesSection() {
   // D-381: a container-only install has no spare slot, rollback, channels or packages: the customer pulls the new images (S-CORE-9 G4).
   if (install === 'container') return (
     <>
-      <PageHeader title={t('settings.updates')} meta={t('container.updates.meta')} stories={['S-CORE-2', 'S-CORE-9']} />
+      <PageHeader title={t('settings.updates')} meta={t('container.updates.meta')} info={t('container.updates.metaInfo')} stories={['S-CORE-2', 'S-CORE-9']} />
       <ContainerNotices />
       <ContainerUpdates />
     </>

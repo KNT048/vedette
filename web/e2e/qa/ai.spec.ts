@@ -183,7 +183,7 @@ test.describe('ai: sample data', () => {
     await sampleStart(page)
     await page.goto('/settings/ai')
     const rule = page.getByRole('switch', { name: 'Logs and device data go only to profiles inside your network' })
-    await expect(page.getByRole('button', { name: 'About Logs and device data go only to profiles inside your network' })).toHaveAccessibleDescription(/Tasks on public data \(CVE news, translating vendor advisories\) may still use cloud profiles/) // #824: behind the rule's ⓘ
+    await expect(page.getByText('Logs and device data go only to profiles inside your network', { exact: true }).locator('xpath=..').getByRole('button', { name: 'More about this' })).toHaveAccessibleDescription(/Tasks on public data \(CVE news, translating vendor advisories\) may still use cloud profiles/) // #824: behind the rule's ⓘ
     await rule.click()
     await expect(page.getByText(/cloud assignment\(s\) were cleared/)).toBeVisible()
     await expect(page.getByLabel('Primary profile for Explain findings', { exact: true })).toHaveValue('') // cả chính lẫn dự phòng đều đám mây

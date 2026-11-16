@@ -508,8 +508,10 @@ test.describe('updates: system helper (D-316)', () => {
     await startSample(page)
     await page.goto('/settings/updates')
     await expect(page.getByText('Includes system helper 0.9.4.')).toBeVisible()
-    await expect(helperRow(page)).toContainText('Updated together with Vedette. If a new version does not start, the box goes back to the one before by itself.')
-    await expect(helperRow(page).getByRole('button')).toHaveCount(0)
+    await expect(helperRow(page).getByText('Updated together with Vedette.')).toBeVisible()
+    // The rollback detail is behind the row's ⓘ (#824), its only button: no Apply of its own, no Rollback.
+    await expect(helperRow(page).getByRole('button', { name: 'About System helper' })).toHaveAccessibleDescription('If a new version does not start, the box goes back to the one before by itself.')
+    await expect(helperRow(page).getByRole('button')).toHaveCount(1)
     await page.getByRole('button', { name: /^Update Vedette software$/ }).click()
     await expect(page.getByText('Step 1 of 4: update the system helper')).toBeVisible()
     await expect(page.getByText('Updating the system helper. Vedette keeps running; settings that need the helper cannot be changed until this step ends.')).toBeVisible()

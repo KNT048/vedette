@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { InfoTip } from './InfoTip'
 
 const show = () => render(<><InfoTip topic="Zalo sign-in">Scan the QR code with the Zalo app on a phone.</InfoTip><button type="button">Elsewhere</button></>)
@@ -36,5 +37,28 @@ describe('InfoTip (#824)', () => {
     await user.keyboard(' ')
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(btn).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('inside a dialog, Esc closes only the open ⓘ; a second Esc closes the dialog', async () => {
+    const user = userEvent.setup()
+    // A controlled dialog: count its close requests.
+    const onOpenChange = vi.fn()
+    render(<Dialog open onOpenChange={onOpenChange}><DialogContent title="Email channel" info="Pick the provider first."><p>Form</p></DialogContent></Dialog>)
+    const btn = screen.getByRole('button', { name: 'About Email channel' })
+    await user.click(btn)
+    expect(screen.getAllByRole('dialog')).toHaveLength(2)
+    await user.keyboard('{Escape}')
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    expect(screen.getByRole('dialog', { name: 'Email channel' })).toBeInTheDocument()
+    expect(btn).toHaveFocus()
+    expect(onOpenChange).not.toHaveBeenCalled()
+    await user.keyboard('{Escape}')
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('a sentence title is not repeated as the ⓘ name (more than 6 words reads "More about this")', () => {
+    render(<><InfoTip topic="Alert content">a</InfoTip><InfoTip topic="2 users sign in with email codes and will be locked out.">b</InfoTip></>)
+    expect(screen.getByRole('button', { name: 'About Alert content' })).toHaveAccessibleDescription('a')
+    expect(screen.getByRole('button', { name: 'More about this' })).toHaveAccessibleDescription('b')
   })
 })

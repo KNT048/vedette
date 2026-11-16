@@ -195,16 +195,18 @@ function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: numbe
     // #849 review: one line per row at 1280. Make, model and OS share a column, cut with an ellipsis (the whole text on hover, the
     // device page has each value); the OS in muted text after the model.
     { id: 'hw', header: t('col.device'), accessorFn: (d) => [d.vendor?.value, d.model?.value, d.os?.value].filter(Boolean).join(' '), cell: ({ row }) => {
-      // #849 review r2 M1: the OS or firmware version decides the CVE match, so it is never the part cut: the maker and model shrink
-      // (ellipsis), the OS keeps its width. The whole text stays in the DOM (screen readers read it) and the name opens the device.
+      // #849 review r2 M1: the OS or firmware version decides the CVE match, so it is never the part cut. Maker and model and the OS
+      // sit on one line when they fit; otherwise the OS wraps to its own line(s) in full (n72: "Windows Server 2025 Standard
+      // Evaluation 10.0.26100.1742" ran over Sources and Last seen; review r1 of #888: a clamp would hide the version). The maker and
+      // model keep one line with an ellipsis. The whole text stays in the DOM (screen readers) and in the tooltip.
       const d = row.original
       const hw = hardwareLine(d)
       const os = d.os?.value ?? ''
       if (!hw && !os) return dash
       return (
-        <span className="flex max-w-64 items-baseline gap-1.5 2xl:max-w-md" title={[hw, os].filter(Boolean).join(', ')}>
-          {hw ? <span className="min-w-0 truncate">{hw}</span> : null}
-          {os ? <span className="shrink-0 whitespace-nowrap text-muted">{os}</span> : null}
+        <span className="flex max-w-64 flex-wrap items-baseline gap-x-1.5 2xl:max-w-md" title={[hw, os].filter(Boolean).join(', ')}>
+          {hw ? <span className="min-w-0 max-w-full truncate">{hw}</span> : null}
+          {os ? <span className="min-w-0 max-w-full break-words text-muted">{os}</span> : null}
         </span>
       )
     } },

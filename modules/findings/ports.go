@@ -104,6 +104,15 @@ type KevInfo struct {
 	Published *string `json:"published"`
 }
 
+// CVSS is the CVSS base score shown with a finding (FindingRow.cvss, INV-22, #825): feeds' newest CVSS version, NVD's own score
+// before the CNA's. The band (Low … Critical) follows from Score by FIRST's table; the pages compute it.
+type CVSS struct {
+	Score   float64 `json:"score"`
+	Version *string `json:"version"` // "4.0", "3.1" or "3.0"; nil when feeds did not keep it (an nvd-recent row stored before it did)
+	Source  *string `json:"source"`  // "nvd" (NVD's Primary) or "cna" (Secondary); nil as Version
+	Vector  *string `json:"vector"`  // NVD's vector string ("CVSS:3.1/AV:N/…"); nil when feeds kept none
+}
+
 // TierStatus is what the tier feeds of feeds hold (D-613, D-616): "off", "loading" or "ready" for epss-all and nvd-recent,
 // the day of the EPSS scores and the first published day nvd-recent covers (zero unless ready).
 type TierStatus struct {
@@ -116,6 +125,8 @@ type TierStatus struct {
 type Feeds interface {
 	// KevInfo returns the KEV entries of these CVEs. CVEs that are not on the list are absent.
 	KevInfo(ctx context.Context, cves []string) (map[string]KevInfo, error)
+	// CVSS returns the CVSS base score of these CVEs (INV-22). CVEs without a known score are absent.
+	CVSS(ctx context.Context, cves []string) (map[string]CVSS, error)
 	// Vulns returns the exploited-vulnerability list with the NVD affected ranges, for matching.
 	Vulns(ctx context.Context) ([]Vuln, error)
 	// TierStatus says what the tier feeds hold, for GET /findings/plan (D-613, D-616).

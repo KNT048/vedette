@@ -34,10 +34,10 @@ func TestParseNVDRecent(t *testing.T) {
 		t.Fatalf("%+v", d)
 	}
 	a, b := d.Records[0], d.Records[1]
-	if a.Severity != "HIGH" || *a.Score != 8.7 || a.Status != "Deferred" || len(a.Affected) != 0 || a.Published != time.Date(2026, 8, 1, 3, 16, 25, 307e6, time.UTC) {
+	if a.Severity != "HIGH" || *a.Score != 8.7 || a.CVSSVersion != "4.0" || a.CVSSSource != "cna" || a.Status != "Deferred" || len(a.Affected) != 0 || a.Published != time.Date(2026, 8, 1, 3, 16, 25, 307e6, time.UTC) {
 		t.Fatalf("v4.0 first, the CNA's when NVD gives none: %+v", a)
 	}
-	if b.Severity != "HIGH" || *b.Score != 7.5 || len(b.Affected) != 1 || b.Affected[0].EndExcl != "2.0" {
+	if b.Severity != "HIGH" || *b.Score != 7.5 || b.CVSSVersion != "3.1" || b.CVSSSource != "nvd" || len(b.Affected) != 1 || b.Affected[0].EndExcl != "2.0" {
 		t.Fatalf("NVD's own score before the CNA's: %+v", b)
 	}
 	// review r2 #9 of #802: one record of the wrong JSON type is rejected alone, the page is kept

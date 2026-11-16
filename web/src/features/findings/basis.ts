@@ -15,3 +15,13 @@ const CERTAINTY: Record<Finding['basis'], number> = { scan: 2, version: 1, produ
 export const riskRank = (f: Pick<Finding, 'basis' | 'severity'>) => CERTAINTY[f.basis] * 10 + SEVERITY.indexOf(f.severity)
 /** Chỉ khớp tên sản phẩm, chưa biết phiên bản: mức nghiêm trọng hiện mờ, "Unverified" (D-484). */
 export const unverified = (f: Pick<Finding, 'basis'>) => f.basis === 'product'
+
+export type CvssBand = 'none' | 'low' | 'medium' | 'high' | 'critical'
+/** FIRST's qualitative bands, the same in CVSS v3.1 and v4.0 (#825): 0.0 None, 0.1–3.9 Low, 4.0–6.9 Medium, 7.0–8.9 High, 9.0–10.0 Critical. */
+export function cvssBand(score: number): CvssBand {
+  if (score === 0) return 'none'
+  if (score < 4) return 'low'
+  if (score < 7) return 'medium'
+  if (score < 9) return 'high'
+  return 'critical'
+}

@@ -163,3 +163,10 @@
 ## Modifying: lịch và dòng feed của `nvd-recent` khi dữ liệu chưa đầy đủ (fix/n55-feeds, N55-1, N55-2)
 - `RunPull` đọc `feeds_recent_cursor` mỗi lần kiểm khi `nvd-recent` bật (một hàng); con trỏ chưa `done` cho địa chỉ của feed ⇒ đến hạn ngay (chỉ back-off sau lỗi giữ lại). Mọi lần xoá con trỏ sau này (migration, sửa tay) nạp lại ở lần kiểm kế, không cần migration đổi lịch.
 - `Service.live` nhận `ctx` (đọc con trỏ và số CVE của `nvd-recent` khi không có lượt nào đang chạy, cả khi trạng thái là lỗi); người gọi: `GET /feeds/sources`, `POST /feeds/sources/{id}/fetch`, `pull`. Không đổi API hay GUI: dòng tiến độ đi trong `error` như lượt nạp đầu.
+
+## Modifying: điểm CVSS (`severityOf`, `NVDPage.CVSS`, `applyCVSS`, `Store.CVSSOf`, bảng `feeds_cvss`, cột `feeds_recent_cve.cvss_*`; INV-28, #825)
+- **findings** (qua `cmd/vedette/wiring.go` `findingsFeeds.CVSS`): `FindingRow.cvss` trên `GET /findings`, `GET /findings/{id}` và các câu trả lời `FindingDetail` của `mitigation` (findings INV-22); đổi luật chọn (phiên bản, Primary/Secondary) = đổi điểm khách thấy trên mọi finding và trên trang chủ (phần dashboard của #825 đọc cùng trường).
+- **nvd-kev**: `buildNVD` kéo đầy đủ khi `feeds_cvss` trống (thêm `cvssCount` vào điều kiện cập nhật); test giả NVD (`nvdBody`, `nvdOrigin`) phải có `metrics` có điểm, không thì mọi lượt sau là kéo đầy đủ.
+- **nvd-recent** (INV-24): `severityOf` nay trả `cvssPick` (mức, điểm, phiên bản, nguồn, vector); `TierRecords`/`TierCVEOf` vẫn đọc `severity`/`score` như cũ.
+- **core** (`modules/core/export_policy.go`): `feeds_cvss` xuất; ba cột mới của `feeds_recent_cve` bỏ; `cmd/vedette` `TestExport_PolicyClassifiesEveryColumn`.
+- **THIRD_PARTY_NOTICES.md** hàng NVD (điểm CVSS, vector) và hàng FIRST CVSS (ghi công "CVSS is owned by FIRST and used by permission", cũng trong ⓘ của điểm). Không đổi PRIVACY.md: không luồng ra mới.

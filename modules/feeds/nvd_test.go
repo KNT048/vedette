@@ -3,6 +3,7 @@ package feeds
 import (
 	"context"
 	"fmt"
+	"maps"
 	"net/http"
 	"slices"
 	"strconv"
@@ -31,6 +32,48 @@ func TestParseNVD_RealAnswer(t *testing.T) {
 	fgt := d.Affected["CVE-2024-21762"]
 	if !slices.Contains(fgt, AffectedRow{CPE: "cpe:2.3:o:fortinet:fortios:*:*:*:*:*:*:*:*", StartIncl: "7.2.0", EndExcl: "7.2.7"}) {
 		t.Fatalf("CVE-2024-21762 = %+v", fgt)
+	}
+	// INV-28: NVD's own 3.1 score, even where the CNA's Secondary entry comes first with another score (Ubuntu's 8.8 for CVE-2021-3493)
+	want := map[string]CVSS{
+		"CVE-2016-4655":  {Score: 5.5, Version: "3.1", Source: "nvd", Vector: "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:N/A:N"},
+		"CVE-2021-3493":  {Score: 7.8, Version: "3.1", Source: "nvd", Vector: "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"},
+		"CVE-2024-21762": {Score: 9.8, Version: "3.1", Source: "nvd", Vector: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"},
+	}
+	if !maps.Equal(d.CVSS, want) {
+		t.Fatalf("cvss = %+v", d.CVSS)
+	}
+}
+
+// INV-28: the newest CVSS version present wins, NVD's own ("Primary") before the CNA's ("Secondary") within it; CVSS 2.0 only, an
+// unknown severity or a score outside 0..10 is no score (absent, never 0). The vector is kept only when it is one of the entry's version.
+func TestParseNVD_CVSS(t *testing.T) {
+	t.Parallel()
+	rec := func(id, metrics string) string {
+		return fmt.Sprintf(`{"cve":{"id":%q,"metrics":{%s},"configurations":[]}}`, id, metrics)
+	}
+	e := func(typ string, score float64, sev string) string {
+		return fmt.Sprintf(`{"type":%q,"cvssData":{"baseScore":%v,"baseSeverity":%q}}`, typ, score, sev)
+	}
+	v4 := "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N/U:Amber"
+	recs := []string{
+		rec("CVE-2026-0001", `"cvssMetricV40":[{"type":"Secondary","cvssData":{"baseScore":8.5,"baseSeverity":"HIGH","vectorString":"`+v4+`"}}],"cvssMetricV31":[`+e("Primary", 9.8, "CRITICAL")+`]`),
+		rec("CVE-2026-0002", `"cvssMetricV31":[{"type":"Secondary","cvssData":{"baseScore":6.1,"baseSeverity":"MEDIUM","vectorString":"CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"}}],"cvssMetricV30":[`+e("Primary", 5.0, "MEDIUM")+`]`),
+		rec("CVE-2026-0003", `"cvssMetricV30":[`+e("Primary", 0, "NONE")+`]`),
+		rec("CVE-2026-0004", `"cvssMetricV2":[{"type":"Primary","cvssData":{"baseScore":7.5}}]`),
+		rec("CVE-2026-0005", `"cvssMetricV31":[`+e("Primary", 11, "CRITICAL")+`,`+e("Secondary", 7.0, "BOGUS")+`]`),
+		rec("CVE-2026-0006", ``),
+	}
+	d, err := ParseNVD([]byte(fmt.Sprintf(`{"totalResults":%d,"vulnerabilities":[%s]}`, len(recs), strings.Join(recs, ","))))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]CVSS{
+		"CVE-2026-0001": {Score: 8.5, Version: "4.0", Source: "cna", Vector: v4},
+		"CVE-2026-0002": {Score: 6.1, Version: "3.1", Source: "cna"},
+		"CVE-2026-0003": {Score: 0, Version: "3.0", Source: "nvd"},
+	}
+	if d.Accepted != len(recs) || !maps.Equal(d.CVSS, want) {
+		t.Fatalf("accepted %d, cvss %+v", d.Accepted, d.CVSS)
 	}
 }
 
@@ -70,7 +113,8 @@ func TestNVDPageURL(t *testing.T) {
 	}
 }
 
-// nvdOrigin answers ?hasKev pages of n records CVE-2024-0000…; with lastModStartDate only the first two.
+// nvdOrigin answers ?hasKev pages of n records CVE-2024-0000…, each with an NVD CVSS 3.1 score of 7.5; with lastModStartDate only
+// the first two.
 func nvdOrigin(o *origin, n int, endExcl string) {
 	o.serve("/nvd", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
@@ -81,7 +125,7 @@ func nvdOrigin(o *origin, n int, endExcl string) {
 		}
 		var recs []string
 		for i := start; i < min(start+NVDPageSize, total); i++ {
-			recs = append(recs, fmt.Sprintf(`{"cve":{"id":"CVE-2024-%04d","published":"2024-01-15T10:00:00.000","configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":%q}]}]}]}}`, i, endExcl))
+			recs = append(recs, fmt.Sprintf(`{"cve":{"id":"CVE-2024-%04d","published":"2024-01-15T10:00:00.000","metrics":{"cvssMetricV31":[{"type":"Primary","cvssData":{"baseScore":7.5,"baseSeverity":"HIGH","vectorString":"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"}}]},"configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":%q}]}]}]}}`, i, endExcl))
 		}
 		_, _ = fmt.Fprintf(w, `{"totalResults":%d,"vulnerabilities":[%s]}`, total, strings.Join(recs, ","))
 	})

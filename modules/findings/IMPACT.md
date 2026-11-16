@@ -133,3 +133,9 @@
 - **Không gì khác đổi**: không bảng, không sự kiện, không tin notify, không đổi số finding, báo cáo tuần, Home (S-TIER-2: tầng 2–3 không bao giờ cảnh báo trong bản này). `OnMatchChanged`/`OnAssetMerged` đánh dấu thiết bị cho job, `OnAssetDeleted` bỏ mục ngay.
 - **Bộ nhớ**: chỉ CVE của sản phẩm thiết bị chạy (`TierScope`); đo (`BenchmarkPlanPass`, Mac M2): 104.448 CVE, 21 thiết bị × 40 dòng: 193 ms, 144 MB cấp phát tích luỹ cho lượt (lọc + chỉ mục + khớp); giữ cả năm trong bộ nhớ sẽ là 48,5 MB heap sống, chỉ phần đã lọc (2.520 CVE) là 0,84 MB.
 - **GUI**: `web/src/features/findings/Plan.tsx` (chú giải nhãn dưới bảng CVE, rà r1 #15 của #803), `web/src/locales/en/findings.json` (câu "Not compared yet", thiết bị chưa so, giới thiệu); hợp đồng API không đổi.
+
+## Modifying: điểm CVSS của finding (`Row.CVSS`, `CVSS`, `Feeds.CVSS`; INV-22, #825)
+- **feeds**: `Store.CVSSOf` qua `cmd/vedette/wiring.go` `findingsFeeds.CVSS`; mọi cài đặt giả của `Feeds` phải có `CVSS` (`service_test.go`, `modules/mitigation/mitigation_test.go`).
+- **API/GUI**: `contract.ts` `Cvss`, `FindingRow.cvss` → `api/openapi.json` → `core/api/oas` (`make generate`); `web/src/features/findings/{Cvss.tsx,basis.ts (cvssBand),FindingsPage.tsx,FindingPage.tsx,mocks.ts}`; `DataTable` thêm `mobileSort` (ô "Sort by" trên điện thoại, chỉ trang bật nó).
+- **mitigation**: `POST /findings/{id}/applied|ai` trả `FindingDetail` qua `FindingHandlers.Detail`, nên có `cvss` không cần sửa gì.
+- **Trang chủ** (phần dashboard của #825, PR sau): đọc cùng trường `cvss` của `GET /findings` cho mục hàng đầu; đổi hình trường = đổi cả hai.

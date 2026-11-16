@@ -21,6 +21,7 @@ import { basisKey, deviceName, hasIp, isOpen, riskRank, unverified } from './bas
 import { MAX_BULK } from './contract'
 import { errMsg } from './errors'
 import { RiskChip } from './Risk'
+import { CvssScore } from './Cvss'
 import { FixGroupList } from './FixGroups'
 import { fixGroups, useFixAction } from './fix'
 import type { BulkAction, FindingRow, VersionNeeded } from './types'
@@ -166,6 +167,8 @@ function List() {
     { id: 'product', header: t('col.product'), accessorFn: (r) => r.kev?.display ?? '', cell: ({ row: { original: r } }) => <span>{r.kev?.display ?? '–'}</span> },
     { id: 'status', header: t('col.status'), accessorFn: (r) => r.status, cell: ({ row: { original: r } }) => <StatusCell r={r} /> },
     { id: 'severity', header: t('col.severity'), accessorFn: riskRank, cell: ({ row: { original: r } }) => <RiskChip f={r} /> },
+    // #825: next to the exploited status, never instead of it; highest first on the first click, no score last both ways
+    { id: 'cvss', header: t('col.cvss'), accessorFn: (r) => r.cvss?.score, sortUndefined: 'last', sortDescFirst: true, cell: ({ row: { original: r } }) => <CvssScore cvss={r.cvss} /> },
     { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row: { original: r } }) => <span className={unverified(r) ? 'text-[13px] text-muted' : 'text-[13px]'}>{t(basisKey(r.basis))}</span> },
     { id: 'seen', header: t('col.lastSeen'), accessorFn: (r) => r.last_seen, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap text-[13px] text-muted" title={fmtDateTime(r.last_seen)}>{fmtRelative(r.last_seen)}</span> },
   ]
@@ -222,6 +225,7 @@ function List() {
             data={rows}
             columns={columns}
             initialSort={[{ id: 'severity', desc: true }]}
+            mobileSort
             onRowClick={(r) => navigate(`/findings/${r.id}`)}
             mobileRow={(r) => (
               <div className="flex items-start gap-3">
@@ -235,6 +239,7 @@ function List() {
                   <span className="text-[13px] text-muted">{r.kev?.display ?? '–'}</span>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
                     <RiskChip f={r} />
+                    <CvssScore cvss={r.cvss} prefix />
                     <span>{t(basisKey(r.basis))}</span>
                     <span className="text-muted">{fmtRelative(r.last_seen)}</span>
                   </div>

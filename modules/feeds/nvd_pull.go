@@ -45,6 +45,7 @@ type nvdRun struct {
 	from, to  time.Time
 	affected  map[string][]AffectedRow
 	published map[string]string // D-615: CVE -> the day NVD published it
+	cvss      map[string]CVSS   // INV-28: CVE -> its CVSS base score
 	st        Stats
 	bytes     int
 
@@ -309,13 +310,17 @@ func (s *Service) buildNVD(ctx context.Context, src sourceRow, p pullPlan) (pull
 		if err != nil {
 			return p, err
 		}
+		scored, err := s.st.cvssCount(ctx)
+		if err != nil {
+			return p, err
+		}
 		var from, to time.Time
 		// pub == 0: no published date yet (a box from before D-615): one full pull gives every KEV CVE its date, which an
-		// update (lastMod window) would give only to the CVEs NVD changed since
-		if have > 0 && pub > 0 && src.Status == "ok" && src.LastSuccess != nil && now.Sub(*src.LastSuccess) < nvdIncrementalDays*24*time.Hour {
+		// update (lastMod window) would give only to the CVEs NVD changed since; scored == 0 the same for the CVSS scores (INV-28)
+		if have > 0 && pub > 0 && scored > 0 && src.Status == "ok" && src.LastSuccess != nil && now.Sub(*src.LastSuccess) < nvdIncrementalDays*24*time.Hour {
 			from, to = src.LastSuccess.Add(-24*time.Hour), now
 		}
-		run = &nvdRun{url: src.URL, full: from.IsZero(), from: from, to: to, affected: map[string][]AffectedRow{}, published: map[string]string{}, updated: now}
+		run = &nvdRun{url: src.URL, full: from.IsZero(), from: from, to: to, affected: map[string][]AffectedRow{}, published: map[string]string{}, cvss: map[string]CVSS{}, updated: now}
 	}
 	s.nvdMu.Lock()
 	run.running, run.busy, s.nvd = true, "", run
@@ -363,7 +368,7 @@ func (s *Service) buildNVD(ctx context.Context, src sourceRow, p pullPlan) (pull
 	}
 
 	p.out = outcome{OK: true, Bytes: run.bytes}
-	p.hasAffected, p.affectedFull, p.affected, p.published = true, run.full, run.affected, run.published
+	p.hasAffected, p.affectedFull, p.affected, p.published, p.cvss = true, run.full, run.affected, run.published, run.cvss
 	st := run.st
 	if len(st.Reasons) > 3 {
 		st.Reasons = st.Reasons[:3]
@@ -409,6 +414,7 @@ func (s *Service) nvdPages(ctx context.Context, run *nvdRun) error {
 		}
 		maps.Copy(run.affected, d.Affected)
 		maps.Copy(run.published, d.Published)
+		maps.Copy(run.cvss, d.CVSS)
 		s.nvdMu.Lock()
 		run.start += d.Returned
 		run.total = d.Total

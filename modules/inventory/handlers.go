@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// Handlers implements the 17 operations of the inventory module. Embed it in the composite handler of
+// Handlers implements the 20 operations of the inventory module. Embed it in the composite handler of
 // cmd/vedette. The role of each route comes from the route table, so nothing here checks roles.
 //
 // ogen generates a separate struct per operation for the same schema, so the answers are built from the
@@ -143,6 +143,39 @@ func (h *Handlers) InventoryPostInventoryDevicesIDApprove(ctx context.Context, p
 		return nil, fail(err)
 	}
 	return &oas.InventoryPostInventoryDevicesIDApproveOK{Ok: true}, nil
+}
+
+// InventoryGetInventoryPossibleSame implements GET /inventory/possible-same (viewer, D-599).
+func (h *Handlers) InventoryGetInventoryPossibleSame(ctx context.Context) (*oas.InventoryGetInventoryPossibleSameOK, error) {
+	l, err := h.svc.PossibleSamePairs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return convert[oas.InventoryGetInventoryPossibleSameOK](l)
+}
+
+// InventoryPostInventoryDevicesIDMerge implements POST /inventory/devices/{id}/merge (admin, D-599): body.from goes into id.
+func (h *Handlers) InventoryPostInventoryDevicesIDMerge(ctx context.Context, req *oas.InventoryPostInventoryDevicesIDMergeReq, params oas.InventoryPostInventoryDevicesIDMergeParams) (*oas.InventoryPostInventoryDevicesIDMergeOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.svc.Merge(ctx, who, params.ID, req.From); err != nil {
+		return nil, fail(err)
+	}
+	return &oas.InventoryPostInventoryDevicesIDMergeOK{ID: params.ID}, nil
+}
+
+// InventoryPostInventoryDevicesIDKeepSeparate implements POST /inventory/devices/{id}/keep-separate (admin, D-599).
+func (h *Handlers) InventoryPostInventoryDevicesIDKeepSeparate(ctx context.Context, req *oas.InventoryPostInventoryDevicesIDKeepSeparateReq, params oas.InventoryPostInventoryDevicesIDKeepSeparateParams) (*oas.InventoryPostInventoryDevicesIDKeepSeparateOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.svc.KeepSeparate(ctx, who, params.ID, req.Other); err != nil {
+		return nil, fail(err)
+	}
+	return &oas.InventoryPostInventoryDevicesIDKeepSeparateOK{Ok: true}, nil
 }
 
 // InventoryPostInventoryDevicesIDSuspicious implements POST /inventory/devices/{id}/suspicious (operator).

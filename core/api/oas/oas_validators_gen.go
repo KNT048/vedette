@@ -47372,6 +47372,17 @@ func (s *InventoryGetInventoryDevicesIDOK) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if s.PossibleSame == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "possible_same",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -50439,6 +50450,29 @@ func (s InventoryGetInventoryExportCsvHasFindings) Validate() error {
 	}
 }
 
+func (s *InventoryGetInventoryPossibleSameOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Items == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "items",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *InventoryGetInventorySensorsOK) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -51261,6 +51295,17 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "auth",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.MovedOut == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "moved_out",
 			Error: err,
 		})
 	}
@@ -52669,6 +52714,76 @@ func (s *InventoryPostInventoryDevicesCreated) Validate() error {
 	return nil
 }
 
+func (s *InventoryPostInventoryDevicesIDKeepSeparateReq) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     96,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Other)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "other",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *InventoryPostInventoryDevicesIDMergeReq) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     1,
+			MinLengthSet:  true,
+			MaxLength:     96,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.From)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "from",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *InventoryPostInventoryDevicesIDSoftwareCreated) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -53187,6 +53302,17 @@ func (s *InventoryPostInventorySnmpCreated) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "auth",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.MovedOut == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "moved_out",
 			Error: err,
 		})
 	}
@@ -54707,6 +54833,17 @@ func (s *InventoryPutInventorySnmpIDOK) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "auth",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.MovedOut == nil {
+			return errors.New("nil is invalid value")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "moved_out",
 			Error: err,
 		})
 	}

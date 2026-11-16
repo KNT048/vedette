@@ -46,6 +46,10 @@ func credentialItem(c SNMPCredential) oas.InventoryGetInventorySnmpOKCredentials
 	if !c.LastAnswerAt.IsZero() {
 		out.LastAnswerAt = oas.NewNilDateTime(c.LastAnswerAt)
 	}
+	out.MovedOut = make([]oas.InventoryGetInventorySnmpOKCredentialsItemMovedOutItem, len(c.MovedOut)) // [] not null on add and edit
+	for i, m := range c.MovedOut {
+		out.MovedOut[i] = oas.InventoryGetInventorySnmpOKCredentialsItemMovedOutItem{DeviceID: m.DeviceID, Name: m.Name, IP: m.IP, Message: m.Message}
+	}
 	return out
 }
 

@@ -195,7 +195,7 @@ func (f *fakeInv) Asset(_ context.Context, id string) (sa.Asset, error) {
 	if !ok {
 		return sa.Asset{}, sa.ErrNotFound
 	}
-	return sa.Asset{ID: id, IP: ip, Approved: f.approved[id]}, nil
+	return sa.Asset{ID: id, IP: ip, Approved: f.approved[id], Name: "device " + id}, nil
 }
 
 func (f *fakeInv) Addresses(context.Context) (map[netip.Addr]string, error) {

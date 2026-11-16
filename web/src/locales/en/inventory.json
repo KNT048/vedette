@@ -47,6 +47,7 @@
       "manage": "Agents and tokens"
     },
     "snmp": {
+      "movedOut": "This device moved to {{ip}}, outside the scope of SNMP credential {{name}}, so it is not read there. If it is still this device (check on the device itself: a copied network card looks the same), add the address to that credential's scope (Devices, Scope and sensors, SNMP, Edit) to keep reading it.",
       "off": "Turn on active discovery in Settings to read devices with SNMP.",
       "declared": "Added manually: Vedette sends nothing to it.",
       "approveHere": "Approve, then add SNMP",
@@ -767,6 +768,8 @@
     "answersLabel": "Answers",
     "scopeLabel": "Sent to",
     "lastAnswered": "Last answered {{when}}",
+    "movedOut": "{{name}} moved to {{ip}}, outside this credential's scope",
+    "movedOutDevice": "Open the device",
     "secretLost": "The saved community or password was not restored",
     "secretLostBody": "The backup was restored without its decryption key, or the box key changed. This credential is sent nowhere until you open Edit, enter it again and save.",
     "answeredBy_one": "answered by {{count}} device",

@@ -210,6 +210,13 @@ func (s *Service) scanFacts(ctx context.Context, assetID string) (scanFacts, Set
 	return f, st, err
 }
 
+// sweepSkips says whether the discovery sweep leaves the device out (ProtectedIPs): the box, a device added by hand, one set to "never",
+// and a fragile or unclassified one after its first gentle scan. f.kind is the kind it acts as. The sweep never confirms such a device at
+// its address, so its silence there says nothing (resolve, #829 review r2 H-new-1 of #872).
+func sweepSkips(st Settings, f scanFacts) bool {
+	return f.isBox || f.origin == "manual" || f.regular == "never" || (f.firstScan && !afterScope(st, f.kind, f.fragile, f.regular, f.firstScan).Allowed)
+}
+
 // afterScope is the rest of the policy once the device is known to be scannable by origin, address and scope.
 func afterScope(st Settings, kind string, fragile bool, regular string, hadFirstScan bool) ScanDecision {
 	unclassified := kind == "unknown"
@@ -291,7 +298,7 @@ func (s *Service) ProtectedIPs(ctx context.Context) ([]netip.Addr, error) {
 		if err != nil {
 			continue
 		}
-		if isBox || origin == "manual" || regular == "never" || (hadFirst && !afterScope(st, kind, fragile, regular, hadFirst).Allowed) {
+		if sweepSkips(st, scanFacts{origin: origin, kind: kind, regular: regular, fragile: fragile, isBox: isBox, firstScan: hadFirst}) {
 			out = append(out, addr)
 		}
 	}

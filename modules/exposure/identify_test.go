@@ -490,7 +490,7 @@ func TestPortIdentFromMethodAndScripts(t *testing.T) {
 		}
 	}
 	// a hostile row is cut to what sanitize allows
-	bad := sanitizePortIdent(PortRow{}, PortRow{Ident: "maybe", Title: "a‮b", Server: strings.Repeat("x", maxHint+1), CertNames: []string{"a", "b", "c", "d", "e", "f", "\x00"}})
+	bad := sanitizePortIdent(PortRow{}, PortRow{Ident: "maybe", Title: "a\u202eb", Server: strings.Repeat("x", maxHint+1), CertNames: []string{"a", "b", "c", "d", "e", "f", "\x00"}})
 	if bad.Ident != "" || bad.Title != "" || bad.Server != "" || len(bad.CertNames) != maxCertNames {
 		t.Fatalf("sanitized = %+v", bad)
 	}

@@ -126,21 +126,11 @@ func (h *FindingHandlers) Detail(ctx context.Context, rec Record) (Detail, error
 		return Detail{}, err
 	}
 	d := Detail{Row: rs[0]}
-	if g := h.guidance(); g != nil {
-		if d.Guide, err = g.Guidance(ctx, d.Row); err != nil {
-			return Detail{}, fmt.Errorf("findings: reading the recommendation: %w", err)
-		}
-	}
-	d.Normalize()
-	d.addAppliedToHistory()
-	// The device with its software: both reads below only inform the page, so a failed one leaves what the page always had.
+	// The device with its software: the reads below only inform the page, so a failed one leaves what the page always had.
 	a, ok, err := h.inv.MatchInput(ctx, rec.AssetID)
-	if err != nil || !ok {
-		return d, nil
-	}
-	multi := d.Kev != nil && isMultiProduct(d.Kev.Product)
-	var v *Vuln // the stored entry, read only when a part of the page needs it (an open finding's fix, a Multiple Products label)
-	if rec.Status.Open() || multi {
+	found := err == nil && ok
+	var v *Vuln // the stored entry: the matched row of the finding, its fix, a Multiple Products label
+	if found && d.Kev != nil {
 		if vulns, err := h.feed.Vulns(ctx); err == nil {
 			for i := range vulns {
 				if vulns[i].CVE == rec.CVE {
@@ -150,12 +140,29 @@ func (h *FindingHandlers) Detail(ctx context.Context, rec Record) (Detail, error
 			}
 		}
 	}
-	if d.Asset != nil && d.Kev != nil {
-		if sw := matchedOn(a, *d.Kev, v); sw != "" {
-			aa := *d.Asset
-			aa.Display = sw
-			d.Asset = &aa
+	var row Software
+	matched := false
+	if found && d.Kev != nil {
+		row, matched = findingRow(a, *d.Kev, v)
+	}
+	if matched {
+		d.Known = knownVersion(a, row) // M2-3: the guidance and the page say the version the box has, never "find which version"
+		d.KnownVersion = d.Known
+	}
+	if g := h.guidance(); g != nil {
+		if d.Guide, err = g.Guidance(ctx, d.Row); err != nil {
+			return Detail{}, fmt.Errorf("findings: reading the recommendation: %w", err)
 		}
+	}
+	d.Normalize()
+	d.addAppliedToHistory()
+	if !found {
+		return d, nil
+	}
+	if d.Asset != nil && matched && row.Display != "" {
+		aa := *d.Asset
+		aa.Display = clean(row.Display)
+		d.Asset = &aa
 	}
 	if rec.Status.Open() && v != nil {
 		d.FixedIn = FixedInFor(a, *v) // the release that fixes it on this device, from NVD's ranges (D-488); closed: nothing to upgrade
@@ -170,25 +177,82 @@ func (h *FindingHandlers) Detail(ctx context.Context, rec Record) (Detail, error
 // to the entry, or for Multiple Products when the entry is not read or the matcher matches none (the panel then keeps AssetView.Display:
 // the device's OS, else its kind, never an arbitrary software row, #905).
 func matchedOn(a Asset, k KevInfo, v *Vuln) string {
+	if s, ok := matchedRow(a, k, v); ok {
+		return clean(s.Display)
+	}
+	return ""
+}
+
+// findingRow is the row the finding was matched on, the one its evidence speaks of (review r1 M3 of #896): the row the matcher
+// matches the stored entry on, on the device as it is now. Without the entry, or when the matcher no longer matches, the keyed row
+// with a version from the most trusted source (agent, a person, SNMP, a scan), else matchedRow's.
+func findingRow(a Asset, k KevInfo, v *Vuln) (Software, bool) {
+	sws := deviceSoftware(a)
+	if v != nil {
+		r := MatchAsset(a, []Vuln{*v}, map[string]bool{v.CVE: true}, time.Now())
+		for _, m := range slices.Concat(r.New, r.Existing) {
+			if m.CVE != v.CVE || m.SoftwareID == "" {
+				continue
+			}
+			for _, s := range sws {
+				if s.ID == m.SoftwareID {
+					return s, true
+				}
+			}
+		}
+	}
+	if isMultiProduct(k.Product) {
+		return matchedRow(a, k, v)
+	}
+	trust := map[string]int{"agent": 4, "manual": 3, "snmp": 2, "scan": 1, "nmap": 1}
+	key := Vuln{Vendor: k.Vendor, Product: k.Product}
+	best, bestRank := Software{}, -1
+	for _, s := range sws {
+		if !keyedTo(s, key) || !versionGiven(s.Version) {
+			continue
+		}
+		r := trust[s.Source]
+		if s.ID == osSoftwareID(a.ID) {
+			r = 2 // the OS the device states itself
+		}
+		if r > bestRank {
+			best, bestRank = s, r
+		}
+	}
+	if bestRank >= 0 {
+		return best, true
+	}
+	return matchedRow(a, k, v)
+}
+
+// matchedRow is the software row matchedOn names; ok is false when there is none.
+func matchedRow(a Asset, k KevInfo, v *Vuln) (Software, bool) {
+	sws := deviceSoftware(a)
 	if isMultiProduct(k.Product) {
 		if v == nil {
-			return ""
+			return Software{}, false
 		}
 		r := MatchAsset(a, []Vuln{*v}, map[string]bool{v.CVE: true}, time.Now())
 		for _, m := range slices.Concat(r.New, r.Existing) {
-			if m.CVE == v.CVE && m.SoftwareDisplay != "" {
-				return m.SoftwareDisplay
+			if m.CVE != v.CVE || m.SoftwareDisplay == "" {
+				continue
 			}
+			for _, s := range sws {
+				if s.ID == m.SoftwareID {
+					return s, true
+				}
+			}
+			return Software{ID: m.SoftwareID, Display: m.SoftwareDisplay}, true
 		}
-		return ""
+		return Software{}, false
 	}
 	key := Vuln{Vendor: k.Vendor, Product: k.Product}
-	for _, s := range deviceSoftware(a) {
+	for _, s := range sws {
 		if keyedTo(s, key) {
-			return clean(s.Display)
+			return s, true
 		}
 	}
-	return ""
+	return Software{}, false
 }
 
 // addFixes sets Row.Fix on the open findings of the list (D-545): per device, the update that fixes its open findings of one software

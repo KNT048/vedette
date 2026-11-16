@@ -466,10 +466,48 @@ func (p findingsPublisher) Publish(ctx context.Context, name string, payload any
 
 // ---- inventory -> mitigation (mitigation.Vendors) ----
 
-type mitigationVendors struct{ inv *inventory.Service }
+type mitigationVendors struct {
+	inv *inventory.Service
+	d   *deps
+}
 
 func (a mitigationVendors) HasFirewallVendor(ctx context.Context, vendor string) (bool, error) {
 	return a.inv.HasDevice(ctx, []string{"firewall", "router"}, vendor)
+}
+
+func (a mitigationVendors) OpenPorts(ctx context.Context, assetID string) ([]mitigation.OpenPort, error) {
+	d, err := a.inv.Device(ctx, assetID)
+	if errors.Is(err, inventory.ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := make([]mitigation.OpenPort, 0, len(d.Services))
+	for _, s := range d.Services {
+		p := mitigation.OpenPort{Port: s.Port, Proto: s.Proto, Name: s.Name}
+		if s.Product != nil {
+			p.Product = *s.Product
+		}
+		out = append(out, p)
+	}
+	return out, nil
+}
+
+// BoxAddrs is the box device's IP in the inventory and the Box address of Settings, Box network when it is an IP (D-465).
+func (a mitigationVendors) BoxAddrs(ctx context.Context) ([]netip.Addr, error) {
+	var out []netip.Addr
+	if _, ip, ok, err := a.inv.BoxName(ctx); err == nil && ok {
+		if x, err := netip.ParseAddr(ip); err == nil {
+			out = append(out, x)
+		}
+	}
+	if a.d != nil && a.d.BoxAddr != nil {
+		if x, err := netip.ParseAddr(a.d.BoxAddr.Host(ctx)); err == nil && !slices.Contains(out, x) {
+			out = append(out, x)
+		}
+	}
+	return out, nil
 }
 
 // ---- building the services ----
@@ -574,8 +612,8 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.AI, err = newAI(ctx, d, d.AIFacts, aiAsk{fs.Store(), d.Findings, d.Inventory}); err != nil {
 		return fmt.Errorf("ai: %w", err)
 	}
-	aiDoor := aiMitigation{d.AI}
-	provider, err := mitigation.NewProvider(d.DB, mitigationVendors{d.Inventory}, aiDoor)
+	aiDoor := aiMitigation{d.AI, d.Inventory, d.Log}
+	provider, err := mitigation.NewProvider(d.DB, mitigationVendors{d.Inventory, d}, aiDoor)
 	if err != nil {
 		return err
 	}

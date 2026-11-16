@@ -202,7 +202,10 @@ type portInfo struct {
 	// title (http-title) and the certificate subject (ssl-cert). Evidence for identification, never software.
 	devType, title, certSubject string
 	conf                        int // nmap's 1..10, 0 when absent
-	cpes                        []string
+	// method is how nmap named the service (M2-7): "probed" (a probe's answer matched), "table" (only nmap-services' name for the
+	// port number: nothing was confirmed), "" when absent or any other word.
+	method string
+	cpes   []string
 }
 
 type osMatch struct {
@@ -329,7 +332,7 @@ func attrs(el xml.StartElement) map[string]string {
 // of a port it cannot identify in <service servicefp> (about 6 KB, from what the target answered). Capping them refused whole runs.
 var readAttrs = map[string]bool{
 	"accuracy": true, "addr": true, "addrtype": true, "conf": true, "count": true, "devicetype": true, "extrainfo": true, "id": true,
-	"key": true, "name": true, "osfamily": true, "osgen": true, "output": true, "portid": true, "product": true, "protocol": true,
+	"key": true, "method": true, "name": true, "osfamily": true, "osgen": true, "output": true, "portid": true, "product": true, "protocol": true,
 	"state": true, "timedout": true, "tunnel": true, "type": true, "vendor": true, "version": true,
 }
 
@@ -493,6 +496,9 @@ func parseNmapXML(data []byte) ([]host, error) {
 					port.name, port.product, port.version, port.info = text(serviceName(a)), text(a["product"]), text(a["version"]), text(a["extrainfo"])
 					port.devType = text(a["devicetype"])
 					port.conf = num(a["conf"], 10)
+					if m := a["method"]; m == "probed" || m == "table" {
+						port.method = m
+					}
 				}
 			case "nmaprun/host/ports/port/service/cpe":
 				if port != nil && len(port.cpes) < maxCPEs {

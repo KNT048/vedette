@@ -3,6 +3,7 @@ package mitigation
 import (
 	"context"
 	"errors"
+	"net/netip"
 
 	"github.com/knt048/vedette/modules/findings"
 )
@@ -25,6 +26,9 @@ var ErrAIUnavailable = errors.New("ai unavailable")
 type AIRequest struct {
 	Skill   Skill
 	Finding findings.Row
+	// FixedIn is the page's "Fixed version" fact (the device's version, the fixed release or the fix of each release line), nil
+	// when NVD names none: the AI gets the same facts the page shows (M2-2: it said "the data does not list affected versions").
+	FixedIn *findings.FixedIn
 	HasPack bool
 	User    string // email of the person who asked
 }
@@ -37,6 +41,13 @@ type AIOutput struct {
 	OutputTok  int
 	Paragraphs []string
 	Steps      []string
+	// Configs are the ready config blocks of the mitigation-config skill (Code is the lines to paste, Note what the change is based
+	// on, SideEffect what it can break); none for explain.
+	Configs []findings.CodeStep
+	// NoConfigReason says why no config (or no firewall rule) helps for this finding, when the AI gave none (#897 r1 H1).
+	NoConfigReason string
+	// Shortened: a part of the answer was longer than the AI module keeps (cut at a sentence end, or a config block left out whole).
+	Shortened  bool
 	Citations  []findings.Citation
 	ActivityID string // id of the ai_activity row, "" when none
 }
@@ -56,6 +67,20 @@ type Vendors interface {
 	// HasFirewallVendor reports whether the inventory has a firewall or router whose vendor is the
 	// given lower-case inventory vendor name ("fortinet", "mikrotik").
 	HasFirewallVendor(ctx context.Context, vendor string) (bool, error)
+	// OpenPorts returns the ports a sensor saw open on the device (inventory's services), none for an unknown device. The general
+	// hardening config restricts the ones of the finding's software (INV-8).
+	OpenPorts(ctx context.Context, assetID string) ([]OpenPort, error)
+	// BoxAddrs returns the Vedette box's own addresses (the box device's IP, the Box address of Settings, Box network, when it is
+	// an IP): the hardening configs allow them so the box's scans still see the device (INV-8). None when unknown.
+	BoxAddrs(ctx context.Context) ([]netip.Addr, error)
+}
+
+// OpenPort is one port seen open on a device, as inventory lists it.
+type OpenPort struct {
+	Port    int
+	Proto   string // tcp or udp
+	Name    string // the service name ("ssh", "https"), "" when unknown
+	Product string // the product the service named ("OpenSSH"), "" when none
 }
 
 // Verifier checks the signature of an update (core/updates, Kien's; not built yet).

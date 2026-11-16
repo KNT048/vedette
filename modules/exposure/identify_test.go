@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/xml"
 	"errors"
+	"maps"
 	"net/netip"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -124,7 +126,7 @@ func TestContract_INV19_NoServiceScannerSaysNotSetUp(t *testing.T) {
 	e := newEnv(t)
 	m := &fakeMatcher{}
 	e.svc.cfg.Matcher = m
-	s := e.scanIP(Content{Ports: []PortRow{{ipA, 443, "https", "nginx", "", 0, false}}})
+	s := e.scanIP(Content{Ports: []PortRow{{ipA, 443, "https", "nginx", "", 0, false, "", nil, "", ""}}})
 	if len(s.Ports) != 1 || len(s.Services) != 0 || len(s.Vulns) != 0 || len(s.VersionGaps) != 0 {
 		t.Fatalf("snapshot = %+v", s)
 	}
@@ -182,7 +184,7 @@ func TestContract_INV19_ServicesThroughTheSeamAndComparedOnRead(t *testing.T) {
 	if !slices.Equal(checkKinds(s), []string{"ports", "services", "cve"}) {
 		t.Fatalf("checks = %+v", s.Checks)
 	}
-	if got := s.Checks[1].Text; got != "Service identification (nmap -sV) on 98 TCP ports: 3 services identified." {
+	if got := s.Checks[1].Text; got != "Service identification (nmap -sV) on 98 TCP ports: 2 services identified, 1 not identified." {
 		t.Fatalf("services line = %q", got)
 	}
 	if got := s.Checks[2].Text; got != "2 identified services of 3 compared with today's CISA list of exploited vulnerabilities (1500 entries) and its NVD version ranges: 1 exploited CVE matched. 1 service could not be checked: no version was read. 1 service gave no product to look up, so not compared." {
@@ -230,7 +232,7 @@ func TestContract_INV19_UnavailableAndFailedSteps(t *testing.T) {
 			if !tc.noMatch {
 				e.svc.cfg.Matcher = &fakeMatcher{err: tc.matchErr}
 			}
-			s := e.scanIP(Content{Ports: []PortRow{{ipA, 22, "ssh", "", "", 0, false}}})
+			s := e.scanIP(Content{Ports: []PortRow{{ipA, 22, "ssh", "", "", 0, false, "", nil, "", ""}}})
 			if !slices.Contains(notChecked(s), tc.want) || len(s.Ports) != 1 || len(s.Vulns) != 0 {
 				t.Fatalf("snapshot = %+v", s)
 			}
@@ -429,6 +431,128 @@ func TestDeepOnlyPortIsKeptByScansThatDoNotProbeIt(t *testing.T) {
 		}
 		if p.Port != 10022 || !p.Unchecked || p.Misses != 0 || len(got.Vulns) != 1 || got.Vulns[0].Port != 10022 {
 			t.Fatalf("non-deep scan %d: port %+v, ports %+v, vulns %+v", i+1, p, got.Ports, got.Vulns)
+		}
+	}
+}
+
+// M2-7 (J6): each open port says how its service was named. A probe's answer is "probed" (the surface's port-list name stays when
+// it is the same service), nmap's table name is "port" (not confirmed), "unknown", a bare TLS layer and tcpwrapped are "none" and
+// replace the port list's guess; a surface GET that read a product keeps the port identified. The deep scan's ssl-cert, http-title
+// and http-server-header outputs become the port's certificate names, title and Server header, which are sanitized when stored.
+func TestPortIdentFromMethodAndScripts(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	deep := false
+	e.terms = &deep
+	cert := "Subject: commonName=gw.example.net/organizationName=Example\nSubject Alternative Name: DNS:gw.example.net, DNS:vpn.example.net, IP Address:203.0.113.10\nIssuer: commonName=gw.example.net"
+	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Ports: 65535, Services: []ServiceRow{
+		{IP: ipA, Port: 10022, Name: "ssh", Product: "OpenSSH", Version: "9.6p1 Ubuntu 3ubuntu13.20", Method: "probed", Conf: 10},
+		{IP: ipA, Port: 10443, Name: "ssl/http", Product: "nginx", Method: "probed", Conf: 10},
+		{IP: ipA, Port: 5060, Name: "sip", Method: "table", Conf: 3},
+		{IP: ipA, Port: 2000, Name: "cisco-sccp", Method: "table", Conf: 3},
+		{IP: ipA, Port: 11080, Name: "unknown", Method: "table", Conf: 3},
+		{IP: ipA, Port: 11443, Name: "ssl/unknown", Method: "table", Conf: 3},
+		{IP: ipA, Port: 8443, Name: "tcpwrapped", Method: "probed", Conf: 8},
+		{IP: ipA, Port: 8080, Name: "http-proxy", Method: "table", Conf: 3},
+		{IP: ipA, Port: 9000, Name: "http", Product: "Go", Method: "bogus", Conf: 99},
+		{IP: ipA, Port: 2222, Name: "ssh", Product: "OpenSSH", Version: "9.6", Method: "probed", Conf: 10},
+		{IP: ipA, Port: 23, Name: "telnet"}, // no method word: the intake's guess mark stays (review r2 L1)
+	}, Scripts: []ScriptRow{
+		{IP: ipA, Port: 11443, ID: "ssl-cert", Output: cert},
+		{IP: ipA, Port: 10443, ID: "http-title", Output: "Sign in · GitLab\nRequested resource was /users/sign_in"},
+		{IP: ipA, Port: 11080, ID: "http-title", Output: "Site doesn't have a title (text/html)."},
+		{IP: ipA, Port: 11080, ID: "http-server-header", Output: "Caddy"},
+		{IP: ipB, Port: 11443, ID: "ssl-cert", Output: "Subject: commonName=other.example"},
+	}}}
+	s := e.scanIP(Content{Ports: []PortRow{
+		{IP: ipA, Port: 10443, Service: "https", Product: "nginx"}, {IP: ipA, Port: 5060, Service: "sip"},
+		{IP: ipA, Port: 8443, Service: "https"}, {IP: ipA, Port: 8080, Service: "http", Product: "Jetty"}, {IP: ipA, Port: 2222, Service: "http"},
+		{IP: ipA, Port: 23, Service: "telnet", Ident: IdentPort},
+	}})
+	type row struct{ service, ident, title, server, certs string }
+	got := map[int]row{}
+	for _, p := range s.Ports {
+		got[p.Port] = row{p.Service, p.Ident, p.Title, p.Server, strings.Join(p.CertNames, ",")}
+		if p.Port == 2222 && p.Product != "OpenSSH 9.6" { // review r1 L4: the product follows the service the probe named
+			t.Errorf("2222 product %q", p.Product)
+		}
+	}
+	want := map[int]row{
+		2222:  {"ssh", IdentProbed, "", "", ""},
+		23:    {"telnet", IdentPort, "", "", ""},
+		10022: {"ssh", IdentProbed, "", "", ""},
+		10443: {"https", IdentProbed, "Sign in · GitLab", "", ""}, // the same service: the surface's name stays
+		5060:  {"sip", IdentPort, "", "", ""},
+		2000:  {"cisco-sccp", IdentPort, "", "", ""},
+		11080: {"unknown", IdentNone, "", "Caddy", ""},
+		11443: {"ssl/unknown", IdentNone, "", "", "gw.example.net,vpn.example.net"},
+		8443:  {"tcpwrapped", IdentNone, "", "", ""}, // the port list's "https" is not kept
+		8080:  {"http", IdentProbed, "", "", ""},     // the surface's GET read Jetty
+		9000:  {"http", "", "", "", ""},              // a method nmap never prints is not trusted either way
+	}
+	if !maps.Equal(got, want) {
+		t.Fatalf("ports:\n got %+v\nwant %+v", got, want)
+	}
+	for _, r := range s.Services {
+		if r.Port == 9000 && (r.Method != "" || r.Conf != 10) {
+			t.Fatalf("service 9000 kept method %q conf %d", r.Method, r.Conf)
+		}
+	}
+	// a hostile row is cut to what sanitize allows
+	bad := sanitizePortIdent(PortRow{}, PortRow{Ident: "maybe", Title: "a\u202eb", Server: strings.Repeat("x", maxHint+1), CertNames: []string{"a", "b", "c", "d", "e", "f", "\x00"}})
+	if bad.Ident != "" || bad.Title != "" || bad.Server != "" || len(bad.CertNames) != maxCertNames {
+		t.Fatalf("sanitized = %+v", bad)
+	}
+}
+
+// M2-7 review r1 M1: a surface port only the port number named stays a guess when nmap -sV does not run (here: unavailable), so
+// the page says "Probably SIP 5060"; the "New open port" alert says the same in words (L3).
+func TestSurfaceGuessStaysAGuessWithoutServiceIdentification(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.svc.cfg.Services = &fakeServices{err: &Unavailable{Reason: "the Active scan module is off."}}
+	s := e.scanIP(Content{Ports: []PortRow{{IP: ipA, Port: 5060, Service: "sip", Ident: IdentPort}, {IP: ipA, Port: 443, Service: "https", Product: "nginx", Ident: IdentProbed}}})
+	if len(s.Ports) != 2 || s.Ports[0].Ident != IdentPort || s.Ports[1].Ident != IdentProbed {
+		t.Fatalf("ports %+v", s.Ports)
+	}
+	for _, c := range []struct {
+		p    PortRow
+		want string
+	}{
+		{PortRow{Service: "sip", Ident: IdentPort}, "probably SIP"}, {PortRow{Service: "ssl/http", Ident: IdentProbed}, "HTTPS"},
+		{PortRow{Service: "ssl/unknown", Ident: IdentNone}, "TLS, service not identified"}, {PortRow{Service: "unknown"}, "service not identified"},
+		{PortRow{Service: "cisco-sccp", Ident: IdentPort}, "probably Cisco SCCP (IP phones)"}, {PortRow{Service: "ssl/imap", Ident: IdentProbed}, "IMAPS"},
+		{PortRow{Service: "http-alt"}, "HTTP"},
+	} {
+		if got := ServiceLabel(c.p); got != c.want {
+			t.Errorf("ServiceLabel(%+v) = %q, want %q", c.p, got, c.want)
+		}
+	}
+}
+
+// M2-7 (#899 review r2 L5): the alert and the page give a service one name: serviceNames is the page's LABEL table, entry for entry.
+func TestServiceNamesMatchThePage(t *testing.T) {
+	t.Parallel()
+	src, err := os.ReadFile("../../web/src/features/exposure/services.ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(src)
+	i := strings.Index(body, "const LABEL = new Map<string, string>(Object.entries({")
+	j := strings.Index(body[i:], "}))")
+	if i < 0 || j < 0 {
+		t.Fatal("LABEL not found in services.ts")
+	}
+	page := map[string]string{}
+	for _, m := range regexp.MustCompile(`'?([a-z0-9/-]+)'?: '([^']+)'`).FindAllStringSubmatch(body[i:i+j], -1) {
+		page[m[1]] = m[2]
+	}
+	if len(page) < 30 || !maps.Equal(page, serviceNames) {
+		t.Fatalf("services.ts LABEL %v\n!= serviceNames %v", page, serviceNames)
+	}
+	for _, c := range []struct{ service, want string }{{"ssl/imap", "IMAPS"}, {"ssl/rdp", "RDP over TLS"}, {"constructor", "constructor"}, {"x", "x"}} {
+		if got := serviceName(c.service); got != c.want {
+			t.Errorf("serviceName(%q) = %q, want %q", c.service, got, c.want)
 		}
 	}
 }

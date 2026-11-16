@@ -7,13 +7,17 @@
 - Khi không có thiết bị hoặc IP không hợp lệ, văn bản có `<IP>`/`<HOST>` (mock dùng `<IP-NAS>`/IP). Dán nhầm vào shell thì vô hại: `<` là chuyển hướng nhập từ một tệp không tồn tại nên lệnh lỗi, không chạy gì. Khi tên máy không an toàn hoặc vắng thì `{HOST}` là IP thiết bị, đúng như mock (`hostname ?? ip`).
 
 ## Modifying: các interface `Verifier`, `AI`, `Vendors` (mitigation/ports.go)
-- **`cmd/vedette` `packVerifier`** (cài `Verifier` trên `internal/release.VerifyContent` và khoá phát hành nhúng, D-346; thiếu = từ chối mọi gói): đổi `Statement` phải đổi cùng lúc công cụ ký `release packs` (`scripts/release`) và mọi chữ ký đã phát hành không còn khớp, **ai** (cài `AI`: `Available`, `Run` qua RunJob), **inventory** (cài `Vendors.HasFirewallVendor`: `cmd/vedette/wiring.go` hỏi `inventory.HasDevice` với loại `firewall` hoặc `router`, so hãng không phân biệt hoa thường, kể cả hãng của phần mềm trên thiết bị). Đổi chữ ký = đổi chỗ nối trong `cmd/vedette`. `AI` là cửa của module `ai` (`aiMitigation`); `Loader` được dựng trong `buildServices` với `packVerifier` và chạy qua job `load-packs` (D-348).
+- **`cmd/vedette` `packVerifier`** (cài `Verifier` trên `internal/release.VerifyContent` và khoá phát hành nhúng, D-346; thiếu = từ chối mọi gói): đổi `Statement` phải đổi cùng lúc công cụ ký `release packs` (`scripts/release`) và mọi chữ ký đã phát hành không còn khớp, **ai** (cài `AI`: `Available`, `Run` qua RunJob), **inventory** (cài `Vendors.HasFirewallVendor`: `cmd/vedette/wiring.go` hỏi `inventory.HasDevice` với loại `firewall` hoặc `router`, so hãng không phân biệt hoa thường, kể cả hãng của phần mềm trên thiết bị; `Vendors.OpenPorts`: `inventory.Device(id).Services`, thiết bị không có → không cổng, INV-8). Đổi chữ ký = đổi chỗ nối trong `cmd/vedette`. `AI` là cửa của module `ai` (`aiMitigation`); `Loader` được dựng trong `buildServices` với `packVerifier` và chạy qua job `load-packs` (D-348).
+
+## Modifying: gia cố chung (`hardening.go`, INV-8)
+- SPA `web/src/features/findings/Hardening.tsx` (điền `{ADMIN_NET}`, chọn tab hãng) và mock `hardeningMock.ts`; đổi `findings.Hardening` phải sửa `findings/contract.ts` (`GeneralHardening`). Đổi lệnh của một hãng: kiểm lại cú pháp trên thiết bị thật của hãng đó (FortiOS 7.x, RouterOS 7, nftables).
 
 ## Modifying: nạp gói (`Loader.Install`) và định dạng `MitigationPack`
 - **tooling `vedette-author`** (S-MIT-4) và builder phát hành: schema chung; đổi trường = đổi cả công cụ lẫn bộ nạp. Gói đi cùng image `core` đã ký (D-36, D-345): đổi thư mục `/opt/vedette/content/mitigation` hay bố cục `ReadPackDir` phải đổi cùng `deploy/containers/core/Containerfile` và job `load-packs`.
 
 ## Modifying: gọi `ai.Run(skill, input)` (`explain`, `mitigation-config`)
 - Lỗi `*apierr.Error` từ `AI.Run` được handler trả nguyên (D-481): `cmd/vedette` `aiMitigation.Run` không bọc lại; đổi điều đó thì trang finding lại hiện sai lý do.
+- M2-2: `AIRequest.FixedIn` và dữ liệu `aiFindingData` (thiết bị, cổng, firewall trong inventory qua `inventory.DevicesOfKind`/`Device`) là điều AI biết; bỏ một mục thì câu trả lời lại hỏi điều trang đã có. `AIOutput.Configs`/`Shortened` → `findings.AIResult.configs/shortened` (contract.ts `AiResult`) → `AiOutput` trong `Recommendation.tsx`.
 - **ai** (nhóm B): đổi tên skill/schema đầu ra làm `ai_available` sai và kết quả mất nhãn.
 
 ## Modifying: `POST /findings/{id}/applied`

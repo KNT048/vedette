@@ -20,6 +20,9 @@ type CodeStep struct {
 	Code       string `json:"code"`
 	Note       string `json:"note,omitempty"`
 	SideEffect string `json:"side_effect,omitempty"` // stated before the person copies the command (INV-4)
+	// Check (an AI config block only, #897 r2): the addresses the block names that are not addresses the box knows for the finding;
+	// the page asks the person to check them before pasting.
+	Check []string `json:"check,omitempty"`
 }
 
 // Alternative is the second way of a firewall guide.
@@ -98,6 +101,33 @@ type CompromiseCheck struct {
 	IfFound    []string    `json:"if_found"`
 }
 
+// HardeningPort is a port a general hardening config restricts.
+type HardeningPort struct {
+	Port    int    `json:"port"`
+	Proto   string `json:"proto"`   // tcp or udp
+	Service string `json:"service"` // the service name inventory or the software's defaults give ("ssh", "https")
+}
+
+// Hardening is the general hardening of a finding (mitigation INV-8): firewall configs, written by reviewed code, that let only
+// the admin network reach the device, and general compromise checks for its software family. It says nothing about the CVE, so it
+// is not a confirmed recommendation (D-21) and is never shown as one. The configs hold AdminNetPlaceholder; the page fills it in.
+type Hardening struct {
+	Software     string           `json:"software"`      // the software the checks are for ("OpenSSH", "Juniper Junos OS")
+	Family       string           `json:"family"`        // the family the checks are written for ("Linux", "Network device")
+	Target       string           `json:"target"`        // the device address in the configs; "<IP>" when the device has none usable
+	Self         bool             `json:"self"`          // the device is itself the firewall: its own guide protects its admin access
+	PortsFrom    string           `json:"ports_from"`    // seen (open on the device), usual (the software's usual admin ports) or all
+	Ports        []HardeningPort  `json:"ports"`         // empty when PortsFrom is all
+	AdminExample string           `json:"admin_example"` // the example admin network the page starts with
+	Box          []string         `json:"box"`           // the Vedette box's addresses the configs allow as well (its scans)
+	Viewer       string           `json:"viewer"`        // the address the box sees for the browser asking; "" when unknown
+	Firewall     []FirewallGuide  `json:"firewall"`      // empty when the confirmed pack has its own firewall guides
+	Checks       *CompromiseCheck `json:"checks"`        // nil when the confirmed pack has its own compromise signs
+}
+
+// AdminNetPlaceholder is the admin network in the Hardening configs; the page replaces it with the network the person types.
+const AdminNetPlaceholder = "{ADMIN_NET}"
+
 // Recheck says how to check again whether the flaw is still there.
 type Recheck struct {
 	Steps []string `json:"steps"`
@@ -127,6 +157,13 @@ type AIResult struct {
 	Paragraphs []string   `json:"paragraphs"`
 	Steps      []string   `json:"steps"`
 	Citations  []Citation `json:"citations"`
+	// Configs are the ready config blocks of a mitigation-config answer (M2-2): the device's own workaround and a rule per firewall
+	// vendor, each with its side effect; absent for explain and for answers stored before them.
+	Configs []CodeStep `json:"configs,omitempty"`
+	// Shortened: a part of the answer was longer than Vedette keeps, so the page says it was shortened (never cut mid-sentence).
+	Shortened bool `json:"shortened,omitempty"`
+	// NoConfigReason: why no config or no firewall rule helps (a local flaw, no open port serves it), in the AI's words (#897 r1 H1).
+	NoConfigReason string `json:"no_config_reason,omitempty"`
 }
 
 // AIResults holds the last result per skill.
@@ -157,6 +194,7 @@ type Guide struct {
 	AI          AIResults        `json:"ai"`
 	AIAvailable AIAvailable      `json:"ai_available"`
 	Applied     []AppliedEntry   `json:"applied"`
+	Hardening   *Hardening       `json:"hardening"` // nil when the confirmed pack has both firewall guides and compromise signs, or mitigation is off
 }
 
 // Normalize makes every list non-nil, because the API schema wants [] and never null.
@@ -180,6 +218,19 @@ func (g *Guide) Normalize() {
 		c.Indicators, c.IfFound = orEmpty(c.Indicators), orEmpty(c.IfFound)
 	}
 	g.Recheck.Steps = orEmpty(g.Recheck.Steps)
+	if h := g.Hardening; h != nil {
+		h.Ports, h.Firewall, h.Box = orEmpty(h.Ports), orEmpty(h.Firewall), orEmpty(h.Box)
+		for i := range h.Firewall {
+			f := &h.Firewall[i]
+			f.Steps, f.Verify, f.Undo = orEmpty(f.Steps), orEmpty(f.Verify), orEmpty(f.Undo)
+			if f.Alternative != nil {
+				f.Alternative.Steps = orEmpty(f.Alternative.Steps)
+			}
+		}
+		if c := h.Checks; c != nil {
+			c.Indicators, c.IfFound = orEmpty(c.Indicators), orEmpty(c.IfFound)
+		}
+	}
 	for _, r := range []*AIResult{g.AI.Explain, g.AI.Config} {
 		if r != nil {
 			r.Paragraphs, r.Steps, r.Citations = orEmpty(r.Paragraphs), orEmpty(r.Steps), orEmpty(r.Citations)
@@ -218,6 +269,54 @@ type Row struct {
 	// Fix is the one update that fixes this finding together with the device's other open findings of the same software (D-545):
 	// set on the list only, for an open finding; nil when Vedette cannot name one.
 	Fix *RowFix `json:"fix"`
+	// Known is the version of the software the finding was matched on, set by Detail for the guidance (Guidance reads the Row); the
+	// page reads Detail.KnownVersion.
+	Known *KnownVersion `json:"-"`
+}
+
+// Version sources of KnownVersion (M2-3): who told Vedette the version.
+const (
+	VersionByAgent  = "agent"  // the device's own agent (osquery, Wazuh, the box's package list)
+	VersionBySNMP   = "snmp"   // the device answered Vedette's SNMP read of its address
+	VersionByStated = "stated" // the device states it on the network itself (LLDP)
+	VersionByScan   = "scan"   // a network scan read it from a service the device answers with
+	VersionByManual = "manual" // a person typed it on the Devices page
+)
+
+// KnownVersion is the version of the software a finding was matched on, as the device's row gives it, and who gave it (M2-3,
+// widening D-548/D-612 from agent rows to every source): the page says it and how it is refreshed, never "find which version".
+type KnownVersion struct {
+	Software string `json:"software"` // display name of the row
+	Version  string `json:"version"`
+	Source   string `json:"source"` // one of the VersionBy constants
+}
+
+// knownVersion is the KnownVersion of row s of device a; nil when the row has no version or its source is not known.
+func knownVersion(a Asset, s Software) *KnownVersion {
+	if !versionGiven(s.Version) {
+		return nil
+	}
+	src := ""
+	switch {
+	case s.ID == osSoftwareID(a.ID): // the network OS the device states itself (INV-4c): SNMP when its own SNMP answer says it
+		src = VersionByStated
+		if a.SNMPOS != "" && a.SNMPOS == a.StatedOS {
+			src = VersionBySNMP
+		}
+	case s.Source == "agent", s.Source == "snmp", s.Source == "manual":
+		src = s.Source
+	case s.Source == "scan", s.Source == "nmap":
+		src = VersionByScan
+	case s.Source == "passive":
+		src = VersionByStated
+	default:
+		return nil
+	}
+	name := softwareName(s.Display, s.Version)
+	if src == VersionByManual {
+		name = clean(s.Display) // the "I updated <software>" button names the row as inventory does (review r1 L4)
+	}
+	return &KnownVersion{Software: name, Version: clean(s.Version), Source: src}
 }
 
 type historyDoc struct {
@@ -232,6 +331,8 @@ type Detail struct {
 	Row
 	Guide
 	FixedIn *FixedIn `json:"fixed_in"` // null when NVD's ranges do not say which release fixes it (D-488)
+	// KnownVersion is Row.Known on the page: the version the box has for the matched software and who gave it (M2-3); null when none.
+	KnownVersion *KnownVersion `json:"known_version"`
 }
 
 func newRow(r Record, a *AssetView, k *KevInfo, c *CVSS) Row {

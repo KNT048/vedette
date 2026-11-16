@@ -7,7 +7,8 @@ import { dateText, dateTimeText } from './dates'
 import { PortMark } from './PortMark'
 import { InfoLine } from './InfoLine'
 import type { ServiceRow, Snapshot, TemplateRow, VulnRow } from './types'
-import { InfoTip } from '@/components/common/InfoTip'
+import { serviceIdent, serviceText } from './services'
+import { PortHints, ServiceCell } from './PortIdent'
 
 const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4, unknown: 5 } as const
 
@@ -24,12 +25,23 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
   const mark = (ip: string, port: number) => <PortMark p={s.ports.find((x) => x.ip === ip && x.port === port) ?? {}} />
   // D-571: a domain's services and CVEs are on several addresses (its deep scan): each row says which
   const ipCol = <T extends { ip: string }>(): ColumnDef<T>[] => (domain ? [{ id: 'ip', header: t('col.ip'), accessorFn: (r) => r.ip, cell: ({ row }) => <span className="font-mono text-meta">{row.original.ip}</span> }] : [])
+  const portOf = (r: ServiceRow) => s.ports.find((x) => x.ip === r.ip && x.port === r.port)
+  const view = (r: ServiceRow) => {
+    const p = portOf(r), ident = serviceIdent(r)
+    return p?.ident === 'probed' && p.product && !r.product && (ident === 'port' || ident === 'none') ? { service: p.service, ident: p.ident, product: p.product } : { service: r.name, ident, product: r.product }
+  }
   const serviceCols: ColumnDef<ServiceRow>[] = [
     ...ipCol<ServiceRow>(),
     { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="grid gap-1"><span className="tabular-nums">{row.original.port}</span>{mark(row.original.ip, row.original.port)}</span> },
-    { id: 'service', header: t('col.service'), accessorFn: (r) => r.name, cell: ({ row }) => row.original.name === 'tcpwrapped' ? <span className="inline-flex items-center gap-1">{t('vulns.tcpwrappedShort')}<InfoTip topic={t('vulns.tcpwrappedShort')}>{t('vulns.tcpwrapped')}</InfoTip></span> : row.original.name },
-    { id: 'product', header: t('col.product'), accessorFn: (r) => r.product, cell: ({ row }) => row.original.product || <span className="text-muted">{t('vulns.noProduct')}</span> },
-    { id: 'version', header: t('col.version'), accessorFn: (r) => r.version, cell: ({ row }) => row.original.version || <span className="text-muted">{t('vulns.noVersion')}</span> },
+    // M2-7: a person's name for the service, "Probably SIP" when only the port number says so, "Service not identified" when nothing does.
+    // Review r2 L4: a port whose page the surface scan read (its Server header) reads as the Ports table says, not as nmap's table guess.
+    { id: 'service', header: t('col.service'), accessorFn: (r) => serviceText(view(r).service, view(r).ident).name, cell: ({ row }) => <ServiceCell service={view(row.original).service} ident={view(row.original).ident} port={row.original.port} /> },
+    { id: 'product', header: t('col.product'), accessorFn: (r) => view(r).product, cell: ({ row }) => {
+      const port = portOf(row.original)
+      return view(row.original).product || <span className="grid gap-0.5"><span className="text-muted">{t('vulns.noProduct')}</span>{port ? <PortHints p={port} className="text-caption text-muted" /> : null}</span>
+    } },
+    // a version is "not sent" only by a service a probe named; nmap read none of an unconfirmed or unknown one
+    { id: 'version', header: t('col.version'), accessorFn: (r) => r.version, cell: ({ row }) => row.original.version || <span className="text-muted">{t(view(row.original).ident === 'port' || view(row.original).ident === 'none' ? 'vulns.notRead' : 'vulns.noVersion')}</span> },
     { id: 'cves', header: t('col.exploited'), accessorFn: count, cell: ({ row }) => {
       const n = count(row.original), m = maybe(row.original)
       return n + m > 0 ? <span className="flex flex-wrap gap-1">{n > 0 ? <Chip tone="warn">{t('vulns.count', { count: n })}</Chip> : null}{m > 0 ? <Chip tone="off">{t('vulns.countBackport', { count: m })}</Chip> : null}</span> : null

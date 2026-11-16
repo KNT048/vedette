@@ -165,7 +165,8 @@ func TestExposureRunnerResult(t *testing.T) {
 	if f.domain != "acme.example" || len(c.Hosts) != 1 || !reflect.DeepEqual(c.Hosts[0], exposure.HostRow{Name: "acme.example", IP: "203.0.113.10", Source: "dns",
 		IPs: []exposure.HostIP{{IP: "203.0.113.10", Family: "ipv4", Class: "box"}, {IP: "2606:4700::5", Family: "ipv6", Class: "public"}}}) ||
 		len(c.NotChecked) != 1 || c.NotChecked[0].Text != exposure.NotWordlistNoAnswer || len(c.Unresolved) != 2 ||
-		len(c.Ports) != 2 || c.Ports[0] != (exposure.PortRow{IP: "203.0.113.10", Port: 443, Service: "https", Product: "FortiGate"}) ||
+		len(c.Ports) != 2 || !reflect.DeepEqual(c.Ports[0], exposure.PortRow{IP: "203.0.113.10", Port: 443, Service: "https", Product: "FortiGate", Ident: exposure.IdentProbed}) ||
+		c.Ports[1].Ident != exposure.IdentPort || // M2-7 r1 M1: only the port number named 3000 "http"
 		len(c.AdminPanels) != 2 || c.AdminPanels[0].Risk != "danger" || c.AdminPanels[1].Risk != "warn" ||
 		len(c.Certs) != 1 || c.Certs[0] != (exposure.CertRow{Host: "acme.example", Issuer: "R11", ExpiresAt: "2027-01-02T03:04:05Z"}) {
 		t.Fatalf("content %+v", c)

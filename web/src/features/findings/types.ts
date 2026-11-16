@@ -19,9 +19,12 @@ export type FirewallGuide = z.infer<typeof C.FirewallGuide>
 export type MitigationPack = z.infer<typeof C.MitigationPack>
 export type Indicator = z.infer<typeof C.Indicator>
 export type CompromiseCheck = z.infer<typeof C.CompromiseCheck>
+/** M2-1: general hardening (firewall configs + general checks), not a recommendation for the CVE (mitigation INV-8). */
+export type GeneralHardening = z.infer<typeof C.GeneralHardening>
 export type AiResult = z.infer<typeof C.AiResult>
 export type AppliedEntry = z.infer<typeof C.AppliedEntry>
 export type FindingDetail = z.infer<typeof C.FindingDetail>
+export type KnownVersion = z.infer<typeof C.KnownVersion>
 export type StatusAction = z.infer<typeof C.StatusAction>
 export type BulkAction = z.infer<typeof C.BulkAction>
 export type ApplyItem = z.infer<typeof C.ApplyItem>

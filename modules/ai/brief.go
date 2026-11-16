@@ -5,7 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/bits"
+	"net/netip"
+	"regexp"
+	"slices"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/modules/ai/provider"
 )
@@ -22,6 +28,10 @@ type BriefRequest struct {
 	Target   string // the CVE, for the activity summary
 	Question string
 	Data     []DataBlock
+	// Trusted are the addresses the box itself knows for this finding, read from structured fields (the device's IP, the IPs of the
+	// firewalls sent), never from a banner, a name or free text. A config line that names any other address is flagged on the page for
+	// the person to check (#897 r2: warn, not filter).
+	Trusted []netip.Addr
 }
 
 // BriefAnswer is the checked answer. Citations are not part of it: the caller builds them from the feed entry.
@@ -32,42 +42,363 @@ type BriefAnswer struct {
 	TokensOut  int
 	Paragraphs []string
 	Steps      []string
+	// Configs are the ready configuration blocks of a mitigation-config answer (none for explain-finding).
+	Configs []BriefConfig
+	// NoConfigReason is why no network rule (or no config at all) applies, in the model's words: a local or user-interaction flaw, or
+	// no open port of the device serves the vulnerable part (r1 H1 of #897). An answer may have no config only when it says why.
+	NoConfigReason string
+	// Shortened is set when a part of the answer was longer than the box keeps: a text was cut at a sentence end (never mid-sentence)
+	// or a config block was left out whole (a cut config could be pasted half), so the page can say so (M2-2).
+	Shortened  bool
 	ActivityID string
 }
 
+// BriefConfig is one configuration block a person can paste as it is: the device-side workaround, or a rule for one firewall.
+type BriefConfig struct {
+	Title      string // the target: "Juniper EX4200-48T (Junos)", "FortiGate 60F"
+	Code       string // the lines, joined with line breaks
+	SideEffect string // what it can break, shown before the person copies it
+	BasedOn    string // the source the change follows ("the vendor advisory linked in the entry")
+	// Check lists the addresses the block names that are not Trusted (netmasks, wildcards and 0.0.0.0 / :: aside), as written: the page
+	// asks the person to check them before pasting. Nothing is dropped for an address (#897 r2).
+	Check []string
+}
+
 type briefBody struct {
-	Paragraphs []string `json:"paragraphs"`
-	Steps      []string `json:"steps"`
+	Paragraphs []string        `json:"paragraphs"`
+	Steps      []string        `json:"steps"`
+	Configs    []briefConfigIn `json:"configs"`
+	NoConfig   string          `json:"no_config_reason"`
+}
+
+type briefConfigIn struct {
+	Title      string   `json:"title"`
+	Lines      []string `json:"lines"`
+	SideEffect string   `json:"side_effect"`
+	BasedOn    string   `json:"based_on"`
 }
 
 const briefSchema = `{"type":"object","properties":{"paragraphs":{"type":"array","items":{"type":"string"}},"steps":{"type":"array","items":{"type":"string"}}},"required":["paragraphs","steps"],"additionalProperties":false}`
 
+// briefConfigSchema is the mitigation-config answer: the explanation and the order of work, plus the config blocks themselves. Each
+// line of a block is its own string, so every line goes through the after_ai hooks in the form that is kept (INV-12).
+const briefConfigSchema = `{"type":"object","properties":{"paragraphs":{"type":"array","items":{"type":"string"}},"steps":{"type":"array","items":{"type":"string"}},"configs":{"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"lines":{"type":"array","items":{"type":"string"}},"side_effect":{"type":"string"},"based_on":{"type":"string"}},"required":["title","lines","side_effect","based_on"],"additionalProperties":false}},"no_config_reason":{"type":"string"}},"required":["paragraphs","steps","configs","no_config_reason"],"additionalProperties":false}`
+
 const (
 	briefExplainTask = `Explain one finding for this company's network: a device the box matched to an exploited vulnerability. Use only the facts in the data blocks. In "paragraphs" write at most 4 short paragraphs of plain English: what the vulnerability is, whether it touches this device and why, and what an attacker could do. In "steps" write the steps a person should take, in order. Do not invent version numbers, product names or links that are not in the data. Reply with one JSON object only.`
-	briefConfigTask  = `Draft a recommendation for one finding that has no confirmed recommendation yet: how to reduce the risk of an exploited vulnerability on this device until it is patched. Use only the facts in the data blocks. In "paragraphs" write at most 3 short paragraphs of plain English that say what the configuration change is for and what side effects it can have. In "steps" write the configuration steps, one action per step, for the firewall or device type named in the data. Do not invent version numbers, product names or links that are not in the data. Reply with one JSON object only.`
+	briefConfigTask  = `Write ready-to-paste configuration that reduces the risk of one exploited vulnerability on this device until it is patched, when configuration can do that. Use only the facts in the data blocks: the device block gives the device, its installed software and version, the affected range and the fixed releases, the CVSS attack vector and its open ports; the network block lists the firewalls and routers in the company's inventory. In "paragraphs" write at most 3 short paragraphs of plain English: whether the installed version is inside the affected range and which release fixes it (say so from the data, do not ask the person to look it up when the data has it), what the configuration below does, and what it can break. In "configs" give the configuration blocks, each a "title" naming the target (vendor and model), its "lines" exactly as a person pastes them into that product's command line, one command per string and never a line break inside a string, its "side_effect" (what stops working, and how not to lock yourself out), and "based_on" (which source in the data the change follows, or "general hardening" when none names it). First one block for the device itself in its own configuration language: the vendor's known workaround for this vulnerability, such as turning off or restricting the vulnerable service, a policy or a registry setting. Then, only when the vulnerability is reached over the network (attack vector network or adjacent) and an open port of this device serves the vulnerable component, one block for each firewall or router vendor in the network block, in that vendor's own syntax, that blocks or limits access from other networks to that port of this device (its IP address from the data); when the network block lists no firewall or router, or none whose vendor is known, one block for a Linux gateway with nftables instead. Never write a firewall rule for ports unrelated to the vulnerable service. Use only IP addresses that are in the data; write a named placeholder such as <ADMIN_NETWORK> for what the data cannot know. In "no_config_reason" say in one or two sentences why a firewall rule, or any configuration, does not help when you give none (for example: the attack is local or needs a user to open a file, or no open port serves the vulnerable part), else an empty string. In "steps" write at most 8 short steps: back up the current configuration, apply, verify, and how to undo; when no configuration helps, the steps to patch or turn the component off. Do not invent version numbers, product names or links that are not in the data. Reply with one JSON object only.`
 )
 
-// briefMaxTokens is the output limit of a brief. The answer itself (4 paragraphs and a list of steps, as JSON) runs to about 900
-// tokens, but the limit also covers what a model thinks before it answers (Claude Haiku 5.5 thinks by default; OpenAI reasoning
+// briefMaxTokens is the output limit of an explanation. The answer itself (4 paragraphs and a list of steps, as JSON) runs to about
+// 900 tokens, but the limit also covers what a model thinks before it answers (Claude Haiku 5.5 thinks by default; OpenAI reasoning
 // models and Gemini count it the same way), which can be a few thousand. The meter counts what is really used, not this limit; a cut
-// answer is asked again once with twice the limit (Router.retryCut).
-const briefMaxTokens = 6000
+// answer is asked again once with twice the limit (Router.retryCut). briefConfigMaxTokens is the same for mitigation-config, whose
+// config blocks (the device's own and one per firewall vendor) add about 1,500 tokens.
+const (
+	briefMaxTokens       = 6000
+	briefConfigMaxTokens = 8000
+)
 
-func parseBrief(text string) (briefBody, error) {
+// Limits on what a brief keeps (the model's text is untrusted). A text over its limit is cut at the end of a sentence, never in the
+// middle of one (M2-2: "No confirmed recommendation exists yet, and a" was a paragraph cut at 500 characters); a config block over its
+// limits is left out whole. Either sets BriefAnswer.Shortened.
+const (
+	briefMaxParagraphs = 6
+	briefParagraphRune = 1500
+	briefMaxSteps      = 12
+	briefStepRunes     = 600
+	briefMaxConfigs    = 8
+	briefMaxLines      = 80
+	briefLineRunes     = 400
+	briefTitleRunes    = 200
+	briefSideRunes     = 800
+)
+
+func parseBrief(text string, job Job) (briefBody, error) {
 	var b briefBody
 	dec := json.NewDecoder(bytes.NewReader([]byte(strings.TrimSpace(text))))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&b); err != nil || dec.More() {
 		return briefBody{}, ErrBadOutput
 	}
-	if !hasKeys(text, "paragraphs", "steps") {
+	keys := []string{"paragraphs", "steps"}
+	if job == JobMitigationConfig {
+		keys = append(keys, "configs")
+	}
+	if !hasKeys(text, keys...) {
 		return briefBody{}, ErrBadOutput
 	}
-	b.Paragraphs, b.Steps = cleanList(b.Paragraphs), cleanList(b.Steps)
-	if len(b.Paragraphs) == 0 {
+	if len(cleanList(b.Paragraphs)) == 0 {
 		return briefBody{}, ErrBadOutput
+	}
+	if job == JobMitigationConfig { // the job is the config: an answer without one must say why none helps (M2-2, r1 H1)
+		found := strings.TrimSpace(b.NoConfig) != ""
+		for _, c := range b.Configs {
+			for _, l := range c.Lines {
+				found = found || strings.TrimSpace(l) != ""
+			}
+		}
+		if !found {
+			return briefBody{}, ErrBadOutput
+		}
+	} else {
+		b.Configs, b.NoConfig = nil, ""
 	}
 	return b, nil
+}
+
+// keptBrief is the answer as it is kept: texts within their limits, cut at a sentence end, and the config blocks that fit whole, each
+// with the addresses it names that are not trusted (#897 r2: shown for checking, never dropped).
+func keptBrief(b briefBody, trusted []netip.Addr) (a BriefAnswer) {
+	a.Paragraphs, a.Shortened = sentenceList(b.Paragraphs, briefMaxParagraphs, briefParagraphRune)
+	var cut bool
+	a.Steps, cut = sentenceList(b.Steps, briefMaxSteps, briefStepRunes)
+	a.Shortened = a.Shortened || cut
+	for _, c := range b.Configs {
+		code, ok := codeBlock(c.Lines)
+		if code == "" && ok {
+			continue
+		}
+		// a block over the limits or with a line break inside a line (a masked answer would have joined its two commands) is left out whole
+		if !ok || len(a.Configs) == briefMaxConfigs {
+			a.Shortened = true
+			continue
+		}
+		title, c1 := clipSentence(cleanText(c.Title), briefTitleRunes)
+		side, c2 := clipSentence(cleanText(c.SideEffect), briefSideRunes)
+		basis, c3 := clipSentence(cleanText(c.BasedOn), briefTitleRunes)
+		a.Shortened = a.Shortened || c1 || c2 || c3
+		if title == "" {
+			title = "Configuration"
+		}
+		a.Configs = append(a.Configs, BriefConfig{Title: title, Code: code, SideEffect: side, BasedOn: basis, Check: untrustedAddrs(code, trusted)})
+	}
+	var c4 bool
+	a.NoConfigReason, c4 = clipSentence(cleanText(b.NoConfig), briefSideRunes)
+	a.Shortened = a.Shortened || c4
+	return a
+}
+
+var (
+	ipv4Like = regexp.MustCompile(`[0-9]{1,3}(?:\.[0-9]{1,3}){3}(?:/[0-9]{1,2})?`)
+	ipv6Like = regexp.MustCompile(`\[?[0-9A-Fa-f]{0,4}(?::[0-9A-Fa-f]{0,4}){2,7}(?:\.[0-9]{1,3}){0,3}\]?(?:/[0-9]{1,3})?`)
+)
+
+// untrustedAddrs lists, once each and in order, the IPv4 and IPv6 literals of a config that are not trusted. Not listed: a netmask
+// (255.255.255.0, ones then zeros) or a wildcard (0.0.0.255, zeros then ones), 0.0.0.0 and ::, and a prefix of /16 (IPv6 /48) or
+// longer that holds a trusted address. Anything that looks like an address but is not a plain one (leading zeros, which inet_aton reads
+// as octal; a 4-in-6 form of an untrusted address) is listed as written. A version number (15.1R7.9, 10.0.19045.6456) is not taken for
+// one: a digit or a dot touches the match.
+func untrustedAddrs(code string, trusted []netip.Addr) []string {
+	var out []string
+	seen := map[string]bool{}
+	add := func(t string) {
+		if !seen[t] {
+			seen[t] = true
+			out = append(out, t)
+		}
+	}
+	isTrusted := func(a netip.Addr) bool { return slices.Contains(trusted, a) }
+	trustedPrefix := func(p netip.Prefix) bool {
+		if p.Addr().Is4() && p.Bits() < 16 || p.Addr().Is6() && p.Bits() < 48 {
+			return false
+		}
+		return slices.ContainsFunc(trusted, p.Contains)
+	}
+	ms := ipv4Like.FindAllStringIndex(code, -1)
+	for i := 0; i < len(ms); i++ {
+		m := ms[i]
+		if m[0] > 0 && strings.ContainsRune("0123456789.:", rune(code[m[0]-1])) || m[1] < len(code) && strings.ContainsRune("0123456789.", rune(code[m[1]])) {
+			continue // part of a longer dotted number (a version) or of an IPv6 literal, not an IPv4 address
+		}
+		t := code[m[0]:m[1]]
+		host, _, hasBits := strings.Cut(t, "/")
+		a, err := netip.ParseAddr(host)
+		// "<network> <mask>" (Cisco, FortiOS: 192.168.18.0 255.255.255.0 or the wildcard 0.0.0.255) is one network
+		if err == nil && !hasBits && i+1 < len(ms) && strings.TrimSpace(code[m[1]:ms[i+1][0]]) == "" {
+			if mask, merr := netip.ParseAddr(code[ms[i+1][0]:ms[i+1][1]]); merr == nil && isMask(mask) {
+				if p, perr := a.Prefix(maskBits(mask)); perr == nil {
+					if !isTrusted(a) && !trustedPrefix(p) {
+						add(t)
+					}
+					i++ // the mask is read
+					continue
+				}
+			}
+		}
+		switch {
+		case err != nil: // 010.010.010.010 and the like
+			add(t)
+		case hasBits:
+			p, err := netip.ParsePrefix(t)
+			if err != nil || (!a.IsUnspecified() || p.Bits() != 0) && !trustedPrefix(p.Masked()) {
+				add(t)
+			}
+		case isMask(a), a.IsUnspecified(), isTrusted(a):
+		default:
+			add(t)
+		}
+	}
+	for _, t := range ipv6Like.FindAllString(code, -1) {
+		raw := strings.Trim(t, "[]")
+		host, _, hasBits := strings.Cut(raw, "/")
+		if strings.Count(host, ":") < 2 {
+			continue // a time (12:30:00) or a port pair
+		}
+		a, err := netip.ParseAddr(host)
+		switch {
+		case err != nil:
+			if strings.Contains(host, "::") || strings.Count(host, ":") == 7 {
+				add(t) // looks like an address and is not a plain one
+			}
+		case a.Is4In6():
+			if !isTrusted(a.Unmap()) {
+				add(t)
+			}
+		case a.IsUnspecified(), isTrusted(a):
+		case hasBits:
+			if p, err := netip.ParsePrefix(raw); err != nil || !trustedPrefix(p.Masked()) {
+				add(t)
+			}
+		default:
+			add(t)
+		}
+	}
+	return out
+}
+
+// maskBits is the prefix length of a netmask (255.255.255.0: 24) or of a wildcard mask (0.0.0.255: 24).
+func maskBits(m netip.Addr) int {
+	b := m.As4()
+	v := uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
+	if inv := ^v; inv&(inv+1) == 0 { // a netmask: ones then zeros (255.255.255.255 is /32, not the wildcard of /0)
+		return bits.OnesCount32(v)
+	}
+	return bits.OnesCount32(^v) // a wildcard: zeros then ones
+}
+
+// isMask reports whether an IPv4 value is a netmask (ones then zeros, 255.255.255.0) or a wildcard mask (zeros then ones, 0.0.0.255),
+// not a host.
+func isMask(a netip.Addr) bool {
+	if !a.Is4() {
+		return false
+	}
+	b := a.As4()
+	v := uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
+	if v == 0 {
+		return false
+	}
+	inv := ^v
+	return inv&(inv+1) == 0 || v&(v+1) == 0
+}
+
+// sentenceList cleans a list of texts, drops empty ones and keeps at most n, each cut at a sentence end within runes characters.
+func sentenceList(in []string, n, runes int) ([]string, bool) {
+	out, cut := []string{}, false
+	for _, s := range in {
+		s, c := clipSentence(cleanText(s), runes)
+		if s == "" {
+			continue
+		}
+		if len(out) == n {
+			return out, true
+		}
+		cut = cut || c
+		out = append(out, s)
+	}
+	return out, cut
+}
+
+// codeBlock joins the lines of a config block with line breaks. A line that holds a line break itself is refused (ok false): the
+// schema asks for one command per string, and a masked answer is written out with line breaks as spaces, which would join two commands
+// into one (r1 M2). ok is also false when the block is longer than the limits: it is then left out whole, because half a config can be
+// pasted and do harm. The after_ai hooks see the block in this same joined form (afterHooks, the "lines" array).
+func codeBlock(lines []string) (string, bool) {
+	out := make([]string, 0, len(lines))
+	for _, l := range lines {
+		if strings.ContainsAny(l, "\r\n") {
+			return "", false
+		}
+		l = codeLine(l)
+		if utf8.RuneCountInString(l) > briefLineRunes {
+			return "", false
+		}
+		out = append(out, l)
+	}
+	for len(out) > 0 && strings.TrimSpace(out[0]) == "" {
+		out = out[1:]
+	}
+	for len(out) > 0 && strings.TrimSpace(out[len(out)-1]) == "" {
+		out = out[:len(out)-1]
+	}
+	if len(out) > briefMaxLines {
+		return "", false
+	}
+	return strings.Join(out, "\n"), true
+}
+
+// codeLine is one config line as it is kept: control characters (NEL too), line and paragraph separators (U+2028, U+2029) and
+// invisible format characters (bidi controls such as U+202E, zero-width spaces) go, so the line shown is the line pasted (#897 r2 M4);
+// a tab becomes a space, the indentation stays, the end is trimmed.
+func codeLine(l string) string {
+	return strings.TrimRight(strings.Map(func(r rune) rune {
+		switch {
+		case r == '\t':
+			return ' '
+		case unicode.IsControl(r), unicode.In(r, unicode.Cf, unicode.Zl, unicode.Zp):
+			return -1
+		}
+		return r
+	}, strings.ToValidUTF8(l, "\uFFFD")), " ")
+}
+
+// clipSentence cuts s to at most n characters at the end of a sentence (a stop, possibly followed by a closing bracket or quote, then a
+// space or the end; never after a short abbreviation such as "e.g."), so a kept text never stops in the middle of one; when no
+// sentence ends in the last two thirds it cuts at a word, else between characters (never before a combining mark), and ends with "…".
+// cut reports whether it cut.
+func clipSentence(s string, n int) (string, bool) {
+	r := []rune(s)
+	if len(r) <= n {
+		return s, false
+	}
+	r = r[:n]
+	for i := len(r) - 1; i >= n/3; i-- {
+		if r[i] != '.' && r[i] != '!' && r[i] != '?' {
+			continue
+		}
+		end := i + 1
+		for end < len(r) && strings.ContainsRune(`)"'”’`, r[end]) {
+			end++
+		}
+		if (end == len(r) || r[end] == ' ') && !abbrevAt(r, i) {
+			return string(r[:end]), true
+		}
+	}
+	for i := len(r) - 1; i >= n/3; i-- {
+		if r[i] == ' ' {
+			return strings.TrimRight(string(r[:i]), " ,;:") + "…", true
+		}
+	}
+	i := n - 1
+	for i > 0 && unicode.Is(unicode.Mn, r[i]) { // keep a letter with its accent (an NFD "ă" is two runes)
+		i--
+	}
+	return string(r[:i]) + "…", true
+}
+
+var abbrevs = []string{"e.g.", "i.e.", "etc.", "vs.", "approx.", "no.", "cf.", "incl."}
+
+// abbrevAt reports whether the stop at r[i] ends a short abbreviation ("e.g."), which is not a sentence end.
+func abbrevAt(r []rune, i int) bool {
+	if r[i] != '.' {
+		return false
+	}
+	w := i
+	for w > 0 && r[w-1] != ' ' && r[w-1] != '(' {
+		w--
+	}
+	word := strings.ToLower(string(r[w : i+1]))
+	return slices.Contains(abbrevs, word)
 }
 
 // Available reports whether the ai module is on and a profile is assigned and allowed for the job.
@@ -83,31 +414,39 @@ func (s *Service) Brief(ctx context.Context, r BriefRequest) (BriefAnswer, error
 	if !s.moduleOn() { // a door another module holds must not run the AI while the module is off
 		return BriefAnswer{}, apiUnavailable("The AI assistant module is off. Turn it on in Settings, Modules.")
 	}
-	var task string
+	task, schema, limit := briefExplainTask, briefSchema, briefMaxTokens
 	switch r.Job {
 	case JobExplainFinding:
-		task = briefExplainTask
 	case JobMitigationConfig:
-		task = briefConfigTask
+		task, schema, limit = briefConfigTask, briefConfigSchema, briefConfigMaxTokens
 	default:
 		return BriefAnswer{}, fmt.Errorf("ai: brief: job %q is not a finding job", r.Job)
 	}
-	var body briefBody
+	var kept BriefAnswer
 	res, err := s.RunJob(ctx, JobSpec{
 		Job: r.Job, Actor: r.Actor, Task: task, Question: r.Question, Data: r.Data,
-		Schema: &provider.Schema{Name: "finding_brief", JSON: json.RawMessage(briefSchema)}, MaxTokens: briefMaxTokens,
+		Schema: &provider.Schema{Name: "finding_brief", JSON: json.RawMessage(schema)}, MaxTokens: limit,
 		Summary: fmt.Sprintf("%s for %s", strings.ToUpper(r.Job.Name()[:1])+r.Job.Name()[1:], clipRunes(cleanLine(r.Target, 40), 40)),
+		// the answer is checked as it is kept (#897 r2 M1): a config answer whose every block was left out, and that gives no reason,
+		// is not what the job asked for, so it is a format error, never an empty "Ask my AI"
 		Check: func(text string) error {
-			var perr error
-			body, perr = parseBrief(text)
-			return perr
+			body, perr := parseBrief(text, r.Job)
+			if perr != nil {
+				return perr
+			}
+			kept = keptBrief(body, r.Trusted)
+			if r.Job == JobMitigationConfig && len(kept.Configs) == 0 && kept.NoConfigReason == "" {
+				return ErrBadOutput
+			}
+			return nil
 		},
 	})
 	if err != nil {
 		return BriefAnswer{}, err
 	}
-	return BriefAnswer{Model: res.Model, Profile: res.Profile, TokensIn: res.TokensIn, TokensOut: res.TokensOut,
-		Paragraphs: body.Paragraphs, Steps: body.Steps, ActivityID: res.ActivityID}, nil
+	a := kept
+	a.Model, a.Profile, a.TokensIn, a.TokensOut, a.ActivityID = res.Model, res.Profile, res.TokensIn, res.TokensOut, res.ActivityID
+	return a, nil
 }
 
 // Configured reports whether at least one AI profile can be used (a key, or a model inside the network): flow 3 of the Privacy page.

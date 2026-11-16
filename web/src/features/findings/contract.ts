@@ -76,6 +76,7 @@ export const FindingRow = Finding.extend({
 export const CodeStep = z.object({
   title: z.string(), code: z.string(), note: z.string().optional(),
   side_effect: z.string().optional().describe('Side effect that must be stated before the user pastes the command'),
+  check: z.array(z.string()).optional().describe('#897 r2, AI config blocks only: the IP addresses the block names that are not the device\'s or a sent firewall\'s (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these addresses" above the block. Nothing is left out for an address'),
 })
 export const FirewallGuide = z.object({
   vendor: FirewallVendor, label: z.string(), detected: z.boolean().describe('The user declared a device of this vendor in the inventory'),
@@ -95,17 +96,36 @@ export const Indicator = z.object({
   commands: z.array(z.object({ label: z.string(), code: z.string() })).optional(),
 })
 export const CompromiseCheck = z.object({ summary: z.string(), indicators: z.array(Indicator), if_found: z.array(z.string()) })
+/** The admin network in the general hardening configs; the page replaces it with the network the person types (mitigation INV-8). */
+export const ADMIN_NET_PLACEHOLDER = '{ADMIN_NET}'
+export const HardeningPort = z.object({ port: z.number().int().min(1).max(65535), proto: z.enum(['tcp', 'udp']), service: z.string().describe('Service name from inventory or the software defaults; empty when unknown') })
+export const GeneralHardening = z.object({
+  software: z.string().describe('The software the checks are for, as the page names it'),
+  family: z.string().describe('The family the checks are written for ("Linux", "Network device", "General")'),
+  target: z.string().describe('The device address in the configs; "<IP>" when the device has no usable IP (INV-4)'),
+  self: z.boolean().describe('The device is itself the firewall: its own guide protects its admin access'),
+  ports_from: z.enum(['seen', 'usual', 'all']).describe('seen = ports inventory saw open on the device for this software; usual = the usual admin ports of the firewall itself; all = none known, the configs block every new inbound connection except from the admin network'),
+  ports: z.array(HardeningPort).describe('Empty when ports_from is all'),
+  admin_example: z.string().describe('The example admin network the page starts with; the configs hold {ADMIN_NET}'),
+  box: z.array(z.string()).describe('The Vedette box\'s addresses the configs allow as well, so its scans still see the ports; empty when unknown'),
+  viewer: z.string().describe('The address the box sees for the browser asking; empty when unknown. The page warns when it is outside the admin network typed'),
+  firewall: z.array(FirewallGuide).describe('Empty when the confirmed pack has its own firewall guides'),
+  checks: CompromiseCheck.nullable().describe('General "Have I been hit?" checks for the software family; null when the confirmed pack has its own'),
+}).describe('M2-1, mitigation INV-8: general hardening written by reviewed code, not a recommendation for the CVE (D-21): never shown as "Vedette confirmed", never run by Vedette')
 export const AiResult = z.object({
   skill: z.enum(['explain', 'mitigation-config']), ts: iso, model: z.string(),
   profile: z.string().optional().describe('Name of the AI profile that answered (D-29)'),
   tokens: z.object({ input: z.number(), output: z.number() }),
   paragraphs: z.array(z.string()), steps: z.array(z.string()),
   citations: z.array(z.object({ title: z.string(), url: z.string().optional() })),
+  configs: z.array(CodeStep).optional().describe('mitigation-config (M2-2): config blocks to paste as they are, the device\'s own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before'),
+  no_config_reason: z.string().optional().describe('#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI\'s words; the page shows it where the configuration would be'),
+  shortened: z.boolean().optional().describe('M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole'),
 })
 export const AppliedEntry = z.object({ item: z.string(), ts: iso, user: z.string() })
 
 export const FixedIn = z.object({
-  kind: z.enum(['fixed', 'up_to', 'branches', 'distro', 'feature_update', 'esu']).describe('fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a package of the distribution, whose security updates carry the fix under their own numbers: an agent read it from the device\'s package database (deb/rpm), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`'),
+  kind: z.enum(['fixed', 'up_to', 'end_listed', 'branches', 'distro', 'feature_update', 'esu']).describe('fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a package of the distribution, whose security updates carry the fix under their own numbers: an agent read it from the device\'s package database (deb/rpm), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`'),
   version: z.string().describe("The device's version; for branches empty when it has none, else the text Vedette cannot read"),
   fixed: z.string().describe('The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a reference when NVD names one (distro: the backport may keep the package\'s number below it); empty for branches'),
   branches: z.array(z.object({ branch: z.string().describe('Release line such as 7.4; empty when it cannot be told'), fixed: z.string() })).describe('At most 5, newest first'),
@@ -117,7 +137,13 @@ export const FixedIn = z.object({
   distro_pro: z.boolean().describe('distro_fixed is in Ubuntu Pro (ESM) only'),
   source: z.string().describe('Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE record\'s CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian Security Tracker" (D-516)'),
 })
+export const KnownVersion = z.object({
+  software: z.string().describe('Display name of the software the finding was matched on'),
+  version: z.string(),
+  source: z.enum(['agent', 'snmp', 'stated', 'scan', 'manual']).describe('Who gave the version: the device\'s agent, its answer to Vedette\'s SNMP read, its own statement on the network (LLDP), a network scan, or a person on the Devices page'),
+}).describe('M2-3: the version the box has for the matched software; the page says it and how a newer one reaches Vedette, never "find which version"')
 export const FindingDetail = FindingRow.extend({
+  known_version: KnownVersion.nullable().describe('M2-3: null when the matched software has no version or its source is not known'),
   fixed_in: FixedIn.nullable().describe('The release that fixes this finding on this device, from the NVD affected versions (D-488); null = NVD gives none, the page shows CISA and the vendor advisory only'),
   pack: MitigationPack.nullable().describe('null = no recommendation confirmed by Vedette maintainers yet (D-21)'),
   compromise: CompromiseCheck.nullable(),
@@ -125,6 +151,7 @@ export const FindingDetail = FindingRow.extend({
   ai: z.object({ explain: AiResult.nullable(), config: AiResult.nullable() }),
   ai_available: z.object({ explain: z.boolean(), config: z.boolean() }).describe('Whether an AI profile is assigned and allowed for each job (D-29)'),
   applied: z.array(AppliedEntry),
+  hardening: GeneralHardening.nullable().describe('null when the confirmed pack has both firewall guides and compromise signs, or mitigation is off'),
 })
 export const VersionNeeded = z.object({
   asset: FindingAsset.nullable(), asset_id: z.string(), software_id: z.string(), software: z.string().describe('Display name of the software'),

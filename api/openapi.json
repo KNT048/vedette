@@ -21693,6 +21693,30 @@
                                     "unchecked": {
                                       "description": "The newest scan did not check the address: the row is as an earlier scan left it",
                                       "type": "boolean"
+                                    },
+                                    "ident": {
+                                      "description": "M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's GET read a product), port (only the usual service of the port number: not confirmed), none (nothing identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on the port, or an older scan",
+                                      "type": "string",
+                                      "enum": [
+                                        "probed",
+                                        "port",
+                                        "none"
+                                      ]
+                                    },
+                                    "cert_names": {
+                                      "description": "M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then DNS alternative names), at most 5",
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "title": {
+                                      "description": "M2-7: the title of the web page on the port (deep scan, http-title)",
+                                      "type": "string"
+                                    },
+                                    "server": {
+                                      "description": "M2-7: the HTTP Server header on the port (deep scan, http-server-header)",
+                                      "type": "string"
                                     }
                                   },
                                   "required": [
@@ -23204,6 +23228,30 @@
                                     "unchecked": {
                                       "description": "The newest scan did not check the address: the row is as an earlier scan left it",
                                       "type": "boolean"
+                                    },
+                                    "ident": {
+                                      "description": "M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's GET read a product), port (only the usual service of the port number: not confirmed), none (nothing identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on the port, or an older scan",
+                                      "type": "string",
+                                      "enum": [
+                                        "probed",
+                                        "port",
+                                        "none"
+                                      ]
+                                    },
+                                    "cert_names": {
+                                      "description": "M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then DNS alternative names), at most 5",
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "title": {
+                                      "description": "M2-7: the title of the web page on the port (deep scan, http-title)",
+                                      "type": "string"
+                                    },
+                                    "server": {
+                                      "description": "M2-7: the HTTP Server header on the port (deep scan, http-server-header)",
+                                      "type": "string"
                                     }
                                   },
                                   "required": [
@@ -23817,6 +23865,30 @@
                               "unchecked": {
                                 "description": "The newest scan did not check the address: the row is as an earlier scan left it",
                                 "type": "boolean"
+                              },
+                              "ident": {
+                                "description": "M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's GET read a product), port (only the usual service of the port number: not confirmed), none (nothing identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on the port, or an older scan",
+                                "type": "string",
+                                "enum": [
+                                  "probed",
+                                  "port",
+                                  "none"
+                                ]
+                              },
+                              "cert_names": {
+                                "description": "M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then DNS alternative names), at most 5",
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "title": {
+                                "description": "M2-7: the title of the web page on the port (deep scan, http-title)",
+                                "type": "string"
+                              },
+                              "server": {
+                                "description": "M2-7: the HTTP Server header on the port (deep scan, http-server-header)",
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -24321,6 +24393,30 @@
                               "unchecked": {
                                 "description": "The newest scan did not check the address: the row is as an earlier scan left it",
                                 "type": "boolean"
+                              },
+                              "ident": {
+                                "description": "M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's GET read a product), port (only the usual service of the port number: not confirmed), none (nothing identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on the port, or an older scan",
+                                "type": "string",
+                                "enum": [
+                                  "probed",
+                                  "port",
+                                  "none"
+                                ]
+                              },
+                              "cert_names": {
+                                "description": "M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then DNS alternative names), at most 5",
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "title": {
+                                "description": "M2-7: the title of the web page on the port (deep scan, http-title)",
+                                "type": "string"
+                              },
+                              "server": {
+                                "description": "M2-7: the HTTP Server header on the port (deep scan, http-server-header)",
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -25476,6 +25572,30 @@
                           "unchecked": {
                             "description": "The newest scan did not check the address: the row is as an earlier scan left it",
                             "type": "boolean"
+                          },
+                          "ident": {
+                            "description": "M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's GET read a product), port (only the usual service of the port number: not confirmed), none (nothing identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on the port, or an older scan",
+                            "type": "string",
+                            "enum": [
+                              "probed",
+                              "port",
+                              "none"
+                            ]
+                          },
+                          "cert_names": {
+                            "description": "M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then DNS alternative names), at most 5",
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "title": {
+                            "description": "M2-7: the title of the web page on the port (deep scan, http-title)",
+                            "type": "string"
+                          },
+                          "server": {
+                            "description": "M2-7: the HTTP Server header on the port (deep scan, http-server-header)",
+                            "type": "string"
                           }
                         },
                         "required": [
@@ -25618,6 +25738,20 @@
                           "extra": {
                             "type": "string",
                             "description": "nmap's extrainfo, e.g. (Debian); \"\" when none"
+                          },
+                          "method": {
+                            "description": "M2-7: how nmap named the service: probed (a probe's answer matched) or table (only the usual service of the port number, not confirmed). Missing: an older scan",
+                            "type": "string",
+                            "enum": [
+                              "probed",
+                              "table"
+                            ]
+                          },
+                          "conf": {
+                            "description": "M2-7: nmap's confidence in the name, 1 to 10 (a table name is 3)",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 10
                           }
                         },
                         "required": [
@@ -26535,6 +26669,30 @@
                               "unchecked": {
                                 "description": "The newest scan did not check the address: the row is as an earlier scan left it",
                                 "type": "boolean"
+                              },
+                              "ident": {
+                                "description": "M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's GET read a product), port (only the usual service of the port number: not confirmed), none (nothing identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on the port, or an older scan",
+                                "type": "string",
+                                "enum": [
+                                  "probed",
+                                  "port",
+                                  "none"
+                                ]
+                              },
+                              "cert_names": {
+                                "description": "M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then DNS alternative names), at most 5",
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "title": {
+                                "description": "M2-7: the title of the web page on the port (deep scan, http-title)",
+                                "type": "string"
+                              },
+                              "server": {
+                                "description": "M2-7: the HTTP Server header on the port (deep scan, http-server-header)",
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -27013,6 +27171,30 @@
                               "unchecked": {
                                 "description": "The newest scan did not check the address: the row is as an earlier scan left it",
                                 "type": "boolean"
+                              },
+                              "ident": {
+                                "description": "M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's GET read a product), port (only the usual service of the port number: not confirmed), none (nothing identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on the port, or an older scan",
+                                "type": "string",
+                                "enum": [
+                                  "probed",
+                                  "port",
+                                  "none"
+                                ]
+                              },
+                              "cert_names": {
+                                "description": "M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then DNS alternative names), at most 5",
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              "title": {
+                                "description": "M2-7: the title of the web page on the port (deep scan, http-title)",
+                                "type": "string"
+                              },
+                              "server": {
+                                "description": "M2-7: the HTTP Server header on the port (deep scan, http-server-header)",
+                                "type": "string"
                               }
                             },
                             "required": [
@@ -27478,6 +27660,30 @@
                                   "unchecked": {
                                     "description": "The newest scan did not check the address: the row is as an earlier scan left it",
                                     "type": "boolean"
+                                  },
+                                  "ident": {
+                                    "description": "M2-7: how service identification named the service: probed (a probe's answer, or the surface scan's GET read a product), port (only the usual service of the port number: not confirmed), none (nothing identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on the port, or an older scan",
+                                    "type": "string",
+                                    "enum": [
+                                      "probed",
+                                      "port",
+                                      "none"
+                                    ]
+                                  },
+                                  "cert_names": {
+                                    "description": "M2-7: the names of the port's TLS certificate as the deep scan read them (subject common name, then DNS alternative names), at most 5",
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  },
+                                  "title": {
+                                    "description": "M2-7: the title of the web page on the port (deep scan, http-title)",
+                                    "type": "string"
+                                  },
+                                  "server": {
+                                    "description": "M2-7: the HTTP Server header on the port (deep scan, http-server-header)",
+                                    "type": "string"
                                   }
                                 },
                                 "required": [
@@ -32174,6 +32380,44 @@
                         }
                       ]
                     },
+                    "known_version": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "software": {
+                              "type": "string",
+                              "description": "Display name of the software the finding was matched on"
+                            },
+                            "version": {
+                              "type": "string"
+                            },
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "agent",
+                                "snmp",
+                                "stated",
+                                "scan",
+                                "manual"
+                              ],
+                              "description": "Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on the network (LLDP), a network scan, or a person on the Devices page"
+                            }
+                          },
+                          "required": [
+                            "software",
+                            "version",
+                            "source"
+                          ],
+                          "additionalProperties": false,
+                          "description": "M2-3: the version the box has for the matched software; the page says it and how a newer one reaches Vedette, never \"find which version\""
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "M2-3: null when the matched software has no version or its source is not known"
+                    },
                     "fixed_in": {
                       "anyOf": [
                         {
@@ -32184,12 +32428,13 @@
                               "enum": [
                                 "fixed",
                                 "up_to",
+                                "end_listed",
                                 "branches",
                                 "distro",
                                 "feature_update",
                                 "esu"
                               ],
-                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a package of the distribution, whose security updates carry the fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`"
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of `fixed` itself as affected (Junos: \"before 20.4\", then 20.4R1 … one by one): `fixed` is not a fix, the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a package of the distribution, whose security updates carry the fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`"
                             },
                             "version": {
                               "type": "string",
@@ -32406,6 +32651,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -32441,6 +32693,13 @@
                                             "side_effect": {
                                               "description": "Side effect that must be stated before the user pastes the command",
                                               "type": "string"
+                                            },
+                                            "check": {
+                                              "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
                                             }
                                           },
                                           "required": [
@@ -32475,6 +32734,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -32501,6 +32767,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -32720,6 +32993,48 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "configs": {
+                                  "description": "mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "note": {
+                                        "type": "string"
+                                      },
+                                      "side_effect": {
+                                        "description": "Side effect that must be stated before the user pastes the command",
+                                        "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "code"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
+                                },
+                                "shortened": {
+                                  "description": "M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
@@ -32807,6 +33122,48 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "configs": {
+                                  "description": "mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "note": {
+                                        "type": "string"
+                                      },
+                                      "side_effect": {
+                                        "description": "Side effect that must be stated before the user pastes the command",
+                                        "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "code"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
+                                },
+                                "shortened": {
+                                  "description": "M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
@@ -32873,6 +33230,373 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "hardening": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "software": {
+                              "type": "string",
+                              "description": "The software the checks are for, as the page names it"
+                            },
+                            "family": {
+                              "type": "string",
+                              "description": "The family the checks are written for (\"Linux\", \"Network device\", \"General\")"
+                            },
+                            "target": {
+                              "type": "string",
+                              "description": "The device address in the configs; \"<IP>\" when the device has no usable IP (INV-4)"
+                            },
+                            "self": {
+                              "type": "boolean",
+                              "description": "The device is itself the firewall: its own guide protects its admin access"
+                            },
+                            "ports_from": {
+                              "type": "string",
+                              "enum": [
+                                "seen",
+                                "usual",
+                                "all"
+                              ],
+                              "description": "seen = ports inventory saw open on the device for this software; usual = the usual admin ports of the firewall itself; all = none known, the configs block every new inbound connection except from the admin network"
+                            },
+                            "ports": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "port": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 65535
+                                  },
+                                  "proto": {
+                                    "type": "string",
+                                    "enum": [
+                                      "tcp",
+                                      "udp"
+                                    ]
+                                  },
+                                  "service": {
+                                    "type": "string",
+                                    "description": "Service name from inventory or the software defaults; empty when unknown"
+                                  }
+                                },
+                                "required": [
+                                  "port",
+                                  "proto",
+                                  "service"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "Empty when ports_from is all"
+                            },
+                            "admin_example": {
+                              "type": "string",
+                              "description": "The example admin network the page starts with; the configs hold {ADMIN_NET}"
+                            },
+                            "box": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "The Vedette box's addresses the configs allow as well, so its scans still see the ports; empty when unknown"
+                            },
+                            "viewer": {
+                              "type": "string",
+                              "description": "The address the box sees for the browser asking; empty when unknown. The page warns when it is outside the admin network typed"
+                            },
+                            "firewall": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "vendor": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fortigate",
+                                      "mikrotik",
+                                      "generic"
+                                    ]
+                                  },
+                                  "label": {
+                                    "type": "string"
+                                  },
+                                  "detected": {
+                                    "type": "boolean",
+                                    "description": "The user declared a device of this vendor in the inventory"
+                                  },
+                                  "intro": {
+                                    "type": "string"
+                                  },
+                                  "steps": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "alternative": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "intro": {
+                                        "type": "string"
+                                      },
+                                      "steps": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string"
+                                            },
+                                            "code": {
+                                              "type": "string"
+                                            },
+                                            "note": {
+                                              "type": "string"
+                                            },
+                                            "side_effect": {
+                                              "description": "Side effect that must be stated before the user pastes the command",
+                                              "type": "string"
+                                            },
+                                            "check": {
+                                              "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "code"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "intro",
+                                      "steps"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "verify": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "undo": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "plain": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "vendor",
+                                  "label",
+                                  "detected",
+                                  "intro",
+                                  "steps",
+                                  "verify",
+                                  "undo"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "Empty when the confirmed pack has its own firewall guides"
+                            },
+                            "checks": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "summary": {
+                                      "type": "string"
+                                    },
+                                    "indicators": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "kind": {
+                                            "type": "string",
+                                            "enum": [
+                                              "file",
+                                              "web",
+                                              "log",
+                                              "process"
+                                            ]
+                                          },
+                                          "title": {
+                                            "type": "string"
+                                          },
+                                          "detail": {
+                                            "type": "string"
+                                          },
+                                          "commands": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "code": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "label",
+                                                "code"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "kind",
+                                          "title",
+                                          "detail"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "if_found": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "summary",
+                                    "indicators",
+                                    "if_found"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "General \"Have I been hit?\" checks for the software family; null when the confirmed pack has its own"
+                            }
+                          },
+                          "required": [
+                            "software",
+                            "family",
+                            "target",
+                            "self",
+                            "ports_from",
+                            "ports",
+                            "admin_example",
+                            "box",
+                            "viewer",
+                            "firewall",
+                            "checks"
+                          ],
+                          "additionalProperties": false,
+                          "description": "M2-1, mitigation INV-8: general hardening written by reviewed code, not a recommendation for the CVE (D-21): never shown as \"Vedette confirmed\", never run by Vedette"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null when the confirmed pack has both firewall guides and compromise signs, or mitigation is off"
                     }
                   },
                   "required": [
@@ -32894,13 +33618,15 @@
                     "asset",
                     "kev",
                     "cvss",
+                    "known_version",
                     "fixed_in",
                     "pack",
                     "compromise",
                     "recheck",
                     "ai",
                     "ai_available",
-                    "applied"
+                    "applied",
+                    "hardening"
                   ],
                   "additionalProperties": false
                 }
@@ -33478,6 +34204,44 @@
                         }
                       ]
                     },
+                    "known_version": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "software": {
+                              "type": "string",
+                              "description": "Display name of the software the finding was matched on"
+                            },
+                            "version": {
+                              "type": "string"
+                            },
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "agent",
+                                "snmp",
+                                "stated",
+                                "scan",
+                                "manual"
+                              ],
+                              "description": "Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on the network (LLDP), a network scan, or a person on the Devices page"
+                            }
+                          },
+                          "required": [
+                            "software",
+                            "version",
+                            "source"
+                          ],
+                          "additionalProperties": false,
+                          "description": "M2-3: the version the box has for the matched software; the page says it and how a newer one reaches Vedette, never \"find which version\""
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "M2-3: null when the matched software has no version or its source is not known"
+                    },
                     "fixed_in": {
                       "anyOf": [
                         {
@@ -33488,12 +34252,13 @@
                               "enum": [
                                 "fixed",
                                 "up_to",
+                                "end_listed",
                                 "branches",
                                 "distro",
                                 "feature_update",
                                 "esu"
                               ],
-                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a package of the distribution, whose security updates carry the fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`"
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of `fixed` itself as affected (Junos: \"before 20.4\", then 20.4R1 … one by one): `fixed` is not a fix, the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a package of the distribution, whose security updates carry the fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`"
                             },
                             "version": {
                               "type": "string",
@@ -33710,6 +34475,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -33745,6 +34517,13 @@
                                             "side_effect": {
                                               "description": "Side effect that must be stated before the user pastes the command",
                                               "type": "string"
+                                            },
+                                            "check": {
+                                              "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
                                             }
                                           },
                                           "required": [
@@ -33779,6 +34558,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -33805,6 +34591,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -34024,6 +34817,48 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "configs": {
+                                  "description": "mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "note": {
+                                        "type": "string"
+                                      },
+                                      "side_effect": {
+                                        "description": "Side effect that must be stated before the user pastes the command",
+                                        "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "code"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
+                                },
+                                "shortened": {
+                                  "description": "M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
@@ -34111,6 +34946,48 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "configs": {
+                                  "description": "mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "note": {
+                                        "type": "string"
+                                      },
+                                      "side_effect": {
+                                        "description": "Side effect that must be stated before the user pastes the command",
+                                        "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "code"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
+                                },
+                                "shortened": {
+                                  "description": "M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
@@ -34177,6 +35054,373 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "hardening": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "software": {
+                              "type": "string",
+                              "description": "The software the checks are for, as the page names it"
+                            },
+                            "family": {
+                              "type": "string",
+                              "description": "The family the checks are written for (\"Linux\", \"Network device\", \"General\")"
+                            },
+                            "target": {
+                              "type": "string",
+                              "description": "The device address in the configs; \"<IP>\" when the device has no usable IP (INV-4)"
+                            },
+                            "self": {
+                              "type": "boolean",
+                              "description": "The device is itself the firewall: its own guide protects its admin access"
+                            },
+                            "ports_from": {
+                              "type": "string",
+                              "enum": [
+                                "seen",
+                                "usual",
+                                "all"
+                              ],
+                              "description": "seen = ports inventory saw open on the device for this software; usual = the usual admin ports of the firewall itself; all = none known, the configs block every new inbound connection except from the admin network"
+                            },
+                            "ports": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "port": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 65535
+                                  },
+                                  "proto": {
+                                    "type": "string",
+                                    "enum": [
+                                      "tcp",
+                                      "udp"
+                                    ]
+                                  },
+                                  "service": {
+                                    "type": "string",
+                                    "description": "Service name from inventory or the software defaults; empty when unknown"
+                                  }
+                                },
+                                "required": [
+                                  "port",
+                                  "proto",
+                                  "service"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "Empty when ports_from is all"
+                            },
+                            "admin_example": {
+                              "type": "string",
+                              "description": "The example admin network the page starts with; the configs hold {ADMIN_NET}"
+                            },
+                            "box": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "The Vedette box's addresses the configs allow as well, so its scans still see the ports; empty when unknown"
+                            },
+                            "viewer": {
+                              "type": "string",
+                              "description": "The address the box sees for the browser asking; empty when unknown. The page warns when it is outside the admin network typed"
+                            },
+                            "firewall": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "vendor": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fortigate",
+                                      "mikrotik",
+                                      "generic"
+                                    ]
+                                  },
+                                  "label": {
+                                    "type": "string"
+                                  },
+                                  "detected": {
+                                    "type": "boolean",
+                                    "description": "The user declared a device of this vendor in the inventory"
+                                  },
+                                  "intro": {
+                                    "type": "string"
+                                  },
+                                  "steps": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "alternative": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "intro": {
+                                        "type": "string"
+                                      },
+                                      "steps": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string"
+                                            },
+                                            "code": {
+                                              "type": "string"
+                                            },
+                                            "note": {
+                                              "type": "string"
+                                            },
+                                            "side_effect": {
+                                              "description": "Side effect that must be stated before the user pastes the command",
+                                              "type": "string"
+                                            },
+                                            "check": {
+                                              "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "code"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "intro",
+                                      "steps"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "verify": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "undo": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "plain": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "vendor",
+                                  "label",
+                                  "detected",
+                                  "intro",
+                                  "steps",
+                                  "verify",
+                                  "undo"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "Empty when the confirmed pack has its own firewall guides"
+                            },
+                            "checks": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "summary": {
+                                      "type": "string"
+                                    },
+                                    "indicators": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "kind": {
+                                            "type": "string",
+                                            "enum": [
+                                              "file",
+                                              "web",
+                                              "log",
+                                              "process"
+                                            ]
+                                          },
+                                          "title": {
+                                            "type": "string"
+                                          },
+                                          "detail": {
+                                            "type": "string"
+                                          },
+                                          "commands": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "code": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "label",
+                                                "code"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "kind",
+                                          "title",
+                                          "detail"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "if_found": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "summary",
+                                    "indicators",
+                                    "if_found"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "General \"Have I been hit?\" checks for the software family; null when the confirmed pack has its own"
+                            }
+                          },
+                          "required": [
+                            "software",
+                            "family",
+                            "target",
+                            "self",
+                            "ports_from",
+                            "ports",
+                            "admin_example",
+                            "box",
+                            "viewer",
+                            "firewall",
+                            "checks"
+                          ],
+                          "additionalProperties": false,
+                          "description": "M2-1, mitigation INV-8: general hardening written by reviewed code, not a recommendation for the CVE (D-21): never shown as \"Vedette confirmed\", never run by Vedette"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null when the confirmed pack has both firewall guides and compromise signs, or mitigation is off"
                     }
                   },
                   "required": [
@@ -34198,13 +35442,15 @@
                     "asset",
                     "kev",
                     "cvss",
+                    "known_version",
                     "fixed_in",
                     "pack",
                     "compromise",
                     "recheck",
                     "ai",
                     "ai_available",
-                    "applied"
+                    "applied",
+                    "hardening"
                   ],
                   "additionalProperties": false
                 }
@@ -34784,6 +36030,44 @@
                         }
                       ]
                     },
+                    "known_version": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "software": {
+                              "type": "string",
+                              "description": "Display name of the software the finding was matched on"
+                            },
+                            "version": {
+                              "type": "string"
+                            },
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "agent",
+                                "snmp",
+                                "stated",
+                                "scan",
+                                "manual"
+                              ],
+                              "description": "Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on the network (LLDP), a network scan, or a person on the Devices page"
+                            }
+                          },
+                          "required": [
+                            "software",
+                            "version",
+                            "source"
+                          ],
+                          "additionalProperties": false,
+                          "description": "M2-3: the version the box has for the matched software; the page says it and how a newer one reaches Vedette, never \"find which version\""
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "M2-3: null when the matched software has no version or its source is not known"
+                    },
                     "fixed_in": {
                       "anyOf": [
                         {
@@ -34794,12 +36078,13 @@
                               "enum": [
                                 "fixed",
                                 "up_to",
+                                "end_listed",
                                 "branches",
                                 "distro",
                                 "feature_update",
                                 "esu"
                               ],
-                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a package of the distribution, whose security updates carry the fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`"
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of `fixed` itself as affected (Junos: \"before 20.4\", then 20.4R1 … one by one): `fixed` is not a fix, the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a package of the distribution, whose security updates carry the fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`"
                             },
                             "version": {
                               "type": "string",
@@ -35016,6 +36301,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -35051,6 +36343,13 @@
                                             "side_effect": {
                                               "description": "Side effect that must be stated before the user pastes the command",
                                               "type": "string"
+                                            },
+                                            "check": {
+                                              "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
                                             }
                                           },
                                           "required": [
@@ -35085,6 +36384,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -35111,6 +36417,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -35330,6 +36643,48 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "configs": {
+                                  "description": "mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "note": {
+                                        "type": "string"
+                                      },
+                                      "side_effect": {
+                                        "description": "Side effect that must be stated before the user pastes the command",
+                                        "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "code"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
+                                },
+                                "shortened": {
+                                  "description": "M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
@@ -35417,6 +36772,48 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "configs": {
+                                  "description": "mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "note": {
+                                        "type": "string"
+                                      },
+                                      "side_effect": {
+                                        "description": "Side effect that must be stated before the user pastes the command",
+                                        "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "code"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
+                                },
+                                "shortened": {
+                                  "description": "M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
@@ -35483,6 +36880,373 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "hardening": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "software": {
+                              "type": "string",
+                              "description": "The software the checks are for, as the page names it"
+                            },
+                            "family": {
+                              "type": "string",
+                              "description": "The family the checks are written for (\"Linux\", \"Network device\", \"General\")"
+                            },
+                            "target": {
+                              "type": "string",
+                              "description": "The device address in the configs; \"<IP>\" when the device has no usable IP (INV-4)"
+                            },
+                            "self": {
+                              "type": "boolean",
+                              "description": "The device is itself the firewall: its own guide protects its admin access"
+                            },
+                            "ports_from": {
+                              "type": "string",
+                              "enum": [
+                                "seen",
+                                "usual",
+                                "all"
+                              ],
+                              "description": "seen = ports inventory saw open on the device for this software; usual = the usual admin ports of the firewall itself; all = none known, the configs block every new inbound connection except from the admin network"
+                            },
+                            "ports": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "port": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 65535
+                                  },
+                                  "proto": {
+                                    "type": "string",
+                                    "enum": [
+                                      "tcp",
+                                      "udp"
+                                    ]
+                                  },
+                                  "service": {
+                                    "type": "string",
+                                    "description": "Service name from inventory or the software defaults; empty when unknown"
+                                  }
+                                },
+                                "required": [
+                                  "port",
+                                  "proto",
+                                  "service"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "Empty when ports_from is all"
+                            },
+                            "admin_example": {
+                              "type": "string",
+                              "description": "The example admin network the page starts with; the configs hold {ADMIN_NET}"
+                            },
+                            "box": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "The Vedette box's addresses the configs allow as well, so its scans still see the ports; empty when unknown"
+                            },
+                            "viewer": {
+                              "type": "string",
+                              "description": "The address the box sees for the browser asking; empty when unknown. The page warns when it is outside the admin network typed"
+                            },
+                            "firewall": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "vendor": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fortigate",
+                                      "mikrotik",
+                                      "generic"
+                                    ]
+                                  },
+                                  "label": {
+                                    "type": "string"
+                                  },
+                                  "detected": {
+                                    "type": "boolean",
+                                    "description": "The user declared a device of this vendor in the inventory"
+                                  },
+                                  "intro": {
+                                    "type": "string"
+                                  },
+                                  "steps": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "alternative": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "intro": {
+                                        "type": "string"
+                                      },
+                                      "steps": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string"
+                                            },
+                                            "code": {
+                                              "type": "string"
+                                            },
+                                            "note": {
+                                              "type": "string"
+                                            },
+                                            "side_effect": {
+                                              "description": "Side effect that must be stated before the user pastes the command",
+                                              "type": "string"
+                                            },
+                                            "check": {
+                                              "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "code"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "intro",
+                                      "steps"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "verify": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "undo": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "plain": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "vendor",
+                                  "label",
+                                  "detected",
+                                  "intro",
+                                  "steps",
+                                  "verify",
+                                  "undo"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "Empty when the confirmed pack has its own firewall guides"
+                            },
+                            "checks": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "summary": {
+                                      "type": "string"
+                                    },
+                                    "indicators": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "kind": {
+                                            "type": "string",
+                                            "enum": [
+                                              "file",
+                                              "web",
+                                              "log",
+                                              "process"
+                                            ]
+                                          },
+                                          "title": {
+                                            "type": "string"
+                                          },
+                                          "detail": {
+                                            "type": "string"
+                                          },
+                                          "commands": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "code": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "label",
+                                                "code"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "kind",
+                                          "title",
+                                          "detail"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "if_found": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "summary",
+                                    "indicators",
+                                    "if_found"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "General \"Have I been hit?\" checks for the software family; null when the confirmed pack has its own"
+                            }
+                          },
+                          "required": [
+                            "software",
+                            "family",
+                            "target",
+                            "self",
+                            "ports_from",
+                            "ports",
+                            "admin_example",
+                            "box",
+                            "viewer",
+                            "firewall",
+                            "checks"
+                          ],
+                          "additionalProperties": false,
+                          "description": "M2-1, mitigation INV-8: general hardening written by reviewed code, not a recommendation for the CVE (D-21): never shown as \"Vedette confirmed\", never run by Vedette"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null when the confirmed pack has both firewall guides and compromise signs, or mitigation is off"
                     }
                   },
                   "required": [
@@ -35504,13 +37268,15 @@
                     "asset",
                     "kev",
                     "cvss",
+                    "known_version",
                     "fixed_in",
                     "pack",
                     "compromise",
                     "recheck",
                     "ai",
                     "ai_available",
-                    "applied"
+                    "applied",
+                    "hardening"
                   ],
                   "additionalProperties": false
                 }
@@ -36102,6 +37868,44 @@
                         }
                       ]
                     },
+                    "known_version": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "software": {
+                              "type": "string",
+                              "description": "Display name of the software the finding was matched on"
+                            },
+                            "version": {
+                              "type": "string"
+                            },
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "agent",
+                                "snmp",
+                                "stated",
+                                "scan",
+                                "manual"
+                              ],
+                              "description": "Who gave the version: the device's agent, its answer to Vedette's SNMP read, its own statement on the network (LLDP), a network scan, or a person on the Devices page"
+                            }
+                          },
+                          "required": [
+                            "software",
+                            "version",
+                            "source"
+                          ],
+                          "additionalProperties": false,
+                          "description": "M2-3: the version the box has for the matched software; the page says it and how a newer one reaches Vedette, never \"find which version\""
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "M2-3: null when the matched software has no version or its source is not known"
+                    },
                     "fixed_in": {
                       "anyOf": [
                         {
@@ -36112,12 +37916,13 @@
                               "enum": [
                                 "fixed",
                                 "up_to",
+                                "end_listed",
                                 "branches",
                                 "distro",
                                 "feature_update",
                                 "esu"
                               ],
-                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a package of the distribution, whose security updates carry the fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`"
+                              "description": "fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of `fixed` itself as affected (Junos: \"before 20.4\", then 20.4R1 … one by one): `fixed` is not a fix, the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a package of the distribution, whose security updates carry the fix under their own numbers: an agent read it from the device's package database (deb/rpm), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`"
                             },
                             "version": {
                               "type": "string",
@@ -36334,6 +38139,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -36369,6 +38181,13 @@
                                             "side_effect": {
                                               "description": "Side effect that must be stated before the user pastes the command",
                                               "type": "string"
+                                            },
+                                            "check": {
+                                              "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
                                             }
                                           },
                                           "required": [
@@ -36403,6 +38222,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -36429,6 +38255,13 @@
                                         "side_effect": {
                                           "description": "Side effect that must be stated before the user pastes the command",
                                           "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
                                         }
                                       },
                                       "required": [
@@ -36648,6 +38481,48 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "configs": {
+                                  "description": "mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "note": {
+                                        "type": "string"
+                                      },
+                                      "side_effect": {
+                                        "description": "Side effect that must be stated before the user pastes the command",
+                                        "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "code"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
+                                },
+                                "shortened": {
+                                  "description": "M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
@@ -36735,6 +38610,48 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "configs": {
+                                  "description": "mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before",
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "code": {
+                                        "type": "string"
+                                      },
+                                      "note": {
+                                        "type": "string"
+                                      },
+                                      "side_effect": {
+                                        "description": "Side effect that must be stated before the user pastes the command",
+                                        "type": "string"
+                                      },
+                                      "check": {
+                                        "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                        "type": "array",
+                                        "items": {
+                                          "type": "string"
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "code"
+                                    ],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
+                                },
+                                "shortened": {
+                                  "description": "M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
+                                  "type": "boolean"
                                 }
                               },
                               "required": [
@@ -36801,6 +38718,373 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "hardening": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "software": {
+                              "type": "string",
+                              "description": "The software the checks are for, as the page names it"
+                            },
+                            "family": {
+                              "type": "string",
+                              "description": "The family the checks are written for (\"Linux\", \"Network device\", \"General\")"
+                            },
+                            "target": {
+                              "type": "string",
+                              "description": "The device address in the configs; \"<IP>\" when the device has no usable IP (INV-4)"
+                            },
+                            "self": {
+                              "type": "boolean",
+                              "description": "The device is itself the firewall: its own guide protects its admin access"
+                            },
+                            "ports_from": {
+                              "type": "string",
+                              "enum": [
+                                "seen",
+                                "usual",
+                                "all"
+                              ],
+                              "description": "seen = ports inventory saw open on the device for this software; usual = the usual admin ports of the firewall itself; all = none known, the configs block every new inbound connection except from the admin network"
+                            },
+                            "ports": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "port": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 65535
+                                  },
+                                  "proto": {
+                                    "type": "string",
+                                    "enum": [
+                                      "tcp",
+                                      "udp"
+                                    ]
+                                  },
+                                  "service": {
+                                    "type": "string",
+                                    "description": "Service name from inventory or the software defaults; empty when unknown"
+                                  }
+                                },
+                                "required": [
+                                  "port",
+                                  "proto",
+                                  "service"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "Empty when ports_from is all"
+                            },
+                            "admin_example": {
+                              "type": "string",
+                              "description": "The example admin network the page starts with; the configs hold {ADMIN_NET}"
+                            },
+                            "box": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "The Vedette box's addresses the configs allow as well, so its scans still see the ports; empty when unknown"
+                            },
+                            "viewer": {
+                              "type": "string",
+                              "description": "The address the box sees for the browser asking; empty when unknown. The page warns when it is outside the admin network typed"
+                            },
+                            "firewall": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "vendor": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fortigate",
+                                      "mikrotik",
+                                      "generic"
+                                    ]
+                                  },
+                                  "label": {
+                                    "type": "string"
+                                  },
+                                  "detected": {
+                                    "type": "boolean",
+                                    "description": "The user declared a device of this vendor in the inventory"
+                                  },
+                                  "intro": {
+                                    "type": "string"
+                                  },
+                                  "steps": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "alternative": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "intro": {
+                                        "type": "string"
+                                      },
+                                      "steps": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string"
+                                            },
+                                            "code": {
+                                              "type": "string"
+                                            },
+                                            "note": {
+                                              "type": "string"
+                                            },
+                                            "side_effect": {
+                                              "description": "Side effect that must be stated before the user pastes the command",
+                                              "type": "string"
+                                            },
+                                            "check": {
+                                              "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                              "type": "array",
+                                              "items": {
+                                                "type": "string"
+                                              }
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "code"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "intro",
+                                      "steps"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "verify": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "undo": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        },
+                                        "check": {
+                                          "description": "#897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows \"Check these addresses\" above the block. Nothing is left out for an address",
+                                          "type": "array",
+                                          "items": {
+                                            "type": "string"
+                                          }
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "plain": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "vendor",
+                                  "label",
+                                  "detected",
+                                  "intro",
+                                  "steps",
+                                  "verify",
+                                  "undo"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "Empty when the confirmed pack has its own firewall guides"
+                            },
+                            "checks": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "summary": {
+                                      "type": "string"
+                                    },
+                                    "indicators": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "kind": {
+                                            "type": "string",
+                                            "enum": [
+                                              "file",
+                                              "web",
+                                              "log",
+                                              "process"
+                                            ]
+                                          },
+                                          "title": {
+                                            "type": "string"
+                                          },
+                                          "detail": {
+                                            "type": "string"
+                                          },
+                                          "commands": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "code": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "label",
+                                                "code"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "kind",
+                                          "title",
+                                          "detail"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "if_found": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "summary",
+                                    "indicators",
+                                    "if_found"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "General \"Have I been hit?\" checks for the software family; null when the confirmed pack has its own"
+                            }
+                          },
+                          "required": [
+                            "software",
+                            "family",
+                            "target",
+                            "self",
+                            "ports_from",
+                            "ports",
+                            "admin_example",
+                            "box",
+                            "viewer",
+                            "firewall",
+                            "checks"
+                          ],
+                          "additionalProperties": false,
+                          "description": "M2-1, mitigation INV-8: general hardening written by reviewed code, not a recommendation for the CVE (D-21): never shown as \"Vedette confirmed\", never run by Vedette"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null when the confirmed pack has both firewall guides and compromise signs, or mitigation is off"
                     }
                   },
                   "required": [
@@ -36822,13 +39106,15 @@
                     "asset",
                     "kev",
                     "cvss",
+                    "known_version",
                     "fixed_in",
                     "pack",
                     "compromise",
                     "recheck",
                     "ai",
                     "ai_available",
-                    "applied"
+                    "applied",
+                    "hardening"
                   ],
                   "additionalProperties": false
                 }

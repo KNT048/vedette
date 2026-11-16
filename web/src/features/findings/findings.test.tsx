@@ -11,7 +11,7 @@ import { makeQueryClient } from '@/app/App'
 import { aiConfigStore, aiRunsStore, assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { feature } from './index'
 import { accepted, fixes } from './mocks'
-import { FixedInNote } from './Recommendation'
+import { AiOutput, FixedInNote } from './Recommendation'
 import { dayAfter, untilBounds, untilOk } from './accept'
 import { cvssBand } from './basis'
 import { CvssScore } from './Cvss'
@@ -209,7 +209,8 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     expect(screen.getByText(/Apply mitigations in accordance with vendor instructions/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Vendor advisory (wordpress.org)' })).toHaveAttribute('href', 'https://wordpress.org/news/2026/10/wordpress-7-1-4')
     expect(screen.getByText('Steps you can take now')).toBeInTheDocument() // W1-31: what the box knows, without a pack
-    expect(screen.getByText(/No confirmed exploitation signs/)).toBeInTheDocument()
+    expect(screen.queryByText(/No confirmed exploitation signs/)).not.toBeInTheDocument() // M2-1: general checks instead (INV-8)
+    expect(screen.getByTestId('general-checks')).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 
@@ -275,6 +276,25 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     expect(screen.queryByTestId('fixed-in')).not.toBeInTheDocument()
   })
 
+  // #897 r1 H1, L4, L5: an honest "no rule helps" answer shows its reason, repeated titles both render, a shortened answer says so
+  it('Ask my AI: the reason when no config helps, repeated titles, shortened', () => {
+    const base = { skill: 'mitigation-config' as const, ts: '2026-11-16T00:00:00Z', model: 'm', tokens: { input: 1, output: 1 }, paragraphs: ['A local flaw.'], steps: ['Patch.'], citations: [] }
+    const a = render(<AiOutput r={{ ...base, configs: [], no_config_reason: 'The attack is local: no firewall rule helps.', shortened: true }} />)
+    expect(screen.getByText('Why there is no firewall rule')).toBeInTheDocument()
+    expect(screen.getByText('The attack is local: no firewall rule helps.')).toBeInTheDocument()
+    expect(screen.queryByText('Configuration to review before pasting')).not.toBeInTheDocument()
+    expect(screen.getByText(/^Vedette shortened or left out part of this answer/)).toBeInTheDocument()
+    a.unmount()
+    render(<AiOutput r={{ ...base, configs: [{ title: 'Configuration', code: 'set a 203.0.113.9', check: ['203.0.113.9'] }, { title: 'Configuration', code: 'set b' }], no_config_reason: 'Only the device needs a change.' }} />)
+    // #897 r2: every AI block carries the fixed caution; an address the box does not know is named above its block
+    expect(screen.getAllByText(/^AI-generated: read every line before pasting/)).toHaveLength(2)
+    expect(screen.getAllByText((_, el) => el?.tagName === 'P' && /^Check these addresses: .* 203\.0\.113\.9$/.test(el.textContent ?? ''))).toHaveLength(1)
+    expect(screen.getByText('Note from the AI')).toBeInTheDocument()
+    expect(screen.getByText('set a 203.0.113.9')).toBeInTheDocument()
+    expect(screen.getByText('set b')).toBeInTheDocument()
+    expect(screen.queryByText(/^Vedette shortened/)).not.toBeInTheDocument()
+  })
+
   it('f-3 cũng vậy, với link MSRC', async () => {
     renderApp('/findings/f-3')
     expect(await screen.findByText('No confirmed recommendation yet')).toBeInTheDocument()
@@ -288,6 +308,11 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     const block = label.closest('[data-ai="true"]') as HTMLElement
     expect(within(block).getByText('AI-generated, needs human review')).toBeInTheDocument()
     expect(within(block).getByText(/Update WordPress to the latest release/)).toBeInTheDocument()
+    // M2-2: the config skill answers with a config block to copy, with its source and side effect
+    expect(within(block).getByText('Configuration to review before pasting')).toBeInTheDocument()
+    expect(within(block).getByText(/^nft add rule inet filter forward/)).toBeInTheDocument()
+    expect(within(block).getByText('Based on: general hardening')).toBeInTheDocument()
+    expect(within(block).getByRole('button', { name: 'Copy' })).toBeInTheDocument()
     expect(within(block).queryByText('Drafted by Vedette with AI')).not.toBeInTheDocument()
     expect(screen.queryByText('Confirmed by Vedette maintainers')).not.toBeInTheDocument()
     const runs = aiRunsStore.get()

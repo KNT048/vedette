@@ -475,7 +475,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 			break
 		}
 		wctx, cancel := context.WithTimeout(ctx, WebScanTimeout)
-		steps.begin(StepZAP)
+		steps.begin(StepZAP, false)
 		res, err := s.cfg.Web.Baseline(wctx, st, page)
 		slow := wctx.Err() != nil
 		cancel()
@@ -488,7 +488,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 				steps.end(StepZAP, callRan, len(rows), s.clock())
 			case errors.Is(perr, ErrNoPage): // ZAP ran and found no page there
 				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebNoPage, maxLineText)})
-				steps.end(StepZAP, callRan, 0, s.clock())
+				steps.end(StepZAP, callEmpty, 0, s.clock())
 			default:
 				s.cfg.Log.ErrorContext(ctx, "exposure: unreadable ZAP report", "target", st.Value, "page", page.URL, "error", perr)
 				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebUnread, maxLineText)})
@@ -501,7 +501,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		switch {
 		case ctx.Err() != nil: // the run was stopped: nothing is stored, and the step reads as stopped (begin without end)
 			return c, err
-		case errors.As(err, &skip):
+		case errors.As(err, &skip), errors.As(err, &un): // ZAP did not run there (unavailable, not running): not a run of the step
 			steps.end(StepZAP, callSkipped, 0, s.clock())
 		default:
 			steps.end(StepZAP, callFailed, 0, s.clock())

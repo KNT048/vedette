@@ -147,7 +147,7 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 	defer func() { // the runner parses untrusted data; a panic must end this run, not the box (the request pipeline would have answered 500)
 		if p := recover(); p != nil {
 			s.cfg.Log.ErrorContext(ctx, "an exposure scan panicked", "target", t.Value, "panic", p, "stack", string(debug.Stack()))
-			s.finish(ctx, run, user, t, fmt.Errorf("exposure: the scan panicked: %v", p))
+			s.finish(ctx, run, user, t, fmt.Errorf("%w: %v", errScanPanicked, p))
 		}
 	}()
 	s.setPhase(run, PhaseProbing)
@@ -155,16 +155,26 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Mode: run.mode}
 	content, err := r.Scan(ctx, st)
 	content.Hosts = clearDeep(content.Hosts) // D-571: the deep state of a run is exposure's own, never the runner's
+	deepDomain := st.Kind == KindDomain && st.Mode.Full
 	if err == nil {
 		content, err = s.identify(ctx, st, content) // INV-19: service identification of the box's own IP, and what was checked
+	}
+	if err == nil && !deepDomain { // INV-30: no more template calls in this run
+		run.steps.close(StepNuclei)
 	}
 	if err == nil {
 		run.prog.Report(progress.Phase(progress.PhaseWeb, ""))
 		content, err = s.webPassive(ctx, byName(st), content) // INV-24: passive web scan of its web ports
 	}
+	if err == nil {
+		run.steps.close(StepZAP)
+	}
 	var deep []deepAddr
-	if err == nil && st.Kind == KindDomain && st.Mode.Full { // D-571: each address of the names at the domain's terms depth
+	if err == nil && deepDomain { // D-571: each address of the names at the domain's terms depth
 		content, deep, err = s.deepDomain(ctx, st, content)
+		if err == nil {
+			run.steps.close(StepNuclei)
+		}
 	}
 	gb, gbRun := false, GreenboneRun{State: GBRunNotRun}
 	var gbIP []int  // the open TCP ports of an IP target OpenVAS checks (N49-4, D-595)
@@ -203,7 +213,7 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 		run.snap, err = s.saveScan(ctx, user, t, content, id, gbRun)
 	}
 	if err == nil { // INV-30: nuclei's and ZAP's last runs are on the cards while OpenVAS still runs
-		s.saveSteps(ctx, run, false)
+		s.saveSteps(ctx, run, runOn)
 	}
 	if err == nil && gb { // a stop now keeps the snapshot above; Greenbone's outcome (or that it was stopped) is added to it
 		s.setPhase(run, PhaseGreenbone)
@@ -293,8 +303,8 @@ func (s *Service) saveScan(ctx context.Context, user string, t Target, content C
 
 // finish records the end of a run: the audit row of one that ended without a snapshot, and the final state the page reads.
 func (s *Service) finish(ctx context.Context, run *scanRun, user string, t Target, err error) {
-	kept := run.snap.ID != ""   // stopped during the Greenbone step: the snapshot of the other steps is stored and already audited
-	s.saveSteps(ctx, run, true) // INV-30: before the run reads as ended, so its steps are on the cards when it does
+	kept := run.snap.ID != ""            // stopped during the Greenbone step: the snapshot of the other steps is stored and already audited
+	s.saveSteps(ctx, run, runEndOf(err)) // INV-30: before the run reads as ended, so its steps are on the cards when it does
 	if err != nil && !kept {
 		s.auditFailedScan(ctx, user, t, err)
 	}
@@ -433,4 +443,19 @@ func (s *Service) Close() {
 			s.cfg.Log.Error("exposure: the running scan did not stop at shutdown; its audit row may be missing")
 		}
 	}
+}
+
+// errScanPanicked is the error of a run a panic ended (execute's recover): an error of the box, never a stop.
+var errScanPanicked = errors.New("exposure: the scan panicked")
+
+// runEndOf is how a run that ended with err ended, for its steps (INV-30).
+func runEndOf(err error) int {
+	var sb *stoppedBy
+	switch {
+	case errors.As(err, &sb):
+		return runStopped
+	case errors.Is(err, errScanPanicked):
+		return runPanicked
+	}
+	return runEnded
 }

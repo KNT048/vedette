@@ -3,6 +3,7 @@ package exposure
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -68,10 +69,12 @@ type stepLog struct {
 }
 
 type stepTally struct {
-	running, ok, failed, found int
-	at                         time.Time // when a call last ended
-	outcome, text              string    // set when the step names its own outcome (OpenVAS)
-	saved                      bool
+	running, ok, empty, failed, found int
+	at                                time.Time // when a call last ended
+	outcome, text                     string    // set when the step names its own outcome (OpenVAS)
+	deep                              bool      // nuclei ran the deep templates (testing terms accepted)
+	closed                            bool      // the run is past the step: no more calls come
+	saved                             bool
 }
 
 type stepsKey struct{}
@@ -97,21 +100,25 @@ func (l *stepLog) tally(engine string) *stepTally {
 	return t
 }
 
-// begin is called right before the engine is asked; every begin is followed by end, unless the run is stopped while it runs.
-func (l *stepLog) begin(engine string) {
+// begin is called right before the engine is asked; every begin is followed by end, unless the run is stopped while it runs. deep
+// says the call runs the deep templates (nuclei of a target whose testing terms are accepted).
+func (l *stepLog) begin(engine string, deep bool) {
 	if l == nil {
 		return
 	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.tally(engine).running++
+	t := l.tally(engine)
+	t.running++
+	t.deep = t.deep || deep
 }
 
 // The results of one call of an engine (stepLog.end).
 const (
 	callRan     = iota // the engine ran and answered
-	callFailed         // it was asked and failed (an error, its cap, an answer that could not be read, unavailable)
-	callSkipped        // it was not asked after all (a page that was skipped): the call does not count
+	callEmpty          // ZAP ran and found no page at the address: answered, but nothing was scanned
+	callFailed         // it ran and failed (an error, its cap, an answer that could not be read)
+	callSkipped        // it did not run after all (a skipped page, the engine unavailable or off): the call does not count
 )
 
 // end records how one call ended and what it found (alerts, matched templates).
@@ -126,6 +133,8 @@ func (l *stepLog) end(engine string, result, found int, at time.Time) {
 	switch result {
 	case callRan:
 		t.ok++
+	case callEmpty:
+		t.empty++
 	case callFailed:
 		t.failed++
 	default:
@@ -133,6 +142,16 @@ func (l *stepLog) end(engine string, result, found int, at time.Time) {
 	}
 	t.found += found
 	t.at = at
+}
+
+// close says the run is past the step: a stop or an error after it does not change how the step ended.
+func (l *stepLog) close(engine string) {
+	if l == nil {
+		return
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.tally(engine).closed = true
 }
 
 // set records a step that names its own outcome (OpenVAS); "" outcome means it did not run and the run does not count.
@@ -143,11 +162,21 @@ func (l *stepLog) set(engine, outcome, text string, at time.Time) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	t := l.tally(engine)
-	t.outcome, t.text, t.at = outcome, text, at
+	t.outcome, t.text, t.at, t.closed = outcome, text, at, true
 }
 
-// rows takes the steps that ended and were not saved yet; final takes a step still running too, as stopped at now (the run ends).
-func (l *stepLog) rows(runID, target string, now time.Time, final bool) []EngineRun {
+// How a run ended, for rows: runOn (not ended: only the closed steps are taken), runEnded (done, or failed with an error the steps
+// reported themselves), runStopped (a Stop, the module switched off, the box shutting down), runPanicked (an error of the box).
+const (
+	runOn = iota
+	runEnded
+	runStopped
+	runPanicked
+)
+
+// rows takes the steps that ended and were not saved yet. Once the run ended (end != runOn), a step it cut, in a call or between two
+// calls, is stopped at now, or failed when the box's error ended the run.
+func (l *stepLog) rows(runID, target string, now time.Time, end int) []EngineRun {
 	if l == nil {
 		return nil
 	}
@@ -156,24 +185,33 @@ func (l *stepLog) rows(runID, target string, now time.Time, final bool) []Engine
 	var out []EngineRun
 	for _, engine := range stepEngines {
 		t := l.m[engine]
-		if t == nil || t.saved || (t.running > 0 && !final) {
+		if t == nil || t.saved || (end == runOn && (!t.closed || t.running > 0)) {
 			continue
 		}
 		outcome, text, at := t.outcome, t.text, t.at
 		if outcome == "" {
+			cut := t.running > 0 || (!t.closed && (end == runStopped || end == runPanicked))
 			switch {
-			case t.running > 0:
-				outcome, at = StepStopped, now
-			case t.ok+t.failed == 0: // every call was skipped: the step did not run
+			case t.running == 0 && t.ok+t.empty+t.failed == 0: // every call was skipped: the step did not run
 				continue
-			case t.failed == 0:
-				outcome = StepOK
-			case t.ok == 0:
-				outcome = StepFailed
+			case cut && end == runPanicked:
+				outcome, at = StepFailed, now
+				text = map[string]string{StepNuclei: "the scan stopped because of an error on the box while the templates ran",
+					StepZAP: "the scan stopped because of an error on the box while ZAP ran"}[engine]
+			case cut:
+				outcome, at = StepStopped, now
+				text = map[string]string{StepNuclei: "stopped while the templates ran", StepZAP: "stopped while ZAP ran"}[engine]
 			default:
-				outcome = StepPartial
+				switch {
+				case t.failed == 0:
+					outcome = StepOK
+				case t.ok+t.empty == 0:
+					outcome = StepFailed
+				default:
+					outcome = StepPartial
+				}
+				text = stepText(engine, outcome, t)
 			}
-			text = stepText(engine, outcome, t)
 		}
 		t.saved = true
 		out = append(out, EngineRun{Engine: engine, RunID: runID, Target: target, At: store.FormatTS(at), Outcome: outcome,
@@ -183,27 +221,29 @@ func (l *stepLog) rows(runID, target string, now time.Time, final bool) []Engine
 }
 
 func stepText(engine, outcome string, t *stepTally) string {
-	if outcome == StepStopped {
-		return map[string]string{StepNuclei: "stopped while the templates ran", StepZAP: "stopped while ZAP ran"}[engine]
-	}
-	switch engine {
-	case StepZAP:
-		switch outcome {
-		case StepOK:
-			return fmt.Sprintf("ZAP scanned %s, %s", plural(t.ok, "page"), plural(t.found, "alert"))
-		case StepPartial:
-			return fmt.Sprintf("ZAP scanned %d of %d pages, %s", t.ok, t.ok+t.failed, plural(t.found, "alert"))
+	if engine == StepZAP {
+		total := t.ok + t.empty + t.failed
+		switch {
+		case outcome == StepFailed:
+			return "ZAP could not scan " + plural(t.failed, "page")
+		case t.ok == 0: // every page it answered for had no page there
+			return "ZAP found no page to scan at " + plural(t.empty, "web port")
+		case outcome == StepPartial || t.empty > 0:
+			return fmt.Sprintf("ZAP scanned %d of %d pages, %s", t.ok, total, plural(t.found, "alert"))
 		}
-		return "ZAP could not scan " + plural(t.failed, "page")
-	default:
-		switch outcome {
-		case StepOK:
-			return fmt.Sprintf("safe templates ran, %d matched", t.found)
-		case StepPartial:
-			return fmt.Sprintf("templates ran on %d of %d addresses, %d matched", t.ok, t.ok+t.failed, t.found)
-		}
-		return "the templates did not finish"
+		return fmt.Sprintf("ZAP scanned %s, %s", plural(t.ok, "page"), plural(t.found, "alert"))
 	}
+	kind := "safe templates"
+	if t.deep {
+		kind = "deep templates"
+	}
+	switch outcome {
+	case StepOK:
+		return fmt.Sprintf("%s ran, %d matched", kind, t.found)
+	case StepPartial:
+		return fmt.Sprintf("%s ran on %d of %d addresses, %d matched", kind, t.ok, t.ok+t.failed, t.found)
+	}
+	return "the " + kind + " did not finish"
 }
 
 // openVASStep is the outcome and text of the OpenVAS step from its state (GreenboneRun.State) and its rows; "" when it did not run.
@@ -224,15 +264,20 @@ func openVASStep(state string, results int) (string, string) {
 }
 
 // saveSteps stores the steps of the run that ended and were not stored yet (INV-30): before the OpenVAS step starts (nuclei and ZAP
-// are done by then), and when the run ends. It runs on its own context, so a stop or a shutdown still records it; a failure is logged.
-func (s *Service) saveSteps(ctx context.Context, run *scanRun, final bool) {
-	rows := run.steps.rows(run.view.ID, run.view.TargetValue, s.clock(), final)
+// are done by then, end runOn), and when the run ends. A target deleted meanwhile gets no row. It runs on its own context, so a stop or a shutdown still records it; a failure is logged.
+func (s *Service) saveSteps(ctx context.Context, run *scanRun, end int) {
+	rows := run.steps.rows(run.view.ID, run.view.TargetValue, s.clock(), end)
 	if len(rows) == 0 {
 		return
 	}
 	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), saveTimeout)
 	defer cancel()
 	err := s.write(wctx, func(tx *sql.Tx, _ func(string, any)) error {
+		if _, err := loadTarget(wctx, tx, run.view.TargetID); errors.Is(err, ErrNotFound) { // deleted while it ran (L4 of #863 r1)
+			return nil
+		} else if err != nil {
+			return err
+		}
 		for _, r := range rows {
 			if _, err := tx.ExecContext(wctx, `INSERT INTO exp_engine_run (engine, run_id, target, at, outcome, text) VALUES (?, ?, ?, ?, ?, ?)
 				ON CONFLICT (engine) DO UPDATE SET run_id = excluded.run_id, target = excluded.target, at = excluded.at, outcome = excluded.outcome, text = excluded.text`,

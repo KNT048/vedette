@@ -54,6 +54,23 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     await expectNoA11yViolations()
   })
 
+  it('n73: Fix first leads with the software the device runs, the list\'s group after it; the trend line says the change since the first day', async () => {
+    const { summary } = await import('@/features/findings/mocks')
+    server.use(http.get('*/api/v1/findings/summary', () => {
+      const v = summary()
+      const trend = v.trend.map((_, i) => (i === v.trend.length - 1 ? 49 : 0))
+      return HttpResponse.json({ ...v, open: { ...v.open, total: 49 }, trend,
+        top: v.top.slice(0, 1).map((f) => ({ ...f, software: 'Windows Server 2025', product: 'Windows PCs and servers' })) })
+    }))
+    renderApp('/')
+    const fix = await screen.findByRole('region', { name: 'Fix first' })
+    const row = within(fix).getAllByRole('listitem')[0]!
+    expect(within(row).getAllByRole('link')[0]).toHaveTextContent('Windows Server 2025')
+    expect(within(row).getByText('Windows PCs and servers')).toBeInTheDocument()
+    expect(await screen.findByText(/^Up 49 since \d{1,2} [A-Z][a-z]{2} \(was 0\)$/)).toBeInTheDocument()
+    expect(screen.queryByText(/more than 30 days ago/)).toBeNull()
+  })
+
   it('the trend reads day by day from the keyboard (#825)', async () => {
     renderApp('/')
     const chart = await screen.findByRole('img', { name: /^Open exploited findings over 30 days/ })

@@ -243,6 +243,32 @@ function EngineRow({ e, d, open, onOpen }: { e: Engine; d: Scanning; open: boole
   )
 }
 
+/** The memory line (n73): the sum is of upper limits, so it says so; when the limits add up to more than the box has, it says what to do
+ *  and takes an administrator to the switch of the engine that holds the most while it is on (docs/UI.md §0: need → place → action). */
+function BoxMemory({ d }: { d: Scanning }) {
+  const { t } = useTranslation('scanning')
+  const admin = useCan('admin')
+  const { memory_mb: total, reserved_mb: used } = d.box
+  if (!total) return null
+  if (used <= total) return <p className="mb-5 text-meta text-muted">{t('box.memory', { used: mb(used), total: mb(total) })}</p>
+  const biggest = d.engines
+    .filter((e) => e.enabled && e.can_toggle && e.cost.while === 'on' && (e.cost.ram_mb ?? 0) > 0)
+    .sort((a, b) => (b.cost.ram_mb ?? 0) - (a.cost.ram_mb ?? 0))[0]
+  const go = (id: EngineId) => {
+    const sw = document.getElementById(`engine-${id}-switch`)
+    sw?.scrollIntoView({ block: 'center' })
+    sw?.focus()
+  }
+  return (
+    // accent, not warn (review r1 of #890): on a small box with OpenVAS on this shows all the time; it informs, nothing is wrong yet
+    <Notice tone="accent" title={t('box.overTitle')}
+      actions={biggest && admin ? <Button size="sm" onClick={() => go(biggest.id)}>{t('box.goTo', { name: t(`engines.${biggest.id}.name`) })}</Button> : null}>
+      {t(admin ? 'box.over' : 'box.overViewer', { used: mb(used), total: mb(total) })}{' '}
+      {biggest ? t('box.biggest', { name: t(`engines.${biggest.id}.name`), size: mb(biggest.cost.ram_mb ?? 0) }) : null}
+    </Notice>
+  )
+}
+
 function Groups({ d }: { d: Scanning }) {
   const { t } = useTranslation('scanning')
   const { hash } = useLocation()
@@ -253,11 +279,10 @@ function Groups({ d }: { d: Scanning }) {
   useEffect(() => {
     if (target && !hash.startsWith('#engine-')) document.getElementById(`engine-${target}`)?.scrollIntoView({ block: 'start' })
   }, [target, hash])
-  const box = d.box
   return (
     <>
       {admin ? null : <Notice tone="off" title={t('adminOnly')} />}
-      {box.memory_mb ? <p className="mb-5 text-meta text-muted">{t('box.memory', { used: mb(box.reserved_mb), total: mb(box.memory_mb) })}</p> : null}
+      <BoxMemory d={d} />
       {GROUPS.map((g) => {
         const list = d.engines.filter((e) => e.group === g)
         if (!list.length) return null

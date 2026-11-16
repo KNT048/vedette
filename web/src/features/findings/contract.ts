@@ -183,6 +183,7 @@ export const SummaryItem = z.object({
   id: z.string(), cve: z.string(), status: z.enum(['confirmed', 'suspected']).describe('Open findings only'), severity: Severity,
   asset: FindingAsset.nullable().describe('null when the device was removed'),
   product: z.string().describe('The product as the findings list names it (the KEV display name, else "<vendor> <product>"; empty when the CVE left the list)'),
+  software: z.string().describe('n73: the device\'s software the exploited-list entry is keyed to, as the finding\'s page names it (e.g. "Windows Server 2025"); empty when not known. Home leads with it and keeps `product` as context'),
   ransomware: z.boolean().describe('The exploited list says ransomware campaigns use it'),
   source: z.enum(['cisa-kev', 'vulncheck-kev']).nullable().describe('Which exploited list names it (D-557); null when the CVE left the list'),
   cvss: Cvss.nullable().describe('null = no score known: "No score", never 0'),

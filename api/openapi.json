@@ -37512,6 +37512,10 @@
                             "type": "string",
                             "description": "The product as the findings list names it (the KEV display name, else \"<vendor> <product>\"; empty when the CVE left the list)"
                           },
+                          "software": {
+                            "type": "string",
+                            "description": "n73: the device's software the exploited-list entry is keyed to, as the finding's page names it (e.g. \"Windows Server 2025\"); empty when not known. Home leads with it and keeps `product` as context"
+                          },
                           "ransomware": {
                             "type": "boolean",
                             "description": "The exploited list says ransomware campaigns use it"
@@ -37595,6 +37599,7 @@
                           "severity",
                           "asset",
                           "product",
+                          "software",
                           "ransomware",
                           "source",
                           "cvss",

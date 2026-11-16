@@ -68923,6 +68923,10 @@ type FindingsGetFindingsSummaryOKTopItem struct {
 	// The exploited list says ransomware campaigns use it.
 	Ransomware bool                                        `json:"ransomware"`
 	Severity   FindingsGetFindingsSummaryOKTopItemSeverity `json:"severity"`
+	// N73: the device's software the exploited-list entry is keyed to, as the finding's page names it
+	// (e.g. "Windows Server 2025"); empty when not known. Home leads with it and keeps `product` as
+	// context.
+	Software string `json:"software"`
 	// Which exploited list names it (D-557); null when the CVE left the list.
 	Source NilFindingsGetFindingsSummaryOKTopItemSource `json:"source"`
 	// Open findings only.
@@ -68967,6 +68971,11 @@ func (s *FindingsGetFindingsSummaryOKTopItem) GetRansomware() bool {
 // GetSeverity returns the value of Severity.
 func (s *FindingsGetFindingsSummaryOKTopItem) GetSeverity() FindingsGetFindingsSummaryOKTopItemSeverity {
 	return s.Severity
+}
+
+// GetSoftware returns the value of Software.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetSoftware() string {
+	return s.Software
 }
 
 // GetSource returns the value of Source.
@@ -69017,6 +69026,11 @@ func (s *FindingsGetFindingsSummaryOKTopItem) SetRansomware(val bool) {
 // SetSeverity sets the value of Severity.
 func (s *FindingsGetFindingsSummaryOKTopItem) SetSeverity(val FindingsGetFindingsSummaryOKTopItemSeverity) {
 	s.Severity = val
+}
+
+// SetSoftware sets the value of Software.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetSoftware(val string) {
+	s.Software = val
 }
 
 // SetSource sets the value of Source.

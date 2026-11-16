@@ -46,6 +46,8 @@ const (
 	snmpTestBudget = 40 * time.Second
 	// snmpRoundRun bounds one batch of the window's round (64 devices with up to 4 credentials each).
 	snmpRoundRun = time.Hour
+	// snmpBatchTries bounds the reads of one batch of a round that device changes stop (#882).
+	snmpBatchTries = 4
 	// snmpWait is how long a Test waits for a batch of the window's round to finish before it says busy.
 	snmpWait = 30 * time.Second
 	// The confidence of what a device states about itself; the kind from a family or a phrase is a little less sure.
@@ -1202,16 +1204,22 @@ func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 	done := 0
 	changed := map[string]int{} // the devices whose change stopped a batch of this round, and how many times
 	for batch := range slices.Chunk(targets, sensorlink.MaxSNMPTargets) {
-		for {
+		for try := 1; ; try++ {
 			s.snmpMu.Lock()
 			_, err = s.snmpBatch(ctx, jobID, creds, batch, false) // its deadline: the window's end or snmpRoundRun (INV-3, review M2)
 			s.snmpMu.Unlock()
 			// A batch stopped only because one of its devices changed is read again, not the whole round from its first batch
 			// on the next Tick (#882). The new batch checks everything again: a device that moved or is gone since the round
 			// started is dropped by its recheck (D-512 (3)). A device that stops the round a second time is left out of it (the
-			// next window reads it), so the round ends however often devices change.
+			// next window reads it), so the round ends however often devices change. A batch stopped snmpBatchTries times is
+			// left for the next window and the round goes on with the next batch (review r1 L1: never 128 sends of one batch).
 			var dc *snmpDeviceChanged
 			if !errors.As(err, &dc) {
+				break
+			}
+			if try == snmpBatchTries {
+				s.log.InfoContext(ctx, "sensoractive: snmp batch left for the next window: its devices kept changing", "devices", len(batch))
+				batch, err = nil, nil
 				break
 			}
 			if changed[dc.asset]++; changed[dc.asset] > 1 {
@@ -1314,8 +1322,9 @@ func (s *Service) snmpChanged(ctx context.Context, asset string) {
 func (s *Service) snmpCredentialChanged(id string) {
 	s.mu.Lock()
 	run := s.snmpCur
+	held := run != nil && slices.Contains(run.credIDs, id) // credIDs is narrowed under s.mu while the batch runs
 	s.mu.Unlock()
-	if run != nil && slices.Contains(run.credIDs, id) {
+	if held {
 		run.cancel()
 	}
 }

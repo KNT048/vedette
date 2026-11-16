@@ -266,3 +266,31 @@ func (h *eachAssetInv) Asset(ctx context.Context, id string) (sa.Asset, error) {
 	h.onAsset(id)
 	return a, err
 }
+
+// Review r1 L1: a batch whose devices keep changing (another one each try) is read at most 4 times, then left for the next window,
+// and the round goes on with the next batch.
+func TestSNMPABatchWhoseDevicesKeepChangingIsTriedFourTimes(t *testing.T) {
+	t.Parallel()
+	var svc *sa.Service
+	svc, _, r := roundOf(t, func(ctx context.Context, n int, j sensorlink.SNMPJob) ([]sensorlink.SNMPAnswer, error) {
+		if n <= 4 {
+			if err := svc.AssetChanged(ctx, fmt.Sprintf("a-%d", 10+n)); err != nil {
+				t.Error(err)
+			}
+		}
+		return answerOrStop(ctx, j)
+	})
+	if err := svc.Tick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	jobs := r.sent()
+	if len(jobs) != 5 || !slices.Equal(ipsOf(jobs[3]), rangeIPs(10, 73)) || !slices.Equal(ipsOf(jobs[4]), rangeIPs(74, 79)) {
+		t.Fatalf("%d jobs, want batch 1 four times then batch 2", len(jobs))
+	}
+	if err := svc.Tick(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.sent()) != 5 {
+		t.Fatalf("the next Tick read again: %d jobs", len(r.sent()))
+	}
+}

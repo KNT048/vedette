@@ -757,3 +757,83 @@ func TestWazuh_ALongPassGoesOnAtTheNextTick(t *testing.T) {
 		t.Fatalf("resume_after after the pass: %v %v", resume, err)
 	}
 }
+
+// #849: the pull keeps where each agent's data went, so the Devices list can say "Wazuh" for those devices. An agent the server no
+// longer lists is forgotten at the end of the next full pass; a deleted connection names no device.
+func TestWazuh_AgentAddressesFollowTheServer(t *testing.T) {
+	r := newWzRig(t)
+	if ips, macs, err := r.svc.WazuhAgentAddresses(r.t.Context()); err != nil || len(ips)+len(macs) != 0 {
+		t.Fatalf("before any connection: %v %v %v", ips, macs, err)
+	}
+	r.save()
+	r.pull()
+	ips, macs, err := r.svc.WazuhAgentAddresses(r.t.Context())
+	if err != nil || !slices.Equal(ips, []string{ipLinux, ipWindows}) || !slices.Equal(macs, []string{macLinux, "52:54:00:11:22:02"}) {
+		t.Fatalf("after the pull: %v %v %v (the NAT'd agent and the manager deliver nothing)", ips, macs, err)
+	}
+	r.fake.mu.Lock()
+	r.fake.agents = slices.DeleteFunc(r.fake.agents, func(a map[string]any) bool { return a["id"] == "002" })
+	r.fake.mu.Unlock()
+	r.clock.Advance(2 * time.Hour)
+	r.pull()
+	if ips, _, _ := r.svc.WazuhAgentAddresses(r.t.Context()); !slices.Equal(ips, []string{ipLinux}) {
+		t.Fatalf("an agent the server dropped is still listed: %v", ips)
+	}
+	if res := r.admin("DELETE", "/inventory/agents/wazuh", nil); res.code != 204 {
+		t.Fatalf("delete: %d %s", res.code, res.raw)
+	}
+	if ips, macs, err := r.svc.WazuhAgentAddresses(r.t.Context()); err != nil || len(ips)+len(macs) != 0 {
+		t.Fatalf("after the connection was deleted: %v %v %v", ips, macs, err)
+	}
+	if n := r.count(`SELECT count(*) FROM intake_wazuh_agent`); n != 0 {
+		t.Fatalf("%d rows of a deleted connection are kept", n)
+	}
+	// A new connection starts again at generation 1: before its first pull it names no device, never the old connection's (r1 M1).
+	if err := r.db.Write(r.t.Context(), func(tx *sql.Tx) error { // a row an older build left behind at generation 1
+		_, err := tx.ExecContext(r.t.Context(), `INSERT INTO intake_wazuh_agent (agent_id, generation, ip, mac, seen_at) VALUES ('009', 1, '192.0.2.99', '', '2026-11-11T08:00:00.000Z')`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	r.save()
+	if ips, macs, err := r.svc.WazuhAgentAddresses(r.t.Context()); err != nil || len(ips)+len(macs) != 0 {
+		t.Fatalf("a new connection before its first pull lists %v %v %v", ips, macs, err)
+	}
+}
+
+// Review #855 r2 L2: a saved connection's generation never repeats a deleted one's, so a pull of the old connection still running
+// (it read the generation before the delete) cannot pass as the new connection: what it records is dropped.
+func TestWazuh_ANewConnectionNeverTakesAnOldGeneration(t *testing.T) {
+	r := newWzRig(t)
+	gen := func() int64 {
+		t.Helper()
+		var g int64
+		if err := r.db.Reader().QueryRowContext(t.Context(), `SELECT generation FROM intake_wazuh WHERE id = 1`).Scan(&g); err != nil {
+			t.Fatal(err)
+		}
+		return g
+	}
+	r.save()
+	old := gen()
+	if res := r.admin("DELETE", "/inventory/agents/wazuh", nil); res.code != 204 {
+		t.Fatalf("delete: %d %s", res.code, res.raw)
+	}
+	r.save()
+	if now := gen(); now == old || now < 2 {
+		t.Fatalf("the new connection took generation %d (the deleted one had %d)", now, old)
+	}
+	if err := r.svc.WazuhAgentSeenForTest(t.Context(), "001", old, netip.MustParseAddr("192.0.2.21")); err != nil {
+		t.Fatal(err)
+	}
+	if n := r.count(`SELECT count(*) FROM intake_wazuh_agent`); n != 0 {
+		t.Fatalf("the old connection's pull wrote %d rows for the new one", n)
+	}
+	if ips, _, _ := r.svc.WazuhAgentAddresses(t.Context()); len(ips) != 0 {
+		t.Fatalf("listed %v", ips)
+	}
+	// The pull of the connection saved now still records its agents.
+	r.pull()
+	if ips, _, _ := r.svc.WazuhAgentAddresses(t.Context()); len(ips) != 2 {
+		t.Fatalf("the current connection's agents: %v", ips)
+	}
+}

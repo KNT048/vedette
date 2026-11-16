@@ -440,7 +440,7 @@ func (s *Service) scanTarget(ctx context.Context, runID, id string, index int, s
 		r := s.failed(ctx, id, err)
 		return r, skipped(Device{ID: id}, "not_scanned"), ""
 	}
-	st, err := loadSettings(ctx, s.cfg.DB.Reader())
+	st, err := s.settings(ctx, s.cfg.DB.Reader())
 	if err != nil {
 		return failed(err)
 	}

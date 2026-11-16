@@ -1,5 +1,8 @@
 # Exposure — Change Impact Map
 
+## Modifying: the count of the template step (#830 FAIL 2, INV-29)
+- `cmd/vedette` `exposureTemplateScan` (`scanBaseline`, `scanFull`/`fullPortScan`, `fullMeter`, `portBound`, `reachableTags`, `webCandidate`): each nuclei run goes out with the context of a `progress.Series` job, so the run's Tracker sees one count of the whole step. A new caller of `send` must do the same, or its run's own count reaches the Tracker (held, never backwards, but stalled). No API or UI change: `ScanRun.progress` keeps its shape.
+
 ## Modifying: `ScanRun.progress`, `scanRun.prog`, `reportOpenVAS` (#830, INV-29)
 - **SPA**: the exposure page (web part of #830; contract `web/src/lib/progress.ts`). **sensor-active**/**scan**: the nmap and nuclei jobs of the runner report into the run's context; an adapter that drops the context's values loses them.
 
@@ -25,7 +28,7 @@
 - **scan** (runner) hỏi nó trước khi quét cổng một địa chỉ mà tên của domain trỏ tới. Nới nó (ví dụ trả `true` cho IP chưa cam kết hay không phải mục tiêu) là quét ngoài phạm vi: sửa CONTRACT INV-12 + `TestContract_INV12_ScannableIP` + `cmd/vedette` `TestExposureRunnerResult`.
 
 ## Modifying: `Runner` (`Config.Runner`, `SetRunner`, `ScanTarget.User`), `ScanEvery`, khoá một lượt mỗi lúc, và `ErrScanOff`, `ErrScanBusy`, `ErrCTDown`, `ErrScanTooLong`, `TooManyNames`
-- **scan** sở hữu runner (`cmd/vedette` `scanRunner`, `modules/scan/surface`, D-229): đổi `ScanTarget`/`Content` phải sửa adapter `contentOf` và `TestExposureRunnerResult`. Ba lỗi là câu người dùng đọc (toast của Scan now); mock `exposure` trả đúng `module_off` khi module `scan` tắt.
+- **scan** sở hữu runner (`cmd/vedette` `scanRunner`, `modules/scan/surface`, D-229): đổi `ScanTarget`/`Content` phải sửa adapter `contentOf` và `TestExposureRunnerResult`. Ba lỗi là câu người dùng đọc (toast của Scan now); runner theo công tắc của `exposure`, không của `scan` (J6): đổi lại thì hộp v1 (bundle bật `exposure`, `scan` tắt, #841) trả 409 cho mọi Scan now; mock `exposure` không còn hỏi `isOn('scan')` (`TestExposureRunnerFollowsTheExposureModule`).
 - **response** (`new_port`) và **reports** đọc ảnh chụp do runner tạo; runner không lưu gì khi lỗi.
 
 ## Modifying: `HostRow` (`source`, `cname`, `ips`), `HostIP`, `sanitizeHost`, `surfaceNotChecked`, `NotWordlistWildcard` (INV-27, D-567)
@@ -36,7 +39,7 @@
 
 ## Modifying: `StartScan`, `ScanRun`, `CurrentScan`, `StopScan`, `execute` (INV-18, D-493), `GET /exposure/scan`, `POST /exposure/scan/stop`
 - **web/features/exposure**: `ScanProgress.tsx` (trang Exposure và trang mục tiêu) hỏi `GET /exposure/scan` mỗi 2 giây khi `status` là `running`, hiện `phase`, nút Stop cho operator, và làm mới ảnh chụp khi lượt kết thúc; nút Scan now của `TargetPage` bị khoá khi một lượt chạy. Thêm phase = sửa `ScanPhase` trong `contract.ts`, `progress.phase.*` trong `locales/en/exposure.json` và mock.
-- **cmd/vedette** `exposure.go`: đăng ký `Registry.OnChange` để tắt module huỷ lượt đang chạy (SYS-5); `scanRunner` (module `scan`) vẫn có công tắc riêng. Đổi context của lượt quét về context của request sẽ làm lượt quét chết cùng kết nối.
+- **cmd/vedette** `exposure.go`: đăng ký `Registry.OnChange` để tắt module huỷ lượt đang chạy (SYS-5); `scanRunner` (mã của `scan`) cũng nghe công tắc của `exposure` và huỷ lượt của nó (J6). Đổi context của lượt quét về context của request sẽ làm lượt quét chết cùng kết nối.
 - **core/server** `contractRoutes` và `api/route-modules.json` có hai route mới. Trạng thái lượt ở bộ nhớ: không có bảng mới, không có migration.
 - Slice sau (nmap/nuclei/ZAP) chạy lâu hơn trong cùng lượt: chúng chỉ cần thêm phase, không đổi hình `ScanRun`.
 

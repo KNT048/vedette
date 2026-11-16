@@ -148,7 +148,7 @@ func TestContract_INV12_ScanGate(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM exp_snapshot`); n != 1 {
 		t.Fatalf("%d snapshots", n)
 	}
-	// the runner's own refusals reach the person as they are, and leave no snapshot either: the scan module is off (D-229), the
+	// the runner's own refusals reach the person as they are, and leave no snapshot either: the module is off (J6), the
 	// certificate-transparency search did not answer
 	e.advance(ScanEvery)
 	run.err = ErrScanOff
@@ -168,7 +168,7 @@ func TestContract_INV12_ScanGate(t *testing.T) {
 }
 
 // INV-12 (D-229): one scan at a time on the box (409 busy), one scan of a target every ScanEvery (429 rate_limited; an attempt
-// with the scan module off does not count), and every attempt that ends without a snapshot is audited with its outcome.
+// the runner refused as module off does not count), and every attempt that ends without a snapshot is audited with its outcome.
 func TestContract_INV12_OneScanAtATimeAndNotTooOften(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)

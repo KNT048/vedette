@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/content/nucleipack"
+	"github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/exposure"
@@ -111,8 +112,15 @@ func (a exposureTemplateScan) ScanTemplates(ctx context.Context, t exposure.Scan
 func (a exposureTemplateScan) scanBaseline(ctx context.Context, t exposure.ScanTarget, ip netip.Addr, ix *pack.Index, jobs []exposure.TemplateJob) (exposure.TemplateScan, error) {
 	runs, notes := templateRuns(ix, ip, jobs)
 	out := exposure.TemplateScan{NotChecked: notes}
+	var checks int64
+	for _, r := range runs {
+		checks += int64(len(r.tmpls))
+	}
+	series := progress.NewSeries(ctx, progress.PhaseVulns, checks) // #830 FAIL 2: one count over the runs, not each run's own
 	for i, r := range runs {
-		res, silent, err := a.runOne(ctx, t.User, ip, ix, r)
+		jctx, end := series.Job(ctx)
+		res, silent, err := a.runOne(jctx, t.User, ip, ix, r)
+		end(int64(len(r.tmpls)))
 		if err == nil {
 			out.Results = append(out.Results, res...)
 			for _, tp := range r.tmpls { // handed to nuclei and logged; the ones it did not run are counted below

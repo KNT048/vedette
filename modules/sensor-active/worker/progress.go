@@ -235,6 +235,9 @@ func (w *Worker) runReporting(ctx context.Context, id, name string, argv []strin
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
+		if p, ok := rep.take(); ok { // the phase the tool starts with (nmapWatch), at once: the next comes progressEvery later
+			w.postProgress(pctx, id, &p)
+		}
 		tk := time.NewTicker(w.progressEvery)
 		defer tk.Stop()
 		for {
@@ -268,11 +271,39 @@ func (w *Worker) postProgress(ctx context.Context, id string, p *sensorlink.JobP
 	}
 }
 
-// nmapWatch is the Watch of an nmap run: its stdout (the XML) through nmapProgress into rep.
-func nmapWatch(rep *reporter) exec.Watch {
+// phaseRank orders the phases of one nmap run: nmap scans a host group in this order.
+var phaseRank = map[string]int{"discovery": 0, "ports": 1, "services": 2, "scripts": 3}
+
+// firstPhase is the phase an nmap command line starts with: host discovery, unless -Pn skips it (the external shapes).
+func firstPhase(argv []string) string {
+	if slices.Contains(argv, "-Pn") {
+		return "ports"
+	}
+	return "discovery"
+}
+
+// hosthintRE is the start of nmap's <hosthint> element: written (and flushed) during host discovery of a port scan as soon as a
+// target is found up (scan_engine.cc ultrascan_host_pspec_update, nmap >= 7.80), so the port scan of that host starts next.
+var hosthintRE = regexp.MustCompile(`^<hosthint>`)
+
+// nmapWatch is the Watch of an nmap run: its stdout (the XML) into rep. The phase of the command line is set before nmap starts,
+// and the phase moves on by itself when nmap's XML shows the next stage begins (a <hosthint>: discovery found the host, the port
+// scan comes next), so the page moves through the phases even when nmap prints no <taskprogress> (no terminal: core/exec could
+// not open one). Those guesses only ever move forward; a <taskprogress> is nmap's own word and is taken as it is.
+func nmapWatch(argv []string, rep *reporter) exec.Watch {
+	cur := firstPhase(argv)
+	rep.set(sensorlink.JobProgress{Phase: cur, Percent: -1})
+	sweep := slices.Contains(argv, "-sn") // no port scan follows the discovery of a sweep
+	// onLine runs on one goroutine, the copier of stdout: cur needs no lock
 	return exec.Watch{Stdout: &lines{max: maxNmapProgressLine, onLine: func(l []byte) {
 		if p, ok := nmapProgress(l); ok {
+			cur = p.Phase
 			rep.set(p)
+			return
+		}
+		if !sweep && hosthintRE.Match(bytes.TrimSpace(l)) && phaseRank["ports"] > phaseRank[cur] {
+			cur = "ports"
+			rep.set(sensorlink.JobProgress{Phase: cur, Percent: -1})
 		}
 	}}}
 }

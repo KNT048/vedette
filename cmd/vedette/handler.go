@@ -32,6 +32,7 @@ import (
 type handler struct {
 	server.Fallback
 	*core.ModuleHandlers
+	*core.ScanningHandlers
 	*core.APIHandlers
 	*authoidc.OIDCHandlers
 	*core.OSHandlers
@@ -62,18 +63,19 @@ type handler struct {
 // ctx is the caller's: services built here keep its values, never its end.
 func newHandler(ctx context.Context, d deps) handler {
 	return handler{
-		Fallback:        server.Fallback{Log: d.Log},
-		ModuleHandlers:  core.NewModuleHandlers(d.DB, d.Reg),
-		APIHandlers:     d.Core,
-		OIDCHandlers:    authoidc.NewHandlers(d.OIDC),
-		OSHandlers:      d.OS,
-		NetworkHandlers: d.Network,
-		Handlers:        inventory.NewHandlers(d.Inventory),
-		IntakeHandlers:  agentintake.NewIntakeHandlers(d.AgentIntake),
-		WazuhHandlers:   agentintake.NewWazuhHandlers(d.AgentIntake),
-		AdminHandlers:   agentintake.NewAdminHandlers(d.AgentIntake),
-		InstallHandlers: agentintake.NewInstallHandlers(d.AgentIntake),
-		FeedHandlers:    feedsHandlers(d),
+		Fallback:         server.Fallback{Log: d.Log},
+		ModuleHandlers:   core.NewModuleHandlers(d.DB, d.Reg),
+		ScanningHandlers: scanningHandlers(d), // #850: Settings › Scanning; its ports find the module services when asked
+		APIHandlers:      d.Core,
+		OIDCHandlers:     authoidc.NewHandlers(d.OIDC),
+		OSHandlers:       d.OS,
+		NetworkHandlers:  d.Network,
+		Handlers:         inventory.NewHandlers(d.Inventory),
+		IntakeHandlers:   agentintake.NewIntakeHandlers(d.AgentIntake),
+		WazuhHandlers:    agentintake.NewWazuhHandlers(d.AgentIntake),
+		AdminHandlers:    agentintake.NewAdminHandlers(d.AgentIntake),
+		InstallHandlers:  agentintake.NewInstallHandlers(d.AgentIntake),
+		FeedHandlers:     feedsHandlers(d),
 
 		FindingHandlers:  d.FindingHandlers,
 		ActionHandlers:   d.MitigationHandlers,

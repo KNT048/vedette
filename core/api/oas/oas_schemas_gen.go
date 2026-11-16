@@ -43773,6 +43773,9 @@ type ExposureGetExposureGreenboneOK struct {
 	ChangedBy NilString `json:"changed_by"`
 	// The stored switch; the page offers Turn off whenever it is true.
 	Enabled bool `json:"enabled"`
+	// The feed OpenVAS itself has loaded (T10): there from the first feed load at enable on; null while it
+	// is off or unavailable, and until Vedette has read it since the box started.
+	Feed NilExposureGetExposureGreenboneOKFeed `json:"feed"`
 	// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
 	// below 60 GB free, audited.
 	FeedSync  ExposureGetExposureGreenboneOKFeedSync  `json:"feed_sync"`
@@ -43797,6 +43800,11 @@ func (s *ExposureGetExposureGreenboneOK) GetChangedBy() NilString {
 // GetEnabled returns the value of Enabled.
 func (s *ExposureGetExposureGreenboneOK) GetEnabled() bool {
 	return s.Enabled
+}
+
+// GetFeed returns the value of Feed.
+func (s *ExposureGetExposureGreenboneOK) GetFeed() NilExposureGetExposureGreenboneOKFeed {
+	return s.Feed
 }
 
 // GetFeedSync returns the value of FeedSync.
@@ -43834,6 +43842,11 @@ func (s *ExposureGetExposureGreenboneOK) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
+// SetFeed sets the value of Feed.
+func (s *ExposureGetExposureGreenboneOK) SetFeed(val NilExposureGetExposureGreenboneOKFeed) {
+	s.Feed = val
+}
+
 // SetFeedSync sets the value of FeedSync.
 func (s *ExposureGetExposureGreenboneOK) SetFeedSync(val ExposureGetExposureGreenboneOKFeedSync) {
 	s.FeedSync = val
@@ -43852,6 +43865,47 @@ func (s *ExposureGetExposureGreenboneOK) SetReason(val NilString) {
 // SetState sets the value of State.
 func (s *ExposureGetExposureGreenboneOK) SetState(val ExposureGetExposureGreenboneOKState) {
 	s.State = val
+}
+
+type ExposureGetExposureGreenboneOKFeed struct {
+	// When Vedette last read it from OpenVAS.
+	CheckedAt time.Time `json:"checked_at"`
+	// When that feed was built (UTC), read from its version; null when the version is not of the form
+	// YYYYMMDDhhmm.
+	NvtDate NilDateTime `json:"nvt_date"`
+	// Version of the vulnerability tests (NVT feed) OpenVAS reports in GMP get_feeds, e.g. "202611140611";
+	// null when it gave none or one Vedette does not show.
+	NvtVersion NilString `json:"nvt_version"`
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *ExposureGetExposureGreenboneOKFeed) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetNvtDate returns the value of NvtDate.
+func (s *ExposureGetExposureGreenboneOKFeed) GetNvtDate() NilDateTime {
+	return s.NvtDate
+}
+
+// GetNvtVersion returns the value of NvtVersion.
+func (s *ExposureGetExposureGreenboneOKFeed) GetNvtVersion() NilString {
+	return s.NvtVersion
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *ExposureGetExposureGreenboneOKFeed) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetNvtDate sets the value of NvtDate.
+func (s *ExposureGetExposureGreenboneOKFeed) SetNvtDate(val NilDateTime) {
+	s.NvtDate = val
+}
+
+// SetNvtVersion sets the value of NvtVersion.
+func (s *ExposureGetExposureGreenboneOKFeed) SetNvtVersion(val NilString) {
+	s.NvtVersion = val
 }
 
 // The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
@@ -44041,10 +44095,10 @@ type ExposureGetExposureScanOK struct {
 	Error      NilExposureGetExposureScanOKError `json:"error"`
 	FinishedAt NilDateTime                       `json:"finished_at"`
 	ID         string                            `json:"id"`
-	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-	// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-	// the snapshot exists. A failed or stopped run keeps the phase it reached.
+	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+	// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+	// snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposureGetExposureScanOKPhase `json:"phase"`
 	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
@@ -44207,10 +44261,10 @@ func (s *ExposureGetExposureScanOKError) SetMessage(val string) {
 	s.Message = val
 }
 
-// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-// the snapshot exists. A failed or stopped run keeps the phase it reached.
+// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+// snapshot exists. A failed or stopped run keeps the phase it reached.
 type ExposureGetExposureScanOKPhase string
 
 const (
@@ -50358,10 +50412,10 @@ type ExposurePostExposureScanStopOK struct {
 	Error      NilExposurePostExposureScanStopOKError `json:"error"`
 	FinishedAt NilDateTime                            `json:"finished_at"`
 	ID         string                                 `json:"id"`
-	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-	// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-	// the snapshot exists. A failed or stopped run keeps the phase it reached.
+	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+	// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+	// snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposurePostExposureScanStopOKPhase `json:"phase"`
 	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
@@ -50524,10 +50578,10 @@ func (s *ExposurePostExposureScanStopOKError) SetMessage(val string) {
 	s.Message = val
 }
 
-// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-// the snapshot exists. A failed or stopped run keeps the phase it reached.
+// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+// snapshot exists. A failed or stopped run keeps the phase it reached.
 type ExposurePostExposureScanStopOKPhase string
 
 const (
@@ -51911,10 +51965,10 @@ type ExposurePostExposureTargetsIDScanAccepted struct {
 	Error      NilExposurePostExposureTargetsIDScanAcceptedError `json:"error"`
 	FinishedAt NilDateTime                                       `json:"finished_at"`
 	ID         string                                            `json:"id"`
-	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-	// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-	// the snapshot exists. A failed or stopped run keeps the phase it reached.
+	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+	// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+	// snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposurePostExposureTargetsIDScanAcceptedPhase `json:"phase"`
 	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
@@ -52077,10 +52131,10 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedError) SetMessage(val string) 
 	s.Message = val
 }
 
-// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-// the snapshot exists. A failed or stopped run keeps the phase it reached.
+// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+// snapshot exists. A failed or stopped run keeps the phase it reached.
 type ExposurePostExposureTargetsIDScanAcceptedPhase string
 
 const (
@@ -53509,6 +53563,9 @@ type ExposurePutExposureGreenboneOK struct {
 	ChangedBy NilString `json:"changed_by"`
 	// The stored switch; the page offers Turn off whenever it is true.
 	Enabled bool `json:"enabled"`
+	// The feed OpenVAS itself has loaded (T10): there from the first feed load at enable on; null while it
+	// is off or unavailable, and until Vedette has read it since the box started.
+	Feed NilExposurePutExposureGreenboneOKFeed `json:"feed"`
 	// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
 	// below 60 GB free, audited.
 	FeedSync  ExposurePutExposureGreenboneOKFeedSync  `json:"feed_sync"`
@@ -53533,6 +53590,11 @@ func (s *ExposurePutExposureGreenboneOK) GetChangedBy() NilString {
 // GetEnabled returns the value of Enabled.
 func (s *ExposurePutExposureGreenboneOK) GetEnabled() bool {
 	return s.Enabled
+}
+
+// GetFeed returns the value of Feed.
+func (s *ExposurePutExposureGreenboneOK) GetFeed() NilExposurePutExposureGreenboneOKFeed {
+	return s.Feed
 }
 
 // GetFeedSync returns the value of FeedSync.
@@ -53570,6 +53632,11 @@ func (s *ExposurePutExposureGreenboneOK) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
+// SetFeed sets the value of Feed.
+func (s *ExposurePutExposureGreenboneOK) SetFeed(val NilExposurePutExposureGreenboneOKFeed) {
+	s.Feed = val
+}
+
 // SetFeedSync sets the value of FeedSync.
 func (s *ExposurePutExposureGreenboneOK) SetFeedSync(val ExposurePutExposureGreenboneOKFeedSync) {
 	s.FeedSync = val
@@ -53588,6 +53655,47 @@ func (s *ExposurePutExposureGreenboneOK) SetReason(val NilString) {
 // SetState sets the value of State.
 func (s *ExposurePutExposureGreenboneOK) SetState(val ExposurePutExposureGreenboneOKState) {
 	s.State = val
+}
+
+type ExposurePutExposureGreenboneOKFeed struct {
+	// When Vedette last read it from OpenVAS.
+	CheckedAt time.Time `json:"checked_at"`
+	// When that feed was built (UTC), read from its version; null when the version is not of the form
+	// YYYYMMDDhhmm.
+	NvtDate NilDateTime `json:"nvt_date"`
+	// Version of the vulnerability tests (NVT feed) OpenVAS reports in GMP get_feeds, e.g. "202611140611";
+	// null when it gave none or one Vedette does not show.
+	NvtVersion NilString `json:"nvt_version"`
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *ExposurePutExposureGreenboneOKFeed) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetNvtDate returns the value of NvtDate.
+func (s *ExposurePutExposureGreenboneOKFeed) GetNvtDate() NilDateTime {
+	return s.NvtDate
+}
+
+// GetNvtVersion returns the value of NvtVersion.
+func (s *ExposurePutExposureGreenboneOKFeed) GetNvtVersion() NilString {
+	return s.NvtVersion
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *ExposurePutExposureGreenboneOKFeed) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetNvtDate sets the value of NvtDate.
+func (s *ExposurePutExposureGreenboneOKFeed) SetNvtDate(val NilDateTime) {
+	s.NvtDate = val
+}
+
+// SetNvtVersion sets the value of NvtVersion.
+func (s *ExposurePutExposureGreenboneOKFeed) SetNvtVersion(val NilString) {
+	s.NvtVersion = val
 }
 
 // The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
@@ -61834,8 +61942,10 @@ type FindingsGetFindingsIDOK struct {
 	Compromise NilFindingsGetFindingsIDOKCompromise `json:"compromise"`
 	Confidence float64                              `json:"confidence"`
 	Cve        string                               `json:"cve"`
-	Evidence   NilFindingsGetFindingsIDOKEvidence   `json:"evidence"`
-	FirstSeen  time.Time                            `json:"first_seen"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss      NilFindingsGetFindingsIDOKCvss     `json:"cvss"`
+	Evidence  NilFindingsGetFindingsIDOKEvidence `json:"evidence"`
+	FirstSeen time.Time                          `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
 	// none to name.
 	Fix OptNilFindingsGetFindingsIDOKFix `json:"fix"`
@@ -61905,6 +62015,11 @@ func (s *FindingsGetFindingsIDOK) GetConfidence() float64 {
 // GetCve returns the value of Cve.
 func (s *FindingsGetFindingsIDOK) GetCve() string {
 	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsGetFindingsIDOK) GetCvss() NilFindingsGetFindingsIDOKCvss {
+	return s.Cvss
 }
 
 // GetEvidence returns the value of Evidence.
@@ -62030,6 +62145,11 @@ func (s *FindingsGetFindingsIDOK) SetConfidence(val float64) {
 // SetCve sets the value of Cve.
 func (s *FindingsGetFindingsIDOK) SetCve(val string) {
 	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsGetFindingsIDOK) SetCvss(val NilFindingsGetFindingsIDOKCvss) {
+	s.Cvss = val
 }
 
 // SetEvidence sets the value of Evidence.
@@ -63489,6 +63609,163 @@ func (s *FindingsGetFindingsIDOKCompromiseIndicatorsItemKind) UnmarshalText(data
 		return nil
 	case FindingsGetFindingsIDOKCompromiseIndicatorsItemKindProcess:
 		*s = FindingsGetFindingsIDOKCompromiseIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsGetFindingsIDOKCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsGetFindingsIDOKCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsGetFindingsIDOKCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsGetFindingsIDOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsIDOKCvss) GetSource() FindingsGetFindingsIDOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsGetFindingsIDOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsIDOKCvss) GetVersion() FindingsGetFindingsIDOKCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsGetFindingsIDOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsIDOKCvss) SetSource(val FindingsGetFindingsIDOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsGetFindingsIDOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsIDOKCvss) SetVersion(val FindingsGetFindingsIDOKCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsGetFindingsIDOKCvssSource string
+
+const (
+	FindingsGetFindingsIDOKCvssSourceNvd FindingsGetFindingsIDOKCvssSource = "nvd"
+	FindingsGetFindingsIDOKCvssSourceCna FindingsGetFindingsIDOKCvssSource = "cna"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKCvssSource values.
+func (FindingsGetFindingsIDOKCvssSource) AllValues() []FindingsGetFindingsIDOKCvssSource {
+	return []FindingsGetFindingsIDOKCvssSource{
+		FindingsGetFindingsIDOKCvssSourceNvd,
+		FindingsGetFindingsIDOKCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKCvssSource(data) {
+	case FindingsGetFindingsIDOKCvssSourceNvd:
+		*s = FindingsGetFindingsIDOKCvssSourceNvd
+		return nil
+	case FindingsGetFindingsIDOKCvssSourceCna:
+		*s = FindingsGetFindingsIDOKCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsGetFindingsIDOKCvssVersion string
+
+const (
+	FindingsGetFindingsIDOKCvssVersion40 FindingsGetFindingsIDOKCvssVersion = "4.0"
+	FindingsGetFindingsIDOKCvssVersion31 FindingsGetFindingsIDOKCvssVersion = "3.1"
+	FindingsGetFindingsIDOKCvssVersion30 FindingsGetFindingsIDOKCvssVersion = "3.0"
+	FindingsGetFindingsIDOKCvssVersion20 FindingsGetFindingsIDOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKCvssVersion values.
+func (FindingsGetFindingsIDOKCvssVersion) AllValues() []FindingsGetFindingsIDOKCvssVersion {
+	return []FindingsGetFindingsIDOKCvssVersion{
+		FindingsGetFindingsIDOKCvssVersion40,
+		FindingsGetFindingsIDOKCvssVersion31,
+		FindingsGetFindingsIDOKCvssVersion30,
+		FindingsGetFindingsIDOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKCvssVersion40:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKCvssVersion31:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKCvssVersion(data) {
+	case FindingsGetFindingsIDOKCvssVersion40:
+		*s = FindingsGetFindingsIDOKCvssVersion40
+		return nil
+	case FindingsGetFindingsIDOKCvssVersion31:
+		*s = FindingsGetFindingsIDOKCvssVersion31
+		return nil
+	case FindingsGetFindingsIDOKCvssVersion30:
+		*s = FindingsGetFindingsIDOKCvssVersion30
+		return nil
+	case FindingsGetFindingsIDOKCvssVersion20:
+		*s = FindingsGetFindingsIDOKCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -65037,11 +65314,13 @@ type FindingsGetFindingsOKItemsItem struct {
 	AssetID       string                                 `json:"asset_id"`
 	// Scan = confirmed by a scan template; version = suspected by version; product = only the product
 	// matches.
-	Basis      FindingsGetFindingsOKItemsItemBasis       `json:"basis"`
-	Confidence float64                                   `json:"confidence"`
-	Cve        string                                    `json:"cve"`
-	Evidence   NilFindingsGetFindingsOKItemsItemEvidence `json:"evidence"`
-	FirstSeen  time.Time                                 `json:"first_seen"`
+	Basis      FindingsGetFindingsOKItemsItemBasis `json:"basis"`
+	Confidence float64                             `json:"confidence"`
+	Cve        string                              `json:"cve"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss      NilFindingsGetFindingsOKItemsItemCvss     `json:"cvss"`
+	Evidence  NilFindingsGetFindingsOKItemsItemEvidence `json:"evidence"`
+	FirstSeen time.Time                                 `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
 	// none to name.
 	Fix     OptNilFindingsGetFindingsOKItemsItemFix     `json:"fix"`
@@ -65085,6 +65364,11 @@ func (s *FindingsGetFindingsOKItemsItem) GetConfidence() float64 {
 // GetCve returns the value of Cve.
 func (s *FindingsGetFindingsOKItemsItem) GetCve() string {
 	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsGetFindingsOKItemsItem) GetCvss() NilFindingsGetFindingsOKItemsItemCvss {
+	return s.Cvss
 }
 
 // GetEvidence returns the value of Evidence.
@@ -65175,6 +65459,11 @@ func (s *FindingsGetFindingsOKItemsItem) SetConfidence(val float64) {
 // SetCve sets the value of Cve.
 func (s *FindingsGetFindingsOKItemsItem) SetCve(val string) {
 	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsGetFindingsOKItemsItem) SetCvss(val NilFindingsGetFindingsOKItemsItemCvss) {
+	s.Cvss = val
 }
 
 // SetEvidence sets the value of Evidence.
@@ -66003,6 +66292,163 @@ func (s *FindingsGetFindingsOKItemsItemBasis) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsGetFindingsOKItemsItemBasisProduct:
 		*s = FindingsGetFindingsOKItemsItemBasisProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsGetFindingsOKItemsItemCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsGetFindingsOKItemsItemCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsGetFindingsOKItemsItemCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsGetFindingsOKItemsItemCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsOKItemsItemCvss) GetSource() FindingsGetFindingsOKItemsItemCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsGetFindingsOKItemsItemCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsOKItemsItemCvss) GetVersion() FindingsGetFindingsOKItemsItemCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsGetFindingsOKItemsItemCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsOKItemsItemCvss) SetSource(val FindingsGetFindingsOKItemsItemCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsGetFindingsOKItemsItemCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsOKItemsItemCvss) SetVersion(val FindingsGetFindingsOKItemsItemCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsGetFindingsOKItemsItemCvssSource string
+
+const (
+	FindingsGetFindingsOKItemsItemCvssSourceNvd FindingsGetFindingsOKItemsItemCvssSource = "nvd"
+	FindingsGetFindingsOKItemsItemCvssSourceCna FindingsGetFindingsOKItemsItemCvssSource = "cna"
+)
+
+// AllValues returns all FindingsGetFindingsOKItemsItemCvssSource values.
+func (FindingsGetFindingsOKItemsItemCvssSource) AllValues() []FindingsGetFindingsOKItemsItemCvssSource {
+	return []FindingsGetFindingsOKItemsItemCvssSource{
+		FindingsGetFindingsOKItemsItemCvssSourceNvd,
+		FindingsGetFindingsOKItemsItemCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOKItemsItemCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOKItemsItemCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOKItemsItemCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOKItemsItemCvssSource(data) {
+	case FindingsGetFindingsOKItemsItemCvssSourceNvd:
+		*s = FindingsGetFindingsOKItemsItemCvssSourceNvd
+		return nil
+	case FindingsGetFindingsOKItemsItemCvssSourceCna:
+		*s = FindingsGetFindingsOKItemsItemCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsGetFindingsOKItemsItemCvssVersion string
+
+const (
+	FindingsGetFindingsOKItemsItemCvssVersion40 FindingsGetFindingsOKItemsItemCvssVersion = "4.0"
+	FindingsGetFindingsOKItemsItemCvssVersion31 FindingsGetFindingsOKItemsItemCvssVersion = "3.1"
+	FindingsGetFindingsOKItemsItemCvssVersion30 FindingsGetFindingsOKItemsItemCvssVersion = "3.0"
+	FindingsGetFindingsOKItemsItemCvssVersion20 FindingsGetFindingsOKItemsItemCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsGetFindingsOKItemsItemCvssVersion values.
+func (FindingsGetFindingsOKItemsItemCvssVersion) AllValues() []FindingsGetFindingsOKItemsItemCvssVersion {
+	return []FindingsGetFindingsOKItemsItemCvssVersion{
+		FindingsGetFindingsOKItemsItemCvssVersion40,
+		FindingsGetFindingsOKItemsItemCvssVersion31,
+		FindingsGetFindingsOKItemsItemCvssVersion30,
+		FindingsGetFindingsOKItemsItemCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOKItemsItemCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOKItemsItemCvssVersion40:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemCvssVersion31:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemCvssVersion30:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOKItemsItemCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOKItemsItemCvssVersion(data) {
+	case FindingsGetFindingsOKItemsItemCvssVersion40:
+		*s = FindingsGetFindingsOKItemsItemCvssVersion40
+		return nil
+	case FindingsGetFindingsOKItemsItemCvssVersion31:
+		*s = FindingsGetFindingsOKItemsItemCvssVersion31
+		return nil
+	case FindingsGetFindingsOKItemsItemCvssVersion30:
+		*s = FindingsGetFindingsOKItemsItemCvssVersion30
+		return nil
+	case FindingsGetFindingsOKItemsItemCvssVersion20:
+		*s = FindingsGetFindingsOKItemsItemCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -68192,6 +68638,1379 @@ func (s *FindingsGetFindingsPlanTier) UnmarshalText(data []byte) error {
 	}
 }
 
+type FindingsGetFindingsSummaryOK struct {
+	// Alert messages (incidents, vulnerabilities; not approval requests) sent and failed in the last
+	// `days` days; a failure resent later with success to the same channel is not counted as failed; null
+	// when Notifications is off.
+	Alerts  NilFindingsGetFindingsSummaryOKAlerts `json:"alerts"`
+	Devices FindingsGetFindingsSummaryOKDevices   `json:"devices"`
+	// When the box computed this summary (it keeps it up to 60 s, and drops it at every finding change).
+	GeneratedAt time.Time `json:"generated_at"`
+	// Null when Notifications is off.
+	Incidents NilFindingsGetFindingsSummaryOKIncidents `json:"incidents"`
+	Open      FindingsGetFindingsSummaryOKOpen         `json:"open"`
+	// The open findings to fix first: confirmed before suspected, then ransomware, then the highest CVSS
+	// (no score last), then the newest.
+	Top []FindingsGetFindingsSummaryOKTopItem `json:"top"`
+	// Open findings at the end of each of the last 30 days (UTC), oldest first; the last is now.
+	Trend []int `json:"trend"`
+}
+
+// GetAlerts returns the value of Alerts.
+func (s *FindingsGetFindingsSummaryOK) GetAlerts() NilFindingsGetFindingsSummaryOKAlerts {
+	return s.Alerts
+}
+
+// GetDevices returns the value of Devices.
+func (s *FindingsGetFindingsSummaryOK) GetDevices() FindingsGetFindingsSummaryOKDevices {
+	return s.Devices
+}
+
+// GetGeneratedAt returns the value of GeneratedAt.
+func (s *FindingsGetFindingsSummaryOK) GetGeneratedAt() time.Time {
+	return s.GeneratedAt
+}
+
+// GetIncidents returns the value of Incidents.
+func (s *FindingsGetFindingsSummaryOK) GetIncidents() NilFindingsGetFindingsSummaryOKIncidents {
+	return s.Incidents
+}
+
+// GetOpen returns the value of Open.
+func (s *FindingsGetFindingsSummaryOK) GetOpen() FindingsGetFindingsSummaryOKOpen {
+	return s.Open
+}
+
+// GetTop returns the value of Top.
+func (s *FindingsGetFindingsSummaryOK) GetTop() []FindingsGetFindingsSummaryOKTopItem {
+	return s.Top
+}
+
+// GetTrend returns the value of Trend.
+func (s *FindingsGetFindingsSummaryOK) GetTrend() []int {
+	return s.Trend
+}
+
+// SetAlerts sets the value of Alerts.
+func (s *FindingsGetFindingsSummaryOK) SetAlerts(val NilFindingsGetFindingsSummaryOKAlerts) {
+	s.Alerts = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *FindingsGetFindingsSummaryOK) SetDevices(val FindingsGetFindingsSummaryOKDevices) {
+	s.Devices = val
+}
+
+// SetGeneratedAt sets the value of GeneratedAt.
+func (s *FindingsGetFindingsSummaryOK) SetGeneratedAt(val time.Time) {
+	s.GeneratedAt = val
+}
+
+// SetIncidents sets the value of Incidents.
+func (s *FindingsGetFindingsSummaryOK) SetIncidents(val NilFindingsGetFindingsSummaryOKIncidents) {
+	s.Incidents = val
+}
+
+// SetOpen sets the value of Open.
+func (s *FindingsGetFindingsSummaryOK) SetOpen(val FindingsGetFindingsSummaryOKOpen) {
+	s.Open = val
+}
+
+// SetTop sets the value of Top.
+func (s *FindingsGetFindingsSummaryOK) SetTop(val []FindingsGetFindingsSummaryOKTopItem) {
+	s.Top = val
+}
+
+// SetTrend sets the value of Trend.
+func (s *FindingsGetFindingsSummaryOK) SetTrend(val []int) {
+	s.Trend = val
+}
+
+type FindingsGetFindingsSummaryOKAlerts struct {
+	Days   int `json:"days"`
+	Failed int `json:"failed"`
+	Sent   int `json:"sent"`
+}
+
+// GetDays returns the value of Days.
+func (s *FindingsGetFindingsSummaryOKAlerts) GetDays() int {
+	return s.Days
+}
+
+// GetFailed returns the value of Failed.
+func (s *FindingsGetFindingsSummaryOKAlerts) GetFailed() int {
+	return s.Failed
+}
+
+// GetSent returns the value of Sent.
+func (s *FindingsGetFindingsSummaryOKAlerts) GetSent() int {
+	return s.Sent
+}
+
+// SetDays sets the value of Days.
+func (s *FindingsGetFindingsSummaryOKAlerts) SetDays(val int) {
+	s.Days = val
+}
+
+// SetFailed sets the value of Failed.
+func (s *FindingsGetFindingsSummaryOKAlerts) SetFailed(val int) {
+	s.Failed = val
+}
+
+// SetSent sets the value of Sent.
+func (s *FindingsGetFindingsSummaryOKAlerts) SetSent(val int) {
+	s.Sent = val
+}
+
+type FindingsGetFindingsSummaryOKDevices struct {
+	// Devices waiting for review.
+	Pending int `json:"pending"`
+	// Devices on the Devices page.
+	Total int `json:"total"`
+}
+
+// GetPending returns the value of Pending.
+func (s *FindingsGetFindingsSummaryOKDevices) GetPending() int {
+	return s.Pending
+}
+
+// GetTotal returns the value of Total.
+func (s *FindingsGetFindingsSummaryOKDevices) GetTotal() int {
+	return s.Total
+}
+
+// SetPending sets the value of Pending.
+func (s *FindingsGetFindingsSummaryOKDevices) SetPending(val int) {
+	s.Pending = val
+}
+
+// SetTotal sets the value of Total.
+func (s *FindingsGetFindingsSummaryOKDevices) SetTotal(val int) {
+	s.Total = val
+}
+
+type FindingsGetFindingsSummaryOKIncidents struct {
+	// Open incidents (new or acknowledged).
+	Open int `json:"open"`
+	// Of them, high or critical.
+	Urgent int `json:"urgent"`
+}
+
+// GetOpen returns the value of Open.
+func (s *FindingsGetFindingsSummaryOKIncidents) GetOpen() int {
+	return s.Open
+}
+
+// GetUrgent returns the value of Urgent.
+func (s *FindingsGetFindingsSummaryOKIncidents) GetUrgent() int {
+	return s.Urgent
+}
+
+// SetOpen sets the value of Open.
+func (s *FindingsGetFindingsSummaryOKIncidents) SetOpen(val int) {
+	s.Open = val
+}
+
+// SetUrgent sets the value of Urgent.
+func (s *FindingsGetFindingsSummaryOKIncidents) SetUrgent(val int) {
+	s.Urgent = val
+}
+
+type FindingsGetFindingsSummaryOKOpen struct {
+	// Of them, confirmed by a scan.
+	Confirmed int `json:"confirmed"`
+	// Devices with at least one open finding.
+	Devices int `json:"devices"`
+	// Open findings whose CVE ransomware campaigns use.
+	Ransomware int `json:"ransomware"`
+	// Open findings (confirmed + suspected): a device runs software on an exploited list.
+	Total int `json:"total"`
+}
+
+// GetConfirmed returns the value of Confirmed.
+func (s *FindingsGetFindingsSummaryOKOpen) GetConfirmed() int {
+	return s.Confirmed
+}
+
+// GetDevices returns the value of Devices.
+func (s *FindingsGetFindingsSummaryOKOpen) GetDevices() int {
+	return s.Devices
+}
+
+// GetRansomware returns the value of Ransomware.
+func (s *FindingsGetFindingsSummaryOKOpen) GetRansomware() int {
+	return s.Ransomware
+}
+
+// GetTotal returns the value of Total.
+func (s *FindingsGetFindingsSummaryOKOpen) GetTotal() int {
+	return s.Total
+}
+
+// SetConfirmed sets the value of Confirmed.
+func (s *FindingsGetFindingsSummaryOKOpen) SetConfirmed(val int) {
+	s.Confirmed = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *FindingsGetFindingsSummaryOKOpen) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetRansomware sets the value of Ransomware.
+func (s *FindingsGetFindingsSummaryOKOpen) SetRansomware(val int) {
+	s.Ransomware = val
+}
+
+// SetTotal sets the value of Total.
+func (s *FindingsGetFindingsSummaryOKOpen) SetTotal(val int) {
+	s.Total = val
+}
+
+type FindingsGetFindingsSummaryOKTopItem struct {
+	// Null when the device was removed.
+	Asset NilFindingsGetFindingsSummaryOKTopItemAsset `json:"asset"`
+	Cve   string                                      `json:"cve"`
+	// Null = no score known: "No score", never 0.
+	Cvss      NilFindingsGetFindingsSummaryOKTopItemCvss `json:"cvss"`
+	FirstSeen time.Time                                  `json:"first_seen"`
+	ID        string                                     `json:"id"`
+	// The product as the findings list names it (the KEV display name, else " "; empty when the CVE left
+	// the list).
+	Product string `json:"product"`
+	// The exploited list says ransomware campaigns use it.
+	Ransomware bool                                        `json:"ransomware"`
+	Severity   FindingsGetFindingsSummaryOKTopItemSeverity `json:"severity"`
+	// Which exploited list names it (D-557); null when the CVE left the list.
+	Source NilFindingsGetFindingsSummaryOKTopItemSource `json:"source"`
+	// Open findings only.
+	Status FindingsGetFindingsSummaryOKTopItemStatus `json:"status"`
+}
+
+// GetAsset returns the value of Asset.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetAsset() NilFindingsGetFindingsSummaryOKTopItemAsset {
+	return s.Asset
+}
+
+// GetCve returns the value of Cve.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetCve() string {
+	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetCvss() NilFindingsGetFindingsSummaryOKTopItemCvss {
+	return s.Cvss
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetID() string {
+	return s.ID
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetProduct() string {
+	return s.Product
+}
+
+// GetRansomware returns the value of Ransomware.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetRansomware() bool {
+	return s.Ransomware
+}
+
+// GetSeverity returns the value of Severity.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetSeverity() FindingsGetFindingsSummaryOKTopItemSeverity {
+	return s.Severity
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetSource() NilFindingsGetFindingsSummaryOKTopItemSource {
+	return s.Source
+}
+
+// GetStatus returns the value of Status.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetStatus() FindingsGetFindingsSummaryOKTopItemStatus {
+	return s.Status
+}
+
+// SetAsset sets the value of Asset.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetAsset(val NilFindingsGetFindingsSummaryOKTopItemAsset) {
+	s.Asset = val
+}
+
+// SetCve sets the value of Cve.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetCvss(val NilFindingsGetFindingsSummaryOKTopItemCvss) {
+	s.Cvss = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetRansomware sets the value of Ransomware.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetRansomware(val bool) {
+	s.Ransomware = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetSeverity(val FindingsGetFindingsSummaryOKTopItemSeverity) {
+	s.Severity = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetSource(val NilFindingsGetFindingsSummaryOKTopItemSource) {
+	s.Source = val
+}
+
+// SetStatus sets the value of Status.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetStatus(val FindingsGetFindingsSummaryOKTopItemStatus) {
+	s.Status = val
+}
+
+type FindingsGetFindingsSummaryOKTopItemAsset struct {
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                       `json:"ip"`
+	Kind FindingsGetFindingsSummaryOKTopItemAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
+}
+
+// GetDisplay returns the value of Display.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) GetDisplay() string {
+	return s.Display
+}
+
+// GetHostname returns the value of Hostname.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) GetHostname() NilString {
+	return s.Hostname
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) GetID() string {
+	return s.ID
+}
+
+// GetIP returns the value of IP.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) GetIP() string {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) GetKind() FindingsGetFindingsSummaryOKTopItemAssetKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) GetName() string {
+	return s.Name
+}
+
+// SetDisplay sets the value of Display.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetHostname sets the value of Hostname.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) SetHostname(val NilString) {
+	s.Hostname = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) SetID(val string) {
+	s.ID = val
+}
+
+// SetIP sets the value of IP.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) SetIP(val string) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) SetKind(val FindingsGetFindingsSummaryOKTopItemAssetKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) SetName(val string) {
+	s.Name = val
+}
+
+type FindingsGetFindingsSummaryOKTopItemAssetKind string
+
+const (
+	FindingsGetFindingsSummaryOKTopItemAssetKindRouter              FindingsGetFindingsSummaryOKTopItemAssetKind = "router"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSwitch              FindingsGetFindingsSummaryOKTopItemAssetKind = "switch"
+	FindingsGetFindingsSummaryOKTopItemAssetKindModem               FindingsGetFindingsSummaryOKTopItemAssetKind = "modem"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSdWan               FindingsGetFindingsSummaryOKTopItemAssetKind = "sd_wan"
+	FindingsGetFindingsSummaryOKTopItemAssetKindLoadBalancer        FindingsGetFindingsSummaryOKTopItemAssetKind = "load_balancer"
+	FindingsGetFindingsSummaryOKTopItemAssetKindNetworkController   FindingsGetFindingsSummaryOKTopItemAssetKind = "network_controller"
+	FindingsGetFindingsSummaryOKTopItemAssetKindFirewall            FindingsGetFindingsSummaryOKTopItemAssetKind = "firewall"
+	FindingsGetFindingsSummaryOKTopItemAssetKindVpnGateway          FindingsGetFindingsSummaryOKTopItemAssetKind = "vpn_gateway"
+	FindingsGetFindingsSummaryOKTopItemAssetKindIdsSensor           FindingsGetFindingsSummaryOKTopItemAssetKind = "ids_sensor"
+	FindingsGetFindingsSummaryOKTopItemAssetKindProxy               FindingsGetFindingsSummaryOKTopItemAssetKind = "proxy"
+	FindingsGetFindingsSummaryOKTopItemAssetKindAp                  FindingsGetFindingsSummaryOKTopItemAssetKind = "ap"
+	FindingsGetFindingsSummaryOKTopItemAssetKindWirelessController  FindingsGetFindingsSummaryOKTopItemAssetKind = "wireless_controller"
+	FindingsGetFindingsSummaryOKTopItemAssetKindWifiExtender        FindingsGetFindingsSummaryOKTopItemAssetKind = "wifi_extender"
+	FindingsGetFindingsSummaryOKTopItemAssetKindMeshNode            FindingsGetFindingsSummaryOKTopItemAssetKind = "mesh_node"
+	FindingsGetFindingsSummaryOKTopItemAssetKindServer              FindingsGetFindingsSummaryOKTopItemAssetKind = "server"
+	FindingsGetFindingsSummaryOKTopItemAssetKindVirtualMachine      FindingsGetFindingsSummaryOKTopItemAssetKind = "virtual_machine"
+	FindingsGetFindingsSummaryOKTopItemAssetKindHypervisor          FindingsGetFindingsSummaryOKTopItemAssetKind = "hypervisor"
+	FindingsGetFindingsSummaryOKTopItemAssetKindBmc                 FindingsGetFindingsSummaryOKTopItemAssetKind = "bmc"
+	FindingsGetFindingsSummaryOKTopItemAssetKindDomainController    FindingsGetFindingsSummaryOKTopItemAssetKind = "domain_controller"
+	FindingsGetFindingsSummaryOKTopItemAssetKindMailServer          FindingsGetFindingsSummaryOKTopItemAssetKind = "mail_server"
+	FindingsGetFindingsSummaryOKTopItemAssetKindDatabaseServer      FindingsGetFindingsSummaryOKTopItemAssetKind = "database_server"
+	FindingsGetFindingsSummaryOKTopItemAssetKindBackupServer        FindingsGetFindingsSummaryOKTopItemAssetKind = "backup_server"
+	FindingsGetFindingsSummaryOKTopItemAssetKindPc                  FindingsGetFindingsSummaryOKTopItemAssetKind = "pc"
+	FindingsGetFindingsSummaryOKTopItemAssetKindLaptop              FindingsGetFindingsSummaryOKTopItemAssetKind = "laptop"
+	FindingsGetFindingsSummaryOKTopItemAssetKindWorkstation         FindingsGetFindingsSummaryOKTopItemAssetKind = "workstation"
+	FindingsGetFindingsSummaryOKTopItemAssetKindThinClient          FindingsGetFindingsSummaryOKTopItemAssetKind = "thin_client"
+	FindingsGetFindingsSummaryOKTopItemAssetKindPosTerminal         FindingsGetFindingsSummaryOKTopItemAssetKind = "pos_terminal"
+	FindingsGetFindingsSummaryOKTopItemAssetKindKiosk               FindingsGetFindingsSummaryOKTopItemAssetKind = "kiosk"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSmartphone          FindingsGetFindingsSummaryOKTopItemAssetKind = "smartphone"
+	FindingsGetFindingsSummaryOKTopItemAssetKindTablet              FindingsGetFindingsSummaryOKTopItemAssetKind = "tablet"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSmartwatch          FindingsGetFindingsSummaryOKTopItemAssetKind = "smartwatch"
+	FindingsGetFindingsSummaryOKTopItemAssetKindPrinter             FindingsGetFindingsSummaryOKTopItemAssetKind = "printer"
+	FindingsGetFindingsSummaryOKTopItemAssetKindMfp                 FindingsGetFindingsSummaryOKTopItemAssetKind = "mfp"
+	FindingsGetFindingsSummaryOKTopItemAssetKindScanner             FindingsGetFindingsSummaryOKTopItemAssetKind = "scanner"
+	FindingsGetFindingsSummaryOKTopItemAssetKindLabelPrinter        FindingsGetFindingsSummaryOKTopItemAssetKind = "label_printer"
+	FindingsGetFindingsSummaryOKTopItemAssetKindReceiptPrinter      FindingsGetFindingsSummaryOKTopItemAssetKind = "receipt_printer"
+	FindingsGetFindingsSummaryOKTopItemAssetKindPlotter             FindingsGetFindingsSummaryOKTopItemAssetKind = "plotter"
+	FindingsGetFindingsSummaryOKTopItemAssetKind3dPrinter           FindingsGetFindingsSummaryOKTopItemAssetKind = "3d_printer"
+	FindingsGetFindingsSummaryOKTopItemAssetKindCamera              FindingsGetFindingsSummaryOKTopItemAssetKind = "camera"
+	FindingsGetFindingsSummaryOKTopItemAssetKindNvr                 FindingsGetFindingsSummaryOKTopItemAssetKind = "nvr"
+	FindingsGetFindingsSummaryOKTopItemAssetKindDvr                 FindingsGetFindingsSummaryOKTopItemAssetKind = "dvr"
+	FindingsGetFindingsSummaryOKTopItemAssetKindVideoEncoder        FindingsGetFindingsSummaryOKTopItemAssetKind = "video_encoder"
+	FindingsGetFindingsSummaryOKTopItemAssetKindDoorbell            FindingsGetFindingsSummaryOKTopItemAssetKind = "doorbell"
+	FindingsGetFindingsSummaryOKTopItemAssetKindVideoConferencing   FindingsGetFindingsSummaryOKTopItemAssetKind = "video_conferencing"
+	FindingsGetFindingsSummaryOKTopItemAssetKindIPPhone             FindingsGetFindingsSummaryOKTopItemAssetKind = "ip_phone"
+	FindingsGetFindingsSummaryOKTopItemAssetKindPbx                 FindingsGetFindingsSummaryOKTopItemAssetKind = "pbx"
+	FindingsGetFindingsSummaryOKTopItemAssetKindVoipAdapter         FindingsGetFindingsSummaryOKTopItemAssetKind = "voip_adapter"
+	FindingsGetFindingsSummaryOKTopItemAssetKindVoipGateway         FindingsGetFindingsSummaryOKTopItemAssetKind = "voip_gateway"
+	FindingsGetFindingsSummaryOKTopItemAssetKindConferencePhone     FindingsGetFindingsSummaryOKTopItemAssetKind = "conference_phone"
+	FindingsGetFindingsSummaryOKTopItemAssetKindIntercom            FindingsGetFindingsSummaryOKTopItemAssetKind = "intercom"
+	FindingsGetFindingsSummaryOKTopItemAssetKindNas                 FindingsGetFindingsSummaryOKTopItemAssetKind = "nas"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSan                 FindingsGetFindingsSummaryOKTopItemAssetKind = "san"
+	FindingsGetFindingsSummaryOKTopItemAssetKindBackupAppliance     FindingsGetFindingsSummaryOKTopItemAssetKind = "backup_appliance"
+	FindingsGetFindingsSummaryOKTopItemAssetKindTapeLibrary         FindingsGetFindingsSummaryOKTopItemAssetKind = "tape_library"
+	FindingsGetFindingsSummaryOKTopItemAssetKindIot                 FindingsGetFindingsSummaryOKTopItemAssetKind = "iot"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSmartTv             FindingsGetFindingsSummaryOKTopItemAssetKind = "smart_tv"
+	FindingsGetFindingsSummaryOKTopItemAssetKindMediaPlayer         FindingsGetFindingsSummaryOKTopItemAssetKind = "media_player"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSmartSpeaker        FindingsGetFindingsSummaryOKTopItemAssetKind = "smart_speaker"
+	FindingsGetFindingsSummaryOKTopItemAssetKindGameConsole         FindingsGetFindingsSummaryOKTopItemAssetKind = "game_console"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSmartPlug           FindingsGetFindingsSummaryOKTopItemAssetKind = "smart_plug"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSmartLight          FindingsGetFindingsSummaryOKTopItemAssetKind = "smart_light"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSmartHub            FindingsGetFindingsSummaryOKTopItemAssetKind = "smart_hub"
+	FindingsGetFindingsSummaryOKTopItemAssetKindThermostat          FindingsGetFindingsSummaryOKTopItemAssetKind = "thermostat"
+	FindingsGetFindingsSummaryOKTopItemAssetKindProjector           FindingsGetFindingsSummaryOKTopItemAssetKind = "projector"
+	FindingsGetFindingsSummaryOKTopItemAssetKindDigitalSignage      FindingsGetFindingsSummaryOKTopItemAssetKind = "digital_signage"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSingleBoardComputer FindingsGetFindingsSummaryOKTopItemAssetKind = "single_board_computer"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSmartAppliance      FindingsGetFindingsSummaryOKTopItemAssetKind = "smart_appliance"
+	FindingsGetFindingsSummaryOKTopItemAssetKindRobotVacuum         FindingsGetFindingsSummaryOKTopItemAssetKind = "robot_vacuum"
+	FindingsGetFindingsSummaryOKTopItemAssetKindWirelessBridge      FindingsGetFindingsSummaryOKTopItemAssetKind = "wireless_bridge"
+	FindingsGetFindingsSummaryOKTopItemAssetKindPlc                 FindingsGetFindingsSummaryOKTopItemAssetKind = "plc"
+	FindingsGetFindingsSummaryOKTopItemAssetKindHmi                 FindingsGetFindingsSummaryOKTopItemAssetKind = "hmi"
+	FindingsGetFindingsSummaryOKTopItemAssetKindRtu                 FindingsGetFindingsSummaryOKTopItemAssetKind = "rtu"
+	FindingsGetFindingsSummaryOKTopItemAssetKindScadaServer         FindingsGetFindingsSummaryOKTopItemAssetKind = "scada_server"
+	FindingsGetFindingsSummaryOKTopItemAssetKindIndustrialSwitch    FindingsGetFindingsSummaryOKTopItemAssetKind = "industrial_switch"
+	FindingsGetFindingsSummaryOKTopItemAssetKindUps                 FindingsGetFindingsSummaryOKTopItemAssetKind = "ups"
+	FindingsGetFindingsSummaryOKTopItemAssetKindPdu                 FindingsGetFindingsSummaryOKTopItemAssetKind = "pdu"
+	FindingsGetFindingsSummaryOKTopItemAssetKindAccessControl       FindingsGetFindingsSummaryOKTopItemAssetKind = "access_control"
+	FindingsGetFindingsSummaryOKTopItemAssetKindTimeClock           FindingsGetFindingsSummaryOKTopItemAssetKind = "time_clock"
+	FindingsGetFindingsSummaryOKTopItemAssetKindAlarmPanel          FindingsGetFindingsSummaryOKTopItemAssetKind = "alarm_panel"
+	FindingsGetFindingsSummaryOKTopItemAssetKindHvacController      FindingsGetFindingsSummaryOKTopItemAssetKind = "hvac_controller"
+	FindingsGetFindingsSummaryOKTopItemAssetKindBuildingController  FindingsGetFindingsSummaryOKTopItemAssetKind = "building_controller"
+	FindingsGetFindingsSummaryOKTopItemAssetKindPowerMeter          FindingsGetFindingsSummaryOKTopItemAssetKind = "power_meter"
+	FindingsGetFindingsSummaryOKTopItemAssetKindEnvironmentMonitor  FindingsGetFindingsSummaryOKTopItemAssetKind = "environment_monitor"
+	FindingsGetFindingsSummaryOKTopItemAssetKindEvCharger           FindingsGetFindingsSummaryOKTopItemAssetKind = "ev_charger"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSolarInverter       FindingsGetFindingsSummaryOKTopItemAssetKind = "solar_inverter"
+	FindingsGetFindingsSummaryOKTopItemAssetKindMedicalDevice       FindingsGetFindingsSummaryOKTopItemAssetKind = "medical_device"
+	FindingsGetFindingsSummaryOKTopItemAssetKindWeb                 FindingsGetFindingsSummaryOKTopItemAssetKind = "web"
+	FindingsGetFindingsSummaryOKTopItemAssetKindCloudService        FindingsGetFindingsSummaryOKTopItemAssetKind = "cloud_service"
+	FindingsGetFindingsSummaryOKTopItemAssetKindUnknown             FindingsGetFindingsSummaryOKTopItemAssetKind = "unknown"
+)
+
+// AllValues returns all FindingsGetFindingsSummaryOKTopItemAssetKind values.
+func (FindingsGetFindingsSummaryOKTopItemAssetKind) AllValues() []FindingsGetFindingsSummaryOKTopItemAssetKind {
+	return []FindingsGetFindingsSummaryOKTopItemAssetKind{
+		FindingsGetFindingsSummaryOKTopItemAssetKindRouter,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSwitch,
+		FindingsGetFindingsSummaryOKTopItemAssetKindModem,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSdWan,
+		FindingsGetFindingsSummaryOKTopItemAssetKindLoadBalancer,
+		FindingsGetFindingsSummaryOKTopItemAssetKindNetworkController,
+		FindingsGetFindingsSummaryOKTopItemAssetKindFirewall,
+		FindingsGetFindingsSummaryOKTopItemAssetKindVpnGateway,
+		FindingsGetFindingsSummaryOKTopItemAssetKindIdsSensor,
+		FindingsGetFindingsSummaryOKTopItemAssetKindProxy,
+		FindingsGetFindingsSummaryOKTopItemAssetKindAp,
+		FindingsGetFindingsSummaryOKTopItemAssetKindWirelessController,
+		FindingsGetFindingsSummaryOKTopItemAssetKindWifiExtender,
+		FindingsGetFindingsSummaryOKTopItemAssetKindMeshNode,
+		FindingsGetFindingsSummaryOKTopItemAssetKindServer,
+		FindingsGetFindingsSummaryOKTopItemAssetKindVirtualMachine,
+		FindingsGetFindingsSummaryOKTopItemAssetKindHypervisor,
+		FindingsGetFindingsSummaryOKTopItemAssetKindBmc,
+		FindingsGetFindingsSummaryOKTopItemAssetKindDomainController,
+		FindingsGetFindingsSummaryOKTopItemAssetKindMailServer,
+		FindingsGetFindingsSummaryOKTopItemAssetKindDatabaseServer,
+		FindingsGetFindingsSummaryOKTopItemAssetKindBackupServer,
+		FindingsGetFindingsSummaryOKTopItemAssetKindPc,
+		FindingsGetFindingsSummaryOKTopItemAssetKindLaptop,
+		FindingsGetFindingsSummaryOKTopItemAssetKindWorkstation,
+		FindingsGetFindingsSummaryOKTopItemAssetKindThinClient,
+		FindingsGetFindingsSummaryOKTopItemAssetKindPosTerminal,
+		FindingsGetFindingsSummaryOKTopItemAssetKindKiosk,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSmartphone,
+		FindingsGetFindingsSummaryOKTopItemAssetKindTablet,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSmartwatch,
+		FindingsGetFindingsSummaryOKTopItemAssetKindPrinter,
+		FindingsGetFindingsSummaryOKTopItemAssetKindMfp,
+		FindingsGetFindingsSummaryOKTopItemAssetKindScanner,
+		FindingsGetFindingsSummaryOKTopItemAssetKindLabelPrinter,
+		FindingsGetFindingsSummaryOKTopItemAssetKindReceiptPrinter,
+		FindingsGetFindingsSummaryOKTopItemAssetKindPlotter,
+		FindingsGetFindingsSummaryOKTopItemAssetKind3dPrinter,
+		FindingsGetFindingsSummaryOKTopItemAssetKindCamera,
+		FindingsGetFindingsSummaryOKTopItemAssetKindNvr,
+		FindingsGetFindingsSummaryOKTopItemAssetKindDvr,
+		FindingsGetFindingsSummaryOKTopItemAssetKindVideoEncoder,
+		FindingsGetFindingsSummaryOKTopItemAssetKindDoorbell,
+		FindingsGetFindingsSummaryOKTopItemAssetKindVideoConferencing,
+		FindingsGetFindingsSummaryOKTopItemAssetKindIPPhone,
+		FindingsGetFindingsSummaryOKTopItemAssetKindPbx,
+		FindingsGetFindingsSummaryOKTopItemAssetKindVoipAdapter,
+		FindingsGetFindingsSummaryOKTopItemAssetKindVoipGateway,
+		FindingsGetFindingsSummaryOKTopItemAssetKindConferencePhone,
+		FindingsGetFindingsSummaryOKTopItemAssetKindIntercom,
+		FindingsGetFindingsSummaryOKTopItemAssetKindNas,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSan,
+		FindingsGetFindingsSummaryOKTopItemAssetKindBackupAppliance,
+		FindingsGetFindingsSummaryOKTopItemAssetKindTapeLibrary,
+		FindingsGetFindingsSummaryOKTopItemAssetKindIot,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSmartTv,
+		FindingsGetFindingsSummaryOKTopItemAssetKindMediaPlayer,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSmartSpeaker,
+		FindingsGetFindingsSummaryOKTopItemAssetKindGameConsole,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSmartPlug,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSmartLight,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSmartHub,
+		FindingsGetFindingsSummaryOKTopItemAssetKindThermostat,
+		FindingsGetFindingsSummaryOKTopItemAssetKindProjector,
+		FindingsGetFindingsSummaryOKTopItemAssetKindDigitalSignage,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSingleBoardComputer,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSmartAppliance,
+		FindingsGetFindingsSummaryOKTopItemAssetKindRobotVacuum,
+		FindingsGetFindingsSummaryOKTopItemAssetKindWirelessBridge,
+		FindingsGetFindingsSummaryOKTopItemAssetKindPlc,
+		FindingsGetFindingsSummaryOKTopItemAssetKindHmi,
+		FindingsGetFindingsSummaryOKTopItemAssetKindRtu,
+		FindingsGetFindingsSummaryOKTopItemAssetKindScadaServer,
+		FindingsGetFindingsSummaryOKTopItemAssetKindIndustrialSwitch,
+		FindingsGetFindingsSummaryOKTopItemAssetKindUps,
+		FindingsGetFindingsSummaryOKTopItemAssetKindPdu,
+		FindingsGetFindingsSummaryOKTopItemAssetKindAccessControl,
+		FindingsGetFindingsSummaryOKTopItemAssetKindTimeClock,
+		FindingsGetFindingsSummaryOKTopItemAssetKindAlarmPanel,
+		FindingsGetFindingsSummaryOKTopItemAssetKindHvacController,
+		FindingsGetFindingsSummaryOKTopItemAssetKindBuildingController,
+		FindingsGetFindingsSummaryOKTopItemAssetKindPowerMeter,
+		FindingsGetFindingsSummaryOKTopItemAssetKindEnvironmentMonitor,
+		FindingsGetFindingsSummaryOKTopItemAssetKindEvCharger,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSolarInverter,
+		FindingsGetFindingsSummaryOKTopItemAssetKindMedicalDevice,
+		FindingsGetFindingsSummaryOKTopItemAssetKindWeb,
+		FindingsGetFindingsSummaryOKTopItemAssetKindCloudService,
+		FindingsGetFindingsSummaryOKTopItemAssetKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsSummaryOKTopItemAssetKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsSummaryOKTopItemAssetKindRouter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindModem:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSdWan:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindNetworkController:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindFirewall:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVpnGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIdsSensor:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindProxy:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindAp:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWirelessController:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWifiExtender:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMeshNode:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindServer:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindHypervisor:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindBmc:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDomainController:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMailServer:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindBackupServer:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPc:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindLaptop:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWorkstation:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindThinClient:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPosTerminal:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindKiosk:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartphone:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindTablet:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartwatch:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMfp:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindScanner:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPlotter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKind3dPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindCamera:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindNvr:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDvr:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDoorbell:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIPPhone:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPbx:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVoipGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindConferencePhone:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIntercom:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindNas:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSan:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindTapeLibrary:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIot:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartTv:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindGameConsole:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartPlug:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartLight:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartHub:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindThermostat:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindProjector:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPlc:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindHmi:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindRtu:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindScadaServer:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindUps:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPdu:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindAccessControl:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindTimeClock:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindHvacController:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindBuildingController:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPowerMeter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindEvCharger:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSolarInverter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMedicalDevice:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWeb:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindCloudService:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsSummaryOKTopItemAssetKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsSummaryOKTopItemAssetKind(data) {
+	case FindingsGetFindingsSummaryOKTopItemAssetKindRouter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindRouter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSwitch:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSwitch
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindModem:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindModem
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSdWan:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSdWan
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindLoadBalancer:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindLoadBalancer
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindNetworkController:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindNetworkController
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindFirewall:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindFirewall
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVpnGateway:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindVpnGateway
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIdsSensor:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindIdsSensor
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindProxy:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindProxy
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindAp:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindAp
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWirelessController:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindWirelessController
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWifiExtender:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindWifiExtender
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMeshNode:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindMeshNode
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindServer:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindServer
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVirtualMachine:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindVirtualMachine
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindHypervisor:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindHypervisor
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindBmc:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindBmc
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDomainController:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindDomainController
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMailServer:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindMailServer
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDatabaseServer:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindDatabaseServer
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindBackupServer:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindBackupServer
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPc:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindPc
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindLaptop:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindLaptop
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWorkstation:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindWorkstation
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindThinClient:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindThinClient
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPosTerminal:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindPosTerminal
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindKiosk:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindKiosk
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartphone:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSmartphone
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindTablet:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindTablet
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartwatch:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSmartwatch
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPrinter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindPrinter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMfp:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindMfp
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindScanner:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindScanner
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindLabelPrinter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindLabelPrinter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindReceiptPrinter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindReceiptPrinter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPlotter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindPlotter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKind3dPrinter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKind3dPrinter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindCamera:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindCamera
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindNvr:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindNvr
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDvr:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindDvr
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVideoEncoder:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindVideoEncoder
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDoorbell:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindDoorbell
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVideoConferencing:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindVideoConferencing
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIPPhone:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindIPPhone
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPbx:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindPbx
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVoipAdapter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindVoipAdapter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVoipGateway:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindVoipGateway
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindConferencePhone:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindConferencePhone
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIntercom:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindIntercom
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindNas:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindNas
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSan:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSan
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindBackupAppliance:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindBackupAppliance
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindTapeLibrary:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindTapeLibrary
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIot:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindIot
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartTv:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSmartTv
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMediaPlayer:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindMediaPlayer
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartSpeaker:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSmartSpeaker
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindGameConsole:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindGameConsole
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartPlug:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSmartPlug
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartLight:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSmartLight
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartHub:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSmartHub
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindThermostat:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindThermostat
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindProjector:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindProjector
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDigitalSignage:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindDigitalSignage
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSingleBoardComputer:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSingleBoardComputer
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartAppliance:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSmartAppliance
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindRobotVacuum:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindRobotVacuum
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWirelessBridge:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindWirelessBridge
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPlc:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindPlc
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindHmi:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindHmi
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindRtu:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindRtu
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindScadaServer:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindScadaServer
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIndustrialSwitch:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindIndustrialSwitch
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindUps:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindUps
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPdu:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindPdu
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindAccessControl:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindAccessControl
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindTimeClock:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindTimeClock
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindAlarmPanel:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindAlarmPanel
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindHvacController:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindHvacController
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindBuildingController:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindBuildingController
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPowerMeter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindPowerMeter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindEnvironmentMonitor:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindEnvironmentMonitor
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindEvCharger:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindEvCharger
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSolarInverter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSolarInverter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMedicalDevice:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindMedicalDevice
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWeb:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindWeb
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindCloudService:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindCloudService
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindUnknown:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsGetFindingsSummaryOKTopItemCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsGetFindingsSummaryOKTopItemCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsGetFindingsSummaryOKTopItemCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsGetFindingsSummaryOKTopItemCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsSummaryOKTopItemCvss) GetSource() FindingsGetFindingsSummaryOKTopItemCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsGetFindingsSummaryOKTopItemCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsSummaryOKTopItemCvss) GetVersion() FindingsGetFindingsSummaryOKTopItemCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsGetFindingsSummaryOKTopItemCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsSummaryOKTopItemCvss) SetSource(val FindingsGetFindingsSummaryOKTopItemCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsGetFindingsSummaryOKTopItemCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsSummaryOKTopItemCvss) SetVersion(val FindingsGetFindingsSummaryOKTopItemCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsGetFindingsSummaryOKTopItemCvssSource string
+
+const (
+	FindingsGetFindingsSummaryOKTopItemCvssSourceNvd FindingsGetFindingsSummaryOKTopItemCvssSource = "nvd"
+	FindingsGetFindingsSummaryOKTopItemCvssSourceCna FindingsGetFindingsSummaryOKTopItemCvssSource = "cna"
+)
+
+// AllValues returns all FindingsGetFindingsSummaryOKTopItemCvssSource values.
+func (FindingsGetFindingsSummaryOKTopItemCvssSource) AllValues() []FindingsGetFindingsSummaryOKTopItemCvssSource {
+	return []FindingsGetFindingsSummaryOKTopItemCvssSource{
+		FindingsGetFindingsSummaryOKTopItemCvssSourceNvd,
+		FindingsGetFindingsSummaryOKTopItemCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsSummaryOKTopItemCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsSummaryOKTopItemCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsSummaryOKTopItemCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsSummaryOKTopItemCvssSource(data) {
+	case FindingsGetFindingsSummaryOKTopItemCvssSourceNvd:
+		*s = FindingsGetFindingsSummaryOKTopItemCvssSourceNvd
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemCvssSourceCna:
+		*s = FindingsGetFindingsSummaryOKTopItemCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsGetFindingsSummaryOKTopItemCvssVersion string
+
+const (
+	FindingsGetFindingsSummaryOKTopItemCvssVersion40 FindingsGetFindingsSummaryOKTopItemCvssVersion = "4.0"
+	FindingsGetFindingsSummaryOKTopItemCvssVersion31 FindingsGetFindingsSummaryOKTopItemCvssVersion = "3.1"
+	FindingsGetFindingsSummaryOKTopItemCvssVersion30 FindingsGetFindingsSummaryOKTopItemCvssVersion = "3.0"
+	FindingsGetFindingsSummaryOKTopItemCvssVersion20 FindingsGetFindingsSummaryOKTopItemCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsGetFindingsSummaryOKTopItemCvssVersion values.
+func (FindingsGetFindingsSummaryOKTopItemCvssVersion) AllValues() []FindingsGetFindingsSummaryOKTopItemCvssVersion {
+	return []FindingsGetFindingsSummaryOKTopItemCvssVersion{
+		FindingsGetFindingsSummaryOKTopItemCvssVersion40,
+		FindingsGetFindingsSummaryOKTopItemCvssVersion31,
+		FindingsGetFindingsSummaryOKTopItemCvssVersion30,
+		FindingsGetFindingsSummaryOKTopItemCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsSummaryOKTopItemCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsSummaryOKTopItemCvssVersion40:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemCvssVersion31:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemCvssVersion30:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsSummaryOKTopItemCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsSummaryOKTopItemCvssVersion(data) {
+	case FindingsGetFindingsSummaryOKTopItemCvssVersion40:
+		*s = FindingsGetFindingsSummaryOKTopItemCvssVersion40
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemCvssVersion31:
+		*s = FindingsGetFindingsSummaryOKTopItemCvssVersion31
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemCvssVersion30:
+		*s = FindingsGetFindingsSummaryOKTopItemCvssVersion30
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemCvssVersion20:
+		*s = FindingsGetFindingsSummaryOKTopItemCvssVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsSummaryOKTopItemSeverity string
+
+const (
+	FindingsGetFindingsSummaryOKTopItemSeverityCritical FindingsGetFindingsSummaryOKTopItemSeverity = "critical"
+	FindingsGetFindingsSummaryOKTopItemSeverityHigh     FindingsGetFindingsSummaryOKTopItemSeverity = "high"
+	FindingsGetFindingsSummaryOKTopItemSeverityMedium   FindingsGetFindingsSummaryOKTopItemSeverity = "medium"
+	FindingsGetFindingsSummaryOKTopItemSeverityLow      FindingsGetFindingsSummaryOKTopItemSeverity = "low"
+	FindingsGetFindingsSummaryOKTopItemSeverityInfo     FindingsGetFindingsSummaryOKTopItemSeverity = "info"
+)
+
+// AllValues returns all FindingsGetFindingsSummaryOKTopItemSeverity values.
+func (FindingsGetFindingsSummaryOKTopItemSeverity) AllValues() []FindingsGetFindingsSummaryOKTopItemSeverity {
+	return []FindingsGetFindingsSummaryOKTopItemSeverity{
+		FindingsGetFindingsSummaryOKTopItemSeverityCritical,
+		FindingsGetFindingsSummaryOKTopItemSeverityHigh,
+		FindingsGetFindingsSummaryOKTopItemSeverityMedium,
+		FindingsGetFindingsSummaryOKTopItemSeverityLow,
+		FindingsGetFindingsSummaryOKTopItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsSummaryOKTopItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsSummaryOKTopItemSeverityCritical:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemSeverityHigh:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemSeverityMedium:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemSeverityLow:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsSummaryOKTopItemSeverity) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsSummaryOKTopItemSeverity(data) {
+	case FindingsGetFindingsSummaryOKTopItemSeverityCritical:
+		*s = FindingsGetFindingsSummaryOKTopItemSeverityCritical
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemSeverityHigh:
+		*s = FindingsGetFindingsSummaryOKTopItemSeverityHigh
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemSeverityMedium:
+		*s = FindingsGetFindingsSummaryOKTopItemSeverityMedium
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemSeverityLow:
+		*s = FindingsGetFindingsSummaryOKTopItemSeverityLow
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemSeverityInfo:
+		*s = FindingsGetFindingsSummaryOKTopItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsSummaryOKTopItemSource string
+
+const (
+	FindingsGetFindingsSummaryOKTopItemSourceCisaKev      FindingsGetFindingsSummaryOKTopItemSource = "cisa-kev"
+	FindingsGetFindingsSummaryOKTopItemSourceVulncheckKev FindingsGetFindingsSummaryOKTopItemSource = "vulncheck-kev"
+)
+
+// AllValues returns all FindingsGetFindingsSummaryOKTopItemSource values.
+func (FindingsGetFindingsSummaryOKTopItemSource) AllValues() []FindingsGetFindingsSummaryOKTopItemSource {
+	return []FindingsGetFindingsSummaryOKTopItemSource{
+		FindingsGetFindingsSummaryOKTopItemSourceCisaKev,
+		FindingsGetFindingsSummaryOKTopItemSourceVulncheckKev,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsSummaryOKTopItemSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsSummaryOKTopItemSourceCisaKev:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemSourceVulncheckKev:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsSummaryOKTopItemSource) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsSummaryOKTopItemSource(data) {
+	case FindingsGetFindingsSummaryOKTopItemSourceCisaKev:
+		*s = FindingsGetFindingsSummaryOKTopItemSourceCisaKev
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemSourceVulncheckKev:
+		*s = FindingsGetFindingsSummaryOKTopItemSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Open findings only.
+type FindingsGetFindingsSummaryOKTopItemStatus string
+
+const (
+	FindingsGetFindingsSummaryOKTopItemStatusConfirmed FindingsGetFindingsSummaryOKTopItemStatus = "confirmed"
+	FindingsGetFindingsSummaryOKTopItemStatusSuspected FindingsGetFindingsSummaryOKTopItemStatus = "suspected"
+)
+
+// AllValues returns all FindingsGetFindingsSummaryOKTopItemStatus values.
+func (FindingsGetFindingsSummaryOKTopItemStatus) AllValues() []FindingsGetFindingsSummaryOKTopItemStatus {
+	return []FindingsGetFindingsSummaryOKTopItemStatus{
+		FindingsGetFindingsSummaryOKTopItemStatusConfirmed,
+		FindingsGetFindingsSummaryOKTopItemStatusSuspected,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsSummaryOKTopItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsSummaryOKTopItemStatusConfirmed:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemStatusSuspected:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsSummaryOKTopItemStatus) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsSummaryOKTopItemStatus(data) {
+	case FindingsGetFindingsSummaryOKTopItemStatusConfirmed:
+		*s = FindingsGetFindingsSummaryOKTopItemStatusConfirmed
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemStatusSuspected:
+		*s = FindingsGetFindingsSummaryOKTopItemStatusSuspected
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type FindingsPostFindingsIDAiOK struct {
 	// Risk_accepted only (D-498): the last day of the acceptance (UTC); the finding reopens by itself
 	// after it.
@@ -68208,8 +70027,10 @@ type FindingsPostFindingsIDAiOK struct {
 	Compromise NilFindingsPostFindingsIDAiOKCompromise `json:"compromise"`
 	Confidence float64                                 `json:"confidence"`
 	Cve        string                                  `json:"cve"`
-	Evidence   NilFindingsPostFindingsIDAiOKEvidence   `json:"evidence"`
-	FirstSeen  time.Time                               `json:"first_seen"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss      NilFindingsPostFindingsIDAiOKCvss     `json:"cvss"`
+	Evidence  NilFindingsPostFindingsIDAiOKEvidence `json:"evidence"`
+	FirstSeen time.Time                             `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
 	// none to name.
 	Fix OptNilFindingsPostFindingsIDAiOKFix `json:"fix"`
@@ -68279,6 +70100,11 @@ func (s *FindingsPostFindingsIDAiOK) GetConfidence() float64 {
 // GetCve returns the value of Cve.
 func (s *FindingsPostFindingsIDAiOK) GetCve() string {
 	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsPostFindingsIDAiOK) GetCvss() NilFindingsPostFindingsIDAiOKCvss {
+	return s.Cvss
 }
 
 // GetEvidence returns the value of Evidence.
@@ -68404,6 +70230,11 @@ func (s *FindingsPostFindingsIDAiOK) SetConfidence(val float64) {
 // SetCve sets the value of Cve.
 func (s *FindingsPostFindingsIDAiOK) SetCve(val string) {
 	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsPostFindingsIDAiOK) SetCvss(val NilFindingsPostFindingsIDAiOKCvss) {
+	s.Cvss = val
 }
 
 // SetEvidence sets the value of Evidence.
@@ -69863,6 +71694,163 @@ func (s *FindingsPostFindingsIDAiOKCompromiseIndicatorsItemKind) UnmarshalText(d
 		return nil
 	case FindingsPostFindingsIDAiOKCompromiseIndicatorsItemKindProcess:
 		*s = FindingsPostFindingsIDAiOKCompromiseIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsPostFindingsIDAiOKCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsPostFindingsIDAiOKCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsPostFindingsIDAiOKCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsPostFindingsIDAiOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAiOKCvss) GetSource() FindingsPostFindingsIDAiOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsPostFindingsIDAiOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDAiOKCvss) GetVersion() FindingsPostFindingsIDAiOKCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsPostFindingsIDAiOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAiOKCvss) SetSource(val FindingsPostFindingsIDAiOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsPostFindingsIDAiOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDAiOKCvss) SetVersion(val FindingsPostFindingsIDAiOKCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsPostFindingsIDAiOKCvssSource string
+
+const (
+	FindingsPostFindingsIDAiOKCvssSourceNvd FindingsPostFindingsIDAiOKCvssSource = "nvd"
+	FindingsPostFindingsIDAiOKCvssSourceCna FindingsPostFindingsIDAiOKCvssSource = "cna"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKCvssSource values.
+func (FindingsPostFindingsIDAiOKCvssSource) AllValues() []FindingsPostFindingsIDAiOKCvssSource {
+	return []FindingsPostFindingsIDAiOKCvssSource{
+		FindingsPostFindingsIDAiOKCvssSourceNvd,
+		FindingsPostFindingsIDAiOKCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKCvssSource(data) {
+	case FindingsPostFindingsIDAiOKCvssSourceNvd:
+		*s = FindingsPostFindingsIDAiOKCvssSourceNvd
+		return nil
+	case FindingsPostFindingsIDAiOKCvssSourceCna:
+		*s = FindingsPostFindingsIDAiOKCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsPostFindingsIDAiOKCvssVersion string
+
+const (
+	FindingsPostFindingsIDAiOKCvssVersion40 FindingsPostFindingsIDAiOKCvssVersion = "4.0"
+	FindingsPostFindingsIDAiOKCvssVersion31 FindingsPostFindingsIDAiOKCvssVersion = "3.1"
+	FindingsPostFindingsIDAiOKCvssVersion30 FindingsPostFindingsIDAiOKCvssVersion = "3.0"
+	FindingsPostFindingsIDAiOKCvssVersion20 FindingsPostFindingsIDAiOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKCvssVersion values.
+func (FindingsPostFindingsIDAiOKCvssVersion) AllValues() []FindingsPostFindingsIDAiOKCvssVersion {
+	return []FindingsPostFindingsIDAiOKCvssVersion{
+		FindingsPostFindingsIDAiOKCvssVersion40,
+		FindingsPostFindingsIDAiOKCvssVersion31,
+		FindingsPostFindingsIDAiOKCvssVersion30,
+		FindingsPostFindingsIDAiOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKCvssVersion40:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKCvssVersion31:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKCvssVersion(data) {
+	case FindingsPostFindingsIDAiOKCvssVersion40:
+		*s = FindingsPostFindingsIDAiOKCvssVersion40
+		return nil
+	case FindingsPostFindingsIDAiOKCvssVersion31:
+		*s = FindingsPostFindingsIDAiOKCvssVersion31
+		return nil
+	case FindingsPostFindingsIDAiOKCvssVersion30:
+		*s = FindingsPostFindingsIDAiOKCvssVersion30
+		return nil
+	case FindingsPostFindingsIDAiOKCvssVersion20:
+		*s = FindingsPostFindingsIDAiOKCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -71449,8 +73437,10 @@ type FindingsPostFindingsIDAppliedOK struct {
 	Compromise NilFindingsPostFindingsIDAppliedOKCompromise `json:"compromise"`
 	Confidence float64                                      `json:"confidence"`
 	Cve        string                                       `json:"cve"`
-	Evidence   NilFindingsPostFindingsIDAppliedOKEvidence   `json:"evidence"`
-	FirstSeen  time.Time                                    `json:"first_seen"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss      NilFindingsPostFindingsIDAppliedOKCvss     `json:"cvss"`
+	Evidence  NilFindingsPostFindingsIDAppliedOKEvidence `json:"evidence"`
+	FirstSeen time.Time                                  `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
 	// none to name.
 	Fix OptNilFindingsPostFindingsIDAppliedOKFix `json:"fix"`
@@ -71520,6 +73510,11 @@ func (s *FindingsPostFindingsIDAppliedOK) GetConfidence() float64 {
 // GetCve returns the value of Cve.
 func (s *FindingsPostFindingsIDAppliedOK) GetCve() string {
 	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsPostFindingsIDAppliedOK) GetCvss() NilFindingsPostFindingsIDAppliedOKCvss {
+	return s.Cvss
 }
 
 // GetEvidence returns the value of Evidence.
@@ -71645,6 +73640,11 @@ func (s *FindingsPostFindingsIDAppliedOK) SetConfidence(val float64) {
 // SetCve sets the value of Cve.
 func (s *FindingsPostFindingsIDAppliedOK) SetCve(val string) {
 	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsPostFindingsIDAppliedOK) SetCvss(val NilFindingsPostFindingsIDAppliedOKCvss) {
+	s.Cvss = val
 }
 
 // SetEvidence sets the value of Evidence.
@@ -73104,6 +75104,163 @@ func (s *FindingsPostFindingsIDAppliedOKCompromiseIndicatorsItemKind) UnmarshalT
 		return nil
 	case FindingsPostFindingsIDAppliedOKCompromiseIndicatorsItemKindProcess:
 		*s = FindingsPostFindingsIDAppliedOKCompromiseIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsPostFindingsIDAppliedOKCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsPostFindingsIDAppliedOKCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsPostFindingsIDAppliedOKCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsPostFindingsIDAppliedOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKCvss) GetSource() FindingsPostFindingsIDAppliedOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsPostFindingsIDAppliedOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDAppliedOKCvss) GetVersion() FindingsPostFindingsIDAppliedOKCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsPostFindingsIDAppliedOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKCvss) SetSource(val FindingsPostFindingsIDAppliedOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsPostFindingsIDAppliedOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDAppliedOKCvss) SetVersion(val FindingsPostFindingsIDAppliedOKCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsPostFindingsIDAppliedOKCvssSource string
+
+const (
+	FindingsPostFindingsIDAppliedOKCvssSourceNvd FindingsPostFindingsIDAppliedOKCvssSource = "nvd"
+	FindingsPostFindingsIDAppliedOKCvssSourceCna FindingsPostFindingsIDAppliedOKCvssSource = "cna"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKCvssSource values.
+func (FindingsPostFindingsIDAppliedOKCvssSource) AllValues() []FindingsPostFindingsIDAppliedOKCvssSource {
+	return []FindingsPostFindingsIDAppliedOKCvssSource{
+		FindingsPostFindingsIDAppliedOKCvssSourceNvd,
+		FindingsPostFindingsIDAppliedOKCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKCvssSource(data) {
+	case FindingsPostFindingsIDAppliedOKCvssSourceNvd:
+		*s = FindingsPostFindingsIDAppliedOKCvssSourceNvd
+		return nil
+	case FindingsPostFindingsIDAppliedOKCvssSourceCna:
+		*s = FindingsPostFindingsIDAppliedOKCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsPostFindingsIDAppliedOKCvssVersion string
+
+const (
+	FindingsPostFindingsIDAppliedOKCvssVersion40 FindingsPostFindingsIDAppliedOKCvssVersion = "4.0"
+	FindingsPostFindingsIDAppliedOKCvssVersion31 FindingsPostFindingsIDAppliedOKCvssVersion = "3.1"
+	FindingsPostFindingsIDAppliedOKCvssVersion30 FindingsPostFindingsIDAppliedOKCvssVersion = "3.0"
+	FindingsPostFindingsIDAppliedOKCvssVersion20 FindingsPostFindingsIDAppliedOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKCvssVersion values.
+func (FindingsPostFindingsIDAppliedOKCvssVersion) AllValues() []FindingsPostFindingsIDAppliedOKCvssVersion {
+	return []FindingsPostFindingsIDAppliedOKCvssVersion{
+		FindingsPostFindingsIDAppliedOKCvssVersion40,
+		FindingsPostFindingsIDAppliedOKCvssVersion31,
+		FindingsPostFindingsIDAppliedOKCvssVersion30,
+		FindingsPostFindingsIDAppliedOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKCvssVersion40:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion31:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKCvssVersion(data) {
+	case FindingsPostFindingsIDAppliedOKCvssVersion40:
+		*s = FindingsPostFindingsIDAppliedOKCvssVersion40
+		return nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion31:
+		*s = FindingsPostFindingsIDAppliedOKCvssVersion31
+		return nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion30:
+		*s = FindingsPostFindingsIDAppliedOKCvssVersion30
+		return nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion20:
+		*s = FindingsPostFindingsIDAppliedOKCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -74711,8 +76868,10 @@ type FindingsPostFindingsIDStatusOK struct {
 	Compromise NilFindingsPostFindingsIDStatusOKCompromise `json:"compromise"`
 	Confidence float64                                     `json:"confidence"`
 	Cve        string                                      `json:"cve"`
-	Evidence   NilFindingsPostFindingsIDStatusOKEvidence   `json:"evidence"`
-	FirstSeen  time.Time                                   `json:"first_seen"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss      NilFindingsPostFindingsIDStatusOKCvss     `json:"cvss"`
+	Evidence  NilFindingsPostFindingsIDStatusOKEvidence `json:"evidence"`
+	FirstSeen time.Time                                 `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
 	// none to name.
 	Fix OptNilFindingsPostFindingsIDStatusOKFix `json:"fix"`
@@ -74782,6 +76941,11 @@ func (s *FindingsPostFindingsIDStatusOK) GetConfidence() float64 {
 // GetCve returns the value of Cve.
 func (s *FindingsPostFindingsIDStatusOK) GetCve() string {
 	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsPostFindingsIDStatusOK) GetCvss() NilFindingsPostFindingsIDStatusOKCvss {
+	return s.Cvss
 }
 
 // GetEvidence returns the value of Evidence.
@@ -74907,6 +77071,11 @@ func (s *FindingsPostFindingsIDStatusOK) SetConfidence(val float64) {
 // SetCve sets the value of Cve.
 func (s *FindingsPostFindingsIDStatusOK) SetCve(val string) {
 	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsPostFindingsIDStatusOK) SetCvss(val NilFindingsPostFindingsIDStatusOKCvss) {
+	s.Cvss = val
 }
 
 // SetEvidence sets the value of Evidence.
@@ -76366,6 +78535,163 @@ func (s *FindingsPostFindingsIDStatusOKCompromiseIndicatorsItemKind) UnmarshalTe
 		return nil
 	case FindingsPostFindingsIDStatusOKCompromiseIndicatorsItemKindProcess:
 		*s = FindingsPostFindingsIDStatusOKCompromiseIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsPostFindingsIDStatusOKCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsPostFindingsIDStatusOKCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsPostFindingsIDStatusOKCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsPostFindingsIDStatusOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDStatusOKCvss) GetSource() FindingsPostFindingsIDStatusOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsPostFindingsIDStatusOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDStatusOKCvss) GetVersion() FindingsPostFindingsIDStatusOKCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsPostFindingsIDStatusOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDStatusOKCvss) SetSource(val FindingsPostFindingsIDStatusOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsPostFindingsIDStatusOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDStatusOKCvss) SetVersion(val FindingsPostFindingsIDStatusOKCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsPostFindingsIDStatusOKCvssSource string
+
+const (
+	FindingsPostFindingsIDStatusOKCvssSourceNvd FindingsPostFindingsIDStatusOKCvssSource = "nvd"
+	FindingsPostFindingsIDStatusOKCvssSourceCna FindingsPostFindingsIDStatusOKCvssSource = "cna"
+)
+
+// AllValues returns all FindingsPostFindingsIDStatusOKCvssSource values.
+func (FindingsPostFindingsIDStatusOKCvssSource) AllValues() []FindingsPostFindingsIDStatusOKCvssSource {
+	return []FindingsPostFindingsIDStatusOKCvssSource{
+		FindingsPostFindingsIDStatusOKCvssSourceNvd,
+		FindingsPostFindingsIDStatusOKCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDStatusOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDStatusOKCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDStatusOKCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDStatusOKCvssSource(data) {
+	case FindingsPostFindingsIDStatusOKCvssSourceNvd:
+		*s = FindingsPostFindingsIDStatusOKCvssSourceNvd
+		return nil
+	case FindingsPostFindingsIDStatusOKCvssSourceCna:
+		*s = FindingsPostFindingsIDStatusOKCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsPostFindingsIDStatusOKCvssVersion string
+
+const (
+	FindingsPostFindingsIDStatusOKCvssVersion40 FindingsPostFindingsIDStatusOKCvssVersion = "4.0"
+	FindingsPostFindingsIDStatusOKCvssVersion31 FindingsPostFindingsIDStatusOKCvssVersion = "3.1"
+	FindingsPostFindingsIDStatusOKCvssVersion30 FindingsPostFindingsIDStatusOKCvssVersion = "3.0"
+	FindingsPostFindingsIDStatusOKCvssVersion20 FindingsPostFindingsIDStatusOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsPostFindingsIDStatusOKCvssVersion values.
+func (FindingsPostFindingsIDStatusOKCvssVersion) AllValues() []FindingsPostFindingsIDStatusOKCvssVersion {
+	return []FindingsPostFindingsIDStatusOKCvssVersion{
+		FindingsPostFindingsIDStatusOKCvssVersion40,
+		FindingsPostFindingsIDStatusOKCvssVersion31,
+		FindingsPostFindingsIDStatusOKCvssVersion30,
+		FindingsPostFindingsIDStatusOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDStatusOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDStatusOKCvssVersion40:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKCvssVersion31:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDStatusOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDStatusOKCvssVersion(data) {
+	case FindingsPostFindingsIDStatusOKCvssVersion40:
+		*s = FindingsPostFindingsIDStatusOKCvssVersion40
+		return nil
+	case FindingsPostFindingsIDStatusOKCvssVersion31:
+		*s = FindingsPostFindingsIDStatusOKCvssVersion31
+		return nil
+	case FindingsPostFindingsIDStatusOKCvssVersion30:
+		*s = FindingsPostFindingsIDStatusOKCvssVersion30
+		return nil
+	case FindingsPostFindingsIDStatusOKCvssVersion20:
+		*s = FindingsPostFindingsIDStatusOKCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -87292,6 +89618,131 @@ func (s *InventoryGetInventoryCatalogOKItemsItemKind) UnmarshalText(data []byte)
 	}
 }
 
+// True: the Devices list (approved); false: To review.
+type InventoryGetInventoryDevicesApproved string
+
+const (
+	InventoryGetInventoryDevicesApprovedTrue  InventoryGetInventoryDevicesApproved = "true"
+	InventoryGetInventoryDevicesApprovedFalse InventoryGetInventoryDevicesApproved = "false"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesApproved values.
+func (InventoryGetInventoryDevicesApproved) AllValues() []InventoryGetInventoryDevicesApproved {
+	return []InventoryGetInventoryDevicesApproved{
+		InventoryGetInventoryDevicesApprovedTrue,
+		InventoryGetInventoryDevicesApprovedFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesApproved) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesApprovedTrue:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesApprovedFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesApproved) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesApproved(data) {
+	case InventoryGetInventoryDevicesApprovedTrue:
+		*s = InventoryGetInventoryDevicesApprovedTrue
+		return nil
+	case InventoryGetInventoryDevicesApprovedFalse:
+		*s = InventoryGetInventoryDevicesApprovedFalse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryDevicesFragile string
+
+const (
+	InventoryGetInventoryDevicesFragileTrue  InventoryGetInventoryDevicesFragile = "true"
+	InventoryGetInventoryDevicesFragileFalse InventoryGetInventoryDevicesFragile = "false"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesFragile values.
+func (InventoryGetInventoryDevicesFragile) AllValues() []InventoryGetInventoryDevicesFragile {
+	return []InventoryGetInventoryDevicesFragile{
+		InventoryGetInventoryDevicesFragileTrue,
+		InventoryGetInventoryDevicesFragileFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesFragile) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesFragileTrue:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesFragileFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesFragile) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesFragile(data) {
+	case InventoryGetInventoryDevicesFragileTrue:
+		*s = InventoryGetInventoryDevicesFragileTrue
+		return nil
+	case InventoryGetInventoryDevicesFragileFalse:
+		*s = InventoryGetInventoryDevicesFragileFalse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// True: findings_count > 0.
+type InventoryGetInventoryDevicesHasFindings string
+
+const (
+	InventoryGetInventoryDevicesHasFindingsTrue  InventoryGetInventoryDevicesHasFindings = "true"
+	InventoryGetInventoryDevicesHasFindingsFalse InventoryGetInventoryDevicesHasFindings = "false"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesHasFindings values.
+func (InventoryGetInventoryDevicesHasFindings) AllValues() []InventoryGetInventoryDevicesHasFindings {
+	return []InventoryGetInventoryDevicesHasFindings{
+		InventoryGetInventoryDevicesHasFindingsTrue,
+		InventoryGetInventoryDevicesHasFindingsFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesHasFindings) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesHasFindingsTrue:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesHasFindingsFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesHasFindings) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesHasFindings(data) {
+	case InventoryGetInventoryDevicesHasFindingsTrue:
+		*s = InventoryGetInventoryDevicesHasFindingsTrue
+		return nil
+	case InventoryGetInventoryDevicesHasFindingsFalse:
+		*s = InventoryGetInventoryDevicesHasFindingsFalse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryGetInventoryDevicesIDOK struct {
 	Asset InventoryGetInventoryDevicesIDOKAsset `json:"asset"`
 	// Number of findings attached to the device; deleting the device also deletes these findings.
@@ -91507,6 +93958,10 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	Services    []InventoryGetInventoryDevicesOKItemsItemServicesItem `json:"services"`
 	Site        string                                                `json:"site"`
 	Software    []InventoryGetInventoryDevicesOKItemsItemSoftwareItem `json:"software"`
+	// Every source that told Vedette something about the device and is still kept (its details, software
+	// or open ports), plus manual for a device added manually, in the order of DeviceSource (#849 source:
+	// filter, #829 sources of the device page).
+	Sources []InventoryGetInventoryDevicesOKItemsItemSourcesItem `json:"sources"`
 	// Source of the most trusted value; confidence is that of the weakest value.
 	Summary    NilInventoryGetInventoryDevicesOKItemsItemSummary `json:"summary"`
 	Suspicious bool                                              `json:"suspicious"`
@@ -91626,6 +94081,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetSite() string {
 // GetSoftware returns the value of Software.
 func (s *InventoryGetInventoryDevicesOKItemsItem) GetSoftware() []InventoryGetInventoryDevicesOKItemsItemSoftwareItem {
 	return s.Software
+}
+
+// GetSources returns the value of Sources.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetSources() []InventoryGetInventoryDevicesOKItemsItemSourcesItem {
+	return s.Sources
 }
 
 // GetSummary returns the value of Summary.
@@ -91756,6 +94216,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetSite(val string) {
 // SetSoftware sets the value of Software.
 func (s *InventoryGetInventoryDevicesOKItemsItem) SetSoftware(val []InventoryGetInventoryDevicesOKItemsItemSoftwareItem) {
 	s.Software = val
+}
+
+// SetSources sets the value of Sources.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetSources(val []InventoryGetInventoryDevicesOKItemsItemSourcesItem) {
+	s.Sources = val
 }
 
 // SetSummary sets the value of Summary.
@@ -94547,6 +97012,75 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource) UnmarshalTex
 	}
 }
 
+type InventoryGetInventoryDevicesOKItemsItemSourcesItem string
+
+const (
+	InventoryGetInventoryDevicesOKItemsItemSourcesItemManual  InventoryGetInventoryDevicesOKItemsItemSourcesItem = "manual"
+	InventoryGetInventoryDevicesOKItemsItemSourcesItemPassive InventoryGetInventoryDevicesOKItemsItemSourcesItem = "passive"
+	InventoryGetInventoryDevicesOKItemsItemSourcesItemScan    InventoryGetInventoryDevicesOKItemsItemSourcesItem = "scan"
+	InventoryGetInventoryDevicesOKItemsItemSourcesItemSnmp    InventoryGetInventoryDevicesOKItemsItemSourcesItem = "snmp"
+	InventoryGetInventoryDevicesOKItemsItemSourcesItemOsquery InventoryGetInventoryDevicesOKItemsItemSourcesItem = "osquery"
+	InventoryGetInventoryDevicesOKItemsItemSourcesItemWazuh   InventoryGetInventoryDevicesOKItemsItemSourcesItem = "wazuh"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesOKItemsItemSourcesItem values.
+func (InventoryGetInventoryDevicesOKItemsItemSourcesItem) AllValues() []InventoryGetInventoryDevicesOKItemsItemSourcesItem {
+	return []InventoryGetInventoryDevicesOKItemsItemSourcesItem{
+		InventoryGetInventoryDevicesOKItemsItemSourcesItemManual,
+		InventoryGetInventoryDevicesOKItemsItemSourcesItemPassive,
+		InventoryGetInventoryDevicesOKItemsItemSourcesItemScan,
+		InventoryGetInventoryDevicesOKItemsItemSourcesItemSnmp,
+		InventoryGetInventoryDevicesOKItemsItemSourcesItemOsquery,
+		InventoryGetInventoryDevicesOKItemsItemSourcesItemWazuh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemSourcesItem) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemPassive:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemScan:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemSnmp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemOsquery:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemWazuh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemSourcesItem) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesOKItemsItemSourcesItem(data) {
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemManual:
+		*s = InventoryGetInventoryDevicesOKItemsItemSourcesItemManual
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemPassive:
+		*s = InventoryGetInventoryDevicesOKItemsItemSourcesItemPassive
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemScan:
+		*s = InventoryGetInventoryDevicesOKItemsItemSourcesItemScan
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemSnmp:
+		*s = InventoryGetInventoryDevicesOKItemsItemSourcesItemSnmp
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemOsquery:
+		*s = InventoryGetInventoryDevicesOKItemsItemSourcesItemOsquery
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemWazuh:
+		*s = InventoryGetInventoryDevicesOKItemsItemSourcesItemWazuh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryGetInventoryDevicesOKItemsItemSummary struct {
 	Confidence float64                                              `json:"confidence"`
 	Source     InventoryGetInventoryDevicesOKItemsItemSummarySource `json:"source"`
@@ -94751,6 +97285,131 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendorSource) UnmarshalText(data
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemVendorSourceScan:
 		*s = InventoryGetInventoryDevicesOKItemsItemVendorSourceScan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// True: the Devices list (approved); false: To review.
+type InventoryGetInventoryExportCsvApproved string
+
+const (
+	InventoryGetInventoryExportCsvApprovedTrue  InventoryGetInventoryExportCsvApproved = "true"
+	InventoryGetInventoryExportCsvApprovedFalse InventoryGetInventoryExportCsvApproved = "false"
+)
+
+// AllValues returns all InventoryGetInventoryExportCsvApproved values.
+func (InventoryGetInventoryExportCsvApproved) AllValues() []InventoryGetInventoryExportCsvApproved {
+	return []InventoryGetInventoryExportCsvApproved{
+		InventoryGetInventoryExportCsvApprovedTrue,
+		InventoryGetInventoryExportCsvApprovedFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryExportCsvApproved) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryExportCsvApprovedTrue:
+		return []byte(s), nil
+	case InventoryGetInventoryExportCsvApprovedFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryExportCsvApproved) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryExportCsvApproved(data) {
+	case InventoryGetInventoryExportCsvApprovedTrue:
+		*s = InventoryGetInventoryExportCsvApprovedTrue
+		return nil
+	case InventoryGetInventoryExportCsvApprovedFalse:
+		*s = InventoryGetInventoryExportCsvApprovedFalse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryExportCsvFragile string
+
+const (
+	InventoryGetInventoryExportCsvFragileTrue  InventoryGetInventoryExportCsvFragile = "true"
+	InventoryGetInventoryExportCsvFragileFalse InventoryGetInventoryExportCsvFragile = "false"
+)
+
+// AllValues returns all InventoryGetInventoryExportCsvFragile values.
+func (InventoryGetInventoryExportCsvFragile) AllValues() []InventoryGetInventoryExportCsvFragile {
+	return []InventoryGetInventoryExportCsvFragile{
+		InventoryGetInventoryExportCsvFragileTrue,
+		InventoryGetInventoryExportCsvFragileFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryExportCsvFragile) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryExportCsvFragileTrue:
+		return []byte(s), nil
+	case InventoryGetInventoryExportCsvFragileFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryExportCsvFragile) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryExportCsvFragile(data) {
+	case InventoryGetInventoryExportCsvFragileTrue:
+		*s = InventoryGetInventoryExportCsvFragileTrue
+		return nil
+	case InventoryGetInventoryExportCsvFragileFalse:
+		*s = InventoryGetInventoryExportCsvFragileFalse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// True: findings_count > 0.
+type InventoryGetInventoryExportCsvHasFindings string
+
+const (
+	InventoryGetInventoryExportCsvHasFindingsTrue  InventoryGetInventoryExportCsvHasFindings = "true"
+	InventoryGetInventoryExportCsvHasFindingsFalse InventoryGetInventoryExportCsvHasFindings = "false"
+)
+
+// AllValues returns all InventoryGetInventoryExportCsvHasFindings values.
+func (InventoryGetInventoryExportCsvHasFindings) AllValues() []InventoryGetInventoryExportCsvHasFindings {
+	return []InventoryGetInventoryExportCsvHasFindings{
+		InventoryGetInventoryExportCsvHasFindingsTrue,
+		InventoryGetInventoryExportCsvHasFindingsFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryExportCsvHasFindings) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryExportCsvHasFindingsTrue:
+		return []byte(s), nil
+	case InventoryGetInventoryExportCsvHasFindingsFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryExportCsvHasFindings) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryExportCsvHasFindings(data) {
+	case InventoryGetInventoryExportCsvHasFindingsTrue:
+		*s = InventoryGetInventoryExportCsvHasFindingsTrue
+		return nil
+	case InventoryGetInventoryExportCsvHasFindingsFalse:
+		*s = InventoryGetInventoryExportCsvHasFindingsFalse
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -95541,6 +98200,530 @@ func (s *InventoryGetInventorySettingsOKRegularScanKindsItem) UnmarshalText(data
 		return nil
 	case InventoryGetInventorySettingsOKRegularScanKindsItemUnknown:
 		*s = InventoryGetInventorySettingsOKRegularScanKindsItemUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventorySnmpIDReadOK struct {
+	Answered     int         `json:"answered"`
+	By           string      `json:"by"`
+	CredentialID string      `json:"credential_id"`
+	Done         int         `json:"done"`
+	FinishedAt   NilDateTime `json:"finished_at"`
+	ID           string      `json:"id"`
+	// Why the read stopped or failed, in plain words; null while running and when done.
+	Message NilString `json:"message"`
+	// One row per device read so far, as Test answers it.
+	Results []InventoryGetInventorySnmpIDReadOKResultsItem `json:"results"`
+	// Devices of the inventory in the credential's scope that are not read: not approved yet (approve them
+	// under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is
+	// sent to them, nor to an address with no device.
+	Skipped   int                                     `json:"skipped"`
+	StartedAt time.Time                               `json:"started_at"`
+	Status    InventoryGetInventorySnmpIDReadOKStatus `json:"status"`
+	// Approved devices of the scope that get one read.
+	Total int `json:"total"`
+}
+
+// GetAnswered returns the value of Answered.
+func (s *InventoryGetInventorySnmpIDReadOK) GetAnswered() int {
+	return s.Answered
+}
+
+// GetBy returns the value of By.
+func (s *InventoryGetInventorySnmpIDReadOK) GetBy() string {
+	return s.By
+}
+
+// GetCredentialID returns the value of CredentialID.
+func (s *InventoryGetInventorySnmpIDReadOK) GetCredentialID() string {
+	return s.CredentialID
+}
+
+// GetDone returns the value of Done.
+func (s *InventoryGetInventorySnmpIDReadOK) GetDone() int {
+	return s.Done
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *InventoryGetInventorySnmpIDReadOK) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventorySnmpIDReadOK) GetID() string {
+	return s.ID
+}
+
+// GetMessage returns the value of Message.
+func (s *InventoryGetInventorySnmpIDReadOK) GetMessage() NilString {
+	return s.Message
+}
+
+// GetResults returns the value of Results.
+func (s *InventoryGetInventorySnmpIDReadOK) GetResults() []InventoryGetInventorySnmpIDReadOKResultsItem {
+	return s.Results
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *InventoryGetInventorySnmpIDReadOK) GetSkipped() int {
+	return s.Skipped
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *InventoryGetInventorySnmpIDReadOK) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *InventoryGetInventorySnmpIDReadOK) GetStatus() InventoryGetInventorySnmpIDReadOKStatus {
+	return s.Status
+}
+
+// GetTotal returns the value of Total.
+func (s *InventoryGetInventorySnmpIDReadOK) GetTotal() int {
+	return s.Total
+}
+
+// SetAnswered sets the value of Answered.
+func (s *InventoryGetInventorySnmpIDReadOK) SetAnswered(val int) {
+	s.Answered = val
+}
+
+// SetBy sets the value of By.
+func (s *InventoryGetInventorySnmpIDReadOK) SetBy(val string) {
+	s.By = val
+}
+
+// SetCredentialID sets the value of CredentialID.
+func (s *InventoryGetInventorySnmpIDReadOK) SetCredentialID(val string) {
+	s.CredentialID = val
+}
+
+// SetDone sets the value of Done.
+func (s *InventoryGetInventorySnmpIDReadOK) SetDone(val int) {
+	s.Done = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *InventoryGetInventorySnmpIDReadOK) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventorySnmpIDReadOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InventoryGetInventorySnmpIDReadOK) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetResults sets the value of Results.
+func (s *InventoryGetInventorySnmpIDReadOK) SetResults(val []InventoryGetInventorySnmpIDReadOKResultsItem) {
+	s.Results = val
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *InventoryGetInventorySnmpIDReadOK) SetSkipped(val int) {
+	s.Skipped = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *InventoryGetInventorySnmpIDReadOK) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *InventoryGetInventorySnmpIDReadOK) SetStatus(val InventoryGetInventorySnmpIDReadOKStatus) {
+	s.Status = val
+}
+
+// SetTotal sets the value of Total.
+func (s *InventoryGetInventorySnmpIDReadOK) SetTotal(val int) {
+	s.Total = val
+}
+
+type InventoryGetInventorySnmpIDReadOKResultsItem struct {
+	// What the device said, when it answered; it is also recorded in the inventory with source snmp.
+	Answer NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer `json:"answer"`
+	// The inventory device at that IP, when there is one.
+	DeviceID NilString `json:"device_id"`
+	IP       string    `json:"ip"`
+	// Plain words for the person.
+	Message string                                             `json:"message"`
+	Ok      bool                                               `json:"ok"`
+	Reason  InventoryGetInventorySnmpIDReadOKResultsItemReason `json:"reason"`
+}
+
+// GetAnswer returns the value of Answer.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) GetAnswer() NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer {
+	return s.Answer
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) GetDeviceID() NilString {
+	return s.DeviceID
+}
+
+// GetIP returns the value of IP.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) GetIP() string {
+	return s.IP
+}
+
+// GetMessage returns the value of Message.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) GetOk() bool {
+	return s.Ok
+}
+
+// GetReason returns the value of Reason.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) GetReason() InventoryGetInventorySnmpIDReadOKResultsItemReason {
+	return s.Reason
+}
+
+// SetAnswer sets the value of Answer.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) SetAnswer(val NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer) {
+	s.Answer = val
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) SetDeviceID(val NilString) {
+	s.DeviceID = val
+}
+
+// SetIP sets the value of IP.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) SetOk(val bool) {
+	s.Ok = val
+}
+
+// SetReason sets the value of Reason.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) SetReason(val InventoryGetInventorySnmpIDReadOKResultsItemReason) {
+	s.Reason = val
+}
+
+type InventoryGetInventorySnmpIDReadOKResultsItemAnswer struct {
+	// ENTITY-MIB chassis firmware text; shown, not stored.
+	Firmware string `json:"firmware"`
+	// A device type id, or empty.
+	Kind  string `json:"kind"`
+	Model string `json:"model"`
+	Os    string `json:"os"`
+	// Product family from sysObjectID, e.g. FortiGate.
+	Product  string `json:"product"`
+	Serial   string `json:"serial"`
+	SysDescr string `json:"sys_descr"`
+	// What the device said, cleaned; empty when it has none.
+	SysName     string `json:"sys_name"`
+	SysObjectID string `json:"sys_object_id"`
+	Vendor      string `json:"vendor"`
+}
+
+// GetFirmware returns the value of Firmware.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetFirmware() string {
+	return s.Firmware
+}
+
+// GetKind returns the value of Kind.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetKind() string {
+	return s.Kind
+}
+
+// GetModel returns the value of Model.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetModel() string {
+	return s.Model
+}
+
+// GetOs returns the value of Os.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetOs() string {
+	return s.Os
+}
+
+// GetProduct returns the value of Product.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetProduct() string {
+	return s.Product
+}
+
+// GetSerial returns the value of Serial.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetSerial() string {
+	return s.Serial
+}
+
+// GetSysDescr returns the value of SysDescr.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetSysDescr() string {
+	return s.SysDescr
+}
+
+// GetSysName returns the value of SysName.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetSysName() string {
+	return s.SysName
+}
+
+// GetSysObjectID returns the value of SysObjectID.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetSysObjectID() string {
+	return s.SysObjectID
+}
+
+// GetVendor returns the value of Vendor.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetVendor() string {
+	return s.Vendor
+}
+
+// SetFirmware sets the value of Firmware.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetFirmware(val string) {
+	s.Firmware = val
+}
+
+// SetKind sets the value of Kind.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetModel sets the value of Model.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetModel(val string) {
+	s.Model = val
+}
+
+// SetOs sets the value of Os.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetOs(val string) {
+	s.Os = val
+}
+
+// SetProduct sets the value of Product.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSerial sets the value of Serial.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetSerial(val string) {
+	s.Serial = val
+}
+
+// SetSysDescr sets the value of SysDescr.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetSysDescr(val string) {
+	s.SysDescr = val
+}
+
+// SetSysName sets the value of SysName.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetSysName(val string) {
+	s.SysName = val
+}
+
+// SetSysObjectID sets the value of SysObjectID.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetSysObjectID(val string) {
+	s.SysObjectID = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetVendor(val string) {
+	s.Vendor = val
+}
+
+type InventoryGetInventorySnmpIDReadOKResultsItemReason string
+
+const (
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonOk                   InventoryGetInventorySnmpIDReadOKResultsItemReason = "ok"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonNoAnswer             InventoryGetInventorySnmpIDReadOKResultsItemReason = "no_answer"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonAuthFailed           InventoryGetInventorySnmpIDReadOKResultsItemReason = "auth_failed"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonUnknownUser          InventoryGetInventorySnmpIDReadOKResultsItemReason = "unknown_user"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonError                InventoryGetInventorySnmpIDReadOKResultsItemReason = "error"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonNotInInventory       InventoryGetInventorySnmpIDReadOKResultsItemReason = "not_in_inventory"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonNotApproved          InventoryGetInventorySnmpIDReadOKResultsItemReason = "not_approved"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonOutOfScope           InventoryGetInventorySnmpIDReadOKResultsItemReason = "out_of_scope"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonNotForThisCredential InventoryGetInventorySnmpIDReadOKResultsItemReason = "not_for_this_credential"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonScanningOff          InventoryGetInventorySnmpIDReadOKResultsItemReason = "scanning_off"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonScopeNotConfirmed    InventoryGetInventorySnmpIDReadOKResultsItemReason = "scope_not_confirmed"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonDeclaredByHand       InventoryGetInventorySnmpIDReadOKResultsItemReason = "declared_by_hand"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonBox                  InventoryGetInventorySnmpIDReadOKResultsItemReason = "box"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonRegularScanNever     InventoryGetInventorySnmpIDReadOKResultsItemReason = "regular_scan_never"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonUnavailable          InventoryGetInventorySnmpIDReadOKResultsItemReason = "unavailable"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonBusy                 InventoryGetInventorySnmpIDReadOKResultsItemReason = "busy"
+)
+
+// AllValues returns all InventoryGetInventorySnmpIDReadOKResultsItemReason values.
+func (InventoryGetInventorySnmpIDReadOKResultsItemReason) AllValues() []InventoryGetInventorySnmpIDReadOKResultsItemReason {
+	return []InventoryGetInventorySnmpIDReadOKResultsItemReason{
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonOk,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonNoAnswer,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonAuthFailed,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonUnknownUser,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonError,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonNotInInventory,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonNotApproved,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonOutOfScope,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonNotForThisCredential,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonScanningOff,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonScopeNotConfirmed,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonDeclaredByHand,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonBox,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonRegularScanNever,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonUnavailable,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonBusy,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventorySnmpIDReadOKResultsItemReason) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonOk:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonNoAnswer:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonAuthFailed:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonUnknownUser:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonError:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonNotInInventory:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonNotApproved:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonOutOfScope:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonNotForThisCredential:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonScanningOff:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonScopeNotConfirmed:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonDeclaredByHand:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonBox:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonRegularScanNever:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonUnavailable:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonBusy:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemReason) UnmarshalText(data []byte) error {
+	switch InventoryGetInventorySnmpIDReadOKResultsItemReason(data) {
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonOk:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonOk
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonNoAnswer:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonNoAnswer
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonAuthFailed:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonAuthFailed
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonUnknownUser:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonUnknownUser
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonError:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonError
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonNotInInventory:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonNotInInventory
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonNotApproved:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonNotApproved
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonOutOfScope:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonOutOfScope
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonNotForThisCredential:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonNotForThisCredential
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonScanningOff:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonScanningOff
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonScopeNotConfirmed:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonScopeNotConfirmed
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonDeclaredByHand:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonDeclaredByHand
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonBox:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonBox
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonRegularScanNever:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonRegularScanNever
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonUnavailable:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonUnavailable
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonBusy:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonBusy
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventorySnmpIDReadOKStatus string
+
+const (
+	InventoryGetInventorySnmpIDReadOKStatusRunning InventoryGetInventorySnmpIDReadOKStatus = "running"
+	InventoryGetInventorySnmpIDReadOKStatusDone    InventoryGetInventorySnmpIDReadOKStatus = "done"
+	InventoryGetInventorySnmpIDReadOKStatusStopped InventoryGetInventorySnmpIDReadOKStatus = "stopped"
+	InventoryGetInventorySnmpIDReadOKStatusFailed  InventoryGetInventorySnmpIDReadOKStatus = "failed"
+)
+
+// AllValues returns all InventoryGetInventorySnmpIDReadOKStatus values.
+func (InventoryGetInventorySnmpIDReadOKStatus) AllValues() []InventoryGetInventorySnmpIDReadOKStatus {
+	return []InventoryGetInventorySnmpIDReadOKStatus{
+		InventoryGetInventorySnmpIDReadOKStatusRunning,
+		InventoryGetInventorySnmpIDReadOKStatusDone,
+		InventoryGetInventorySnmpIDReadOKStatusStopped,
+		InventoryGetInventorySnmpIDReadOKStatusFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventorySnmpIDReadOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventorySnmpIDReadOKStatusRunning:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKStatusDone:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKStatusStopped:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKStatusFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventorySnmpIDReadOKStatus) UnmarshalText(data []byte) error {
+	switch InventoryGetInventorySnmpIDReadOKStatus(data) {
+	case InventoryGetInventorySnmpIDReadOKStatusRunning:
+		*s = InventoryGetInventorySnmpIDReadOKStatusRunning
+		return nil
+	case InventoryGetInventorySnmpIDReadOKStatusDone:
+		*s = InventoryGetInventorySnmpIDReadOKStatusDone
+		return nil
+	case InventoryGetInventorySnmpIDReadOKStatusStopped:
+		*s = InventoryGetInventorySnmpIDReadOKStatusStopped
+		return nil
+	case InventoryGetInventorySnmpIDReadOKStatusFailed:
+		*s = InventoryGetInventorySnmpIDReadOKStatusFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -98434,6 +101617,530 @@ func (s *InventoryPostInventorySnmpCreatedVersion) UnmarshalText(data []byte) er
 		return nil
 	case InventoryPostInventorySnmpCreatedVersionV3:
 		*s = InventoryPostInventorySnmpCreatedVersionV3
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostInventorySnmpIDReadAccepted struct {
+	Answered     int         `json:"answered"`
+	By           string      `json:"by"`
+	CredentialID string      `json:"credential_id"`
+	Done         int         `json:"done"`
+	FinishedAt   NilDateTime `json:"finished_at"`
+	ID           string      `json:"id"`
+	// Why the read stopped or failed, in plain words; null while running and when done.
+	Message NilString `json:"message"`
+	// One row per device read so far, as Test answers it.
+	Results []InventoryPostInventorySnmpIDReadAcceptedResultsItem `json:"results"`
+	// Devices of the inventory in the credential's scope that are not read: not approved yet (approve them
+	// under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is
+	// sent to them, nor to an address with no device.
+	Skipped   int                                            `json:"skipped"`
+	StartedAt time.Time                                      `json:"started_at"`
+	Status    InventoryPostInventorySnmpIDReadAcceptedStatus `json:"status"`
+	// Approved devices of the scope that get one read.
+	Total int `json:"total"`
+}
+
+// GetAnswered returns the value of Answered.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetAnswered() int {
+	return s.Answered
+}
+
+// GetBy returns the value of By.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetBy() string {
+	return s.By
+}
+
+// GetCredentialID returns the value of CredentialID.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetCredentialID() string {
+	return s.CredentialID
+}
+
+// GetDone returns the value of Done.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetDone() int {
+	return s.Done
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetID returns the value of ID.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetID() string {
+	return s.ID
+}
+
+// GetMessage returns the value of Message.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetMessage() NilString {
+	return s.Message
+}
+
+// GetResults returns the value of Results.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetResults() []InventoryPostInventorySnmpIDReadAcceptedResultsItem {
+	return s.Results
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetSkipped() int {
+	return s.Skipped
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetStatus() InventoryPostInventorySnmpIDReadAcceptedStatus {
+	return s.Status
+}
+
+// GetTotal returns the value of Total.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetTotal() int {
+	return s.Total
+}
+
+// SetAnswered sets the value of Answered.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetAnswered(val int) {
+	s.Answered = val
+}
+
+// SetBy sets the value of By.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetBy(val string) {
+	s.By = val
+}
+
+// SetCredentialID sets the value of CredentialID.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetCredentialID(val string) {
+	s.CredentialID = val
+}
+
+// SetDone sets the value of Done.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetDone(val int) {
+	s.Done = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetID(val string) {
+	s.ID = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetResults sets the value of Results.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetResults(val []InventoryPostInventorySnmpIDReadAcceptedResultsItem) {
+	s.Results = val
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetSkipped(val int) {
+	s.Skipped = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetStatus(val InventoryPostInventorySnmpIDReadAcceptedStatus) {
+	s.Status = val
+}
+
+// SetTotal sets the value of Total.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetTotal(val int) {
+	s.Total = val
+}
+
+type InventoryPostInventorySnmpIDReadAcceptedResultsItem struct {
+	// What the device said, when it answered; it is also recorded in the inventory with source snmp.
+	Answer NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer `json:"answer"`
+	// The inventory device at that IP, when there is one.
+	DeviceID NilString `json:"device_id"`
+	IP       string    `json:"ip"`
+	// Plain words for the person.
+	Message string                                                    `json:"message"`
+	Ok      bool                                                      `json:"ok"`
+	Reason  InventoryPostInventorySnmpIDReadAcceptedResultsItemReason `json:"reason"`
+}
+
+// GetAnswer returns the value of Answer.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) GetAnswer() NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer {
+	return s.Answer
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) GetDeviceID() NilString {
+	return s.DeviceID
+}
+
+// GetIP returns the value of IP.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) GetIP() string {
+	return s.IP
+}
+
+// GetMessage returns the value of Message.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) GetOk() bool {
+	return s.Ok
+}
+
+// GetReason returns the value of Reason.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) GetReason() InventoryPostInventorySnmpIDReadAcceptedResultsItemReason {
+	return s.Reason
+}
+
+// SetAnswer sets the value of Answer.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) SetAnswer(val NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) {
+	s.Answer = val
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) SetDeviceID(val NilString) {
+	s.DeviceID = val
+}
+
+// SetIP sets the value of IP.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) SetOk(val bool) {
+	s.Ok = val
+}
+
+// SetReason sets the value of Reason.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) SetReason(val InventoryPostInventorySnmpIDReadAcceptedResultsItemReason) {
+	s.Reason = val
+}
+
+type InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer struct {
+	// ENTITY-MIB chassis firmware text; shown, not stored.
+	Firmware string `json:"firmware"`
+	// A device type id, or empty.
+	Kind  string `json:"kind"`
+	Model string `json:"model"`
+	Os    string `json:"os"`
+	// Product family from sysObjectID, e.g. FortiGate.
+	Product  string `json:"product"`
+	Serial   string `json:"serial"`
+	SysDescr string `json:"sys_descr"`
+	// What the device said, cleaned; empty when it has none.
+	SysName     string `json:"sys_name"`
+	SysObjectID string `json:"sys_object_id"`
+	Vendor      string `json:"vendor"`
+}
+
+// GetFirmware returns the value of Firmware.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetFirmware() string {
+	return s.Firmware
+}
+
+// GetKind returns the value of Kind.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetKind() string {
+	return s.Kind
+}
+
+// GetModel returns the value of Model.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetModel() string {
+	return s.Model
+}
+
+// GetOs returns the value of Os.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetOs() string {
+	return s.Os
+}
+
+// GetProduct returns the value of Product.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetProduct() string {
+	return s.Product
+}
+
+// GetSerial returns the value of Serial.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetSerial() string {
+	return s.Serial
+}
+
+// GetSysDescr returns the value of SysDescr.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetSysDescr() string {
+	return s.SysDescr
+}
+
+// GetSysName returns the value of SysName.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetSysName() string {
+	return s.SysName
+}
+
+// GetSysObjectID returns the value of SysObjectID.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetSysObjectID() string {
+	return s.SysObjectID
+}
+
+// GetVendor returns the value of Vendor.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetVendor() string {
+	return s.Vendor
+}
+
+// SetFirmware sets the value of Firmware.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetFirmware(val string) {
+	s.Firmware = val
+}
+
+// SetKind sets the value of Kind.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetModel sets the value of Model.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetModel(val string) {
+	s.Model = val
+}
+
+// SetOs sets the value of Os.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetOs(val string) {
+	s.Os = val
+}
+
+// SetProduct sets the value of Product.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSerial sets the value of Serial.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetSerial(val string) {
+	s.Serial = val
+}
+
+// SetSysDescr sets the value of SysDescr.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetSysDescr(val string) {
+	s.SysDescr = val
+}
+
+// SetSysName sets the value of SysName.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetSysName(val string) {
+	s.SysName = val
+}
+
+// SetSysObjectID sets the value of SysObjectID.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetSysObjectID(val string) {
+	s.SysObjectID = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetVendor(val string) {
+	s.Vendor = val
+}
+
+type InventoryPostInventorySnmpIDReadAcceptedResultsItemReason string
+
+const (
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOk                   InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "ok"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNoAnswer             InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "no_answer"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonAuthFailed           InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "auth_failed"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnknownUser          InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "unknown_user"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonError                InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "error"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotInInventory       InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "not_in_inventory"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotApproved          InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "not_approved"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOutOfScope           InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "out_of_scope"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotForThisCredential InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "not_for_this_credential"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScanningOff          InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "scanning_off"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScopeNotConfirmed    InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "scope_not_confirmed"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonDeclaredByHand       InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "declared_by_hand"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBox                  InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "box"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonRegularScanNever     InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "regular_scan_never"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnavailable          InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "unavailable"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBusy                 InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "busy"
+)
+
+// AllValues returns all InventoryPostInventorySnmpIDReadAcceptedResultsItemReason values.
+func (InventoryPostInventorySnmpIDReadAcceptedResultsItemReason) AllValues() []InventoryPostInventorySnmpIDReadAcceptedResultsItemReason {
+	return []InventoryPostInventorySnmpIDReadAcceptedResultsItemReason{
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOk,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNoAnswer,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonAuthFailed,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnknownUser,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonError,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotInInventory,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotApproved,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOutOfScope,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotForThisCredential,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScanningOff,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScopeNotConfirmed,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonDeclaredByHand,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBox,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonRegularScanNever,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnavailable,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBusy,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventorySnmpIDReadAcceptedResultsItemReason) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOk:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNoAnswer:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonAuthFailed:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnknownUser:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonError:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotInInventory:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotApproved:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOutOfScope:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotForThisCredential:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScanningOff:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScopeNotConfirmed:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonDeclaredByHand:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBox:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonRegularScanNever:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnavailable:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBusy:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemReason) UnmarshalText(data []byte) error {
+	switch InventoryPostInventorySnmpIDReadAcceptedResultsItemReason(data) {
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOk:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOk
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNoAnswer:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNoAnswer
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonAuthFailed:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonAuthFailed
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnknownUser:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnknownUser
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonError:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonError
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotInInventory:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotInInventory
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotApproved:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotApproved
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOutOfScope:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOutOfScope
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotForThisCredential:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotForThisCredential
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScanningOff:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScanningOff
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScopeNotConfirmed:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScopeNotConfirmed
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonDeclaredByHand:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonDeclaredByHand
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBox:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBox
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonRegularScanNever:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonRegularScanNever
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnavailable:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnavailable
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBusy:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBusy
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostInventorySnmpIDReadAcceptedStatus string
+
+const (
+	InventoryPostInventorySnmpIDReadAcceptedStatusRunning InventoryPostInventorySnmpIDReadAcceptedStatus = "running"
+	InventoryPostInventorySnmpIDReadAcceptedStatusDone    InventoryPostInventorySnmpIDReadAcceptedStatus = "done"
+	InventoryPostInventorySnmpIDReadAcceptedStatusStopped InventoryPostInventorySnmpIDReadAcceptedStatus = "stopped"
+	InventoryPostInventorySnmpIDReadAcceptedStatusFailed  InventoryPostInventorySnmpIDReadAcceptedStatus = "failed"
+)
+
+// AllValues returns all InventoryPostInventorySnmpIDReadAcceptedStatus values.
+func (InventoryPostInventorySnmpIDReadAcceptedStatus) AllValues() []InventoryPostInventorySnmpIDReadAcceptedStatus {
+	return []InventoryPostInventorySnmpIDReadAcceptedStatus{
+		InventoryPostInventorySnmpIDReadAcceptedStatusRunning,
+		InventoryPostInventorySnmpIDReadAcceptedStatusDone,
+		InventoryPostInventorySnmpIDReadAcceptedStatusStopped,
+		InventoryPostInventorySnmpIDReadAcceptedStatusFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventorySnmpIDReadAcceptedStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventorySnmpIDReadAcceptedStatusRunning:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedStatusDone:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedStatusStopped:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedStatusFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventorySnmpIDReadAcceptedStatus) UnmarshalText(data []byte) error {
+	switch InventoryPostInventorySnmpIDReadAcceptedStatus(data) {
+	case InventoryPostInventorySnmpIDReadAcceptedStatusRunning:
+		*s = InventoryPostInventorySnmpIDReadAcceptedStatusRunning
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedStatusDone:
+		*s = InventoryPostInventorySnmpIDReadAcceptedStatusDone
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedStatusStopped:
+		*s = InventoryPostInventorySnmpIDReadAcceptedStatusStopped
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedStatusFailed:
+		*s = InventoryPostInventorySnmpIDReadAcceptedStatusFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -108896,6 +112603,51 @@ func (o NilExposureDeleteExposureTargetsIDTermsOKValidity) Or(d ExposureDeleteEx
 	return d
 }
 
+// NewNilExposureGetExposureGreenboneOKFeed returns new NilExposureGetExposureGreenboneOKFeed with value set to v.
+func NewNilExposureGetExposureGreenboneOKFeed(v ExposureGetExposureGreenboneOKFeed) NilExposureGetExposureGreenboneOKFeed {
+	return NilExposureGetExposureGreenboneOKFeed{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureGreenboneOKFeed is nullable ExposureGetExposureGreenboneOKFeed.
+type NilExposureGetExposureGreenboneOKFeed struct {
+	Value ExposureGetExposureGreenboneOKFeed
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureGreenboneOKFeed) SetTo(v ExposureGetExposureGreenboneOKFeed) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureGreenboneOKFeed) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureGreenboneOKFeed) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureGreenboneOKFeed
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureGreenboneOKFeed) Get() (v ExposureGetExposureGreenboneOKFeed, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureGreenboneOKFeed) Or(d ExposureGetExposureGreenboneOKFeed) ExposureGetExposureGreenboneOKFeed {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureScanOK returns new NilExposureGetExposureScanOK with value set to v.
 func NewNilExposureGetExposureScanOK(v ExposureGetExposureScanOK) NilExposureGetExposureScanOK {
 	return NilExposureGetExposureScanOK{
@@ -111326,6 +115078,51 @@ func (o NilExposurePutExposureBoxIPSettingsOKLastRun) Or(d ExposurePutExposureBo
 	return d
 }
 
+// NewNilExposurePutExposureGreenboneOKFeed returns new NilExposurePutExposureGreenboneOKFeed with value set to v.
+func NewNilExposurePutExposureGreenboneOKFeed(v ExposurePutExposureGreenboneOKFeed) NilExposurePutExposureGreenboneOKFeed {
+	return NilExposurePutExposureGreenboneOKFeed{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureGreenboneOKFeed is nullable ExposurePutExposureGreenboneOKFeed.
+type NilExposurePutExposureGreenboneOKFeed struct {
+	Value ExposurePutExposureGreenboneOKFeed
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureGreenboneOKFeed) SetTo(v ExposurePutExposureGreenboneOKFeed) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureGreenboneOKFeed) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureGreenboneOKFeed) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureGreenboneOKFeed
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureGreenboneOKFeed) Get() (v ExposurePutExposureGreenboneOKFeed, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureGreenboneOKFeed) Or(d ExposurePutExposureGreenboneOKFeed) ExposurePutExposureGreenboneOKFeed {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePutExposureTargetsIDTermsOKBlockedReason returns new NilExposurePutExposureTargetsIDTermsOKBlockedReason with value set to v.
 func NewNilExposurePutExposureTargetsIDTermsOKBlockedReason(v ExposurePutExposureTargetsIDTermsOKBlockedReason) NilExposurePutExposureTargetsIDTermsOKBlockedReason {
 	return NilExposurePutExposureTargetsIDTermsOKBlockedReason{
@@ -112406,6 +116203,51 @@ func (o NilFindingsGetFindingsIDOKCompromise) Or(d FindingsGetFindingsIDOKCompro
 	return d
 }
 
+// NewNilFindingsGetFindingsIDOKCvss returns new NilFindingsGetFindingsIDOKCvss with value set to v.
+func NewNilFindingsGetFindingsIDOKCvss(v FindingsGetFindingsIDOKCvss) NilFindingsGetFindingsIDOKCvss {
+	return NilFindingsGetFindingsIDOKCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsIDOKCvss is nullable FindingsGetFindingsIDOKCvss.
+type NilFindingsGetFindingsIDOKCvss struct {
+	Value FindingsGetFindingsIDOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsIDOKCvss) SetTo(v FindingsGetFindingsIDOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsIDOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsIDOKCvss) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsIDOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsIDOKCvss) Get() (v FindingsGetFindingsIDOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsIDOKCvss) Or(d FindingsGetFindingsIDOKCvss) FindingsGetFindingsIDOKCvss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsGetFindingsIDOKEvidence returns new NilFindingsGetFindingsIDOKEvidence with value set to v.
 func NewNilFindingsGetFindingsIDOKEvidence(v FindingsGetFindingsIDOKEvidence) NilFindingsGetFindingsIDOKEvidence {
 	return NilFindingsGetFindingsIDOKEvidence{
@@ -112631,6 +116473,51 @@ func (o NilFindingsGetFindingsOKItemsItemAsset) Or(d FindingsGetFindingsOKItemsI
 	return d
 }
 
+// NewNilFindingsGetFindingsOKItemsItemCvss returns new NilFindingsGetFindingsOKItemsItemCvss with value set to v.
+func NewNilFindingsGetFindingsOKItemsItemCvss(v FindingsGetFindingsOKItemsItemCvss) NilFindingsGetFindingsOKItemsItemCvss {
+	return NilFindingsGetFindingsOKItemsItemCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsOKItemsItemCvss is nullable FindingsGetFindingsOKItemsItemCvss.
+type NilFindingsGetFindingsOKItemsItemCvss struct {
+	Value FindingsGetFindingsOKItemsItemCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsOKItemsItemCvss) SetTo(v FindingsGetFindingsOKItemsItemCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsOKItemsItemCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsOKItemsItemCvss) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsOKItemsItemCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsOKItemsItemCvss) Get() (v FindingsGetFindingsOKItemsItemCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsOKItemsItemCvss) Or(d FindingsGetFindingsOKItemsItemCvss) FindingsGetFindingsOKItemsItemCvss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsGetFindingsOKItemsItemEvidence returns new NilFindingsGetFindingsOKItemsItemEvidence with value set to v.
 func NewNilFindingsGetFindingsOKItemsItemEvidence(v FindingsGetFindingsOKItemsItemEvidence) NilFindingsGetFindingsOKItemsItemEvidence {
 	return NilFindingsGetFindingsOKItemsItemEvidence{
@@ -112811,6 +116698,231 @@ func (o NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity) Or(d FindingsGetF
 	return d
 }
 
+// NewNilFindingsGetFindingsSummaryOKAlerts returns new NilFindingsGetFindingsSummaryOKAlerts with value set to v.
+func NewNilFindingsGetFindingsSummaryOKAlerts(v FindingsGetFindingsSummaryOKAlerts) NilFindingsGetFindingsSummaryOKAlerts {
+	return NilFindingsGetFindingsSummaryOKAlerts{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsSummaryOKAlerts is nullable FindingsGetFindingsSummaryOKAlerts.
+type NilFindingsGetFindingsSummaryOKAlerts struct {
+	Value FindingsGetFindingsSummaryOKAlerts
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsSummaryOKAlerts) SetTo(v FindingsGetFindingsSummaryOKAlerts) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsSummaryOKAlerts) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsSummaryOKAlerts) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsSummaryOKAlerts
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsSummaryOKAlerts) Get() (v FindingsGetFindingsSummaryOKAlerts, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsSummaryOKAlerts) Or(d FindingsGetFindingsSummaryOKAlerts) FindingsGetFindingsSummaryOKAlerts {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsSummaryOKIncidents returns new NilFindingsGetFindingsSummaryOKIncidents with value set to v.
+func NewNilFindingsGetFindingsSummaryOKIncidents(v FindingsGetFindingsSummaryOKIncidents) NilFindingsGetFindingsSummaryOKIncidents {
+	return NilFindingsGetFindingsSummaryOKIncidents{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsSummaryOKIncidents is nullable FindingsGetFindingsSummaryOKIncidents.
+type NilFindingsGetFindingsSummaryOKIncidents struct {
+	Value FindingsGetFindingsSummaryOKIncidents
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsSummaryOKIncidents) SetTo(v FindingsGetFindingsSummaryOKIncidents) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsSummaryOKIncidents) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsSummaryOKIncidents) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsSummaryOKIncidents
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsSummaryOKIncidents) Get() (v FindingsGetFindingsSummaryOKIncidents, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsSummaryOKIncidents) Or(d FindingsGetFindingsSummaryOKIncidents) FindingsGetFindingsSummaryOKIncidents {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsSummaryOKTopItemAsset returns new NilFindingsGetFindingsSummaryOKTopItemAsset with value set to v.
+func NewNilFindingsGetFindingsSummaryOKTopItemAsset(v FindingsGetFindingsSummaryOKTopItemAsset) NilFindingsGetFindingsSummaryOKTopItemAsset {
+	return NilFindingsGetFindingsSummaryOKTopItemAsset{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsSummaryOKTopItemAsset is nullable FindingsGetFindingsSummaryOKTopItemAsset.
+type NilFindingsGetFindingsSummaryOKTopItemAsset struct {
+	Value FindingsGetFindingsSummaryOKTopItemAsset
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsSummaryOKTopItemAsset) SetTo(v FindingsGetFindingsSummaryOKTopItemAsset) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsSummaryOKTopItemAsset) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsSummaryOKTopItemAsset) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsSummaryOKTopItemAsset
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsSummaryOKTopItemAsset) Get() (v FindingsGetFindingsSummaryOKTopItemAsset, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsSummaryOKTopItemAsset) Or(d FindingsGetFindingsSummaryOKTopItemAsset) FindingsGetFindingsSummaryOKTopItemAsset {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsSummaryOKTopItemCvss returns new NilFindingsGetFindingsSummaryOKTopItemCvss with value set to v.
+func NewNilFindingsGetFindingsSummaryOKTopItemCvss(v FindingsGetFindingsSummaryOKTopItemCvss) NilFindingsGetFindingsSummaryOKTopItemCvss {
+	return NilFindingsGetFindingsSummaryOKTopItemCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsSummaryOKTopItemCvss is nullable FindingsGetFindingsSummaryOKTopItemCvss.
+type NilFindingsGetFindingsSummaryOKTopItemCvss struct {
+	Value FindingsGetFindingsSummaryOKTopItemCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsSummaryOKTopItemCvss) SetTo(v FindingsGetFindingsSummaryOKTopItemCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsSummaryOKTopItemCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsSummaryOKTopItemCvss) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsSummaryOKTopItemCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsSummaryOKTopItemCvss) Get() (v FindingsGetFindingsSummaryOKTopItemCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsSummaryOKTopItemCvss) Or(d FindingsGetFindingsSummaryOKTopItemCvss) FindingsGetFindingsSummaryOKTopItemCvss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsSummaryOKTopItemSource returns new NilFindingsGetFindingsSummaryOKTopItemSource with value set to v.
+func NewNilFindingsGetFindingsSummaryOKTopItemSource(v FindingsGetFindingsSummaryOKTopItemSource) NilFindingsGetFindingsSummaryOKTopItemSource {
+	return NilFindingsGetFindingsSummaryOKTopItemSource{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsSummaryOKTopItemSource is nullable FindingsGetFindingsSummaryOKTopItemSource.
+type NilFindingsGetFindingsSummaryOKTopItemSource struct {
+	Value FindingsGetFindingsSummaryOKTopItemSource
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsSummaryOKTopItemSource) SetTo(v FindingsGetFindingsSummaryOKTopItemSource) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsSummaryOKTopItemSource) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsSummaryOKTopItemSource) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsSummaryOKTopItemSource
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsSummaryOKTopItemSource) Get() (v FindingsGetFindingsSummaryOKTopItemSource, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsSummaryOKTopItemSource) Or(d FindingsGetFindingsSummaryOKTopItemSource) FindingsGetFindingsSummaryOKTopItemSource {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDAiOKAiConfig returns new NilFindingsPostFindingsIDAiOKAiConfig with value set to v.
 func NewNilFindingsPostFindingsIDAiOKAiConfig(v FindingsPostFindingsIDAiOKAiConfig) NilFindingsPostFindingsIDAiOKAiConfig {
 	return NilFindingsPostFindingsIDAiOKAiConfig{
@@ -112985,6 +117097,51 @@ func (o NilFindingsPostFindingsIDAiOKCompromise) Get() (v FindingsPostFindingsID
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsPostFindingsIDAiOKCompromise) Or(d FindingsPostFindingsIDAiOKCompromise) FindingsPostFindingsIDAiOKCompromise {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDAiOKCvss returns new NilFindingsPostFindingsIDAiOKCvss with value set to v.
+func NewNilFindingsPostFindingsIDAiOKCvss(v FindingsPostFindingsIDAiOKCvss) NilFindingsPostFindingsIDAiOKCvss {
+	return NilFindingsPostFindingsIDAiOKCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDAiOKCvss is nullable FindingsPostFindingsIDAiOKCvss.
+type NilFindingsPostFindingsIDAiOKCvss struct {
+	Value FindingsPostFindingsIDAiOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDAiOKCvss) SetTo(v FindingsPostFindingsIDAiOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDAiOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDAiOKCvss) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDAiOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDAiOKCvss) Get() (v FindingsPostFindingsIDAiOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDAiOKCvss) Or(d FindingsPostFindingsIDAiOKCvss) FindingsPostFindingsIDAiOKCvss {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -113351,6 +117508,51 @@ func (o NilFindingsPostFindingsIDAppliedOKCompromise) Or(d FindingsPostFindingsI
 	return d
 }
 
+// NewNilFindingsPostFindingsIDAppliedOKCvss returns new NilFindingsPostFindingsIDAppliedOKCvss with value set to v.
+func NewNilFindingsPostFindingsIDAppliedOKCvss(v FindingsPostFindingsIDAppliedOKCvss) NilFindingsPostFindingsIDAppliedOKCvss {
+	return NilFindingsPostFindingsIDAppliedOKCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDAppliedOKCvss is nullable FindingsPostFindingsIDAppliedOKCvss.
+type NilFindingsPostFindingsIDAppliedOKCvss struct {
+	Value FindingsPostFindingsIDAppliedOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDAppliedOKCvss) SetTo(v FindingsPostFindingsIDAppliedOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDAppliedOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDAppliedOKCvss) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDAppliedOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDAppliedOKCvss) Get() (v FindingsPostFindingsIDAppliedOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDAppliedOKCvss) Or(d FindingsPostFindingsIDAppliedOKCvss) FindingsPostFindingsIDAppliedOKCvss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDAppliedOKEvidence returns new NilFindingsPostFindingsIDAppliedOKEvidence with value set to v.
 func NewNilFindingsPostFindingsIDAppliedOKEvidence(v FindingsPostFindingsIDAppliedOKEvidence) NilFindingsPostFindingsIDAppliedOKEvidence {
 	return NilFindingsPostFindingsIDAppliedOKEvidence{
@@ -113705,6 +117907,51 @@ func (o NilFindingsPostFindingsIDStatusOKCompromise) Get() (v FindingsPostFindin
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsPostFindingsIDStatusOKCompromise) Or(d FindingsPostFindingsIDStatusOKCompromise) FindingsPostFindingsIDStatusOKCompromise {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDStatusOKCvss returns new NilFindingsPostFindingsIDStatusOKCvss with value set to v.
+func NewNilFindingsPostFindingsIDStatusOKCvss(v FindingsPostFindingsIDStatusOKCvss) NilFindingsPostFindingsIDStatusOKCvss {
+	return NilFindingsPostFindingsIDStatusOKCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDStatusOKCvss is nullable FindingsPostFindingsIDStatusOKCvss.
+type NilFindingsPostFindingsIDStatusOKCvss struct {
+	Value FindingsPostFindingsIDStatusOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDStatusOKCvss) SetTo(v FindingsPostFindingsIDStatusOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDStatusOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDStatusOKCvss) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDStatusOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDStatusOKCvss) Get() (v FindingsPostFindingsIDStatusOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDStatusOKCvss) Or(d FindingsPostFindingsIDStatusOKCvss) FindingsPostFindingsIDStatusOKCvss {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -115331,6 +119578,96 @@ func (o NilInventoryGetInventorySensorsOKSensorsItemCaptureError) Or(d Inventory
 	return d
 }
 
+// NewNilInventoryGetInventorySnmpIDReadOK returns new NilInventoryGetInventorySnmpIDReadOK with value set to v.
+func NewNilInventoryGetInventorySnmpIDReadOK(v InventoryGetInventorySnmpIDReadOK) NilInventoryGetInventorySnmpIDReadOK {
+	return NilInventoryGetInventorySnmpIDReadOK{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventorySnmpIDReadOK is nullable InventoryGetInventorySnmpIDReadOK.
+type NilInventoryGetInventorySnmpIDReadOK struct {
+	Value InventoryGetInventorySnmpIDReadOK
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventorySnmpIDReadOK) SetTo(v InventoryGetInventorySnmpIDReadOK) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventorySnmpIDReadOK) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventorySnmpIDReadOK) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventorySnmpIDReadOK
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventorySnmpIDReadOK) Get() (v InventoryGetInventorySnmpIDReadOK, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventorySnmpIDReadOK) Or(d InventoryGetInventorySnmpIDReadOK) InventoryGetInventorySnmpIDReadOK {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryGetInventorySnmpIDReadOKResultsItemAnswer returns new NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer with value set to v.
+func NewNilInventoryGetInventorySnmpIDReadOKResultsItemAnswer(v InventoryGetInventorySnmpIDReadOKResultsItemAnswer) NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer {
+	return NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer is nullable InventoryGetInventorySnmpIDReadOKResultsItemAnswer.
+type NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer struct {
+	Value InventoryGetInventorySnmpIDReadOKResultsItemAnswer
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetTo(v InventoryGetInventorySnmpIDReadOKResultsItemAnswer) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventorySnmpIDReadOKResultsItemAnswer
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer) Get() (v InventoryGetInventorySnmpIDReadOKResultsItemAnswer, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer) Or(d InventoryGetInventorySnmpIDReadOKResultsItemAnswer) InventoryGetInventorySnmpIDReadOKResultsItemAnswer {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilInventoryGetInventorySnmpOKCredentialsItemAuth returns new NilInventoryGetInventorySnmpOKCredentialsItemAuth with value set to v.
 func NewNilInventoryGetInventorySnmpOKCredentialsItemAuth(v InventoryGetInventorySnmpOKCredentialsItemAuth) NilInventoryGetInventorySnmpOKCredentialsItemAuth {
 	return NilInventoryGetInventorySnmpOKCredentialsItemAuth{
@@ -115550,6 +119887,51 @@ func (o NilInventoryPostInventorySnmpCreatedPriv) Get() (v InventoryPostInventor
 
 // Or returns value if set, or given parameter if does not.
 func (o NilInventoryPostInventorySnmpCreatedPriv) Or(d InventoryPostInventorySnmpCreatedPriv) InventoryPostInventorySnmpCreatedPriv {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer returns new NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer with value set to v.
+func NewNilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer(v InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer {
+	return NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer{
+		Value: v,
+	}
+}
+
+// NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer is nullable InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer.
+type NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer struct {
+	Value InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetTo(v InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetToNull() {
+	o.Null = true
+	var v InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) Get() (v InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) Or(d InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -120444,6 +124826,458 @@ func (o NilScanPutScansConfigOKScopeCommitment) Get() (v ScanPutScansConfigOKSco
 
 // Or returns value if set, or given parameter if does not.
 func (o NilScanPutScansConfigOKScopeCommitment) Or(d ScanPutScansConfigOKScopeCommitment) ScanPutScansConfigOKScopeCommitment {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningGetScanningOKEnginesItemFollows returns new NilScanningGetScanningOKEnginesItemFollows with value set to v.
+func NewNilScanningGetScanningOKEnginesItemFollows(v ScanningGetScanningOKEnginesItemFollows) NilScanningGetScanningOKEnginesItemFollows {
+	return NilScanningGetScanningOKEnginesItemFollows{
+		Value: v,
+	}
+}
+
+// NilScanningGetScanningOKEnginesItemFollows is nullable ScanningGetScanningOKEnginesItemFollows.
+type NilScanningGetScanningOKEnginesItemFollows struct {
+	Value ScanningGetScanningOKEnginesItemFollows
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningGetScanningOKEnginesItemFollows) SetTo(v ScanningGetScanningOKEnginesItemFollows) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningGetScanningOKEnginesItemFollows) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningGetScanningOKEnginesItemFollows) SetToNull() {
+	o.Null = true
+	var v ScanningGetScanningOKEnginesItemFollows
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningGetScanningOKEnginesItemFollows) Get() (v ScanningGetScanningOKEnginesItemFollows, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningGetScanningOKEnginesItemFollows) Or(d ScanningGetScanningOKEnginesItemFollows) ScanningGetScanningOKEnginesItemFollows {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningGetScanningOKEnginesItemLastRun returns new NilScanningGetScanningOKEnginesItemLastRun with value set to v.
+func NewNilScanningGetScanningOKEnginesItemLastRun(v ScanningGetScanningOKEnginesItemLastRun) NilScanningGetScanningOKEnginesItemLastRun {
+	return NilScanningGetScanningOKEnginesItemLastRun{
+		Value: v,
+	}
+}
+
+// NilScanningGetScanningOKEnginesItemLastRun is nullable ScanningGetScanningOKEnginesItemLastRun.
+type NilScanningGetScanningOKEnginesItemLastRun struct {
+	Value ScanningGetScanningOKEnginesItemLastRun
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningGetScanningOKEnginesItemLastRun) SetTo(v ScanningGetScanningOKEnginesItemLastRun) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningGetScanningOKEnginesItemLastRun) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningGetScanningOKEnginesItemLastRun) SetToNull() {
+	o.Null = true
+	var v ScanningGetScanningOKEnginesItemLastRun
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningGetScanningOKEnginesItemLastRun) Get() (v ScanningGetScanningOKEnginesItemLastRun, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningGetScanningOKEnginesItemLastRun) Or(d ScanningGetScanningOKEnginesItemLastRun) ScanningGetScanningOKEnginesItemLastRun {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningGetScanningOKRunningItemProgress returns new NilScanningGetScanningOKRunningItemProgress with value set to v.
+func NewNilScanningGetScanningOKRunningItemProgress(v ScanningGetScanningOKRunningItemProgress) NilScanningGetScanningOKRunningItemProgress {
+	return NilScanningGetScanningOKRunningItemProgress{
+		Value: v,
+	}
+}
+
+// NilScanningGetScanningOKRunningItemProgress is nullable ScanningGetScanningOKRunningItemProgress.
+type NilScanningGetScanningOKRunningItemProgress struct {
+	Value ScanningGetScanningOKRunningItemProgress
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningGetScanningOKRunningItemProgress) SetTo(v ScanningGetScanningOKRunningItemProgress) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningGetScanningOKRunningItemProgress) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningGetScanningOKRunningItemProgress) SetToNull() {
+	o.Null = true
+	var v ScanningGetScanningOKRunningItemProgress
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningGetScanningOKRunningItemProgress) Get() (v ScanningGetScanningOKRunningItemProgress, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningGetScanningOKRunningItemProgress) Or(d ScanningGetScanningOKRunningItemProgress) ScanningGetScanningOKRunningItemProgress {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningGetScanningOKRunningItemProgressUnit returns new NilScanningGetScanningOKRunningItemProgressUnit with value set to v.
+func NewNilScanningGetScanningOKRunningItemProgressUnit(v ScanningGetScanningOKRunningItemProgressUnit) NilScanningGetScanningOKRunningItemProgressUnit {
+	return NilScanningGetScanningOKRunningItemProgressUnit{
+		Value: v,
+	}
+}
+
+// NilScanningGetScanningOKRunningItemProgressUnit is nullable ScanningGetScanningOKRunningItemProgressUnit.
+type NilScanningGetScanningOKRunningItemProgressUnit struct {
+	Value ScanningGetScanningOKRunningItemProgressUnit
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningGetScanningOKRunningItemProgressUnit) SetTo(v ScanningGetScanningOKRunningItemProgressUnit) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningGetScanningOKRunningItemProgressUnit) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningGetScanningOKRunningItemProgressUnit) SetToNull() {
+	o.Null = true
+	var v ScanningGetScanningOKRunningItemProgressUnit
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningGetScanningOKRunningItemProgressUnit) Get() (v ScanningGetScanningOKRunningItemProgressUnit, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningGetScanningOKRunningItemProgressUnit) Or(d ScanningGetScanningOKRunningItemProgressUnit) ScanningGetScanningOKRunningItemProgressUnit {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningPatchScanningEnginesIDOKEnginesItemFollows returns new NilScanningPatchScanningEnginesIDOKEnginesItemFollows with value set to v.
+func NewNilScanningPatchScanningEnginesIDOKEnginesItemFollows(v ScanningPatchScanningEnginesIDOKEnginesItemFollows) NilScanningPatchScanningEnginesIDOKEnginesItemFollows {
+	return NilScanningPatchScanningEnginesIDOKEnginesItemFollows{
+		Value: v,
+	}
+}
+
+// NilScanningPatchScanningEnginesIDOKEnginesItemFollows is nullable ScanningPatchScanningEnginesIDOKEnginesItemFollows.
+type NilScanningPatchScanningEnginesIDOKEnginesItemFollows struct {
+	Value ScanningPatchScanningEnginesIDOKEnginesItemFollows
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningPatchScanningEnginesIDOKEnginesItemFollows) SetTo(v ScanningPatchScanningEnginesIDOKEnginesItemFollows) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningPatchScanningEnginesIDOKEnginesItemFollows) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningPatchScanningEnginesIDOKEnginesItemFollows) SetToNull() {
+	o.Null = true
+	var v ScanningPatchScanningEnginesIDOKEnginesItemFollows
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningPatchScanningEnginesIDOKEnginesItemFollows) Get() (v ScanningPatchScanningEnginesIDOKEnginesItemFollows, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningPatchScanningEnginesIDOKEnginesItemFollows) Or(d ScanningPatchScanningEnginesIDOKEnginesItemFollows) ScanningPatchScanningEnginesIDOKEnginesItemFollows {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningPatchScanningEnginesIDOKEnginesItemLastRun returns new NilScanningPatchScanningEnginesIDOKEnginesItemLastRun with value set to v.
+func NewNilScanningPatchScanningEnginesIDOKEnginesItemLastRun(v ScanningPatchScanningEnginesIDOKEnginesItemLastRun) NilScanningPatchScanningEnginesIDOKEnginesItemLastRun {
+	return NilScanningPatchScanningEnginesIDOKEnginesItemLastRun{
+		Value: v,
+	}
+}
+
+// NilScanningPatchScanningEnginesIDOKEnginesItemLastRun is nullable ScanningPatchScanningEnginesIDOKEnginesItemLastRun.
+type NilScanningPatchScanningEnginesIDOKEnginesItemLastRun struct {
+	Value ScanningPatchScanningEnginesIDOKEnginesItemLastRun
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningPatchScanningEnginesIDOKEnginesItemLastRun) SetTo(v ScanningPatchScanningEnginesIDOKEnginesItemLastRun) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningPatchScanningEnginesIDOKEnginesItemLastRun) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningPatchScanningEnginesIDOKEnginesItemLastRun) SetToNull() {
+	o.Null = true
+	var v ScanningPatchScanningEnginesIDOKEnginesItemLastRun
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningPatchScanningEnginesIDOKEnginesItemLastRun) Get() (v ScanningPatchScanningEnginesIDOKEnginesItemLastRun, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningPatchScanningEnginesIDOKEnginesItemLastRun) Or(d ScanningPatchScanningEnginesIDOKEnginesItemLastRun) ScanningPatchScanningEnginesIDOKEnginesItemLastRun {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningPatchScanningEnginesIDOKRunningItemProgress returns new NilScanningPatchScanningEnginesIDOKRunningItemProgress with value set to v.
+func NewNilScanningPatchScanningEnginesIDOKRunningItemProgress(v ScanningPatchScanningEnginesIDOKRunningItemProgress) NilScanningPatchScanningEnginesIDOKRunningItemProgress {
+	return NilScanningPatchScanningEnginesIDOKRunningItemProgress{
+		Value: v,
+	}
+}
+
+// NilScanningPatchScanningEnginesIDOKRunningItemProgress is nullable ScanningPatchScanningEnginesIDOKRunningItemProgress.
+type NilScanningPatchScanningEnginesIDOKRunningItemProgress struct {
+	Value ScanningPatchScanningEnginesIDOKRunningItemProgress
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningPatchScanningEnginesIDOKRunningItemProgress) SetTo(v ScanningPatchScanningEnginesIDOKRunningItemProgress) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningPatchScanningEnginesIDOKRunningItemProgress) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningPatchScanningEnginesIDOKRunningItemProgress) SetToNull() {
+	o.Null = true
+	var v ScanningPatchScanningEnginesIDOKRunningItemProgress
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningPatchScanningEnginesIDOKRunningItemProgress) Get() (v ScanningPatchScanningEnginesIDOKRunningItemProgress, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningPatchScanningEnginesIDOKRunningItemProgress) Or(d ScanningPatchScanningEnginesIDOKRunningItemProgress) ScanningPatchScanningEnginesIDOKRunningItemProgress {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningPatchScanningEnginesIDOKRunningItemProgressUnit returns new NilScanningPatchScanningEnginesIDOKRunningItemProgressUnit with value set to v.
+func NewNilScanningPatchScanningEnginesIDOKRunningItemProgressUnit(v ScanningPatchScanningEnginesIDOKRunningItemProgressUnit) NilScanningPatchScanningEnginesIDOKRunningItemProgressUnit {
+	return NilScanningPatchScanningEnginesIDOKRunningItemProgressUnit{
+		Value: v,
+	}
+}
+
+// NilScanningPatchScanningEnginesIDOKRunningItemProgressUnit is nullable ScanningPatchScanningEnginesIDOKRunningItemProgressUnit.
+type NilScanningPatchScanningEnginesIDOKRunningItemProgressUnit struct {
+	Value ScanningPatchScanningEnginesIDOKRunningItemProgressUnit
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningPatchScanningEnginesIDOKRunningItemProgressUnit) SetTo(v ScanningPatchScanningEnginesIDOKRunningItemProgressUnit) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningPatchScanningEnginesIDOKRunningItemProgressUnit) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningPatchScanningEnginesIDOKRunningItemProgressUnit) SetToNull() {
+	o.Null = true
+	var v ScanningPatchScanningEnginesIDOKRunningItemProgressUnit
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningPatchScanningEnginesIDOKRunningItemProgressUnit) Get() (v ScanningPatchScanningEnginesIDOKRunningItemProgressUnit, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningPatchScanningEnginesIDOKRunningItemProgressUnit) Or(d ScanningPatchScanningEnginesIDOKRunningItemProgressUnit) ScanningPatchScanningEnginesIDOKRunningItemProgressUnit {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress returns new NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress with value set to v.
+func NewNilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress(v ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress {
+	return NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress{
+		Value: v,
+	}
+}
+
+// NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress is nullable ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress.
+type NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress struct {
+	Value ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) SetTo(v ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) SetToNull() {
+	o.Null = true
+	var v ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) Get() (v ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) Or(d ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit returns new NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit with value set to v.
+func NewNilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit(v ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit) NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit {
+	return NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit{
+		Value: v,
+	}
+}
+
+// NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit is nullable ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit.
+type NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit struct {
+	Value ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit) SetTo(v ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit) IsNull() bool {
+	return o.Null
+}
+
+// SetToNull sets value to null.
+func (o *NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit) SetToNull() {
+	o.Null = true
+	var v ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit) Get() (v ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit) Or(d ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit) ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -129233,6 +134067,282 @@ func (o OptInt) Get() (v int, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInt) Or(d int) int {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesApproved returns new OptInventoryGetInventoryDevicesApproved with value set to v.
+func NewOptInventoryGetInventoryDevicesApproved(v InventoryGetInventoryDevicesApproved) OptInventoryGetInventoryDevicesApproved {
+	return OptInventoryGetInventoryDevicesApproved{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesApproved is optional InventoryGetInventoryDevicesApproved.
+type OptInventoryGetInventoryDevicesApproved struct {
+	Value InventoryGetInventoryDevicesApproved
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesApproved was set.
+func (o OptInventoryGetInventoryDevicesApproved) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesApproved) Reset() {
+	var v InventoryGetInventoryDevicesApproved
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesApproved) SetTo(v InventoryGetInventoryDevicesApproved) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesApproved) Get() (v InventoryGetInventoryDevicesApproved, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesApproved) Or(d InventoryGetInventoryDevicesApproved) InventoryGetInventoryDevicesApproved {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesFragile returns new OptInventoryGetInventoryDevicesFragile with value set to v.
+func NewOptInventoryGetInventoryDevicesFragile(v InventoryGetInventoryDevicesFragile) OptInventoryGetInventoryDevicesFragile {
+	return OptInventoryGetInventoryDevicesFragile{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesFragile is optional InventoryGetInventoryDevicesFragile.
+type OptInventoryGetInventoryDevicesFragile struct {
+	Value InventoryGetInventoryDevicesFragile
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesFragile was set.
+func (o OptInventoryGetInventoryDevicesFragile) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesFragile) Reset() {
+	var v InventoryGetInventoryDevicesFragile
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesFragile) SetTo(v InventoryGetInventoryDevicesFragile) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesFragile) Get() (v InventoryGetInventoryDevicesFragile, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesFragile) Or(d InventoryGetInventoryDevicesFragile) InventoryGetInventoryDevicesFragile {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesHasFindings returns new OptInventoryGetInventoryDevicesHasFindings with value set to v.
+func NewOptInventoryGetInventoryDevicesHasFindings(v InventoryGetInventoryDevicesHasFindings) OptInventoryGetInventoryDevicesHasFindings {
+	return OptInventoryGetInventoryDevicesHasFindings{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesHasFindings is optional InventoryGetInventoryDevicesHasFindings.
+type OptInventoryGetInventoryDevicesHasFindings struct {
+	Value InventoryGetInventoryDevicesHasFindings
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesHasFindings was set.
+func (o OptInventoryGetInventoryDevicesHasFindings) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesHasFindings) Reset() {
+	var v InventoryGetInventoryDevicesHasFindings
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesHasFindings) SetTo(v InventoryGetInventoryDevicesHasFindings) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesHasFindings) Get() (v InventoryGetInventoryDevicesHasFindings, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesHasFindings) Or(d InventoryGetInventoryDevicesHasFindings) InventoryGetInventoryDevicesHasFindings {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryExportCsvApproved returns new OptInventoryGetInventoryExportCsvApproved with value set to v.
+func NewOptInventoryGetInventoryExportCsvApproved(v InventoryGetInventoryExportCsvApproved) OptInventoryGetInventoryExportCsvApproved {
+	return OptInventoryGetInventoryExportCsvApproved{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryExportCsvApproved is optional InventoryGetInventoryExportCsvApproved.
+type OptInventoryGetInventoryExportCsvApproved struct {
+	Value InventoryGetInventoryExportCsvApproved
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryExportCsvApproved was set.
+func (o OptInventoryGetInventoryExportCsvApproved) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryExportCsvApproved) Reset() {
+	var v InventoryGetInventoryExportCsvApproved
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryExportCsvApproved) SetTo(v InventoryGetInventoryExportCsvApproved) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryExportCsvApproved) Get() (v InventoryGetInventoryExportCsvApproved, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryExportCsvApproved) Or(d InventoryGetInventoryExportCsvApproved) InventoryGetInventoryExportCsvApproved {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryExportCsvFragile returns new OptInventoryGetInventoryExportCsvFragile with value set to v.
+func NewOptInventoryGetInventoryExportCsvFragile(v InventoryGetInventoryExportCsvFragile) OptInventoryGetInventoryExportCsvFragile {
+	return OptInventoryGetInventoryExportCsvFragile{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryExportCsvFragile is optional InventoryGetInventoryExportCsvFragile.
+type OptInventoryGetInventoryExportCsvFragile struct {
+	Value InventoryGetInventoryExportCsvFragile
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryExportCsvFragile was set.
+func (o OptInventoryGetInventoryExportCsvFragile) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryExportCsvFragile) Reset() {
+	var v InventoryGetInventoryExportCsvFragile
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryExportCsvFragile) SetTo(v InventoryGetInventoryExportCsvFragile) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryExportCsvFragile) Get() (v InventoryGetInventoryExportCsvFragile, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryExportCsvFragile) Or(d InventoryGetInventoryExportCsvFragile) InventoryGetInventoryExportCsvFragile {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryExportCsvHasFindings returns new OptInventoryGetInventoryExportCsvHasFindings with value set to v.
+func NewOptInventoryGetInventoryExportCsvHasFindings(v InventoryGetInventoryExportCsvHasFindings) OptInventoryGetInventoryExportCsvHasFindings {
+	return OptInventoryGetInventoryExportCsvHasFindings{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryExportCsvHasFindings is optional InventoryGetInventoryExportCsvHasFindings.
+type OptInventoryGetInventoryExportCsvHasFindings struct {
+	Value InventoryGetInventoryExportCsvHasFindings
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryExportCsvHasFindings was set.
+func (o OptInventoryGetInventoryExportCsvHasFindings) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryExportCsvHasFindings) Reset() {
+	var v InventoryGetInventoryExportCsvHasFindings
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryExportCsvHasFindings) SetTo(v InventoryGetInventoryExportCsvHasFindings) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryExportCsvHasFindings) Get() (v InventoryGetInventoryExportCsvHasFindings, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryExportCsvHasFindings) Or(d InventoryGetInventoryExportCsvHasFindings) InventoryGetInventoryExportCsvHasFindings {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -178468,6 +183578,5095 @@ func (s *ScanPutScansConfigReqWindow) SetFrom(val OptString) {
 
 // SetTo sets the value of To.
 func (s *ScanPutScansConfigReqWindow) SetTo(val OptString) {
+	s.To = val
+}
+
+type ScanningGetScanningOK struct {
+	Box ScanningGetScanningOKBox `json:"box"`
+	// Every engine of this version, in display order; post-v1 ones (credentialed scans) are not listed.
+	Engines []ScanningGetScanningOKEnginesItem `json:"engines"`
+	// Jobs running now across engines, for the "1 scan running" indicator of the top bar.
+	Running []ScanningGetScanningOKRunningItem `json:"running"`
+	Safety  ScanningGetScanningOKSafety        `json:"safety"`
+}
+
+// GetBox returns the value of Box.
+func (s *ScanningGetScanningOK) GetBox() ScanningGetScanningOKBox {
+	return s.Box
+}
+
+// GetEngines returns the value of Engines.
+func (s *ScanningGetScanningOK) GetEngines() []ScanningGetScanningOKEnginesItem {
+	return s.Engines
+}
+
+// GetRunning returns the value of Running.
+func (s *ScanningGetScanningOK) GetRunning() []ScanningGetScanningOKRunningItem {
+	return s.Running
+}
+
+// GetSafety returns the value of Safety.
+func (s *ScanningGetScanningOK) GetSafety() ScanningGetScanningOKSafety {
+	return s.Safety
+}
+
+// SetBox sets the value of Box.
+func (s *ScanningGetScanningOK) SetBox(val ScanningGetScanningOKBox) {
+	s.Box = val
+}
+
+// SetEngines sets the value of Engines.
+func (s *ScanningGetScanningOK) SetEngines(val []ScanningGetScanningOKEnginesItem) {
+	s.Engines = val
+}
+
+// SetRunning sets the value of Running.
+func (s *ScanningGetScanningOK) SetRunning(val []ScanningGetScanningOKRunningItem) {
+	s.Running = val
+}
+
+// SetSafety sets the value of Safety.
+func (s *ScanningGetScanningOK) SetSafety(val ScanningGetScanningOKSafety) {
+	s.Safety = val
+}
+
+type ScanningGetScanningOKBox struct {
+	// MemTotal of the box; null when it cannot be read (container-only install may report its limit).
+	MemoryMB NilInt `json:"memory_mb"`
+	// Sum of the cost of the engines that hold memory now (while on, plus while running for running jobs),
+	// a shared container counted once, plus core's 2048.
+	ReservedMB int `json:"reserved_mb"`
+}
+
+// GetMemoryMB returns the value of MemoryMB.
+func (s *ScanningGetScanningOKBox) GetMemoryMB() NilInt {
+	return s.MemoryMB
+}
+
+// GetReservedMB returns the value of ReservedMB.
+func (s *ScanningGetScanningOKBox) GetReservedMB() int {
+	return s.ReservedMB
+}
+
+// SetMemoryMB sets the value of MemoryMB.
+func (s *ScanningGetScanningOKBox) SetMemoryMB(val NilInt) {
+	s.MemoryMB = val
+}
+
+// SetReservedMB sets the value of ReservedMB.
+func (s *ScanningGetScanningOKBox) SetReservedMB(val int) {
+	s.ReservedMB = val
+}
+
+type ScanningGetScanningOKEnginesItem struct {
+	// Engines that stop too when this one is turned off (osquery and wazuh share the agent-intake switch;
+	// nmap-discovery off stops nmap-versions and the SNMP rounds). External scans (zap, openvas) follow
+	// the External exposure module, not nuclei. The page names them before turning off.
+	Affects []ScanningGetScanningOKEnginesItemAffectsItem `json:"affects"`
+	// False: it has no switch of its own; follows names the engine whose switch it obeys, or reason says
+	// why.
+	CanToggle bool                                 `json:"can_toggle"`
+	Cost      ScanningGetScanningOKEnginesItemCost `json:"cost"`
+	Enabled   bool                                 `json:"enabled"`
+	// Nmap-versions and snmp follow nmap-discovery; null otherwise.
+	Follows NilScanningGetScanningOKEnginesItemFollows `json:"follows"`
+	Group   ScanningGetScanningOKEnginesItemGroup      `json:"group"`
+	ID      ScanningGetScanningOKEnginesItemID         `json:"id"`
+	// Null: never ran.
+	LastRun NilScanningGetScanningOKEnginesItemLastRun `json:"last_run"`
+	// The module it belongs to; PATCH /modules/{id} of that module still works.
+	Module ScanningGetScanningOKEnginesItemModule `json:"module"`
+	// Next window opening (nmap-discovery, nmap-versions, snmp), next scheduled scan (nuclei), next Wazuh
+	// sync; null for engines that listen all the time (passive, osquery, honeypot) or run only when a
+	// person asks (zap, openvas).
+	NextRunAt NilDateTime `json:"next_run_at"`
+	// Its module ships as Preview in v1 (SHIP.md: scan, honeypot).
+	Preview bool `json:"preview"`
+	// Plain sentence for needs_setup, starting, error and unavailable, or a warning while ready (e.g. "A
+	// sweep of these ranges needs 3 windows"); null otherwise.
+	Reason NilString `json:"reason"`
+	// Off: switched off (or its module is); needs_setup: on, but it has nothing to work with yet (scope
+	// not confirmed, no SNMP credential, no osquery token, no Wazuh server, no verified target, no Trap
+	// IP); starting: its container is starting, or OpenVAS loads its feed; ready: on and waiting for its
+	// window, schedule or a person; running: a job runs now; error: it failed and needs a person (reason
+	// says what); unavailable: this box cannot run it (container-only install, tool missing, not enough
+	// memory).
+	State ScanningGetScanningOKEnginesItemState `json:"state"`
+}
+
+// GetAffects returns the value of Affects.
+func (s *ScanningGetScanningOKEnginesItem) GetAffects() []ScanningGetScanningOKEnginesItemAffectsItem {
+	return s.Affects
+}
+
+// GetCanToggle returns the value of CanToggle.
+func (s *ScanningGetScanningOKEnginesItem) GetCanToggle() bool {
+	return s.CanToggle
+}
+
+// GetCost returns the value of Cost.
+func (s *ScanningGetScanningOKEnginesItem) GetCost() ScanningGetScanningOKEnginesItemCost {
+	return s.Cost
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *ScanningGetScanningOKEnginesItem) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetFollows returns the value of Follows.
+func (s *ScanningGetScanningOKEnginesItem) GetFollows() NilScanningGetScanningOKEnginesItemFollows {
+	return s.Follows
+}
+
+// GetGroup returns the value of Group.
+func (s *ScanningGetScanningOKEnginesItem) GetGroup() ScanningGetScanningOKEnginesItemGroup {
+	return s.Group
+}
+
+// GetID returns the value of ID.
+func (s *ScanningGetScanningOKEnginesItem) GetID() ScanningGetScanningOKEnginesItemID {
+	return s.ID
+}
+
+// GetLastRun returns the value of LastRun.
+func (s *ScanningGetScanningOKEnginesItem) GetLastRun() NilScanningGetScanningOKEnginesItemLastRun {
+	return s.LastRun
+}
+
+// GetModule returns the value of Module.
+func (s *ScanningGetScanningOKEnginesItem) GetModule() ScanningGetScanningOKEnginesItemModule {
+	return s.Module
+}
+
+// GetNextRunAt returns the value of NextRunAt.
+func (s *ScanningGetScanningOKEnginesItem) GetNextRunAt() NilDateTime {
+	return s.NextRunAt
+}
+
+// GetPreview returns the value of Preview.
+func (s *ScanningGetScanningOKEnginesItem) GetPreview() bool {
+	return s.Preview
+}
+
+// GetReason returns the value of Reason.
+func (s *ScanningGetScanningOKEnginesItem) GetReason() NilString {
+	return s.Reason
+}
+
+// GetState returns the value of State.
+func (s *ScanningGetScanningOKEnginesItem) GetState() ScanningGetScanningOKEnginesItemState {
+	return s.State
+}
+
+// SetAffects sets the value of Affects.
+func (s *ScanningGetScanningOKEnginesItem) SetAffects(val []ScanningGetScanningOKEnginesItemAffectsItem) {
+	s.Affects = val
+}
+
+// SetCanToggle sets the value of CanToggle.
+func (s *ScanningGetScanningOKEnginesItem) SetCanToggle(val bool) {
+	s.CanToggle = val
+}
+
+// SetCost sets the value of Cost.
+func (s *ScanningGetScanningOKEnginesItem) SetCost(val ScanningGetScanningOKEnginesItemCost) {
+	s.Cost = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *ScanningGetScanningOKEnginesItem) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetFollows sets the value of Follows.
+func (s *ScanningGetScanningOKEnginesItem) SetFollows(val NilScanningGetScanningOKEnginesItemFollows) {
+	s.Follows = val
+}
+
+// SetGroup sets the value of Group.
+func (s *ScanningGetScanningOKEnginesItem) SetGroup(val ScanningGetScanningOKEnginesItemGroup) {
+	s.Group = val
+}
+
+// SetID sets the value of ID.
+func (s *ScanningGetScanningOKEnginesItem) SetID(val ScanningGetScanningOKEnginesItemID) {
+	s.ID = val
+}
+
+// SetLastRun sets the value of LastRun.
+func (s *ScanningGetScanningOKEnginesItem) SetLastRun(val NilScanningGetScanningOKEnginesItemLastRun) {
+	s.LastRun = val
+}
+
+// SetModule sets the value of Module.
+func (s *ScanningGetScanningOKEnginesItem) SetModule(val ScanningGetScanningOKEnginesItemModule) {
+	s.Module = val
+}
+
+// SetNextRunAt sets the value of NextRunAt.
+func (s *ScanningGetScanningOKEnginesItem) SetNextRunAt(val NilDateTime) {
+	s.NextRunAt = val
+}
+
+// SetPreview sets the value of Preview.
+func (s *ScanningGetScanningOKEnginesItem) SetPreview(val bool) {
+	s.Preview = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ScanningGetScanningOKEnginesItem) SetReason(val NilString) {
+	s.Reason = val
+}
+
+// SetState sets the value of State.
+func (s *ScanningGetScanningOKEnginesItem) SetState(val ScanningGetScanningOKEnginesItemState) {
+	s.State = val
+}
+
+type ScanningGetScanningOKEnginesItemAffectsItem string
+
+const (
+	ScanningGetScanningOKEnginesItemAffectsItemPassive       ScanningGetScanningOKEnginesItemAffectsItem = "passive"
+	ScanningGetScanningOKEnginesItemAffectsItemNmapDiscovery ScanningGetScanningOKEnginesItemAffectsItem = "nmap-discovery"
+	ScanningGetScanningOKEnginesItemAffectsItemNmapVersions  ScanningGetScanningOKEnginesItemAffectsItem = "nmap-versions"
+	ScanningGetScanningOKEnginesItemAffectsItemSnmp          ScanningGetScanningOKEnginesItemAffectsItem = "snmp"
+	ScanningGetScanningOKEnginesItemAffectsItemOsquery       ScanningGetScanningOKEnginesItemAffectsItem = "osquery"
+	ScanningGetScanningOKEnginesItemAffectsItemWazuh         ScanningGetScanningOKEnginesItemAffectsItem = "wazuh"
+	ScanningGetScanningOKEnginesItemAffectsItemNuclei        ScanningGetScanningOKEnginesItemAffectsItem = "nuclei"
+	ScanningGetScanningOKEnginesItemAffectsItemZap           ScanningGetScanningOKEnginesItemAffectsItem = "zap"
+	ScanningGetScanningOKEnginesItemAffectsItemOpenvas       ScanningGetScanningOKEnginesItemAffectsItem = "openvas"
+	ScanningGetScanningOKEnginesItemAffectsItemHoneypot      ScanningGetScanningOKEnginesItemAffectsItem = "honeypot"
+)
+
+// AllValues returns all ScanningGetScanningOKEnginesItemAffectsItem values.
+func (ScanningGetScanningOKEnginesItemAffectsItem) AllValues() []ScanningGetScanningOKEnginesItemAffectsItem {
+	return []ScanningGetScanningOKEnginesItemAffectsItem{
+		ScanningGetScanningOKEnginesItemAffectsItemPassive,
+		ScanningGetScanningOKEnginesItemAffectsItemNmapDiscovery,
+		ScanningGetScanningOKEnginesItemAffectsItemNmapVersions,
+		ScanningGetScanningOKEnginesItemAffectsItemSnmp,
+		ScanningGetScanningOKEnginesItemAffectsItemOsquery,
+		ScanningGetScanningOKEnginesItemAffectsItemWazuh,
+		ScanningGetScanningOKEnginesItemAffectsItemNuclei,
+		ScanningGetScanningOKEnginesItemAffectsItemZap,
+		ScanningGetScanningOKEnginesItemAffectsItemOpenvas,
+		ScanningGetScanningOKEnginesItemAffectsItemHoneypot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetScanningOKEnginesItemAffectsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetScanningOKEnginesItemAffectsItemPassive:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemAffectsItemNmapDiscovery:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemAffectsItemNmapVersions:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemAffectsItemSnmp:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemAffectsItemOsquery:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemAffectsItemWazuh:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemAffectsItemNuclei:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemAffectsItemZap:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemAffectsItemOpenvas:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemAffectsItemHoneypot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetScanningOKEnginesItemAffectsItem) UnmarshalText(data []byte) error {
+	switch ScanningGetScanningOKEnginesItemAffectsItem(data) {
+	case ScanningGetScanningOKEnginesItemAffectsItemPassive:
+		*s = ScanningGetScanningOKEnginesItemAffectsItemPassive
+		return nil
+	case ScanningGetScanningOKEnginesItemAffectsItemNmapDiscovery:
+		*s = ScanningGetScanningOKEnginesItemAffectsItemNmapDiscovery
+		return nil
+	case ScanningGetScanningOKEnginesItemAffectsItemNmapVersions:
+		*s = ScanningGetScanningOKEnginesItemAffectsItemNmapVersions
+		return nil
+	case ScanningGetScanningOKEnginesItemAffectsItemSnmp:
+		*s = ScanningGetScanningOKEnginesItemAffectsItemSnmp
+		return nil
+	case ScanningGetScanningOKEnginesItemAffectsItemOsquery:
+		*s = ScanningGetScanningOKEnginesItemAffectsItemOsquery
+		return nil
+	case ScanningGetScanningOKEnginesItemAffectsItemWazuh:
+		*s = ScanningGetScanningOKEnginesItemAffectsItemWazuh
+		return nil
+	case ScanningGetScanningOKEnginesItemAffectsItemNuclei:
+		*s = ScanningGetScanningOKEnginesItemAffectsItemNuclei
+		return nil
+	case ScanningGetScanningOKEnginesItemAffectsItemZap:
+		*s = ScanningGetScanningOKEnginesItemAffectsItemZap
+		return nil
+	case ScanningGetScanningOKEnginesItemAffectsItemOpenvas:
+		*s = ScanningGetScanningOKEnginesItemAffectsItemOpenvas
+		return nil
+	case ScanningGetScanningOKEnginesItemAffectsItemHoneypot:
+		*s = ScanningGetScanningOKEnginesItemAffectsItemHoneypot
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningGetScanningOKEnginesItemCost struct {
+	// The container it shares with other engines (scan: nmap, SNMP and nuclei); count a shared container
+	// once. null when the figure is its own.
+	Container NilString `json:"container"`
+	// Memory it may take, from a fact of the box's code: its container's memory cap (sensor 512, honeypot
+	// 256, scan 1024, ZAP 1024), or the measured peak for OpenVAS (about 4000, D-569); 0 for osquery and
+	// Wazuh, which run inside core. null when it is not known; never an estimate.
+	RAMMB NilInt `json:"ram_mb"`
+	// On: held as long as the engine is on (a long-running container); running: only while one of its jobs
+	// runs (a one-shot container, or OpenVAS scanning).
+	While ScanningGetScanningOKEnginesItemCostWhile `json:"while"`
+}
+
+// GetContainer returns the value of Container.
+func (s *ScanningGetScanningOKEnginesItemCost) GetContainer() NilString {
+	return s.Container
+}
+
+// GetRAMMB returns the value of RAMMB.
+func (s *ScanningGetScanningOKEnginesItemCost) GetRAMMB() NilInt {
+	return s.RAMMB
+}
+
+// GetWhile returns the value of While.
+func (s *ScanningGetScanningOKEnginesItemCost) GetWhile() ScanningGetScanningOKEnginesItemCostWhile {
+	return s.While
+}
+
+// SetContainer sets the value of Container.
+func (s *ScanningGetScanningOKEnginesItemCost) SetContainer(val NilString) {
+	s.Container = val
+}
+
+// SetRAMMB sets the value of RAMMB.
+func (s *ScanningGetScanningOKEnginesItemCost) SetRAMMB(val NilInt) {
+	s.RAMMB = val
+}
+
+// SetWhile sets the value of While.
+func (s *ScanningGetScanningOKEnginesItemCost) SetWhile(val ScanningGetScanningOKEnginesItemCostWhile) {
+	s.While = val
+}
+
+// On: held as long as the engine is on (a long-running container); running: only while one of its jobs
+// runs (a one-shot container, or OpenVAS scanning).
+type ScanningGetScanningOKEnginesItemCostWhile string
+
+const (
+	ScanningGetScanningOKEnginesItemCostWhileOn      ScanningGetScanningOKEnginesItemCostWhile = "on"
+	ScanningGetScanningOKEnginesItemCostWhileRunning ScanningGetScanningOKEnginesItemCostWhile = "running"
+)
+
+// AllValues returns all ScanningGetScanningOKEnginesItemCostWhile values.
+func (ScanningGetScanningOKEnginesItemCostWhile) AllValues() []ScanningGetScanningOKEnginesItemCostWhile {
+	return []ScanningGetScanningOKEnginesItemCostWhile{
+		ScanningGetScanningOKEnginesItemCostWhileOn,
+		ScanningGetScanningOKEnginesItemCostWhileRunning,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetScanningOKEnginesItemCostWhile) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetScanningOKEnginesItemCostWhileOn:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemCostWhileRunning:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetScanningOKEnginesItemCostWhile) UnmarshalText(data []byte) error {
+	switch ScanningGetScanningOKEnginesItemCostWhile(data) {
+	case ScanningGetScanningOKEnginesItemCostWhileOn:
+		*s = ScanningGetScanningOKEnginesItemCostWhileOn
+		return nil
+	case ScanningGetScanningOKEnginesItemCostWhileRunning:
+		*s = ScanningGetScanningOKEnginesItemCostWhileRunning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningGetScanningOKEnginesItemFollows string
+
+const (
+	ScanningGetScanningOKEnginesItemFollowsPassive       ScanningGetScanningOKEnginesItemFollows = "passive"
+	ScanningGetScanningOKEnginesItemFollowsNmapDiscovery ScanningGetScanningOKEnginesItemFollows = "nmap-discovery"
+	ScanningGetScanningOKEnginesItemFollowsNmapVersions  ScanningGetScanningOKEnginesItemFollows = "nmap-versions"
+	ScanningGetScanningOKEnginesItemFollowsSnmp          ScanningGetScanningOKEnginesItemFollows = "snmp"
+	ScanningGetScanningOKEnginesItemFollowsOsquery       ScanningGetScanningOKEnginesItemFollows = "osquery"
+	ScanningGetScanningOKEnginesItemFollowsWazuh         ScanningGetScanningOKEnginesItemFollows = "wazuh"
+	ScanningGetScanningOKEnginesItemFollowsNuclei        ScanningGetScanningOKEnginesItemFollows = "nuclei"
+	ScanningGetScanningOKEnginesItemFollowsZap           ScanningGetScanningOKEnginesItemFollows = "zap"
+	ScanningGetScanningOKEnginesItemFollowsOpenvas       ScanningGetScanningOKEnginesItemFollows = "openvas"
+	ScanningGetScanningOKEnginesItemFollowsHoneypot      ScanningGetScanningOKEnginesItemFollows = "honeypot"
+)
+
+// AllValues returns all ScanningGetScanningOKEnginesItemFollows values.
+func (ScanningGetScanningOKEnginesItemFollows) AllValues() []ScanningGetScanningOKEnginesItemFollows {
+	return []ScanningGetScanningOKEnginesItemFollows{
+		ScanningGetScanningOKEnginesItemFollowsPassive,
+		ScanningGetScanningOKEnginesItemFollowsNmapDiscovery,
+		ScanningGetScanningOKEnginesItemFollowsNmapVersions,
+		ScanningGetScanningOKEnginesItemFollowsSnmp,
+		ScanningGetScanningOKEnginesItemFollowsOsquery,
+		ScanningGetScanningOKEnginesItemFollowsWazuh,
+		ScanningGetScanningOKEnginesItemFollowsNuclei,
+		ScanningGetScanningOKEnginesItemFollowsZap,
+		ScanningGetScanningOKEnginesItemFollowsOpenvas,
+		ScanningGetScanningOKEnginesItemFollowsHoneypot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetScanningOKEnginesItemFollows) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetScanningOKEnginesItemFollowsPassive:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemFollowsNmapDiscovery:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemFollowsNmapVersions:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemFollowsSnmp:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemFollowsOsquery:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemFollowsWazuh:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemFollowsNuclei:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemFollowsZap:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemFollowsOpenvas:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemFollowsHoneypot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetScanningOKEnginesItemFollows) UnmarshalText(data []byte) error {
+	switch ScanningGetScanningOKEnginesItemFollows(data) {
+	case ScanningGetScanningOKEnginesItemFollowsPassive:
+		*s = ScanningGetScanningOKEnginesItemFollowsPassive
+		return nil
+	case ScanningGetScanningOKEnginesItemFollowsNmapDiscovery:
+		*s = ScanningGetScanningOKEnginesItemFollowsNmapDiscovery
+		return nil
+	case ScanningGetScanningOKEnginesItemFollowsNmapVersions:
+		*s = ScanningGetScanningOKEnginesItemFollowsNmapVersions
+		return nil
+	case ScanningGetScanningOKEnginesItemFollowsSnmp:
+		*s = ScanningGetScanningOKEnginesItemFollowsSnmp
+		return nil
+	case ScanningGetScanningOKEnginesItemFollowsOsquery:
+		*s = ScanningGetScanningOKEnginesItemFollowsOsquery
+		return nil
+	case ScanningGetScanningOKEnginesItemFollowsWazuh:
+		*s = ScanningGetScanningOKEnginesItemFollowsWazuh
+		return nil
+	case ScanningGetScanningOKEnginesItemFollowsNuclei:
+		*s = ScanningGetScanningOKEnginesItemFollowsNuclei
+		return nil
+	case ScanningGetScanningOKEnginesItemFollowsZap:
+		*s = ScanningGetScanningOKEnginesItemFollowsZap
+		return nil
+	case ScanningGetScanningOKEnginesItemFollowsOpenvas:
+		*s = ScanningGetScanningOKEnginesItemFollowsOpenvas
+		return nil
+	case ScanningGetScanningOKEnginesItemFollowsHoneypot:
+		*s = ScanningGetScanningOKEnginesItemFollowsHoneypot
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningGetScanningOKEnginesItemGroup string
+
+const (
+	ScanningGetScanningOKEnginesItemGroupDiscover ScanningGetScanningOKEnginesItemGroup = "discover"
+	ScanningGetScanningOKEnginesItemGroupIdentify ScanningGetScanningOKEnginesItemGroup = "identify"
+	ScanningGetScanningOKEnginesItemGroupVuln     ScanningGetScanningOKEnginesItemGroup = "vuln"
+	ScanningGetScanningOKEnginesItemGroupTraps    ScanningGetScanningOKEnginesItemGroup = "traps"
+)
+
+// AllValues returns all ScanningGetScanningOKEnginesItemGroup values.
+func (ScanningGetScanningOKEnginesItemGroup) AllValues() []ScanningGetScanningOKEnginesItemGroup {
+	return []ScanningGetScanningOKEnginesItemGroup{
+		ScanningGetScanningOKEnginesItemGroupDiscover,
+		ScanningGetScanningOKEnginesItemGroupIdentify,
+		ScanningGetScanningOKEnginesItemGroupVuln,
+		ScanningGetScanningOKEnginesItemGroupTraps,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetScanningOKEnginesItemGroup) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetScanningOKEnginesItemGroupDiscover:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemGroupIdentify:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemGroupVuln:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemGroupTraps:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetScanningOKEnginesItemGroup) UnmarshalText(data []byte) error {
+	switch ScanningGetScanningOKEnginesItemGroup(data) {
+	case ScanningGetScanningOKEnginesItemGroupDiscover:
+		*s = ScanningGetScanningOKEnginesItemGroupDiscover
+		return nil
+	case ScanningGetScanningOKEnginesItemGroupIdentify:
+		*s = ScanningGetScanningOKEnginesItemGroupIdentify
+		return nil
+	case ScanningGetScanningOKEnginesItemGroupVuln:
+		*s = ScanningGetScanningOKEnginesItemGroupVuln
+		return nil
+	case ScanningGetScanningOKEnginesItemGroupTraps:
+		*s = ScanningGetScanningOKEnginesItemGroupTraps
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningGetScanningOKEnginesItemID string
+
+const (
+	ScanningGetScanningOKEnginesItemIDPassive       ScanningGetScanningOKEnginesItemID = "passive"
+	ScanningGetScanningOKEnginesItemIDNmapDiscovery ScanningGetScanningOKEnginesItemID = "nmap-discovery"
+	ScanningGetScanningOKEnginesItemIDNmapVersions  ScanningGetScanningOKEnginesItemID = "nmap-versions"
+	ScanningGetScanningOKEnginesItemIDSnmp          ScanningGetScanningOKEnginesItemID = "snmp"
+	ScanningGetScanningOKEnginesItemIDOsquery       ScanningGetScanningOKEnginesItemID = "osquery"
+	ScanningGetScanningOKEnginesItemIDWazuh         ScanningGetScanningOKEnginesItemID = "wazuh"
+	ScanningGetScanningOKEnginesItemIDNuclei        ScanningGetScanningOKEnginesItemID = "nuclei"
+	ScanningGetScanningOKEnginesItemIDZap           ScanningGetScanningOKEnginesItemID = "zap"
+	ScanningGetScanningOKEnginesItemIDOpenvas       ScanningGetScanningOKEnginesItemID = "openvas"
+	ScanningGetScanningOKEnginesItemIDHoneypot      ScanningGetScanningOKEnginesItemID = "honeypot"
+)
+
+// AllValues returns all ScanningGetScanningOKEnginesItemID values.
+func (ScanningGetScanningOKEnginesItemID) AllValues() []ScanningGetScanningOKEnginesItemID {
+	return []ScanningGetScanningOKEnginesItemID{
+		ScanningGetScanningOKEnginesItemIDPassive,
+		ScanningGetScanningOKEnginesItemIDNmapDiscovery,
+		ScanningGetScanningOKEnginesItemIDNmapVersions,
+		ScanningGetScanningOKEnginesItemIDSnmp,
+		ScanningGetScanningOKEnginesItemIDOsquery,
+		ScanningGetScanningOKEnginesItemIDWazuh,
+		ScanningGetScanningOKEnginesItemIDNuclei,
+		ScanningGetScanningOKEnginesItemIDZap,
+		ScanningGetScanningOKEnginesItemIDOpenvas,
+		ScanningGetScanningOKEnginesItemIDHoneypot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetScanningOKEnginesItemID) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetScanningOKEnginesItemIDPassive:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemIDNmapDiscovery:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemIDNmapVersions:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemIDSnmp:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemIDOsquery:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemIDWazuh:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemIDNuclei:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemIDZap:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemIDOpenvas:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemIDHoneypot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetScanningOKEnginesItemID) UnmarshalText(data []byte) error {
+	switch ScanningGetScanningOKEnginesItemID(data) {
+	case ScanningGetScanningOKEnginesItemIDPassive:
+		*s = ScanningGetScanningOKEnginesItemIDPassive
+		return nil
+	case ScanningGetScanningOKEnginesItemIDNmapDiscovery:
+		*s = ScanningGetScanningOKEnginesItemIDNmapDiscovery
+		return nil
+	case ScanningGetScanningOKEnginesItemIDNmapVersions:
+		*s = ScanningGetScanningOKEnginesItemIDNmapVersions
+		return nil
+	case ScanningGetScanningOKEnginesItemIDSnmp:
+		*s = ScanningGetScanningOKEnginesItemIDSnmp
+		return nil
+	case ScanningGetScanningOKEnginesItemIDOsquery:
+		*s = ScanningGetScanningOKEnginesItemIDOsquery
+		return nil
+	case ScanningGetScanningOKEnginesItemIDWazuh:
+		*s = ScanningGetScanningOKEnginesItemIDWazuh
+		return nil
+	case ScanningGetScanningOKEnginesItemIDNuclei:
+		*s = ScanningGetScanningOKEnginesItemIDNuclei
+		return nil
+	case ScanningGetScanningOKEnginesItemIDZap:
+		*s = ScanningGetScanningOKEnginesItemIDZap
+		return nil
+	case ScanningGetScanningOKEnginesItemIDOpenvas:
+		*s = ScanningGetScanningOKEnginesItemIDOpenvas
+		return nil
+	case ScanningGetScanningOKEnginesItemIDHoneypot:
+		*s = ScanningGetScanningOKEnginesItemIDHoneypot
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningGetScanningOKEnginesItemLastRun struct {
+	At      time.Time                                      `json:"at"`
+	Outcome ScanningGetScanningOKEnginesItemLastRunOutcome `json:"outcome"`
+	// One sentence from the box, e.g. "Swept 254 addresses, 3 new devices", "Last report from an osquery
+	// agent", "Last trap hit".
+	Text string `json:"text"`
+}
+
+// GetAt returns the value of At.
+func (s *ScanningGetScanningOKEnginesItemLastRun) GetAt() time.Time {
+	return s.At
+}
+
+// GetOutcome returns the value of Outcome.
+func (s *ScanningGetScanningOKEnginesItemLastRun) GetOutcome() ScanningGetScanningOKEnginesItemLastRunOutcome {
+	return s.Outcome
+}
+
+// GetText returns the value of Text.
+func (s *ScanningGetScanningOKEnginesItemLastRun) GetText() string {
+	return s.Text
+}
+
+// SetAt sets the value of At.
+func (s *ScanningGetScanningOKEnginesItemLastRun) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetOutcome sets the value of Outcome.
+func (s *ScanningGetScanningOKEnginesItemLastRun) SetOutcome(val ScanningGetScanningOKEnginesItemLastRunOutcome) {
+	s.Outcome = val
+}
+
+// SetText sets the value of Text.
+func (s *ScanningGetScanningOKEnginesItemLastRun) SetText(val string) {
+	s.Text = val
+}
+
+type ScanningGetScanningOKEnginesItemLastRunOutcome string
+
+const (
+	ScanningGetScanningOKEnginesItemLastRunOutcomeOk      ScanningGetScanningOKEnginesItemLastRunOutcome = "ok"
+	ScanningGetScanningOKEnginesItemLastRunOutcomePartial ScanningGetScanningOKEnginesItemLastRunOutcome = "partial"
+	ScanningGetScanningOKEnginesItemLastRunOutcomeFailed  ScanningGetScanningOKEnginesItemLastRunOutcome = "failed"
+	ScanningGetScanningOKEnginesItemLastRunOutcomeStopped ScanningGetScanningOKEnginesItemLastRunOutcome = "stopped"
+)
+
+// AllValues returns all ScanningGetScanningOKEnginesItemLastRunOutcome values.
+func (ScanningGetScanningOKEnginesItemLastRunOutcome) AllValues() []ScanningGetScanningOKEnginesItemLastRunOutcome {
+	return []ScanningGetScanningOKEnginesItemLastRunOutcome{
+		ScanningGetScanningOKEnginesItemLastRunOutcomeOk,
+		ScanningGetScanningOKEnginesItemLastRunOutcomePartial,
+		ScanningGetScanningOKEnginesItemLastRunOutcomeFailed,
+		ScanningGetScanningOKEnginesItemLastRunOutcomeStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetScanningOKEnginesItemLastRunOutcome) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetScanningOKEnginesItemLastRunOutcomeOk:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemLastRunOutcomePartial:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemLastRunOutcomeFailed:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemLastRunOutcomeStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetScanningOKEnginesItemLastRunOutcome) UnmarshalText(data []byte) error {
+	switch ScanningGetScanningOKEnginesItemLastRunOutcome(data) {
+	case ScanningGetScanningOKEnginesItemLastRunOutcomeOk:
+		*s = ScanningGetScanningOKEnginesItemLastRunOutcomeOk
+		return nil
+	case ScanningGetScanningOKEnginesItemLastRunOutcomePartial:
+		*s = ScanningGetScanningOKEnginesItemLastRunOutcomePartial
+		return nil
+	case ScanningGetScanningOKEnginesItemLastRunOutcomeFailed:
+		*s = ScanningGetScanningOKEnginesItemLastRunOutcomeFailed
+		return nil
+	case ScanningGetScanningOKEnginesItemLastRunOutcomeStopped:
+		*s = ScanningGetScanningOKEnginesItemLastRunOutcomeStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The module it belongs to; PATCH /modules/{id} of that module still works.
+type ScanningGetScanningOKEnginesItemModule string
+
+const (
+	ScanningGetScanningOKEnginesItemModuleSensorPassive ScanningGetScanningOKEnginesItemModule = "sensor-passive"
+	ScanningGetScanningOKEnginesItemModuleSensorActive  ScanningGetScanningOKEnginesItemModule = "sensor-active"
+	ScanningGetScanningOKEnginesItemModuleAgentIntake   ScanningGetScanningOKEnginesItemModule = "agent-intake"
+	ScanningGetScanningOKEnginesItemModuleScan          ScanningGetScanningOKEnginesItemModule = "scan"
+	ScanningGetScanningOKEnginesItemModuleExposure      ScanningGetScanningOKEnginesItemModule = "exposure"
+	ScanningGetScanningOKEnginesItemModuleHoneypot      ScanningGetScanningOKEnginesItemModule = "honeypot"
+)
+
+// AllValues returns all ScanningGetScanningOKEnginesItemModule values.
+func (ScanningGetScanningOKEnginesItemModule) AllValues() []ScanningGetScanningOKEnginesItemModule {
+	return []ScanningGetScanningOKEnginesItemModule{
+		ScanningGetScanningOKEnginesItemModuleSensorPassive,
+		ScanningGetScanningOKEnginesItemModuleSensorActive,
+		ScanningGetScanningOKEnginesItemModuleAgentIntake,
+		ScanningGetScanningOKEnginesItemModuleScan,
+		ScanningGetScanningOKEnginesItemModuleExposure,
+		ScanningGetScanningOKEnginesItemModuleHoneypot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetScanningOKEnginesItemModule) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetScanningOKEnginesItemModuleSensorPassive:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemModuleSensorActive:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemModuleAgentIntake:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemModuleScan:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemModuleExposure:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemModuleHoneypot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetScanningOKEnginesItemModule) UnmarshalText(data []byte) error {
+	switch ScanningGetScanningOKEnginesItemModule(data) {
+	case ScanningGetScanningOKEnginesItemModuleSensorPassive:
+		*s = ScanningGetScanningOKEnginesItemModuleSensorPassive
+		return nil
+	case ScanningGetScanningOKEnginesItemModuleSensorActive:
+		*s = ScanningGetScanningOKEnginesItemModuleSensorActive
+		return nil
+	case ScanningGetScanningOKEnginesItemModuleAgentIntake:
+		*s = ScanningGetScanningOKEnginesItemModuleAgentIntake
+		return nil
+	case ScanningGetScanningOKEnginesItemModuleScan:
+		*s = ScanningGetScanningOKEnginesItemModuleScan
+		return nil
+	case ScanningGetScanningOKEnginesItemModuleExposure:
+		*s = ScanningGetScanningOKEnginesItemModuleExposure
+		return nil
+	case ScanningGetScanningOKEnginesItemModuleHoneypot:
+		*s = ScanningGetScanningOKEnginesItemModuleHoneypot
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Off: switched off (or its module is); needs_setup: on, but it has nothing to work with yet (scope
+// not confirmed, no SNMP credential, no osquery token, no Wazuh server, no verified target, no Trap
+// IP); starting: its container is starting, or OpenVAS loads its feed; ready: on and waiting for its
+// window, schedule or a person; running: a job runs now; error: it failed and needs a person (reason
+// says what); unavailable: this box cannot run it (container-only install, tool missing, not enough
+// memory).
+type ScanningGetScanningOKEnginesItemState string
+
+const (
+	ScanningGetScanningOKEnginesItemStateOff         ScanningGetScanningOKEnginesItemState = "off"
+	ScanningGetScanningOKEnginesItemStateNeedsSetup  ScanningGetScanningOKEnginesItemState = "needs_setup"
+	ScanningGetScanningOKEnginesItemStateStarting    ScanningGetScanningOKEnginesItemState = "starting"
+	ScanningGetScanningOKEnginesItemStateReady       ScanningGetScanningOKEnginesItemState = "ready"
+	ScanningGetScanningOKEnginesItemStateRunning     ScanningGetScanningOKEnginesItemState = "running"
+	ScanningGetScanningOKEnginesItemStateError       ScanningGetScanningOKEnginesItemState = "error"
+	ScanningGetScanningOKEnginesItemStateUnavailable ScanningGetScanningOKEnginesItemState = "unavailable"
+)
+
+// AllValues returns all ScanningGetScanningOKEnginesItemState values.
+func (ScanningGetScanningOKEnginesItemState) AllValues() []ScanningGetScanningOKEnginesItemState {
+	return []ScanningGetScanningOKEnginesItemState{
+		ScanningGetScanningOKEnginesItemStateOff,
+		ScanningGetScanningOKEnginesItemStateNeedsSetup,
+		ScanningGetScanningOKEnginesItemStateStarting,
+		ScanningGetScanningOKEnginesItemStateReady,
+		ScanningGetScanningOKEnginesItemStateRunning,
+		ScanningGetScanningOKEnginesItemStateError,
+		ScanningGetScanningOKEnginesItemStateUnavailable,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetScanningOKEnginesItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetScanningOKEnginesItemStateOff:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemStateNeedsSetup:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemStateStarting:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemStateReady:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemStateRunning:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemStateError:
+		return []byte(s), nil
+	case ScanningGetScanningOKEnginesItemStateUnavailable:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetScanningOKEnginesItemState) UnmarshalText(data []byte) error {
+	switch ScanningGetScanningOKEnginesItemState(data) {
+	case ScanningGetScanningOKEnginesItemStateOff:
+		*s = ScanningGetScanningOKEnginesItemStateOff
+		return nil
+	case ScanningGetScanningOKEnginesItemStateNeedsSetup:
+		*s = ScanningGetScanningOKEnginesItemStateNeedsSetup
+		return nil
+	case ScanningGetScanningOKEnginesItemStateStarting:
+		*s = ScanningGetScanningOKEnginesItemStateStarting
+		return nil
+	case ScanningGetScanningOKEnginesItemStateReady:
+		*s = ScanningGetScanningOKEnginesItemStateReady
+		return nil
+	case ScanningGetScanningOKEnginesItemStateRunning:
+		*s = ScanningGetScanningOKEnginesItemStateRunning
+		return nil
+	case ScanningGetScanningOKEnginesItemStateError:
+		*s = ScanningGetScanningOKEnginesItemStateError
+		return nil
+	case ScanningGetScanningOKEnginesItemStateUnavailable:
+		*s = ScanningGetScanningOKEnginesItemStateUnavailable
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningGetScanningOKRunningItem struct {
+	Engine ScanningGetScanningOKRunningItemEngine `json:"engine"`
+	// The run: a scan_run id, an exposure ScanRun id, an sa_job id, or a run of POST
+	// /scanning/engines/nmap-discovery/run.
+	ID string `json:"id"`
+	// What it scans, e.g. "LAN sweep 192.168.18.0/24", "Check 192.168.18.20", "203.0.113.10".
+	Label string `json:"label"`
+	// Null until the run reports a step, and for runs that do not report one.
+	Progress  NilScanningGetScanningOKRunningItemProgress `json:"progress"`
+	StartedAt time.Time                                   `json:"started_at"`
+	// The device id or exposure target id the run is about, for a link; null for a sweep or several
+	// devices.
+	TargetID NilString `json:"target_id"`
+}
+
+// GetEngine returns the value of Engine.
+func (s *ScanningGetScanningOKRunningItem) GetEngine() ScanningGetScanningOKRunningItemEngine {
+	return s.Engine
+}
+
+// GetID returns the value of ID.
+func (s *ScanningGetScanningOKRunningItem) GetID() string {
+	return s.ID
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanningGetScanningOKRunningItem) GetLabel() string {
+	return s.Label
+}
+
+// GetProgress returns the value of Progress.
+func (s *ScanningGetScanningOKRunningItem) GetProgress() NilScanningGetScanningOKRunningItemProgress {
+	return s.Progress
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ScanningGetScanningOKRunningItem) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ScanningGetScanningOKRunningItem) GetTargetID() NilString {
+	return s.TargetID
+}
+
+// SetEngine sets the value of Engine.
+func (s *ScanningGetScanningOKRunningItem) SetEngine(val ScanningGetScanningOKRunningItemEngine) {
+	s.Engine = val
+}
+
+// SetID sets the value of ID.
+func (s *ScanningGetScanningOKRunningItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanningGetScanningOKRunningItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetProgress sets the value of Progress.
+func (s *ScanningGetScanningOKRunningItem) SetProgress(val NilScanningGetScanningOKRunningItemProgress) {
+	s.Progress = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ScanningGetScanningOKRunningItem) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ScanningGetScanningOKRunningItem) SetTargetID(val NilString) {
+	s.TargetID = val
+}
+
+type ScanningGetScanningOKRunningItemEngine string
+
+const (
+	ScanningGetScanningOKRunningItemEnginePassive       ScanningGetScanningOKRunningItemEngine = "passive"
+	ScanningGetScanningOKRunningItemEngineNmapDiscovery ScanningGetScanningOKRunningItemEngine = "nmap-discovery"
+	ScanningGetScanningOKRunningItemEngineNmapVersions  ScanningGetScanningOKRunningItemEngine = "nmap-versions"
+	ScanningGetScanningOKRunningItemEngineSnmp          ScanningGetScanningOKRunningItemEngine = "snmp"
+	ScanningGetScanningOKRunningItemEngineOsquery       ScanningGetScanningOKRunningItemEngine = "osquery"
+	ScanningGetScanningOKRunningItemEngineWazuh         ScanningGetScanningOKRunningItemEngine = "wazuh"
+	ScanningGetScanningOKRunningItemEngineNuclei        ScanningGetScanningOKRunningItemEngine = "nuclei"
+	ScanningGetScanningOKRunningItemEngineZap           ScanningGetScanningOKRunningItemEngine = "zap"
+	ScanningGetScanningOKRunningItemEngineOpenvas       ScanningGetScanningOKRunningItemEngine = "openvas"
+	ScanningGetScanningOKRunningItemEngineHoneypot      ScanningGetScanningOKRunningItemEngine = "honeypot"
+)
+
+// AllValues returns all ScanningGetScanningOKRunningItemEngine values.
+func (ScanningGetScanningOKRunningItemEngine) AllValues() []ScanningGetScanningOKRunningItemEngine {
+	return []ScanningGetScanningOKRunningItemEngine{
+		ScanningGetScanningOKRunningItemEnginePassive,
+		ScanningGetScanningOKRunningItemEngineNmapDiscovery,
+		ScanningGetScanningOKRunningItemEngineNmapVersions,
+		ScanningGetScanningOKRunningItemEngineSnmp,
+		ScanningGetScanningOKRunningItemEngineOsquery,
+		ScanningGetScanningOKRunningItemEngineWazuh,
+		ScanningGetScanningOKRunningItemEngineNuclei,
+		ScanningGetScanningOKRunningItemEngineZap,
+		ScanningGetScanningOKRunningItemEngineOpenvas,
+		ScanningGetScanningOKRunningItemEngineHoneypot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetScanningOKRunningItemEngine) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetScanningOKRunningItemEnginePassive:
+		return []byte(s), nil
+	case ScanningGetScanningOKRunningItemEngineNmapDiscovery:
+		return []byte(s), nil
+	case ScanningGetScanningOKRunningItemEngineNmapVersions:
+		return []byte(s), nil
+	case ScanningGetScanningOKRunningItemEngineSnmp:
+		return []byte(s), nil
+	case ScanningGetScanningOKRunningItemEngineOsquery:
+		return []byte(s), nil
+	case ScanningGetScanningOKRunningItemEngineWazuh:
+		return []byte(s), nil
+	case ScanningGetScanningOKRunningItemEngineNuclei:
+		return []byte(s), nil
+	case ScanningGetScanningOKRunningItemEngineZap:
+		return []byte(s), nil
+	case ScanningGetScanningOKRunningItemEngineOpenvas:
+		return []byte(s), nil
+	case ScanningGetScanningOKRunningItemEngineHoneypot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetScanningOKRunningItemEngine) UnmarshalText(data []byte) error {
+	switch ScanningGetScanningOKRunningItemEngine(data) {
+	case ScanningGetScanningOKRunningItemEnginePassive:
+		*s = ScanningGetScanningOKRunningItemEnginePassive
+		return nil
+	case ScanningGetScanningOKRunningItemEngineNmapDiscovery:
+		*s = ScanningGetScanningOKRunningItemEngineNmapDiscovery
+		return nil
+	case ScanningGetScanningOKRunningItemEngineNmapVersions:
+		*s = ScanningGetScanningOKRunningItemEngineNmapVersions
+		return nil
+	case ScanningGetScanningOKRunningItemEngineSnmp:
+		*s = ScanningGetScanningOKRunningItemEngineSnmp
+		return nil
+	case ScanningGetScanningOKRunningItemEngineOsquery:
+		*s = ScanningGetScanningOKRunningItemEngineOsquery
+		return nil
+	case ScanningGetScanningOKRunningItemEngineWazuh:
+		*s = ScanningGetScanningOKRunningItemEngineWazuh
+		return nil
+	case ScanningGetScanningOKRunningItemEngineNuclei:
+		*s = ScanningGetScanningOKRunningItemEngineNuclei
+		return nil
+	case ScanningGetScanningOKRunningItemEngineZap:
+		*s = ScanningGetScanningOKRunningItemEngineZap
+		return nil
+	case ScanningGetScanningOKRunningItemEngineOpenvas:
+		*s = ScanningGetScanningOKRunningItemEngineOpenvas
+		return nil
+	case ScanningGetScanningOKRunningItemEngineHoneypot:
+		*s = ScanningGetScanningOKRunningItemEngineHoneypot
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningGetScanningOKRunningItemProgress struct {
+	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
+	Done NilInt `json:"done"`
+	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
+	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
+	Eta NilDateTime `json:"eta"`
+	// A short English note on the pass, e.g. "Second pass: administration and alternative ports"; null
+	// when none.
+	Message NilString `json:"message"`
+	// How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the
+	// phase without a bar).
+	Percent NilFloat64 `json:"percent"`
+	// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+	// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+	// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+	// result is being stored.
+	Phase ScanningGetScanningOKRunningItemProgressPhase `json:"phase"`
+	// When the current phase (or the current pass of it: a device gets a second nmap pass over admin
+	// ports) started.
+	PhaseStartedAt time.Time `json:"phase_started_at"`
+	// When the job (the device, or the public IP scan) started: elapsed time is now minus this.
+	StartedAt time.Time `json:"started_at"`
+	Total     NilInt    `json:"total"`
+	// Checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch.
+	Unit NilScanningGetScanningOKRunningItemProgressUnit `json:"unit"`
+	// The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is
+	// quiet, not that the box hangs.
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// GetDone returns the value of Done.
+func (s *ScanningGetScanningOKRunningItemProgress) GetDone() NilInt {
+	return s.Done
+}
+
+// GetEta returns the value of Eta.
+func (s *ScanningGetScanningOKRunningItemProgress) GetEta() NilDateTime {
+	return s.Eta
+}
+
+// GetMessage returns the value of Message.
+func (s *ScanningGetScanningOKRunningItemProgress) GetMessage() NilString {
+	return s.Message
+}
+
+// GetPercent returns the value of Percent.
+func (s *ScanningGetScanningOKRunningItemProgress) GetPercent() NilFloat64 {
+	return s.Percent
+}
+
+// GetPhase returns the value of Phase.
+func (s *ScanningGetScanningOKRunningItemProgress) GetPhase() ScanningGetScanningOKRunningItemProgressPhase {
+	return s.Phase
+}
+
+// GetPhaseStartedAt returns the value of PhaseStartedAt.
+func (s *ScanningGetScanningOKRunningItemProgress) GetPhaseStartedAt() time.Time {
+	return s.PhaseStartedAt
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ScanningGetScanningOKRunningItemProgress) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetTotal returns the value of Total.
+func (s *ScanningGetScanningOKRunningItemProgress) GetTotal() NilInt {
+	return s.Total
+}
+
+// GetUnit returns the value of Unit.
+func (s *ScanningGetScanningOKRunningItemProgress) GetUnit() NilScanningGetScanningOKRunningItemProgressUnit {
+	return s.Unit
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ScanningGetScanningOKRunningItemProgress) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetDone sets the value of Done.
+func (s *ScanningGetScanningOKRunningItemProgress) SetDone(val NilInt) {
+	s.Done = val
+}
+
+// SetEta sets the value of Eta.
+func (s *ScanningGetScanningOKRunningItemProgress) SetEta(val NilDateTime) {
+	s.Eta = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ScanningGetScanningOKRunningItemProgress) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetPercent sets the value of Percent.
+func (s *ScanningGetScanningOKRunningItemProgress) SetPercent(val NilFloat64) {
+	s.Percent = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *ScanningGetScanningOKRunningItemProgress) SetPhase(val ScanningGetScanningOKRunningItemProgressPhase) {
+	s.Phase = val
+}
+
+// SetPhaseStartedAt sets the value of PhaseStartedAt.
+func (s *ScanningGetScanningOKRunningItemProgress) SetPhaseStartedAt(val time.Time) {
+	s.PhaseStartedAt = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ScanningGetScanningOKRunningItemProgress) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ScanningGetScanningOKRunningItemProgress) SetTotal(val NilInt) {
+	s.Total = val
+}
+
+// SetUnit sets the value of Unit.
+func (s *ScanningGetScanningOKRunningItemProgress) SetUnit(val NilScanningGetScanningOKRunningItemProgressUnit) {
+	s.Unit = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ScanningGetScanningOKRunningItemProgress) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+// result is being stored.
+type ScanningGetScanningOKRunningItemProgressPhase string
+
+const (
+	ScanningGetScanningOKRunningItemProgressPhaseDiscovery ScanningGetScanningOKRunningItemProgressPhase = "discovery"
+	ScanningGetScanningOKRunningItemProgressPhasePorts     ScanningGetScanningOKRunningItemProgressPhase = "ports"
+	ScanningGetScanningOKRunningItemProgressPhaseServices  ScanningGetScanningOKRunningItemProgressPhase = "services"
+	ScanningGetScanningOKRunningItemProgressPhaseScripts   ScanningGetScanningOKRunningItemProgressPhase = "scripts"
+	ScanningGetScanningOKRunningItemProgressPhaseVulns     ScanningGetScanningOKRunningItemProgressPhase = "vulns"
+	ScanningGetScanningOKRunningItemProgressPhaseWeb       ScanningGetScanningOKRunningItemProgressPhase = "web"
+	ScanningGetScanningOKRunningItemProgressPhaseOpenvas   ScanningGetScanningOKRunningItemProgressPhase = "openvas"
+	ScanningGetScanningOKRunningItemProgressPhaseSaving    ScanningGetScanningOKRunningItemProgressPhase = "saving"
+)
+
+// AllValues returns all ScanningGetScanningOKRunningItemProgressPhase values.
+func (ScanningGetScanningOKRunningItemProgressPhase) AllValues() []ScanningGetScanningOKRunningItemProgressPhase {
+	return []ScanningGetScanningOKRunningItemProgressPhase{
+		ScanningGetScanningOKRunningItemProgressPhaseDiscovery,
+		ScanningGetScanningOKRunningItemProgressPhasePorts,
+		ScanningGetScanningOKRunningItemProgressPhaseServices,
+		ScanningGetScanningOKRunningItemProgressPhaseScripts,
+		ScanningGetScanningOKRunningItemProgressPhaseVulns,
+		ScanningGetScanningOKRunningItemProgressPhaseWeb,
+		ScanningGetScanningOKRunningItemProgressPhaseOpenvas,
+		ScanningGetScanningOKRunningItemProgressPhaseSaving,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetScanningOKRunningItemProgressPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetScanningOKRunningItemProgressPhaseDiscovery:
+		return []byte(s), nil
+	case ScanningGetScanningOKRunningItemProgressPhasePorts:
+		return []byte(s), nil
+	case ScanningGetScanningOKRunningItemProgressPhaseServices:
+		return []byte(s), nil
+	case ScanningGetScanningOKRunningItemProgressPhaseScripts:
+		return []byte(s), nil
+	case ScanningGetScanningOKRunningItemProgressPhaseVulns:
+		return []byte(s), nil
+	case ScanningGetScanningOKRunningItemProgressPhaseWeb:
+		return []byte(s), nil
+	case ScanningGetScanningOKRunningItemProgressPhaseOpenvas:
+		return []byte(s), nil
+	case ScanningGetScanningOKRunningItemProgressPhaseSaving:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetScanningOKRunningItemProgressPhase) UnmarshalText(data []byte) error {
+	switch ScanningGetScanningOKRunningItemProgressPhase(data) {
+	case ScanningGetScanningOKRunningItemProgressPhaseDiscovery:
+		*s = ScanningGetScanningOKRunningItemProgressPhaseDiscovery
+		return nil
+	case ScanningGetScanningOKRunningItemProgressPhasePorts:
+		*s = ScanningGetScanningOKRunningItemProgressPhasePorts
+		return nil
+	case ScanningGetScanningOKRunningItemProgressPhaseServices:
+		*s = ScanningGetScanningOKRunningItemProgressPhaseServices
+		return nil
+	case ScanningGetScanningOKRunningItemProgressPhaseScripts:
+		*s = ScanningGetScanningOKRunningItemProgressPhaseScripts
+		return nil
+	case ScanningGetScanningOKRunningItemProgressPhaseVulns:
+		*s = ScanningGetScanningOKRunningItemProgressPhaseVulns
+		return nil
+	case ScanningGetScanningOKRunningItemProgressPhaseWeb:
+		*s = ScanningGetScanningOKRunningItemProgressPhaseWeb
+		return nil
+	case ScanningGetScanningOKRunningItemProgressPhaseOpenvas:
+		*s = ScanningGetScanningOKRunningItemProgressPhaseOpenvas
+		return nil
+	case ScanningGetScanningOKRunningItemProgressPhaseSaving:
+		*s = ScanningGetScanningOKRunningItemProgressPhaseSaving
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningGetScanningOKRunningItemProgressUnit string
+
+const (
+	ScanningGetScanningOKRunningItemProgressUnitChecks ScanningGetScanningOKRunningItemProgressUnit = "checks"
+	ScanningGetScanningOKRunningItemProgressUnitHosts  ScanningGetScanningOKRunningItemProgressUnit = "hosts"
+)
+
+// AllValues returns all ScanningGetScanningOKRunningItemProgressUnit values.
+func (ScanningGetScanningOKRunningItemProgressUnit) AllValues() []ScanningGetScanningOKRunningItemProgressUnit {
+	return []ScanningGetScanningOKRunningItemProgressUnit{
+		ScanningGetScanningOKRunningItemProgressUnitChecks,
+		ScanningGetScanningOKRunningItemProgressUnitHosts,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetScanningOKRunningItemProgressUnit) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetScanningOKRunningItemProgressUnitChecks:
+		return []byte(s), nil
+	case ScanningGetScanningOKRunningItemProgressUnitHosts:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetScanningOKRunningItemProgressUnit) UnmarshalText(data []byte) error {
+	switch ScanningGetScanningOKRunningItemProgressUnit(data) {
+	case ScanningGetScanningOKRunningItemProgressUnitChecks:
+		*s = ScanningGetScanningOKRunningItemProgressUnitChecks
+		return nil
+	case ScanningGetScanningOKRunningItemProgressUnitHosts:
+		*s = ScanningGetScanningOKRunningItemProgressUnitHosts
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningGetScanningOKSafety struct {
+	// IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the
+	// 200 a save accepts).
+	Exclusions []string                           `json:"exclusions"`
+	Fragile    ScanningGetScanningOKSafetyFragile `json:"fragile"`
+	Scope      ScanningGetScanningOKSafetyScope   `json:"scope"`
+	Speed      ScanningGetScanningOKSafetySpeed   `json:"speed"`
+	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
+	// Check this device now and external scans are not bound by it.
+	Window ScanningGetScanningOKSafetyWindow `json:"window"`
+}
+
+// GetExclusions returns the value of Exclusions.
+func (s *ScanningGetScanningOKSafety) GetExclusions() []string {
+	return s.Exclusions
+}
+
+// GetFragile returns the value of Fragile.
+func (s *ScanningGetScanningOKSafety) GetFragile() ScanningGetScanningOKSafetyFragile {
+	return s.Fragile
+}
+
+// GetScope returns the value of Scope.
+func (s *ScanningGetScanningOKSafety) GetScope() ScanningGetScanningOKSafetyScope {
+	return s.Scope
+}
+
+// GetSpeed returns the value of Speed.
+func (s *ScanningGetScanningOKSafety) GetSpeed() ScanningGetScanningOKSafetySpeed {
+	return s.Speed
+}
+
+// GetWindow returns the value of Window.
+func (s *ScanningGetScanningOKSafety) GetWindow() ScanningGetScanningOKSafetyWindow {
+	return s.Window
+}
+
+// SetExclusions sets the value of Exclusions.
+func (s *ScanningGetScanningOKSafety) SetExclusions(val []string) {
+	s.Exclusions = val
+}
+
+// SetFragile sets the value of Fragile.
+func (s *ScanningGetScanningOKSafety) SetFragile(val ScanningGetScanningOKSafetyFragile) {
+	s.Fragile = val
+}
+
+// SetScope sets the value of Scope.
+func (s *ScanningGetScanningOKSafety) SetScope(val ScanningGetScanningOKSafetyScope) {
+	s.Scope = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *ScanningGetScanningOKSafety) SetSpeed(val ScanningGetScanningOKSafetySpeed) {
+	s.Speed = val
+}
+
+// SetWindow sets the value of Window.
+func (s *ScanningGetScanningOKSafety) SetWindow(val ScanningGetScanningOKSafetyWindow) {
+	s.Window = val
+}
+
+type ScanningGetScanningOKSafetyFragile struct {
+	// Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter;
+	// read-only.
+	Devices int `json:"devices"`
+	// Types scanned once, gently, when first seen; passive-only after that (D-45, D-511).
+	Kinds []ScanningGetScanningOKSafetyFragileKindsItem `json:"kinds"`
+	// Subset of kinds that may still get regular scans.
+	RegularScanKinds []ScanningGetScanningOKSafetyFragileRegularScanKindsItem `json:"regular_scan_kinds"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ScanningGetScanningOKSafetyFragile) GetDevices() int {
+	return s.Devices
+}
+
+// GetKinds returns the value of Kinds.
+func (s *ScanningGetScanningOKSafetyFragile) GetKinds() []ScanningGetScanningOKSafetyFragileKindsItem {
+	return s.Kinds
+}
+
+// GetRegularScanKinds returns the value of RegularScanKinds.
+func (s *ScanningGetScanningOKSafetyFragile) GetRegularScanKinds() []ScanningGetScanningOKSafetyFragileRegularScanKindsItem {
+	return s.RegularScanKinds
+}
+
+// SetDevices sets the value of Devices.
+func (s *ScanningGetScanningOKSafetyFragile) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetKinds sets the value of Kinds.
+func (s *ScanningGetScanningOKSafetyFragile) SetKinds(val []ScanningGetScanningOKSafetyFragileKindsItem) {
+	s.Kinds = val
+}
+
+// SetRegularScanKinds sets the value of RegularScanKinds.
+func (s *ScanningGetScanningOKSafetyFragile) SetRegularScanKinds(val []ScanningGetScanningOKSafetyFragileRegularScanKindsItem) {
+	s.RegularScanKinds = val
+}
+
+type ScanningGetScanningOKSafetyFragileKindsItem string
+
+const (
+	ScanningGetScanningOKSafetyFragileKindsItemFirewall ScanningGetScanningOKSafetyFragileKindsItem = "firewall"
+	ScanningGetScanningOKSafetyFragileKindsItemRouter   ScanningGetScanningOKSafetyFragileKindsItem = "router"
+	ScanningGetScanningOKSafetyFragileKindsItemSwitch   ScanningGetScanningOKSafetyFragileKindsItem = "switch"
+	ScanningGetScanningOKSafetyFragileKindsItemAp       ScanningGetScanningOKSafetyFragileKindsItem = "ap"
+	ScanningGetScanningOKSafetyFragileKindsItemNas      ScanningGetScanningOKSafetyFragileKindsItem = "nas"
+	ScanningGetScanningOKSafetyFragileKindsItemServer   ScanningGetScanningOKSafetyFragileKindsItem = "server"
+	ScanningGetScanningOKSafetyFragileKindsItemPc       ScanningGetScanningOKSafetyFragileKindsItem = "pc"
+	ScanningGetScanningOKSafetyFragileKindsItemPrinter  ScanningGetScanningOKSafetyFragileKindsItem = "printer"
+	ScanningGetScanningOKSafetyFragileKindsItemCamera   ScanningGetScanningOKSafetyFragileKindsItem = "camera"
+	ScanningGetScanningOKSafetyFragileKindsItemNvr      ScanningGetScanningOKSafetyFragileKindsItem = "nvr"
+	ScanningGetScanningOKSafetyFragileKindsItemIot      ScanningGetScanningOKSafetyFragileKindsItem = "iot"
+	ScanningGetScanningOKSafetyFragileKindsItemWeb      ScanningGetScanningOKSafetyFragileKindsItem = "web"
+	ScanningGetScanningOKSafetyFragileKindsItemUnknown  ScanningGetScanningOKSafetyFragileKindsItem = "unknown"
+)
+
+// AllValues returns all ScanningGetScanningOKSafetyFragileKindsItem values.
+func (ScanningGetScanningOKSafetyFragileKindsItem) AllValues() []ScanningGetScanningOKSafetyFragileKindsItem {
+	return []ScanningGetScanningOKSafetyFragileKindsItem{
+		ScanningGetScanningOKSafetyFragileKindsItemFirewall,
+		ScanningGetScanningOKSafetyFragileKindsItemRouter,
+		ScanningGetScanningOKSafetyFragileKindsItemSwitch,
+		ScanningGetScanningOKSafetyFragileKindsItemAp,
+		ScanningGetScanningOKSafetyFragileKindsItemNas,
+		ScanningGetScanningOKSafetyFragileKindsItemServer,
+		ScanningGetScanningOKSafetyFragileKindsItemPc,
+		ScanningGetScanningOKSafetyFragileKindsItemPrinter,
+		ScanningGetScanningOKSafetyFragileKindsItemCamera,
+		ScanningGetScanningOKSafetyFragileKindsItemNvr,
+		ScanningGetScanningOKSafetyFragileKindsItemIot,
+		ScanningGetScanningOKSafetyFragileKindsItemWeb,
+		ScanningGetScanningOKSafetyFragileKindsItemUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetScanningOKSafetyFragileKindsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetScanningOKSafetyFragileKindsItemFirewall:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileKindsItemRouter:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileKindsItemSwitch:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileKindsItemAp:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileKindsItemNas:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileKindsItemServer:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileKindsItemPc:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileKindsItemPrinter:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileKindsItemCamera:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileKindsItemNvr:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileKindsItemIot:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileKindsItemWeb:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileKindsItemUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetScanningOKSafetyFragileKindsItem) UnmarshalText(data []byte) error {
+	switch ScanningGetScanningOKSafetyFragileKindsItem(data) {
+	case ScanningGetScanningOKSafetyFragileKindsItemFirewall:
+		*s = ScanningGetScanningOKSafetyFragileKindsItemFirewall
+		return nil
+	case ScanningGetScanningOKSafetyFragileKindsItemRouter:
+		*s = ScanningGetScanningOKSafetyFragileKindsItemRouter
+		return nil
+	case ScanningGetScanningOKSafetyFragileKindsItemSwitch:
+		*s = ScanningGetScanningOKSafetyFragileKindsItemSwitch
+		return nil
+	case ScanningGetScanningOKSafetyFragileKindsItemAp:
+		*s = ScanningGetScanningOKSafetyFragileKindsItemAp
+		return nil
+	case ScanningGetScanningOKSafetyFragileKindsItemNas:
+		*s = ScanningGetScanningOKSafetyFragileKindsItemNas
+		return nil
+	case ScanningGetScanningOKSafetyFragileKindsItemServer:
+		*s = ScanningGetScanningOKSafetyFragileKindsItemServer
+		return nil
+	case ScanningGetScanningOKSafetyFragileKindsItemPc:
+		*s = ScanningGetScanningOKSafetyFragileKindsItemPc
+		return nil
+	case ScanningGetScanningOKSafetyFragileKindsItemPrinter:
+		*s = ScanningGetScanningOKSafetyFragileKindsItemPrinter
+		return nil
+	case ScanningGetScanningOKSafetyFragileKindsItemCamera:
+		*s = ScanningGetScanningOKSafetyFragileKindsItemCamera
+		return nil
+	case ScanningGetScanningOKSafetyFragileKindsItemNvr:
+		*s = ScanningGetScanningOKSafetyFragileKindsItemNvr
+		return nil
+	case ScanningGetScanningOKSafetyFragileKindsItemIot:
+		*s = ScanningGetScanningOKSafetyFragileKindsItemIot
+		return nil
+	case ScanningGetScanningOKSafetyFragileKindsItemWeb:
+		*s = ScanningGetScanningOKSafetyFragileKindsItemWeb
+		return nil
+	case ScanningGetScanningOKSafetyFragileKindsItemUnknown:
+		*s = ScanningGetScanningOKSafetyFragileKindsItemUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningGetScanningOKSafetyFragileRegularScanKindsItem string
+
+const (
+	ScanningGetScanningOKSafetyFragileRegularScanKindsItemFirewall ScanningGetScanningOKSafetyFragileRegularScanKindsItem = "firewall"
+	ScanningGetScanningOKSafetyFragileRegularScanKindsItemRouter   ScanningGetScanningOKSafetyFragileRegularScanKindsItem = "router"
+	ScanningGetScanningOKSafetyFragileRegularScanKindsItemSwitch   ScanningGetScanningOKSafetyFragileRegularScanKindsItem = "switch"
+	ScanningGetScanningOKSafetyFragileRegularScanKindsItemAp       ScanningGetScanningOKSafetyFragileRegularScanKindsItem = "ap"
+	ScanningGetScanningOKSafetyFragileRegularScanKindsItemNas      ScanningGetScanningOKSafetyFragileRegularScanKindsItem = "nas"
+	ScanningGetScanningOKSafetyFragileRegularScanKindsItemServer   ScanningGetScanningOKSafetyFragileRegularScanKindsItem = "server"
+	ScanningGetScanningOKSafetyFragileRegularScanKindsItemPc       ScanningGetScanningOKSafetyFragileRegularScanKindsItem = "pc"
+	ScanningGetScanningOKSafetyFragileRegularScanKindsItemPrinter  ScanningGetScanningOKSafetyFragileRegularScanKindsItem = "printer"
+	ScanningGetScanningOKSafetyFragileRegularScanKindsItemCamera   ScanningGetScanningOKSafetyFragileRegularScanKindsItem = "camera"
+	ScanningGetScanningOKSafetyFragileRegularScanKindsItemNvr      ScanningGetScanningOKSafetyFragileRegularScanKindsItem = "nvr"
+	ScanningGetScanningOKSafetyFragileRegularScanKindsItemIot      ScanningGetScanningOKSafetyFragileRegularScanKindsItem = "iot"
+	ScanningGetScanningOKSafetyFragileRegularScanKindsItemWeb      ScanningGetScanningOKSafetyFragileRegularScanKindsItem = "web"
+	ScanningGetScanningOKSafetyFragileRegularScanKindsItemUnknown  ScanningGetScanningOKSafetyFragileRegularScanKindsItem = "unknown"
+)
+
+// AllValues returns all ScanningGetScanningOKSafetyFragileRegularScanKindsItem values.
+func (ScanningGetScanningOKSafetyFragileRegularScanKindsItem) AllValues() []ScanningGetScanningOKSafetyFragileRegularScanKindsItem {
+	return []ScanningGetScanningOKSafetyFragileRegularScanKindsItem{
+		ScanningGetScanningOKSafetyFragileRegularScanKindsItemFirewall,
+		ScanningGetScanningOKSafetyFragileRegularScanKindsItemRouter,
+		ScanningGetScanningOKSafetyFragileRegularScanKindsItemSwitch,
+		ScanningGetScanningOKSafetyFragileRegularScanKindsItemAp,
+		ScanningGetScanningOKSafetyFragileRegularScanKindsItemNas,
+		ScanningGetScanningOKSafetyFragileRegularScanKindsItemServer,
+		ScanningGetScanningOKSafetyFragileRegularScanKindsItemPc,
+		ScanningGetScanningOKSafetyFragileRegularScanKindsItemPrinter,
+		ScanningGetScanningOKSafetyFragileRegularScanKindsItemCamera,
+		ScanningGetScanningOKSafetyFragileRegularScanKindsItemNvr,
+		ScanningGetScanningOKSafetyFragileRegularScanKindsItemIot,
+		ScanningGetScanningOKSafetyFragileRegularScanKindsItemWeb,
+		ScanningGetScanningOKSafetyFragileRegularScanKindsItemUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetScanningOKSafetyFragileRegularScanKindsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemFirewall:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemRouter:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemSwitch:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemAp:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemNas:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemServer:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemPc:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemPrinter:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemCamera:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemNvr:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemIot:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemWeb:
+		return []byte(s), nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetScanningOKSafetyFragileRegularScanKindsItem) UnmarshalText(data []byte) error {
+	switch ScanningGetScanningOKSafetyFragileRegularScanKindsItem(data) {
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemFirewall:
+		*s = ScanningGetScanningOKSafetyFragileRegularScanKindsItemFirewall
+		return nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemRouter:
+		*s = ScanningGetScanningOKSafetyFragileRegularScanKindsItemRouter
+		return nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemSwitch:
+		*s = ScanningGetScanningOKSafetyFragileRegularScanKindsItemSwitch
+		return nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemAp:
+		*s = ScanningGetScanningOKSafetyFragileRegularScanKindsItemAp
+		return nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemNas:
+		*s = ScanningGetScanningOKSafetyFragileRegularScanKindsItemNas
+		return nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemServer:
+		*s = ScanningGetScanningOKSafetyFragileRegularScanKindsItemServer
+		return nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemPc:
+		*s = ScanningGetScanningOKSafetyFragileRegularScanKindsItemPc
+		return nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemPrinter:
+		*s = ScanningGetScanningOKSafetyFragileRegularScanKindsItemPrinter
+		return nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemCamera:
+		*s = ScanningGetScanningOKSafetyFragileRegularScanKindsItemCamera
+		return nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemNvr:
+		*s = ScanningGetScanningOKSafetyFragileRegularScanKindsItemNvr
+		return nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemIot:
+		*s = ScanningGetScanningOKSafetyFragileRegularScanKindsItemIot
+		return nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemWeb:
+		*s = ScanningGetScanningOKSafetyFragileRegularScanKindsItemWeb
+		return nil
+	case ScanningGetScanningOKSafetyFragileRegularScanKindsItemUnknown:
+		*s = ScanningGetScanningOKSafetyFragileRegularScanKindsItemUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningGetScanningOKSafetyScope struct {
+	ConfirmedAt NilDateTime `json:"confirmed_at"`
+	ConfirmedBy NilString   `json:"confirmed_by"`
+	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges.
+	LanRanges []string `json:"lan_ranges"`
+}
+
+// GetConfirmedAt returns the value of ConfirmedAt.
+func (s *ScanningGetScanningOKSafetyScope) GetConfirmedAt() NilDateTime {
+	return s.ConfirmedAt
+}
+
+// GetConfirmedBy returns the value of ConfirmedBy.
+func (s *ScanningGetScanningOKSafetyScope) GetConfirmedBy() NilString {
+	return s.ConfirmedBy
+}
+
+// GetLanRanges returns the value of LanRanges.
+func (s *ScanningGetScanningOKSafetyScope) GetLanRanges() []string {
+	return s.LanRanges
+}
+
+// SetConfirmedAt sets the value of ConfirmedAt.
+func (s *ScanningGetScanningOKSafetyScope) SetConfirmedAt(val NilDateTime) {
+	s.ConfirmedAt = val
+}
+
+// SetConfirmedBy sets the value of ConfirmedBy.
+func (s *ScanningGetScanningOKSafetyScope) SetConfirmedBy(val NilString) {
+	s.ConfirmedBy = val
+}
+
+// SetLanRanges sets the value of LanRanges.
+func (s *ScanningGetScanningOKSafetyScope) SetLanRanges(val []string) {
+	s.LanRanges = val
+}
+
+type ScanningGetScanningOKSafetySpeed struct {
+	// Nmap and SNMP (inventory active.rate).
+	PacketsPerS int `json:"packets_per_s"`
+	// Nuclei on LAN devices (was scan config rate).
+	RequestsPerS int `json:"requests_per_s"`
+}
+
+// GetPacketsPerS returns the value of PacketsPerS.
+func (s *ScanningGetScanningOKSafetySpeed) GetPacketsPerS() int {
+	return s.PacketsPerS
+}
+
+// GetRequestsPerS returns the value of RequestsPerS.
+func (s *ScanningGetScanningOKSafetySpeed) GetRequestsPerS() int {
+	return s.RequestsPerS
+}
+
+// SetPacketsPerS sets the value of PacketsPerS.
+func (s *ScanningGetScanningOKSafetySpeed) SetPacketsPerS(val int) {
+	s.PacketsPerS = val
+}
+
+// SetRequestsPerS sets the value of RequestsPerS.
+func (s *ScanningGetScanningOKSafetySpeed) SetRequestsPerS(val int) {
+	s.RequestsPerS = val
+}
+
+// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
+// Check this device now and external scans are not bound by it.
+type ScanningGetScanningOKSafetyWindow struct {
+	// Empty only on a box whose discovery was saved off without a day; a save needs one.
+	Days []int `json:"days"`
+	// HH:MM.
+	From string `json:"from"`
+	// IANA zone the window is read in (the organization time zone); read-only.
+	TimeZone string `json:"time_zone"`
+	// Earlier than from: crosses midnight.
+	To string `json:"to"`
+}
+
+// GetDays returns the value of Days.
+func (s *ScanningGetScanningOKSafetyWindow) GetDays() []int {
+	return s.Days
+}
+
+// GetFrom returns the value of From.
+func (s *ScanningGetScanningOKSafetyWindow) GetFrom() string {
+	return s.From
+}
+
+// GetTimeZone returns the value of TimeZone.
+func (s *ScanningGetScanningOKSafetyWindow) GetTimeZone() string {
+	return s.TimeZone
+}
+
+// GetTo returns the value of To.
+func (s *ScanningGetScanningOKSafetyWindow) GetTo() string {
+	return s.To
+}
+
+// SetDays sets the value of Days.
+func (s *ScanningGetScanningOKSafetyWindow) SetDays(val []int) {
+	s.Days = val
+}
+
+// SetFrom sets the value of From.
+func (s *ScanningGetScanningOKSafetyWindow) SetFrom(val string) {
+	s.From = val
+}
+
+// SetTimeZone sets the value of TimeZone.
+func (s *ScanningGetScanningOKSafetyWindow) SetTimeZone(val string) {
+	s.TimeZone = val
+}
+
+// SetTo sets the value of To.
+func (s *ScanningGetScanningOKSafetyWindow) SetTo(val string) {
+	s.To = val
+}
+
+type ScanningPatchScanningEnginesIDID string
+
+const (
+	ScanningPatchScanningEnginesIDIDPassive       ScanningPatchScanningEnginesIDID = "passive"
+	ScanningPatchScanningEnginesIDIDNmapDiscovery ScanningPatchScanningEnginesIDID = "nmap-discovery"
+	ScanningPatchScanningEnginesIDIDNmapVersions  ScanningPatchScanningEnginesIDID = "nmap-versions"
+	ScanningPatchScanningEnginesIDIDSnmp          ScanningPatchScanningEnginesIDID = "snmp"
+	ScanningPatchScanningEnginesIDIDOsquery       ScanningPatchScanningEnginesIDID = "osquery"
+	ScanningPatchScanningEnginesIDIDWazuh         ScanningPatchScanningEnginesIDID = "wazuh"
+	ScanningPatchScanningEnginesIDIDNuclei        ScanningPatchScanningEnginesIDID = "nuclei"
+	ScanningPatchScanningEnginesIDIDZap           ScanningPatchScanningEnginesIDID = "zap"
+	ScanningPatchScanningEnginesIDIDOpenvas       ScanningPatchScanningEnginesIDID = "openvas"
+	ScanningPatchScanningEnginesIDIDHoneypot      ScanningPatchScanningEnginesIDID = "honeypot"
+)
+
+// AllValues returns all ScanningPatchScanningEnginesIDID values.
+func (ScanningPatchScanningEnginesIDID) AllValues() []ScanningPatchScanningEnginesIDID {
+	return []ScanningPatchScanningEnginesIDID{
+		ScanningPatchScanningEnginesIDIDPassive,
+		ScanningPatchScanningEnginesIDIDNmapDiscovery,
+		ScanningPatchScanningEnginesIDIDNmapVersions,
+		ScanningPatchScanningEnginesIDIDSnmp,
+		ScanningPatchScanningEnginesIDIDOsquery,
+		ScanningPatchScanningEnginesIDIDWazuh,
+		ScanningPatchScanningEnginesIDIDNuclei,
+		ScanningPatchScanningEnginesIDIDZap,
+		ScanningPatchScanningEnginesIDIDOpenvas,
+		ScanningPatchScanningEnginesIDIDHoneypot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPatchScanningEnginesIDID) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPatchScanningEnginesIDIDPassive:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDIDNmapDiscovery:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDIDNmapVersions:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDIDSnmp:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDIDOsquery:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDIDWazuh:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDIDNuclei:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDIDZap:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDIDOpenvas:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDIDHoneypot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPatchScanningEnginesIDID) UnmarshalText(data []byte) error {
+	switch ScanningPatchScanningEnginesIDID(data) {
+	case ScanningPatchScanningEnginesIDIDPassive:
+		*s = ScanningPatchScanningEnginesIDIDPassive
+		return nil
+	case ScanningPatchScanningEnginesIDIDNmapDiscovery:
+		*s = ScanningPatchScanningEnginesIDIDNmapDiscovery
+		return nil
+	case ScanningPatchScanningEnginesIDIDNmapVersions:
+		*s = ScanningPatchScanningEnginesIDIDNmapVersions
+		return nil
+	case ScanningPatchScanningEnginesIDIDSnmp:
+		*s = ScanningPatchScanningEnginesIDIDSnmp
+		return nil
+	case ScanningPatchScanningEnginesIDIDOsquery:
+		*s = ScanningPatchScanningEnginesIDIDOsquery
+		return nil
+	case ScanningPatchScanningEnginesIDIDWazuh:
+		*s = ScanningPatchScanningEnginesIDIDWazuh
+		return nil
+	case ScanningPatchScanningEnginesIDIDNuclei:
+		*s = ScanningPatchScanningEnginesIDIDNuclei
+		return nil
+	case ScanningPatchScanningEnginesIDIDZap:
+		*s = ScanningPatchScanningEnginesIDIDZap
+		return nil
+	case ScanningPatchScanningEnginesIDIDOpenvas:
+		*s = ScanningPatchScanningEnginesIDIDOpenvas
+		return nil
+	case ScanningPatchScanningEnginesIDIDHoneypot:
+		*s = ScanningPatchScanningEnginesIDIDHoneypot
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPatchScanningEnginesIDOK struct {
+	Box ScanningPatchScanningEnginesIDOKBox `json:"box"`
+	// Every engine of this version, in display order; post-v1 ones (credentialed scans) are not listed.
+	Engines []ScanningPatchScanningEnginesIDOKEnginesItem `json:"engines"`
+	// Jobs running now across engines, for the "1 scan running" indicator of the top bar.
+	Running []ScanningPatchScanningEnginesIDOKRunningItem `json:"running"`
+	Safety  ScanningPatchScanningEnginesIDOKSafety        `json:"safety"`
+}
+
+// GetBox returns the value of Box.
+func (s *ScanningPatchScanningEnginesIDOK) GetBox() ScanningPatchScanningEnginesIDOKBox {
+	return s.Box
+}
+
+// GetEngines returns the value of Engines.
+func (s *ScanningPatchScanningEnginesIDOK) GetEngines() []ScanningPatchScanningEnginesIDOKEnginesItem {
+	return s.Engines
+}
+
+// GetRunning returns the value of Running.
+func (s *ScanningPatchScanningEnginesIDOK) GetRunning() []ScanningPatchScanningEnginesIDOKRunningItem {
+	return s.Running
+}
+
+// GetSafety returns the value of Safety.
+func (s *ScanningPatchScanningEnginesIDOK) GetSafety() ScanningPatchScanningEnginesIDOKSafety {
+	return s.Safety
+}
+
+// SetBox sets the value of Box.
+func (s *ScanningPatchScanningEnginesIDOK) SetBox(val ScanningPatchScanningEnginesIDOKBox) {
+	s.Box = val
+}
+
+// SetEngines sets the value of Engines.
+func (s *ScanningPatchScanningEnginesIDOK) SetEngines(val []ScanningPatchScanningEnginesIDOKEnginesItem) {
+	s.Engines = val
+}
+
+// SetRunning sets the value of Running.
+func (s *ScanningPatchScanningEnginesIDOK) SetRunning(val []ScanningPatchScanningEnginesIDOKRunningItem) {
+	s.Running = val
+}
+
+// SetSafety sets the value of Safety.
+func (s *ScanningPatchScanningEnginesIDOK) SetSafety(val ScanningPatchScanningEnginesIDOKSafety) {
+	s.Safety = val
+}
+
+type ScanningPatchScanningEnginesIDOKBox struct {
+	// MemTotal of the box; null when it cannot be read (container-only install may report its limit).
+	MemoryMB NilInt `json:"memory_mb"`
+	// Sum of the cost of the engines that hold memory now (while on, plus while running for running jobs),
+	// a shared container counted once, plus core's 2048.
+	ReservedMB int `json:"reserved_mb"`
+}
+
+// GetMemoryMB returns the value of MemoryMB.
+func (s *ScanningPatchScanningEnginesIDOKBox) GetMemoryMB() NilInt {
+	return s.MemoryMB
+}
+
+// GetReservedMB returns the value of ReservedMB.
+func (s *ScanningPatchScanningEnginesIDOKBox) GetReservedMB() int {
+	return s.ReservedMB
+}
+
+// SetMemoryMB sets the value of MemoryMB.
+func (s *ScanningPatchScanningEnginesIDOKBox) SetMemoryMB(val NilInt) {
+	s.MemoryMB = val
+}
+
+// SetReservedMB sets the value of ReservedMB.
+func (s *ScanningPatchScanningEnginesIDOKBox) SetReservedMB(val int) {
+	s.ReservedMB = val
+}
+
+type ScanningPatchScanningEnginesIDOKEnginesItem struct {
+	// Engines that stop too when this one is turned off (osquery and wazuh share the agent-intake switch;
+	// nmap-discovery off stops nmap-versions and the SNMP rounds). External scans (zap, openvas) follow
+	// the External exposure module, not nuclei. The page names them before turning off.
+	Affects []ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem `json:"affects"`
+	// False: it has no switch of its own; follows names the engine whose switch it obeys, or reason says
+	// why.
+	CanToggle bool                                            `json:"can_toggle"`
+	Cost      ScanningPatchScanningEnginesIDOKEnginesItemCost `json:"cost"`
+	Enabled   bool                                            `json:"enabled"`
+	// Nmap-versions and snmp follow nmap-discovery; null otherwise.
+	Follows NilScanningPatchScanningEnginesIDOKEnginesItemFollows `json:"follows"`
+	Group   ScanningPatchScanningEnginesIDOKEnginesItemGroup      `json:"group"`
+	ID      ScanningPatchScanningEnginesIDOKEnginesItemID         `json:"id"`
+	// Null: never ran.
+	LastRun NilScanningPatchScanningEnginesIDOKEnginesItemLastRun `json:"last_run"`
+	// The module it belongs to; PATCH /modules/{id} of that module still works.
+	Module ScanningPatchScanningEnginesIDOKEnginesItemModule `json:"module"`
+	// Next window opening (nmap-discovery, nmap-versions, snmp), next scheduled scan (nuclei), next Wazuh
+	// sync; null for engines that listen all the time (passive, osquery, honeypot) or run only when a
+	// person asks (zap, openvas).
+	NextRunAt NilDateTime `json:"next_run_at"`
+	// Its module ships as Preview in v1 (SHIP.md: scan, honeypot).
+	Preview bool `json:"preview"`
+	// Plain sentence for needs_setup, starting, error and unavailable, or a warning while ready (e.g. "A
+	// sweep of these ranges needs 3 windows"); null otherwise.
+	Reason NilString `json:"reason"`
+	// Off: switched off (or its module is); needs_setup: on, but it has nothing to work with yet (scope
+	// not confirmed, no SNMP credential, no osquery token, no Wazuh server, no verified target, no Trap
+	// IP); starting: its container is starting, or OpenVAS loads its feed; ready: on and waiting for its
+	// window, schedule or a person; running: a job runs now; error: it failed and needs a person (reason
+	// says what); unavailable: this box cannot run it (container-only install, tool missing, not enough
+	// memory).
+	State ScanningPatchScanningEnginesIDOKEnginesItemState `json:"state"`
+}
+
+// GetAffects returns the value of Affects.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) GetAffects() []ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem {
+	return s.Affects
+}
+
+// GetCanToggle returns the value of CanToggle.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) GetCanToggle() bool {
+	return s.CanToggle
+}
+
+// GetCost returns the value of Cost.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) GetCost() ScanningPatchScanningEnginesIDOKEnginesItemCost {
+	return s.Cost
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetFollows returns the value of Follows.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) GetFollows() NilScanningPatchScanningEnginesIDOKEnginesItemFollows {
+	return s.Follows
+}
+
+// GetGroup returns the value of Group.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) GetGroup() ScanningPatchScanningEnginesIDOKEnginesItemGroup {
+	return s.Group
+}
+
+// GetID returns the value of ID.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) GetID() ScanningPatchScanningEnginesIDOKEnginesItemID {
+	return s.ID
+}
+
+// GetLastRun returns the value of LastRun.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) GetLastRun() NilScanningPatchScanningEnginesIDOKEnginesItemLastRun {
+	return s.LastRun
+}
+
+// GetModule returns the value of Module.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) GetModule() ScanningPatchScanningEnginesIDOKEnginesItemModule {
+	return s.Module
+}
+
+// GetNextRunAt returns the value of NextRunAt.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) GetNextRunAt() NilDateTime {
+	return s.NextRunAt
+}
+
+// GetPreview returns the value of Preview.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) GetPreview() bool {
+	return s.Preview
+}
+
+// GetReason returns the value of Reason.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) GetReason() NilString {
+	return s.Reason
+}
+
+// GetState returns the value of State.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) GetState() ScanningPatchScanningEnginesIDOKEnginesItemState {
+	return s.State
+}
+
+// SetAffects sets the value of Affects.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) SetAffects(val []ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem) {
+	s.Affects = val
+}
+
+// SetCanToggle sets the value of CanToggle.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) SetCanToggle(val bool) {
+	s.CanToggle = val
+}
+
+// SetCost sets the value of Cost.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) SetCost(val ScanningPatchScanningEnginesIDOKEnginesItemCost) {
+	s.Cost = val
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetFollows sets the value of Follows.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) SetFollows(val NilScanningPatchScanningEnginesIDOKEnginesItemFollows) {
+	s.Follows = val
+}
+
+// SetGroup sets the value of Group.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) SetGroup(val ScanningPatchScanningEnginesIDOKEnginesItemGroup) {
+	s.Group = val
+}
+
+// SetID sets the value of ID.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) SetID(val ScanningPatchScanningEnginesIDOKEnginesItemID) {
+	s.ID = val
+}
+
+// SetLastRun sets the value of LastRun.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) SetLastRun(val NilScanningPatchScanningEnginesIDOKEnginesItemLastRun) {
+	s.LastRun = val
+}
+
+// SetModule sets the value of Module.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) SetModule(val ScanningPatchScanningEnginesIDOKEnginesItemModule) {
+	s.Module = val
+}
+
+// SetNextRunAt sets the value of NextRunAt.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) SetNextRunAt(val NilDateTime) {
+	s.NextRunAt = val
+}
+
+// SetPreview sets the value of Preview.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) SetPreview(val bool) {
+	s.Preview = val
+}
+
+// SetReason sets the value of Reason.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) SetReason(val NilString) {
+	s.Reason = val
+}
+
+// SetState sets the value of State.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItem) SetState(val ScanningPatchScanningEnginesIDOKEnginesItemState) {
+	s.State = val
+}
+
+type ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem string
+
+const (
+	ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemPassive       ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem = "passive"
+	ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemNmapDiscovery ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem = "nmap-discovery"
+	ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemNmapVersions  ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem = "nmap-versions"
+	ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemSnmp          ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem = "snmp"
+	ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemOsquery       ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem = "osquery"
+	ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemWazuh         ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem = "wazuh"
+	ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemNuclei        ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem = "nuclei"
+	ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemZap           ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem = "zap"
+	ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemOpenvas       ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem = "openvas"
+	ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemHoneypot      ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem = "honeypot"
+)
+
+// AllValues returns all ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem values.
+func (ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem) AllValues() []ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem {
+	return []ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem{
+		ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemPassive,
+		ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemNmapDiscovery,
+		ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemNmapVersions,
+		ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemSnmp,
+		ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemOsquery,
+		ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemWazuh,
+		ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemNuclei,
+		ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemZap,
+		ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemOpenvas,
+		ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemHoneypot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemPassive:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemNmapDiscovery:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemNmapVersions:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemSnmp:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemOsquery:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemWazuh:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemNuclei:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemZap:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemOpenvas:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemHoneypot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem) UnmarshalText(data []byte) error {
+	switch ScanningPatchScanningEnginesIDOKEnginesItemAffectsItem(data) {
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemPassive:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemPassive
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemNmapDiscovery:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemNmapDiscovery
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemNmapVersions:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemNmapVersions
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemSnmp:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemSnmp
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemOsquery:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemOsquery
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemWazuh:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemWazuh
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemNuclei:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemNuclei
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemZap:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemZap
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemOpenvas:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemOpenvas
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemHoneypot:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemAffectsItemHoneypot
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPatchScanningEnginesIDOKEnginesItemCost struct {
+	// The container it shares with other engines (scan: nmap, SNMP and nuclei); count a shared container
+	// once. null when the figure is its own.
+	Container NilString `json:"container"`
+	// Memory it may take, from a fact of the box's code: its container's memory cap (sensor 512, honeypot
+	// 256, scan 1024, ZAP 1024), or the measured peak for OpenVAS (about 4000, D-569); 0 for osquery and
+	// Wazuh, which run inside core. null when it is not known; never an estimate.
+	RAMMB NilInt `json:"ram_mb"`
+	// On: held as long as the engine is on (a long-running container); running: only while one of its jobs
+	// runs (a one-shot container, or OpenVAS scanning).
+	While ScanningPatchScanningEnginesIDOKEnginesItemCostWhile `json:"while"`
+}
+
+// GetContainer returns the value of Container.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemCost) GetContainer() NilString {
+	return s.Container
+}
+
+// GetRAMMB returns the value of RAMMB.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemCost) GetRAMMB() NilInt {
+	return s.RAMMB
+}
+
+// GetWhile returns the value of While.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemCost) GetWhile() ScanningPatchScanningEnginesIDOKEnginesItemCostWhile {
+	return s.While
+}
+
+// SetContainer sets the value of Container.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemCost) SetContainer(val NilString) {
+	s.Container = val
+}
+
+// SetRAMMB sets the value of RAMMB.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemCost) SetRAMMB(val NilInt) {
+	s.RAMMB = val
+}
+
+// SetWhile sets the value of While.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemCost) SetWhile(val ScanningPatchScanningEnginesIDOKEnginesItemCostWhile) {
+	s.While = val
+}
+
+// On: held as long as the engine is on (a long-running container); running: only while one of its jobs
+// runs (a one-shot container, or OpenVAS scanning).
+type ScanningPatchScanningEnginesIDOKEnginesItemCostWhile string
+
+const (
+	ScanningPatchScanningEnginesIDOKEnginesItemCostWhileOn      ScanningPatchScanningEnginesIDOKEnginesItemCostWhile = "on"
+	ScanningPatchScanningEnginesIDOKEnginesItemCostWhileRunning ScanningPatchScanningEnginesIDOKEnginesItemCostWhile = "running"
+)
+
+// AllValues returns all ScanningPatchScanningEnginesIDOKEnginesItemCostWhile values.
+func (ScanningPatchScanningEnginesIDOKEnginesItemCostWhile) AllValues() []ScanningPatchScanningEnginesIDOKEnginesItemCostWhile {
+	return []ScanningPatchScanningEnginesIDOKEnginesItemCostWhile{
+		ScanningPatchScanningEnginesIDOKEnginesItemCostWhileOn,
+		ScanningPatchScanningEnginesIDOKEnginesItemCostWhileRunning,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPatchScanningEnginesIDOKEnginesItemCostWhile) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPatchScanningEnginesIDOKEnginesItemCostWhileOn:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemCostWhileRunning:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemCostWhile) UnmarshalText(data []byte) error {
+	switch ScanningPatchScanningEnginesIDOKEnginesItemCostWhile(data) {
+	case ScanningPatchScanningEnginesIDOKEnginesItemCostWhileOn:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemCostWhileOn
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemCostWhileRunning:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemCostWhileRunning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPatchScanningEnginesIDOKEnginesItemFollows string
+
+const (
+	ScanningPatchScanningEnginesIDOKEnginesItemFollowsPassive       ScanningPatchScanningEnginesIDOKEnginesItemFollows = "passive"
+	ScanningPatchScanningEnginesIDOKEnginesItemFollowsNmapDiscovery ScanningPatchScanningEnginesIDOKEnginesItemFollows = "nmap-discovery"
+	ScanningPatchScanningEnginesIDOKEnginesItemFollowsNmapVersions  ScanningPatchScanningEnginesIDOKEnginesItemFollows = "nmap-versions"
+	ScanningPatchScanningEnginesIDOKEnginesItemFollowsSnmp          ScanningPatchScanningEnginesIDOKEnginesItemFollows = "snmp"
+	ScanningPatchScanningEnginesIDOKEnginesItemFollowsOsquery       ScanningPatchScanningEnginesIDOKEnginesItemFollows = "osquery"
+	ScanningPatchScanningEnginesIDOKEnginesItemFollowsWazuh         ScanningPatchScanningEnginesIDOKEnginesItemFollows = "wazuh"
+	ScanningPatchScanningEnginesIDOKEnginesItemFollowsNuclei        ScanningPatchScanningEnginesIDOKEnginesItemFollows = "nuclei"
+	ScanningPatchScanningEnginesIDOKEnginesItemFollowsZap           ScanningPatchScanningEnginesIDOKEnginesItemFollows = "zap"
+	ScanningPatchScanningEnginesIDOKEnginesItemFollowsOpenvas       ScanningPatchScanningEnginesIDOKEnginesItemFollows = "openvas"
+	ScanningPatchScanningEnginesIDOKEnginesItemFollowsHoneypot      ScanningPatchScanningEnginesIDOKEnginesItemFollows = "honeypot"
+)
+
+// AllValues returns all ScanningPatchScanningEnginesIDOKEnginesItemFollows values.
+func (ScanningPatchScanningEnginesIDOKEnginesItemFollows) AllValues() []ScanningPatchScanningEnginesIDOKEnginesItemFollows {
+	return []ScanningPatchScanningEnginesIDOKEnginesItemFollows{
+		ScanningPatchScanningEnginesIDOKEnginesItemFollowsPassive,
+		ScanningPatchScanningEnginesIDOKEnginesItemFollowsNmapDiscovery,
+		ScanningPatchScanningEnginesIDOKEnginesItemFollowsNmapVersions,
+		ScanningPatchScanningEnginesIDOKEnginesItemFollowsSnmp,
+		ScanningPatchScanningEnginesIDOKEnginesItemFollowsOsquery,
+		ScanningPatchScanningEnginesIDOKEnginesItemFollowsWazuh,
+		ScanningPatchScanningEnginesIDOKEnginesItemFollowsNuclei,
+		ScanningPatchScanningEnginesIDOKEnginesItemFollowsZap,
+		ScanningPatchScanningEnginesIDOKEnginesItemFollowsOpenvas,
+		ScanningPatchScanningEnginesIDOKEnginesItemFollowsHoneypot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPatchScanningEnginesIDOKEnginesItemFollows) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsPassive:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsNmapDiscovery:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsNmapVersions:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsSnmp:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsOsquery:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsWazuh:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsNuclei:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsZap:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsOpenvas:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsHoneypot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemFollows) UnmarshalText(data []byte) error {
+	switch ScanningPatchScanningEnginesIDOKEnginesItemFollows(data) {
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsPassive:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemFollowsPassive
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsNmapDiscovery:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemFollowsNmapDiscovery
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsNmapVersions:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemFollowsNmapVersions
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsSnmp:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemFollowsSnmp
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsOsquery:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemFollowsOsquery
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsWazuh:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemFollowsWazuh
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsNuclei:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemFollowsNuclei
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsZap:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemFollowsZap
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsOpenvas:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemFollowsOpenvas
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemFollowsHoneypot:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemFollowsHoneypot
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPatchScanningEnginesIDOKEnginesItemGroup string
+
+const (
+	ScanningPatchScanningEnginesIDOKEnginesItemGroupDiscover ScanningPatchScanningEnginesIDOKEnginesItemGroup = "discover"
+	ScanningPatchScanningEnginesIDOKEnginesItemGroupIdentify ScanningPatchScanningEnginesIDOKEnginesItemGroup = "identify"
+	ScanningPatchScanningEnginesIDOKEnginesItemGroupVuln     ScanningPatchScanningEnginesIDOKEnginesItemGroup = "vuln"
+	ScanningPatchScanningEnginesIDOKEnginesItemGroupTraps    ScanningPatchScanningEnginesIDOKEnginesItemGroup = "traps"
+)
+
+// AllValues returns all ScanningPatchScanningEnginesIDOKEnginesItemGroup values.
+func (ScanningPatchScanningEnginesIDOKEnginesItemGroup) AllValues() []ScanningPatchScanningEnginesIDOKEnginesItemGroup {
+	return []ScanningPatchScanningEnginesIDOKEnginesItemGroup{
+		ScanningPatchScanningEnginesIDOKEnginesItemGroupDiscover,
+		ScanningPatchScanningEnginesIDOKEnginesItemGroupIdentify,
+		ScanningPatchScanningEnginesIDOKEnginesItemGroupVuln,
+		ScanningPatchScanningEnginesIDOKEnginesItemGroupTraps,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPatchScanningEnginesIDOKEnginesItemGroup) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPatchScanningEnginesIDOKEnginesItemGroupDiscover:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemGroupIdentify:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemGroupVuln:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemGroupTraps:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemGroup) UnmarshalText(data []byte) error {
+	switch ScanningPatchScanningEnginesIDOKEnginesItemGroup(data) {
+	case ScanningPatchScanningEnginesIDOKEnginesItemGroupDiscover:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemGroupDiscover
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemGroupIdentify:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemGroupIdentify
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemGroupVuln:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemGroupVuln
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemGroupTraps:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemGroupTraps
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPatchScanningEnginesIDOKEnginesItemID string
+
+const (
+	ScanningPatchScanningEnginesIDOKEnginesItemIDPassive       ScanningPatchScanningEnginesIDOKEnginesItemID = "passive"
+	ScanningPatchScanningEnginesIDOKEnginesItemIDNmapDiscovery ScanningPatchScanningEnginesIDOKEnginesItemID = "nmap-discovery"
+	ScanningPatchScanningEnginesIDOKEnginesItemIDNmapVersions  ScanningPatchScanningEnginesIDOKEnginesItemID = "nmap-versions"
+	ScanningPatchScanningEnginesIDOKEnginesItemIDSnmp          ScanningPatchScanningEnginesIDOKEnginesItemID = "snmp"
+	ScanningPatchScanningEnginesIDOKEnginesItemIDOsquery       ScanningPatchScanningEnginesIDOKEnginesItemID = "osquery"
+	ScanningPatchScanningEnginesIDOKEnginesItemIDWazuh         ScanningPatchScanningEnginesIDOKEnginesItemID = "wazuh"
+	ScanningPatchScanningEnginesIDOKEnginesItemIDNuclei        ScanningPatchScanningEnginesIDOKEnginesItemID = "nuclei"
+	ScanningPatchScanningEnginesIDOKEnginesItemIDZap           ScanningPatchScanningEnginesIDOKEnginesItemID = "zap"
+	ScanningPatchScanningEnginesIDOKEnginesItemIDOpenvas       ScanningPatchScanningEnginesIDOKEnginesItemID = "openvas"
+	ScanningPatchScanningEnginesIDOKEnginesItemIDHoneypot      ScanningPatchScanningEnginesIDOKEnginesItemID = "honeypot"
+)
+
+// AllValues returns all ScanningPatchScanningEnginesIDOKEnginesItemID values.
+func (ScanningPatchScanningEnginesIDOKEnginesItemID) AllValues() []ScanningPatchScanningEnginesIDOKEnginesItemID {
+	return []ScanningPatchScanningEnginesIDOKEnginesItemID{
+		ScanningPatchScanningEnginesIDOKEnginesItemIDPassive,
+		ScanningPatchScanningEnginesIDOKEnginesItemIDNmapDiscovery,
+		ScanningPatchScanningEnginesIDOKEnginesItemIDNmapVersions,
+		ScanningPatchScanningEnginesIDOKEnginesItemIDSnmp,
+		ScanningPatchScanningEnginesIDOKEnginesItemIDOsquery,
+		ScanningPatchScanningEnginesIDOKEnginesItemIDWazuh,
+		ScanningPatchScanningEnginesIDOKEnginesItemIDNuclei,
+		ScanningPatchScanningEnginesIDOKEnginesItemIDZap,
+		ScanningPatchScanningEnginesIDOKEnginesItemIDOpenvas,
+		ScanningPatchScanningEnginesIDOKEnginesItemIDHoneypot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPatchScanningEnginesIDOKEnginesItemID) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDPassive:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDNmapDiscovery:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDNmapVersions:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDSnmp:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDOsquery:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDWazuh:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDNuclei:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDZap:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDOpenvas:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDHoneypot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemID) UnmarshalText(data []byte) error {
+	switch ScanningPatchScanningEnginesIDOKEnginesItemID(data) {
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDPassive:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemIDPassive
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDNmapDiscovery:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemIDNmapDiscovery
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDNmapVersions:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemIDNmapVersions
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDSnmp:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemIDSnmp
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDOsquery:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemIDOsquery
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDWazuh:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemIDWazuh
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDNuclei:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemIDNuclei
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDZap:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemIDZap
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDOpenvas:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemIDOpenvas
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemIDHoneypot:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemIDHoneypot
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPatchScanningEnginesIDOKEnginesItemLastRun struct {
+	At      time.Time                                                 `json:"at"`
+	Outcome ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcome `json:"outcome"`
+	// One sentence from the box, e.g. "Swept 254 addresses, 3 new devices", "Last report from an osquery
+	// agent", "Last trap hit".
+	Text string `json:"text"`
+}
+
+// GetAt returns the value of At.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemLastRun) GetAt() time.Time {
+	return s.At
+}
+
+// GetOutcome returns the value of Outcome.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemLastRun) GetOutcome() ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcome {
+	return s.Outcome
+}
+
+// GetText returns the value of Text.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemLastRun) GetText() string {
+	return s.Text
+}
+
+// SetAt sets the value of At.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemLastRun) SetAt(val time.Time) {
+	s.At = val
+}
+
+// SetOutcome sets the value of Outcome.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemLastRun) SetOutcome(val ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcome) {
+	s.Outcome = val
+}
+
+// SetText sets the value of Text.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemLastRun) SetText(val string) {
+	s.Text = val
+}
+
+type ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcome string
+
+const (
+	ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomeOk      ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcome = "ok"
+	ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomePartial ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcome = "partial"
+	ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomeFailed  ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcome = "failed"
+	ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomeStopped ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcome = "stopped"
+)
+
+// AllValues returns all ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcome values.
+func (ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcome) AllValues() []ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcome {
+	return []ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcome{
+		ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomeOk,
+		ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomePartial,
+		ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomeFailed,
+		ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomeStopped,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcome) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomeOk:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomePartial:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomeFailed:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomeStopped:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcome) UnmarshalText(data []byte) error {
+	switch ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcome(data) {
+	case ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomeOk:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomeOk
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomePartial:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomePartial
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomeFailed:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomeFailed
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomeStopped:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemLastRunOutcomeStopped
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The module it belongs to; PATCH /modules/{id} of that module still works.
+type ScanningPatchScanningEnginesIDOKEnginesItemModule string
+
+const (
+	ScanningPatchScanningEnginesIDOKEnginesItemModuleSensorPassive ScanningPatchScanningEnginesIDOKEnginesItemModule = "sensor-passive"
+	ScanningPatchScanningEnginesIDOKEnginesItemModuleSensorActive  ScanningPatchScanningEnginesIDOKEnginesItemModule = "sensor-active"
+	ScanningPatchScanningEnginesIDOKEnginesItemModuleAgentIntake   ScanningPatchScanningEnginesIDOKEnginesItemModule = "agent-intake"
+	ScanningPatchScanningEnginesIDOKEnginesItemModuleScan          ScanningPatchScanningEnginesIDOKEnginesItemModule = "scan"
+	ScanningPatchScanningEnginesIDOKEnginesItemModuleExposure      ScanningPatchScanningEnginesIDOKEnginesItemModule = "exposure"
+	ScanningPatchScanningEnginesIDOKEnginesItemModuleHoneypot      ScanningPatchScanningEnginesIDOKEnginesItemModule = "honeypot"
+)
+
+// AllValues returns all ScanningPatchScanningEnginesIDOKEnginesItemModule values.
+func (ScanningPatchScanningEnginesIDOKEnginesItemModule) AllValues() []ScanningPatchScanningEnginesIDOKEnginesItemModule {
+	return []ScanningPatchScanningEnginesIDOKEnginesItemModule{
+		ScanningPatchScanningEnginesIDOKEnginesItemModuleSensorPassive,
+		ScanningPatchScanningEnginesIDOKEnginesItemModuleSensorActive,
+		ScanningPatchScanningEnginesIDOKEnginesItemModuleAgentIntake,
+		ScanningPatchScanningEnginesIDOKEnginesItemModuleScan,
+		ScanningPatchScanningEnginesIDOKEnginesItemModuleExposure,
+		ScanningPatchScanningEnginesIDOKEnginesItemModuleHoneypot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPatchScanningEnginesIDOKEnginesItemModule) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPatchScanningEnginesIDOKEnginesItemModuleSensorPassive:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemModuleSensorActive:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemModuleAgentIntake:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemModuleScan:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemModuleExposure:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemModuleHoneypot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemModule) UnmarshalText(data []byte) error {
+	switch ScanningPatchScanningEnginesIDOKEnginesItemModule(data) {
+	case ScanningPatchScanningEnginesIDOKEnginesItemModuleSensorPassive:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemModuleSensorPassive
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemModuleSensorActive:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemModuleSensorActive
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemModuleAgentIntake:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemModuleAgentIntake
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemModuleScan:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemModuleScan
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemModuleExposure:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemModuleExposure
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemModuleHoneypot:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemModuleHoneypot
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Off: switched off (or its module is); needs_setup: on, but it has nothing to work with yet (scope
+// not confirmed, no SNMP credential, no osquery token, no Wazuh server, no verified target, no Trap
+// IP); starting: its container is starting, or OpenVAS loads its feed; ready: on and waiting for its
+// window, schedule or a person; running: a job runs now; error: it failed and needs a person (reason
+// says what); unavailable: this box cannot run it (container-only install, tool missing, not enough
+// memory).
+type ScanningPatchScanningEnginesIDOKEnginesItemState string
+
+const (
+	ScanningPatchScanningEnginesIDOKEnginesItemStateOff         ScanningPatchScanningEnginesIDOKEnginesItemState = "off"
+	ScanningPatchScanningEnginesIDOKEnginesItemStateNeedsSetup  ScanningPatchScanningEnginesIDOKEnginesItemState = "needs_setup"
+	ScanningPatchScanningEnginesIDOKEnginesItemStateStarting    ScanningPatchScanningEnginesIDOKEnginesItemState = "starting"
+	ScanningPatchScanningEnginesIDOKEnginesItemStateReady       ScanningPatchScanningEnginesIDOKEnginesItemState = "ready"
+	ScanningPatchScanningEnginesIDOKEnginesItemStateRunning     ScanningPatchScanningEnginesIDOKEnginesItemState = "running"
+	ScanningPatchScanningEnginesIDOKEnginesItemStateError       ScanningPatchScanningEnginesIDOKEnginesItemState = "error"
+	ScanningPatchScanningEnginesIDOKEnginesItemStateUnavailable ScanningPatchScanningEnginesIDOKEnginesItemState = "unavailable"
+)
+
+// AllValues returns all ScanningPatchScanningEnginesIDOKEnginesItemState values.
+func (ScanningPatchScanningEnginesIDOKEnginesItemState) AllValues() []ScanningPatchScanningEnginesIDOKEnginesItemState {
+	return []ScanningPatchScanningEnginesIDOKEnginesItemState{
+		ScanningPatchScanningEnginesIDOKEnginesItemStateOff,
+		ScanningPatchScanningEnginesIDOKEnginesItemStateNeedsSetup,
+		ScanningPatchScanningEnginesIDOKEnginesItemStateStarting,
+		ScanningPatchScanningEnginesIDOKEnginesItemStateReady,
+		ScanningPatchScanningEnginesIDOKEnginesItemStateRunning,
+		ScanningPatchScanningEnginesIDOKEnginesItemStateError,
+		ScanningPatchScanningEnginesIDOKEnginesItemStateUnavailable,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPatchScanningEnginesIDOKEnginesItemState) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPatchScanningEnginesIDOKEnginesItemStateOff:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemStateNeedsSetup:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemStateStarting:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemStateReady:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemStateRunning:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemStateError:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemStateUnavailable:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPatchScanningEnginesIDOKEnginesItemState) UnmarshalText(data []byte) error {
+	switch ScanningPatchScanningEnginesIDOKEnginesItemState(data) {
+	case ScanningPatchScanningEnginesIDOKEnginesItemStateOff:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemStateOff
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemStateNeedsSetup:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemStateNeedsSetup
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemStateStarting:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemStateStarting
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemStateReady:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemStateReady
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemStateRunning:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemStateRunning
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemStateError:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemStateError
+		return nil
+	case ScanningPatchScanningEnginesIDOKEnginesItemStateUnavailable:
+		*s = ScanningPatchScanningEnginesIDOKEnginesItemStateUnavailable
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPatchScanningEnginesIDOKRunningItem struct {
+	Engine ScanningPatchScanningEnginesIDOKRunningItemEngine `json:"engine"`
+	// The run: a scan_run id, an exposure ScanRun id, an sa_job id, or a run of POST
+	// /scanning/engines/nmap-discovery/run.
+	ID string `json:"id"`
+	// What it scans, e.g. "LAN sweep 192.168.18.0/24", "Check 192.168.18.20", "203.0.113.10".
+	Label string `json:"label"`
+	// Null until the run reports a step, and for runs that do not report one.
+	Progress  NilScanningPatchScanningEnginesIDOKRunningItemProgress `json:"progress"`
+	StartedAt time.Time                                              `json:"started_at"`
+	// The device id or exposure target id the run is about, for a link; null for a sweep or several
+	// devices.
+	TargetID NilString `json:"target_id"`
+}
+
+// GetEngine returns the value of Engine.
+func (s *ScanningPatchScanningEnginesIDOKRunningItem) GetEngine() ScanningPatchScanningEnginesIDOKRunningItemEngine {
+	return s.Engine
+}
+
+// GetID returns the value of ID.
+func (s *ScanningPatchScanningEnginesIDOKRunningItem) GetID() string {
+	return s.ID
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanningPatchScanningEnginesIDOKRunningItem) GetLabel() string {
+	return s.Label
+}
+
+// GetProgress returns the value of Progress.
+func (s *ScanningPatchScanningEnginesIDOKRunningItem) GetProgress() NilScanningPatchScanningEnginesIDOKRunningItemProgress {
+	return s.Progress
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ScanningPatchScanningEnginesIDOKRunningItem) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ScanningPatchScanningEnginesIDOKRunningItem) GetTargetID() NilString {
+	return s.TargetID
+}
+
+// SetEngine sets the value of Engine.
+func (s *ScanningPatchScanningEnginesIDOKRunningItem) SetEngine(val ScanningPatchScanningEnginesIDOKRunningItemEngine) {
+	s.Engine = val
+}
+
+// SetID sets the value of ID.
+func (s *ScanningPatchScanningEnginesIDOKRunningItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanningPatchScanningEnginesIDOKRunningItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetProgress sets the value of Progress.
+func (s *ScanningPatchScanningEnginesIDOKRunningItem) SetProgress(val NilScanningPatchScanningEnginesIDOKRunningItemProgress) {
+	s.Progress = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ScanningPatchScanningEnginesIDOKRunningItem) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ScanningPatchScanningEnginesIDOKRunningItem) SetTargetID(val NilString) {
+	s.TargetID = val
+}
+
+type ScanningPatchScanningEnginesIDOKRunningItemEngine string
+
+const (
+	ScanningPatchScanningEnginesIDOKRunningItemEnginePassive       ScanningPatchScanningEnginesIDOKRunningItemEngine = "passive"
+	ScanningPatchScanningEnginesIDOKRunningItemEngineNmapDiscovery ScanningPatchScanningEnginesIDOKRunningItemEngine = "nmap-discovery"
+	ScanningPatchScanningEnginesIDOKRunningItemEngineNmapVersions  ScanningPatchScanningEnginesIDOKRunningItemEngine = "nmap-versions"
+	ScanningPatchScanningEnginesIDOKRunningItemEngineSnmp          ScanningPatchScanningEnginesIDOKRunningItemEngine = "snmp"
+	ScanningPatchScanningEnginesIDOKRunningItemEngineOsquery       ScanningPatchScanningEnginesIDOKRunningItemEngine = "osquery"
+	ScanningPatchScanningEnginesIDOKRunningItemEngineWazuh         ScanningPatchScanningEnginesIDOKRunningItemEngine = "wazuh"
+	ScanningPatchScanningEnginesIDOKRunningItemEngineNuclei        ScanningPatchScanningEnginesIDOKRunningItemEngine = "nuclei"
+	ScanningPatchScanningEnginesIDOKRunningItemEngineZap           ScanningPatchScanningEnginesIDOKRunningItemEngine = "zap"
+	ScanningPatchScanningEnginesIDOKRunningItemEngineOpenvas       ScanningPatchScanningEnginesIDOKRunningItemEngine = "openvas"
+	ScanningPatchScanningEnginesIDOKRunningItemEngineHoneypot      ScanningPatchScanningEnginesIDOKRunningItemEngine = "honeypot"
+)
+
+// AllValues returns all ScanningPatchScanningEnginesIDOKRunningItemEngine values.
+func (ScanningPatchScanningEnginesIDOKRunningItemEngine) AllValues() []ScanningPatchScanningEnginesIDOKRunningItemEngine {
+	return []ScanningPatchScanningEnginesIDOKRunningItemEngine{
+		ScanningPatchScanningEnginesIDOKRunningItemEnginePassive,
+		ScanningPatchScanningEnginesIDOKRunningItemEngineNmapDiscovery,
+		ScanningPatchScanningEnginesIDOKRunningItemEngineNmapVersions,
+		ScanningPatchScanningEnginesIDOKRunningItemEngineSnmp,
+		ScanningPatchScanningEnginesIDOKRunningItemEngineOsquery,
+		ScanningPatchScanningEnginesIDOKRunningItemEngineWazuh,
+		ScanningPatchScanningEnginesIDOKRunningItemEngineNuclei,
+		ScanningPatchScanningEnginesIDOKRunningItemEngineZap,
+		ScanningPatchScanningEnginesIDOKRunningItemEngineOpenvas,
+		ScanningPatchScanningEnginesIDOKRunningItemEngineHoneypot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPatchScanningEnginesIDOKRunningItemEngine) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPatchScanningEnginesIDOKRunningItemEnginePassive:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineNmapDiscovery:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineNmapVersions:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineSnmp:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineOsquery:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineWazuh:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineNuclei:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineZap:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineOpenvas:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineHoneypot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemEngine) UnmarshalText(data []byte) error {
+	switch ScanningPatchScanningEnginesIDOKRunningItemEngine(data) {
+	case ScanningPatchScanningEnginesIDOKRunningItemEnginePassive:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemEnginePassive
+		return nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineNmapDiscovery:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemEngineNmapDiscovery
+		return nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineNmapVersions:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemEngineNmapVersions
+		return nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineSnmp:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemEngineSnmp
+		return nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineOsquery:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemEngineOsquery
+		return nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineWazuh:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemEngineWazuh
+		return nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineNuclei:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemEngineNuclei
+		return nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineZap:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemEngineZap
+		return nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineOpenvas:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemEngineOpenvas
+		return nil
+	case ScanningPatchScanningEnginesIDOKRunningItemEngineHoneypot:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemEngineHoneypot
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPatchScanningEnginesIDOKRunningItemProgress struct {
+	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
+	Done NilInt `json:"done"`
+	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
+	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
+	Eta NilDateTime `json:"eta"`
+	// A short English note on the pass, e.g. "Second pass: administration and alternative ports"; null
+	// when none.
+	Message NilString `json:"message"`
+	// How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the
+	// phase without a bar).
+	Percent NilFloat64 `json:"percent"`
+	// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+	// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+	// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+	// result is being stored.
+	Phase ScanningPatchScanningEnginesIDOKRunningItemProgressPhase `json:"phase"`
+	// When the current phase (or the current pass of it: a device gets a second nmap pass over admin
+	// ports) started.
+	PhaseStartedAt time.Time `json:"phase_started_at"`
+	// When the job (the device, or the public IP scan) started: elapsed time is now minus this.
+	StartedAt time.Time `json:"started_at"`
+	Total     NilInt    `json:"total"`
+	// Checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch.
+	Unit NilScanningPatchScanningEnginesIDOKRunningItemProgressUnit `json:"unit"`
+	// The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is
+	// quiet, not that the box hangs.
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// GetDone returns the value of Done.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) GetDone() NilInt {
+	return s.Done
+}
+
+// GetEta returns the value of Eta.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) GetEta() NilDateTime {
+	return s.Eta
+}
+
+// GetMessage returns the value of Message.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) GetMessage() NilString {
+	return s.Message
+}
+
+// GetPercent returns the value of Percent.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) GetPercent() NilFloat64 {
+	return s.Percent
+}
+
+// GetPhase returns the value of Phase.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) GetPhase() ScanningPatchScanningEnginesIDOKRunningItemProgressPhase {
+	return s.Phase
+}
+
+// GetPhaseStartedAt returns the value of PhaseStartedAt.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) GetPhaseStartedAt() time.Time {
+	return s.PhaseStartedAt
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetTotal returns the value of Total.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) GetTotal() NilInt {
+	return s.Total
+}
+
+// GetUnit returns the value of Unit.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) GetUnit() NilScanningPatchScanningEnginesIDOKRunningItemProgressUnit {
+	return s.Unit
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetDone sets the value of Done.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) SetDone(val NilInt) {
+	s.Done = val
+}
+
+// SetEta sets the value of Eta.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) SetEta(val NilDateTime) {
+	s.Eta = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetPercent sets the value of Percent.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) SetPercent(val NilFloat64) {
+	s.Percent = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) SetPhase(val ScanningPatchScanningEnginesIDOKRunningItemProgressPhase) {
+	s.Phase = val
+}
+
+// SetPhaseStartedAt sets the value of PhaseStartedAt.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) SetPhaseStartedAt(val time.Time) {
+	s.PhaseStartedAt = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) SetTotal(val NilInt) {
+	s.Total = val
+}
+
+// SetUnit sets the value of Unit.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) SetUnit(val NilScanningPatchScanningEnginesIDOKRunningItemProgressUnit) {
+	s.Unit = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgress) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+// result is being stored.
+type ScanningPatchScanningEnginesIDOKRunningItemProgressPhase string
+
+const (
+	ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseDiscovery ScanningPatchScanningEnginesIDOKRunningItemProgressPhase = "discovery"
+	ScanningPatchScanningEnginesIDOKRunningItemProgressPhasePorts     ScanningPatchScanningEnginesIDOKRunningItemProgressPhase = "ports"
+	ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseServices  ScanningPatchScanningEnginesIDOKRunningItemProgressPhase = "services"
+	ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseScripts   ScanningPatchScanningEnginesIDOKRunningItemProgressPhase = "scripts"
+	ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseVulns     ScanningPatchScanningEnginesIDOKRunningItemProgressPhase = "vulns"
+	ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseWeb       ScanningPatchScanningEnginesIDOKRunningItemProgressPhase = "web"
+	ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseOpenvas   ScanningPatchScanningEnginesIDOKRunningItemProgressPhase = "openvas"
+	ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseSaving    ScanningPatchScanningEnginesIDOKRunningItemProgressPhase = "saving"
+)
+
+// AllValues returns all ScanningPatchScanningEnginesIDOKRunningItemProgressPhase values.
+func (ScanningPatchScanningEnginesIDOKRunningItemProgressPhase) AllValues() []ScanningPatchScanningEnginesIDOKRunningItemProgressPhase {
+	return []ScanningPatchScanningEnginesIDOKRunningItemProgressPhase{
+		ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseDiscovery,
+		ScanningPatchScanningEnginesIDOKRunningItemProgressPhasePorts,
+		ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseServices,
+		ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseScripts,
+		ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseVulns,
+		ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseWeb,
+		ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseOpenvas,
+		ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseSaving,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPatchScanningEnginesIDOKRunningItemProgressPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseDiscovery:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressPhasePorts:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseServices:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseScripts:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseVulns:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseWeb:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseOpenvas:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseSaving:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgressPhase) UnmarshalText(data []byte) error {
+	switch ScanningPatchScanningEnginesIDOKRunningItemProgressPhase(data) {
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseDiscovery:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseDiscovery
+		return nil
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressPhasePorts:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemProgressPhasePorts
+		return nil
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseServices:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseServices
+		return nil
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseScripts:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseScripts
+		return nil
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseVulns:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseVulns
+		return nil
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseWeb:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseWeb
+		return nil
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseOpenvas:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseOpenvas
+		return nil
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseSaving:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemProgressPhaseSaving
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPatchScanningEnginesIDOKRunningItemProgressUnit string
+
+const (
+	ScanningPatchScanningEnginesIDOKRunningItemProgressUnitChecks ScanningPatchScanningEnginesIDOKRunningItemProgressUnit = "checks"
+	ScanningPatchScanningEnginesIDOKRunningItemProgressUnitHosts  ScanningPatchScanningEnginesIDOKRunningItemProgressUnit = "hosts"
+)
+
+// AllValues returns all ScanningPatchScanningEnginesIDOKRunningItemProgressUnit values.
+func (ScanningPatchScanningEnginesIDOKRunningItemProgressUnit) AllValues() []ScanningPatchScanningEnginesIDOKRunningItemProgressUnit {
+	return []ScanningPatchScanningEnginesIDOKRunningItemProgressUnit{
+		ScanningPatchScanningEnginesIDOKRunningItemProgressUnitChecks,
+		ScanningPatchScanningEnginesIDOKRunningItemProgressUnitHosts,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPatchScanningEnginesIDOKRunningItemProgressUnit) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressUnitChecks:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressUnitHosts:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPatchScanningEnginesIDOKRunningItemProgressUnit) UnmarshalText(data []byte) error {
+	switch ScanningPatchScanningEnginesIDOKRunningItemProgressUnit(data) {
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressUnitChecks:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemProgressUnitChecks
+		return nil
+	case ScanningPatchScanningEnginesIDOKRunningItemProgressUnitHosts:
+		*s = ScanningPatchScanningEnginesIDOKRunningItemProgressUnitHosts
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPatchScanningEnginesIDOKSafety struct {
+	// IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the
+	// 200 a save accepts).
+	Exclusions []string                                      `json:"exclusions"`
+	Fragile    ScanningPatchScanningEnginesIDOKSafetyFragile `json:"fragile"`
+	Scope      ScanningPatchScanningEnginesIDOKSafetyScope   `json:"scope"`
+	Speed      ScanningPatchScanningEnginesIDOKSafetySpeed   `json:"speed"`
+	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
+	// Check this device now and external scans are not bound by it.
+	Window ScanningPatchScanningEnginesIDOKSafetyWindow `json:"window"`
+}
+
+// GetExclusions returns the value of Exclusions.
+func (s *ScanningPatchScanningEnginesIDOKSafety) GetExclusions() []string {
+	return s.Exclusions
+}
+
+// GetFragile returns the value of Fragile.
+func (s *ScanningPatchScanningEnginesIDOKSafety) GetFragile() ScanningPatchScanningEnginesIDOKSafetyFragile {
+	return s.Fragile
+}
+
+// GetScope returns the value of Scope.
+func (s *ScanningPatchScanningEnginesIDOKSafety) GetScope() ScanningPatchScanningEnginesIDOKSafetyScope {
+	return s.Scope
+}
+
+// GetSpeed returns the value of Speed.
+func (s *ScanningPatchScanningEnginesIDOKSafety) GetSpeed() ScanningPatchScanningEnginesIDOKSafetySpeed {
+	return s.Speed
+}
+
+// GetWindow returns the value of Window.
+func (s *ScanningPatchScanningEnginesIDOKSafety) GetWindow() ScanningPatchScanningEnginesIDOKSafetyWindow {
+	return s.Window
+}
+
+// SetExclusions sets the value of Exclusions.
+func (s *ScanningPatchScanningEnginesIDOKSafety) SetExclusions(val []string) {
+	s.Exclusions = val
+}
+
+// SetFragile sets the value of Fragile.
+func (s *ScanningPatchScanningEnginesIDOKSafety) SetFragile(val ScanningPatchScanningEnginesIDOKSafetyFragile) {
+	s.Fragile = val
+}
+
+// SetScope sets the value of Scope.
+func (s *ScanningPatchScanningEnginesIDOKSafety) SetScope(val ScanningPatchScanningEnginesIDOKSafetyScope) {
+	s.Scope = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *ScanningPatchScanningEnginesIDOKSafety) SetSpeed(val ScanningPatchScanningEnginesIDOKSafetySpeed) {
+	s.Speed = val
+}
+
+// SetWindow sets the value of Window.
+func (s *ScanningPatchScanningEnginesIDOKSafety) SetWindow(val ScanningPatchScanningEnginesIDOKSafetyWindow) {
+	s.Window = val
+}
+
+type ScanningPatchScanningEnginesIDOKSafetyFragile struct {
+	// Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter;
+	// read-only.
+	Devices int `json:"devices"`
+	// Types scanned once, gently, when first seen; passive-only after that (D-45, D-511).
+	Kinds []ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem `json:"kinds"`
+	// Subset of kinds that may still get regular scans.
+	RegularScanKinds []ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem `json:"regular_scan_kinds"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ScanningPatchScanningEnginesIDOKSafetyFragile) GetDevices() int {
+	return s.Devices
+}
+
+// GetKinds returns the value of Kinds.
+func (s *ScanningPatchScanningEnginesIDOKSafetyFragile) GetKinds() []ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem {
+	return s.Kinds
+}
+
+// GetRegularScanKinds returns the value of RegularScanKinds.
+func (s *ScanningPatchScanningEnginesIDOKSafetyFragile) GetRegularScanKinds() []ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem {
+	return s.RegularScanKinds
+}
+
+// SetDevices sets the value of Devices.
+func (s *ScanningPatchScanningEnginesIDOKSafetyFragile) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetKinds sets the value of Kinds.
+func (s *ScanningPatchScanningEnginesIDOKSafetyFragile) SetKinds(val []ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem) {
+	s.Kinds = val
+}
+
+// SetRegularScanKinds sets the value of RegularScanKinds.
+func (s *ScanningPatchScanningEnginesIDOKSafetyFragile) SetRegularScanKinds(val []ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem) {
+	s.RegularScanKinds = val
+}
+
+type ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem string
+
+const (
+	ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemFirewall ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem = "firewall"
+	ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemRouter   ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem = "router"
+	ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemSwitch   ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem = "switch"
+	ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemAp       ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem = "ap"
+	ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemNas      ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem = "nas"
+	ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemServer   ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem = "server"
+	ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemPc       ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem = "pc"
+	ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemPrinter  ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem = "printer"
+	ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemCamera   ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem = "camera"
+	ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemNvr      ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem = "nvr"
+	ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemIot      ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem = "iot"
+	ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemWeb      ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem = "web"
+	ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemUnknown  ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem = "unknown"
+)
+
+// AllValues returns all ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem values.
+func (ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem) AllValues() []ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem {
+	return []ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem{
+		ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemFirewall,
+		ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemRouter,
+		ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemSwitch,
+		ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemAp,
+		ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemNas,
+		ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemServer,
+		ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemPc,
+		ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemPrinter,
+		ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemCamera,
+		ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemNvr,
+		ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemIot,
+		ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemWeb,
+		ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemFirewall:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemRouter:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemSwitch:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemAp:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemNas:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemServer:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemPc:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemPrinter:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemCamera:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemNvr:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemIot:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemWeb:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem) UnmarshalText(data []byte) error {
+	switch ScanningPatchScanningEnginesIDOKSafetyFragileKindsItem(data) {
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemFirewall:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemFirewall
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemRouter:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemRouter
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemSwitch:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemSwitch
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemAp:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemAp
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemNas:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemNas
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemServer:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemServer
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemPc:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemPc
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemPrinter:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemPrinter
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemCamera:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemCamera
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemNvr:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemNvr
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemIot:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemIot
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemWeb:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemWeb
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemUnknown:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileKindsItemUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem string
+
+const (
+	ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemFirewall ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem = "firewall"
+	ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemRouter   ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem = "router"
+	ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemSwitch   ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem = "switch"
+	ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemAp       ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem = "ap"
+	ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemNas      ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem = "nas"
+	ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemServer   ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem = "server"
+	ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemPc       ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem = "pc"
+	ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemPrinter  ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem = "printer"
+	ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemCamera   ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem = "camera"
+	ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemNvr      ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem = "nvr"
+	ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemIot      ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem = "iot"
+	ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemWeb      ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem = "web"
+	ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemUnknown  ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem = "unknown"
+)
+
+// AllValues returns all ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem values.
+func (ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem) AllValues() []ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem {
+	return []ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem{
+		ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemFirewall,
+		ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemRouter,
+		ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemSwitch,
+		ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemAp,
+		ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemNas,
+		ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemServer,
+		ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemPc,
+		ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemPrinter,
+		ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemCamera,
+		ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemNvr,
+		ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemIot,
+		ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemWeb,
+		ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemFirewall:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemRouter:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemSwitch:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemAp:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemNas:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemServer:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemPc:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemPrinter:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemCamera:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemNvr:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemIot:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemWeb:
+		return []byte(s), nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem) UnmarshalText(data []byte) error {
+	switch ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItem(data) {
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemFirewall:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemFirewall
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemRouter:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemRouter
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemSwitch:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemSwitch
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemAp:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemAp
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemNas:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemNas
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemServer:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemServer
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemPc:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemPc
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemPrinter:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemPrinter
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemCamera:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemCamera
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemNvr:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemNvr
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemIot:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemIot
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemWeb:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemWeb
+		return nil
+	case ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemUnknown:
+		*s = ScanningPatchScanningEnginesIDOKSafetyFragileRegularScanKindsItemUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPatchScanningEnginesIDOKSafetyScope struct {
+	ConfirmedAt NilDateTime `json:"confirmed_at"`
+	ConfirmedBy NilString   `json:"confirmed_by"`
+	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges.
+	LanRanges []string `json:"lan_ranges"`
+}
+
+// GetConfirmedAt returns the value of ConfirmedAt.
+func (s *ScanningPatchScanningEnginesIDOKSafetyScope) GetConfirmedAt() NilDateTime {
+	return s.ConfirmedAt
+}
+
+// GetConfirmedBy returns the value of ConfirmedBy.
+func (s *ScanningPatchScanningEnginesIDOKSafetyScope) GetConfirmedBy() NilString {
+	return s.ConfirmedBy
+}
+
+// GetLanRanges returns the value of LanRanges.
+func (s *ScanningPatchScanningEnginesIDOKSafetyScope) GetLanRanges() []string {
+	return s.LanRanges
+}
+
+// SetConfirmedAt sets the value of ConfirmedAt.
+func (s *ScanningPatchScanningEnginesIDOKSafetyScope) SetConfirmedAt(val NilDateTime) {
+	s.ConfirmedAt = val
+}
+
+// SetConfirmedBy sets the value of ConfirmedBy.
+func (s *ScanningPatchScanningEnginesIDOKSafetyScope) SetConfirmedBy(val NilString) {
+	s.ConfirmedBy = val
+}
+
+// SetLanRanges sets the value of LanRanges.
+func (s *ScanningPatchScanningEnginesIDOKSafetyScope) SetLanRanges(val []string) {
+	s.LanRanges = val
+}
+
+type ScanningPatchScanningEnginesIDOKSafetySpeed struct {
+	// Nmap and SNMP (inventory active.rate).
+	PacketsPerS int `json:"packets_per_s"`
+	// Nuclei on LAN devices (was scan config rate).
+	RequestsPerS int `json:"requests_per_s"`
+}
+
+// GetPacketsPerS returns the value of PacketsPerS.
+func (s *ScanningPatchScanningEnginesIDOKSafetySpeed) GetPacketsPerS() int {
+	return s.PacketsPerS
+}
+
+// GetRequestsPerS returns the value of RequestsPerS.
+func (s *ScanningPatchScanningEnginesIDOKSafetySpeed) GetRequestsPerS() int {
+	return s.RequestsPerS
+}
+
+// SetPacketsPerS sets the value of PacketsPerS.
+func (s *ScanningPatchScanningEnginesIDOKSafetySpeed) SetPacketsPerS(val int) {
+	s.PacketsPerS = val
+}
+
+// SetRequestsPerS sets the value of RequestsPerS.
+func (s *ScanningPatchScanningEnginesIDOKSafetySpeed) SetRequestsPerS(val int) {
+	s.RequestsPerS = val
+}
+
+// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
+// Check this device now and external scans are not bound by it.
+type ScanningPatchScanningEnginesIDOKSafetyWindow struct {
+	// Empty only on a box whose discovery was saved off without a day; a save needs one.
+	Days []int `json:"days"`
+	// HH:MM.
+	From string `json:"from"`
+	// IANA zone the window is read in (the organization time zone); read-only.
+	TimeZone string `json:"time_zone"`
+	// Earlier than from: crosses midnight.
+	To string `json:"to"`
+}
+
+// GetDays returns the value of Days.
+func (s *ScanningPatchScanningEnginesIDOKSafetyWindow) GetDays() []int {
+	return s.Days
+}
+
+// GetFrom returns the value of From.
+func (s *ScanningPatchScanningEnginesIDOKSafetyWindow) GetFrom() string {
+	return s.From
+}
+
+// GetTimeZone returns the value of TimeZone.
+func (s *ScanningPatchScanningEnginesIDOKSafetyWindow) GetTimeZone() string {
+	return s.TimeZone
+}
+
+// GetTo returns the value of To.
+func (s *ScanningPatchScanningEnginesIDOKSafetyWindow) GetTo() string {
+	return s.To
+}
+
+// SetDays sets the value of Days.
+func (s *ScanningPatchScanningEnginesIDOKSafetyWindow) SetDays(val []int) {
+	s.Days = val
+}
+
+// SetFrom sets the value of From.
+func (s *ScanningPatchScanningEnginesIDOKSafetyWindow) SetFrom(val string) {
+	s.From = val
+}
+
+// SetTimeZone sets the value of TimeZone.
+func (s *ScanningPatchScanningEnginesIDOKSafetyWindow) SetTimeZone(val string) {
+	s.TimeZone = val
+}
+
+// SetTo sets the value of To.
+func (s *ScanningPatchScanningEnginesIDOKSafetyWindow) SetTo(val string) {
+	s.To = val
+}
+
+type ScanningPatchScanningEnginesIDReq struct {
+	Enabled bool `json:"enabled"`
+	// As PATCH /modules/{id}: also turn on the modules it needs instead of 409 missing_dependencies.
+	WithDependencies OptBool `json:"with_dependencies"`
+}
+
+// GetEnabled returns the value of Enabled.
+func (s *ScanningPatchScanningEnginesIDReq) GetEnabled() bool {
+	return s.Enabled
+}
+
+// GetWithDependencies returns the value of WithDependencies.
+func (s *ScanningPatchScanningEnginesIDReq) GetWithDependencies() OptBool {
+	return s.WithDependencies
+}
+
+// SetEnabled sets the value of Enabled.
+func (s *ScanningPatchScanningEnginesIDReq) SetEnabled(val bool) {
+	s.Enabled = val
+}
+
+// SetWithDependencies sets the value of WithDependencies.
+func (s *ScanningPatchScanningEnginesIDReq) SetWithDependencies(val OptBool) {
+	s.WithDependencies = val
+}
+
+type ScanningPostScanningEnginesNmapDiscoveryRunAccepted struct {
+	Engine ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine `json:"engine"`
+	// The run: a scan_run id, an exposure ScanRun id, an sa_job id, or a run of POST
+	// /scanning/engines/nmap-discovery/run.
+	ID string `json:"id"`
+	// What it scans, e.g. "LAN sweep 192.168.18.0/24", "Check 192.168.18.20", "203.0.113.10".
+	Label string `json:"label"`
+	// Null until the run reports a step, and for runs that do not report one.
+	Progress  NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress `json:"progress"`
+	StartedAt time.Time                                                      `json:"started_at"`
+	// The device id or exposure target id the run is about, for a link; null for a sweep or several
+	// devices.
+	TargetID NilString `json:"target_id"`
+}
+
+// GetEngine returns the value of Engine.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) GetEngine() ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine {
+	return s.Engine
+}
+
+// GetID returns the value of ID.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) GetID() string {
+	return s.ID
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) GetLabel() string {
+	return s.Label
+}
+
+// GetProgress returns the value of Progress.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) GetProgress() NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress {
+	return s.Progress
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) GetTargetID() NilString {
+	return s.TargetID
+}
+
+// SetEngine sets the value of Engine.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) SetEngine(val ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine) {
+	s.Engine = val
+}
+
+// SetID sets the value of ID.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) SetID(val string) {
+	s.ID = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetProgress sets the value of Progress.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) SetProgress(val NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) {
+	s.Progress = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAccepted) SetTargetID(val NilString) {
+	s.TargetID = val
+}
+
+type ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine string
+
+const (
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEnginePassive       ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine = "passive"
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineNmapDiscovery ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine = "nmap-discovery"
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineNmapVersions  ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine = "nmap-versions"
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineSnmp          ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine = "snmp"
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineOsquery       ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine = "osquery"
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineWazuh         ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine = "wazuh"
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineNuclei        ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine = "nuclei"
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineZap           ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine = "zap"
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineOpenvas       ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine = "openvas"
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineHoneypot      ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine = "honeypot"
+)
+
+// AllValues returns all ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine values.
+func (ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine) AllValues() []ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine {
+	return []ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine{
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEnginePassive,
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineNmapDiscovery,
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineNmapVersions,
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineSnmp,
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineOsquery,
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineWazuh,
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineNuclei,
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineZap,
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineOpenvas,
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineHoneypot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEnginePassive:
+		return []byte(s), nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineNmapDiscovery:
+		return []byte(s), nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineNmapVersions:
+		return []byte(s), nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineSnmp:
+		return []byte(s), nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineOsquery:
+		return []byte(s), nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineWazuh:
+		return []byte(s), nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineNuclei:
+		return []byte(s), nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineZap:
+		return []byte(s), nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineOpenvas:
+		return []byte(s), nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineHoneypot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine) UnmarshalText(data []byte) error {
+	switch ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngine(data) {
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEnginePassive:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEnginePassive
+		return nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineNmapDiscovery:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineNmapDiscovery
+		return nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineNmapVersions:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineNmapVersions
+		return nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineSnmp:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineSnmp
+		return nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineOsquery:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineOsquery
+		return nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineWazuh:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineWazuh
+		return nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineNuclei:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineNuclei
+		return nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineZap:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineZap
+		return nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineOpenvas:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineOpenvas
+		return nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineHoneypot:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedEngineHoneypot
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress struct {
+	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
+	Done NilInt `json:"done"`
+	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
+	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
+	Eta NilDateTime `json:"eta"`
+	// A short English note on the pass, e.g. "Second pass: administration and alternative ports"; null
+	// when none.
+	Message NilString `json:"message"`
+	// How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the
+	// phase without a bar).
+	Percent NilFloat64 `json:"percent"`
+	// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+	// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+	// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+	// result is being stored.
+	Phase ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase `json:"phase"`
+	// When the current phase (or the current pass of it: a device gets a second nmap pass over admin
+	// ports) started.
+	PhaseStartedAt time.Time `json:"phase_started_at"`
+	// When the job (the device, or the public IP scan) started: elapsed time is now minus this.
+	StartedAt time.Time `json:"started_at"`
+	Total     NilInt    `json:"total"`
+	// Checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch.
+	Unit NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit `json:"unit"`
+	// The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is
+	// quiet, not that the box hangs.
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// GetDone returns the value of Done.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) GetDone() NilInt {
+	return s.Done
+}
+
+// GetEta returns the value of Eta.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) GetEta() NilDateTime {
+	return s.Eta
+}
+
+// GetMessage returns the value of Message.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) GetMessage() NilString {
+	return s.Message
+}
+
+// GetPercent returns the value of Percent.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) GetPercent() NilFloat64 {
+	return s.Percent
+}
+
+// GetPhase returns the value of Phase.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) GetPhase() ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase {
+	return s.Phase
+}
+
+// GetPhaseStartedAt returns the value of PhaseStartedAt.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) GetPhaseStartedAt() time.Time {
+	return s.PhaseStartedAt
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetTotal returns the value of Total.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) GetTotal() NilInt {
+	return s.Total
+}
+
+// GetUnit returns the value of Unit.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) GetUnit() NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit {
+	return s.Unit
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetDone sets the value of Done.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) SetDone(val NilInt) {
+	s.Done = val
+}
+
+// SetEta sets the value of Eta.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) SetEta(val NilDateTime) {
+	s.Eta = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetPercent sets the value of Percent.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) SetPercent(val NilFloat64) {
+	s.Percent = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) SetPhase(val ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase) {
+	s.Phase = val
+}
+
+// SetPhaseStartedAt sets the value of PhaseStartedAt.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) SetPhaseStartedAt(val time.Time) {
+	s.PhaseStartedAt = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) SetTotal(val NilInt) {
+	s.Total = val
+}
+
+// SetUnit sets the value of Unit.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) SetUnit(val NilScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit) {
+	s.Unit = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgress) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+// result is being stored.
+type ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase string
+
+const (
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseDiscovery ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase = "discovery"
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhasePorts     ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase = "ports"
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseServices  ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase = "services"
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseScripts   ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase = "scripts"
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseVulns     ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase = "vulns"
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseWeb       ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase = "web"
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseOpenvas   ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase = "openvas"
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseSaving    ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase = "saving"
+)
+
+// AllValues returns all ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase values.
+func (ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase) AllValues() []ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase {
+	return []ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase{
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseDiscovery,
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhasePorts,
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseServices,
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseScripts,
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseVulns,
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseWeb,
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseOpenvas,
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseSaving,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseDiscovery:
+		return []byte(s), nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhasePorts:
+		return []byte(s), nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseServices:
+		return []byte(s), nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseScripts:
+		return []byte(s), nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseVulns:
+		return []byte(s), nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseWeb:
+		return []byte(s), nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseOpenvas:
+		return []byte(s), nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseSaving:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase) UnmarshalText(data []byte) error {
+	switch ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhase(data) {
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseDiscovery:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseDiscovery
+		return nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhasePorts:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhasePorts
+		return nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseServices:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseServices
+		return nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseScripts:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseScripts
+		return nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseVulns:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseVulns
+		return nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseWeb:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseWeb
+		return nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseOpenvas:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseOpenvas
+		return nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseSaving:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressPhaseSaving
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit string
+
+const (
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnitChecks ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit = "checks"
+	ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnitHosts  ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit = "hosts"
+)
+
+// AllValues returns all ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit values.
+func (ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit) AllValues() []ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit {
+	return []ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit{
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnitChecks,
+		ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnitHosts,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnitChecks:
+		return []byte(s), nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnitHosts:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit) UnmarshalText(data []byte) error {
+	switch ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnit(data) {
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnitChecks:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnitChecks
+		return nil
+	case ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnitHosts:
+		*s = ScanningPostScanningEnginesNmapDiscoveryRunAcceptedProgressUnitHosts
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPostScanningEnginesNmapDiscoveryRunReq struct {
+	// Leave out: sweep the whole LAN scope now, then identify the devices waiting for their scan ("Scan
+	// the LAN now"). Given: the devices to check now ("Check this device now", "Scan selected"), each an
+	// IPv4 address of a device or a device id. Every target must be a device inside the confirmed scope,
+	// outside the exclusions, and one its safety rules let a person check (a fragile device gets its
+	// gentle scan; "never scan" is refused).
+	Targets []string `json:"targets"`
+}
+
+// GetTargets returns the value of Targets.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunReq) GetTargets() []string {
+	return s.Targets
+}
+
+// SetTargets sets the value of Targets.
+func (s *ScanningPostScanningEnginesNmapDiscoveryRunReq) SetTargets(val []string) {
+	s.Targets = val
+}
+
+type ScanningPutScanningSafetyOK struct {
+	// Ranges and exclusions normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24.
+	Adjusted []ScanningPutScanningSafetyOKAdjustedItem `json:"adjusted"`
+	// IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the
+	// 200 a save accepts).
+	Exclusions []string                           `json:"exclusions"`
+	Fragile    ScanningPutScanningSafetyOKFragile `json:"fragile"`
+	Scope      ScanningPutScanningSafetyOKScope   `json:"scope"`
+	Speed      ScanningPutScanningSafetyOKSpeed   `json:"speed"`
+	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
+	// Check this device now and external scans are not bound by it.
+	Window ScanningPutScanningSafetyOKWindow `json:"window"`
+}
+
+// GetAdjusted returns the value of Adjusted.
+func (s *ScanningPutScanningSafetyOK) GetAdjusted() []ScanningPutScanningSafetyOKAdjustedItem {
+	return s.Adjusted
+}
+
+// GetExclusions returns the value of Exclusions.
+func (s *ScanningPutScanningSafetyOK) GetExclusions() []string {
+	return s.Exclusions
+}
+
+// GetFragile returns the value of Fragile.
+func (s *ScanningPutScanningSafetyOK) GetFragile() ScanningPutScanningSafetyOKFragile {
+	return s.Fragile
+}
+
+// GetScope returns the value of Scope.
+func (s *ScanningPutScanningSafetyOK) GetScope() ScanningPutScanningSafetyOKScope {
+	return s.Scope
+}
+
+// GetSpeed returns the value of Speed.
+func (s *ScanningPutScanningSafetyOK) GetSpeed() ScanningPutScanningSafetyOKSpeed {
+	return s.Speed
+}
+
+// GetWindow returns the value of Window.
+func (s *ScanningPutScanningSafetyOK) GetWindow() ScanningPutScanningSafetyOKWindow {
+	return s.Window
+}
+
+// SetAdjusted sets the value of Adjusted.
+func (s *ScanningPutScanningSafetyOK) SetAdjusted(val []ScanningPutScanningSafetyOKAdjustedItem) {
+	s.Adjusted = val
+}
+
+// SetExclusions sets the value of Exclusions.
+func (s *ScanningPutScanningSafetyOK) SetExclusions(val []string) {
+	s.Exclusions = val
+}
+
+// SetFragile sets the value of Fragile.
+func (s *ScanningPutScanningSafetyOK) SetFragile(val ScanningPutScanningSafetyOKFragile) {
+	s.Fragile = val
+}
+
+// SetScope sets the value of Scope.
+func (s *ScanningPutScanningSafetyOK) SetScope(val ScanningPutScanningSafetyOKScope) {
+	s.Scope = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *ScanningPutScanningSafetyOK) SetSpeed(val ScanningPutScanningSafetyOKSpeed) {
+	s.Speed = val
+}
+
+// SetWindow sets the value of Window.
+func (s *ScanningPutScanningSafetyOK) SetWindow(val ScanningPutScanningSafetyOKWindow) {
+	s.Window = val
+}
+
+type ScanningPutScanningSafetyOKAdjustedItem struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+// GetFrom returns the value of From.
+func (s *ScanningPutScanningSafetyOKAdjustedItem) GetFrom() string {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *ScanningPutScanningSafetyOKAdjustedItem) GetTo() string {
+	return s.To
+}
+
+// SetFrom sets the value of From.
+func (s *ScanningPutScanningSafetyOKAdjustedItem) SetFrom(val string) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *ScanningPutScanningSafetyOKAdjustedItem) SetTo(val string) {
+	s.To = val
+}
+
+type ScanningPutScanningSafetyOKFragile struct {
+	// Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter;
+	// read-only.
+	Devices int `json:"devices"`
+	// Types scanned once, gently, when first seen; passive-only after that (D-45, D-511).
+	Kinds []ScanningPutScanningSafetyOKFragileKindsItem `json:"kinds"`
+	// Subset of kinds that may still get regular scans.
+	RegularScanKinds []ScanningPutScanningSafetyOKFragileRegularScanKindsItem `json:"regular_scan_kinds"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ScanningPutScanningSafetyOKFragile) GetDevices() int {
+	return s.Devices
+}
+
+// GetKinds returns the value of Kinds.
+func (s *ScanningPutScanningSafetyOKFragile) GetKinds() []ScanningPutScanningSafetyOKFragileKindsItem {
+	return s.Kinds
+}
+
+// GetRegularScanKinds returns the value of RegularScanKinds.
+func (s *ScanningPutScanningSafetyOKFragile) GetRegularScanKinds() []ScanningPutScanningSafetyOKFragileRegularScanKindsItem {
+	return s.RegularScanKinds
+}
+
+// SetDevices sets the value of Devices.
+func (s *ScanningPutScanningSafetyOKFragile) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetKinds sets the value of Kinds.
+func (s *ScanningPutScanningSafetyOKFragile) SetKinds(val []ScanningPutScanningSafetyOKFragileKindsItem) {
+	s.Kinds = val
+}
+
+// SetRegularScanKinds sets the value of RegularScanKinds.
+func (s *ScanningPutScanningSafetyOKFragile) SetRegularScanKinds(val []ScanningPutScanningSafetyOKFragileRegularScanKindsItem) {
+	s.RegularScanKinds = val
+}
+
+type ScanningPutScanningSafetyOKFragileKindsItem string
+
+const (
+	ScanningPutScanningSafetyOKFragileKindsItemFirewall ScanningPutScanningSafetyOKFragileKindsItem = "firewall"
+	ScanningPutScanningSafetyOKFragileKindsItemRouter   ScanningPutScanningSafetyOKFragileKindsItem = "router"
+	ScanningPutScanningSafetyOKFragileKindsItemSwitch   ScanningPutScanningSafetyOKFragileKindsItem = "switch"
+	ScanningPutScanningSafetyOKFragileKindsItemAp       ScanningPutScanningSafetyOKFragileKindsItem = "ap"
+	ScanningPutScanningSafetyOKFragileKindsItemNas      ScanningPutScanningSafetyOKFragileKindsItem = "nas"
+	ScanningPutScanningSafetyOKFragileKindsItemServer   ScanningPutScanningSafetyOKFragileKindsItem = "server"
+	ScanningPutScanningSafetyOKFragileKindsItemPc       ScanningPutScanningSafetyOKFragileKindsItem = "pc"
+	ScanningPutScanningSafetyOKFragileKindsItemPrinter  ScanningPutScanningSafetyOKFragileKindsItem = "printer"
+	ScanningPutScanningSafetyOKFragileKindsItemCamera   ScanningPutScanningSafetyOKFragileKindsItem = "camera"
+	ScanningPutScanningSafetyOKFragileKindsItemNvr      ScanningPutScanningSafetyOKFragileKindsItem = "nvr"
+	ScanningPutScanningSafetyOKFragileKindsItemIot      ScanningPutScanningSafetyOKFragileKindsItem = "iot"
+	ScanningPutScanningSafetyOKFragileKindsItemWeb      ScanningPutScanningSafetyOKFragileKindsItem = "web"
+	ScanningPutScanningSafetyOKFragileKindsItemUnknown  ScanningPutScanningSafetyOKFragileKindsItem = "unknown"
+)
+
+// AllValues returns all ScanningPutScanningSafetyOKFragileKindsItem values.
+func (ScanningPutScanningSafetyOKFragileKindsItem) AllValues() []ScanningPutScanningSafetyOKFragileKindsItem {
+	return []ScanningPutScanningSafetyOKFragileKindsItem{
+		ScanningPutScanningSafetyOKFragileKindsItemFirewall,
+		ScanningPutScanningSafetyOKFragileKindsItemRouter,
+		ScanningPutScanningSafetyOKFragileKindsItemSwitch,
+		ScanningPutScanningSafetyOKFragileKindsItemAp,
+		ScanningPutScanningSafetyOKFragileKindsItemNas,
+		ScanningPutScanningSafetyOKFragileKindsItemServer,
+		ScanningPutScanningSafetyOKFragileKindsItemPc,
+		ScanningPutScanningSafetyOKFragileKindsItemPrinter,
+		ScanningPutScanningSafetyOKFragileKindsItemCamera,
+		ScanningPutScanningSafetyOKFragileKindsItemNvr,
+		ScanningPutScanningSafetyOKFragileKindsItemIot,
+		ScanningPutScanningSafetyOKFragileKindsItemWeb,
+		ScanningPutScanningSafetyOKFragileKindsItemUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPutScanningSafetyOKFragileKindsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPutScanningSafetyOKFragileKindsItemFirewall:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileKindsItemRouter:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileKindsItemSwitch:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileKindsItemAp:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileKindsItemNas:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileKindsItemServer:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileKindsItemPc:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileKindsItemPrinter:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileKindsItemCamera:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileKindsItemNvr:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileKindsItemIot:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileKindsItemWeb:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileKindsItemUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPutScanningSafetyOKFragileKindsItem) UnmarshalText(data []byte) error {
+	switch ScanningPutScanningSafetyOKFragileKindsItem(data) {
+	case ScanningPutScanningSafetyOKFragileKindsItemFirewall:
+		*s = ScanningPutScanningSafetyOKFragileKindsItemFirewall
+		return nil
+	case ScanningPutScanningSafetyOKFragileKindsItemRouter:
+		*s = ScanningPutScanningSafetyOKFragileKindsItemRouter
+		return nil
+	case ScanningPutScanningSafetyOKFragileKindsItemSwitch:
+		*s = ScanningPutScanningSafetyOKFragileKindsItemSwitch
+		return nil
+	case ScanningPutScanningSafetyOKFragileKindsItemAp:
+		*s = ScanningPutScanningSafetyOKFragileKindsItemAp
+		return nil
+	case ScanningPutScanningSafetyOKFragileKindsItemNas:
+		*s = ScanningPutScanningSafetyOKFragileKindsItemNas
+		return nil
+	case ScanningPutScanningSafetyOKFragileKindsItemServer:
+		*s = ScanningPutScanningSafetyOKFragileKindsItemServer
+		return nil
+	case ScanningPutScanningSafetyOKFragileKindsItemPc:
+		*s = ScanningPutScanningSafetyOKFragileKindsItemPc
+		return nil
+	case ScanningPutScanningSafetyOKFragileKindsItemPrinter:
+		*s = ScanningPutScanningSafetyOKFragileKindsItemPrinter
+		return nil
+	case ScanningPutScanningSafetyOKFragileKindsItemCamera:
+		*s = ScanningPutScanningSafetyOKFragileKindsItemCamera
+		return nil
+	case ScanningPutScanningSafetyOKFragileKindsItemNvr:
+		*s = ScanningPutScanningSafetyOKFragileKindsItemNvr
+		return nil
+	case ScanningPutScanningSafetyOKFragileKindsItemIot:
+		*s = ScanningPutScanningSafetyOKFragileKindsItemIot
+		return nil
+	case ScanningPutScanningSafetyOKFragileKindsItemWeb:
+		*s = ScanningPutScanningSafetyOKFragileKindsItemWeb
+		return nil
+	case ScanningPutScanningSafetyOKFragileKindsItemUnknown:
+		*s = ScanningPutScanningSafetyOKFragileKindsItemUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPutScanningSafetyOKFragileRegularScanKindsItem string
+
+const (
+	ScanningPutScanningSafetyOKFragileRegularScanKindsItemFirewall ScanningPutScanningSafetyOKFragileRegularScanKindsItem = "firewall"
+	ScanningPutScanningSafetyOKFragileRegularScanKindsItemRouter   ScanningPutScanningSafetyOKFragileRegularScanKindsItem = "router"
+	ScanningPutScanningSafetyOKFragileRegularScanKindsItemSwitch   ScanningPutScanningSafetyOKFragileRegularScanKindsItem = "switch"
+	ScanningPutScanningSafetyOKFragileRegularScanKindsItemAp       ScanningPutScanningSafetyOKFragileRegularScanKindsItem = "ap"
+	ScanningPutScanningSafetyOKFragileRegularScanKindsItemNas      ScanningPutScanningSafetyOKFragileRegularScanKindsItem = "nas"
+	ScanningPutScanningSafetyOKFragileRegularScanKindsItemServer   ScanningPutScanningSafetyOKFragileRegularScanKindsItem = "server"
+	ScanningPutScanningSafetyOKFragileRegularScanKindsItemPc       ScanningPutScanningSafetyOKFragileRegularScanKindsItem = "pc"
+	ScanningPutScanningSafetyOKFragileRegularScanKindsItemPrinter  ScanningPutScanningSafetyOKFragileRegularScanKindsItem = "printer"
+	ScanningPutScanningSafetyOKFragileRegularScanKindsItemCamera   ScanningPutScanningSafetyOKFragileRegularScanKindsItem = "camera"
+	ScanningPutScanningSafetyOKFragileRegularScanKindsItemNvr      ScanningPutScanningSafetyOKFragileRegularScanKindsItem = "nvr"
+	ScanningPutScanningSafetyOKFragileRegularScanKindsItemIot      ScanningPutScanningSafetyOKFragileRegularScanKindsItem = "iot"
+	ScanningPutScanningSafetyOKFragileRegularScanKindsItemWeb      ScanningPutScanningSafetyOKFragileRegularScanKindsItem = "web"
+	ScanningPutScanningSafetyOKFragileRegularScanKindsItemUnknown  ScanningPutScanningSafetyOKFragileRegularScanKindsItem = "unknown"
+)
+
+// AllValues returns all ScanningPutScanningSafetyOKFragileRegularScanKindsItem values.
+func (ScanningPutScanningSafetyOKFragileRegularScanKindsItem) AllValues() []ScanningPutScanningSafetyOKFragileRegularScanKindsItem {
+	return []ScanningPutScanningSafetyOKFragileRegularScanKindsItem{
+		ScanningPutScanningSafetyOKFragileRegularScanKindsItemFirewall,
+		ScanningPutScanningSafetyOKFragileRegularScanKindsItemRouter,
+		ScanningPutScanningSafetyOKFragileRegularScanKindsItemSwitch,
+		ScanningPutScanningSafetyOKFragileRegularScanKindsItemAp,
+		ScanningPutScanningSafetyOKFragileRegularScanKindsItemNas,
+		ScanningPutScanningSafetyOKFragileRegularScanKindsItemServer,
+		ScanningPutScanningSafetyOKFragileRegularScanKindsItemPc,
+		ScanningPutScanningSafetyOKFragileRegularScanKindsItemPrinter,
+		ScanningPutScanningSafetyOKFragileRegularScanKindsItemCamera,
+		ScanningPutScanningSafetyOKFragileRegularScanKindsItemNvr,
+		ScanningPutScanningSafetyOKFragileRegularScanKindsItemIot,
+		ScanningPutScanningSafetyOKFragileRegularScanKindsItemWeb,
+		ScanningPutScanningSafetyOKFragileRegularScanKindsItemUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPutScanningSafetyOKFragileRegularScanKindsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemFirewall:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemRouter:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemSwitch:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemAp:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemNas:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemServer:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemPc:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemPrinter:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemCamera:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemNvr:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemIot:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemWeb:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPutScanningSafetyOKFragileRegularScanKindsItem) UnmarshalText(data []byte) error {
+	switch ScanningPutScanningSafetyOKFragileRegularScanKindsItem(data) {
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemFirewall:
+		*s = ScanningPutScanningSafetyOKFragileRegularScanKindsItemFirewall
+		return nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemRouter:
+		*s = ScanningPutScanningSafetyOKFragileRegularScanKindsItemRouter
+		return nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemSwitch:
+		*s = ScanningPutScanningSafetyOKFragileRegularScanKindsItemSwitch
+		return nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemAp:
+		*s = ScanningPutScanningSafetyOKFragileRegularScanKindsItemAp
+		return nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemNas:
+		*s = ScanningPutScanningSafetyOKFragileRegularScanKindsItemNas
+		return nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemServer:
+		*s = ScanningPutScanningSafetyOKFragileRegularScanKindsItemServer
+		return nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemPc:
+		*s = ScanningPutScanningSafetyOKFragileRegularScanKindsItemPc
+		return nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemPrinter:
+		*s = ScanningPutScanningSafetyOKFragileRegularScanKindsItemPrinter
+		return nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemCamera:
+		*s = ScanningPutScanningSafetyOKFragileRegularScanKindsItemCamera
+		return nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemNvr:
+		*s = ScanningPutScanningSafetyOKFragileRegularScanKindsItemNvr
+		return nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemIot:
+		*s = ScanningPutScanningSafetyOKFragileRegularScanKindsItemIot
+		return nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemWeb:
+		*s = ScanningPutScanningSafetyOKFragileRegularScanKindsItemWeb
+		return nil
+	case ScanningPutScanningSafetyOKFragileRegularScanKindsItemUnknown:
+		*s = ScanningPutScanningSafetyOKFragileRegularScanKindsItemUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPutScanningSafetyOKScope struct {
+	ConfirmedAt NilDateTime `json:"confirmed_at"`
+	ConfirmedBy NilString   `json:"confirmed_by"`
+	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges.
+	LanRanges []string `json:"lan_ranges"`
+}
+
+// GetConfirmedAt returns the value of ConfirmedAt.
+func (s *ScanningPutScanningSafetyOKScope) GetConfirmedAt() NilDateTime {
+	return s.ConfirmedAt
+}
+
+// GetConfirmedBy returns the value of ConfirmedBy.
+func (s *ScanningPutScanningSafetyOKScope) GetConfirmedBy() NilString {
+	return s.ConfirmedBy
+}
+
+// GetLanRanges returns the value of LanRanges.
+func (s *ScanningPutScanningSafetyOKScope) GetLanRanges() []string {
+	return s.LanRanges
+}
+
+// SetConfirmedAt sets the value of ConfirmedAt.
+func (s *ScanningPutScanningSafetyOKScope) SetConfirmedAt(val NilDateTime) {
+	s.ConfirmedAt = val
+}
+
+// SetConfirmedBy sets the value of ConfirmedBy.
+func (s *ScanningPutScanningSafetyOKScope) SetConfirmedBy(val NilString) {
+	s.ConfirmedBy = val
+}
+
+// SetLanRanges sets the value of LanRanges.
+func (s *ScanningPutScanningSafetyOKScope) SetLanRanges(val []string) {
+	s.LanRanges = val
+}
+
+type ScanningPutScanningSafetyOKSpeed struct {
+	// Nmap and SNMP (inventory active.rate).
+	PacketsPerS int `json:"packets_per_s"`
+	// Nuclei on LAN devices (was scan config rate).
+	RequestsPerS int `json:"requests_per_s"`
+}
+
+// GetPacketsPerS returns the value of PacketsPerS.
+func (s *ScanningPutScanningSafetyOKSpeed) GetPacketsPerS() int {
+	return s.PacketsPerS
+}
+
+// GetRequestsPerS returns the value of RequestsPerS.
+func (s *ScanningPutScanningSafetyOKSpeed) GetRequestsPerS() int {
+	return s.RequestsPerS
+}
+
+// SetPacketsPerS sets the value of PacketsPerS.
+func (s *ScanningPutScanningSafetyOKSpeed) SetPacketsPerS(val int) {
+	s.PacketsPerS = val
+}
+
+// SetRequestsPerS sets the value of RequestsPerS.
+func (s *ScanningPutScanningSafetyOKSpeed) SetRequestsPerS(val int) {
+	s.RequestsPerS = val
+}
+
+// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
+// Check this device now and external scans are not bound by it.
+type ScanningPutScanningSafetyOKWindow struct {
+	// Empty only on a box whose discovery was saved off without a day; a save needs one.
+	Days []int `json:"days"`
+	// HH:MM.
+	From string `json:"from"`
+	// IANA zone the window is read in (the organization time zone); read-only.
+	TimeZone string `json:"time_zone"`
+	// Earlier than from: crosses midnight.
+	To string `json:"to"`
+}
+
+// GetDays returns the value of Days.
+func (s *ScanningPutScanningSafetyOKWindow) GetDays() []int {
+	return s.Days
+}
+
+// GetFrom returns the value of From.
+func (s *ScanningPutScanningSafetyOKWindow) GetFrom() string {
+	return s.From
+}
+
+// GetTimeZone returns the value of TimeZone.
+func (s *ScanningPutScanningSafetyOKWindow) GetTimeZone() string {
+	return s.TimeZone
+}
+
+// GetTo returns the value of To.
+func (s *ScanningPutScanningSafetyOKWindow) GetTo() string {
+	return s.To
+}
+
+// SetDays sets the value of Days.
+func (s *ScanningPutScanningSafetyOKWindow) SetDays(val []int) {
+	s.Days = val
+}
+
+// SetFrom sets the value of From.
+func (s *ScanningPutScanningSafetyOKWindow) SetFrom(val string) {
+	s.From = val
+}
+
+// SetTimeZone sets the value of TimeZone.
+func (s *ScanningPutScanningSafetyOKWindow) SetTimeZone(val string) {
+	s.TimeZone = val
+}
+
+// SetTo sets the value of To.
+func (s *ScanningPutScanningSafetyOKWindow) SetTo(val string) {
+	s.To = val
+}
+
+type ScanningPutScanningSafetyReq struct {
+	// IPv4 or CIDR without host bits.
+	Exclusions []string                            `json:"exclusions"`
+	Fragile    ScanningPutScanningSafetyReqFragile `json:"fragile"`
+	Scope      ScanningPutScanningSafetyReqScope   `json:"scope"`
+	Speed      ScanningPutScanningSafetyReqSpeed   `json:"speed"`
+	Window     ScanningPutScanningSafetyReqWindow  `json:"window"`
+}
+
+// GetExclusions returns the value of Exclusions.
+func (s *ScanningPutScanningSafetyReq) GetExclusions() []string {
+	return s.Exclusions
+}
+
+// GetFragile returns the value of Fragile.
+func (s *ScanningPutScanningSafetyReq) GetFragile() ScanningPutScanningSafetyReqFragile {
+	return s.Fragile
+}
+
+// GetScope returns the value of Scope.
+func (s *ScanningPutScanningSafetyReq) GetScope() ScanningPutScanningSafetyReqScope {
+	return s.Scope
+}
+
+// GetSpeed returns the value of Speed.
+func (s *ScanningPutScanningSafetyReq) GetSpeed() ScanningPutScanningSafetyReqSpeed {
+	return s.Speed
+}
+
+// GetWindow returns the value of Window.
+func (s *ScanningPutScanningSafetyReq) GetWindow() ScanningPutScanningSafetyReqWindow {
+	return s.Window
+}
+
+// SetExclusions sets the value of Exclusions.
+func (s *ScanningPutScanningSafetyReq) SetExclusions(val []string) {
+	s.Exclusions = val
+}
+
+// SetFragile sets the value of Fragile.
+func (s *ScanningPutScanningSafetyReq) SetFragile(val ScanningPutScanningSafetyReqFragile) {
+	s.Fragile = val
+}
+
+// SetScope sets the value of Scope.
+func (s *ScanningPutScanningSafetyReq) SetScope(val ScanningPutScanningSafetyReqScope) {
+	s.Scope = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *ScanningPutScanningSafetyReq) SetSpeed(val ScanningPutScanningSafetyReqSpeed) {
+	s.Speed = val
+}
+
+// SetWindow sets the value of Window.
+func (s *ScanningPutScanningSafetyReq) SetWindow(val ScanningPutScanningSafetyReqWindow) {
+	s.Window = val
+}
+
+type ScanningPutScanningSafetyReqFragile struct {
+	// Types scanned once, gently, when first seen; passive-only after that (D-45, D-511).
+	Kinds []ScanningPutScanningSafetyReqFragileKindsItem `json:"kinds"`
+	// Subset of kinds that may still get regular scans.
+	RegularScanKinds []ScanningPutScanningSafetyReqFragileRegularScanKindsItem `json:"regular_scan_kinds"`
+}
+
+// GetKinds returns the value of Kinds.
+func (s *ScanningPutScanningSafetyReqFragile) GetKinds() []ScanningPutScanningSafetyReqFragileKindsItem {
+	return s.Kinds
+}
+
+// GetRegularScanKinds returns the value of RegularScanKinds.
+func (s *ScanningPutScanningSafetyReqFragile) GetRegularScanKinds() []ScanningPutScanningSafetyReqFragileRegularScanKindsItem {
+	return s.RegularScanKinds
+}
+
+// SetKinds sets the value of Kinds.
+func (s *ScanningPutScanningSafetyReqFragile) SetKinds(val []ScanningPutScanningSafetyReqFragileKindsItem) {
+	s.Kinds = val
+}
+
+// SetRegularScanKinds sets the value of RegularScanKinds.
+func (s *ScanningPutScanningSafetyReqFragile) SetRegularScanKinds(val []ScanningPutScanningSafetyReqFragileRegularScanKindsItem) {
+	s.RegularScanKinds = val
+}
+
+type ScanningPutScanningSafetyReqFragileKindsItem string
+
+const (
+	ScanningPutScanningSafetyReqFragileKindsItemFirewall ScanningPutScanningSafetyReqFragileKindsItem = "firewall"
+	ScanningPutScanningSafetyReqFragileKindsItemRouter   ScanningPutScanningSafetyReqFragileKindsItem = "router"
+	ScanningPutScanningSafetyReqFragileKindsItemSwitch   ScanningPutScanningSafetyReqFragileKindsItem = "switch"
+	ScanningPutScanningSafetyReqFragileKindsItemAp       ScanningPutScanningSafetyReqFragileKindsItem = "ap"
+	ScanningPutScanningSafetyReqFragileKindsItemNas      ScanningPutScanningSafetyReqFragileKindsItem = "nas"
+	ScanningPutScanningSafetyReqFragileKindsItemServer   ScanningPutScanningSafetyReqFragileKindsItem = "server"
+	ScanningPutScanningSafetyReqFragileKindsItemPc       ScanningPutScanningSafetyReqFragileKindsItem = "pc"
+	ScanningPutScanningSafetyReqFragileKindsItemPrinter  ScanningPutScanningSafetyReqFragileKindsItem = "printer"
+	ScanningPutScanningSafetyReqFragileKindsItemCamera   ScanningPutScanningSafetyReqFragileKindsItem = "camera"
+	ScanningPutScanningSafetyReqFragileKindsItemNvr      ScanningPutScanningSafetyReqFragileKindsItem = "nvr"
+	ScanningPutScanningSafetyReqFragileKindsItemIot      ScanningPutScanningSafetyReqFragileKindsItem = "iot"
+	ScanningPutScanningSafetyReqFragileKindsItemWeb      ScanningPutScanningSafetyReqFragileKindsItem = "web"
+	ScanningPutScanningSafetyReqFragileKindsItemUnknown  ScanningPutScanningSafetyReqFragileKindsItem = "unknown"
+)
+
+// AllValues returns all ScanningPutScanningSafetyReqFragileKindsItem values.
+func (ScanningPutScanningSafetyReqFragileKindsItem) AllValues() []ScanningPutScanningSafetyReqFragileKindsItem {
+	return []ScanningPutScanningSafetyReqFragileKindsItem{
+		ScanningPutScanningSafetyReqFragileKindsItemFirewall,
+		ScanningPutScanningSafetyReqFragileKindsItemRouter,
+		ScanningPutScanningSafetyReqFragileKindsItemSwitch,
+		ScanningPutScanningSafetyReqFragileKindsItemAp,
+		ScanningPutScanningSafetyReqFragileKindsItemNas,
+		ScanningPutScanningSafetyReqFragileKindsItemServer,
+		ScanningPutScanningSafetyReqFragileKindsItemPc,
+		ScanningPutScanningSafetyReqFragileKindsItemPrinter,
+		ScanningPutScanningSafetyReqFragileKindsItemCamera,
+		ScanningPutScanningSafetyReqFragileKindsItemNvr,
+		ScanningPutScanningSafetyReqFragileKindsItemIot,
+		ScanningPutScanningSafetyReqFragileKindsItemWeb,
+		ScanningPutScanningSafetyReqFragileKindsItemUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPutScanningSafetyReqFragileKindsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPutScanningSafetyReqFragileKindsItemFirewall:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileKindsItemRouter:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileKindsItemSwitch:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileKindsItemAp:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileKindsItemNas:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileKindsItemServer:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileKindsItemPc:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileKindsItemPrinter:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileKindsItemCamera:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileKindsItemNvr:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileKindsItemIot:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileKindsItemWeb:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileKindsItemUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPutScanningSafetyReqFragileKindsItem) UnmarshalText(data []byte) error {
+	switch ScanningPutScanningSafetyReqFragileKindsItem(data) {
+	case ScanningPutScanningSafetyReqFragileKindsItemFirewall:
+		*s = ScanningPutScanningSafetyReqFragileKindsItemFirewall
+		return nil
+	case ScanningPutScanningSafetyReqFragileKindsItemRouter:
+		*s = ScanningPutScanningSafetyReqFragileKindsItemRouter
+		return nil
+	case ScanningPutScanningSafetyReqFragileKindsItemSwitch:
+		*s = ScanningPutScanningSafetyReqFragileKindsItemSwitch
+		return nil
+	case ScanningPutScanningSafetyReqFragileKindsItemAp:
+		*s = ScanningPutScanningSafetyReqFragileKindsItemAp
+		return nil
+	case ScanningPutScanningSafetyReqFragileKindsItemNas:
+		*s = ScanningPutScanningSafetyReqFragileKindsItemNas
+		return nil
+	case ScanningPutScanningSafetyReqFragileKindsItemServer:
+		*s = ScanningPutScanningSafetyReqFragileKindsItemServer
+		return nil
+	case ScanningPutScanningSafetyReqFragileKindsItemPc:
+		*s = ScanningPutScanningSafetyReqFragileKindsItemPc
+		return nil
+	case ScanningPutScanningSafetyReqFragileKindsItemPrinter:
+		*s = ScanningPutScanningSafetyReqFragileKindsItemPrinter
+		return nil
+	case ScanningPutScanningSafetyReqFragileKindsItemCamera:
+		*s = ScanningPutScanningSafetyReqFragileKindsItemCamera
+		return nil
+	case ScanningPutScanningSafetyReqFragileKindsItemNvr:
+		*s = ScanningPutScanningSafetyReqFragileKindsItemNvr
+		return nil
+	case ScanningPutScanningSafetyReqFragileKindsItemIot:
+		*s = ScanningPutScanningSafetyReqFragileKindsItemIot
+		return nil
+	case ScanningPutScanningSafetyReqFragileKindsItemWeb:
+		*s = ScanningPutScanningSafetyReqFragileKindsItemWeb
+		return nil
+	case ScanningPutScanningSafetyReqFragileKindsItemUnknown:
+		*s = ScanningPutScanningSafetyReqFragileKindsItemUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPutScanningSafetyReqFragileRegularScanKindsItem string
+
+const (
+	ScanningPutScanningSafetyReqFragileRegularScanKindsItemFirewall ScanningPutScanningSafetyReqFragileRegularScanKindsItem = "firewall"
+	ScanningPutScanningSafetyReqFragileRegularScanKindsItemRouter   ScanningPutScanningSafetyReqFragileRegularScanKindsItem = "router"
+	ScanningPutScanningSafetyReqFragileRegularScanKindsItemSwitch   ScanningPutScanningSafetyReqFragileRegularScanKindsItem = "switch"
+	ScanningPutScanningSafetyReqFragileRegularScanKindsItemAp       ScanningPutScanningSafetyReqFragileRegularScanKindsItem = "ap"
+	ScanningPutScanningSafetyReqFragileRegularScanKindsItemNas      ScanningPutScanningSafetyReqFragileRegularScanKindsItem = "nas"
+	ScanningPutScanningSafetyReqFragileRegularScanKindsItemServer   ScanningPutScanningSafetyReqFragileRegularScanKindsItem = "server"
+	ScanningPutScanningSafetyReqFragileRegularScanKindsItemPc       ScanningPutScanningSafetyReqFragileRegularScanKindsItem = "pc"
+	ScanningPutScanningSafetyReqFragileRegularScanKindsItemPrinter  ScanningPutScanningSafetyReqFragileRegularScanKindsItem = "printer"
+	ScanningPutScanningSafetyReqFragileRegularScanKindsItemCamera   ScanningPutScanningSafetyReqFragileRegularScanKindsItem = "camera"
+	ScanningPutScanningSafetyReqFragileRegularScanKindsItemNvr      ScanningPutScanningSafetyReqFragileRegularScanKindsItem = "nvr"
+	ScanningPutScanningSafetyReqFragileRegularScanKindsItemIot      ScanningPutScanningSafetyReqFragileRegularScanKindsItem = "iot"
+	ScanningPutScanningSafetyReqFragileRegularScanKindsItemWeb      ScanningPutScanningSafetyReqFragileRegularScanKindsItem = "web"
+	ScanningPutScanningSafetyReqFragileRegularScanKindsItemUnknown  ScanningPutScanningSafetyReqFragileRegularScanKindsItem = "unknown"
+)
+
+// AllValues returns all ScanningPutScanningSafetyReqFragileRegularScanKindsItem values.
+func (ScanningPutScanningSafetyReqFragileRegularScanKindsItem) AllValues() []ScanningPutScanningSafetyReqFragileRegularScanKindsItem {
+	return []ScanningPutScanningSafetyReqFragileRegularScanKindsItem{
+		ScanningPutScanningSafetyReqFragileRegularScanKindsItemFirewall,
+		ScanningPutScanningSafetyReqFragileRegularScanKindsItemRouter,
+		ScanningPutScanningSafetyReqFragileRegularScanKindsItemSwitch,
+		ScanningPutScanningSafetyReqFragileRegularScanKindsItemAp,
+		ScanningPutScanningSafetyReqFragileRegularScanKindsItemNas,
+		ScanningPutScanningSafetyReqFragileRegularScanKindsItemServer,
+		ScanningPutScanningSafetyReqFragileRegularScanKindsItemPc,
+		ScanningPutScanningSafetyReqFragileRegularScanKindsItemPrinter,
+		ScanningPutScanningSafetyReqFragileRegularScanKindsItemCamera,
+		ScanningPutScanningSafetyReqFragileRegularScanKindsItemNvr,
+		ScanningPutScanningSafetyReqFragileRegularScanKindsItemIot,
+		ScanningPutScanningSafetyReqFragileRegularScanKindsItemWeb,
+		ScanningPutScanningSafetyReqFragileRegularScanKindsItemUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPutScanningSafetyReqFragileRegularScanKindsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemFirewall:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemRouter:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemSwitch:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemAp:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemNas:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemServer:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemPc:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemPrinter:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemCamera:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemNvr:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemIot:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemWeb:
+		return []byte(s), nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPutScanningSafetyReqFragileRegularScanKindsItem) UnmarshalText(data []byte) error {
+	switch ScanningPutScanningSafetyReqFragileRegularScanKindsItem(data) {
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemFirewall:
+		*s = ScanningPutScanningSafetyReqFragileRegularScanKindsItemFirewall
+		return nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemRouter:
+		*s = ScanningPutScanningSafetyReqFragileRegularScanKindsItemRouter
+		return nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemSwitch:
+		*s = ScanningPutScanningSafetyReqFragileRegularScanKindsItemSwitch
+		return nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemAp:
+		*s = ScanningPutScanningSafetyReqFragileRegularScanKindsItemAp
+		return nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemNas:
+		*s = ScanningPutScanningSafetyReqFragileRegularScanKindsItemNas
+		return nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemServer:
+		*s = ScanningPutScanningSafetyReqFragileRegularScanKindsItemServer
+		return nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemPc:
+		*s = ScanningPutScanningSafetyReqFragileRegularScanKindsItemPc
+		return nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemPrinter:
+		*s = ScanningPutScanningSafetyReqFragileRegularScanKindsItemPrinter
+		return nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemCamera:
+		*s = ScanningPutScanningSafetyReqFragileRegularScanKindsItemCamera
+		return nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemNvr:
+		*s = ScanningPutScanningSafetyReqFragileRegularScanKindsItemNvr
+		return nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemIot:
+		*s = ScanningPutScanningSafetyReqFragileRegularScanKindsItemIot
+		return nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemWeb:
+		*s = ScanningPutScanningSafetyReqFragileRegularScanKindsItemWeb
+		return nil
+	case ScanningPutScanningSafetyReqFragileRegularScanKindsItemUnknown:
+		*s = ScanningPutScanningSafetyReqFragileRegularScanKindsItemUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPutScanningSafetyReqScope struct {
+	// Attestation: the ranges belong to the company and scanning them is permitted. Required true while
+	// nmap-discovery is on (400 scope_not_confirmed); changing the ranges asks for it again.
+	Confirmed bool `json:"confirmed"`
+	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges.
+	LanRanges []string `json:"lan_ranges"`
+}
+
+// GetConfirmed returns the value of Confirmed.
+func (s *ScanningPutScanningSafetyReqScope) GetConfirmed() bool {
+	return s.Confirmed
+}
+
+// GetLanRanges returns the value of LanRanges.
+func (s *ScanningPutScanningSafetyReqScope) GetLanRanges() []string {
+	return s.LanRanges
+}
+
+// SetConfirmed sets the value of Confirmed.
+func (s *ScanningPutScanningSafetyReqScope) SetConfirmed(val bool) {
+	s.Confirmed = val
+}
+
+// SetLanRanges sets the value of LanRanges.
+func (s *ScanningPutScanningSafetyReqScope) SetLanRanges(val []string) {
+	s.LanRanges = val
+}
+
+type ScanningPutScanningSafetyReqSpeed struct {
+	// Nmap and SNMP (inventory active.rate).
+	PacketsPerS int `json:"packets_per_s"`
+	// Nuclei on LAN devices (was scan config rate).
+	RequestsPerS int `json:"requests_per_s"`
+}
+
+// GetPacketsPerS returns the value of PacketsPerS.
+func (s *ScanningPutScanningSafetyReqSpeed) GetPacketsPerS() int {
+	return s.PacketsPerS
+}
+
+// GetRequestsPerS returns the value of RequestsPerS.
+func (s *ScanningPutScanningSafetyReqSpeed) GetRequestsPerS() int {
+	return s.RequestsPerS
+}
+
+// SetPacketsPerS sets the value of PacketsPerS.
+func (s *ScanningPutScanningSafetyReqSpeed) SetPacketsPerS(val int) {
+	s.PacketsPerS = val
+}
+
+// SetRequestsPerS sets the value of RequestsPerS.
+func (s *ScanningPutScanningSafetyReqSpeed) SetRequestsPerS(val int) {
+	s.RequestsPerS = val
+}
+
+type ScanningPutScanningSafetyReqWindow struct {
+	Days []int `json:"days"`
+	// HH:MM.
+	From string `json:"from"`
+	// Earlier than from: crosses midnight.
+	To string `json:"to"`
+}
+
+// GetDays returns the value of Days.
+func (s *ScanningPutScanningSafetyReqWindow) GetDays() []int {
+	return s.Days
+}
+
+// GetFrom returns the value of From.
+func (s *ScanningPutScanningSafetyReqWindow) GetFrom() string {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *ScanningPutScanningSafetyReqWindow) GetTo() string {
+	return s.To
+}
+
+// SetDays sets the value of Days.
+func (s *ScanningPutScanningSafetyReqWindow) SetDays(val []int) {
+	s.Days = val
+}
+
+// SetFrom sets the value of From.
+func (s *ScanningPutScanningSafetyReqWindow) SetFrom(val string) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *ScanningPutScanningSafetyReqWindow) SetTo(val string) {
 	s.To = val
 }
 

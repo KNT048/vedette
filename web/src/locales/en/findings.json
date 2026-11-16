@@ -43,7 +43,8 @@
     "status": "Status",
     "severity": "Severity",
     "basis": "Basis",
-    "lastSeen": "Last seen"
+    "lastSeen": "Last seen",
+    "cvss": "CVSS"
   },
   "basis": {
     "scan": "Confirmed by scan",
@@ -259,6 +260,24 @@
     "unverifiedLine": "Unverified: product match only.",
     "unverifiedLineInfo": "The severity applies only if the version on this device is affected.",
     "unverifiedAgentHint": "Unverified: product match only. The device's agent reports the installed version, but Vedette cannot compare it with the versions NVD lists for this CVE, so this may not apply to you. Compare it with the vendor advisory."
+  },
+  "cvss": {
+    "value": "{{score}} {{band}}",
+    "label": "CVSS {{value}}",
+    "none": "No score",
+    "noneLabel": "No CVSS score",
+    "noneInfo": "No CVSS score in the data this box has. Whether it is exploited does not depend on it.",
+    "info": "CVSS {{version}} base score. Source: {{from}}.",
+    "fromNvd": "NVD",
+    "fromOther": "Another scorer (CNA or CISA ADP)",
+    "first": "CVSS is owned by FIRST and used by permission.",
+    "band": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "none": "None"
+    }
   },
   "bulk": {
     "region": "Selected findings",

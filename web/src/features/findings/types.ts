@@ -3,6 +3,8 @@ import type { z } from 'zod'
 import type * as C from './contract'
 
 export type KevInfo = z.infer<typeof C.KevInfo>
+/** #825: the CVSS base score with its version and source; null on a row = no score known. */
+export type Cvss = z.infer<typeof C.Cvss>
 export type FindingAsset = z.infer<typeof C.FindingAsset>
 /** Phát hiện + thiết bị + thông tin KEV (đọc từ KEV thật, không phải từ gói khuyến nghị của dự án). */
 export type FindingRow = z.infer<typeof C.FindingRow>
@@ -28,3 +30,6 @@ export type Plan = z.infer<typeof C.Plan>
 export type PlanItem = z.infer<typeof C.PlanItem>
 export type PlanCve = z.infer<typeof C.PlanCve>
 export type PlanFilter = z.infer<typeof C.PlanFilter>
+/** #825: Home's one read: open findings, the few to fix first, the 30-day trend, device and alert counts. */
+export type HomeSummary = z.infer<typeof C.HomeSummary>
+export type SummaryItem = z.infer<typeof C.SummaryItem>

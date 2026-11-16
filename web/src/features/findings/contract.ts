@@ -61,8 +61,15 @@ export const RowFix = z.object({
   distro: z.string().describe('distro: "Ubuntu" or "Debian", empty for the distribution\'s'),
   pro: z.boolean().describe('distro: the fix of at least one of them is in Ubuntu Pro (ESM) only'),
 }).describe('D-545: one update fixes this finding together with the device\'s other open findings of the same software (top-tier: one item per missing update)')
+export const Cvss = z.object({
+  score: z.number().min(0).max(10).describe('The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST\'s table (3.x, 4.0) or NVD\'s v2 table (2.0: Low, Medium, High; no Critical)'),
+  version: z.enum(['4.0', '3.1', '3.0', '2.0']).describe('The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has nothing newer)'),
+  source: z.enum(['nvd', 'cna']).describe('nvd = NVD\'s own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering Authority or CISA\'s ADP), used only when NVD gives none for that version'),
+  vector: z.string().min(1).max(200).describe('NVD\'s vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks that a score be shown with its vector, so a score without a valid one is not shown'),
+}).describe('#825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it')
 export const FindingRow = Finding.extend({
   asset: FindingAsset.nullable(), kev: KevInfo.nullable().describe('Read from KEV, not from the project recommendation pack'),
+  cvss: Cvss.nullable().describe('null = no CVSS score known: the pages say "No score", never 0'),
   fix: RowFix.nullable().optional().describe('GET /findings only, open findings: the update that fixes it with others (D-545); null when there is none to name'),
 })
 
@@ -169,6 +176,33 @@ export const Plan = z.object({
   }),
 })
 
+/** Home's "Fix first" list and trend (#825): how many items and days the summary carries. */
+export const SUMMARY_TOP = 5
+export const SUMMARY_DAYS = 30
+export const SummaryItem = z.object({
+  id: z.string(), cve: z.string(), status: z.enum(['confirmed', 'suspected']).describe('Open findings only'), severity: Severity,
+  asset: FindingAsset.nullable().describe('null when the device was removed'),
+  product: z.string().describe('The product as the findings list names it (the KEV display name, else "<vendor> <product>"; empty when the CVE left the list)'),
+  ransomware: z.boolean().describe('The exploited list says ransomware campaigns use it'),
+  source: z.enum(['cisa-kev', 'vulncheck-kev']).nullable().describe('Which exploited list names it (D-557); null when the CVE left the list'),
+  cvss: Cvss.nullable().describe('null = no score known: "No score", never 0'),
+  first_seen: iso,
+})
+export const HomeSummary = z.object({
+  open: z.object({
+    total: z.number().int().describe('Open findings (confirmed + suspected): a device runs software on an exploited list'),
+    confirmed: z.number().int().describe('Of them, confirmed by a scan'),
+    devices: z.number().int().describe('Devices with at least one open finding'),
+    ransomware: z.number().int().describe('Open findings whose CVE ransomware campaigns use'),
+  }),
+  top: z.array(SummaryItem).max(SUMMARY_TOP).describe('The open findings to fix first: confirmed before suspected, then ransomware, then the highest CVSS (no score last), then the newest'),
+  trend: z.array(z.number().int()).length(SUMMARY_DAYS).describe('Open findings at the end of each of the last 30 days (UTC), oldest first; the last is now'),
+  devices: z.object({ total: z.number().int().describe('Devices on the Devices page'), pending: z.number().int().describe('Devices waiting for review') }),
+  alerts: z.object({ sent: z.number().int(), failed: z.number().int(), days: z.number().int() }).nullable().describe('Alert messages (incidents, vulnerabilities; not approval requests) sent and failed in the last `days` days; a failure resent later with success to the same channel is not counted as failed; null when Notifications is off'),
+  incidents: z.object({ open: z.number().int().describe('Open incidents (new or acknowledged)'), urgent: z.number().int().describe('Of them, high or critical') }).nullable().describe('null when Notifications is off'),
+  generated_at: iso.describe('When the box computed this summary (it keeps it up to 60 s, and drops it at every finding change)'),
+})
+
 const idParams = z.object({ id: findingId })
 
 export const endpoints = defineEndpoints([
@@ -185,6 +219,8 @@ export const endpoints = defineEndpoints([
     params: idParams, body: z.object({ item: ApplyItem }), response: FindingDetail },
   { method: 'post', path: '/findings/{id}/ai', summary: 'Explain or draft a recommendation with the customer AI key (BYOK); fails if AI is off', stories: ['S-AI-2', 'S-MIT-1'], role: 'operator',
     params: idParams, body: z.object({ skill: z.enum(['explain', 'mitigation-config']) }), response: FindingDetail },
+  { method: 'get', path: '/findings/summary', summary: 'Home at a glance (#825): open findings, the few to fix first with their CVSS, 30 days of trend, device and alert counts; one cached read', stories: ['S-FEED-1', 'S-MIT-1', 'S-UI-1'], role: 'viewer',
+    response: HomeSummary },
   { method: 'get', path: '/findings/plan', summary: 'Updates to plan: one item per update on one device that fixes CVEs likely to be exploited (EPSS 10 % or more) or published in the last 12 months, version-confirmed only; never findings, never alerts', stories: ['S-TIER-1', 'S-TIER-2'], role: 'viewer',
     query: z.object({ tier: PlanFilter.optional().describe('Default all'), asset: z.string().max(64).optional().describe('One device') }), response: Plan },
 ])

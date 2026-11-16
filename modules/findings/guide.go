@@ -214,6 +214,7 @@ type Row struct {
 	History        []historyDoc `json:"history"`
 	Asset          *AssetView   `json:"asset"`
 	Kev            *KevInfo     `json:"kev"`
+	CVSS           *CVSS        `json:"cvss"` // nil: no score known ("No score", never 0; INV-22)
 	// Fix is the one update that fixes this finding together with the device's other open findings of the same software (D-545):
 	// set on the list only, for an open finding; nil when Vedette cannot name one.
 	Fix *RowFix `json:"fix"`
@@ -233,11 +234,11 @@ type Detail struct {
 	FixedIn *FixedIn `json:"fixed_in"` // null when NVD's ranges do not say which release fixes it (D-488)
 }
 
-func newRow(r Record, a *AssetView, k *KevInfo) Row {
+func newRow(r Record, a *AssetView, k *KevInfo, c *CVSS) Row {
 	row := Row{
 		ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: r.Status, Severity: r.Severity, Confidence: r.Confidence, Basis: r.Basis,
 		Evidence: newEvidenceDoc(r.Evidence), FirstSeen: r.FirstSeen.UTC(), LastSeen: r.LastSeen.UTC(),
-		History: make([]historyDoc, 0, len(r.History)), Asset: a, Kev: k,
+		History: make([]historyDoc, 0, len(r.History)), Asset: a, Kev: k, CVSS: c,
 	}
 	if r.ResolvedBy != "" {
 		row.ResolvedBy = &r.ResolvedBy
@@ -267,16 +268,7 @@ func newRow(r Record, a *AssetView, k *KevInfo) Row {
 		row.Kev = &kk
 	}
 	if a != nil {
-		aa := *a
-		if !validKind(aa.Kind) {
-			aa.Kind = "unknown"
-		}
-		if aa.Name == "" || aa.Name == aa.ID { // never show an internal id (D-484): the software it runs, else the kind
-			aa.Name = aa.Display
-			if aa.Name == "" {
-				aa.Name = aa.Kind
-			}
-		}
+		aa := shownAsset(*a)
 		row.Asset = &aa
 		// Findings created before D-484 named a device without hostname or IP by its id in the evidence.
 		if row.Evidence != nil && r.AssetID != "" && strings.Contains(row.Evidence.Summary, r.AssetID) {
@@ -286,6 +278,21 @@ func newRow(r Record, a *AssetView, k *KevInfo) Row {
 		}
 	}
 	return row
+}
+
+// shownAsset is a device as every findings answer shows it (GET /findings, GET /findings/{id}, GET /findings/summary): a kind outside
+// the inventory's device types is "unknown", and the name is never the internal id (D-484): the software it runs, else the kind.
+func shownAsset(a AssetView) AssetView {
+	if !validKind(a.Kind) {
+		a.Kind = "unknown"
+	}
+	if a.Name == "" || a.Name == a.ID {
+		a.Name = a.Display
+		if a.Name == "" {
+			a.Name = a.Kind
+		}
+	}
+	return a
 }
 
 // validKind: k is one of the inventory's device types (D-511, content/devicetypes).

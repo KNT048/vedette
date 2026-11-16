@@ -29,8 +29,9 @@ type FindingHandlers struct {
 	feed Feeds
 	gate server.ModuleGate
 
-	mu    sync.RWMutex
-	guide Guidance
+	mu           sync.RWMutex
+	guide        Guidance
+	summaryState // GET /findings/summary (summary.go); sum and home under mu
 }
 
 // NewFindingHandlers returns the handlers. gate says whether mitigation is on: while it is off the registered
@@ -68,7 +69,7 @@ func ToAPIError(err error) error {
 	return err
 }
 
-// rows adds the device and the KEV entry to records, with one call to each source.
+// rows adds the device, the KEV entry and the CVSS score to records, with one call to each source.
 func (h *FindingHandlers) rows(ctx context.Context, recs []Record) ([]Row, error) {
 	ids := make([]string, 0, len(recs))
 	cves := make([]string, 0, len(recs))
@@ -85,6 +86,7 @@ func (h *FindingHandlers) rows(ctx context.Context, recs []Record) ([]Row, error
 	}
 	var assets map[string]AssetView
 	var kev map[string]KevInfo
+	var scores map[string]CVSS
 	if len(recs) > 0 {
 		var err error
 		if assets, err = h.inv.Assets(ctx, ids); err != nil {
@@ -92,6 +94,9 @@ func (h *FindingHandlers) rows(ctx context.Context, recs []Record) ([]Row, error
 		}
 		if kev, err = h.feed.KevInfo(ctx, cves); err != nil {
 			return nil, fmt.Errorf("findings: reading KEV entries: %w", err)
+		}
+		if scores, err = h.feed.CVSS(ctx, cves); err != nil {
+			return nil, fmt.Errorf("findings: reading CVSS scores: %w", err)
 		}
 	}
 	out := make([]Row, 0, len(recs))
@@ -104,7 +109,11 @@ func (h *FindingHandlers) rows(ctx context.Context, recs []Record) ([]Row, error
 		if v, ok := kev[r.CVE]; ok {
 			k = &v
 		}
-		out = append(out, newRow(r, a, k))
+		var c *CVSS
+		if v, ok := scores[r.CVE]; ok {
+			c = &v
+		}
+		out = append(out, newRow(r, a, k, c))
 	}
 	return out, nil
 }

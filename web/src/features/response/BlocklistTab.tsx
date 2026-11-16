@@ -9,6 +9,7 @@ import { Notice, Panel, Section } from '@/components/common/PageHeader'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
+import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { errText, useBlocklist, useNewToken } from './api'
 import { guides } from './templates/guides'
@@ -18,7 +19,28 @@ export function BlocklistTab() {
   const q = useBlocklist()
   const renew = useNewToken()
   const [ask, setAsk] = useState(false)
+  const regenerate = (
+    <Dialog open={ask} onOpenChange={setAsk}>
+      <DialogContent title={t('blocklist.regenerateTitle')} description={t('blocklist.regenerateBody')}>
+        <DialogFooter>
+          <Button onClick={() => setAsk(false)}>{t('common:cancel')}</Button>
+          <Button variant="danger" disabled={renew.isPending} onClick={() => renew.mutate(undefined, { onSuccess: () => { toast.success(t('blocklist.regenerated')); setAsk(false) }, onError: (e) => toast.error(errText(e)) })}>{t('blocklist.regenerate')}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
   if (q.isPending) return <Loading />
+  // #847: the token was not restored with the backup. The firewall keeps pulling its current address; the server's sentence says so,
+  // and Regenerate (the administrator's choice) makes a new one.
+  if (q.error instanceof ApiError && q.error.code === 'secret_lost') {
+    return (
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+        <ErrorState error={q.error} />
+        <div><Button size="sm" onClick={() => setAsk(true)}><RefreshCw className="size-4" aria-hidden />{t('blocklist.regenerate')}</Button></div>
+        {regenerate}
+      </div>
+    )
+  }
   if (q.error) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
   const b = q.data
   return (
@@ -67,14 +89,7 @@ export function BlocklistTab() {
         </div>
         <Notice tone="accent" className="mb-0 mt-4" title={t('blocklist.pushTitle')} info={t('blocklist.pushBodyInfo')}>{t('blocklist.pushBody')}</Notice>
       </Section>
-      <Dialog open={ask} onOpenChange={setAsk}>
-        <DialogContent title={t('blocklist.regenerateTitle')} description={t('blocklist.regenerateBody')}>
-          <DialogFooter>
-            <Button onClick={() => setAsk(false)}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={renew.isPending} onClick={() => renew.mutate(undefined, { onSuccess: () => { toast.success(t('blocklist.regenerated')); setAsk(false) }, onError: (e) => toast.error(errText(e)) })}>{t('blocklist.regenerate')}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {regenerate}
     </div>
   )
 }

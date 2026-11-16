@@ -9,9 +9,11 @@ import { epssDate, kevPublished as published, planSeed, recentSince, tierFact, t
 import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
 import { compromise, packs } from './packs'
-import type { AiResult, ApplyItem, FindingAsset, FindingDetail, FindingRow, FirewallGuide, KevInfo, MitigationPack, Plan, PlanCve, PlanItem, RowFix, StatusAction } from './types'
+import type { AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, HomeSummary, KevInfo, MitigationPack, Plan, PlanCve, PlanItem, RowFix, StatusAction } from './types'
 import { fmtDate } from '@/lib/format'
 import { displayName } from '@/features/inventory/nameOf'
+import { openIncidents, sentSince } from '@/features/notify/mocks'
+import { SUMMARY_DAYS, SUMMARY_TOP } from './contract'
 
 interface Vuln { cve: string; vendor: string; product: string; name: string; required_action: string; links: string[]; date_added: string; due_date: string | null; ransomware: boolean; epss: number | null; has_template: boolean }
 const vulns = (kev as { vulns: Vuln[] }).vulns
@@ -34,6 +36,19 @@ const DISPLAY: Record<string, string> = {
   'wordpress|wordpress core': 'WordPress website',
   'microsoft|windows': 'Windows computers and servers',
 }
+
+/** #825: the CVSS base score the box reads from NVD's records (feeds INV-28), for the sample CVEs. A CVE not here has no score ("No score"):
+ *  CVE-2026-96951 (f-3) on purpose, as NVD answers for a CVE it has not scored yet. CVE-2015-5477 has only CVSS 2.0 (v2 bands: High). */
+const CVSS: Record<string, Cvss> = {
+  'CVE-2022-27593': { score: 9.8, version: '3.1', source: 'nvd', vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H' },
+  'CVE-2026-119977': { score: 8.5, version: '4.0', source: 'cna', vector: 'CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:L/VA:N/SC:N/SI:N/SA:N' },
+  'CVE-2024-27834': { score: 8.8, version: '3.1', source: 'nvd', vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H' },
+  'CVE-2025-61624': { score: 6.5, version: '3.1', source: 'cna', vector: 'CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N' },
+  'CVE-2026-21589': { score: 7.5, version: '3.1', source: 'nvd', vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N' },
+  'CVE-2015-5477': { score: 7.8, version: '2.0', source: 'nvd', vector: 'AV:N/AC:L/Au:N/C:N/I:N/A:C' },
+  'CVE-2023-22894': { score: 7.7, version: '3.1', source: 'nvd', vector: 'CVSS:3.1/AV:N/AC:H/PR:H/UI:N/S:C/C:H/I:H/A:H' },
+}
+const cvssOf = (cve: string): Cvss | null => CVSS[cve] ?? null
 
 function kevInfo(cve: string): KevInfo | null {
   const v = vulns.find((x) => x.cve === cve)
@@ -94,7 +109,7 @@ function assetView(a: Asset | undefined): FindingAsset | null {
 function row(f: Finding): FindingRow {
   const until = accepted.get()[f.id] ?? null
   const status = until ? 'risk_accepted' : f.status
-  return { ...f, status, accepted_until: until, asset: assetView(assetsStore.get().find((a) => a.id === f.asset_id)), kev: kevInfo(f.cve),
+  return { ...f, status, accepted_until: until, asset: assetView(assetsStore.get().find((a) => a.id === f.asset_id)), kev: kevInfo(f.cve), cvss: cvssOf(f.cve),
     fix: status === 'confirmed' || status === 'suspected' ? fixes.get()[f.id] ?? null : null }
 }
 
@@ -225,6 +240,34 @@ function aiResult(f: Finding, skill: AiResult['skill']): AiResult {
   return { skill, ts: nowIso(), model: prof?.model ?? '', profile: prof?.name, tokens: { input: 1200 + len, output: Math.round(len / 3.2) }, paragraphs, steps, citations }
 }
 
+/** GET /findings/summary (#825), computed as the box does: open = confirmed + suspected; the trend counts, at the end of each UTC day, the
+ *  findings first seen by then and not closed by then. */
+function summary(): HomeSummary {
+  const rows = findingsStore.get().map(row)
+  const open = rows.filter((r) => r.status === 'confirmed' || r.status === 'suspected')
+  const rank = (r: FindingRow) => [r.status === 'confirmed' ? 0 : 1, r.kev?.ransomware ? 0 : 1, -(r.cvss?.score ?? -1)] as const
+  const top = [...open].sort((a, b) => {
+    const x = rank(a), y = rank(b)
+    return x[0] - y[0] || x[1] - y[1] || x[2] - y[2] || b.first_seen.localeCompare(a.first_seen)
+  }).slice(0, SUMMARY_TOP)
+  const now = Date.now()
+  const today = new Date(now); today.setUTCHours(24, 0, 0, 0)
+  const trend = Array.from({ length: SUMMARY_DAYS }, (_, i) => {
+    const end = i === SUMMARY_DAYS - 1 ? now : today.getTime() - (SUMMARY_DAYS - 1 - i) * 864e5
+    return rows.filter((r) => Date.parse(r.first_seen) <= end && (!r.resolved_at || Date.parse(r.resolved_at) > end)).length
+  })
+  const assets = assetsStore.get()
+  return {
+    open: { total: open.length, confirmed: open.filter((r) => r.status === 'confirmed').length, devices: new Set(open.map((r) => r.asset_id)).size, ransomware: open.filter((r) => r.kev?.ransomware).length },
+    top: top.map((r) => ({ id: r.id, cve: r.cve, status: r.status === 'confirmed' ? 'confirmed' as const : 'suspected' as const, severity: r.severity, asset: r.asset, product: r.kev ? (r.kev.display || `${r.kev.vendor} ${r.kev.product}`) : '', ransomware: !!r.kev?.ransomware, source: r.kev ? (r.kev.source ?? 'cisa-kev') : null, cvss: r.cvss, first_seen: r.first_seen })),
+    trend,
+    devices: { total: assets.length, pending: assets.filter((a) => !a.approved).length },
+    alerts: isOn('notify') ? { ...sentSince(new Date(now - 7 * 864e5).toISOString()), days: 7 } : null,
+    incidents: isOn('notify') ? openIncidents() : null,
+    generated_at: nowIso(),
+  }
+}
+
 export const handlers = [
   http.get(`${API}/findings`, ({ request }) => {
     const denied = guard('viewer'); if (denied) return denied
@@ -235,6 +278,13 @@ export const handlers = [
       asset: assetView(a), asset_id: a.id, software_id: s.id, software: s.display, version: s.version || null, cves,
     }))
     return HttpResponse.json({ items: list.map(row), version_needed })
+  }),
+
+  // Before /findings/:id: "summary" is not a finding id.
+  http.get(`${API}/findings/summary`, () => {
+    const denied = guard('viewer'); if (denied) return denied
+    expireAccepted()
+    return HttpResponse.json(summary())
   }),
 
   // Before /findings/:id: "plan" is not a finding id.

@@ -187,6 +187,7 @@ var operationRolesSession = map[string][]string{
 	FindingsGetFindingsOperation:                            []string{},
 	FindingsGetFindingsIDOperation:                          []string{},
 	FindingsGetFindingsPlanOperation:                        []string{},
+	FindingsGetFindingsSummaryOperation:                     []string{},
 	FindingsPostFindingsIDAiOperation:                       []string{},
 	FindingsPostFindingsIDAppliedOperation:                  []string{},
 	FindingsPostFindingsIDStatusOperation:                   []string{},
@@ -219,6 +220,7 @@ var operationRolesSession = map[string][]string{
 	InventoryGetInventorySensorsOperation:                   []string{},
 	InventoryGetInventorySettingsOperation:                  []string{},
 	InventoryGetInventorySnmpOperation:                      []string{},
+	InventoryGetInventorySnmpIDReadOperation:                []string{},
 	InventoryPatchInventoryDevicesIDOperation:               []string{},
 	InventoryPatchInventoryDevicesIDSoftwareSidOperation:    []string{},
 	InventoryPatchInventorySensorsIDOperation:               []string{},
@@ -232,6 +234,7 @@ var operationRolesSession = map[string][]string{
 	InventoryPostInventoryDevicesIDSuspiciousOperation:      []string{},
 	InventoryPostInventoryImportOperation:                   []string{},
 	InventoryPostInventorySnmpOperation:                     []string{},
+	InventoryPostInventorySnmpIDReadOperation:               []string{},
 	InventoryPostInventorySnmpIDTestOperation:               []string{},
 	InventoryPutInventoryAgentsWazuhOperation:               []string{},
 	InventoryPutInventoryNotifyNewOperation:                 []string{},
@@ -339,6 +342,10 @@ var operationRolesSession = map[string][]string{
 	ScanPostScansRunsOperation:                              []string{},
 	ScanPostScansRunsIDStopOperation:                        []string{},
 	ScanPutScansConfigOperation:                             []string{},
+	ScanningGetScanningOperation:                            []string{},
+	ScanningPatchScanningEnginesIDOperation:                 []string{},
+	ScanningPostScanningEnginesNmapDiscoveryRunOperation:    []string{},
+	ScanningPutScanningSafetyOperation:                      []string{},
 }
 
 // GetRolesForSession returns the required roles for the given operation.

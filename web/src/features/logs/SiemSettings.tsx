@@ -74,7 +74,7 @@ function SiemForm({ cfg }: { cfg: SiemConfig }) {
         {format === 'json' ? (
           <>
             <Field label={t('siem.url')} hint={t('siem.urlHint')} htmlFor="siem-url"><Input id="siem-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://siem.acme.example/hooks/vedette" autoComplete="off" aria-describedby="siem-url-hint" /></Field>
-            <Field label={t('siem.secret')} hint={cfg.secret_last4 ? t('siem.secretSaved', { last4: cfg.secret_last4 }) : t('siem.secretHint')} htmlFor="siem-secret">
+            <Field label={t('siem.secret')} hint={cfg.secret_last4 ? t('siem.secretSaved', { last4: cfg.secret_last4 }) : t('siem.secretHint')} info={t('siem.secretHintInfo')} htmlFor="siem-secret">
               <div className="flex gap-2">
                 <Input id="siem-secret" type="password" value={secret} onChange={(e) => setSecret(e.target.value)} autoComplete="new-password" aria-describedby="siem-secret-hint" />
                 <Button onClick={() => setSecret(randomKey())}>{t('siem.generate')}</Button>
@@ -114,7 +114,7 @@ export default function SiemSettings() {
   const q = useSiem()
   return (
     <RequireModule module="logs">
-      <PageHeader title={t('siem.title')} meta={t('siem.description')} stories={['S-LOG-3']} />
+      <PageHeader title={t('siem.title')} meta={t('siem.description')} info={t('siem.descriptionInfo')} stories={['S-LOG-3']} />
       <QueryState query={q}>{(cfg) => <SiemForm cfg={cfg} />}</QueryState>
     </RequireModule>
   )

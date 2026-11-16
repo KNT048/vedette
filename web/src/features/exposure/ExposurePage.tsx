@@ -11,11 +11,13 @@ import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogTrigger } from '@/components/ui/dialog'
 import { Field, Input } from '@/components/ui/input'
+import { InfoTip } from '@/components/common/InfoTip'
 import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { AnchorRedirect, ScrollToHash } from './anchors'
 import { BoxIpPanel } from './BoxIpPanel'
 import { GreenboneSetting } from './GreenbonePanel'
+import { InfoLine } from './InfoLine'
 import { CommitChip, OwnerChip } from './OwnerChip'
 import { ScanProgress } from './ScanProgress'
 import { useAddTarget, useTargets } from './api'
@@ -57,10 +59,9 @@ function ExposureView() {
     : t('title.clean')
   return (
     <>
-      <PageHeader title={title} stories={['S-EXP-1']} actions={<AddTarget />}
+      <PageHeader title={title} stories={['S-EXP-1']} actions={<AddTarget />} info={<p>{t('rule')}</p>}
         meta={<span className="flex flex-wrap items-center gap-2"><SampleDataNote />{certs > 0 ? `${t('meta.certs', { count: certs })} ` : null}{t('meta.rule')}</span>} />
       <ScanProgress />
-      <Notice tone="accent" title={t('rule')} />
       <AnchorRedirect map={ANCHOR_TAB} />
       <QueryState query={{ data, error, isPending, refetch }}>
         {(d) => {
@@ -76,7 +77,7 @@ function ExposureView() {
               {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
               <PageTabs label={t('tabs.label')} tabs={[
                 { id: 'targets', label: t('tabs.targets'), panel: <>
-                  <Section id="targets" title={t('targets.title')} description={t('targets.description')}>
+                  <Section id="targets" title={t('targets.title')} description={t('targets.description')} info={t('targets.descriptionInfo')}>
                     <TargetsTable items={d.items.filter((x) => x.kind === 'domain')} />
                   </Section>
                   <BoxIpPanel items={d.items.filter((x) => x.kind === 'ip')} settings={d.box_ip} ignored={d.ignored} />
@@ -97,23 +98,23 @@ function ExposureView() {
 function OpenPorts({ ports, total, gateway }: { ports: (PortRow & { target: Target })[]; total: number; gateway: Gateway | null }) {
   const { t } = useTranslation('exposure')
   return (
-    <Section id="open" title={t('open.title', { count: total })} description={t('open.description')}>
+    <Section id="open" title={t('open.title', { count: total })} description={t('open.description')} info={t('open.descriptionInfo')}>
       {gateway ? <GatewayNote g={gateway} /> : null}
       <Panel className="divide-y divide-rule">
         {ports.map((p) => {
           const risk = riskOf(p)
           return (
             <div key={`${p.target.id}|${p.ip}|${p.port}`} className="grid gap-1 px-4 py-3">
-              <p className="flex flex-wrap items-center gap-2 text-sm">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="font-medium">{portLabel(p)}</span>
                 <span className="text-muted">{t('open.on', { ip: p.ip })}</span>
                 {p.product ? <span className="text-muted">{t('open.software', { product: p.product })}</span> : null}
-                {risk ? <Chip tone="warn">{t('open.attacked')}</Chip> : null}
+                {risk ? <span className="flex items-center gap-1"><Chip tone="warn">{t('open.attacked')}</Chip><InfoTip topic={t('open.attacked')}>{t(`risky.${risk}`)}</InfoTip></span> : null}
                 <PortMark p={p} />
                 <Link className="text-[13px] text-accent underline-offset-4 hover:underline" to={`/exposure/${p.target.id}`}>{t('open.details')}</Link>
-              </p>
-              {p.last_seen ? <p className="text-[13px]"><PortMarkNote p={p} at={p.target.last_scan_at} /></p> : null}
-              <p className="text-[13px] text-muted">{risk ? `${t(`risky.${risk}`)} ${t('open.purpose')}` : t('open.purposePlain')}</p>
+              </div>
+              {p.last_seen ? <PortMarkNote p={p} at={p.target.last_scan_at} /> : null}
+              <p className="text-[13px] text-muted">{t('open.purposePlain')}</p>
             </div>
           )
         })}
@@ -131,8 +132,9 @@ function GatewayNote({ g }: { g: Gateway }) {
   const known = g.device_id !== null
   const text = !g.ip ? t('gateway.unknown') : !known ? t('gateway.notListed', { ip })
     : g.open_exploited > 0 ? t('gateway.known', { name, ip, count: g.open_exploited }) : t('gateway.none', { name, ip })
+  const info = !g.ip ? t('gateway.unknownInfo') : !known ? t('gateway.notListedInfo') : g.open_exploited > 0 ? t('gateway.knownInfo') : t('gateway.noneInfo', { name })
   return (
-    <Notice tone="accent" data-testid="gateway-note" title={text}
+    <Notice tone="accent" data-testid="gateway-note" title={text} info={info}
       actions={known && g.open_exploited > 0 ? <Link className="text-[13px] text-accent underline-offset-4 hover:underline" to={`/findings?device=${encodeURIComponent(g.device_id ?? '')}`}>{t('gateway.link', { name })}</Link> : undefined} />
   )
 }
@@ -166,7 +168,7 @@ function TargetsTable({ items }: { items: Target[] }) {
         {r.latest ? <p className="text-[13px]">{t('targets.latest', { admin: r.latest.admin_panels, ports: r.latest.ports, certs: r.latest.certs_expiring })}</p> : null}
       </div>
     )}
-    empty={<EmptyState title={t('targets.emptyTitle')}>{t('targets.emptyBody')}</EmptyState>} />
+    empty={<EmptyState title={t('targets.emptyTitle')}><InfoLine topic={t('targets.emptyTitle')} info={t('targets.emptyBodyInfo')}>{t('targets.emptyBody')}</InfoLine></EmptyState>} />
 }
 
 function AddTarget() {
@@ -194,9 +196,9 @@ function AddTarget() {
       <DialogTrigger asChild>
         <Button variant="primary" disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.admin') })}><Plus />{t('add.button')}</Button>
       </DialogTrigger>
-      <DialogContent title={t('add.title')} description={t('add.description')}>
+      <DialogContent title={t('add.title')} description={t('add.description')} info={t('add.descriptionInfo')}>
         <form onSubmit={submit} noValidate className="grid gap-4">
-          <Field label={t('add.label')} htmlFor="ex-new" hint={t('add.hint')} error={error ?? undefined}>
+          <Field label={t('add.label')} htmlFor="ex-new" hint={t('add.hint')} info={t('add.hintInfo')} error={error ?? undefined}>
             <Input id="ex-new" value={value} onChange={(e) => setValue(e.target.value)} autoFocus autoComplete="off" spellCheck={false} aria-invalid={error ? true : undefined} aria-describedby={error ? 'ex-new-error' : 'ex-new-hint'} />
           </Field>
           <DialogFooter>

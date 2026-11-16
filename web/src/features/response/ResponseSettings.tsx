@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, PageHeader, Panel } from '@/components/common/PageHeader'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
@@ -31,7 +32,7 @@ export function EnableDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const ok = twofa && phrase === RISK_PHRASE
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setPhrase(''); setError(undefined) } }}>
-      <DialogContent title={t('enable.title')} description={t('enable.description')}>
+      <DialogContent title={t('enable.title')} description={t('enable.description')} info={t('enable.descriptionInfo')}>
         <Notice tone="danger" className="mb-0" title={t('risk.statement')} />
         <div className="grid gap-1 text-sm">
           <p className="flex flex-wrap items-center gap-2">{t('enable.twofa')} <Chip tone={twofa ? 'ok' : 'danger'}>{twofa ? t('enable.twofaOn') : t('enable.twofaOff')}</Chip></p>
@@ -78,7 +79,7 @@ function Form({ s }: { s: SettingsView }) {
         <Field htmlFor="resp-expiry" label={t('form.expiry')} hint={t('form.expiryHint')}><Input id="resp-expiry" type="number" min={15} max={30} value={expiry} onChange={(e) => setExpiry(e.target.value)} /></Field>
       </div>
       <fieldset className="grid gap-2">
-        <legend className="text-sm font-medium">{t('form.channels')}</legend>
+        <legend className="flex items-center gap-1 text-sm font-medium">{t('form.channels')}<InfoTip topic={t('form.channels')}><p>{t('form.channelsHintInfo')}</p><p>{t('form.approversRule')}</p></InfoTip></legend>
         <p className="text-[13px] text-muted">{t('form.channelsHint')}</p>
         {ready.length ? ready.map((c) => (
           <div key={c.type} className="grid gap-1">
@@ -89,11 +90,10 @@ function Form({ s }: { s: SettingsView }) {
           {c.unlinked.length ? <p className="ml-7 text-[13px] text-warn">{t('form.notLinkedYet', { names: c.unlinked.join(', ') })}</p> : null}
           </div>
         )) : <p className="text-sm text-muted">{t('form.noChannels')} <Link className="text-accent underline underline-offset-4" to="/settings/channels">{t('form.toChannels')}</Link></p>}
-        <p className="text-[13px] text-muted">{t('form.approversRule')}</p>
       </fieldset>
 
       <fieldset className="grid gap-3 rounded-md border border-rule p-4">
-        <legend className="px-1 text-sm font-medium">{t('safety.title')}</legend>
+        <legend className="flex items-center gap-1 px-1 text-sm font-medium">{t('safety.title')}<InfoTip topic={t('safety.title')}>{t('safety.descriptionInfo')}</InfoTip></legend>
         <p className="text-[13px] text-muted">{t('safety.description')}</p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field htmlFor="resp-breaker" label={t('safety.breaker')} hint={t('safety.breakerHint')}><Input id="resp-breaker" type="number" min={1} max={200} value={breaker} onChange={(e) => setBreaker(e.target.value)} /></Field>
@@ -115,7 +115,10 @@ function Form({ s }: { s: SettingsView }) {
       </fieldset>
 
       <fieldset className="grid gap-3 rounded-md border border-rule p-4">
-        <legend className="px-1 text-sm font-medium">{t('aiGates.title')}</legend>
+        <legend className="flex items-center gap-1 px-1 text-sm font-medium">{t('aiGates.title')}<InfoTip topic={t('aiGates.title')}>
+          <p>{t('aiGates.descriptionInfo')}</p>
+          <ul className="ml-5 list-disc">{[1, 2, 3, 4, 5, 6].map((n) => <li key={n}>{t(`aiGates.fixed.${n}`)}</li>)}</ul>
+        </InfoTip></legend>
         <p className="text-[13px] text-muted">{t('aiGates.description')}</p>
         <div className="grid gap-2 sm:grid-cols-2">
           {(triggers.data?.items ?? []).map((tr) => (
@@ -129,7 +132,6 @@ function Form({ s }: { s: SettingsView }) {
           <Field htmlFor="ai-bh" label={t('aiGates.perHour')}><Input id="ai-bh" type="number" min={1} max={20} value={bh} onChange={(e) => setBh(e.target.value)} /></Field>
           <Field htmlFor="ai-bd" label={t('aiGates.perDay')}><Input id="ai-bd" type="number" min={1} max={100} value={bd} onChange={(e) => setBd(e.target.value)} /></Field>
         </div>
-        <ul className="ml-5 list-disc text-[13px] text-muted">{[1, 2, 3, 4, 5, 6].map((n) => <li key={n}>{t(`aiGates.fixed.${n}`)}</li>)}</ul>
       </fieldset>
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       <div><Button type="submit" variant="primary" disabled={save.isPending}>{t('common:save')}</Button></div>
@@ -149,10 +151,10 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
   const s = q.data
   return (
     <>
-      {embedded ? <p className="mb-4 max-w-3xl text-[13px] text-muted">{t('settings.description')}</p> : <PageHeader title={t('settings.title')} meta={t('settings.description')} stories={['S-RESP-2', 'S-RESP-4']} />}
+      {embedded ? <div className="mb-4 flex max-w-3xl items-center gap-1 text-[13px] text-muted"><p>{t('settings.description')}</p><InfoTip topic={t('settings.title')}>{t('settings.descriptionInfo')}</InfoTip></div> : <PageHeader title={t('settings.title')} meta={t('settings.description')} info={t('settings.descriptionInfo')} stories={['S-RESP-2', 'S-RESP-4']} />}
       <section>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
-          <Notice tone="danger" className="mb-0" title={t('risk.statement')} />
+          <Notice tone="danger" className="mb-0" title={t('risk.banner')} info={t('risk.bannerInfo')} />
           <Panel className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div className="flex items-center gap-3">
               <Switch id="resp-exec" checked={s.execution} disabled={set.isPending}

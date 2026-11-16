@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Section } from '@/components/common/PageHeader'
 import { Chip } from '@/components/common/StatusChip'
 import { QueryState } from '@/components/common/States'
@@ -71,7 +72,8 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
           <Chip tone="warn">{r.code_waiting ? t('identity.waiting') : t('identity.notLinked')}</Chip>
         </div>
         {/* D-414, D-447: status and Send again only; the link goes to this chat account and I confirm it signed in. */}
-        <p className="text-[13px]">{r.code_waiting ? t('identity.waitingNote', { channel: r.label }) : t('identity.howSend', { channel: r.label })}</p>
+        {r.code_waiting ? <p className="text-[13px]">{t('identity.waitingNote', { channel: r.label })}</p>
+          : <div className="flex items-center gap-1 text-[13px]"><p>{t('identity.howSend', { channel: r.label })}</p><InfoTip topic={r.label}>{t('identity.howSendInfo', { channel: r.label })}</InfoTip></div>}
         {err ? <p className="text-[13px] text-danger" role="alert">{err}</p> : null}
         <div><Button disabled={cooldown.left > 0 || m.send.isPending} onClick={() => void sendLink()}>{cooldown.left > 0 ? t('identity.sendAgainIn', { s: cooldown.left }) : t('identity.sendAgain')}</Button></div>
       </li>
@@ -84,7 +86,7 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
           <p id={`${id}-title`} className="text-sm"><span className="font-semibold">{r.label}</span> <span className="break-all font-mono text-[13px] text-muted">{r.address}</span></p>
           <Chip tone="off">{t('identity.notLinked')}</Chip>
         </div>
-        <p className="text-[13px] text-muted">{t('identity.unavailable', { channel: r.label })}</p>
+        <div className="flex items-center gap-1 text-[13px] text-muted"><p>{t('identity.unavailable', { channel: r.label })}</p><InfoTip topic={r.label}>{t('identity.unavailableInfo', { channel: r.label })}</InfoTip></div>
       </li>
     )
   }
@@ -101,7 +103,7 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
         </div>
       ) : (
         <form onSubmit={(e) => void confirm(e)} className="grid gap-3" noValidate>
-          <p className="text-[13px]">{t('identity.howEmail')}</p>
+          <div className="flex items-center gap-1 text-[13px]"><p>{t('identity.howEmail')}</p><InfoTip topic={r.label}>{t('identity.howEmailInfo')}</InfoTip></div>
           {sent ? <><p className="text-[13px]" role="status">{t('identity.sent', { to: sent.sent_to })}</p><PreviewCode code={sent.preview_code} /></> : null}
           {askCode ? (
             <Field label={t('identity.code')} htmlFor={`${id}-code`} error={err ?? undefined}>
@@ -125,7 +127,7 @@ export function ApproverIdentities() {
   const { t } = useTranslation('response')
   const m = useIdentities()
   return (
-    <Section title={t('identity.title')} description={t('identity.desc')} stories={['S-RESP-2']} id="approver-identities">
+    <Section title={t('identity.title')} description={t('identity.desc')} info={t('identity.descInfo')} stories={['S-RESP-2']} id="approver-identities">
       <QueryState query={m.q}>{(d) => d.items.length
         ? <ul className="grid max-w-2xl gap-3">{d.items.map((r) => <Row key={`${r.channel}|${r.address}`} r={r} m={m} />)}</ul>
         : <p className="text-sm text-muted">{t('identity.none')}</p>}</QueryState>

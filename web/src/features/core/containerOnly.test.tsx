@@ -330,7 +330,8 @@ describe('container-only install (D-381)', () => {
     renderApp('/devices/setup?tab=sensor')
     await openSensorDialog(u)
     const dlg = screen.getByRole('dialog')
-    expect(dlg).toHaveTextContent("Choose the card the sensor listens on among the cards it reported. This machine's network is yours: Vedette does not change the card.")
+    expect(within(dlg).getByText('Choose the card the sensor listens on.')).toBeVisible()
+    expect(within(dlg).getByRole('button', { name: 'About Configure vedette-hq' })).toHaveAccessibleDescription("Pick among the cards it reported. This machine's network is yours: Vedette does not change the card.") // #824: the detail is behind the dialog's ⓘ
     expect(within(dlg).queryByRole('checkbox')).toBeNull()
     expect(dlg.textContent).not.toMatch(/SPAN|mirror/i)
     expect(document.getElementById('sensors')!.textContent).not.toMatch(/SPAN|mirror/i)

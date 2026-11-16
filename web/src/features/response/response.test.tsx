@@ -2003,7 +2003,8 @@ describe('response: Respond from an incident (S-RESP-3, D-509)', () => {
     const panel = await screen.findByRole('region', { name: 'Respond to this incident' })
     expect(await within(panel).findByText('The response module is off, so Vedette cannot ask for any block here. Handle it by hand.')).toBeInTheDocument()
     expect(within(panel).getByText((_, el) => el?.tagName === 'LI' && el.textContent === `Do this now: ${inc.action}`)).toBeInTheDocument()
-    expect(within(panel).queryByRole('button')).toBeNull()
+    expect(within(panel).getByRole('button', { name: 'About Blocking next time' })).toHaveAccessibleDescription(/turns on the response module in Settings, Modules, connects your firewall or switch in Settings, Connections, and turns on a trap rule/) // #824: the how-to is behind ⓘ
+    expect(within(panel).queryAllByRole('button').filter((b) => !b.getAttribute('aria-label')?.startsWith('About '))).toEqual([]) // no action button; only the ⓘ
     expect(screen.getByRole('link', { name: 'Open module settings' })).toHaveAttribute('href', '/settings/modules')
   })
 

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { dateText, dateTimeText } from './dates'
 import { useCan } from '@/lib/session'
 import { useVerify } from './api'
+import { InfoLine } from './InfoLine'
 import type { Target } from './types'
 
 /**
@@ -37,7 +38,8 @@ export function VerifyPanel({ target }: { target: Target }) {
       <Button variant={verified && target.blocked_reason !== 'txt_missing' && !paused && target.validity !== 'expired' ? 'secondary' : 'primary'} onClick={run} disabled={!can || verify.isPending} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}>
         <RefreshCw className={verify.isPending ? 'animate-spin motion-reduce:animate-none' : undefined} />{verify.isPending ? t('verify.checking') : label}
       </Button>
-      <span className="max-w-xl text-[13px] text-muted">{domain ? t('verify.recheckHint') : t('verify.ipRecheckHint', { value: target.value })}</span>
+      {domain ? <span className="max-w-xl text-[13px] text-muted">{t('verify.recheckHint')}</span>
+        : <InfoLine className="max-w-xl text-[13px] text-muted" topic={t('verify.ipRecheck')} info={t('verify.ipRecheckHintInfo')}>{t('verify.ipRecheckHint', { value: target.value })}</InfoLine>}
     </div>
   )
 
@@ -49,7 +51,7 @@ export function VerifyPanel({ target }: { target: Target }) {
             <>
               <p className="max-w-3xl text-sm">{t('verify.doneDomain', { time: dateTimeText(target.verified_at) })}</p>
             </>
-          ) : <p className="max-w-3xl text-sm">{t('verify.dnsIntro', { value: target.value })}</p>}
+          ) : <InfoLine className="max-w-3xl text-sm" topic={t('verify.dnsTopic')} info={t('verify.dnsIntroInfo')}>{t('verify.dnsIntro', { value: target.value })}</InfoLine>}
           {!verified || target.blocked_reason === 'txt_missing' ? (
             <>
               <KeyValue items={[
@@ -58,7 +60,7 @@ export function VerifyPanel({ target }: { target: Target }) {
                 { label: t('verify.dns.ttl'), value: t('verify.dns.ttlValue') },
               ]} />
               <CodeBlock code={`vedette-verify=${target.token}`} label={t('verify.dns.valueLabel')} />
-              <p className="max-w-3xl text-[13px] text-muted">{t('verify.dnsHint')}</p>
+              <InfoLine className="max-w-3xl text-[13px] text-muted" topic={t('verify.dns.valueLabel')} info={t('verify.dnsHintInfo')}>{t('verify.dnsHint')}</InfoLine>
             </>
           ) : <p className="max-w-3xl text-[13px] text-muted">{t('verify.keepRecord')}</p>}
         </>

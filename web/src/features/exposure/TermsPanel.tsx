@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/input'
 import { useCan } from '@/lib/session'
 import { useAcceptTerms, useRevokeTerms } from './api'
 import { dateTimeText } from './dates'
+import { InfoLine } from './InfoLine'
 import type { Target } from './types'
 
 /**
@@ -40,7 +41,7 @@ export function TermsPanel({ target }: { target: Target }) {
         <p>{lines[lines.length - 1]}</p>
       </div>
       {target.terms_warning ? <Notice tone="warn" role="alert" className="mb-0" title={target.terms_warning} />
-        : target.kind === 'ip' ? <p className="text-[13px] text-muted">{t('terms.cgnatLimit')}</p> : null}
+        : target.kind === 'ip' ? <InfoLine className="text-[13px] text-muted" topic={t('terms.cgnatTopic')} info={t('terms.cgnatLimitInfo')}>{t('terms.cgnatLimit')}</InfoLine> : null}
       <div className="flex items-start gap-2">
         <Checkbox id={`terms-disruptive-${target.id}`} className="mt-0.5" checked={disruptive} disabled={!!locked || !!target.terms_warning} onCheckedChange={(v) => setDisruptive(v === true)} />
         <Label htmlFor={`terms-disruptive-${target.id}`} className="font-normal">{n.disruptive}</Label>
@@ -57,7 +58,7 @@ export function TermsPanel({ target }: { target: Target }) {
           </Button>
         ) : null}
       </div>
-      {locked ? <p className="text-[13px] text-muted">{locked}</p> : <p className="text-[13px] text-muted">{t('terms.who')} {t('terms.stops')}</p>}
+      {locked ? <p className="text-[13px] text-muted">{locked}</p> : null}
     </Panel>
   )
 }

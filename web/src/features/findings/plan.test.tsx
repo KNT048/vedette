@@ -24,9 +24,11 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     const table = within(nas).getByRole('table')
     expect(within(table).getByRole('link', { name: 'CVE-2024-28870' })).toHaveAttribute('href', '/cve/CVE-2024-28870')
     expect(within(table).getByText('Found by a scan')).toBeInTheDocument()
+    expect(within(table).getByRole('button', { name: 'About Found by a scan' })).toHaveAccessibleDescription('A scan engine (nuclei, OpenVAS or ZAP) found it on the device') // #824: ⓘ, not a hover title
     expect(within(table).getByText('Over 12 months ago')).toBeInTheDocument()
     // review r1 #15 of #803: what each chip means is text under the list, not only a title
-    const hint = within(nas).getByText(/A scan engine \(nuclei, OpenVAS or ZAP\) found it on the device/)
+    // #824: each chip also has an ⓘ whose hidden text is its description; the legend is the visible copy
+    const hint = within(nas).getAllByText(/A scan engine \(nuclei, OpenVAS or ZAP\) found it on the device/).find((el) => el.closest('dl'))!
     expect(hint).toBeVisible()
     expect(within(hint.closest('dl')!).getByText(/The exact version you entered, or the device states/)).toBeVisible()
     await expectNoA11yViolations()

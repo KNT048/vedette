@@ -7,6 +7,7 @@ import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
 import { dateTimeText } from './dates'
+import { InfoLine } from './InfoLine'
 import { useGreenbone, useSetGreenbone } from './api'
 import type { Greenbone, GreenboneResult, GreenboneRun, Snapshot } from './types'
 
@@ -27,7 +28,9 @@ export function GreenboneSetting() {
   const { t } = useTranslation('exposure')
   const q = useGreenbone()
   return (
-    <Section id="greenbone" title={t('greenbone.title')} description={t('greenbone.description')}>
+    <Section id="greenbone" title={t('greenbone.title')} description={t('greenbone.description')} info={<>
+      <p>{t('greenbone.descriptionInfo')}</p><p>{t('greenbone.what')}</p><p>{t('greenbone.apart')}</p><p>{t('greenbone.weekly')}</p><p>{t('greenbone.offKeeps')}</p>
+    </>}>
       <QueryState query={q}>{(g) => <GreenboneBody g={g} />}</QueryState>
     </Section>
   )
@@ -60,9 +63,6 @@ function GreenboneBody({ g }: { g: Greenbone }) {
         </div>
       ) : g.state === 'unavailable' ? null : (
         <>
-          <ul className="grid list-disc gap-1.5 pl-5 text-[13px] text-muted">
-            <li>{t('greenbone.what')}</li><li>{t('greenbone.apart')}</li><li>{t('greenbone.weekly')}</li><li>{t('greenbone.offKeeps')}</li>
-          </ul>
           <KeyValue items={[
             { label: t('greenbone.memory'), value: gb(p.memory_bytes) ?? t('common:unknown') },
             { label: t('greenbone.disk'), value: gb(p.disk_free_bytes) ?? t('common:unknown') },
@@ -72,8 +72,8 @@ function GreenboneBody({ g }: { g: Greenbone }) {
               ? (g.changed_at ? t('greenbone.feedFirstDoneAt', { time: dateTimeText(g.changed_at) }) : t('greenbone.feedFirstDone')) : t('greenbone.feedNever') }] : []),
             ...(f.next_at ? [{ label: t('greenbone.feedNext'), value: dateTimeText(f.next_at) }] : []),
           ]} />
-          {!on ? <p className="text-[13px]">{t('greenbone.needs')}</p> : null}
-          {(!on || (g.state === 'loading' && !f.last_at)) && p.ok && p.memory_bytes != null && p.memory_bytes < SWAP_BELOW ? <p className="text-[13px] text-muted">{t('greenbone.swapNote')}</p> : null}
+          {!on ? <InfoLine className="text-[13px]" topic={t('greenbone.needsTopic')} info={t('greenbone.needsInfo')}>{t('greenbone.needs')}</InfoLine> : null}
+          {(!on || (g.state === 'loading' && !f.last_at)) && p.ok && p.memory_bytes != null && p.memory_bytes < SWAP_BELOW ? <InfoLine className="text-[13px] text-muted" topic={t('greenbone.memory')} info={t('greenbone.swapNoteInfo')}>{t('greenbone.swapNote')}</InfoLine> : null}
           {!on && !p.ok ? <p role="alert" className="text-sm text-warn">{p.reason}</p> : null}
           <div className="flex flex-wrap items-center gap-3">
             {on ? (
@@ -154,19 +154,20 @@ export function GreenboneSection({ s }: { s: Snapshot }) {
     : run.state === 'done' ? t('greenbone.results.noneBody')
     : run.state === 'partial' ? t('greenbone.results.partialNoneBody')
     : why?.text ?? t(run.state === 'not_run' ? 'greenbone.results.notRunBody' : run.state === 'failed' ? 'greenbone.results.failedBody' : run.state === 'ended' ? 'greenbone.results.endedBody' : 'greenbone.results.stoppedBody')
+  const emptyInfo = run.state === 'done' ? t('greenbone.results.noneBodyInfo') : run.state === 'partial' ? t('greenbone.results.partialNoneBodyInfo') : undefined
   return (
     <>
-      <Section id="greenbone-results" title={t('greenbone.results.title')} description={t('greenbone.results.header')}>
+      <Section id="greenbone-results" title={t('greenbone.results.title')} description={t('greenbone.results.header')} info={t('greenbone.results.headerInfo')}>
         {line ? <p role="status" className="mb-3 text-sm text-warn">{t(line)}</p> : null}
         {shown ? (
           <DataTable caption={t('greenbone.results.caption')} data={findings} columns={cols} pageSize={20} initialSort={[{ id: 'severity', desc: true }]} rowTone={(r) => (r.severity >= 7 ? 'warn' : undefined)} />
         ) : (
-          <EmptyState title={t(EMPTY_TITLE[run.state])}>{emptyBody}</EmptyState>
+          <EmptyState title={t(EMPTY_TITLE[run.state])} info={emptyInfo}>{emptyBody}</EmptyState>
         )}
         {started && run.state !== 'running' ? <p className="mt-2 text-[12px] text-muted">{t('greenbone.results.startedAt', { time: started })}</p> : null}
       </Section>
       {read && notes.length > 0 ? (
-        <Section id="greenbone-notes" title={t('greenbone.results.notesTitle')} description={t('greenbone.results.notesHeader')}>
+        <Section id="greenbone-notes" title={t('greenbone.results.notesTitle')} description={t('greenbone.results.notesHeader')} info={t('greenbone.results.notesHeaderInfo')}>
           <DataTable caption={t('greenbone.results.notesCaption')} data={notes} columns={cols} pageSize={20} initialSort={[{ id: 'severity', desc: true }]} />
         </Section>
       ) : null}

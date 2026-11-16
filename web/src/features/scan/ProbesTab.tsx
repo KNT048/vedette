@@ -25,7 +25,7 @@ export function ProbesTab() {
     { id: 'result', header: t('probes.col.result'), accessorFn: (r) => r.result, cell: ({ row: { original: r } }) => <Chip tone={tone[r.result]}>{t(`probes.result.${r.result}`)}</Chip> },
   ]
   return (
-    <Section id="probes" title={t('probes.title')} description={t('probes.description')} stories={['S-SCAN-4']}
+    <Section id="probes" title={t('probes.title')} description={t('probes.description')} info={t('probes.descriptionInfo')} stories={['S-SCAN-4']}
       actions={<Button size="sm" onClick={() => void download('/scans/probes.csv', 'vedette-probe-log.csv').catch((e: unknown) => toast.error(errMsg(e)))}><Download />{t('probes.download')}</Button>}>
       <QueryState query={q}>
         {(d) => (

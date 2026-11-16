@@ -293,7 +293,8 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     const form = await openAdd(/MikroTik/)
     expect(within(within(form).getByLabelText('Protocol')).getAllByRole('option')).toHaveLength(1)
     // D-443, D-444 (walk 4): the box listens on UDP and TCP whatever the sources; a UDP source takes TCP too, a TCP source no UDP
-    expect(within(form).getByLabelText('Protocol')).toHaveAccessibleDescription("The box listens on UDP and TCP and keeps this device's lines from either.")
+    expect(within(form).getByLabelText('Protocol')).toHaveAccessibleDescription("Keeps this device's lines over UDP or TCP.")
+    expect(within(form).getByRole('button', { name: 'About Protocol' })).toHaveAccessibleDescription("The box listens on UDP and TCP and keeps this device's lines from either.") // #824: the why is behind the field's ⓘ
     await userEvent.type(within(form).getByLabelText('Name'), 'RT-NEW')
     await userEvent.type(within(form).getByLabelText('IP of the sending device'), '192.168.10.1')
     await userEvent.click(within(form).getByRole('button', { name: 'Add and show setup' }))
@@ -302,7 +303,8 @@ describe('logs: the Logs page (S-LOG-1, S-LOG-2)', () => {
     await userEvent.click(within(form).getByRole('button', { name: /^FortiGate/ }))
     expect(within(within(form).getByLabelText('Protocol')).getAllByRole('option')).toHaveLength(3)
     await userEvent.selectOptions(within(form).getByLabelText('Protocol'), 'tcp')
-    expect(within(form).getByLabelText('Protocol')).toHaveAccessibleDescription('The box listens on UDP and TCP but keeps only TCP from this device: UDP is easy to forge.')
+    expect(within(form).getByLabelText('Protocol')).toHaveAccessibleDescription('Keeps only TCP from this device.')
+    expect(within(form).getByRole('button', { name: 'About Protocol' })).toHaveAccessibleDescription('The box listens on UDP and TCP but keeps only TCP from this device: UDP is easy to forge.')
     await userEvent.selectOptions(within(form).getByLabelText('Protocol'), 'tls')
     expect(within(form).getByLabelText('Protocol')).toHaveAccessibleDescription('The box keeps only TLS from this device, on port 6514.')
     expect(within(form).getByLabelText('Port the box listens on')).toHaveValue(6514)

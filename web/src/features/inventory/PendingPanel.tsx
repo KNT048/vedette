@@ -14,6 +14,7 @@ import { errMsg } from './kinds'
 import { nameOf } from './nameOf'
 import type { DeviceRow, DevicesResponse } from './types'
 import { kindLabel } from '@/lib/deviceTypes'
+import { InfoTip } from '@/components/common/InfoTip'
 
 function PendingItem({ d }: { d: DeviceRow }) {
   const { t } = useTranslation('inventory')
@@ -60,7 +61,10 @@ export function PendingPanel({ data }: { data: DevicesResponse }) {
     <section aria-labelledby="pending-title" className="mb-8">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="grid gap-0.5">
-          <h2 id="pending-title" className="text-base font-semibold">{pending.length ? t('pending.title', { count: pending.length }) : t('pending.titleNone')}</h2>
+          <div className="flex items-center gap-1">
+            <h2 id="pending-title" className="text-base font-semibold">{pending.length ? t('pending.title', { count: pending.length }) : t('pending.titleNone')}</h2>
+            <InfoTip topic={t('tabs.review')}>{t('pending.descriptionInfo')}</InfoTip>
+          </div>
           <p className="max-w-3xl text-[13px] text-muted">{t('pending.description')}</p>
         </div>
         <div className="flex items-center gap-2">

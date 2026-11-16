@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Check, Circle, OctagonX, Play } from 'lucide-react'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, Section, Panel } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { useRowSelection } from '@/components/common/Selection'
@@ -55,7 +56,7 @@ function Setup({ cfg, internal }: { cfg: ScanConfigResponse; internal: ScanTarge
     { key: 'devices', ok: devOk, title: t('start.stepDevices'), help: internal.length ? t('start.stepDevicesNoneOk') : t('start.stepDevicesNone'), to: '/devices', cta: t('start.openDevices') },
   ]
   return (
-    <Notice tone="warn" className="mb-0" title={t('start.setupTitle')}>
+    <Notice tone="warn" className="mb-0" title={t('start.setupTitle')} info={t('start.setupIntroInfo')}>
       <p>{t('start.setupIntro')}</p>
       <ol className="mt-3 grid gap-3 text-ink">
         {steps.map((s, i) => (
@@ -109,13 +110,17 @@ function StartPanel({ targets, cfg, live, engineBusy }: { targets: ScanTarget[];
     <div className="grid gap-4">
       <Setup cfg={cfg} internal={internal} />
       <Panel className="grid gap-1 p-4 text-sm">
-        <p>{cfg.scope.networks.length ? t('start.scope', { networks: cfg.scope.networks.join(', ') }) : t('start.noNetworks')}</p>
+        <div className="flex items-start gap-1">
+          <p>{cfg.scope.networks.length ? t('start.scope', { networks: cfg.scope.networks.join(', ') }) : t('start.noNetworks')}</p>
+          <InfoTip topic={t('start.howTopic')}>
+            <p>{t('start.manualNote', { from: c.window.from, to: c.window.to, rate: c.rate })}</p>
+            <p>{t('start.safeNote')}</p>
+          </InfoTip>
+        </div>
         <p className={cfg.scope.commitment ? 'text-muted' : 'text-danger'}>
           {cfg.scope.commitment ? t('start.commitment', { date: fmtDate(cfg.scope.commitment.confirmed_at), by: cfg.scope.commitment.by }) : t('start.noCommitment')}
         </p>
         <p className="text-[13px] text-muted">{t('start.asIs')}</p>
-        <p className="text-muted">{t('start.manualNote', { from: c.window.from, to: c.window.to, rate: c.rate })}</p>
-        <p className="text-muted">{t('start.safeNote')}</p>
       </Panel>
       <TargetPicker targets={targets} sel={sel} onToggle={toggle} onAdd={rawOps.add} onReplace={rawOps.replace}
         onRemove={(ids) => { rawOps.remove(ids); pickOps.remove(ids) }} onClear={() => { rawOps.clear(); pickOps.clear() }} />
@@ -243,10 +248,10 @@ export function RunsTab() {
   return (
     <>
       {live ? <Progress run={live} /> : last ? <Last run={last} /> : null}
-      <Section id="start" title={t('start.title')} description={t('start.description')} stories={['S-SCAN-1', 'S-SCAN-4']}>
+      <Section id="start" title={t('start.title')} description={t('start.description')} info={t('start.descriptionInfo')} stories={['S-SCAN-1', 'S-SCAN-4']}>
         <QueryState query={targets}>{(d) => <QueryState query={cfg}>{(c) => <StartPanel targets={d.items} cfg={c} live={!!live} engineBusy={!!runs.data?.engine_busy} />}</QueryState>}</QueryState>
       </Section>
-      <Section id="history" title={t('hist.title')} description={t('hist.description')} stories={['S-SCAN-3']}>
+      <Section id="history" title={t('hist.title')} description={t('hist.description')} info={t('hist.descriptionInfo')} stories={['S-SCAN-3']}>
         <QueryState query={runs}>{(d) => <History runs={d.items} />}</QueryState>
       </Section>
     </>

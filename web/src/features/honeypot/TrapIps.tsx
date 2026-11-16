@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { FlaskConical, Pencil, Plus, Trash2 } from 'lucide-react'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, Section, Panel } from '@/components/common/PageHeader'
 import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -32,7 +33,7 @@ export default function TrapIpsTab({ hits, lan, smbName }: { hits: Hit[]; lan: s
   const { t } = useTranslation('honeypot')
   const q = useTrapIps()
   return (
-    <Section id="trap-ips" title={t('trapIp.title')} description={t('trapIp.description', { lan })}>
+    <Section id="trap-ips" title={t('trapIp.title')} description={t('trapIp.description', { lan })} info={t('trapIp.descriptionInfo')}>
       <QueryState query={q}>{(d) => <Inner data={d} hits={hits} smbName={smbName} />}</QueryState>
     </Section>
   )
@@ -107,13 +108,16 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
             </li>
           ))}
         </ul>
-      ) : <p className="text-sm text-muted">{t('trapIp.none')}</p>}
+      ) : <div className="flex items-center gap-1 text-sm text-muted"><p>{t('trapIp.none')}</p><InfoTip topic={t('trapIp.title')}>{t('trapIp.noneInfo')}</InfoTip></div>}
       {!admin ? <p className="text-[13px] text-muted">{t('needAdmin')}</p> : null}
 
       <Panel className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="grid max-w-3xl gap-1">
-            <p className="text-sm font-medium">{t('trapIp.scan.title')}</p>
+            <div className="flex items-center gap-1">
+              <p className="text-sm font-medium">{t('trapIp.scan.title')}</p>
+              <InfoTip topic={t('trapIp.scan.title')}>{t('trapIp.scan.bodyInfo')}</InfoTip>
+            </div>
             <p className="text-[13px] text-muted">{t('trapIp.scan.body')}</p>
             <p className="text-[13px] text-muted">{lastScan ? t('trapIp.scan.last', { when: fmtRelative(lastScan.ts), src: lastScan.src_name ?? lastScan.src_ip, trapIps: lastScan.trap_hostname || lastScan.trap_ip }) : t('trapIp.scan.never')}</p>
           </div>
@@ -174,6 +178,7 @@ function TrapIpForm({ data, editing, onDone }: { data: TrapIPsResponse; editing:
   }
 
   const ipHint = data.spare_ips.length ? t(data.spare_checked ? 'trapIp.form.ipHint' : 'trapIp.form.ipHintUnchecked', { ips: data.spare_ips.join(', ') }) : t('trapIp.form.ipHintNone')
+  const ipInfo = t(data.spare_ips.length ? (data.spare_checked ? 'trapIp.form.ipHintInfo' : 'trapIp.form.ipHintUncheckedInfo') : 'trapIp.form.ipHintNoneInfo')
   const described = (f: Exclude<FieldId, 'form'>, id: string) => (errors[f] ? `${id}-error` : `${id}-hint`)
   return (
     <Panel className="p-4">
@@ -185,11 +190,11 @@ function TrapIpForm({ data, editing, onDone }: { data: TrapIPsResponse; editing:
               {PRESETS.map((p) => <option key={p.id} value={p.id}>{t(`trapIp.preset.${p.id}`)}</option>)}
             </Select>
           </Field>
-          <Field label={t('trapIp.form.name')} htmlFor="tip-name" hint={t('trapIp.form.nameHint')} error={errors.name}>
+          <Field label={t('trapIp.form.name')} htmlFor="tip-name" hint={t('trapIp.form.nameHint')} info={t('trapIp.form.nameHintInfo')} error={errors.name}>
             <Input id="tip-name" value={name} onChange={(e) => { setName(e.target.value); setErrors((x) => ({ ...x, name: undefined })) }} maxLength={15} autoComplete="off" spellCheck={false}
               placeholder={t('trapIp.form.namePlaceholder', { example: def.example })} aria-invalid={errors.name ? true : undefined} aria-describedby={described('name', 'tip-name')} />
           </Field>
-          <Field label={t('trapIp.form.ip')} htmlFor="tip-ip" hint={ipHint} error={errors.ip}>
+          <Field label={t('trapIp.form.ip')} htmlFor="tip-ip" hint={ipHint} info={ipInfo} error={errors.ip}>
             <Input id="tip-ip" value={ip} onChange={(e) => { setIp(e.target.value); setErrors((x) => ({ ...x, ip: undefined })) }} inputMode="decimal" autoComplete="off"
               placeholder={data.spare_ips[0] ? t('trapIp.form.ipPlaceholder', { ip: data.spare_ips[0] }) : undefined} aria-invalid={errors.ip ? true : undefined} aria-describedby={described('ip', 'tip-ip')} />
           </Field>
@@ -201,7 +206,7 @@ function TrapIpForm({ data, editing, onDone }: { data: TrapIPsResponse; editing:
           </Field>
         </div>
         <fieldset className="grid gap-2" aria-describedby={errors.services ? 'tip-services-error' : 'tip-services-hint'}>
-          <legend className="mb-1 text-sm font-medium">{t('trapIp.form.services')}</legend>
+          <legend className="mb-1 flex items-center gap-1 text-sm font-medium">{t('trapIp.form.services')}<InfoTip topic={t('trapIp.form.services')}>{t('trapIp.form.servicesHintInfo')}</InfoTip></legend>
           <div className="flex flex-wrap gap-x-5 gap-y-2">
             {HP_SERVICES.map((s) => (
               <div key={s} className="flex items-center gap-2">
@@ -231,11 +236,11 @@ function TrapIpDetails({ d }: { d: TrapIP }) {
   const mac = !d.mac ? <span className="text-muted">{t('trapIp.where.macNone')}</span>
     : <span className="tabular-nums">{d.mac_vendor ? t('trapIp.where.macVendor', { mac: d.mac, vendor: d.mac_vendor }) : t('trapIp.where.macLocal', { mac: d.mac })}</span>
   const where = !d.attachment ? <span className="text-muted">{t('trapIp.where.attachedNone')}</span>
-    : d.attachment.parent ? t('trapIp.where.attachedMacvlan', { link: d.attachment.link, parent: d.attachment.parent }) : t('trapIp.where.attachedMacvlanNoParent', { link: d.attachment.link })
+    : <>{d.attachment.parent ? t('trapIp.where.attachedMacvlan', { link: d.attachment.link, parent: d.attachment.parent }) : t('trapIp.where.attachedMacvlanNoParent', { link: d.attachment.link })} <InfoTip topic={t('trapIp.where.attached')}>{t('trapIp.where.attachedMacvlanInfo')}</InfoTip></>
   const rows: { k: string; label: string; value: ReactNode }[] = [
     { k: 'looks', label: t('trapIp.where.looks'), value: `${t(`trapIp.preset.${d.preset}`)}${d.vendor ? ` · ${t(`trapIp.vendor.${d.vendor}`)}` : ''}` },
     { k: 'mac', label: t('trapIp.where.mac'), value: mac },
-    { k: 'open', label: t('trapIp.where.open'), value: d.open_services.length ? <>{svc(d.open_services)}{allOpen ? <span className="block text-muted">{t('trapIp.where.openAll')}</span> : null}</> : <span className="text-muted">{t('trapIp.where.openNone')}</span> },
+    { k: 'open', label: t('trapIp.where.open'), value: d.open_services.length ? <>{svc(d.open_services)}{allOpen ? <span className="flex items-center gap-1 text-muted">{t('trapIp.where.openAll')}<InfoTip topic={t('trapIp.where.open')}>{t('trapIp.where.openAllInfo')}</InfoTip></span> : null}</> : <span className="text-muted">{t('trapIp.where.openNone')}</span> },
     { k: 'attached', label: t('trapIp.where.attached'), value: where },
     { k: 'last', label: t('trapIp.where.lastHit'), value: d.last_hit_at ? <time dateTime={d.last_hit_at} title={fmtDateTime(d.last_hit_at)}>{fmtRelative(d.last_hit_at)}</time> : <span className="text-muted">{t('trapIp.where.lastHitNever')}</span> },
   ]

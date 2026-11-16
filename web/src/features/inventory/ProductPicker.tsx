@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { useCatalog } from './api'
 import { kindIcon } from './kinds'
 import type { CatalogItem } from './types'
+import { InfoTip } from '@/components/common/InfoTip'
 
 /** Sản phẩm đã chọn: một mục trong danh mục, hoặc do người dùng tự nhập hãng + sản phẩm (khớp theo hãng). */
 export interface ChosenProduct { catalog_id?: string; vendor?: string; product?: string; display: string; hint: string; version_hint: string | null; custom: boolean }
@@ -65,7 +66,7 @@ export function ProductPicker({ value, onChange, label, listOpenRef }: { value: 
           <Label htmlFor={`${uid}-product`}>{t('picker.product')}</Label>
           <Input id={`${uid}-product`} value={product} maxLength={64} placeholder={t('picker.productPlaceholder')} autoComplete="off" onChange={(e) => setCustomValue(vendor, e.target.value)} />
         </div>
-        <p className="text-[13px] text-muted" role="status">{t('picker.customNote')}</p>
+        <div className="flex items-center gap-1"><p className="text-[13px] text-muted" role="status">{t('picker.customNote')}</p><InfoTip>{t('picker.customNoteInfo')}</InfoTip></div>
         <div><Button size="sm" onClick={() => { setCustom(false); setVendor(''); setProduct(''); onChange(null) }}>{t('picker.backToList')}</Button></div>
       </div>
     )

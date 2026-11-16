@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { Download, Plus } from 'lucide-react'
 import { Notice, Section } from '@/components/common/PageHeader'
+import { InfoTip } from '@/components/common/InfoTip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { EmptyState, ModuleOff, QueryState, RequireModule } from '@/components/common/States'
@@ -43,9 +44,9 @@ function NoBoxAddress() {
   const { t } = useTranslation('inventory')
   const install = useInstallKind()
   return (
-    <Notice tone="warn" role="status" className="mb-0" title={t('agents.noAddress.title')}>
-      <p className="text-ink">{t(install === 'container' ? 'agents.noAddress.container' : 'agents.noAddress.appliance')}</p>
-      <p className="mt-1 text-[13px]">{t('agents.noAddress.token')}</p>
+    <Notice tone="warn" role="status" className="mb-0" title={t('agents.noAddress.title')}
+      info={<><p>{t(install === 'container' ? 'agents.noAddress.container' : 'agents.noAddress.appliance')}</p><p>{t('agents.noAddress.token')}</p></>}>
+      <p className="text-ink">{t('agents.noAddress.body')}</p>
     </Notice>
   )
 }
@@ -120,7 +121,7 @@ function Downloads({ packages }: { packages: OsqueryPackage[] }) {
   const { t } = useTranslation('inventory')
   return (
     <div className="grid gap-1.5">
-      <p className="text-sm font-medium">{t('agents.download.title')}</p>
+      <div className="flex items-center gap-1"><p className="text-sm font-medium">{t('agents.download.title')}</p><InfoTip topic={t('agents.download.title')}>{t('agents.download.bodyInfo')}</InfoTip></div>
       <p className="text-[13px] text-muted">{t('agents.download.body')}</p>
       <PackageTable packages={packages} />
     </div>
@@ -146,13 +147,18 @@ function InstallPanel({ data, token }: { data: AgentsResponse; token: string }) 
         <p className="text-[13px] text-muted">{t('agents.serverOnly')}</p>
       </div>
       <div className="grid gap-1.5">
-        <p className="text-sm font-medium">{t('agents.install.title')}</p>
+        <div className="flex items-center gap-1">
+          <p className="text-sm font-medium">{t('agents.install.title')}</p>
+          <InfoTip topic={t('agents.install.title')}>
+            <p>{t(`agents.install.${platform}HowInfo`)}</p>
+            <p>{t('agents.install.shaHint')}</p>
+            {platform === 'windows' ? <p>{t('agents.install.windowsWhy')}</p> : null}
+          </InfoTip>
+        </div>
         <p className="text-[13px] text-muted">{t(`agents.install.${platform}How`)}</p>
-        {packages.length ? null : <Notice tone="warn" role="status" className="mb-0" title={t('agents.download.none')} />}
+        {packages.length ? null : <Notice tone="warn" role="status" className="mb-0" title={t('agents.download.none')} info={t('agents.download.noneInfo')} />}
         <CodeBlock label={t(`agents.install.${platform}Label`)} code={one(box, inst.sha256, token)} />
         <p className="text-[13px]"><span className="font-medium">{t('agents.install.sha')}:</span> <code className="break-all font-mono text-[12.5px]">{inst.sha256}</code></p>
-        <p className="text-[13px] text-muted">{t('agents.install.shaHint')}</p>
-        {platform === 'windows' ? <p className="text-[13px] text-muted">{t('agents.install.windowsWhy')}</p> : null}
       </div>
       <details className="rounded-md border border-rule p-3">
         <summary className="cursor-pointer text-sm font-medium">{t('agents.install.readFirst')}</summary>
@@ -164,19 +170,23 @@ function InstallPanel({ data, token }: { data: AgentsResponse; token: string }) 
         <p className="text-sm font-medium">{t('agents.install.uninstall')}</p>
         <CodeBlock label={t(`agents.install.${platform}Label`)} code={one(box, inst.sha256, token, 'uninstall')} />
       </div>
-      <p className="text-[13px] text-muted">{t('agents.install.security')}</p>
+      <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{t('agents.install.security')}</p><InfoTip>{t('agents.install.securityInfo')}</InfoTip></div>
       <details className="rounded-md border border-rule p-3">
         <summary className="cursor-pointer text-sm font-medium">{t('agents.install.advanced')}</summary>
         <div className="mt-3 grid min-w-0 gap-4 [&>*]:min-w-0">
-          <p className="text-[13px] text-muted">{t('agents.install.advancedBody')}</p>
+          <div className="flex items-center gap-1">
+            <p className="text-[13px] text-muted">{t('agents.install.advancedBody')}</p>
+            <InfoTip topic={t('agents.install.advanced')}><p>{t('agents.install.advancedBodyInfo')}</p><p>{t('agents.fingerprint')}</p><p>{t('agents.ownPaths')}</p></InfoTip>
+          </div>
           <Steps items={osquerySteps(platform, box, token, packages)} ns={`agents.steps.${platform}`} />
           <div className="grid gap-1.5">
-            <p className="text-sm font-medium">{t('agents.install.queries')}</p>
+            <div className="flex items-center gap-1">
+              <p className="text-sm font-medium">{t('agents.install.queries')}</p>
+              <InfoTip topic={t('agents.install.queries')}><p>{t('agents.install.queriesBodyInfo')}</p><p>{t('agents.install.queriesBodyInfo2')}</p></InfoTip>
+            </div>
             <p className="text-[13px] text-muted">{t('agents.install.queriesBody')}</p>
             <CodeBlock label="schedule" code={OSQUERY_SCHEDULE} />
           </div>
-          <p className="text-[13px] text-muted">{t('agents.fingerprint')}</p>
-          <p className="text-[13px] text-muted">{t('agents.ownPaths')}</p>
         </div>
       </details>
     </div>
@@ -201,7 +211,7 @@ function CreateDialog({ open, onOpenChange, data }: { open: boolean; onOpenChang
         {result ? (
           <div className="grid min-w-0 gap-4 [&>*]:min-w-0">
             <CodeBlock label={t('agents.tokenLabel')} code={result.secret} />
-            <p className="text-[13px] text-warn">{t('agents.tokenOnce')}</p>
+            <div className="flex items-center gap-1"><p className="text-[13px] text-warn">{t('agents.tokenOnce')}</p><InfoTip>{t('agents.tokenOnceInfo')}</InfoTip></div>
             <InstallPanel data={data} token={result.secret} />
             <DialogFooter><DialogClose asChild><Button variant="primary">{t('agents.done')}</Button></DialogClose></DialogFooter>
           </div>
@@ -248,11 +258,11 @@ function WazuhDialog({ open, onOpenChange, current }: { open: boolean; onOpenCha
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent wide title={t('agents.wazuh.formTitle')} description={t('agents.wazuh.formBody')}>
+      <DialogContent wide title={t('agents.wazuh.formTitle')} description={t('agents.wazuh.formBody')} info={t('agents.wazuh.formBodyInfo')}>
         <div className="grid min-w-0 gap-4 [&>*]:min-w-0">
           <details className="rounded-md border border-rule p-3" open={!current}>
             <summary className="cursor-pointer text-sm font-medium">{t('agents.wazuh.stepsTitle')}</summary>
-            <p className="my-2 text-[13px] text-muted">{t('agents.wazuh.stepsBody')}</p>
+            <div className="my-2 flex items-center gap-1"><p className="text-[13px] text-muted">{t('agents.wazuh.stepsBody')}</p><InfoTip topic={t('agents.wazuh.stepsTitle')}>{t('agents.wazuh.stepsBodyInfo')}</InfoTip></div>
             <Steps items={wazuhReaderSteps()} ns="agents.wazuh.steps" />
           </details>
           <form onSubmit={submit} className="grid gap-4" noValidate>
@@ -287,7 +297,7 @@ function WazuhCard({ w }: { w: WazuhConnection | null }) {
   return (
     <div className="grid gap-3 rounded-md border border-rule bg-surface p-4">
       <div className="grid gap-1">
-        <h3 className="text-sm font-semibold">{t('agents.wazuh.title')}</h3>
+        <div className="flex items-center gap-1"><h3 className="text-sm font-semibold">{t('agents.wazuh.title')}</h3><InfoTip topic={t('agents.wazuh.title')}>{t('agents.wazuh.introInfo')}</InfoTip></div>
         <p className="max-w-3xl text-[13px] text-muted">{t('agents.wazuh.intro')}</p>
       </div>
       {w ? (
@@ -354,7 +364,7 @@ export function AgentsSection() {
     ) },
   ]
   return (
-    <Section id="agents" title={t('agents.title')} description={t('agents.description')} stories={['S-INV-4']}>
+    <Section id="agents" title={t('agents.title')} description={t('agents.description')} info={t('agents.descriptionInfo')} stories={['S-INV-4']}>
       <RequireModule module="agent-intake" fallback={<ModuleOff module="agent-intake">{t('agents.off')}</ModuleOff>}>
         <QueryState query={q}>
           {(d) => (
@@ -362,24 +372,26 @@ export function AgentsSection() {
               <p className="max-w-3xl rounded-md border border-rule bg-sunken px-3 py-2 text-sm">{t('agents.recommendation')}</p>
               <div className="grid min-w-0 gap-5 [&>*]:min-w-0">
                 <div className="grid gap-1">
-                  <h3 className="text-sm font-semibold">{t('agents.osquery.title')}</h3>
+                  <div className="flex items-center gap-1"><h3 className="text-sm font-semibold">{t('agents.osquery.title')}</h3><InfoTip topic={t('agents.osquery.title')}>{t('agents.osquery.introInfo')}</InfoTip></div>
                   <p className="max-w-3xl text-[13px] text-muted">{t('agents.osquery.intro')}</p>
                 </div>
                 {/* Item 26b: the packages are on the page itself (step 1), not only inside the token dialog; the token is step 2. */}
                 <div className="grid gap-1.5">
-                  <h4 className="text-sm font-medium">{t('agents.page.downloadTitle')}</h4>
+                  <div className="flex items-center gap-1">
+                    <h4 className="text-sm font-medium">{t('agents.page.downloadTitle')}</h4>
+                    {d.install.packages.length ? <InfoTip topic={t('agents.page.downloadTitle')}><p>{t('agents.page.downloadBodyInfo')}</p><p>{t('agents.page.checkHint')}</p></InfoTip> : null}
+                  </div>
                   {d.install.packages.length ? (
                     <>
                       <p className="max-w-3xl text-[13px] text-muted">{t('agents.page.downloadBody', { version: d.install.osquery_version })}</p>
                       <PackageTable packages={d.install.packages} />
-                      <p className="max-w-3xl text-[13px] text-muted">{t('agents.page.checkHint')}</p>
                     </>
-                  ) : <Notice tone="warn" role="status" className="mb-0 max-w-3xl" title={t('agents.page.none')} />}
+                  ) : <Notice tone="warn" role="status" className="mb-0 max-w-3xl" title={t('agents.page.none')} info={t('agents.page.noneInfo')} />}
                 </div>
                 <div className="grid gap-2">
                   <div className="flex flex-wrap items-end justify-between gap-3">
                     <div className="grid gap-1">
-                      <h4 className="text-sm font-medium">{t('agents.page.tokenTitle')}</h4>
+                      <div className="flex items-center gap-1"><h4 className="text-sm font-medium">{t('agents.page.tokenTitle')}</h4><InfoTip topic={t('agents.page.tokenTitle')}>{t('agents.page.tokenBodyInfo')}</InfoTip></div>
                       <p className="max-w-3xl text-[13px] text-muted">{t('agents.page.tokenBody')}</p>
                     </div>
                     <Button onClick={() => setCreating(true)}><Plus />{t('agents.create')}</Button>
@@ -390,7 +402,7 @@ export function AgentsSection() {
               <WazuhCard w={d.wazuh} />
               <CreateDialog open={creating} onOpenChange={setCreating} data={d} />
               <Dialog open={!!showing} onOpenChange={(o) => { if (!o) setShowing(null) }}>
-                <DialogContent wide title={t('agents.configTitle', { name: showing?.name ?? '' })} description={t('agents.configBody')}>
+                <DialogContent wide title={t('agents.configTitle', { name: showing?.name ?? '' })} description={t('agents.configBody')} info={t('agents.configBodyInfo')}>
                   {showing ? <InstallPanel data={d} token="<TOKEN>" /> : null}
                   <DialogFooter><DialogClose asChild><Button>{t('common:close')}</Button></DialogClose></DialogFooter>
                 </DialogContent>

@@ -45,7 +45,7 @@ export function AutoTab() {
     { id: 'result', header: t('auto.col.result'), accessorFn: (r) => r.result, cell: ({ row: { original: r } }) => <ResultCell r={r} /> },
   ]
   return (
-    <Section id="auto" title={t('auto.title')} description={t('auto.description')} stories={['S-SCAN-2']}>
+    <Section id="auto" title={t('auto.title')} description={t('auto.description')} info={t('auto.descriptionInfo')} stories={['S-SCAN-2']}>
       <QueryState query={q}>
         {(d) => (
           <div className="grid gap-4">
@@ -55,7 +55,7 @@ export function AutoTab() {
               <Label htmlFor="auto-on">{t('auto.switch')}</Label>
               {!can ? <span className="text-[13px] text-muted">{t('common:needRole', { role: t('common:role.admin') })}</span> : null}
             </div>
-            {!d.auto_rescan ? <Notice tone="warn" className="mb-0" title={t('auto.offNote')} /> : null}
+            {!d.auto_rescan ? <Notice tone="warn" className="mb-0" title={t('auto.offNote')} info={t('auto.offNoteInfo')} /> : null}
             <DataTable caption={t('auto.caption')} data={d.items} columns={columns} pageSize={10} empty={<EmptyState title={t('auto.empty')}>{t('auto.emptyHelp')}</EmptyState>} />
           </div>
         )}

@@ -106,7 +106,7 @@ export function CredentialDialog({ current, scope, widen = false, onClose }: { c
   const described = (id: string, err?: string) => (err ? `${id}-error` : `${id}-hint`)
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent title={current ? t('snmp.form.editTitle', { name: current.name }) : t('snmp.form.addTitle')} description={t('snmp.form.body')}>
+      <DialogContent title={current ? t('snmp.form.editTitle', { name: current.name }) : t('snmp.form.addTitle')} description={t('snmp.form.body')} info={t('snmp.form.bodyInfo')}>
         <form onSubmit={submit} className="grid gap-4" noValidate>
           <Field label={t('snmp.form.name')} htmlFor="snmp-name" hint={t('snmp.form.nameHint')} error={errors.name}>
             <Input id="snmp-name" value={name} maxLength={64} autoComplete="off" onChange={(e) => setName(e.target.value)} aria-invalid={!!errors.name} aria-describedby={described('snmp-name', errors.name)} />
@@ -149,7 +149,7 @@ export function CredentialDialog({ current, scope, widen = false, onClose }: { c
               </div>
             </>
           )}
-          <Field label={t('snmp.form.scope')} htmlFor="snmp-scope" hint={t('snmp.form.scopeHint')} error={errors.scope}>
+          <Field label={t('snmp.form.scope')} htmlFor="snmp-scope" hint={t('snmp.form.scopeHint')} info={t('snmp.form.scopeHintInfo')} error={errors.scope}>
             <Textarea id="snmp-scope" rows={3} value={scopeText} placeholder={'192.168.10.0/24\n192.168.20.5'} spellCheck={false} onChange={(e) => setScopeText(e.target.value)} aria-invalid={!!errors.scope} aria-describedby={described('snmp-scope', errors.scope)} className="font-mono text-[13px]" />
           </Field>
           <p className="text-[12px] text-muted">{t('snmp.form.insecure')}</p>
@@ -289,7 +289,7 @@ export function SnmpSection() {
   // ?snmp_ip= opens the add form once the list is read and has room (review #831 L8); at 8 credentials the button says why not.
   const autoAdd = !editing && IPV4_RE_UI.test(forIp) && !!q.data && !full
   return (
-    <Section id="snmp" title={t('snmp.title')} description={t('snmp.description')} stories={['S-INV-1']}
+    <Section id="snmp" title={t('snmp.title')} description={t('snmp.description')} info={<><p>{t('snmp.descriptionInfo')}</p><p>{t('snmp.descriptionInfo2')}</p></>} stories={['S-INV-1']}
       actions={<Button onClick={() => setEditing('new')} disabled={!q.data || full} title={full ? t('snmp.max') : undefined}><Plus />{t('snmp.add')}</Button>}>
       <QueryState query={q}>
         {(d) => (
@@ -302,7 +302,7 @@ export function SnmpSection() {
                   {d.credentials.map((c, i) => <CredentialRow key={c.id} c={c} index={i} onEdit={() => setEditing(c)} onDelete={() => setDeleting(c)} />)}
                 </ol>
               </>
-            ) : <EmptyState title={t('snmp.empty')}>{t('snmp.emptyBody')}</EmptyState>}
+            ) : <EmptyState title={t('snmp.empty')} info={t('snmp.emptyBodyInfo')}>{t('snmp.emptyBody')}</EmptyState>}
           </div>
         )}
       </QueryState>

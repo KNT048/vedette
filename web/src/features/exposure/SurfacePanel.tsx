@@ -5,6 +5,7 @@ import { Chip, type Tone } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { dateText, dateTimeText } from './dates'
 import { useSnapshot, useSnapshots } from './api'
+import { InfoLine } from './InfoLine'
 import type { HostClass, HostIp, HostRow, Snapshot, Target } from './types'
 
 // S-EXP-1, INV-27 (D-567): the surface of a verified domain from its newest scan: names, then their addresses, CNAME and where each
@@ -19,9 +20,9 @@ export function SurfacePanel({ target, blockedText }: { target: Target; blockedT
   const latest = list.data?.items[0]?.date ?? null
   const snap = useSnapshot(target.id, latest)
   return (
-    <Section id="surface" title={t('surface.title')} description={t('surface.description')} stories={['S-EXP-1']}>
+    <Section id="surface" title={t('surface.title')} description={t('surface.description')} info={t('surface.descriptionInfo')} stories={['S-EXP-1']}>
       <QueryState query={list}>
-        {(l) => l.items.length === 0 ? <EmptyState title={t('results.emptyTitle')}>{blockedText ?? t('surface.emptyBody')}</EmptyState>
+        {(l) => l.items.length === 0 ? <EmptyState title={t('results.emptyTitle')}>{blockedText ?? <InfoLine topic={t('surface.title')} info={t('surface.emptyBodyInfo')}>{t('surface.emptyBody')}</InfoLine>}</EmptyState>
           : snap.isPending ? <Loading /> : snap.error ? <ErrorState error={snap.error} onRetry={() => void snap.refetch()} /> : snap.data ? <SurfaceView s={snap.data} /> : null}
       </QueryState>
     </Section>
@@ -60,7 +61,7 @@ function SurfaceView({ s }: { s: Snapshot }) {
           ...(deep ? [{ label: t('surface.count.deep'), value: addrs((a) => a.deep === 'scanned') }, { label: t('surface.count.waiting'), value: addrs((a) => a.deep === 'waiting') }] : []),
         ]} />
       </Panel>
-      {!classified && s.hosts.length > 0 ? <Notice tone="off" role="note" title={t('surface.older')} /> : null}
+      {!classified && s.hosts.length > 0 ? <Notice tone="off" role="note" title={t('surface.older')} info={t('surface.olderInfo')} /> : null}
       <DataTable caption={t('surface.caption')} data={s.hosts} columns={cols} pageSize={30} empty={t('hosts.empty')} filterPlaceholder={t('surface.filter')} />
       {lines.length > 0 ? (
         <div>

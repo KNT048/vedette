@@ -6,6 +6,7 @@ import { CodeBlock } from '@/components/common/CodeBlock'
 import { AiBlock } from '@/components/common/AiBlock'
 import { Chip } from '@/components/common/StatusChip'
 import { Notice } from '@/components/common/PageHeader'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Segmented } from '@/components/ui/segmented'
@@ -48,7 +49,7 @@ function ApplyButton({ finding, item }: { finding: FindingDetail; item: ApplyIte
         onClick={() => apply.mutate(item, { onSuccess: () => toast.success(t('rec.appliedToast')), onError: (e) => toast.error(errMsg(e)) })}>
         {t('rec.applied')}
       </Button>
-      <span className="text-[12px] text-muted">{t('rec.appliedHint')}</span>
+      <span className="inline-flex items-center gap-1 text-[12px] text-muted">{t('rec.appliedHint')}<InfoTip topic={t('rec.applied')}>{t('rec.appliedHintInfo')}</InfoTip></span>
     </div>
   )
 }
@@ -125,7 +126,10 @@ function Firewall({ finding }: { finding: FindingDetail }) {
   const any = guides.some((x) => x.detected)
   return (
     <div className="grid gap-3">
-      <p className="text-[13px] text-muted">{any ? t('rec.fwDetected') : t('rec.fwNone')}</p>
+      <div className="flex items-center gap-1 text-[13px] text-muted">
+        <p>{any ? t('rec.fwDetected') : t('rec.fwNone')}</p>
+        {any ? null : <InfoTip topic={t('rec.fwVendor')}>{t('rec.fwNoneInfo')}</InfoTip>}
+      </div>
       <Segmented<FirewallVendor> label={t('rec.fwVendor')} value={vendor} onChange={setVendor} className="flex-wrap"
         options={guides.map((x) => ({ value: x.vendor, label: x.detected ? t('rec.fwDeclared', { name: x.label }) : x.label }))} />
       <Guide key={g.vendor} finding={finding} g={g} />
@@ -159,7 +163,7 @@ export function PackView({ finding }: { finding: FindingDetail }) {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Chip tone="ok">{t('rec.confirmedChip')}</Chip>
-        <span className="text-sm">{t('rec.confirmedBy', { by: p.confirmed_by, date: fmtDate(p.confirmed_at) })}</span>
+        <span className="inline-flex items-center gap-1 text-sm">{t('rec.confirmedBy', { by: p.confirmed_by, date: fmtDate(p.confirmed_at) })}<InfoTip topic={t('rec.confirmedChip')}>{t('rec.confirmedByInfo')}</InfoTip></span>
       </div>
       <AiBlock origin="project" model={p.drafted_with} citations={p.sources}>
         <section aria-labelledby="rec-patch" className="grid gap-2">
@@ -180,7 +184,10 @@ export function PackView({ finding }: { finding: FindingDetail }) {
           <ApplyButton finding={finding} item="workaround" />
         </section>
         <section aria-labelledby="rec-firewall" className="grid gap-2 border-t border-rule pt-3">
-          <H3 id="rec-firewall">{t('rec.firewallTitle')}</H3>
+          <div className="flex items-center gap-1">
+            <H3 id="rec-firewall">{t('rec.firewallTitle')}</H3>
+            <InfoTip topic={t('rec.firewallTitle')}>{t('rec.firewallHintInfo')}</InfoTip>
+          </div>
           <p className="text-[13px] text-muted">{t('rec.firewallHint')}</p>
           <Firewall finding={finding} />
         </section>
@@ -221,6 +228,7 @@ export function AskAi({ finding, skill, result, label, hint }: { finding: Findin
             ? <>{t('ai.unavailable')} <Link to="/settings/ai" className="text-accent underline underline-offset-4">{t('ai.openSettings')}</Link></>
             : !can ? t('common:needRole', { role: t('common:role.operator') }) : (hint ?? t('ai.privacy'))}
         </p>
+        {ready && can && !hint ? <InfoTip topic={label}>{t('ai.privacyInfo')}</InfoTip> : null}
       </div>
       <div aria-live="polite">{result ? <AiOutput r={result} /> : null}</div>
     </div>
@@ -255,7 +263,7 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
   const updatable = isOpen(finding.status) && softwareFor(sw.data?.asset.software, finding.cve).length > 0
   return (
     <div className="grid gap-5">
-      <Notice tone="warn" title={t('rec.noPack')} className="mb-0">{t('rec.noPackBody')}</Notice>
+      <Notice tone="warn" title={t('rec.noPack')} className="mb-0" info={<><p>{t('rec.noPackBodyInfo')}</p><p>{t('rec.noPackAi')}</p></>}>{t('rec.noPackBody')}</Notice>
       {k ? (
         <>
           <div className="grid gap-2">
@@ -288,7 +296,12 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
             </ol>
           </div>
         </>
-      ) : <p className="text-sm text-muted">{t('rec.noKev')}</p>}
+      ) : (
+        <div className="flex items-center gap-1 text-sm text-muted">
+          <p>{t('rec.noKev')}</p>
+          <InfoTip topic={t('rec.title')}>{t('rec.noKevInfo')}</InfoTip>
+        </div>
+      )}
       <div className="grid gap-2">
         <h3 className="text-sm font-semibold">{t('rec.askTitle')}</h3>
         <AskAi finding={finding} skill="mitigation-config" result={finding.ai.config} label={t('rec.askAi')} />

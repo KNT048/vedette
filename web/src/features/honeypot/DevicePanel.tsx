@@ -19,7 +19,7 @@ function Inner({ assetId }: { assetId: string }) {
   const { t } = useTranslation('honeypot')
   const q = useHits(assetId)
   return (
-    <Section id="device-hp" title={t('device.title')} description={t('device.description')}>
+    <Section id="device-hp" title={t('device.title')} description={t('device.description')} info={t('device.descriptionInfo')}>
       {q.isPending ? <p className="text-sm text-muted">{t('common:loading')}</p>
         : q.error ? <p role="alert" className="text-sm text-danger">{q.error instanceof Error ? q.error.message : String(q.error)}</p>
         : q.data.items.length === 0 ? <p className="text-sm text-muted">{t('device.none')}</p>

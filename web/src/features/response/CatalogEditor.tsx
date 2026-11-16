@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, Panel } from '@/components/common/PageHeader'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
@@ -52,13 +53,13 @@ function RefuseText({ id, value, onChange }: { id: string; value: string[]; onCh
 }
 
 /** Only the fields of the connection kind. Nothing else is rendered, so nothing from another kind can leak in. */
-function TplFields({ id, legend, kind, value, onChange, tools, tool, onTool, hint, readOnly, expect, error, children }: { id: string; legend: string; kind: ConnKind; value: Tpl; onChange: (t: Tpl) => void; tools: string[]; tool: string | null; onTool: (v: string | null) => void; hint?: string; readOnly?: boolean; expect?: boolean; error?: string; children?: React.ReactNode }) {
+function TplFields({ id, legend, info, kind, value, onChange, tools, tool, onTool, hint, readOnly, expect, error, children }: { id: string; legend: string; info?: string; kind: ConnKind; value: Tpl; onChange: (t: Tpl) => void; tools: string[]; tool: string | null; onTool: (v: string | null) => void; hint?: string; readOnly?: boolean; expect?: boolean; error?: string; children?: React.ReactNode }) {
   const { t } = useTranslation('response')
   const has = (f: TplField) => KIND_FIELDS[kind].includes(f)
   const bad = error ? { 'aria-invalid': true, 'aria-describedby': `${id}-error` } : {} // the error of the group is under it (D-390)
   return (
     <fieldset id={id} tabIndex={-1} className="grid gap-3 rounded-md border border-rule p-3">
-      <legend className="px-1 text-sm font-medium">{legend}</legend>
+      <legend className="flex items-center gap-1 px-1 text-sm font-medium">{legend}{info ? <InfoTip topic={legend}>{info}</InfoTip> : null}</legend>
       {isMcp(kind) ? (
         <>
           <Field htmlFor={`${id}-tool`} label={t('catalog.tool')}>
@@ -76,7 +77,7 @@ function TplFields({ id, legend, kind, value, onChange, tools, tool, onTool, hin
       ) : null}
       {has('headers') ? <Field htmlFor={`${id}-headers`} label={t('catalog.headers')} hint={t('catalog.headersHint')}><Textarea id={`${id}-headers`} className="min-h-16" spellCheck={false} value={value.headers} onChange={(e) => onChange({ ...value, headers: e.target.value })} /></Field> : null}
       {has('body') && !isMcp(kind) && !readOnly ? <Field htmlFor={`${id}-body`} label={t('catalog.body')}><Input id={`${id}-body`} spellCheck={false} value={value.body} placeholder='{"name":"{text}"}' onChange={(e) => onChange({ ...value, body: e.target.value })} /></Field> : null}
-      {expect ? <Field htmlFor={`${id}-expect`} label={t('catalog.expect')} hint={t('catalog.expectHint')}><Input id={`${id}-expect`} spellCheck={false} maxLength={MAX_EXPECT} value={value.expect ?? ''} onChange={(e) => onChange({ ...value, expect: e.target.value })} /></Field> : null}
+      {expect ? <Field htmlFor={`${id}-expect`} label={t('catalog.expect')} hint={t('catalog.expectHint')} info={t('catalog.expectHintInfo')}><Input id={`${id}-expect`} spellCheck={false} maxLength={MAX_EXPECT} value={value.expect ?? ''} onChange={(e) => onChange({ ...value, expect: e.target.value })} /></Field> : null}
       {children}
       {error ? <p id={`${id}-error`} className="text-[13px] text-danger [overflow-wrap:anywhere]">{error}</p> : null}
     </fieldset>
@@ -127,7 +128,7 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
   }
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose() }}>
-      <DialogContent title={action ? t('catalog.editTitle') : t('catalog.addTitle')} description={t('catalog.dialogHint')} wide>
+      <DialogContent title={action ? t('catalog.editTitle') : t('catalog.addTitle')} description={t('catalog.dialogHint')} info={t('catalog.dialogHintInfo')} wide>
         <form className="grid gap-4" noValidate onSubmit={(e) => { e.preventDefault(); submit() }}>
           <Field htmlFor="ca-name" label={t('catalog.name')} error={errs['ca-name']}><Input id="ca-name" {...(errs['ca-name'] ? { 'aria-invalid': true, 'aria-describedby': 'ca-name-error' } : {})} value={f.name} maxLength={80} onChange={(e) => set({ name: e.target.value })} /></Field>
           <Field htmlFor="ca-desc" label={t('catalog.description')} hint={t('catalog.descriptionHint')}><Textarea id="ca-desc" className="min-h-16" maxLength={300} value={f.description} onChange={(e) => set({ description: e.target.value })} /></Field>
@@ -143,17 +144,17 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
           <p className="-mt-2 text-[13px] text-muted">{t('catalog.needConnection')} <Link className="text-accent underline underline-offset-4" to="/settings/connections">{t('catalog.toConnections')}</Link></p>
           {kind ? (
             <>
-              <p className="text-[13px] text-muted">{t(action && !action.device ? 'catalog.placeholdersMessage' : 'catalog.placeholders')}</p>
+              <div className="flex items-center gap-1 text-[13px] text-muted"><p>{t(action && !action.device ? 'catalog.placeholdersMessage' : 'catalog.placeholders')}</p><InfoTip topic={t('catalog.placeholdersTopic')}>{t(action && !action.device ? 'catalog.placeholdersMessageInfo' : 'catalog.placeholdersInfo')}</InfoTip></div>
               {ex.hint ? <p className="rounded-md border border-dashed border-rule px-3 py-2 text-[13px] text-muted">{ex.hint}</p> : null}
               <TplFields key={`run-${f.connection_id}`} id="ca-run" legend={t('catalog.runLegend')} kind={kind} value={f.run} onChange={(run) => set({ run })} tools={conn?.write_tools ?? []} tool={f.tool} onTool={(tool) => set({ tool })} error={errs['ca-run']} />
               <TplFields key={`rb-${f.connection_id}`} id="ca-rb" legend={t('catalog.rollbackLegend')} kind={kind} value={f.rollback} onChange={(rollback) => set({ rollback })} tools={conn?.write_tools ?? []} tool={f.rollback_tool} onTool={(rollback_tool) => set({ rollback_tool })} error={errs['ca-rb']} />
               {!isMcp(kind) ? <TplFields key={`vf-${f.connection_id}`} id="ca-vf" legend={t('catalog.verifyLegend')} kind={kind} value={f.verify} onChange={(verify) => set({ verify })} tools={[]} tool={null} onTool={() => undefined} hint={t('catalog.verifyHint')} expect error={errs['ca-vf']} /> : null}
               {isMcp(kind) ? <p className="text-[13px] text-muted">{t('catalog.precheckNoMcp')}</p> : (
-                <TplFields key={`pc-${f.connection_id}`} id="ca-pc" legend={t('catalog.precheckLegend')} kind={kind} value={f.precheck ?? EMPTY_TPL} onChange={(precheck) => set({ precheck })} tools={[]} tool={null} onTool={() => undefined} hint={t('catalog.precheckHint')} readOnly error={errs['ca-pc']}>
-                  <Field htmlFor="ca-pc-refuse" label={t('catalog.refuse')} hint={t('catalog.refuseHint', { max: MAX_REFUSE, len: MAX_REFUSE_LEN })}>
+                <TplFields key={`pc-${f.connection_id}`} id="ca-pc" legend={t('catalog.precheckLegend')} kind={kind} value={f.precheck ?? EMPTY_TPL} onChange={(precheck) => set({ precheck })} tools={[]} tool={null} onTool={() => undefined} hint={t('catalog.precheckHint')} info={t('catalog.precheckHintInfo')} readOnly error={errs['ca-pc']}>
+                  <Field htmlFor="ca-pc-refuse" label={t('catalog.refuse')} hint={t('catalog.refuseHint')} info={t('catalog.refuseHintInfo', { max: MAX_REFUSE, len: MAX_REFUSE_LEN })}>
                     <RefuseText id="ca-pc-refuse" value={f.precheck_refuse ?? []} onChange={(precheck_refuse) => set({ precheck_refuse })} />
                   </Field>
-                  <Field htmlFor="ca-pc-expect" label={t('catalog.precheckExpect')} hint={t('catalog.precheckExpectHint')}><Input id="ca-pc-expect" spellCheck={false} maxLength={MAX_REFUSE_LEN} value={f.precheck_expect ?? ''} onChange={(e) => set({ precheck_expect: e.target.value })} /></Field>
+                  <Field htmlFor="ca-pc-expect" label={t('catalog.precheckExpect')} hint={t('catalog.precheckExpectHint')} info={t('catalog.precheckExpectHintInfo')}><Input id="ca-pc-expect" spellCheck={false} maxLength={MAX_REFUSE_LEN} value={f.precheck_expect ?? ''} onChange={(e) => set({ precheck_expect: e.target.value })} /></Field>
                 </TplFields>
               )}
             </>
@@ -187,7 +188,7 @@ export function CatalogEditor() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div><h3 className="text-sm font-medium">{t('catalog.title')}</h3><p className="text-[13px] text-muted">{t('catalog.hint')}</p></div>
+        <div><div className="flex items-center gap-1"><h3 className="text-sm font-medium">{t('catalog.title')}</h3><InfoTip topic={t('catalog.title')}>{t('catalog.hintInfo')}</InfoTip></div><p className="text-[13px] text-muted">{t('catalog.hint')}</p></div>
         <Button onClick={() => setEdit('new')}><Plus className="size-4" aria-hidden />{t('catalog.add')}</Button>
       </div>
       {packsOf(cat.items).map((pack) => {

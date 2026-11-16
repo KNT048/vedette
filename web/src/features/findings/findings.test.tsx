@@ -460,9 +460,11 @@ describe('findings: customer walk 1 (D-484)', () => {
     findingsStore.update((l) => l.map((f) => (f.id === id ? { ...f, evidence: { summary: 's', checked_at: f.first_seen, agent_row: true } } : f)))
     renderApp('/findings')
     const table = await screen.findByRole('table', { name: 'Findings list' })
-    const chip = within(within(table).getByRole('row', { name: /CVE-2026-119977/ })).getByText('High, unverified')
-    expect(chip).toHaveAttribute('title', expect.stringContaining("The device's agent reports the installed version"))
-    expect(chip.getAttribute('title')).not.toMatch(/Add the version/)
+    const row = within(within(table).getByRole('row', { name: /CVE-2026-119977/ }))
+    expect(row.getByText('High, unverified')).toBeVisible()
+    const why = row.getByRole('button', { name: 'About High, unverified' }) // #824: the explanation is behind the chip's ⓘ
+    expect(why).toHaveAccessibleDescription(expect.stringContaining("The device's agent reports the installed version") as string)
+    expect(why).not.toHaveAccessibleDescription(/Add the version/)
     // the mock's "How to check it yourself" agrees with mitigation genericRecheck (review r1 #6 of #801)
     sessionStore.set({ userId: 'u-admin' })
     const d = await (await fetch(`${location.origin}/api/v1/findings/${id}`)).json() as { recheck: { steps: string[] } }

@@ -25,16 +25,18 @@
   "open": {
     "title_one": "{{count}} port open to the Internet",
     "title_other": "{{count}} ports open to the Internet",
-    "description": "Anyone on the Internet can reach these. Is each one open on purpose? If nobody outside your company needs it, close it on your router or firewall (remove the port forward). If it must stay open, allow only the addresses that need it and keep its software up to date.",
+    "description": "Anyone on the Internet can reach these. Is each one open on purpose?",
+    "descriptionInfo": "If nobody outside your company needs it, close it on your router or firewall (remove the port forward). If it must stay open, allow only the addresses that need it and keep its software up to date.",
     "on": "on {{ip}}",
     "software": "answers as {{product}}",
     "attacked": "Commonly attacked",
     "notSeen": "Missed by the last scan",
-    "notSeenNote": "Last seen {{date}}. Missed by the last scan ({{at}}). Vedette says it is closed only after a second scan also misses it; use Scan now to check again. Until then it counts as open.",
+    "notSeenNote": "Last seen {{date}}; missed by the last scan ({{at}}).",
+    "notSeenNoteInfo": "Vedette says it is closed only after a second scan also misses it; use Scan now to check again. Until then it counts as open.",
     "notChecked": "Not checked since {{date}}",
-    "notCheckedNote": "The last scan did not check this port, so it is kept as it was on {{date}}. It counts as open until a scan that checks it says otherwise.",
+    "notCheckedNote": "The last scan did not check this port, so it is kept as it was on {{date}}.",
+    "notCheckedNoteInfo": "It counts as open until a scan that checks it says otherwise.",
     "details": "Scan details",
-    "purpose": "Is that on purpose?",
     "purposePlain": "Is that on purpose? If not, close it on your router or firewall.",
     "moreOnTarget_one": "{{count}} more open port is listed on its target's page.",
     "moreOnTarget_other": "{{count}} more open ports are listed on their target's page."
@@ -58,19 +60,24 @@
     "surface": "Surface"
   },
   "outsideList": {
-    "description": "What Shodan InternetDB sees from outside for each public IP of this box. Open an IP to ask again.",
+    "description": "What Shodan InternetDB sees from outside for each public IP of this box.",
+    "descriptionInfo": "Open an IP to ask again.",
     "open": "Open outside view of {{ip}}",
     "emptyTitle": "No public IP yet",
-    "emptyBody": "When the box finds its public IP it appears here, and you can ask what the Internet sees."
+    "emptyBody": "When the box finds its public IP, you can ask what the Internet sees."
   },
   "openEmpty": "No open port was found in the newest scans.",
   "gateway": {
-    "known_one": "These ports are answered by your gateway {{name}} ({{ip}}), or a device it forwards them to. {{name}} has {{count}} open exploited vulnerability: fix these first.",
-    "known_other": "These ports are answered by your gateway {{name}} ({{ip}}), or a device it forwards them to. {{name}} has {{count}} open exploited vulnerabilities: fix these first.",
-    "none": "These ports are answered by your gateway {{name}} ({{ip}}), or a device it forwards them to. Vedette knows of no open exploited vulnerability on {{name}}; that does not prove the device it forwards to is safe.",
+    "known_one": "Your gateway {{name}} ({{ip}}) has {{count}} open exploited vulnerability: fix these first.",
+    "known_other": "Your gateway {{name}} ({{ip}}) has {{count}} open exploited vulnerabilities: fix these first.",
+    "knownInfo": "These ports are answered by your gateway, or a device it forwards them to.",
+    "none": "Your gateway {{name}} ({{ip}}) answers these ports; no open exploited vulnerability is known on it.",
+    "noneInfo": "These ports are answered by your gateway, or a device it forwards them to. That no open exploited vulnerability is known on {{name}} does not prove the device it forwards to is safe.",
     "link": "See the vulnerabilities of {{name}}",
-    "notListed": "These ports are answered by your gateway ({{ip}}), or a device it forwards them to. Your gateway is not in your device list yet, so Vedette cannot say what is exploited on it. Scan your network to add it.",
-    "unknown": "Vedette cannot see which gateway your network uses from here, so it cannot say which device answers these ports."
+    "notListed": "Your gateway ({{ip}}) answers these ports, but it is not in your device list yet.",
+    "notListedInfo": "These ports are answered by your gateway, or a device it forwards them to. Until it is in your device list Vedette cannot say what is exploited on it. Scan your network to add it.",
+    "unknown": "Vedette cannot see which gateway your network uses from here.",
+    "unknownInfo": "So it cannot say which device answers these ports."
   },
   "risky": {
     "voip": "Phone systems (SIP) are scanned all day for toll fraud: attackers guess extension passwords and make paid calls on your bill.",
@@ -112,7 +119,8 @@
   },
   "targets": {
     "title": "Domains",
-    "description": "Select a name to verify it, run its first scan as an administrator and read scan results.",
+    "description": "Select a name to verify it, scan it and read its results.",
+    "descriptionInfo": "An administrator runs the first scan of each name.",
     "caption": "Declared domains",
     "col": {
       "target": "Target",
@@ -126,14 +134,17 @@
     "latest": "{{admin}} admin interfaces, {{ports}} open ports, {{certs}} certificates expiring",
     "noResult": "No result yet",
     "emptyTitle": "No domain yet",
-    "emptyBody": "Select Add domain and follow the DNS TXT steps. Then confirm your authorization and scan. Public IPs are found by the box itself, further down."
+    "emptyBody": "Select Add domain and follow the DNS TXT steps.",
+    "emptyBodyInfo": "Then confirm your authorization and scan. Public IPs are found by the box itself, further down."
   },
   "add": {
     "button": "Add domain",
     "title": "Add a domain",
-    "description": "Only enter a domain your company owns. After adding it you will prove ownership with a DNS TXT record and an administrator's first Scan now confirms your authorization.",
+    "description": "Only enter a domain your company owns.",
+    "descriptionInfo": "After adding it you will prove ownership with a DNS TXT record and an administrator's first Scan now confirms your authorization.",
     "label": "Domain",
-    "hint": "For example example.com. Do not type http:// or a path. Public IPs cannot be typed in: the box finds its own, under Public IPs of this box.",
+    "hint": "For example example.com, without http:// or a path.",
+    "hintInfo": "Public IPs cannot be typed in: the box finds its own, under Public IPs of this box.",
     "empty": "Enter a domain, for example example.com.",
     "submit": "Add",
     "toast": "Added {{value}}. Next step: verify ownership."
@@ -152,28 +163,38 @@
       "ready": "{{value}} is ready for its first scan"
     },
     "lastScan": "Last scanned {{time}}",
-    "viewOnly": "You have view-only access. Scanning and re-checking ownership need the operator role; the first scan of a target (it confirms authorization) and deleting need admin."
+    "viewOnly": "You have view-only access.",
+    "viewOnlyInfo": "Scanning and re-checking ownership need the operator role; the first scan of a target (it confirms authorization) and deleting need admin.",
+    "accessTopic": "Your access"
   },
   "scan": {
     "button": "Scan now",
     "running": "Scanning",
     "safe": "Scan now scope (testing terms not accepted): non-intrusive, no exploitation, no disruption. Aimed only at this target.",
-    "deepIp": "Deep scan: the testing terms of this IP are accepted, so every scan goes to the depth they describe (every TCP port, service versions, vulnerability checks, some of which confirm a flaw by sending the exploit request in a harmless form, and OpenVAS when it is on).",
-    "deepDomain": "Deep scan: the testing terms of this domain are accepted, so every public IPv4 address a name under it resolves to is scanned to the depth they describe, whatever serves it (at most 3 addresses a run).",
+    "scopeTopic": "Scan depth",
+    "deepIp": "Deep scan: the testing terms of this IP are accepted.",
+    "deepIpInfo": "Every scan goes to the depth they describe: every TCP port, service versions, vulnerability checks (some of which confirm a flaw by sending the exploit request in a harmless form) and OpenVAS when it is on.",
+    "deepDomain": "Deep scan: the testing terms of this domain are accepted.",
+    "deepDomainInfo": "Every public IPv4 address a name under it resolves to is scanned to the depth they describe, whatever serves it (at most 3 addresses a run).",
     "deepNotDisruptive": "Disruptive checks are not included.",
-    "deepDisruptive": "Disruptive checks are included: denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read.",
+    "deepDisruptive": "Disruptive checks are included.",
+    "deepDisruptiveInfo": "Denial of service, password guessing, default-password sign-ins and exploit checks that send more than a harmless read.",
     "noticeTitle": "Pressing Scan now records this confirmation",
-    "noticeChanged": "The confirmation text changed: it now names service identification, safe checks for known exploited vulnerabilities and a passive web scan. An administrator confirms once with the next Scan now.",
+    "noticeChanged": "The confirmation text changed: an administrator confirms once with the next Scan now.",
+    "noticeChangedInfo": "It now names service identification, safe checks for known exploited vulnerabilities and a passive web scan.",
     "noticeWho": "Vedette keeps who confirmed it, when, for which target and this exact sentence.",
     "needTwoStep": "Turn on two-step sign-in for your account before the first scan of {{value}}: that scan records your confirmation of ownership and authorization.",
     "needTwoStepLink": "Turn on two-step sign-in"
   },
   "step": {
     "verify": "Step 1. Verify ownership",
-    "verifyHintDomain": "Prove the domain is yours with a DNS TXT record, so nobody can enter someone else's domain.",
-    "verifyHintIp": "This IP is verified because this box reaches the Internet through it. It stays valid for 30 days after the box last saw it, and every sighting renews it.",
+    "verifyHintDomain": "Prove the domain is yours with a DNS TXT record.",
+    "verifyHintDomainInfo": "So nobody can enter someone else's domain.",
+    "verifyHintIp": "This IP is verified because this box reaches the Internet through it.",
+    "verifyHintIpInfo": "It stays valid for 30 days after the box last saw it, and every sighting renews it.",
     "commit": "Authorization record",
-    "commitHint": "Recorded by the first Scan now of an administrator. Vedette keeps who, when and the exact sentence."
+    "commitHint": "Recorded by the first Scan now of an administrator.",
+    "commitHintInfo": "Vedette keeps who, when and the exact sentence."
   },
   "verify": {
     "goOwnership": "Open Ownership",
@@ -183,7 +204,9 @@
     "recheck": "Check",
     "checkAgain": "Check again",
     "recheckHint": "Select it after you have saved the record at your DNS provider.",
-    "dnsIntro": "Add a TXT record to the DNS of {{value}}. Do it where you manage the domain (your registrar, Cloudflare, or whoever hosts your DNS).",
+    "dnsIntro": "Add a TXT record to the DNS of {{value}}.",
+    "dnsIntroInfo": "Do it where you manage the domain (your registrar, Cloudflare, or whoever hosts your DNS).",
+    "dnsTopic": "DNS TXT record",
     "dns": {
       "type": "Record type",
       "name": "Name (host)",
@@ -192,19 +215,25 @@
       "ttlValue": "300 seconds or the lowest allowed",
       "valueLabel": "TXT record value"
     },
-    "dnsHint": "This record only proves you control the DNS. It gives Vedette no other access. Paste the value without quotes. If your DNS provider appends the domain to the Name field automatically, type just @. DNS usually updates within minutes, can take up to 72 hours (as in Google domain verification guidance). Keep the record until Vedette confirms verification; you can delete it afterwards.",
-    "doneDomain": "Verified with a DNS TXT record on {{time}}. Vedette re-checks the record right before every scan.",
+    "dnsHint": "Paste the value without quotes.",
+    "dnsHintInfo": "This record only proves you control the DNS. It gives Vedette no other access. If your DNS provider appends the domain to the Name field automatically, type just @. DNS usually updates within minutes, can take up to 72 hours (as in Google domain verification guidance). Keep the record in DNS after verification: Vedette checks it again before each scan.",
+    "doneDomain": "Verified with a DNS TXT record on {{time}}.",
+    "doneDomainInfo": "Vedette re-checks the record right before every scan.",
     "keepRecord": "Keep the TXT record in DNS: if it disappears, scanning is blocked until you add it back.",
-    "txtMissing": "Vedette could not find the TXT record at the last check, so scanning is blocked. Add the record back, then select Check again.",
-    "paused": "Scans paused: the box no longer reaches the Internet through this IP (last seen {{time}}). Scanning resumes when the box goes out through it again. Select Verify again to check now.",
+    "txtMissing": "Vedette could not find the TXT record at the last check, so scanning is blocked.",
+    "txtMissingInfo": "Add the record back, then select Check again.",
+    "paused": "Scans paused: the box no longer reaches the Internet through this IP (last seen {{time}}).",
+    "pausedInfo": "Scanning resumes when the box goes out through it again. Select Verify again to check now.",
     "pausedChip": "Paused",
     "ipStatus": "Status",
     "valid": "Valid",
     "verifiedOn": "Last seen by the box",
     "expiresOn": "Expires on",
-    "ipExpired": "The box has not seen this IP for 30 days, so it cannot be scanned. It becomes valid again once the box goes out through it: turn on auto-detect, or route the box through this IP (for example switch WAN) and verify again.",
+    "ipExpired": "The box has not seen this IP for 30 days, so it cannot be scanned.",
+    "ipExpiredInfo": "It becomes valid again once the box goes out through it: turn on auto-detect, or route the box through this IP (for example switch WAN) and verify again.",
     "ipRecheck": "Verify again",
-    "ipRecheckHint": "Works only while this box currently reaches the Internet through {{value}}. Verify again runs a full check: the box asks checkip.amazonaws.com, icanhazip.com and ifconfig.me/ip over 5 rounds on new connections (15 requests), so any IP behind a load balancer is found. It renews the IP for 30 days and uses one of the 10 attempts an hour.",
+    "ipRecheckHint": "Works only while this box currently reaches the Internet through {{value}}.",
+    "ipRecheckHintInfo": "Verify again runs a full check: the box asks checkip.amazonaws.com, icanhazip.com and ifconfig.me/ip over 5 rounds on new connections (15 requests), so any IP behind a load balancer is found. It renews the IP for 30 days and uses one of the 10 attempts an hour.",
     "found": "Found",
     "notFound": "Not found",
     "checkedAt": "Checked {{time}}",
@@ -213,10 +242,12 @@
   },
   "results": {
     "title": "Scan results",
-    "description": "Each scan creates a snapshot for that day. Pick a day to read it, or compare two days further down.",
+    "description": "Each scan creates a snapshot for that day.",
+    "descriptionInfo": "Pick a day to read it, or compare two days further down.",
     "emptyTitle": "No scan results yet",
     "emptyBody": "Finish the two steps above, then select Scan now. The first result shows up here.",
     "pick": "Snapshot of",
+    "scopeTopic": "What this scan covered",
     "scopeBasic": "Ports are scanned only on this box's own verified public IPs; a domain's names get one check of their web page on ports 80 and 443.",
     "scopeDeepIp": "Deep scan (testing terms accepted): every TCP port of this IP, the service behind each one, the checks the terms describe and OpenVAS when it is on.",
     "scopeDeepDomain": "Deep scan (testing terms accepted): each public IPv4 address a name under this domain resolves to gets every TCP port, service versions, the checks the terms describe and OpenVAS when it is on, at most 3 addresses a run; IPv6 and private addresses are not scanned.",
@@ -250,12 +281,15 @@
   },
   "surface": {
     "title": "Surface",
-    "description": "Every name under this domain the newest scan found: where it was found, its CNAME and the addresses it points at.",
-    "emptyBody": "Select Scan now to map the names under this domain: certificate-transparency logs, its MX and NS records and a short list of common names, looked up through this box's DNS resolver.",
+    "description": "Every name under this domain the newest scan found.",
+    "descriptionInfo": "For each name: where it was found, its CNAME and the addresses it points at.",
+    "emptyBody": "Select Scan now to map the names under this domain.",
+    "emptyBodyInfo": "It reads certificate-transparency logs, the domain's MX and NS records and a short list of common names, looked up through this box's DNS resolver.",
     "from": "From the scan of {{date}}.",
     "caption": "Names under this domain and their addresses",
     "filter": "Filter names",
-    "older": "This scan ran before the surface map: where each name was found and what kind of address it points at show from the next scan.",
+    "older": "This scan ran before the surface map.",
+    "olderInfo": "Where each name was found and what kind of address it points at show from the next scan.",
     "none": "none",
     "noAddress": "No address",
     "dangling": "No address: the CNAME leads nowhere",
@@ -312,14 +346,16 @@
   },
   "ports": {
     "title": "Open ports",
-    "description": "Which services answer on this box's verified public IPs. Close the ones nobody outside needs at the firewall. Software is read from a web page's Server header, with its version only when the server sends one; other services are listed by port.",
+    "description": "Which services answer on this box's verified public IPs.",
+    "descriptionInfo": "Close the ones nobody outside needs at the firewall. Software is read from a web page's Server header, with its version only when the server sends one; other services are listed by port.",
     "caption": "Ports open to the Internet",
     "empty": "No open ports.",
     "filter": "Filter by IP, port or service"
   },
   "admin": {
     "title": "Admin interfaces exposed to the Internet",
-    "description": "Admin login pages that anyone on the Internet can open. Attackers probe exactly these pages.",
+    "description": "Admin login pages that anyone on the Internet can open.",
+    "descriptionInfo": "Attackers probe exactly these pages.",
     "caption": "Admin interfaces exposed to the Internet",
     "emptyTitle": "No admin interface is exposed",
     "emptyBody": "Good. Scan again regularly to learn when a new page appears.",
@@ -330,7 +366,8 @@
   },
   "cert": {
     "title": "Certificates about to expire",
-    "description": "An expired certificate shows visitors a red warning and can stop a service. Under {{days}} days are flagged.",
+    "description": "Certificates with under {{days}} days left are flagged.",
+    "descriptionInfo": "An expired certificate shows visitors a red warning and can stop a service.",
     "caption": "Certificates by expiry date",
     "empty": "No certificate found.",
     "expired": "Expired",
@@ -375,13 +412,14 @@
   "delete": {
     "button": "Delete target",
     "title": "Delete {{value}}?",
-    "body": "The snapshots and your confirmation for this target are removed from the box. The audit log is kept. This cannot be undone.",
+    "body": "Its snapshots and your confirmation are removed. This cannot be undone.",
+    "bodyInfo": "The audit log is kept.",
     "confirm": "Delete",
     "toast": "Deleted {{value}}"
   },
   "boxIp": {
     "title": "Public IPs of this box",
-    "description": "The box finds its own public IPs. You cannot type one in, so nobody can verify an address that is not theirs.",
+    "description": "The box finds its own public IPs. You cannot type one in.",
     "caption": "Public IPs of this box",
     "state": {
       "on": "Auto-detect is on: the box checks its public IPs {{every}}.",
@@ -429,7 +467,8 @@
       "ok": "Succeeded",
       "failed": "Failed",
       "at": "{{time}}",
-      "never": "No check yet. The first check is a full check (15 requests to checkip.amazonaws.com, icanhazip.com and ifconfig.me/ip). It runs when the box starts, or when you select Detect now."
+      "never": "No check yet.",
+      "neverInfo": "The first check is a full check (15 requests to checkip.amazonaws.com, icanhazip.com and ifconfig.me/ip). It runs when the box starts, or when you select Detect now."
     },
     "col": {
       "ip": "Public IP",
@@ -443,7 +482,8 @@
     "comeBack": "Removed IPs come back if the box keeps using them while auto-detect is on, unless you chose not to add them again.",
     "empty": {
       "title": "No public IP yet",
-      "on": "The box looks for its public IPs when it starts and then {{every}}. Select Detect now to look right away.",
+      "on": "Select Detect now to look right away.",
+      "onInfo": "The box looks for its public IPs when it starts and then {{every}}.",
       "off": "Auto-detect is off. Turn it on, or select Detect now."
     },
     "remove": {
@@ -453,12 +493,15 @@
       "toast": "Removed {{value}}. Auto-detect adds it again if the box keeps using it.",
       "toastIgnored": "Removed {{value}}. It is on the Ignored list and will not be added again.",
       "ignoreLabel": "Don't add it again if detected",
-      "ignoreOn": "Vedette will never add this IP back and never scan it. Leave this on for an address that is not your company's, for example a security gateway or VPN exit, or a mobile backup line. You can restore it later under Ignored IPs.",
-      "ignoreOff": "If the box keeps using this IP while auto-detect is on, it is added again as a new target, with no confirmation and no scan results."
+      "ignoreOn": "Vedette will never add this IP back and never scan it.",
+      "ignoreOnInfo": "Leave this on for an address that is not your company's, for example a security gateway or VPN exit, or a mobile backup line. You can restore it later under Ignored IPs.",
+      "ignoreOff": "If the box keeps using this IP, it is added again as a new target, with no confirmation.",
+      "ignoreOffInfo": "Only while auto-detect is on. It comes back with no scan results."
     },
     "ignored": {
       "title": "Ignored IPs",
-      "description": "IPs you removed and chose not to add again. The box never adds them back and never scans them. Restore lets detection add one again; it does not make it scannable: it still needs ownership proof and your confirmation.",
+      "description": "IPs you removed and chose not to add again.",
+      "descriptionInfo": "The box never adds them back and never scans them. Restore lets detection add one again; it does not make it scannable: it still needs ownership proof and your confirmation.",
       "caption": "IPs on the Ignored list",
       "col": {
         "ip": "IP",
@@ -469,11 +512,10 @@
       "restore": "Restore",
       "restoreLabel": "Restore {{value}}",
       "emptyTitle": "No ignored IPs",
-      "emptyBody": "When you remove an IP, you can choose not to add it again. It then shows up here.",
+      "emptyBody": "Removed IPs you chose not to add again show up here.",
       "toast": "Restored {{value}}. Auto-detect may add it again."
     },
     "help": {
-      "summary": "How the box finds its IPs",
       "how": "The box asks three public \"what is my IP\" services over HTTPS: checkip.amazonaws.com (AWS), icanhazip.com (Cloudflare) and ifconfig.me/ip (Google Cloud). It accepts an IP only when at least two of them return the same one, so one wrong answer is not enough. A full check does this in 5 rounds on new connections (15 requests), so several IPs behind a load balancer all show up. The first check after install, Detect now and Verify again are full checks. The automatic checks after that ask each service once (3 requests).",
       "result": "Each IP the box sees is added or renewed for 30 days from that moment. An IP expires only when the box has not seen it for 30 days.",
       "why": "You cannot type an IP. Only an address the box really uses proves it belongs to your network, so nobody can verify someone else's address.",
@@ -484,7 +526,8 @@
   "commit": {
     "doneBody": "Confirmed by {{user}} on {{time}}, by pressing Scan now.",
     "sentence": "The sentence shown next to the button:",
-    "older": "Confirmed with a tick box before the first scan. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it."
+    "older": "Confirmed with a tick box before the first scan.",
+    "olderInfo": "Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for how you use it."
   },
   "progress": {
     "running": "Scanning {{value}}",
@@ -504,9 +547,11 @@
   },
   "vulns": {
     "title": "Exploited vulnerabilities",
-    "description": "Vedette identifies the service and version on each open port of this box's own public IP (nmap -sV) and compares them with the exploited lists (CISA KEV, and VulnCheck KEV if you turned it on) and its NVD version ranges. Only exploited vulnerabilities are compared, so an empty list does not prove a service is safe. They are listed here, on this target's page, and not under Findings: Findings covers the devices on your network.",
+    "description": "Services and versions on this IP, compared with the exploited lists.",
+    "descriptionInfo": "Vedette identifies the service and version on each open port of this box's own public IP (nmap -sV) and compares them with the exploited lists (CISA KEV, and VulnCheck KEV if you turned it on) and its NVD version ranges. Only exploited vulnerabilities are compared, so an empty list does not prove a service is safe. They are listed here, on this target's page, and not under Findings: Findings covers the devices on your network.",
     "caption": "Exploited vulnerabilities that match the services on this IP",
-    "descriptionDomain": "Service identification (nmap -sV) runs on the box's own public IP only, so for a domain these are the versions ZAP read on its web pages (a JavaScript library, a Server or X-Powered-By header), compared with the exploited lists and their NVD version ranges. Only exploited vulnerabilities are compared, so an empty list does not prove a page is safe. They are listed here, on this target's page, and not under Findings: Findings covers the devices on your network.",
+    "descriptionDomain": "Versions ZAP read on this domain's pages, compared with the exploited lists.",
+    "descriptionDomainInfo": "Service identification (nmap -sV) runs on the box's own public IP only, so for a domain these are the versions ZAP read on its web pages (a JavaScript library, a Server or X-Powered-By header), compared with the exploited lists and their NVD version ranges. Only exploited vulnerabilities are compared, so an empty list does not prove a page is safe. They are listed here, on this target's page, and not under Findings: Findings covers the devices on your network.",
     "captionDomain": "Exploited vulnerabilities that match the versions ZAP read on this domain's pages",
     "captionDomainDeep": "Exploited vulnerabilities that match the services on this domain's addresses and the versions ZAP read on its pages",
     "servicesCaption": "Services identified on the open ports (nmap -sV)",
@@ -514,7 +559,8 @@
     "notIdentifiedTitle": "Services were not identified",
     "noneIdentifiedBody": "Service identification found no service on the open ports of this IP.",
     "noneTitle": "No exploited vulnerability matches the identified services",
-    "noneBody": "The services and versions below were compared with the exploited lists (CISA KEV, and VulnCheck KEV if you turned it on). Vulnerabilities that are not known to be exploited are not compared.",
+    "noneBody": "Vulnerabilities that are not known to be exploited are not compared.",
+    "noneBodyInfo": "The services and versions below were compared with the exploited lists (CISA KEV, and VulnCheck KEV if you turned it on).",
     "gapsLabel": "Services whose version could not be read",
     "gap_one": "{{count}} exploited CVE of {{software}} on port {{port}} could not be checked: the service sent no version ({{cves}}).",
     "gap_other": "{{count}} exploited CVEs of {{software}} on port {{port}} could not be checked: the service sent no version ({{cves}}).",
@@ -535,16 +581,19 @@
     },
     "countBackport_one": "{{count}} maybe patched",
     "countBackport_other": "{{count}} maybe patched",
-    "descriptionDomainDeep": "The deep scan identifies the service and version on every open port of each address this domain's names resolve to (nmap -sV), and ZAP reads versions on its pages; both are compared with the exploited lists (CISA KEV, and VulnCheck KEV if you turned it on) and their NVD version ranges. Only exploited vulnerabilities are compared, so an empty list does not prove a service is safe. They are listed here, on this target's page, and not under Findings: Findings covers the devices on your network.",
+    "descriptionDomainDeep": "Services on this domain's addresses, compared with the exploited lists.",
+    "descriptionDomainDeepInfo": "The deep scan identifies the service and version on every open port of each address this domain's names resolve to (nmap -sV), and ZAP reads versions on its pages; both are compared with the exploited lists (CISA KEV, and VulnCheck KEV if you turned it on) and their NVD version ranges. Only exploited vulnerabilities are compared, so an empty list does not prove a service is safe. They are listed here, on this target's page, and not under Findings: Findings covers the devices on your network.",
     "deepCaption": "Found by the deep scan (nuclei templates that matched)",
     "deepTemplate": "template {{id}}",
-    "deepNote": "Each line is what one template saw in the answer of this port: an exposed file, an admin page, a misconfiguration, or a technology it recognised (Info). Check a line before acting on it; a template that matched nothing is not listed and proves nothing.",
+    "deepNote": "Check a line before acting on it.",
+    "deepNoteInfo": "Each line is what one template saw in the answer of this port: an exposed file, an admin page, a misconfiguration, or a technology it recognised (Info). A template that matched nothing is not listed and proves nothing.",
     "noneTitleDeep": "No exploited vulnerability matched the identified versions",
-    "noneBodyDeep": "The services and versions below were compared with the exploited lists (CISA KEV, and VulnCheck KEV if you turned it on). The deep scan found other things: see its findings below."
+    "noneBodyDeep": "The deep scan found other things: see its findings below."
   },
   "terms": {
     "title": "Testing terms (deep scan)",
-    "description": "Accept once for this target: every scan of it is then a deep scan, with each tool used to its full capability. Without them, scans stay in the scope of the Scan now sentence: no OpenVAS, read-only checks only.",
+    "description": "Accept once for this target: every scan of it is then a deep scan.",
+    "descriptionInfo": "Each tool is then used to its full capability. Without them, scans stay in the scope of the Scan now sentence: no OpenVAS, read-only checks only.",
     "none": "Not accepted: scans of this target stay in the Scan now scope.",
     "changed": "The testing terms changed since they were accepted, so scans are back in the Scan now scope until an administrator accepts them again.",
     "accepted": "Accepted by {{by}}, {{time}}. Every scan of this target is a deep scan.",
@@ -556,14 +605,17 @@
     "withdraw": "Withdraw",
     "who": "Only an administrator with two-step sign-in can accept them; who and when go in the audit log. Withdrawing is always possible.",
     "needVerified": "Verify ownership first; only then can the testing terms be accepted.",
-    "cgnatLimit": "Vedette can tell carrier-grade NAT only when this box's own gateway is in 100.64.0.0/10; it cannot see your router's outside address. If your router gets its address from your provider's shared range, ask your provider before accepting.",
+    "cgnatLimit": "If your router gets its address from your provider's shared range, ask your provider before accepting.",
+    "cgnatLimitInfo": "Vedette can tell carrier-grade NAT only when this box's own gateway is in 100.64.0.0/10; it cannot see your router's outside address.",
+    "cgnatTopic": "Carrier-grade NAT",
     "stops": "Withdrawing them, or taking the disruptive checks out, stops a scan of this target that is running at the higher level.",
     "toastAccepted": "Testing terms accepted. The next scan is a deep scan.",
     "toastWithdrawn": "Testing terms withdrawn. The next scan is in the Scan now scope."
   },
   "greenbone": {
     "title": "Optional deep scan: OpenVAS",
-    "description": "OpenVAS (Greenbone Community Edition, free, with the Greenbone Community Feed; not the paid Greenbone Enterprise) is an open-source vulnerability scanner that runs as its own containers next to Vedette. When it is on, each scan of the box's own verified public IP whose testing terms are accepted ends with an OpenVAS scan of that IP. Off by default.",
+    "description": "Adds an OpenVAS scan to each deep scan of this box's public IP. Off by default.",
+    "descriptionInfo": "OpenVAS (Greenbone Community Edition, free, with the Greenbone Community Feed; not the paid Greenbone Enterprise) is an open-source vulnerability scanner that runs as its own containers next to Vedette. When it is on, each scan of the box's own verified public IP whose testing terms are accepted ends with an OpenVAS scan of that IP.",
     "state": {
       "unavailable": "Not available",
       "off": "Off",
@@ -589,8 +641,11 @@
     "feedFirstDone": "First full feed load done; the weekly update has not run yet",
     "feedFirstDoneAt": "First full feed load done (OpenVAS turned on {{time}}); the weekly update has not run yet",
     "feedNext": "Next feed update",
-    "needs": "Needs about 50 GB of disk and about 2 hours to load the OpenVAS feed the first time. The box must have at least 6 GB of memory (under 8 GB, also 2 GB of swap) and 60 GB free.",
-    "swapNote": "The first feed load uses swap on a box under 8 GB (on a 7 GB box it used about 2 GB of swap).",
+    "needs": "Needs about 50 GB of disk and about 2 hours to load the OpenVAS feed the first time.",
+    "needsInfo": "The box must have at least 6 GB of memory (under 8 GB, also 2 GB of swap) and 60 GB free.",
+    "needsTopic": "What OpenVAS needs",
+    "swapNote": "The first feed load uses swap on a box under 8 GB.",
+    "swapNoteInfo": "On a 7 GB box it used about 2 GB of swap.",
     "enable": "Enable OpenVAS",
     "disable": "Turn off OpenVAS",
     "heldOn": "It is still turned on from before: turn it off to stop its containers. Its data is kept.",
@@ -614,10 +669,12 @@
     "noCve": "None named",
     "results": {
       "title": "OpenVAS results (unauthenticated, QoD ≥ 70)",
-      "header": "OpenVAS looked at this IP from outside without logging in. Finding nothing is not proof the services are not affected (distributions backport fixes). For the same reason, on Ubuntu or Debian a result read from a version banner can be a false positive, so Vedette's own package-based result wins when both exist.",
+      "header": "OpenVAS looked at this IP from outside without logging in.",
+      "headerInfo": "Finding nothing is not proof the services are not affected (distributions backport fixes). For the same reason, on Ubuntu or Debian a result read from a version banner can be a false positive, so Vedette's own package-based result wins when both exist.",
       "caption": "What OpenVAS reported on this IP",
       "noneTitle": "OpenVAS reported no high or medium result with QoD 70 or more",
-      "noneBody": "That is one outside look without logging in, not proof that the services are not affected. The exploited CVEs above still stand.",
+      "noneBody": "Not proof that the services are not affected: the exploited CVEs above still stand.",
+      "noneBodyInfo": "That is one outside look without logging in, not proof that the services are not affected. The exploited CVEs above still stand.",
       "notRunTitle": "OpenVAS did not scan this time",
       "notRunBody": "OpenVAS is not set up for this scan.",
       "runningTitle": "OpenVAS is scanning",
@@ -625,7 +682,8 @@
       "runningBodyNoTime": "OpenVAS runs for up to 90 minutes. The results of the other checks are already saved; its results are added here when it finishes.",
       "partialLine": "OpenVAS was stopped after 90 minutes; these are the results it had found by then.",
       "partialNoneTitle": "OpenVAS was stopped after 90 minutes",
-      "partialNoneBody": "By then it had found no high or medium result with QoD 70 or more. That is a partial outside look, not proof that the services are not affected.",
+      "partialNoneBody": "A partial outside look, not proof that the services are not affected.",
+      "partialNoneBodyInfo": "By then it had found no high or medium result with QoD 70 or more. That is a partial outside look, not proof that the services are not affected.",
       "failedTitle": "OpenVAS did not finish this scan",
       "failedBody": "OpenVAS failed, so its results are not shown. The box log has the error.",
       "stoppedTitle": "OpenVAS was stopped before it finished",
@@ -636,13 +694,15 @@
       "endedLine": "OpenVAS ended the scan before it finished; these are the results it had found by then. The \"Not checked\" list below says why.",
       "startedAt": "OpenVAS started at {{time}}.",
       "notesTitle": "Hardening notes (Low)",
-      "notesHeader": "The Low results of OpenVAS are hardening suggestions, such as weak SSH settings or TCP timestamps. They are not alerts and are not counted anywhere.",
+      "notesHeader": "Hardening suggestions, such as weak SSH settings or TCP timestamps.",
+      "notesHeaderInfo": "The Low results of OpenVAS are not alerts and are not counted anywhere.",
       "notesCaption": "OpenVAS hardening notes on this IP"
     }
   },
   "web": {
     "title": "Web findings (passive)",
-    "description": "ZAP looked at the pages without sending forms; these are things it noticed. They are hints from reading the pages and the server's answers, not known exploited vulnerabilities. When ZAP reads a version that has an exploited CVE (a JavaScript library, a Server or X-Powered-By header), that CVE is listed with the exploited CVEs.",
+    "description": "Hints ZAP noticed while reading the pages, not exploited vulnerabilities.",
+    "descriptionInfo": "ZAP looked at the pages without sending forms; these are things it noticed. They are hints from reading the pages and the server's answers, not known exploited vulnerabilities. When ZAP reads a version that has an exploited CVE (a JavaScript library, a Server or X-Powered-By header), that CVE is listed with the exploited CVEs.",
     "caption": "What ZAP noticed on the web pages",
     "group": {
       "fix": {
@@ -658,7 +718,8 @@
     },
     "software": "{{product}} {{version}}",
     "noneTitle": "ZAP noticed nothing on the pages it looked at",
-    "noneBody": "That does not prove the pages are safe: ZAP only reads what the server sends, and sends no forms.",
+    "noneBody": "That does not prove the pages are safe.",
+    "noneBodyInfo": "ZAP only reads what the server sends, and sends no forms.",
     "notScannedTitle": "No page was scanned",
     "notScannedBody": "The passive web scan did not look at any page in this scan.",
     "col": {
@@ -688,23 +749,28 @@
   },
   "checked": {
     "title": "What was checked",
-    "description": "What this scan sent and compared, and what it did not check. A scan that did not check something says nothing about it.",
+    "description": "What this scan sent and compared, and what it did not check.",
+    "descriptionInfo": "A scan that did not check something says nothing about it.",
     "checked": "Checked",
     "notChecked": "Not checked",
     "older": "This scan was made before Vedette listed what each scan checks."
   },
   "outside": {
     "title": "What the Internet sees",
-    "description": "Our scan runs from inside your network, so it reaches {{ip}} through your router. Shodan scans the whole Internet from outside and keeps what it finds, so it can show ports your router opens to the Internet but hides from this box.",
+    "description": "What Shodan has seen on {{ip}} from outside, beside our own scan.",
+    "descriptionInfo": "Our scan runs from inside your network, so it reaches {{ip}} through your router. Shodan scans the whole Internet from outside and keeps what it finds, so it can show ports your router opens to the Internet but hides from this box.",
     "button": "Check what Shodan has seen",
     "again": "Check again",
-    "never": "Vedette has not asked Shodan about {{ip}}. Nothing is sent until an administrator chooses Check what Shodan has seen.",
+    "never": "Vedette has not asked Shodan about {{ip}}.",
+    "neverInfo": "Nothing is sent until an administrator chooses Check what Shodan has seen.",
     "notEligible": "Only a verified public IP that the box goes out through now can be checked with Shodan.",
     "confirmTitle": "Send {{ip}} to Shodan?",
-    "confirmBody": "Your public IP {{ip}} is sent to Shodan (internetdb.shodan.io). Shodan learns that someone asked about it. Nothing else is sent to Shodan. First the box may re-check that it still goes out through {{ip}} (the same check as before a scan).",
+    "confirmBody": "Your public IP {{ip}} is sent to Shodan (internetdb.shodan.io). Shodan learns that someone asked about it. Nothing else is sent to Shodan.",
+    "confirmBodyInfo": "First the box may re-check that it still goes out through {{ip}} (the same check as before a scan).",
     "send": "Send",
     "toast": "Shodan answered for {{ip}}.",
-    "asked": "Asked Shodan on {{time}} ({{by}}). Shodan updates this data about once a week and does not say when it last saw this IP.",
+    "asked": "Asked Shodan on {{time}} ({{by}}).",
+    "askedInfo": "Shodan updates this data about once a week and does not say when it last saw this IP.",
     "noRecord": "Shodan has no record of {{ip}}: it has not seen an open port there.",
     "notScanned": "Our scan has not run on {{ip}} yet, so there is nothing to compare with.",
     "portsTitle": "Open ports, Shodan and our scan",
@@ -716,7 +782,8 @@
     },
     "onlyOutside": "Seen only from outside",
     "hint": {
-      "shodanOnly": "A port only the Internet sees is usually one your router opens on its outside interface, or forwards only for outside traffic. Is it meant to be open? If not, close it on the router or firewall.",
+      "shodanOnly": "Is it meant to be open? If not, close it on the router or firewall.",
+      "shodanOnlyInfo": "A port only the Internet sees is usually one your router opens on its outside interface, or forwards only for outside traffic.",
       "oursOnly": "Shodan may not have scanned {{port}} since it opened (its data is about a week old), or the port answers only from inside."
     },
     "hostnames": "Names Shodan links to this IP: {{list}}.",
@@ -729,7 +796,8 @@
   },
   "deep": {
     "title": "Deep scan by address",
-    "description": "With this domain's testing terms accepted, each public IPv4 address its names resolve to gets the deep scan, whatever serves it: every TCP port, service versions, exploited vulnerabilities, templates and OpenVAS when it is on; its names keep the passive web scan by name. At most 3 addresses a run, the least recently tried first; the others follow in the next runs.",
+    "description": "The deep scan of each public IPv4 address this domain's names resolve to.",
+    "descriptionInfo": "With this domain's testing terms accepted, each public IPv4 address its names resolve to gets the deep scan, whatever serves it: every TCP port, service versions, exploited vulnerabilities, templates and OpenVAS when it is on; its names keep the passive web scan by name. At most 3 addresses a run, the least recently tried first; the others follow in the next runs.",
     "caption": "Addresses of this domain's names and their deep scan",
     "col": {
       "names": "Names that led to it",

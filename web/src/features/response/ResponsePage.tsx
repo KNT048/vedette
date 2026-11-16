@@ -56,15 +56,15 @@ function Content() {
   return (
     <>
       <PageHeader title={t('page.title')} stories={['S-RESP-1', 'S-RESP-2', 'S-RESP-3', 'S-RESP-4']}
-        meta={t('page.meta')}
+        meta={t('page.meta')} info={t('page.metaInfo')}
         actions={<><SampleDataNote />{execution ? <EmergencyStop /> : null}</>} />
       {s?.breaker_tripped_at || s?.stopped_at ? (
-        <Notice tone="danger" role="alert" className="mb-6" title={t('page.breakerTitle')}>
+        <Notice tone="danger" role="alert" className="mb-6" title={t('page.breakerTitle')} info={s.stopped_at ? t('page.stoppedBodyInfo') : t('page.breakerBodyInfo')}>
           {s.stopped_at ? t('page.stoppedBody') : t('page.breakerBody', { max: s.breaker_max_per_hour })} <Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link>
         </Notice>
       ) : null}
       {execution ? (
-        <Notice tone="danger" role="status" className="mb-6" title={t('page.onTitle')}>{t('page.onBody', { count: pending })}</Notice>
+        <Notice tone="danger" role="status" className="mb-6" title={t('page.onTitle')} info={t('page.onBodyInfo')}>{t('page.onBody', { count: pending })}</Notice>
       ) : (
         <Notice tone="off" className="mb-6" title={<>{t('blocked.execution_off')} {admin ? <Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link> : null}</>} />
       )}

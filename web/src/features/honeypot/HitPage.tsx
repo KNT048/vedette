@@ -50,7 +50,7 @@ export default function HitPage() {
               <Section id="session" title={t('hit.session')} description={t('hit.sessionHint')}>
                 <CodeBlock code={h.excerpt} label={t('hit.sessionLabel')} />
               </Section>
-              <Section id="events" title={t('hit.events', { minutes: h.window_minutes })} description={t('hit.eventsHint')}>
+              <Section id="events" title={t('hit.events', { minutes: h.window_minutes })} description={t('hit.eventsHint')} info={t('hit.eventsHintInfo')}>
                 <DataTable caption={t('hit.eventsCaption')} data={h.events} columns={columns} pageSize={20} rowTone={(r) => (r.mark ? 'warn' : undefined)} initialSort={[{ id: 'ts', desc: false }]} />
               </Section>
               {h.is_test ? null : (

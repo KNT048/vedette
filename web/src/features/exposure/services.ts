@@ -43,6 +43,12 @@ export function portLabel(p: Pick<PortRow, 'service' | 'port' | 'ident'>): strin
   }
 }
 
+/** The box's ServiceLabel (exposure portident.go): the port's service in a sentence, as "What changed" and the alert say it. */
+export function serviceLabel(p: Pick<PortRow, 'service' | 'ident'>): string {
+  if (identOf(p) === 'none') return isTls(p.service) ? 'TLS, service not identified' : 'service not identified'
+  return identOf(p) === 'port' ? `probably ${serviceName(p.service)}` : serviceName(p.service)
+}
+
 /** The Service cell of a port or a service row: the name, and the caption that says how sure it is. */
 export function serviceText(service: string, ident: Ident): { name: string; note: string | null } {
   if (ident === 'none' || unnamed(service)) {

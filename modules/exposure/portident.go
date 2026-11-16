@@ -101,6 +101,9 @@ func identifyPorts(ports []PortRow, services []ServiceRow, scripts []ScriptRow, 
 				ports[i].Product = strings.TrimSpace(r.Product + " " + r.Version)
 			}
 		}
+		if id == "" { // review r2 L1: nmap gave no method word: the intake's mark (a port-number guess, or a product the GET read) stays
+			id = p.Ident
+		}
 		ports[i].Ident = id
 	}
 	return ports
@@ -185,38 +188,64 @@ func sanitizePortIdent(row, p PortRow) PortRow {
 	return row
 }
 
-// serviceNames are a person's names for nmap's service names that are not an acronym (the page has the full list, services.ts).
+// serviceNames is a person's name for nmap's or the port list's service names (M2-7). It is the same table as LABEL in
+// web/src/features/exposure/services.ts (TestServiceNamesMatchThePage holds them together), so the alert and the page say one name.
 var serviceNames = map[string]string{
-	"cisco-sccp": "Cisco SCCP", "ms-wbt-server": "RDP", "microsoft-ds": "SMB", "netbios-ssn": "NetBIOS", "msrpc": "Windows RPC",
-	"http-proxy": "HTTP proxy", "http-alt": "HTTP", "https-alt": "HTTPS", "postgresql": "PostgreSQL", "mysql": "MySQL", "ms-sql-s": "SQL Server",
+	"microsoft-ds": "SMB", "netbios-ssn": "NetBIOS", "ms-sql": "SQL Server", "ms-sql-s": "SQL Server", "domain": "DNS", "postgresql": "PostgreSQL", "mysql": "MySQL",
+	"mongodb": "MongoDB", "redis": "Redis", "winrm-https": "WinRM", "http-proxy": "HTTP proxy", "teamviewer": "TeamViewer", "radmin": "Radmin",
+	"mikrotik-api": "MikroTik API", "mikrotik-api-ssl": "MikroTik API", "winbox": "Winbox", "jetdirect": "Printer", "dvr": "Camera recorder (DVR)",
+	"cisco-sccp": "Cisco SCCP (IP phones)", "ms-wbt-server": "Remote Desktop (RDP)", "msrpc": "Windows RPC", "http-alt": "HTTP", "https-alt": "HTTPS",
+	"ssl/http": "HTTPS", "ssl/https": "HTTPS", "ssl/http-alt": "HTTPS", "ssl/imap": "IMAPS", "ssl/pop3": "POP3S", "ssl/smtp": "SMTPS", "ssl/sip": "SIP over TLS",
+	"ssl/ldap": "LDAPS", "vnc-http": "VNC web viewer", "upnp": "UPnP", "ipp": "Printer (IPP)", "rtsp": "RTSP (cameras)", "openvpn": "OpenVPN",
+	"pptp": "PPTP VPN", "isakmp": "IPsec VPN", "bgp": "BGP",
 }
 
-// ServiceLabel is the port's service as a person reads it (M2-7, review r1 L3: the "New open port" alert): "SIP", "HTTPS",
-// "probably SIP" when only the port number names it, "service not identified" (or "TLS, service not identified") when nothing does.
+// serviceName is the page's serviceName (services.ts): the table, else a short acronym upper-cased, "… over TLS" for a TLS layer.
+func serviceName(service string) string {
+	if n, ok := serviceNames[service]; ok {
+		return n
+	}
+	base := strings.TrimPrefix(service, "ssl/")
+	name, ok := serviceNames[base]
+	if !ok {
+		name = base
+		if n := len(base); n >= 2 && n <= 6 && !strings.ContainsFunc(base, func(r rune) bool { return (r < 'a' || r > 'z') && (r < '0' || r > '9') }) {
+			name = strings.ToUpper(base)
+		}
+	}
+	if base != service {
+		name += " over TLS"
+	}
+	return name
+}
+
+// ServiceLabel is the port's service as a person reads it (M2-7: the "New open port" alert's summary and the day comparison):
+// "SIP", "HTTPS", "probably SIP" when only the port number names it, "service not identified" (or "TLS, service not identified")
+// when nothing does.
 func ServiceLabel(p PortRow) string {
-	tls := p.Service == "ssl" || strings.HasPrefix(p.Service, "ssl/") || p.Service == "https"
 	if p.Ident == IdentNone || unnamed(p.Service) {
-		if tls {
+		if p.Service == "ssl" || strings.HasPrefix(p.Service, "ssl/") || p.Service == "https" {
 			return "TLS, service not identified"
 		}
 		return "service not identified"
 	}
-	base := baseService(p.Service)
-	name, ok := serviceNames[base]
-	if !ok {
-		name = base
-		if len(base) <= 6 && !strings.ContainsFunc(base, func(r rune) bool { return (r < 'a' || r > 'z') && (r < '0' || r > '9') }) {
-			name = strings.ToUpper(base)
+	if p.Ident == IdentPort {
+		return "probably " + serviceName(p.Service)
+	}
+	return serviceName(p.Service)
+}
+
+// identifiedCounts is how many of the rows a probe named, how many only the port number named and how many nothing named.
+func identifiedCounts(rows []ServiceRow) (probed, port, none int) {
+	for _, r := range rows {
+		switch identOf(r) {
+		case IdentPort:
+			port++
+		case IdentNone:
+			none++
+		default: // probed, or a row with no method word (older worker): as before M2-7
+			probed++
 		}
 	}
-	switch {
-	case base != p.Service && name == "HTTP":
-		name = "HTTPS"
-	case base != p.Service:
-		name += " over TLS"
-	}
-	if p.Ident == IdentPort {
-		return "probably " + name
-	}
-	return name
+	return probed, port, none
 }

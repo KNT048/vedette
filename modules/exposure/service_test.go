@@ -611,7 +611,7 @@ func TestContract_INV8_SnapshotsAndDiff(t *testing.T) {
 		if df.From != "2026-11-09" || df.To != "2026-11-10" || len(df.Added) != 2 || len(df.Removed) != 1 || len(df.Changed) != 1 {
 			t.Fatalf("diff = %+v", df)
 		}
-		if df.Added[0].Key != "h:staging.acme.example" || df.Added[1].Key != "p:"+ipB+":8080" || df.Added[1].Detail != "http, Jenkins" ||
+		if df.Added[0].Key != "h:staging.acme.example" || df.Added[1].Key != "p:"+ipB+":8080" || df.Added[1].Detail != "HTTP, Jenkins" ||
 			df.Removed[0].Kind != "admin" || df.Changed[0].Key != "c:mail.acme.example" || df.Changed[0].From == df.Changed[0].To {
 			t.Fatalf("diff items = %+v", df)
 		}

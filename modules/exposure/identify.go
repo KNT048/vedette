@@ -317,9 +317,18 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 			}
 		}
 		c.Services = append(c.Services, got...)
-		text := fmt.Sprintf("Service identification (nmap -sV): %s identified.", plural(len(got), "service"))
+		// review r2 L3: only what a probe named counts as identified; the guesses and the unknown ones are said apart
+		probed, guess, none := identifiedCounts(got)
+		read := plural(probed, "service") + " identified"
+		if guess > 0 {
+			read += fmt.Sprintf(", %d named by port number only", guess)
+		}
+		if none > 0 {
+			read += fmt.Sprintf(", %d not identified", none)
+		}
+		text := fmt.Sprintf("Service identification (nmap -sV): %s.", read)
 		if res.Ports > 0 {
-			text = fmt.Sprintf("Service identification (nmap -sV) on %s: %s identified.", plural(res.Ports, "TCP port"), plural(len(got), "service"))
+			text = fmt.Sprintf("Service identification (nmap -sV) on %s: %s.", plural(res.Ports, "TCP port"), read)
 		}
 		if st.Mode.Full { // FULL-4 (Trưởng), for Mlee: the script results of the deep scan, kept apart from the services
 			vuln := 0

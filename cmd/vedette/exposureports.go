@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/events"
@@ -110,9 +111,16 @@ func openedPorts(ctx context.Context, svc *exposure.Service, targetID, date stri
 		label := fmt.Sprintf("%s:%d", r.IP, r.Port) // the label exposure's diff gives a port row (TestExposureSnapshotOpensNewPorts)
 		if k := canon(r); added[label] && !seen[k] {
 			seen[k] = true // a row listed twice is one port
-			// M2-7 (review r1 L3): the person's name, "probably SIP" for a port-number guess, never nmap's "unknown"
-			out = append(out, response.PortOpenedEvent{TargetID: targetID, Date: date, IP: r.IP, Port: r.Port, Service: exposure.ServiceLabel(r)})
+			// M2-7: rules compare nmap's name (service); the summary reads the person's name, "probably SIP" for a port-number guess
+			out = append(out, response.PortOpenedEvent{TargetID: targetID, Date: date, IP: r.IP, Port: r.Port, Service: r.Service,
+				Label: shortLabel(exposure.ServiceLabel(r)), Identified: r.Ident})
 		}
 	}
 	return out, nil
+}
+
+// shortLabel drops the page's bracketed hint for the alert's own brackets: "Cisco SCCP (IP phones)" → "Cisco SCCP".
+func shortLabel(s string) string {
+	s, _, _ = strings.Cut(s, " (")
+	return s
 }

@@ -7,6 +7,7 @@ import (
 	"maps"
 	"net/netip"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -183,7 +184,7 @@ func TestContract_INV19_ServicesThroughTheSeamAndComparedOnRead(t *testing.T) {
 	if !slices.Equal(checkKinds(s), []string{"ports", "services", "cve"}) {
 		t.Fatalf("checks = %+v", s.Checks)
 	}
-	if got := s.Checks[1].Text; got != "Service identification (nmap -sV) on 98 TCP ports: 3 services identified." {
+	if got := s.Checks[1].Text; got != "Service identification (nmap -sV) on 98 TCP ports: 2 services identified, 1 not identified." {
 		t.Fatalf("services line = %q", got)
 	}
 	if got := s.Checks[2].Text; got != "2 identified services of 3 compared with today's CISA list of exploited vulnerabilities (1500 entries) and its NVD version ranges: 1 exploited CVE matched. 1 service could not be checked: no version was read. 1 service gave no product to look up, so not compared." {
@@ -455,6 +456,7 @@ func TestPortIdentFromMethodAndScripts(t *testing.T) {
 		{IP: ipA, Port: 8080, Name: "http-proxy", Method: "table", Conf: 3},
 		{IP: ipA, Port: 9000, Name: "http", Product: "Go", Method: "bogus", Conf: 99},
 		{IP: ipA, Port: 2222, Name: "ssh", Product: "OpenSSH", Version: "9.6", Method: "probed", Conf: 10},
+		{IP: ipA, Port: 23, Name: "telnet"}, // no method word: the intake's guess mark stays (review r2 L1)
 	}, Scripts: []ScriptRow{
 		{IP: ipA, Port: 11443, ID: "ssl-cert", Output: cert},
 		{IP: ipA, Port: 10443, ID: "http-title", Output: "Sign in · GitLab\nRequested resource was /users/sign_in"},
@@ -465,6 +467,7 @@ func TestPortIdentFromMethodAndScripts(t *testing.T) {
 	s := e.scanIP(Content{Ports: []PortRow{
 		{IP: ipA, Port: 10443, Service: "https", Product: "nginx"}, {IP: ipA, Port: 5060, Service: "sip"},
 		{IP: ipA, Port: 8443, Service: "https"}, {IP: ipA, Port: 8080, Service: "http", Product: "Jetty"}, {IP: ipA, Port: 2222, Service: "http"},
+		{IP: ipA, Port: 23, Service: "telnet", Ident: IdentPort},
 	}})
 	type row struct{ service, ident, title, server, certs string }
 	got := map[int]row{}
@@ -476,6 +479,7 @@ func TestPortIdentFromMethodAndScripts(t *testing.T) {
 	}
 	want := map[int]row{
 		2222:  {"ssh", IdentProbed, "", "", ""},
+		23:    {"telnet", IdentPort, "", "", ""},
 		10022: {"ssh", IdentProbed, "", "", ""},
 		10443: {"https", IdentProbed, "Sign in · GitLab", "", ""}, // the same service: the surface's name stays
 		5060:  {"sip", IdentPort, "", "", ""},
@@ -517,11 +521,38 @@ func TestSurfaceGuessStaysAGuessWithoutServiceIdentification(t *testing.T) {
 	}{
 		{PortRow{Service: "sip", Ident: IdentPort}, "probably SIP"}, {PortRow{Service: "ssl/http", Ident: IdentProbed}, "HTTPS"},
 		{PortRow{Service: "ssl/unknown", Ident: IdentNone}, "TLS, service not identified"}, {PortRow{Service: "unknown"}, "service not identified"},
-		{PortRow{Service: "cisco-sccp", Ident: IdentPort}, "probably Cisco SCCP"}, {PortRow{Service: "ssl/imap", Ident: IdentProbed}, "IMAP over TLS"},
+		{PortRow{Service: "cisco-sccp", Ident: IdentPort}, "probably Cisco SCCP (IP phones)"}, {PortRow{Service: "ssl/imap", Ident: IdentProbed}, "IMAPS"},
 		{PortRow{Service: "http-alt"}, "HTTP"},
 	} {
 		if got := ServiceLabel(c.p); got != c.want {
 			t.Errorf("ServiceLabel(%+v) = %q, want %q", c.p, got, c.want)
+		}
+	}
+}
+
+// M2-7 (#899 review r2 L5): the alert and the page give a service one name: serviceNames is the page's LABEL table, entry for entry.
+func TestServiceNamesMatchThePage(t *testing.T) {
+	t.Parallel()
+	src, err := os.ReadFile("../../web/src/features/exposure/services.ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(src)
+	i := strings.Index(body, "const LABEL = new Map<string, string>(Object.entries({")
+	j := strings.Index(body[i:], "}))")
+	if i < 0 || j < 0 {
+		t.Fatal("LABEL not found in services.ts")
+	}
+	page := map[string]string{}
+	for _, m := range regexp.MustCompile(`'?([a-z0-9/-]+)'?: '([^']+)'`).FindAllStringSubmatch(body[i:i+j], -1) {
+		page[m[1]] = m[2]
+	}
+	if len(page) < 30 || !maps.Equal(page, serviceNames) {
+		t.Fatalf("services.ts LABEL %v\n!= serviceNames %v", page, serviceNames)
+	}
+	for _, c := range []struct{ service, want string }{{"ssl/imap", "IMAPS"}, {"ssl/rdp", "RDP over TLS"}, {"constructor", "constructor"}, {"x", "x"}} {
+		if got := serviceName(c.service); got != c.want {
+			t.Errorf("serviceName(%q) = %q, want %q", c.service, got, c.want)
 		}
 	}
 }

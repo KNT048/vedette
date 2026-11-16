@@ -1,6 +1,7 @@
 // Sample data and scan-result generator of the exposure mock. 203.0.113.0/24 is the documentation range (RFC 5737), not real IPs.
 import { daysAgo } from '@/mocks/db'
 import { dateText } from './dates'
+import { serviceIdent } from './services'
 import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type CheckRow, type Counts, type GapRow, type GreenboneResult, type HostClass, type HostIp, type HostRow, type IgnoredIp, type NotCheckedRow, type OutsideView, type PortRow, type ServiceRow, type Snapshot, type Target, type TargetKind, type TemplateRow, type VulnRow, type WebFinding } from './types'
 
 export const BOX_EGRESS_IP = '203.0.113.10'
@@ -114,6 +115,13 @@ export function scanContent(t: { kind: TargetKind; value: string }): Content {
   }
 }
 
+/** As the box says it (review r2 L3): only what a probe named counts as identified. */
+function servicesRead(services: ServiceRow[]) {
+  const ident = services.map(serviceIdent)
+  const guess = ident.filter((x) => x === 'port').length, none = ident.filter((x) => x === 'none').length
+  return `${plural(services.length - guess - none, 'service')} identified${guess ? `, ${guess} named by port number only` : ''}${none ? `, ${none} not identified` : ''}`
+}
+
 const S = (ip: string, port: number, name: string, product = '', version = '', cpe = '', extra = ''): ServiceRow => ({ ip, port, name, product, version, cpe, extra })
 
 /** The box's own IP (203.0.113.10): a FortiGate SSL VPN that hides its version, an old Apache forwarded to a LAN server, a port
@@ -191,7 +199,7 @@ function lines(c: Content, at: string, ip: boolean, m: ReturnType<typeof matchSe
   return {
     checks: [
       { kind: 'ports', at, text: `TCP connect to the fixed list of commonly exposed ports, then one GET / on each open web port and a TLS handshake on each TLS port: ${plural(c.ports.length, 'port')} open.` },
-      { kind: 'services', at, text: `Service identification (nmap -sV) on 98 TCP ports: ${plural(services.length, 'service')} identified.` },
+      { kind: 'services', at, text: `Service identification (nmap -sV) on 98 TCP ports: ${servicesRead(services)}.` },
       ...(services.length > 0 ? [{ kind: 'cve', at, text: cve }] : []),
     ],
     not_checked,

@@ -727,7 +727,7 @@ func entries(s Snapshot) (map[string]diffEntry, []string) {
 	}
 	for _, p := range s.Ports {
 		key := fmt.Sprintf("p:%s:%d", p.IP, p.Port)
-		detail := p.Service
+		detail := ServiceLabel(p) // review r2 L2: the person's name, "probably SIP" for a guess; the key is unchanged
 		if p.Product != "" {
 			detail += ", " + p.Product
 		}

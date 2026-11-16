@@ -79,7 +79,7 @@ func (a exposureTemplateScan) scanFull(ctx context.Context, t exposure.ScanTarge
 	bounds := make([]int64, len(ports))
 	meter := &fullMeter{}
 	for i, p := range ports {
-		bounds[i] = portBound(ix, p, t.Mode.Disruptive)
+		bounds[i] = portBound(ix, products, p, t.Mode.Disruptive)
 		meter.plan += bounds[i]
 	}
 	meter.s = progress.NewSeries(ctx, progress.PhaseVulns, meter.plan)
@@ -145,23 +145,44 @@ func (m *fullMeter) reckon(was, now int64) int64 {
 	return now
 }
 
-// portBound is at most what fullPortScan sends to a port with the mode the scan started with (a later ModeNow is never more): a web
-// port's technologies templates and every template its plan could hold, up to exposure.FullTemplatesPerPort in all; another port's
-// plan as it is.
-func portBound(ix *pack.Index, p fullPort, disruptive bool) int64 {
+// portBound is what fullPortScan can send to a port with the mode the scan started with (a later ModeNow is never more): a web port's
+// technologies templates and its plan with every tag they could find (reachableTags), up to exposure.FullTemplatesPerPort in all;
+// another port's plan as it is.
+func portBound(ix *pack.Index, products map[string]bool, p fullPort, disruptive bool) int64 {
 	if p.target.Scheme == "" {
 		return int64(len(otherPlan(ix, p, disruptive)))
 	}
-	tech, rest := 0, 0
+	tech := 0
 	for _, tp := range ix.Templates {
-		switch {
-		case tp.Tech() && tp.RunsAt(true, disruptive):
+		if tp.Tech() && tp.RunsAt(true, disruptive) {
 			tech++
-		case webCandidate(tp, p, disruptive):
-			rest++
 		}
 	}
-	return int64(tech + min(rest, max(exposure.FullTemplatesPerPort-tech, 0)))
+	plan, _ := webPlan(ix, p, reachableTags(ix, products, p), disruptive, exposure.FullTemplatesPerPort-tech)
+	return int64(tech + len(plan))
+}
+
+// reachableTags are the product tags foundTags can give a web port whatever its technologies templates match (review r1 #2): every
+// product tag a technologies template carries, and the words of nmap's product, service name and CPE. A matcher name whose words are
+// no tag of any technologies template can still add a tag; the bound is then low, and the step's bar waits (it never goes back).
+func reachableTags(ix *pack.Index, products map[string]bool, p fullPort) []string {
+	found := map[string][]string{}
+	for _, tp := range ix.Templates {
+		if tp.Tech() {
+			found[tp.ID] = nil
+		}
+	}
+	tags := foundTags(ix, products, found, p) // tags in the id, and nmap's words
+	for _, tp := range ix.Templates {
+		if tp.Tech() {
+			for _, tag := range tp.Tags {
+				if products[tag] && !slices.Contains(tags, tag) {
+					tags = append(tags, tag)
+				}
+			}
+		}
+	}
+	return tags
 }
 
 // fullPortScan runs the deep templates of one port, appending to out what was sent and found. meter counts its checks, bound
@@ -330,8 +351,12 @@ func webPlan(ix *pack.Index, p fullPort, tags []string, disruptive bool, room in
 			add(tp)
 		}
 	}
+	tagSet := make(map[string]bool, len(tags))
+	for _, t := range tags {
+		tagSet[t] = true
+	}
 	for _, tp := range ix.Templates {
-		if slices.ContainsFunc(tp.Tags, func(t string) bool { return slices.Contains(tags, t) }) {
+		if slices.ContainsFunc(tp.Tags, func(t string) bool { return tagSet[t] }) {
 			add(tp)
 		}
 	}

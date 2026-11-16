@@ -4,9 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"github.com/knt048/vedette/content/nucleipack"
 	"github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/scan/nucleiout"
+	"github.com/knt048/vedette/modules/scan/pack"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
 
@@ -108,5 +110,36 @@ func TestExposureBaselineCountsAllItsRunsAsOne(t *testing.T) {
 	}
 	if v := w.tr.View(); *v.Done != int64(len(got.Sent)) || *v.Total != int64(len(got.Sent)) || w.passes != 1 {
 		t.Fatalf("end of the step: %d of %d in %d passes, want %d, one pass", *v.Done, *v.Total, w.passes, len(got.Sent))
+	}
+}
+
+// Review r1 #2: a web port's starting total is the plan it can reach, not the cap: every template its technologies templates could
+// bring in (all of them matching), never less than what a real outcome chooses, and below exposure.FullTemplatesPerPort with the
+// committed pack (it was the cap: 4000 for a port that sends about 2200).
+func TestPortBoundIsTheReachablePlan(t *testing.T) {
+	t.Parallel()
+	ix, err := nucleipack.Index()
+	if err != nil {
+		t.Fatal(err)
+	}
+	products := pack.ProductTags(ix.Templates)
+	p := fullPorts(ownPublicIP, []exposure.TemplateJob{fullJobOf("CVE-2018-13379")})[0]
+	bound := portBound(ix, products, p, false)
+	tech := 0
+	every := map[string][]string{}
+	for _, tp := range ix.Templates {
+		if tp.Tech() && tp.RunsAt(true, false) {
+			tech++
+			every[tp.ID] = nil
+		}
+	}
+	for name, found := range map[string]map[string][]string{"nothing matched": nil, "nginx": {"nginx-version": {"nginx"}}, "every technologies template": every} {
+		plan, _ := webPlan(ix, p, foundTags(ix, products, found, p), false, exposure.FullTemplatesPerPort-tech)
+		if n := int64(tech + len(plan)); n > bound {
+			t.Errorf("%s: %d templates sent, over the bound %d", name, n, bound)
+		}
+	}
+	if bound >= exposure.FullTemplatesPerPort {
+		t.Errorf("bound %d is the cap %d", bound, exposure.FullTemplatesPerPort)
 	}
 }

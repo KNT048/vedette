@@ -39,7 +39,7 @@ describe('Device page: Sources (D-598)', () => {
     expect(within(agent).getByRole('button', { name: 'Install osquery' })).toBeInTheDocument()
     expect(screen.getByText(/set up the new one first, then stop the old one/)).toBeInTheDocument()
     await expectNoA11yViolations(container)
-    await user.click(within(snmp).getByRole('button', { name: 'Add a credential for this address' }))
+    await user.selectOptions(within(snmp).getByLabelText('Credential'), '+ New credential') // #842: made right here, in a small dialog
     const dialog = await screen.findByRole('dialog', undefined, T)
     expect(within(dialog).getByDisplayValue('192.168.10.21')).toBeInTheDocument()
   })

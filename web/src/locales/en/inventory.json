@@ -49,6 +49,7 @@
     "snmp": {
       "off": "Turn on active discovery in Settings to read devices with SNMP.",
       "declared": "Added manually: Vedette sends nothing to it.",
+      "approveHere": "Approve, then add SNMP",
       "approveFirst": "Approve the device first: SNMP reads only approved devices.",
       "add": "Add SNMP",
       "readAgain": "Read with SNMP now",
@@ -167,7 +168,8 @@
     "softwareDoneKev_other": "Added {{name}}. Attackers have already exploited {{count}} vulnerabilities in this software.",
     "needAddress": "Enter an IP address or a host name, so Vedette knows which device this is.",
     "ipBad": "That IP address is not valid. Enter something like 192.168.10.25.",
-    "productRuns": "Product it runs"
+    "productRuns": "Product it runs",
+    "openExisting": "Open {{name}}"
   },
   "picker": {
     "placeholder": "Type a product, model or maker, for example FortiGate 60F",
@@ -874,8 +876,6 @@
     "bodyInfo": "Use several at once on the same device: an agent's values win over SNMP, SNMP over a scan, a scan over passive listening. Devices on your LAN are also found by themselves and wait under To review.",
     "method": "How to add it",
     "adminOnly": "Admin only",
-    "snmpOff": "Active scanning module is off",
-    "agentsOff": "Agent intake module is off",
     "name": {
       "manual": "Manual",
       "snmp": "SNMP",
@@ -909,13 +909,15 @@
       "target": "IP address or range",
       "targetHint": "One address is read now. A range is read at every scan.",
       "targetBad": "Enter one IP address, such as 192.168.10.3, or a range, such as 192.168.10.0/24.",
-      "newCredential": "New credential…",
+      "newCredential": "New credential",
       "rangeCovered": "{{range}} is in the scope of {{name}}",
       "rangeWhen": "Every approved device in it is read at the next scan window.",
       "addRange": "Add range to {{name}}",
       "test": "Test",
-      "openReview": "Open To review",
-      "notListed": "Vedette reads this address once a scan or the sensor finds it and you approve it under To review."
+      "notListed": "Vedette reads this address once a scan or the sensor finds it and you approve it under To review.",
+      "editCredential": "Edit {{name}}",
+      "outsideLan": "{{range}} is outside the scan scope",
+      "outsideLanWhy": "Vedette only sends SNMP inside the ranges you allowed. Add it to the scan scope here."
     },
     "osquery": {
       "noMac": "macOS is not supported: osquery runs on Linux and Windows servers.",
@@ -925,6 +927,12 @@
     "wazuh": {
       "connected": "Connected to {{url}}",
       "connectedBody": "Saving again replaces the connection."
+    },
+    "moduleOff": "Module is off: turn it on here",
+    "needs": {
+      "snmp": "SNMP reads run in the Active sensor module, which is off.",
+      "osquery": "osquery reports arrive through the Agent intake module, which is off.",
+      "wazuh": "Wazuh is read through the Agent intake module, which is off."
     }
   },
   "search": {
@@ -1013,5 +1021,33 @@
     "elsewhere_one": "{{count}} product declared without a device is in",
     "elsewhere_other": "{{count}} products declared without a device are in",
     "open": "Settings, Declared software"
+  },
+  "inline": {
+    "modulesPage": "Turn it on in Settings, Modules (admin)",
+    "turnOn": "Turn on {{name}}",
+    "moduleOn": "{{name}} is on."
+  },
+  "snmpNext": {
+    "edit": "Edit {{name}}",
+    "approve": "Approve {{ip}} and read it",
+    "approved": "Approved {{ip}}. Reading it now.",
+    "scopeWhy": "An administrator adds it to the scan scope.",
+    "scope": "Open the scan scope",
+    "addToScope": "Add {{ip}} to the scan scope",
+    "confirmScope": "Confirm the scan scope",
+    "scanningWhy": "Active scanning is off, so the box sends nothing to devices.",
+    "scanning": "Turn on active scanning in Scope",
+    "neverWhy": "This device is set to Never scan.",
+    "never": "Change it on the device page"
+  },
+  "toScope": {
+    "title": "Add {{range}} to the scan scope",
+    "confirmTitle": "Confirm the scan scope",
+    "body": "Vedette only scans and asks SNMP inside the ranges you allow.",
+    "info": "The other scope settings (scan window, speed, fragile types) stay as they are; change them under Devices, Scope.",
+    "now": "Allowed now: {{list}}.",
+    "none": "No range is allowed yet.",
+    "add": "Add to scope",
+    "confirm": "Confirm"
   }
 }

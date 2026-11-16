@@ -9,6 +9,7 @@ import { Card } from '@/components/common/Card'
 import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useDeviceAction, useNotifyNew } from './api'
+import { TurnOnModule } from './Inline'
 import { DeleteDialog } from './DeleteDialog'
 import { errMsg } from './kinds'
 import { nameOf } from './nameOf'
@@ -76,7 +77,7 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
           <label htmlFor="notify-new" className="text-sm">{t('pending.notify')}</label>
         </div>
       </div>
-      {notifyNew && !notifyAvailable ? <p className="text-[13px] text-warn">{t('pending.notifyOff2')} <Link className="underline" to="/settings/modules">{t('pending.openModules')}</Link></p> : null}
+      {notifyNew && !notifyAvailable ? <TurnOnModule id="notify" reason={t('pending.notifyOff2')} /> : null}
       {notifyNew && notifyAvailable ? <p className="text-[13px] text-muted">{t('pending.notifyVia')} <Link className="text-accent underline-offset-4 hover:underline" to="/settings/channels">{t('pending.openChannels')}</Link></p> : null}
       {total ? search : null}
       {pending.length ? (

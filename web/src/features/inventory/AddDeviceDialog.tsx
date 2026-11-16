@@ -1,12 +1,15 @@
 import { useRef, useState, type FormEvent, type RefObject } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { Notice } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
-import { useAddDevice, useDeviceAction } from './api'
+import { ApiError } from '@/lib/api'
+import { kindLabel } from '@/lib/deviceTypes'
+import { useAddDevice, useDeviceAction, useDevices } from './api'
+import { nameOf } from './nameOf'
 import { errMsg } from './kinds'
 import { ProductPicker, productFields, type ChosenProduct } from './ProductPicker'
 import { IPV4_RE_UI } from './validate'
@@ -24,6 +27,8 @@ export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode
   const [ip, setIp] = useState('')
   const [ipErr, setIpErr] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [dup, setDup] = useState<{ id: string; name: string } | null>(null)
+  const devices = useDevices()
   const addDevice = useAddDevice()
   const addSoftware = useDeviceAction(deviceId ?? '').addSoftware
   const pending = addDevice.isPending || addSoftware.isPending
@@ -46,6 +51,7 @@ export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode
       if (bad) return
     }
     const where = mode === 'device' ? { name: name.trim() || undefined, ip: ip.trim() || undefined } : {}
+    setDup(null)
     addDevice.mutate({ ...productFields(product), version: version.trim() || undefined, ...where }, {
       onSuccess: (r) => {
         const msg = mode === 'declared'
@@ -54,7 +60,12 @@ export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode
         toast.success(msg, mode === 'declared' ? undefined : { action: { label: t('add.openDevice'), onClick: () => void navigate(`/devices/${r.id}`) } })
         onDone()
       },
-      onError: (er) => setError(errMsg(er)),
+      onError: (er) => {
+        setError(errMsg(er))
+        // 409 duplicate_ip: the device is already in the list; open it from here instead of searching for it (#842).
+        const same = er instanceof ApiError && er.code === 'duplicate_ip' ? devices.data?.items.find((d) => d.ip === ip.trim()) : undefined
+        setDup(same ? { id: same.id, name: nameOf(same, kindLabel(same.kind)) } : null)
+      },
     })
   }
 
@@ -74,7 +85,8 @@ export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode
       <Field label={t('add.version')} htmlFor="add-version" hint={product?.version_hint || t('add.versionHint')}>
         <Input id="add-version" value={version} onChange={(e) => setVersion(e.target.value)} placeholder={t('add.versionPlaceholder')} maxLength={40} />
       </Field>
-      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
+      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error}
+        actions={dup ? <Link to={`/devices/${encodeURIComponent(dup.id)}`} onClick={onDone} className="text-sm font-medium text-accent underline-offset-4 hover:underline">{t('add.openExisting', { name: dup.name })}</Link> : undefined} /> : null}
       <DialogFooter>
         <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
         <Button type="submit" variant="primary" disabled={!product || pending}>{t('add.submit')}</Button>

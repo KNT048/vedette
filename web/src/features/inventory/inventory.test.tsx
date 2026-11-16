@@ -249,14 +249,40 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await expectNoA11yViolations()
   })
 
-  it('#849: SNMP, osquery and Wazuh are admin only and say so; a module that is off says so', async () => {
-    enableModule('agent-intake', false)
+  it('#849: SNMP, osquery and Wazuh are admin only and say so', async () => {
     renderApp('/devices?add=manual', { role: 'operator' })
     const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
     for (const m of ['SNMP', 'osquery', 'Wazuh']) expect(within(dlg).getByRole('radio', { name: new RegExp(`^${m}`) })).toBeDisabled()
-    expect(within(dlg).getAllByText('Admin only').length).toBe(1) // SNMP; osquery and Wazuh say the module is off, which matters first
-    expect(within(dlg).getAllByText('Agent intake module is off').length).toBe(2)
+    expect(within(dlg).getAllByText('Admin only').length).toBe(3)
     expect(within(dlg).getByRole('radio', { name: /^CSV import/ })).toBeEnabled()
+  })
+
+  it('#849, kien 2026-11-16: a module the method needs is off: the admin turns it on right in the dialog, and the method opens', async () => {
+    const user = userEvent.setup()
+    enableModule('agent-intake', false)
+    renderApp('/devices?add=osquery')
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    expect(within(dlg).getByRole('radio', { name: /^osquery/, checked: true })).toBeEnabled()
+    await user.click(within(dlg).getByRole('button', { name: 'Turn on Agent intake' }))
+    expect(await within(dlg).findByLabelText(/^Token name/, undefined, T)).toBeInTheDocument()
+    expect(modulesStore.get().find((m) => m.id === 'agent-intake')?.enabled).toBe(true)
+  })
+
+  it('#849, kien 2026-11-16: "+ New credential" in the SNMP select makes one in a small dialog, selects it and reads the address', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices?add=snmp')
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    await user.type(await within(dlg).findByLabelText('IP address or range', undefined, T), '192.168.10.3')
+    const select = within(dlg).getByLabelText('Credential')
+    await user.selectOptions(select, '+ New credential')
+    const form = await screen.findByRole('dialog', { name: 'Add SNMP credential' }, T)
+    expect(within(form).getByLabelText('Send only to')).toHaveValue('192.168.10.3') // the address typed is the scope
+    await user.type(within(form).getByLabelText('Name'), 'Switch room')
+    await user.type(within(form).getByLabelText('Community'), 'ro-switch-2026')
+    await user.click(within(form).getByRole('button', { name: 'Add credential' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add SNMP credential' })).toBeNull(), T)
+    await waitFor(() => expect((within(dlg).getByLabelText('Credential') as HTMLSelectElement).selectedOptions[0]?.textContent).toBe('Switch room (v2c)'), T)
+    expect(await within(dlg).findByText(/192\.168\.10\.3 (answered|was not read)\./, undefined, T)).toBeInTheDocument() // read at once
   })
 
   it('#849: SNMP from the dialog lists each saved credential with its version once (a name that says "(v3)" gets no second one)', async () => {

@@ -45,6 +45,7 @@ function NoBoxAddress() {
   const install = useInstallKind()
   return (
     <Notice tone="warn" role="status" className="mb-0" title={t('agents.noAddress.title')}
+      actions={install === 'container' ? undefined : <Link to="/settings/network?tab=box-address" className="text-sm font-medium text-accent underline-offset-4 hover:underline">{t('agents.boxAddress.change')}</Link>}
       info={<><p>{t(install === 'container' ? 'agents.noAddress.container' : 'agents.noAddress.appliance')}</p><p>{t('agents.noAddress.token')}</p></>}>
       <p className="text-ink">{t('agents.noAddress.body')}</p>
     </Notice>

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/netip"
 	"regexp"
 	"slices"
@@ -522,6 +523,31 @@ type JobResult struct {
 	jsonl []byte // the decoded JSONLB64
 }
 
+// JobProgress is the body of POST /jobs/{id}/progress (protocol 5, #830): how far a running nmap or nuclei job is, read by the
+// worker from what the tool prints anyway (nmap's <taskprogress> lines of --stats-every, nuclei's -ms lines). Advisory only: core
+// shows it and never decides anything from it. The worker sends at most one every ProgressEvery per job and never retries one.
+type JobProgress struct {
+	Phase string `json:"phase"` // one of ProgressPhases
+	// Percent of the phase, 0..100; -1 when the tool gave none (nuclei: Done and Total say it).
+	Percent float64 `json:"percent"`
+	// Done and Total count template x target checks of a nuclei job (0 and 0: no count); 0 <= Done <= Total <= MaxProgressCount.
+	Done  int64 `json:"done"`
+	Total int64 `json:"total"`
+	// RemainingS is the tool's own estimate of the seconds left in the phase (nmap's "remaining"), 0 when none, at most MaxProgressRemaining.
+	RemainingS int `json:"remaining_s"`
+}
+
+// ProgressPhases are the phases a worker may report: nmap's host discovery, port scan, service detection and scripts, and
+// nuclei's checks.
+var ProgressPhases = []string{"discovery", "ports", "services", "scripts", "vulns"}
+
+// MaxProgressCount bounds Done and Total of a JobProgress, MaxProgressRemaining its RemainingS (nmap caps its own estimate at 10
+// days; a job lives at most 2 hours, so more is noise).
+const (
+	MaxProgressCount     = 1 << 20
+	MaxProgressRemaining = 86400
+)
+
 // HostError is the timeout count of one target of a nuclei job.
 type HostError struct {
 	Target      string `json:"target"`      // host:port of one of the job's targets
@@ -703,6 +729,26 @@ func decodeJobResult(raw []byte) (*JobResult, error) {
 		return nil, err
 	}
 	return &r, nil
+}
+
+// decodeJobProgress checks the body of a progress report: a known phase, a percent of -1 or 0..100, a count in range, a remaining
+// time of 0..MaxProgressRemaining. Anything else is 400 and changes nothing.
+func decodeJobProgress(raw []byte) (*JobProgress, error) {
+	var p JobProgress
+	if err := jsonstrict.Decode(raw, &p); err != nil {
+		return nil, fmt.Errorf("%w: %w", errInvalid, err)
+	}
+	switch {
+	case !slices.Contains(ProgressPhases, p.Phase):
+		return nil, invalid("progress phase")
+	case p.Percent != -1 && (math.IsNaN(p.Percent) || p.Percent < 0 || p.Percent > 100):
+		return nil, invalid("progress percent")
+	case p.Done < 0 || p.Total < 0 || p.Done > p.Total || p.Total > MaxProgressCount:
+		return nil, invalid("progress count")
+	case p.RemainingS < 0 || p.RemainingS > MaxProgressRemaining:
+		return nil, invalid("progress remaining")
+	}
+	return &p, nil
 }
 
 // checkHostErrors checks the shape of host_errors: only on a done result, at most one entry per target, a canonical

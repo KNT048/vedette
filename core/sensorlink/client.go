@@ -329,6 +329,12 @@ func (c *Client) PostResult(ctx context.Context, id string, res *JobResult) erro
 	return err
 }
 
+// PostProgress sends the progress of a running job once (#830). It does not retry: a report that is lost is replaced by the next.
+func (c *Client) PostProgress(ctx context.Context, id string, p *JobProgress) error {
+	_, err := c.do(ctx, http.MethodPost, PathPrefix+"/jobs/"+id+"/progress", nil, nil, p, nil, MaxOtherReply, 10*time.Second)
+	return err
+}
+
 // PostObservations makes one attempt to deliver one batch and returns core's answer or the error: an *Error for an answer
 // that is not a 200 (RetryAfter capped at BackoffCap), anything else when there was no usable answer. It never retries and never
 // sleeps: the capture process decides what a failure means for its queue and gives every attempt a seq of its own (D-122 (2)).

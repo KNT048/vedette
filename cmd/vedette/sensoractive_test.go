@@ -165,7 +165,7 @@ func TestSensorActiveScansADiscoveredDevice(t *testing.T) {
 		t.Fatal(err)
 	}
 	calls := nm.calls(t)
-	want := []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}
+	want := []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
 	// the queue's normal scan and its extra ports, then (D-592) the device's first weekly scan of every port in the same window
 	if got := scanTargets(calls, "192.168.10.20"); len(got) != 3 || !slices.Equal(got[0], want) || !slices.Contains(got[1], nmapargv.ExtraPorts) ||
 		!slices.Contains(got[2], "-p-") || slices.Contains(got[2], "-O") {
@@ -243,7 +243,7 @@ func TestSensorActiveFragileDevicePolicy(t *testing.T) {
 	if err := svc.ScanDevice(t.Context(), id, "discovered"); err != nil {
 		t.Fatal(err)
 	}
-	gentle := []string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.30"}
+	gentle := []string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.30"}
 	if got := scanTargets(nm.calls(t), "192.168.10.30"); len(got) != 1 || !slices.Equal(got[0], gentle) {
 		t.Fatalf("scans = %q, want one gentle scan %q", got, gentle)
 	}

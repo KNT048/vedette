@@ -22252,6 +22252,142 @@
                             "string",
                             "null"
                           ]
+                        },
+                        "progress": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "phase": {
+                                  "type": "string",
+                                  "enum": [
+                                    "discovery",
+                                    "ports",
+                                    "services",
+                                    "scripts",
+                                    "vulns",
+                                    "web",
+                                    "openvas",
+                                    "saving"
+                                  ],
+                                  "description": "discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection; scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the result is being stored"
+                                },
+                                "percent": {
+                                  "anyOf": [
+                                    {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 100
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "description": "How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the phase without a bar)"
+                                },
+                                "done": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "description": "With total: the count behind percent (unit says what is counted); null when the phase has no count"
+                                },
+                                "total": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": -9007199254740991,
+                                      "maximum": 9007199254740991
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                },
+                                "unit": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "enum": [
+                                        "checks",
+                                        "hosts"
+                                      ]
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "description": "checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch"
+                                },
+                                "started_at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                  "description": "When the job (the device, or the public IP scan) started: elapsed time is now minus this"
+                                },
+                                "phase_started_at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                  "description": "When the current phase (or the current pass of it: a device gets a second nmap pass over admin ports) started"
+                                },
+                                "updated_at": {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                  "description": "The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is quiet, not that the box hangs"
+                                },
+                                "eta": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "description": "Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the vulnerability checks (after 10 s and 1 %); null until it can be estimated"
+                                },
+                                "message": {
+                                  "anyOf": [
+                                    {
+                                      "type": "string",
+                                      "maxLength": 120
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ],
+                                  "description": "A short English note on the pass, e.g. \"Second pass: administration and alternative ports\"; null when none"
+                                }
+                              },
+                              "required": [
+                                "phase",
+                                "percent",
+                                "done",
+                                "total",
+                                "unit",
+                                "started_at",
+                                "phase_started_at",
+                                "updated_at",
+                                "eta",
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "How far the step that runs now is (#830): the port scan, service detection and vulnerability checks as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the greenbone phase. Set while status is running; null otherwise"
                         }
                       },
                       "required": [
@@ -22264,7 +22400,8 @@
                         "status",
                         "phase",
                         "snapshot_id",
-                        "error"
+                        "error",
+                        "progress"
                       ],
                       "additionalProperties": false
                     },
@@ -22395,6 +22532,142 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "progress": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "phase": {
+                              "type": "string",
+                              "enum": [
+                                "discovery",
+                                "ports",
+                                "services",
+                                "scripts",
+                                "vulns",
+                                "web",
+                                "openvas",
+                                "saving"
+                              ],
+                              "description": "discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection; scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the result is being stored"
+                            },
+                            "percent": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the phase without a bar)"
+                            },
+                            "done": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "With total: the count behind percent (unit says what is counted); null when the phase has no count"
+                            },
+                            "total": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "unit": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "checks",
+                                    "hosts"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch"
+                            },
+                            "started_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the job (the device, or the public IP scan) started: elapsed time is now minus this"
+                            },
+                            "phase_started_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the current phase (or the current pass of it: a device gets a second nmap pass over admin ports) started"
+                            },
+                            "updated_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is quiet, not that the box hangs"
+                            },
+                            "eta": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the vulnerability checks (after 10 s and 1 %); null until it can be estimated"
+                            },
+                            "message": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 120
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "A short English note on the pass, e.g. \"Second pass: administration and alternative ports\"; null when none"
+                            }
+                          },
+                          "required": [
+                            "phase",
+                            "percent",
+                            "done",
+                            "total",
+                            "unit",
+                            "started_at",
+                            "phase_started_at",
+                            "updated_at",
+                            "eta",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "How far the step that runs now is (#830): the port scan, service detection and vulnerability checks as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the greenbone phase. Set while status is running; null otherwise"
                     }
                   },
                   "required": [
@@ -22407,7 +22680,8 @@
                     "status",
                     "phase",
                     "snapshot_id",
-                    "error"
+                    "error",
+                    "progress"
                   ],
                   "additionalProperties": false
                 }
@@ -24616,6 +24890,142 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "progress": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "phase": {
+                              "type": "string",
+                              "enum": [
+                                "discovery",
+                                "ports",
+                                "services",
+                                "scripts",
+                                "vulns",
+                                "web",
+                                "openvas",
+                                "saving"
+                              ],
+                              "description": "discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection; scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the result is being stored"
+                            },
+                            "percent": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the phase without a bar)"
+                            },
+                            "done": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "With total: the count behind percent (unit says what is counted); null when the phase has no count"
+                            },
+                            "total": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "unit": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "checks",
+                                    "hosts"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch"
+                            },
+                            "started_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the job (the device, or the public IP scan) started: elapsed time is now minus this"
+                            },
+                            "phase_started_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the current phase (or the current pass of it: a device gets a second nmap pass over admin ports) started"
+                            },
+                            "updated_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is quiet, not that the box hangs"
+                            },
+                            "eta": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the vulnerability checks (after 10 s and 1 %); null until it can be estimated"
+                            },
+                            "message": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 120
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "A short English note on the pass, e.g. \"Second pass: administration and alternative ports\"; null when none"
+                            }
+                          },
+                          "required": [
+                            "phase",
+                            "percent",
+                            "done",
+                            "total",
+                            "unit",
+                            "started_at",
+                            "phase_started_at",
+                            "updated_at",
+                            "eta",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "How far the step that runs now is (#830): the port scan, service detection and vulnerability checks as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the greenbone phase. Set while status is running; null otherwise"
                     }
                   },
                   "required": [
@@ -24628,7 +25038,8 @@
                     "status",
                     "phase",
                     "snapshot_id",
-                    "error"
+                    "error",
+                    "progress"
                   ],
                   "additionalProperties": false
                 }
@@ -70868,6 +71279,142 @@
                               }
                             ]
                           },
+                          "progress": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "phase": {
+                                    "type": "string",
+                                    "enum": [
+                                      "discovery",
+                                      "ports",
+                                      "services",
+                                      "scripts",
+                                      "vulns",
+                                      "web",
+                                      "openvas",
+                                      "saving"
+                                    ],
+                                    "description": "discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection; scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the result is being stored"
+                                  },
+                                  "percent": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 100
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the phase without a bar)"
+                                  },
+                                  "done": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "With total: the count behind percent (unit says what is counted); null when the phase has no count"
+                                  },
+                                  "total": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "unit": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "checks",
+                                          "hosts"
+                                        ]
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch"
+                                  },
+                                  "started_at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                    "description": "When the job (the device, or the public IP scan) started: elapsed time is now minus this"
+                                  },
+                                  "phase_started_at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                    "description": "When the current phase (or the current pass of it: a device gets a second nmap pass over admin ports) started"
+                                  },
+                                  "updated_at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                    "description": "The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is quiet, not that the box hangs"
+                                  },
+                                  "eta": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the vulnerability checks (after 10 s and 1 %); null until it can be estimated"
+                                  },
+                                  "message": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "maxLength": 120
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "A short English note on the pass, e.g. \"Second pass: administration and alternative ports\"; null when none"
+                                  }
+                                },
+                                "required": [
+                                  "phase",
+                                  "percent",
+                                  "done",
+                                  "total",
+                                  "unit",
+                                  "started_at",
+                                  "phase_started_at",
+                                  "updated_at",
+                                  "eta",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "How far the current device is (#830): its phase, how far into it, an estimate of its end. Set while the run is running or stopping in this process; null otherwise"
+                          },
                           "results": {
                             "type": "array",
                             "items": {
@@ -71016,6 +71563,7 @@
                           "total",
                           "done",
                           "current",
+                          "progress",
                           "results",
                           "matched",
                           "stop_reason",
@@ -71172,6 +71720,142 @@
                         }
                       ]
                     },
+                    "progress": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "phase": {
+                              "type": "string",
+                              "enum": [
+                                "discovery",
+                                "ports",
+                                "services",
+                                "scripts",
+                                "vulns",
+                                "web",
+                                "openvas",
+                                "saving"
+                              ],
+                              "description": "discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection; scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the result is being stored"
+                            },
+                            "percent": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the phase without a bar)"
+                            },
+                            "done": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "With total: the count behind percent (unit says what is counted); null when the phase has no count"
+                            },
+                            "total": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "unit": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "checks",
+                                    "hosts"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch"
+                            },
+                            "started_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the job (the device, or the public IP scan) started: elapsed time is now minus this"
+                            },
+                            "phase_started_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the current phase (or the current pass of it: a device gets a second nmap pass over admin ports) started"
+                            },
+                            "updated_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is quiet, not that the box hangs"
+                            },
+                            "eta": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the vulnerability checks (after 10 s and 1 %); null until it can be estimated"
+                            },
+                            "message": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 120
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "A short English note on the pass, e.g. \"Second pass: administration and alternative ports\"; null when none"
+                            }
+                          },
+                          "required": [
+                            "phase",
+                            "percent",
+                            "done",
+                            "total",
+                            "unit",
+                            "started_at",
+                            "phase_started_at",
+                            "updated_at",
+                            "eta",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "How far the current device is (#830): its phase, how far into it, an estimate of its end. Set while the run is running or stopping in this process; null otherwise"
+                    },
                     "results": {
                       "type": "array",
                       "items": {
@@ -71320,6 +72004,7 @@
                     "total",
                     "done",
                     "current",
+                    "progress",
                     "results",
                     "matched",
                     "stop_reason",
@@ -71452,6 +72137,142 @@
                         }
                       ]
                     },
+                    "progress": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "phase": {
+                              "type": "string",
+                              "enum": [
+                                "discovery",
+                                "ports",
+                                "services",
+                                "scripts",
+                                "vulns",
+                                "web",
+                                "openvas",
+                                "saving"
+                              ],
+                              "description": "discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection; scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the result is being stored"
+                            },
+                            "percent": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the phase without a bar)"
+                            },
+                            "done": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "With total: the count behind percent (unit says what is counted); null when the phase has no count"
+                            },
+                            "total": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "unit": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "checks",
+                                    "hosts"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch"
+                            },
+                            "started_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the job (the device, or the public IP scan) started: elapsed time is now minus this"
+                            },
+                            "phase_started_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the current phase (or the current pass of it: a device gets a second nmap pass over admin ports) started"
+                            },
+                            "updated_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is quiet, not that the box hangs"
+                            },
+                            "eta": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the vulnerability checks (after 10 s and 1 %); null until it can be estimated"
+                            },
+                            "message": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 120
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "A short English note on the pass, e.g. \"Second pass: administration and alternative ports\"; null when none"
+                            }
+                          },
+                          "required": [
+                            "phase",
+                            "percent",
+                            "done",
+                            "total",
+                            "unit",
+                            "started_at",
+                            "phase_started_at",
+                            "updated_at",
+                            "eta",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "How far the current device is (#830): its phase, how far into it, an estimate of its end. Set while the run is running or stopping in this process; null otherwise"
+                    },
                     "results": {
                       "type": "array",
                       "items": {
@@ -71600,6 +72421,7 @@
                     "total",
                     "done",
                     "current",
+                    "progress",
                     "results",
                     "matched",
                     "stop_reason",

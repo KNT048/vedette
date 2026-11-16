@@ -9,6 +9,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -45,6 +46,9 @@ type ScanRun struct {
 	Error       *RunError `json:"error"`
 	// StopReason says why a stopped run was stopped when it was not a person's Stop (D-566 review r1 M1); nil otherwise.
 	StopReason *string `json:"stop_reason,omitempty"`
+	// Progress is how far the step that runs now is (#830): the nmap and nuclei jobs of the scan module as the scan worker reports
+	// them, OpenVAS's own percent in the greenbone phase. Only while the run is running; null otherwise. In memory, like the run.
+	Progress *progress.View `json:"progress"`
 }
 
 // RunError is why a run failed: the code and text of the API error the synchronous scan used to answer.
@@ -63,8 +67,9 @@ type scanRun struct {
 
 	prevLast    time.Time // the target's lastScan before this run, put back when the scan module was off (nothing was asked)
 	hadPrevLast bool
-	mode        ScanMode // what this run may do (D-566): set when it starts; withdrawing or lowering the terms stops a run above them
-	gbSnap      string   // the snapshot whose OpenVAS step runs now (set under runMu): its "running" is real (N49-3, D-595)
+	mode        ScanMode          // what this run may do (D-566): set when it starts; withdrawing or lowering the terms stops a run above them
+	gbSnap      string            // the snapshot whose OpenVAS step runs now (set under runMu): its "running" is real (N49-3, D-595)
+	prog        *progress.Tracker // #830: the progress of the run; its context carries it to the jobs that report
 }
 
 // stoppedBy is the cause of a run's context when someone stopped it or the module was switched off.
@@ -116,8 +121,9 @@ func (s *Service) begin(ctx context.Context, user string, t Target, reason Block
 	rctx, cancel := context.WithCancelCause(context.WithoutCancel(ctx)) // the request's values, never its cancellation
 	run := &scanRun{
 		view:   ScanRun{ID: store.NewID("sr"), TargetID: t.ID, TargetValue: t.Value, By: user, StartedAt: store.FormatTS(now), Status: RunRunning, Phase: PhaseQueued},
-		cancel: cancel, done: make(chan struct{}), prevLast: last, hadPrevLast: had, mode: fresh.mode(),
+		cancel: cancel, done: make(chan struct{}), prevLast: last, hadPrevLast: had, mode: fresh.mode(), prog: progress.NewTracker(s.clock),
 	}
+	rctx = progress.WithSink(rctx, run.prog)
 	s.run = run
 	go s.execute(rctx, run, r, user, t)
 	return run, nil
@@ -127,6 +133,9 @@ func (s *Service) setPhase(run *scanRun, phase string) {
 	s.runMu.Lock()
 	run.view.Phase = phase
 	s.runMu.Unlock()
+	if phase == PhaseGreenbone { // #830: until OpenVAS gives its first percent
+		run.prog.Report(progress.Phase(progress.PhaseOpenVAS, ""))
+	}
 }
 
 // execute is the background half of a scan: the runner, then one snapshot for the day with its audit row and event (POST-1). Every
@@ -140,6 +149,7 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 		}
 	}()
 	s.setPhase(run, PhaseProbing)
+	run.prog.Report(progress.Phase(progress.PhasePorts, "")) // #830: the jobs below report their own phases as they run
 	st := ScanTarget{ID: t.ID, Kind: t.Kind, Value: t.Value, User: user, Mode: run.mode}
 	content, err := r.Scan(ctx, st)
 	content.Hosts = clearDeep(content.Hosts) // D-571: the deep state of a run is exposure's own, never the runner's
@@ -147,6 +157,7 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 		content, err = s.identify(ctx, st, content) // INV-19: service identification of the box's own IP, and what was checked
 	}
 	if err == nil {
+		run.prog.Report(progress.Phase(progress.PhaseWeb, ""))
 		content, err = s.webPassive(ctx, byName(st), content) // INV-24: passive web scan of its web ports
 	}
 	var deep []deepAddr
@@ -182,6 +193,7 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 		id := store.NewID("sn")
 		s.runMu.Lock() // review L3 of D-595: its "running" is live from the moment it is stored, never read as cut off
 		run.view.Phase = PhaseSaving
+		run.prog.Report(progress.Phase(progress.PhaseSaving, ""))
 		if gb {
 			run.gbSnap = id
 		}
@@ -317,7 +329,16 @@ func (s *Service) finish(ctx context.Context, run *scanRun, user string, t Targe
 func (s *Service) runView(run *scanRun) ScanRun {
 	s.runMu.Lock()
 	defer s.runMu.Unlock()
-	return run.view
+	return run.withProgress()
+}
+
+// withProgress is the view with the progress of a running run (#830). The caller holds runMu.
+func (r *scanRun) withProgress() ScanRun {
+	v := r.view
+	if v.Status == RunRunning && r.prog != nil {
+		v.Progress = r.prog.View()
+	}
+	return v
 }
 
 // CurrentScan is GET /exposure/scan: the run that runs now, or the last one; nil when none has run since the box started (INV-18).
@@ -327,7 +348,7 @@ func (s *Service) CurrentScan() *ScanRun {
 	if s.run == nil {
 		return nil
 	}
-	v := s.run.view
+	v := s.run.withProgress()
 	return &v
 }
 

@@ -60,6 +60,12 @@ type ResultRejector interface {
 	JobResultRejected(id string, err *Error)
 }
 
+// ProgressReceiver is an optional method set of a Backend (#830): the progress of a running job (POST /jobs/{id}/progress), checked
+// by the server like any body. A Backend without it answers every progress report 404 unknown_job, which the worker ignores.
+type ProgressReceiver interface {
+	JobProgress(ctx context.Context, id string, p *JobProgress) error
+}
+
 // Options configures a Server.
 type Options struct {
 	Identity Identity
@@ -228,6 +234,7 @@ const (
 	rHeartbeat
 	rJobs
 	rResult
+	rProgress
 )
 
 type route struct {
@@ -251,6 +258,11 @@ func lookup(role Role, method, p string) (rt route, jobID string, ok bool) {
 		id := strings.TrimSuffix(strings.TrimPrefix(p, PathPrefix+"/jobs/"), "/result")
 		if id != "" && !strings.Contains(id, "/") {
 			return route{rResult, false, MaxResultBody}, id, true
+		}
+	case method == http.MethodPost && role == Active && strings.HasPrefix(p, PathPrefix+"/jobs/") && strings.HasSuffix(p, "/progress"):
+		id := strings.TrimSuffix(strings.TrimPrefix(p, PathPrefix+"/jobs/"), "/progress")
+		if id != "" && !strings.Contains(id, "/") {
+			return route{rProgress, false, MaxProgressBody}, id, true
 		}
 	}
 	return route{}, "", false
@@ -339,18 +351,21 @@ func (s *Server) dispatch(ctx context.Context, w http.ResponseWriter, r *http.Re
 	if rt.max > 0 {
 		// What costs nothing is decided before any memory is spent on a body, and every refusal here closes the connection: its
 		// body is not read, so the connection cannot be reused.
-		if rt.id == rResult {
+		if rt.id == rResult || rt.id == rProgress {
 			if !jobIDRE.MatchString(jobID) {
 				closeAfter(w, r)
 				s.writeError(w, NewError(CodeInvalidRequest))
 				return
 			}
-			if !s.be.JobRunning(jobID) {
+			_, hasProgress := s.be.(ProgressReceiver)
+			if !s.be.JobRunning(jobID) || rt.id == rProgress && !hasProgress {
 				closeAfter(w, r)
 				s.writeError(w, NewError(CodeUnknownJob))
 				return
 			}
 		}
+		// A progress report takes a slot like any body (review r1 #3): takeBody never waits, so with none free it is answered
+		// 503 store_busy unread and dropped; the worker does not retry it, and the next one comes ProgressEvery later.
 		release, ok := s.takeBody(role, rt.id)
 		if !ok {
 			closeAfter(w, r)
@@ -435,6 +450,16 @@ func (s *Server) dispatch(ctx context.Context, w http.ResponseWriter, r *http.Re
 			s.rejectResult(rt, jobID, err)
 		} else {
 			err = s.be.JobResult(ctx, jobID, res)
+		}
+		if err != nil {
+			s.fail(ctx, w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	case rProgress:
+		p, err := decodeJobProgress(raw)
+		if err == nil {
+			err = s.be.(ProgressReceiver).JobProgress(ctx, jobID, p) // the check above proved the Backend has it
 		}
 		if err != nil {
 			s.fail(ctx, w, err)

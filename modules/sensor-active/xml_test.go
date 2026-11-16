@@ -391,3 +391,24 @@ func TestServiceDetail(t *testing.T) {
 		t.Errorf("long subject and title: detail = %q", d)
 	}
 }
+
+// #830: --stats-every puts <taskprogress> elements between the other children of nmaprun; the parser reads the run as without them,
+// hundreds of them included (a two-hour run at one every 5 s is 1440).
+func TestParseSkipsTheProgressLines(t *testing.T) {
+	t.Parallel()
+	plain := fixture(t, "device.xml")
+	want, err := parseNmapXML(plain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	line := `<taskprogress task="SYN Stealth Scan" time="1762650010" percent="42.50" remaining="60" etc="1762650070"/>` + "\n"
+	withStats := bytes.Replace(plain, []byte("<host "), []byte(strings.Repeat(line, 1500)+`<taskbegin task="Service scan" time="1762650020"/>`+"\n<host "), 1)
+	withStats = bytes.Replace(withStats, []byte("<runstats>"), []byte(line+"<runstats>"), 1)
+	got, err := parseNmapXML(withStats)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != len(want) || got[0].addr != want[0].addr || len(got[0].ports) != len(want[0].ports) || len(got[0].matches) != len(want[0].matches) {
+		t.Fatalf("hosts = %+v, want %+v", got, want)
+	}
+}

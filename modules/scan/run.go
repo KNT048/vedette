@@ -15,6 +15,7 @@ import (
 
 	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/events"
+	"github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/scan/nucleiargv"
 	"github.com/knt048/vedette/modules/scan/nucleiout"
@@ -99,9 +100,12 @@ type RunView struct {
 	Total       int      `json:"total"`
 	Done        int      `json:"done"`
 	Current     *Current `json:"current"`
-	Results     []RunRow `json:"results"`
-	Matched     int      `json:"matched"`
-	StopReason  *string  `json:"stop_reason"`
+	// Progress is how far the current device is (#830): its phase, how far into it, an estimate of the end. Only while the run
+	// goes on in this process; null otherwise. It lives in memory and goes with the run.
+	Progress   *progress.View `json:"progress"`
+	Results    []RunRow       `json:"results"`
+	Matched    int            `json:"matched"`
+	StopReason *string        `json:"stop_reason"`
 	// Identification is one row per device of a Scan now run: what it was identified as, or why it was not (D-501). Empty for
 	// schedules and KEV rescans, which do not identify, and while the run is going.
 	Identification []IdentRow `json:"identification"`
@@ -112,6 +116,7 @@ type live struct {
 	id     string
 	cancel context.CancelFunc
 	done   chan struct{}
+	prog   *progress.Tracker // of the current device (#830); guarded by Service.mu, nil before the first device
 }
 
 var (
@@ -450,6 +455,16 @@ func (s *Service) scanTarget(ctx context.Context, runID, id string, index int, s
 	if err := s.setCurrent(ctx, runID, index, d); err != nil {
 		return failed(err)
 	}
+	// #830: the device's own progress. The worker's reports of its nmap and nuclei jobs reach this Tracker through ctx (the Dispatcher
+	// finds the Sink there); the scan names the phase itself where no tool reports yet.
+	tr := progress.NewTracker(s.now)
+	s.setProgress(runID, tr)
+	ctx = progress.WithSink(ctx, tr)
+	if identifies(sp) {
+		tr.Report(progress.Phase(progress.PhaseDiscovery, ""))
+	} else {
+		tr.Report(progress.Phase(progress.PhaseVulns, ""))
+	}
 	sc, err := s.cfg.Inventory.Scope(ctx)
 	if err != nil {
 		return failed(err)
@@ -504,6 +519,29 @@ func (s *Service) skip(d Device, why string) RunRow {
 func (s *Service) failed(ctx context.Context, id string, err error) []RunRow {
 	s.cfg.Log.ErrorContext(ctx, "scan: a device could not be scanned", "asset", id, "error", err)
 	return []RunRow{{TargetID: id, Label: "—", IP: "—", Result: "skipped", Note: noteEngine}}
+}
+
+// setProgress makes tr the progress of the live run id; nothing when id is not the live run.
+func (s *Service) setProgress(id string, tr *progress.Tracker) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.live != nil && s.live.id == id {
+		s.live.prog = tr
+	}
+}
+
+// progressOf is the progress of run id while this process runs it; nil otherwise.
+func (s *Service) progressOf(id string) *progress.View {
+	s.mu.Lock()
+	tr := (*progress.Tracker)(nil)
+	if s.live != nil && s.live.id == id {
+		tr = s.live.prog
+	}
+	s.mu.Unlock()
+	if tr == nil {
+		return nil
+	}
+	return tr.View()
 }
 
 func (s *Service) setCurrent(ctx context.Context, runID string, done int, d Device) error {
@@ -639,6 +677,7 @@ func (s *Service) scanDevice(ctx context.Context, runID string, d Device, st Set
 	if err != nil {
 		return s.failed(ctx, d.ID, err), ""
 	}
+	progress.Report(ctx, progress.Update{Phase: progress.PhaseVulns, Percent: -1, Total: int64(len(ids) * len(job.Targets)), Unit: progress.UnitChecks})
 	out, err := s.runJob(ctx, Job{Job: job, IDs: ids, PackVersion: s.cfg.Pack.Version, PackSHA256: s.cfg.Pack.SHA256})
 	res := out.Results
 	s.noteSkipped(ctx, runID, d, probes, out.Skipped)

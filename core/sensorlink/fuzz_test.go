@@ -3,6 +3,7 @@ package sensorlink
 import (
 	"context"
 	"net/http"
+	"slices"
 	"testing"
 )
 
@@ -131,4 +132,20 @@ func newReq2(rawQuery string) *http.Request {
 	r := newReq()
 	r.URL.RawQuery = rawQuery
 	return r
+}
+
+func FuzzDecodeJobProgress(f *testing.F) {
+	f.Add([]byte(`{"phase":"ports","percent":12.5,"done":0,"total":0,"remaining_s":90}`))
+	f.Add([]byte(`{"phase":"vulns","percent":-1,"done":3,"total":32}`))
+	f.Add([]byte(`{"phase":"ports","percent":1e400}`))
+	f.Fuzz(func(t *testing.T, b []byte) {
+		p, err := decodeJobProgress(b)
+		if err != nil {
+			return
+		}
+		if !slices.Contains(ProgressPhases, p.Phase) || (p.Percent != -1 && (p.Percent < 0 || p.Percent > 100)) || p.Done < 0 || p.Done > p.Total ||
+			p.Total > MaxProgressCount || p.RemainingS < 0 || p.RemainingS > MaxProgressRemaining {
+			t.Fatalf("accepted %+v", p)
+		}
+	})
 }

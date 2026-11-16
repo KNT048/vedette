@@ -2,6 +2,7 @@
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
 import { TYPE_IDS } from '@/lib/deviceTypes'
+import { JobProgress } from '@/lib/progress'
 
 const iso = z.iso.datetime()
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).describe('HH:MM')
@@ -58,6 +59,7 @@ export const ScanRun = z.object({
   id: z.string(), trigger: z.enum(['manual', 'schedule', 'new_kev']), trigger_note: z.string().nullable(),
   started_at: iso, started_by: z.string(), ended_at: iso.nullable(), status: RunStatus,
   total: z.number().int(), done: z.number().int(), current: z.object({ label: z.string(), ip: z.string() }).nullable(),
+  progress: JobProgress.nullable().describe('How far the current device is (#830): its phase, how far into it, an estimate of its end. Set while the run is running or stopping in this process; null otherwise'),
   results: z.array(RunResultRow), matched: z.number().int(), stop_reason: z.string().nullable(),
   identification: z.array(RunIdentRow).describe('One row per device of a Scan now run: what nmap identified first, or exactly why nothing was (D-501). Empty for scheduled scans and KEV rescans, and while the run is going'),
 })

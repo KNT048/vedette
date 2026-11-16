@@ -141,11 +141,13 @@ func checkEnv(env []string) error {
 	return nil
 }
 
-// capped keeps the first max bytes and silently drops the rest, so the child never blocks on a full pipe.
+// capped keeps the first max bytes and silently drops the rest, so the child never blocks on a full pipe. watch, when set, sees a
+// copy of the bytes that are kept, as they arrive; what it returns is ignored.
 type capped struct {
 	buf       bytes.Buffer
 	max       int64
 	truncated bool
+	watch     io.Writer
 }
 
 func (c *capped) Write(p []byte) (int, error) {
@@ -155,12 +157,27 @@ func (c *capped) Write(p []byte) (int, error) {
 		p = p[:room]
 	}
 	c.buf.Write(p)
+	if c.watch != nil && len(p) > 0 {
+		_, _ = c.watch.Write(p)
+	}
 	return n, nil
+}
+
+// Watch lets a caller read a process's output while it runs (#830: the progress lines nmap prints). Each writer gets a copy of the
+// bytes Run keeps (never more than the capture limit), in order, from the goroutine that copies the pipe: it must be quick and
+// must not block, or the child blocks on a full pipe. A nil writer sees nothing. The output is the child's: untrusted.
+type Watch struct {
+	Stdout, Stderr io.Writer
 }
 
 // Run starts the allowlisted binary name with args. ctx must have a deadline; when it expires the
 // whole process group is killed. A non-zero exit returns the Result and an *ExitError.
 func (r *Runner) Run(ctx context.Context, name string, args []string, stdin io.Reader) (Result, error) {
+	return r.RunWatch(ctx, name, args, stdin, Watch{})
+}
+
+// RunWatch is Run with a Watch on the output.
+func (r *Runner) RunWatch(ctx context.Context, name string, args []string, stdin io.Reader, w Watch) (Result, error) {
 	bin, ok := r.bins[name]
 	if !ok {
 		return Result{}, fmt.Errorf("%w: %q", ErrNotAllowed, name)
@@ -181,7 +198,7 @@ func (r *Runner) Run(ctx context.Context, name string, args []string, stdin io.R
 	cmd.Env = append([]string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C"}, bin.Env...)
 	cmd.Dir = "/"
 	cmd.Stdin = stdin
-	stdout, stderr := &capped{max: bin.MaxOutput}, &capped{max: bin.MaxOutput}
+	stdout, stderr := &capped{max: bin.MaxOutput, watch: w.Stdout}, &capped{max: bin.MaxOutput, watch: w.Stderr}
 	if bin.MaxStderr > 0 {
 		stderr.max = bin.MaxStderr
 	}

@@ -94,10 +94,10 @@ test.describe('screens (screenshots to look at)', () => {
   }
 })
 
-test.describe('P2 IT person, day to day: list, add by hand, CSV, detail', () => {
+test.describe('P2 IT person, day to day: list, add manually, CSV, detail', () => {
   test.beforeEach(async ({ page }) => { await sampleStart(page); await loginAs(page, 'u-op') })
 
-  test('add by hand in 3 clicks; Escape in the picker closes only the list; errors keep input; Enter submits', async ({ page }) => {
+  test('add manually in 3 clicks; Escape in the picker closes only the list; errors keep input; Enter submits', async ({ page }) => {
     const errors = collectErrors(page)
     await page.goto('/devices')
     const before = await countOf(page)
@@ -114,13 +114,13 @@ test.describe('P2 IT person, day to day: list, add by hand, CSV, detail', () => 
     await expect(dialog).toBeVisible() // first Escape only closes the suggestion list
     await picker.press('ArrowDown') // the arrow key opens the list again
     await dialog.getByRole('option').first().click()
-    await dialog.getByLabel('Name (optional)', { exact: true }).fill('Test firewall')
-    await dialog.getByLabel('IP address (optional)', { exact: true }).fill('192.168.10.1')
-    await dialog.getByLabel('IP address (optional)', { exact: true }).press('Enter')
+    await dialog.getByLabel('Host name', { exact: true }).fill('Test firewall')
+    await dialog.getByLabel('IP address', { exact: true }).fill('192.168.10.1')
+    await dialog.getByLabel('IP address', { exact: true }).press('Enter')
     await expect(dialog.getByRole('alert')).toContainText('192.168.10.1')
-    await expect(dialog.getByLabel('Name (optional)', { exact: true })).toHaveValue('Test firewall')
+    await expect(dialog.getByLabel('Host name', { exact: true })).toHaveValue('Test firewall')
     await shot(page, 'inventory', 'add-dialog-error')
-    await dialog.getByLabel('IP address (optional)', { exact: true }).fill('192.168.10.99') // free in the sample data (.250 is the box itself, other addresses belong to sample devices)
+    await dialog.getByLabel('IP address', { exact: true }).fill('192.168.10.99') // free in the sample data (.250 is the box itself, other addresses belong to sample devices)
     await dialog.getByRole('button', { name: 'Add', exact: true }).click()
     await expect(dialog).toBeHidden()
     await expect(h1(page)).toContainText(String(before + 1))
@@ -132,8 +132,9 @@ test.describe('P2 IT person, day to day: list, add by hand, CSV, detail', () => 
     await expect(page.getByRole('dialog').getByRole('listbox')).toBeHidden()
     await page.keyboard.press('Escape')
     await expect(page.getByRole('dialog')).toBeHidden()
-    // exactly 3 clicks (plus the typing): open, pick the first suggestion, Add
+    // exactly 3 clicks (plus the typing): open (Manual is chosen), pick the first suggestion, Add
     await page.getByRole('button', { name: 'Add a device' }).click()
+    await page.getByRole('dialog').getByLabel('IP address', { exact: true }).fill('192.168.10.98')
     await page.getByRole('dialog').getByRole('combobox').fill('forti')
     await page.getByRole('dialog').getByRole('option').first().click()
     await page.getByRole('dialog').getByRole('button', { name: 'Add', exact: true }).click()
@@ -175,7 +176,7 @@ test.describe('P2 IT person, day to day: list, add by hand, CSV, detail', () => 
     await dialog.getByLabel('Maker', { exact: true }).fill('Fortinet')
     await dialog.getByLabel('Product', { exact: true }).fill('FortiGate-Lab')
     await shot(page, 'inventory', 'add-custom')
-    await dialog.getByLabel('Name (optional)', { exact: true }).fill('Lab firewall')
+    await dialog.getByLabel('Host name', { exact: true }).fill('Lab firewall')
     await dialog.getByRole('button', { name: 'Add', exact: true }).click()
     await expect(dialog).toBeHidden()
     await expect(h1(page)).toContainText(String(before + 1))
@@ -186,7 +187,8 @@ test.describe('P2 IT person, day to day: list, add by hand, CSV, detail', () => 
   test('CSV with BOM, semicolons, empty lines; export then re-import creates no duplicates', async ({ page }) => {
     await page.goto('/devices')
     const before = await countOf(page)
-    await page.getByRole('button', { name: 'Import CSV' }).click()
+    await page.getByRole('button', { name: 'Add a device' }).click()
+    await page.getByRole('dialog').getByRole('radio', { name: /^CSV import/ }).click() // #849: CSV import is a method of Add a device
     const csv = '﻿Device name;IP address;Product;Version;Type\r\n\r\nBranch firewall;192.168.77.1;FortiGate;7.2.5;Firewall\r\n\r\nAccounting printer;192.168.77.20;;;Printer\r\n;;;;\r\nBad one;999.1.1.1;;;\r\nWarehouse server;;;;Server\r\n'
     await page.getByLabel('Choose a CSV file', { exact: true }).setInputFiles({ name: 'devices.csv', mimeType: 'text/csv', buffer: Buffer.from(csv, 'utf8') })
     const dlg = page.getByRole('dialog')
@@ -201,12 +203,14 @@ test.describe('P2 IT person, day to day: list, add by hand, CSV, detail', () => 
     expect(text.charCodeAt(0)).toBe(0xfeff)
     expect(text).toContain('Branch firewall')
     expect(text).toContain('Warehouse server')
-    await page.getByRole('button', { name: 'Import CSV' }).click()
+    await page.getByRole('button', { name: 'Add a device' }).click()
+    await page.getByRole('dialog').getByRole('radio', { name: /^CSV import/ }).click() // #849: CSV import is a method of Add a device
     await page.getByLabel('Choose a CSV file', { exact: true }).setInputFiles({ name: 'export.csv', mimeType: 'text/csv', buffer: Buffer.from(text, 'utf8') })
     await expect(page.getByRole('dialog').getByText(/Added 0 devices/)).toBeVisible()
     await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).first().click()
     await expect(h1(page)).toContainText(String(before + 3))
-    await page.getByRole('button', { name: 'Import CSV' }).click()
+    await page.getByRole('button', { name: 'Add a device' }).click()
+    await page.getByRole('dialog').getByRole('radio', { name: /^CSV import/ }).click() // #849: CSV import is a method of Add a device
     await page.getByLabel('Choose a CSV file', { exact: true }).setInputFiles({ name: 'empty.csv', mimeType: 'text/csv', buffer: Buffer.from('', 'utf8') })
     await expect(page.getByRole('dialog').getByRole('alert')).toContainText('The file is empty')
     await page.getByLabel('Choose a CSV file', { exact: true }).setInputFiles({ name: 'wrong.csv', mimeType: 'text/csv', buffer: Buffer.from('a,b\n1,2\n', 'utf8') })
@@ -250,7 +254,7 @@ test.describe('P2 IT person, day to day: list, add by hand, CSV, detail', () => 
   })
 
   test('not approved: approve, flag as unknown; removing a device with findings says so; Escape and Cancel keep it', async ({ page }) => {
-    await page.goto('/devices')
+    await page.goto('/devices?tab=review') // #849: devices found but not approved are the To review list
     const pending = page.getByRole('list', { name: /new devices not approved/ })
     await expect(pending.getByRole('listitem')).toHaveCount(2)
     await pending.getByRole('button', { name: 'Mark unknown' }).first().click()
@@ -260,8 +264,8 @@ test.describe('P2 IT person, day to day: list, add by hand, CSV, detail', () => 
     await page.goto('/devices/a-nas02')
     await page.getByRole('button', { name: 'Remove from list' }).click()
     const dlg = page.getByRole('dialog')
-    await expect(dlg).toContainText(/has \d+ findings?\./)
-    await expect(dlg).toContainText('also removes')
+    // the wording of #836 (on main): the count, and that removing the device removes its findings
+    await expect(dlg).toContainText(/This device has \d+ findings?; removing the device removes (it|them) too\./)
     await shot(page, 'inventory', 'delete-with-findings')
     await page.keyboard.press('Escape')
     await expect(dlg).toBeHidden()
@@ -282,11 +286,10 @@ test.describe('P1 director, view only', () => {
   test('write buttons are locked with a reason; the setup page says which role is needed', async ({ page }) => {
     await sampleStart(page); await loginAs(page, 'u-view')
     await page.goto('/devices')
-    for (const n of ['Add a device', 'Import CSV']) {
-      const b = page.getByRole('button', { name: n })
-      await expect(b).toBeDisabled()
-      await expect(b).toHaveAttribute('title', /Operator/)
-    }
+    // #849: CSV import is a method inside Add a device, so this one button gates every way to add
+    const b = page.getByRole('button', { name: 'Add a device' })
+    await expect(b).toBeDisabled()
+    await expect(b).toHaveAttribute('title', /Operator/)
     await expect(page.getByRole('button', { name: 'Export CSV' })).toBeEnabled()
     await expect(page.getByRole('link', { name: 'Scope, sensors and agents' })).toHaveCount(0)
     await page.goto('/devices/setup')
@@ -549,9 +552,12 @@ test.describe('Clean install: first-time user', () => {
     await page.getByRole('button', { name: 'Continue' }).click()
     await finishWizard(page)
     await page.goto('/devices')
-    await expect(h1(page)).toHaveText(/^1 device,/) // only the box itself: it is always the first device (INV-3)
+    await expect(h1(page)).toHaveText('Only the Vedette box so far') // only the box itself: it is always the first device (INV-3)
     await expect(page.getByRole('button', { name: 'Add a device' }).last()).toBeEnabled()
-    await expect(page.getByRole('table').getByRole('row')).toHaveCount(2) // header + the box
+    // header + the box on a desktop table; the box alone in the phone list (DataTable mobileRow below 768 px)
+    const table = page.getByRole('table', { name: 'Device list' })
+    if (await table.count()) await expect(table.getByRole('row')).toHaveCount(2)
+    else await expect(page.getByRole('list', { name: 'Device list' }).getByRole('listitem')).toHaveCount(1)
     await shot(page, 'inventory', 'clean-empty')
     await expectAccessible(page, 'clean list')
     await expectEnglishOnly(page, 'clean list')
@@ -573,6 +579,7 @@ test.describe('Clean install: first-time user', () => {
     await expect(rows).toHaveText([/^10\.5\.0\.0\/16/])
     await page.goto('/devices')
     await page.getByRole('button', { name: 'Add a device' }).last().click()
+    await page.getByRole('dialog').getByLabel('IP address', { exact: true }).fill('10.5.0.20')
     await page.getByRole('dialog').getByRole('combobox').fill('forti')
     await page.getByRole('dialog').getByRole('option').first().click()
     await page.getByRole('dialog').getByRole('button', { name: 'Add', exact: true }).click()

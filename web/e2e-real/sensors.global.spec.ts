@@ -148,21 +148,17 @@ test('the new devices wait in the not-approved list; approving one leaves the ot
   const c = await as('admin')
   try {
     const { router, pc } = await waitForReplay(c)
-    await page.goto('/devices')
+    await page.goto('/devices?tab=review') // #849: the devices found by listening wait under To review
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(`${base.length + 2} devices, 2 not yet approved`)
     await expect(page.getByRole('heading', { name: '2 new devices not approved' })).toBeVisible()
     const pending = page.getByRole('list', { name: '2 new devices not approved' })
     await expect(pending.getByRole('listitem')).toHaveCount(2)
     await expect(pending.getByRole('listitem').filter({ hasText: `${ROUTER.model}` })).toContainText(`${ROUTER.ip}, ${ROUTER.mac}, Router. First seen`)
     await expect(pending.getByRole('listitem').filter({ hasText: PC.hostname })).toContainText(`${PC.ip}, ${PC.mac}, Unknown. First seen`)
-    await expect(page.getByRole('button', { name: 'Not approved (2)' })).toBeVisible()
+    await expect(page.getByRole('tab', { name: /^To review 2/ })).toHaveAttribute('aria-selected', 'true')
     await shot(page, 'real', 'sensor-passive-pending')
     await noVietnamese(page, 'devices')
     await expectAccessible(page, 'devices with the sensor devices')
-    // the list says where each value came from
-    const row = page.getByRole('table', { name: 'Device list' }).getByRole('row').filter({ hasText: ROUTER.ip })
-    await expect(row).toContainText('Passive')
-    await expect(row).toContainText('medium confidence')
     // approve the PC from the waiting list
     await pending.getByRole('listitem').filter({ hasText: PC.hostname }).getByRole('button', { name: 'Approve' }).click()
     await expect(page.locator('[data-sonner-toast]').filter({ hasText: `Approved ${PC.hostname}.` }).first()).toBeVisible()
@@ -170,6 +166,10 @@ test('the new devices wait in the not-approved list; approving one leaves the ot
     const left = page.getByRole('list', { name: '1 new device not approved' }) // the list is named after its count
     await expect(left.getByRole('listitem')).toHaveCount(1)
     await expect(left.getByRole('listitem')).toContainText(`${ROUTER.ip}, ${ROUTER.mac}, Router.`)
+    // the Devices list says which feeds report on each device (the device page has each value's source and confidence)
+    await page.getByRole('tab', { name: 'Devices', exact: true }).click()
+    const row = page.getByRole('table', { name: 'Device list' }).getByRole('row').filter({ hasText: PC.ip })
+    await expect(row).toContainText('Passive')
     expect((await device(c, pc.id)).asset.approved).toBe(true)
     expect((await device(c, router.id)).asset.approved, 'the other device still waits').toBe(false)
     noErrors(errors)

@@ -28,7 +28,7 @@ import { KEY, SCANNING_KEY, isFirstRun, useHome, useScanning } from './homeSumma
 import { fmtStamp } from './dates'
 
 // The add-device dialog is inventory's; Home loads it only when the button is pressed, so the Home chunk does not carry it.
-const AddDeviceDialog = lazy(() => import('@/features/inventory/AddDeviceDialog').then((m) => ({ default: m.AddDeviceDialog })))
+const AddDialog = lazy(() => import('@/features/inventory/AddDialog').then((m) => ({ default: m.AddDialog })))
 const AddRangeDialog = lazy(() => import('./AddRangeDialog').then((m) => ({ default: m.AddRangeDialog })))
 
 const dayFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
@@ -268,7 +268,7 @@ function Onboarding({ s, firstRun, prompts }: { s: HomeSummary; firstRun: boolea
         <Suspense fallback={null}>
           {/* A device added here changes the counts: ask the summary again (the box drops its cache on the device's findings). */}
           {adding === 'device'
-            ? <AddDeviceDialog open onOpenChange={(o) => { if (!o) { setAdding(null); void qc.invalidateQueries({ queryKey: KEY }) } }} />
+            ? <AddDialog open onOpenChange={(o) => { if (!o) { setAdding(null); void qc.invalidateQueries({ queryKey: KEY }) } }} />
             : <AddRangeDialog open onOpenChange={(o) => { if (!o) setAdding(null) }} />}
         </Suspense>
       ) : null}

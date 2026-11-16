@@ -7,9 +7,25 @@ import { notOffered } from '@/lib/v1'
 import { ApiError, api } from '@/lib/api'
 import { InfoTip } from './InfoTip'
 import { useQuery } from '@tanstack/react-query'
+import { Illustration, type IllustrationName } from './Illustration'
 
 /** Màn trống là hướng dẫn hành động (FRONTEND §3). `children` một dòng ngắn; giải thích dài vào `info` (ⓘ cạnh tiêu đề, #824). */
-export function EmptyState({ title, children, info, action }: { title: string; children?: ReactNode; info?: ReactNode; action?: ReactNode }) {
+/*  `art` (docs/UI.md §6): only when nothing exists yet (first run, no devices…): the #827 drawing, centred. A filter that matches
+    nothing stays text only (DataTable `emptyFiltered`). */
+export function EmptyState({ title, children, info, action, art }: { title: string; children?: ReactNode; info?: ReactNode; action?: ReactNode; art?: IllustrationName }) {
+  if (art) {
+    return (
+      <div className="grid justify-items-center gap-1 rounded-md border border-rule bg-surface px-6 py-10 text-center">
+        <Illustration name={art} className="mb-3" />
+        <div className="flex items-center gap-1">
+          <p className="font-medium">{title}</p>
+          {info ? <InfoTip topic={title}>{info}</InfoTip> : null}
+        </div>
+        {children ? <div className="max-w-md text-sm text-muted">{children}</div> : null}
+        {action ? <div className="mt-3">{action}</div> : null}
+      </div>
+    )
+  }
   return (
     <div className="rounded-md border border-dashed border-rule bg-surface px-6 py-8">
       <div className="flex items-center gap-1">

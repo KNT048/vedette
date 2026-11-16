@@ -4,22 +4,25 @@ import { InfoTip } from './InfoTip'
 import { StoryTag } from './StoryTag'
 import { ModuleBadge, ModuleLine } from './V1Scope'
 import { PageModule } from '@/lib/v1'
+import { Breadcrumbs, type Crumb } from './Breadcrumbs'
 
 /** Dòng đầu mỗi trang trả lời câu hỏi của persona (FRONTEND §3 "thứ bậc thông tin").
  *  Khung trang D-464: tiêu đề ~20 px và mô tả ngắn chung một dòng (mô tả xuống dòng khi không đủ chỗ); sau đó KpiStrip, PageTabs (`PageFrame.tsx`). */
 /*  `meta` là một dòng ngắn (≈ 12 từ); giải thích dài hơn vào `info` (ⓘ cạnh tiêu đề, #824). */
-export function PageHeader({ title, meta, info, actions, stories }: { title: ReactNode; meta?: ReactNode; info?: ReactNode; actions?: ReactNode; stories?: string[] }) {
+/*  `breadcrumbs`: the parents of a detail page (docs/UI.md §3), drawn above the title. */
+export function PageHeader({ title, meta, info, actions, stories, breadcrumbs }: { title: ReactNode; meta?: ReactNode; info?: ReactNode; actions?: ReactNode; stories?: string[]; breadcrumbs?: Crumb[] }) {
   const mod = useContext(PageModule) // D-624: a preview or leaving module's page says so under its title (#818, #819)
   return (
     <header className="mb-5 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
       <div className="grid min-w-0 max-w-4xl gap-1">
+        {breadcrumbs?.length ? <Breadcrumbs items={breadcrumbs} /> : null}
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <div className="flex items-center gap-1">
-            <h1 className="text-xl font-semibold leading-tight tracking-[-0.01em]">{title}</h1>
+            <h1 className="page-title">{title}</h1>
             {info ? <InfoTip topic={typeof title === 'string' ? title : undefined}>{info}</InfoTip> : null}
             {mod ? <ModuleBadge id={mod} className="ml-1.5 self-center" /> : null}
           </div>
-          {meta ? <div className="text-[13px] text-muted">{meta}</div> : null}
+          {meta ? <div className="text-meta text-muted">{meta}</div> : null}
         </div>
         {mod ? <ModuleLine id={mod} turnOff /> : null}
         {stories ? <StoryTag ids={stories} /> : null}
@@ -78,8 +81,9 @@ export function Notice({ tone, title, children, info, actions, role, className, 
   )
 }
 
+/** Deprecated by Card (docs/UI.md §5): kept, without padding, until its pages migrate. */
 export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-md border border-rule bg-surface ${className}`}>{children}</div>
+  return <div className={cn('rounded-md border border-rule bg-surface', className)}>{children}</div>
 }
 
 /** Danh sách nhãn: giá trị, dùng cho trang chi tiết. */

@@ -17,8 +17,8 @@ func TestBriefConfig_M2_2_ConfigBlocksAndNoMidSentenceCut(t *testing.T) {
 	a.withProfile()
 	long := strings.Repeat("Restricting J-Web can stop browser management of the switch. ", 40) // about 2,400 characters
 	answer, _ := json.Marshal(map[string]any{
-		"paragraphs": []string{"Junos OS 15.1R7.9 is inside the affected range (before 20.4).", long},
-		"steps":      []string{"Back up the configuration.", "Apply the blocks below.", "Check that J-Web no longer answers."},
+		"paragraphs":       []string{"Junos OS 15.1R7.9 is inside the affected range (before 20.4).", long},
+		"steps":            []string{"Back up the configuration.", "Apply the blocks below.", "Check that J-Web no longer answers."},
 		"no_config_reason": "",
 		"configs": []map[string]any{
 			{"title": "Juniper EX4200-48T (Junos OS)", "lines": []string{"delete system services web-management", "commit"}, "side_effect": "J-Web stops working.", "based_on": "the vendor advisory"},

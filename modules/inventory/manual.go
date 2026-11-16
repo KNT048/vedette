@@ -112,7 +112,8 @@ func (s *Service) createManual(ctx context.Context, tx *sql.Tx, o *outbox, a add
 	}
 	now := s.now()
 	id := store.NewID("a")
-	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_asset (id, ip, kind, origin, approved, fragile, first_seen, last_seen) VALUES (?, ?, 'unknown', 'manual', 1, 0, ?, ?)`, id, nullStr(a.ip), now, now); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_asset (id, ip, ip_confirmed_at, kind, origin, approved, fragile, first_seen, last_seen)
+		VALUES (?1, ?2, CASE WHEN ?2 IS NULL THEN NULL ELSE ?3 END, 'unknown', 'manual', 1, 0, ?3, ?3)`, id, nullStr(a.ip), now); err != nil {
 		return "", fmt.Errorf("inventory: create device: %w", err)
 	}
 	if a.entry != nil {

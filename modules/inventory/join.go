@@ -207,10 +207,10 @@ func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why stri
 			return err
 		}
 	}
-	var fromIP, fromSeen, fromAgent, fromAgentIP sql.NullString
+	var fromIP, fromSeen, fromAgent, fromAgentIP, fromConfirmed sql.NullString
 	var newer bool // from was seen after into (before the join folds their times)
-	if err := tx.QueryRowContext(ctx, `SELECT f.ip, f.last_seen, f.agent_key, f.agent_ip, f.last_seen >= i.last_seen FROM inv_asset f, inv_asset i WHERE f.id = ? AND i.id = ?`,
-		from, into).Scan(&fromIP, &fromSeen, &fromAgent, &fromAgentIP, &newer); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT f.ip, f.last_seen, f.agent_key, f.agent_ip, f.ip_confirmed_at, f.last_seen >= i.last_seen FROM inv_asset f, inv_asset i WHERE f.id = ? AND i.id = ?`,
+		from, into).Scan(&fromIP, &fromSeen, &fromAgent, &fromAgentIP, &fromConfirmed, &newer); err != nil {
 		return fmt.Errorf("inventory: read device: %w", err)
 	}
 	for _, q := range []string{
@@ -237,9 +237,11 @@ func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why stri
 			return fmt.Errorf("inventory: move the agent: %w", err)
 		}
 	}
-	if mode == joinMachine && fromIP.Valid { // from is deleted: its address is free
-		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = ? WHERE id = ? AND origin = 'discovered' AND is_box = 0 AND (ip IS NULL OR ?)`,
-			fromIP.String, into, newer); err != nil {
+	// from is deleted: its address is free. A hand-added row bound to a MAC or an agent moves like a discovered one (#829).
+	if mode == joinMachine && fromIP.Valid {
+		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = ?, ip_confirmed_at = ? WHERE id = ? AND is_box = 0
+			AND (origin = 'discovered' OR mac IS NOT NULL OR agent_key IS NOT NULL) AND (ip IS NULL OR ?)`,
+			fromIP.String, fromConfirmed, into, newer); err != nil {
 			return fmt.Errorf("inventory: move the address: %w", err)
 		}
 	}

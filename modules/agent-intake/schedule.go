@@ -1,6 +1,7 @@
 package agentintake
 
 import (
+	"net/netip"
 	"slices"
 	"strings"
 	"time"
@@ -58,14 +59,19 @@ func hasAnswer(reported, answer string) bool {
 	return slices.Contains(strings.Split(reported, ","), answer)
 }
 
-// nodeSchedule is the interval of each query for this node at now: the first-report interval for an answer still missing in the first
-// hour, the schedule's otherwise.
-func nodeSchedule(n nodeRow, now time.Time) map[string]int {
+// nodeSchedule is the interval of each query for this node at now, asking from src: the first-report interval for an answer still missing
+// in the first hour, the schedule's otherwise. A node bound to an address that now asks from another (a laptop DHCP moved) is asked for
+// its interfaces every firstReportInterval until a report binds it again (#829): its reports reach its device by the node meanwhile
+// (ingest.go), but its new address only with that answer. A node behind NAT gets an unbound address with that answer and is back on
+// the hourly schedule.
+func nodeSchedule(n nodeRow, now time.Time, src netip.Addr) map[string]int {
 	out := make(map[string]int, len(schedule))
 	young := !n.enrolledAt.IsZero() && now.Sub(n.enrolledAt) < firstReportWindow
+	src = src.Unmap().WithZone("")
+	moved := n.boundIP.IsValid() && src.Is4() && src != n.boundIP
 	for _, q := range schedule {
 		out[q.name] = q.interval
-		if young && !hasAnswer(n.reported, firstReport[q.name]) {
+		if young && !hasAnswer(n.reported, firstReport[q.name]) || moved && q.name == "interfaces" {
 			out[q.name] = firstReportInterval
 		}
 	}

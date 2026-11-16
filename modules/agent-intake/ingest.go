@@ -35,17 +35,28 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 	if err := s.markResult(ctx, n, ip, mac, update); err != nil {
 		return err
 	}
-	if !ip.IsValid() {
-		s.warnUnmatched(ctx, n.id,
-			"node", n.id, "src", src.String(), "declared_interfaces", len(in.snaps["interfaces"]))
-		return nil
-	}
 	// The hint is the TCP address and the node (D-598), never the MAC. The MAC is the node's own claim, and the inventory resolves a
 	// device by MAC: with it in the hint a node could write onto any device whose MAC it names. It goes in as a 0.9 observation only,
 	// which the inventory refuses when another device owns that MAC (D-265 (4)). The node is the id this box gave it at enrolment:
 	// the inventory binds it to the device its report reached by address, and a later report finds that device by it when the
 	// machine's address changed (a laptop on DHCP), instead of making a second device.
 	hint := observe.AssetHint{IP: ip, Agent: nodeAgent(n.id)}
+	if !ip.IsValid() {
+		s.warnUnmatched(ctx, n.id,
+			"node", n.id, "src", src.String(), "declared_interfaces", len(in.snaps["interfaces"]))
+		if update { // the request's own interfaces answer says the connection's address is not the node's (NAT, a spoof)
+			return nil
+		}
+		// The request has no interfaces answer and comes from another address than the bound one: a laptop DHCP moved, before its next
+		// interfaces answer (config asks for it every minute meanwhile, nodeSchedule). The report goes by the node alone, with From = the
+		// connection's address (#829: its facts arrive at once): the inventory gives it to the device it bound the node to only when that
+		// device is at From (a sensor saw the machine move there); it moves no address, finds no other device and creates none. A copied
+		// node key used from another machine's address therefore still writes nothing.
+		hint = observe.AssetHint{Agent: nodeAgent(n.id)}
+		if a := src.Unmap().WithZone(""); a.Is4() {
+			hint.From = a
+		}
+	}
 	kernel, err := s.nodeKernel(ctx, n, in)
 	if err != nil {
 		return err
@@ -56,7 +67,7 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 	}
 	in.snaps = withWindows(withKernel(in.snaps, kernel), win)
 	taken, err := s.deliver(ctx, src.Unmap().WithZone(""), hint, mac, n.id, in)
-	if err != nil {
+	if err != nil || !ip.IsValid() { // the enrolment's name, the first report and the approval need the address the node declared
 		return err
 	}
 	named, err := s.enrolHostname(ctx, n, hint, in)

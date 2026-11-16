@@ -172,7 +172,7 @@ UQ `(type, value)`. IX `(type, value)` phục vụ khớp log, `(expires_at)`. G
 | `fragile_manual` | bool | không | 0; 1 = người dùng đã ghi đè theo chính sách loại |
 | `agent_key` | text | có | the agent bound to the device (`osquery:<node id>`, D-598, migration 0008, unique); its reports find the device before its address; NULL = no agent bound |
 | `agent_ip` | text | có | the address the bound agent last reported from (D-598, migration 0008); a sensor seeing the device's burned-in MAC elsewhere after that report drops the binding |
-| `ip_confirmed_at` | text | có | when a sighting last tied the device to `ip` (its MAC seen there, its bound agent reporting from it, a person declaring it, or anything seen there for a device with no MAC; #829, migration 0011); a hint with only an address goes to the device only within 3 days of it |
+| `ip_confirmed_at` | text | có | when a sighting last tied the device to `ip` (its MAC seen there, its bound agent reporting from it, a person declaring it, or anything seen there for a device with no MAC; #829, inventory migration 0012); a hint with only an address goes to the device only within 3 days of it |
 | `regular_scan` | enum(follow\|allow\|never) | không | `follow` (D-45) |
 | `first_scan_at` | ts | có | thời điểm quét nhẹ lần đầu (D-45); NULL = chưa quét hoặc khai tay |
 | `suspicious` | bool | không | 0 (`POST …/suspicious`) |

@@ -1,6 +1,7 @@
 // Sample data and scan-result generator of the exposure mock. 203.0.113.0/24 is the documentation range (RFC 5737), not real IPs.
 import { daysAgo } from '@/mocks/db'
 import { dateText } from './dates'
+import { serviceIdent } from './services'
 import { CERT_WARN_DAYS, type AdminRow, type BoxIpSettings, type CertRow, type CheckRow, type Counts, type GapRow, type GreenboneResult, type HostClass, type HostIp, type HostRow, type IgnoredIp, type NotCheckedRow, type OutsideView, type PortRow, type ServiceRow, type Snapshot, type Target, type TargetKind, type TemplateRow, type VulnRow, type WebFinding } from './types'
 
 export const BOX_EGRESS_IP = '203.0.113.10'
@@ -46,7 +47,8 @@ export function countsOf(c: Content, extraIp?: string): Counts {
 const H = (ip: string, cls: HostClass, contacted = cls !== 'private'): HostIp => ({ ip, family: 'ipv4', class: cls, ...(contacted ? { contacted } : {}) })
 
 // acme.example: latest result before today's scan. The two older snapshots are trimmed copies of it.
-const P = (ip: string, port: number, service: string, product?: string): PortRow => ({ ip, port, service, product })
+// M2-7 (review r1 M1): as the box marks a surface row: identified only when its GET read a product, else a port-number guess
+const P = (ip: string, port: number, service: string, product?: string): PortRow => ({ ip, port, service, product, ident: product ? 'probed' : 'port' })
 function acmeNow(): Content {
   const mailExp = inDays(9), vpnExp = inDays(21)
   return {
@@ -113,16 +115,27 @@ export function scanContent(t: { kind: TargetKind; value: string }): Content {
   }
 }
 
+/** As the box says it (review r2 L3): only what a probe named counts as identified. */
+function servicesRead(services: ServiceRow[]) {
+  const ident = services.map(serviceIdent)
+  const guess = ident.filter((x) => x === 'port').length, none = ident.filter((x) => x === 'none').length
+  return `${plural(services.length - guess - none, 'service')} identified${guess ? `, ${guess} named by port number only` : ''}${none ? `, ${none} not identified` : ''}`
+}
+
 const S = (ip: string, port: number, name: string, product = '', version = '', cpe = '', extra = ''): ServiceRow => ({ ip, port, name, product, version, cpe, extra })
 
-/** The box's own IP (203.0.113.10): a FortiGate SSL VPN that hides its version, an old Apache forwarded to a LAN server, and a port
- * that closes every connection. The sample of S-EXP-2: two exploited CVEs by version and one service that needs its version. */
+/** The box's own IP (203.0.113.10): a FortiGate SSL VPN that hides its version, an old Apache forwarded to a LAN server, a port
+ * that closes every connection, a SIP port only the port number names and a TLS port nothing identified, whose certificate names
+ * the device (M2-7). The sample of S-EXP-2: two exploited CVEs by version and one service that needs its version. */
 function boxIpNow(): Content {
   const ip = BOX_EGRESS_IP
+  const probed = (r: ServiceRow, conf = 10): ServiceRow => ({ ...r, method: 'probed', conf })
   return {
     hosts: [], admin_panels: [], certs: [{ host: ip, issuer: 'Fortinet (self-signed)', expires_at: inDays(120) }],
-    ports: [P(ip, 443, 'https', 'FortiGate SSL-VPN'), P(ip, 8443, 'https'), P(ip, 18443, 'http', 'Apache/2.4.49 (Unix)')],
-    services: [S(ip, 443, 'https', 'Fortinet FortiGate SSL VPN', '', 'cpe:/o:fortinet:fortios'), S(ip, 8443, 'tcpwrapped'), S(ip, 18443, 'http', 'Apache httpd', '2.4.49', 'cpe:/a:apache:http_server:2.4.49', '(Unix)')],
+    ports: [{ ...P(ip, 443, 'https', 'FortiGate SSL-VPN'), ident: 'probed' }, { ...P(ip, 8443, 'tcpwrapped'), ident: 'none' }, { ...P(ip, 18443, 'http', 'Apache/2.4.49 (Unix)'), ident: 'probed', title: 'Index of /' },
+      { ip, port: 5060, service: 'sip', ident: 'port' }, { ip, port: 11443, service: 'ssl/unknown', ident: 'none', cert_names: ['nas01.acme.example', 'backup.acme.example'] }],
+    services: [probed(S(ip, 443, 'https', 'Fortinet FortiGate SSL VPN', '', 'cpe:/o:fortinet:fortios')), probed(S(ip, 8443, 'tcpwrapped'), 8), probed(S(ip, 18443, 'http', 'Apache httpd', '2.4.49', 'cpe:/a:apache:http_server:2.4.49', '(Unix)')),
+      { ...S(ip, 5060, 'sip'), method: 'table', conf: 3 }, { ...S(ip, 11443, 'ssl/unknown'), method: 'table', conf: 3 }],
   }
 }
 
@@ -186,7 +199,7 @@ function lines(c: Content, at: string, ip: boolean, m: ReturnType<typeof matchSe
   return {
     checks: [
       { kind: 'ports', at, text: `TCP connect to the fixed list of commonly exposed ports, then one GET / on each open web port and a TLS handshake on each TLS port: ${plural(c.ports.length, 'port')} open.` },
-      { kind: 'services', at, text: `Service identification (nmap -sV) on 98 TCP ports: ${plural(services.length, 'service')} identified.` },
+      { kind: 'services', at, text: `Service identification (nmap -sV) on 98 TCP ports: ${servicesRead(services)}.` },
       ...(services.length > 0 ? [{ kind: 'cve', at, text: cve }] : []),
     ],
     not_checked,

@@ -72,6 +72,8 @@ type DeepGate interface {
 
 // ExternalService is what -sV read on one open TCP port. The strings come from the network: printable, at most 200 runes
 // (text, INV-7); CPE is the first application CPE ("cpe:/a:…") nmap printed, "" when none. exposure limits them further.
+// Method is how nmap named the service (M2-7): "probed" (a probe's answer matched), "table" (only the usual service of the port
+// number, nothing confirmed), "" when nmap did not say; Conf nmap's confidence 1..10 (0 when absent; a table name is 3).
 type ExternalService struct {
 	Port    int
 	Name    string
@@ -79,6 +81,8 @@ type ExternalService struct {
 	Version string
 	CPE     string
 	Extra   string
+	Method  string
+	Conf    int
 }
 
 // ExternalScript is one NSE script result of a full run (D-526): Port is the open TCP port it ran on, 0 for a host script
@@ -364,7 +368,7 @@ func externalOf(hosts []host, ip netip.Addr, kind nmapargv.Kind) (External, erro
 				break
 			}
 		}
-		ext.Services = append(ext.Services, ExternalService{Port: p.number, Name: p.name, Product: p.product, Version: p.version, CPE: cpe, Extra: p.info})
+		ext.Services = append(ext.Services, ExternalService{Port: p.number, Name: p.name, Product: p.product, Version: p.version, CPE: cpe, Extra: p.info, Method: p.method, Conf: p.conf})
 	}
 	if len(ext.Services) > commonports.MaxBelievableOpen { // D-522 (N5): a router or SYN proxy answering for every port
 		return External{}, ErrAnswersEverywhere

@@ -6,7 +6,6 @@ import { Plus } from 'lucide-react'
 import { Notice, PageHeader, Section, Panel } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
-import { Chip } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogTrigger } from '@/components/ui/dialog'
@@ -23,7 +22,8 @@ import { ScanProgress } from './ScanProgress'
 import { useAddTarget, useTargets } from './api'
 import { OutsideList } from './OutsidePanel'
 import { PortMark, PortMarkNote } from './PortMark'
-import { portLabel, riskOf } from './services'
+import { identOf, portLabel, serviceName } from './services'
+import { PortHints, RiskChip } from './PortIdent'
 import type { Gateway, PortRow, Target } from './types'
 import { blockedKey } from './types'
 
@@ -102,14 +102,17 @@ function OpenPorts({ ports, total, gateway }: { ports: (PortRow & { target: Targ
       {gateway ? <GatewayNote g={gateway} /> : null}
       <Panel className="divide-y divide-rule">
         {ports.map((p) => {
-          const risk = riskOf(p)
+          const ident = identOf(p)
           return (
             <div key={`${p.target.id}|${p.ip}|${p.port}`} className="grid gap-1 px-4 py-3">
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="font-medium">{portLabel(p)}</span>
                 <span className="text-muted">{t('open.on', { ip: p.ip })}</span>
                 {p.product ? <span className="text-muted">{t('open.software', { product: p.product })}</span> : null}
-                {risk ? <span className="flex items-center gap-1"><Chip tone="warn">{t('open.attacked')}</Chip><InfoTip topic={t('open.attacked')}>{t(`risky.${risk}`)}</InfoTip></span> : null}
+                {ident === 'port' ? <span className="inline-flex items-center gap-1 text-muted">{t('open.byPort')}<InfoTip topic={t('open.byPort')}>{t('open.byPortInfo', { port: p.port, service: serviceName(p.service) })}</InfoTip></span> : null}
+                {ident === 'none' ? <InfoTip topic={portLabel(p)}>{p.service === 'tcpwrapped' ? t('vulns.tcpwrapped') : t('open.notIdentifiedInfo')}</InfoTip> : null}
+                <PortHints p={p} className="text-muted" />
+                <RiskChip p={p} />
                 <PortMark p={p} />
                 <Link className="text-meta text-accent underline-offset-4 hover:underline" to={`/exposure/${p.target.id}`}>{t('open.details')}</Link>
               </div>

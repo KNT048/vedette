@@ -70,7 +70,7 @@
       "noRecipients": "No recipients yet.",
       "next": "Next send: {{time}}.",
       "off": "Automatic sending is off.",
-      "channel": "Sent through the email channel in Settings, Alert channels.",
+      "channel": "Sent through the <a>email channel</a> in Settings, Alert channels.",
       "noChannel": "No email channel is on, so nothing will be sent until you set one up.",
       "setupChannel": "Set up the email channel",
       "saved": "Schedule saved",
@@ -89,6 +89,7 @@
       "emptyBody": "Use Send now in the preview, or turn on automatic sending.",
       "emptyBodyInfo": "Send now works once the report has content; each sent report starts the history.",
       "caption": "History of weekly reports sent",
+      "openChannel": "Open the email channel",
       "col": {
         "time": "Time",
         "trigger": "How sent",

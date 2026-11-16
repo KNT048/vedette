@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Printer, Send, Sparkles, X } from 'lucide-react'
 import { Notice, Section } from '@/components/common/PageHeader'
@@ -172,7 +172,7 @@ function ScheduleForm({ s, noChannel }: { s: Schedule; noChannel: boolean }) {
         // docs/UI.md §0: the email channel is set up right here (the same form as Settings › Alert channels)
         <Notice tone="warn" role="alert" className="mb-0" title={t('weekly.schedule.noChannel')} actions={<NewChannelButton type="email" label={t('weekly.schedule.setupChannel')} />} />
       ) : null}
-      <p className="text-meta text-muted">{s.next_run && s.enabled && !noChannel ? t('weekly.schedule.next', { time: fmtDateTime(s.next_run) }) : t('weekly.schedule.off')} {t('weekly.schedule.channel')}</p>
+      <p className="text-meta text-muted">{s.next_run && s.enabled && !noChannel ? t('weekly.schedule.next', { time: fmtDateTime(s.next_run) }) : t('weekly.schedule.off')} {/* docs/UI.md §13 (3): the place it names links to the exact channel */}<Trans t={t} i18nKey="weekly.schedule.channel" components={{ a: <Link to="/settings/channels#channel-email" className="text-accent underline-offset-4 hover:underline" /> }} /></p>
       <ActionError error={savedErr ? null : save.error} />
       <div><Button type="submit" variant="primary" disabled={!admin || save.isPending} title={reason}>{save.isPending ? t('weekly.schedule.saving') : t('common:save')}</Button></div>
     </form>
@@ -192,7 +192,7 @@ function HistorySection() {
               { id: 'ts', header: t('weekly.history.col.time'), accessorKey: 'ts', cell: ({ getValue }: { getValue: () => unknown }) => fmtDateTime(getValue() as string) },
               { id: 'trigger', header: t('weekly.history.col.trigger'), accessorFn: (r: Row) => t(`weekly.history.trigger.${r.trigger}`) },
               { id: 'to', header: t('weekly.history.col.to'), accessorFn: (r: Row) => t('weekly.history.people', { count: r.recipients.length }), cell: ({ row }: { row: { original: Row } }) => <span title={row.original.recipients.join(', ')}>{t('weekly.history.people', { count: row.original.recipients.length })}</span> },
-              { id: 'status', header: t('weekly.history.col.status'), accessorKey: 'status', cell: ({ row }: { row: { original: Row } }) => row.original.status === 'sent' ? <Chip tone="ok">{t('weekly.history.sent')}</Chip> : <span className="grid gap-1"><Chip tone="warn">{t('weekly.history.failed')}</Chip><span className="max-w-xs whitespace-normal text-caption text-muted">{row.original.error}</span></span> },
+              { id: 'status', header: t('weekly.history.col.status'), accessorKey: 'status', cell: ({ row }: { row: { original: Row } }) => row.original.status === 'sent' ? <Chip tone="ok">{t('weekly.history.sent')}</Chip> : <span className="grid gap-1"><Chip tone="warn">{t('weekly.history.failed')}</Chip><span className="max-w-xs whitespace-normal text-caption text-muted">{row.original.error}</span><Link to="/settings/channels#channel-email" className="w-fit text-caption text-accent underline-offset-4 hover:underline">{t('weekly.history.openChannel')}</Link></span> },
               { id: 'open', header: t('weekly.history.col.open'), enableSorting: false, cell: ({ row }: { row: { original: Row } }) => <Link to={`/reports/print/weekly/${row.original.id}`} className="text-accent underline-offset-4 hover:underline">{t('weekly.history.open')}</Link> },
             ]} />
         )}

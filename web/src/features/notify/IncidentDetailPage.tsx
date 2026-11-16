@@ -75,7 +75,7 @@ function Content() {
           { id: 'channel', header: t('detail.log.channel'), accessorFn: (r) => r.channel, cell: ({ row }) => t(`ch.${row.original.channel}`) },
           { id: 'to', header: t('detail.log.to'), accessorFn: (r) => r.to },
           { id: 'result', header: t('detail.log.result'), accessorFn: (r) => Number(r.ok), cell: ({ row: { original: r } }) => (
-            <div className="grid gap-1">{r.ok ? <Chip tone="ok">{t('detail.ok')}</Chip> : <Chip tone="warn">{t('detail.failed')}</Chip>}{r.error ? <span className="max-w-[48ch] text-meta">{r.error}</span> : null}</div>
+            <div className="grid gap-1">{r.ok ? <Chip tone="ok">{t('detail.ok')}</Chip> : r.delayed ? <Chip tone="accent">{t('history.delayed')}</Chip> : <Chip tone="warn">{t('detail.failed')}</Chip>}{r.error ? <span className="max-w-[48ch] text-meta">{r.error}</span> : null}</div>
           ) },
         ]
         return (

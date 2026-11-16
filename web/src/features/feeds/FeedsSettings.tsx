@@ -77,7 +77,10 @@ function Tables({ items }: { items: Feed[] }) {
       <span><Chip tone={f.status === 'ok' ? 'ok' : f.status === 'error' ? 'danger' : 'off'}>{t(`status.${f.status}`)}</Chip></span>
       {f.answered_by ? <span className="text-caption text-muted">{t('row.answeredBy', { source: f.answered_by })}</span> : null}
       {f.error ? <span className="max-w-64 text-caption text-muted">{f.error}</span> : null}
-      {needsKey(f) ? <span className="max-w-64 text-caption text-muted">{t('row.needsKey')}</span> : null}
+      {/* docs/UI.md §0: the missing key is added right here (the same dialog as the row's Settings) */}
+      {needsKey(f) ? (admin
+        ? <button type="button" className="w-fit max-w-64 text-left text-caption text-accent underline-offset-4 hover:underline" onClick={() => setBuiltin(f)}>{t('row.needsKey')}</button>
+        : <span className="max-w-64 text-caption text-muted">{t('row.needsKey')}</span>) : null}
       {f.status === 'never' && f.enabled && !f.error ? <span className="max-w-64 text-caption text-muted">{t('row.firstFetch')}</span> : null}
     </span>
   )

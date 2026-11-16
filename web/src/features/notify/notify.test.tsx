@@ -130,7 +130,11 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     expect(tg).toHaveTextContent('What to do first: Take the machine off the network')
     expect(tg).toHaveTextContent('https://192.168.10.250/incidents/al-4')
     expect(screen.queryByText('Vulnerability IDs')).not.toBeInTheDocument()
-    expect(within(screen.getByRole('table', { name: 'Delivery log of the incident' })).getAllByText('Sent')).toHaveLength(1)
+    const delivery = within(screen.getByRole('table', { name: 'Delivery log of the incident' }))
+    expect(delivery.getAllByText('Sent')).toHaveLength(1)
+    // D-483: a rate-limited send is Delayed (sent again by itself), as in History, never Failed
+    expect(delivery.getByText('Delayed')).toBeInTheDocument()
+    expect(delivery.queryByText('Failed')).toBeNull()
     await expectNoA11yViolations()
   })
 

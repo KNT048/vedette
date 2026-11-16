@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net/netip"
 	"regexp"
 	"slices"
 	"strings"
@@ -314,6 +313,10 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 	if !observe.ValidSource(source) || source == observe.Manual {
 		return invalid("software source %q is not allowed", source)
 	}
+	agent, err := checkAgent(hint, source)
+	if err != nil {
+		return err
+	}
 	conv := make([]SoftwareItem, len(items))
 	cat := s.cpeCatalog(ctx, items)
 	for i, it := range items {
@@ -333,7 +336,7 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 	}
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		now := s.seen(s.clock())
-		id, err := s.deviceFor(ctx, tx, o, ip, mac, source, now)
+		id, err := s.deviceFor(ctx, tx, o, cleanObs{ip: ip, mac: mac, agent: agent, source: string(source), seenAt: now})
 		if err != nil {
 			return err
 		}
@@ -357,12 +360,18 @@ func (s *Service) cpeCatalog(ctx context.Context, items []observe.Software) *Cat
 
 // deviceFor finds the device of a sensor's list (software, services) by its MAC or IP, or creates it unapproved and announces it.
 // Every call is a contact of the source (D-474), whether or not it creates a device.
-func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, ip netip.Addr, mac string, source observe.Source, now string) (string, error) {
+func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs) (string, error) {
+	ip, mac, source, now := c.ip, c.mac, observe.Source(c.source), c.seenAt
 	learning, err := s.learning(ctx, tx, string(source))
 	if err != nil {
 		return "", err
 	}
-	id, isNew, err := s.resolve(ctx, tx, cleanObs{ip: ip, mac: mac, seenAt: now})
+	find := c
+	find.source = "" // a list moves no address by its source (as before D-598); the agent bound to a device does, in resolve
+	id, isNew, err := s.resolve(ctx, tx, find)
+	if err == nil && c.agent != "" {
+		err = bindAgent(ctx, tx, id, c.agent)
+	}
 	if err != nil || !isNew {
 		return id, err
 	}

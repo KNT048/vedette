@@ -170,6 +170,7 @@ UQ `(type, value)`. IX `(type, value)` phục vụ khớp log, `(expires_at)`. G
 | `approved_at` | ts | có | lúc người duyệt thiết bị cảm biến thấy, hoặc lúc osquery đăng ký duyệt nó (INV-25); duyệt lại không dời; NULL = chưa duyệt, khai tay, hoặc duyệt trước migration 0003 (D-471) |
 | `fragile` | bool | không | tính từ `kind` ∈ `inv_setting.fragile_kinds` lúc tạo; sửa tay qua `PATCH` (cờ `fragile_manual`) |
 | `fragile_manual` | bool | không | 0; 1 = người dùng đã ghi đè theo chính sách loại |
+| `agent_key` | text | có | the agent bound to the device (`osquery:<node id>`, D-598, migration 0008, unique); its reports find the device before its address; NULL = no agent bound |
 | `regular_scan` | enum(follow\|allow\|never) | không | `follow` (D-45) |
 | `first_scan_at` | ts | có | thời điểm quét nhẹ lần đầu (D-45); NULL = chưa quét hoặc khai tay |
 | `suspicious` | bool | không | 0 (`POST …/suspicious`) |

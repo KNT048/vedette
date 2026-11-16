@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -150,12 +151,23 @@ func differ(a, b map[string]string) bool {
 	return false
 }
 
-// joinInto moves device from into device into and deletes from (D-515): its observations (the MAC as the chassis mark), software
-// and open ports; the suspicious flag, the notes and the scan choices a person made on it when into has none. The approval never
-// moves (review H1 of #722): a device that joins an approved row would otherwise be approved by a MAC anyone can pick, so a person
-// approves the joined device. One audit row inventory.merge. into keeps its id, address and MAC; the fields are folded again by the
-// usual rules (RecomputeAsset).
-func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why string) error {
+// joinMode says what a join keeps of the row that goes: a chassis join (D-515) keeps its MAC as a mark on the other row; a join of
+// one machine's rows (D-598) keeps its MACs as plain observations (the newest wins, as for any field) and its address when it is the
+// newer one.
+type joinMode int
+
+const (
+	joinChassis joinMode = iota
+	joinMachine
+)
+
+// joinInto moves device from into device into and deletes from (D-515, D-598): its observations (the MAC as the chassis mark in a
+// chassis join), software and open ports; the suspicious flag, the notes and the scan choices a person made on it when into has none;
+// the agent bound to it when into has none. The approval never moves (review H1 of #722): a device that joins an approved row would
+// otherwise be approved by a MAC anyone can pick, so a person approves the joined device. One audit row inventory.merge. into keeps
+// its id; in a chassis join also its address and MAC; in a machine join it takes from's address when from was seen later and into is
+// a discovered device (a person's address and the box's stay). The fields are folded again by the usual rules (RecomputeAsset).
+func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why string, mode joinMode) error {
 	fromName, intoName := deviceName(ctx, tx, from), deviceName(ctx, tx, into)
 	rows, err := tx.QueryContext(ctx, `SELECT field, value, source, confidence, seen_at, evidence FROM inv_observation WHERE asset_id = ?`, from)
 	if err != nil {
@@ -182,7 +194,7 @@ func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why stri
 		return err
 	}
 	for _, m := range list {
-		if m.field == "mac" { // the chassis MAC becomes a mark; every other observation moves as it is, its evidence included
+		if m.field == "mac" && mode == joinChassis { // the chassis MAC becomes a mark; every other observation moves as it is, its evidence included
 			m.evidence = sql.NullString{String: chassisEvidence, Valid: true}
 		}
 		if _, err := tx.ExecContext(ctx, `INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at, evidence) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -194,7 +206,14 @@ func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why stri
 			return err
 		}
 	}
+	var fromIP, fromSeen, fromAgent sql.NullString
+	var newer bool // from was seen after into (before the join folds their times)
+	if err := tx.QueryRowContext(ctx, `SELECT f.ip, f.last_seen, f.agent_key, f.last_seen >= i.last_seen FROM inv_asset f, inv_asset i WHERE f.id = ? AND i.id = ?`,
+		from, into).Scan(&fromIP, &fromSeen, &fromAgent, &newer); err != nil {
+		return fmt.Errorf("inventory: read device: %w", err)
+	}
 	for _, q := range []string{
+		`UPDATE inv_asset SET agent_key = NULL WHERE id = ?2`, // the key is unique: free it before into takes it
 		`UPDATE OR IGNORE inv_software SET asset_id = ?1 WHERE asset_id = ?2`,
 		`UPDATE OR IGNORE inv_service SET asset_id = ?1 WHERE asset_id = ?2`,
 		`UPDATE inv_asset SET
@@ -210,6 +229,17 @@ func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why stri
 	} {
 		if _, err := tx.ExecContext(ctx, q, into, from); err != nil {
 			return fmt.Errorf("inventory: join devices: %w", err)
+		}
+	}
+	if fromAgent.Valid {
+		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET agent_key = ? WHERE id = ? AND agent_key IS NULL`, fromAgent.String, into); err != nil {
+			return fmt.Errorf("inventory: move the agent: %w", err)
+		}
+	}
+	if mode == joinMachine && fromIP.Valid { // from is deleted: its address is free
+		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = ? WHERE id = ? AND origin = 'discovered' AND is_box = 0 AND (ip IS NULL OR ?)`,
+			fromIP.String, into, newer); err != nil {
+			return fmt.Errorf("inventory: move the address: %w", err)
 		}
 	}
 	return s.auditTx(ctx, tx, systemActor, "inventory.merge", intoName, fromName+" is the same device: "+why)
@@ -262,19 +292,23 @@ func lastByte(mac string) int {
 	return int(b)
 }
 
-// joinSame runs sameDevice on every device a Record batch touched and joins each that fits (D-515). It returns the devices that are
-// gone and those that received one. A joined device created in this very batch was never announced; an older one is announced
-// merged (findings moves its findings, with their status and history, to the device that received it; review H2 of #722) and
-// then deleted (the other listeners drop it; findings has nothing left to delete). The device that received it is matched again.
+// joinSame runs the join rules on every device a Record batch touched and joins each pair that fits: sameDevice (D-515, the touched
+// row goes), agentOrphan and sameMachine (D-598, either row may go). It returns the devices that are gone and those that received
+// one. A joined device created in this very batch was never announced; an older one is announced merged (findings moves its findings,
+// with their status and history, to the device that received it; review H2 of #722) and then deleted (the other listeners drop it,
+// notify closes its new-device incident; findings has nothing left to delete). The device that received it is matched again.
 func (s *Service) joinSame(ctx context.Context, tx *sql.Tx, o *outbox, touched []string, created map[string]string, before map[string]string) (map[string]bool, []string, error) {
 	gone := map[string]bool{}
 	var joined []string
 	for _, id := range touched {
-		into, why, err := sameDevice(ctx, tx, id)
-		if err != nil || into == "" {
-			if err != nil {
-				return nil, nil, err
-			}
+		if gone[id] {
+			continue
+		}
+		from, into, why, mode, err := sameAs(ctx, tx, id)
+		if err != nil {
+			return nil, nil, err
+		}
+		if from == "" {
 			continue
 		}
 		if _, ok := before[into]; !ok {
@@ -282,17 +316,184 @@ func (s *Service) joinSame(ctx context.Context, tx *sql.Tx, o *outbox, touched [
 				return nil, nil, err
 			}
 		}
-		if err := s.joinInto(ctx, tx, id, into, why); err != nil {
+		if err := s.joinInto(ctx, tx, from, into, why, mode); err != nil {
 			return nil, nil, err
 		}
-		gone[id] = true
+		gone[from] = true
+		joined = slices.DeleteFunc(joined, func(x string) bool { return x == from })
 		if !slices.Contains(joined, into) {
 			joined = append(joined, into)
 		}
-		if created[id] == "" {
-			o.add(EventAssetMerged, MergeEvent{From: id, Into: into, Actor: systemActor})
-			o.add(EventAssetDeleted, AssetEvent{AssetID: id})
+		if created[from] == "" {
+			o.add(EventAssetMerged, MergeEvent{From: from, Into: into, Actor: systemActor})
+			o.add(EventAssetDeleted, AssetEvent{AssetID: from})
 		}
 	}
 	return gone, joined, nil
+}
+
+// sameAs finds the pair of rows a touched row is part of: from goes into into. "" when none fits.
+func sameAs(ctx context.Context, tx *sql.Tx, id string) (from, into, why string, mode joinMode, err error) {
+	if into, why, err = sameDevice(ctx, tx, id); into != "" || err != nil {
+		return id, into, why, joinChassis, err
+	}
+	if from, why, err = agentOrphan(ctx, tx, id); from != "" || err != nil {
+		return from, id, why, joinMachine, err
+	}
+	from, into, why, err = sameMachine(ctx, tx, id)
+	return from, into, why, joinMachine, err
+}
+
+// genericNames are host names many machines carry out of the box (D-598): two devices that share one are not the same device.
+var genericNames = append(slices.Clone(defaultNames), "android", "client", "debian", "desktop", "device", "esp32", "esp8266", "espressif",
+	"galaxy", "host", "imac", "ipad", "iphone", "laptop", "mac", "macbook", "macbook-air", "macbook-pro", "none", "pc", "raspberrypi",
+	"tasmota", "ubuntu", "unknown", "windows")
+
+// ipLikeName is a name made from an address ("dhcp-192-168-1-20"): it names the lease, not the machine.
+var ipLikeName = regexp.MustCompile(`\d{1,3}[-._]\d{1,3}[-._]\d{1,3}[-._]\d{1,3}`)
+
+// machineName is the part of a host name that identifies a machine (D-598): its first label, lower case ("Kiens-MacBook-Air.local" ->
+// "kiens-macbook-air"); "" for a name too short, generic, made of an address, or only an identifier (uuidName).
+func machineName(h string) string {
+	l, _, _ := strings.Cut(strings.TrimSpace(h), ".")
+	l = strings.ToLower(l)
+	if len(l) < 3 || slices.Contains(genericNames, l) || uuidName.MatchString(l) || ipLikeName.MatchString(l) {
+		return ""
+	}
+	return l
+}
+
+// universalMAC is the SQL test of a normalised MAC that a maker burned in: the locally administered bit (0x02 of the first byte, the
+// second hex digit 2, 3, 6, 7, a, b, e or f) is clear.
+const universalMAC = `substr(%s, 2, 1) IN ('0', '1', '4', '5', '8', '9', 'c', 'd')`
+
+// macKinds reports whether a device has a MAC its maker burned in, and whether it has a locally administered (private) one: as its
+// MAC, or as any MAC observation but a chassis mark.
+func macKinds(ctx context.Context, tx *sql.Tx, id string) (burned, private bool, err error) {
+	var b, p int
+	err = tx.QueryRowContext(ctx, `SELECT coalesce(sum(`+fmt.Sprintf(universalMAC, "m")+`), 0), coalesce(sum(NOT `+fmt.Sprintf(universalMAC, "m")+`), 0)
+		FROM (SELECT mac AS m FROM inv_asset WHERE id = ?1 AND mac IS NOT NULL
+			UNION SELECT value FROM inv_observation WHERE asset_id = ?1 AND field = 'mac' AND evidence IS NOT ?2)`, id, chassisEvidence).Scan(&b, &p)
+	if err != nil {
+		return false, false, fmt.Errorf("inventory: read the MACs: %w", err)
+	}
+	return b > 0, p > 0, nil
+}
+
+// sameMachine finds the other row of a machine that has no burned-in MAC (D-598): a phone or laptop with a private Wi-Fi address
+// (macOS, iOS, Android and Windows pick a locally administered MAC per network or per day, DHCP then gives a new address, and every
+// new MAC made a new row). Two rows are one machine when neither has a MAC its maker burned in, one of them has a private one (two
+// rows known only by address, a server with two addresses on a routed subnet, stay two), they carry the same host name
+// (machineName: first label, any case; not generic) and state no other model or OS (facts, differ), and exactly one other row
+// carries that name; never the box, never two rows a person declared. The row that stays: one a person declared, else an approved
+// one, else the older one (first_seen, then the smaller id); so a person's approval and address stay where they are.
+func sameMachine(ctx context.Context, tx *sql.Tx, id string) (from, into, why string, err error) {
+	var isBox bool
+	if err := tx.QueryRowContext(ctx, `SELECT is_box FROM inv_asset WHERE id = ?`, id).Scan(&isBox); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", "", "", nil
+		}
+		return "", "", "", fmt.Errorf("inventory: read device: %w", err)
+	}
+	if isBox {
+		return "", "", "", nil
+	}
+	own, err := facts(ctx, tx, id)
+	if err != nil {
+		return "", "", "", err
+	}
+	name := machineName(own["hostname"])
+	if name == "" {
+		return "", "", "", nil
+	}
+	burned, private, err := macKinds(ctx, tx, id)
+	if burned || err != nil {
+		return "", "", "", err
+	}
+	ids, err := candidates(ctx, tx, `SELECT id FROM inv_asset WHERE id <> ? AND is_box = 0 AND (lower(hostname) = ? OR (lower(hostname) >= ? AND lower(hostname) < ?))`,
+		id, name, name+".", name+"/")
+	if err != nil {
+		return "", "", "", err
+	}
+	var fits []string
+	for _, other := range ids {
+		theirs, err := facts(ctx, tx, other)
+		if err != nil {
+			return "", "", "", err
+		}
+		if machineName(theirs["hostname"]) != name || differ(own, theirs) {
+			continue
+		}
+		b, p, err := macKinds(ctx, tx, other)
+		if err != nil {
+			return "", "", "", err
+		}
+		if !b && (private || p) {
+			fits = append(fits, other)
+		}
+	}
+	if len(fits) != 1 {
+		return "", "", "", nil
+	}
+	type row struct {
+		id, origin, first string
+		approved          bool
+	}
+	read := func(id string) (row, error) {
+		r := row{id: id}
+		err := tx.QueryRowContext(ctx, `SELECT origin, approved, first_seen FROM inv_asset WHERE id = ?`, id).Scan(&r.origin, &r.approved, &r.first)
+		return r, err
+	}
+	a, err := read(id)
+	if err != nil {
+		return "", "", "", fmt.Errorf("inventory: read device: %w", err)
+	}
+	b, err := read(fits[0])
+	if err != nil {
+		return "", "", "", fmt.Errorf("inventory: read device: %w", err)
+	}
+	if a.origin == "manual" && b.origin == "manual" {
+		return "", "", "", nil
+	}
+	stays := func(x, y row) bool { // x is kept over y
+		switch {
+		case (x.origin == "manual") != (y.origin == "manual"):
+			return x.origin == "manual"
+		case x.approved != y.approved:
+			return x.approved
+		case x.first != y.first:
+			return x.first < y.first
+		}
+		return x.id < y.id
+	}
+	if stays(a, b) {
+		a, b = b, a
+	}
+	return a.id, b.id, "the same host name " + name + " and no burned-in MAC (a private Wi-Fi address)", nil
+}
+
+// agentOrphan finds the row an agent made at an address no device held yet, which has since lost that address (D-598): the agent
+// connected from the address and said its card there has MAC M (agent-intake INV-12 checks the address against the agent's own
+// interfaces); M could not become the row's MAC because this device owns it; and a sensor that saw a known MAC at the address took
+// the address away (claimIP: a sensor's MAC outranks an address-only row). Such a row has no address and no MAC, only the agent's
+// mac observation M, and joins the device that owns M. A row that still has its address is left alone: an agent's MAC claim on its
+// own never moves a report (INV-12, D-265 (4)). Exactly one such row; never the box.
+func agentOrphan(ctx context.Context, tx *sql.Tx, id string) (string, string, error) {
+	var mac sql.NullString
+	var isBox bool
+	if err := tx.QueryRowContext(ctx, `SELECT mac, is_box FROM inv_asset WHERE id = ?`, id).Scan(&mac, &isBox); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", "", nil
+		}
+		return "", "", fmt.Errorf("inventory: read device: %w", err)
+	}
+	if !mac.Valid || isBox {
+		return "", "", nil
+	}
+	ids, err := candidates(ctx, tx, `SELECT a.id FROM inv_asset a WHERE a.id <> ? AND a.ip IS NULL AND a.mac IS NULL AND a.is_box = 0 AND a.origin = 'discovered'
+		AND EXISTS (SELECT 1 FROM inv_observation o WHERE o.asset_id = a.id AND o.field = 'mac' AND o.source = 'agent' AND o.value = ?)`, id, mac.String)
+	if err != nil || len(ids) != 1 {
+		return "", "", err
+	}
+	return ids[0], "its agent reported the MAC " + mac.String + " of this device and its address went to this device", nil
 }

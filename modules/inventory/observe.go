@@ -69,6 +69,7 @@ func (s *Service) RecordObservation(ctx context.Context, o observe.Observation) 
 type cleanObs struct {
 	ip     netip.Addr
 	mac    string // hint, normalised, may be ""
+	agent  string // hint: the agent that reports (agent source only, D-598), may be ""
 	field  string
 	value  string
 	source string
@@ -109,6 +110,17 @@ func (s *Service) seen(t time.Time) string {
 	return store.FormatTS(t)
 }
 
+// checkAgent validates the agent of a hint (D-598): only an agent's report names one, in the shape core/observe gives it.
+func checkAgent(h observe.AssetHint, source observe.Source) (string, error) {
+	if h.Agent == "" {
+		return "", nil
+	}
+	if source != observe.Agent || !observe.ValidAgentKey(h.Agent) {
+		return "", invalid("hint: only an agent's report names an agent, as kind:id")
+	}
+	return h.Agent, nil
+}
+
 // check validates a batch before any write (SYS-2, SYS-6): the data comes from the network. "manual" is
 // refused: only a person in the interface may claim the top rank.
 func (s *Service) check(batch []observe.Observation) ([]cleanObs, error) {
@@ -135,6 +147,10 @@ func (s *Service) checkOne(i int, o observe.Observation) (cleanObs, error) {
 	if !observe.ValidSource(o.Source) || o.Source == observe.Manual {
 		return cleanObs{}, invalid("observation %d: source %q is not allowed", i, o.Source)
 	}
+	agent, err := checkAgent(o.AssetHint, o.Source)
+	if err != nil {
+		return cleanObs{}, fmt.Errorf("observation %d: %w", i, err)
+	}
 	if !observe.ValidField(o.Field) {
 		return cleanObs{}, invalid("observation %d: field %q is unknown", i, o.Field)
 	}
@@ -159,11 +175,12 @@ func (s *Service) checkOne(i int, o observe.Observation) (cleanObs, error) {
 			return cleanObs{}, invalid("observation %d: value must be 1 to %d printable characters", i, maxObsValue)
 		}
 	}
-	return cleanObs{ip: ip, mac: mac, field: string(o.Field), value: value, source: string(o.Source), conf: o.Confidence, seenAt: s.seen(o.SeenAt)}, nil
+	return cleanObs{ip: ip, mac: mac, agent: agent, field: string(o.Field), value: value, source: string(o.Source), conf: o.Confidence, seenAt: s.seen(o.SeenAt)}, nil
 }
 
-// Record implements observe.Sink: the whole batch in one transaction (all or none). A device is found by
-// MAC, then by IP; one that matches nothing is created unapproved (INV-9, POST-1).
+// Record implements observe.Sink: the whole batch in one transaction (all or none). A device is found by the agent bound to it, then
+// by MAC, then by IP; one that matches nothing is created unapproved (INV-9, POST-1). Rows that turn out to be one device are joined
+// (joinSame: D-515, D-598).
 func (s *Service) Record(ctx context.Context, batch []observe.Observation) error {
 	clean, err := s.check(batch)
 	if err != nil {
@@ -199,6 +216,7 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 		created := map[string]string{} // device → the source whose observation created it
 		touched := []string{}
 		before := map[string]string{} // what the findings matcher reads of each device (matchView), before the batch
+		binds := map[string]string{}  // device → the agent that reported on it (D-598)
 		for _, c := range clean {
 			if c.source != string(observe.Agent) {
 				about, err := aboutBox(ctx, tx, c)
@@ -235,6 +253,14 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 			}
 			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET last_seen = max(last_seen, ?) WHERE id = ?`, c.seenAt, id); err != nil {
 				return fmt.Errorf("inventory: touch device: %w", err)
+			}
+			if c.agent != "" {
+				binds[id] = c.agent
+			}
+		}
+		for id, agent := range binds { // after the batch's own mac observations are in
+			if err := bindAgent(ctx, tx, id, agent); err != nil {
+				return err
 			}
 		}
 		gone, joined, err := s.joinSame(ctx, tx, o, touched, created, before)
@@ -304,6 +330,10 @@ func (s *Service) ApproveEnrolled(ctx context.Context, hint observe.AssetHint, n
 	if err != nil {
 		return false, err
 	}
+	agent, err := checkAgent(hint, observe.Agent)
+	if err != nil {
+		return false, err
+	}
 	if isBox := s.ownedFilter(ctx); isBox != nil && isBox(ip, mac) {
 		s.ownedHit.Add(1)
 		return false, nil
@@ -322,8 +352,8 @@ func (s *Service) ApproveEnrolled(ctx context.Context, hint observe.AssetHint, n
 	found := false
 	err = s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		var id string
-		err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE (? <> '' AND mac = ?) OR (? <> '' AND ip = ?) ORDER BY (? <> '' AND mac = ?) DESC LIMIT 1`,
-			mac, mac, ipS, ipS, mac, mac).Scan(&id)
+		err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE (?1 <> '' AND agent_key = ?1) OR (?2 <> '' AND mac = ?2) OR (?3 <> '' AND ip = ?3)
+			ORDER BY (?1 <> '' AND agent_key = ?1) DESC, (?2 <> '' AND mac = ?2) DESC LIMIT 1`, agent, mac, ipS).Scan(&id)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil
 		} else if err != nil {
@@ -409,11 +439,19 @@ func (c cleanObs) target() string {
 	return c.ip.String()
 }
 
-// resolve finds the device a hint points to, or creates it. The MAC wins; with no known MAC the IP is used,
+// resolve finds the device a hint points to, or creates it. The agent bound to a device wins (D-598); then the MAC; with no known MAC the IP is used,
 // and a device that already has another MAC does not own that IP any more: a discovered device gives it up
 // (DHCP moved it), a declared one keeps it and the newcomer is created without an IP. A hint with only a MAC that a
 // join left as a chassis MAC (D-515) is about the device it joined.
 func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id string, created bool, err error) {
+	if c.agent != "" { // the agent bound to a device finds it wherever its address went (D-598); an agent moves the address
+		switch err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE agent_key = ?`, c.agent).Scan(&id); {
+		case err == nil:
+			return id, false, s.claimIP(ctx, tx, id, c.ip, string(observe.Agent))
+		case !errors.Is(err, sql.ErrNoRows):
+			return "", false, fmt.Errorf("inventory: find device by agent: %w", err)
+		}
+	}
 	if c.mac != "" {
 		switch err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE mac = ?`, c.mac).Scan(&id); {
 		case err == nil:
@@ -452,6 +490,28 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id strin
 		return "", false, fmt.Errorf("inventory: create device: %w", err)
 	}
 	return id, true, s.claimIP(ctx, tx, id, c.ip, c.source)
+}
+
+// bindAgent binds an agent to the device its report reached by address (D-598), so its later reports find the device when the address
+// changes. Like ApproveEnrolled, only a device that is this machine's: no source ever saw it with a MAC the agent did not report (an
+// address DHCP gave to a new machine still resolves to the old machine's row until a sensor sees the move). Such a row stays found by
+// address only. Nothing when the agent is bound already or bound to another device.
+func bindAgent(ctx context.Context, tx *sql.Tx, id, agent string) error {
+	var n int
+	err := tx.QueryRowContext(ctx, `SELECT (SELECT count(*) FROM inv_asset WHERE agent_key = ?1)
+		+ (SELECT count(*) FROM inv_observation WHERE asset_id = ?2 AND field = 'mac' AND evidence IS NOT ?3
+			AND value NOT IN (SELECT value FROM inv_observation WHERE asset_id = ?2 AND field = 'mac' AND source = 'agent'))`,
+		agent, id, chassisEvidence).Scan(&n)
+	if err != nil {
+		return fmt.Errorf("inventory: check the agent's device: %w", err)
+	}
+	if n > 0 {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET agent_key = ? WHERE id = ?`, agent, id); err != nil {
+		return fmt.Errorf("inventory: bind the agent: %w", err)
+	}
+	return nil
 }
 
 // claimIP gives ip to the device when it has none or when a discovered device holds it. A device that a person declared

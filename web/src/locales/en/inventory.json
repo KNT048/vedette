@@ -10,7 +10,46 @@
     "pending": "Not approved",
     "suspicious": "Marked unknown",
     "fragile": "Fragile",
-    "fragileHint": "Passive listening only, never actively scanned, so it does not hang."
+    "fragileHint": "Passive listening only, never actively scanned, so it does not hang.",
+    "declared": "Declared software",
+    "declaredHint": "A product you said you run, with no address or name. Nothing scans it; it is checked against exploited vulnerabilities by its product."
+  },
+  "declared": {
+    "title": "Declared software, no device",
+    "body": "You said you run this product (from Add, a CSV file or the weekly question) without naming a device or an address. Vedette checks it against exploited vulnerabilities by its product and never scans it. To tie it to a machine, add the software on that device instead and remove this entry."
+  },
+  "sources": {
+    "title": "Sources",
+    "description": "What tells Vedette about this device. Several can feed it at once: an agent's values come first, then SNMP, then scans, then passive listening.",
+    "feeds": "Reporting",
+    "notYet": "Not set up",
+    "lastSeen": "last report {{when}}",
+    "name": { "scan": "Network scan", "passive": "Passive listening", "snmp": "SNMP", "agent": "Agent (osquery or Wazuh)", "manual": "Added by hand" },
+    "what": {
+      "scan": "The box's active scan, in the scan window you set: open ports, services and a guess of the operating system.",
+      "passive": "What the sensor hears on the network: the MAC, the name the device gives itself, its maker.",
+      "snmp": "Read-only questions to the device with a credential you give: maker, model and firmware version, as the device states them. For switches, routers, printers and firewalls.",
+      "agent": "osquery on the machine (or Wazuh) sends its installed software with exact versions. For PCs and servers. When the machine gets a new address, its reports stay on this device.",
+      "manual": "What you entered yourself. It wins over every other source."
+    },
+    "both": "To switch from SNMP to an agent or back, set up the new one first, then stop the old one: uninstall osquery on the machine, or remove this address from the SNMP credential's scope.",
+    "noIp": "Needs an IP address.",
+    "adminOnly": "An administrator sets this up.",
+    "agent": { "off": "Turn on the Agents module in Settings to use osquery or Wazuh.", "add": "Install osquery", "manage": "Agents and tokens" },
+    "snmp": {
+      "off": "Turn on active discovery in Settings to read devices with SNMP.",
+      "declared": "Added by hand: Vedette sends nothing to it.",
+      "approveFirst": "Approve the device first: SNMP reads only approved devices.",
+      "add": "Add SNMP",
+      "readAgain": "Read with SNMP now",
+      "loading": "Loading the SNMP credentials…",
+      "none": "No SNMP credential is saved yet.",
+      "addFor": "Add an SNMP credential for {{ip}}",
+      "addAnother": "Add a credential for this address",
+      "credential": "Credential",
+      "read": "Read this device now",
+      "scopeHint": "In the scan window Vedette reads the device again with every credential whose scope holds its address. A credential whose scope does not hold it says so here."
+    }
   },
   "list": {
     "titleLoading": "Devices",

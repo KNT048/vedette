@@ -27,7 +27,8 @@ import { useFindings } from '@/features/findings/api'
 import { isOpen } from '@/features/findings/basis'
 import { DeleteDialog } from './DeleteDialog'
 import { errMsg } from './kinds'
-import { nameOf } from './nameOf'
+import { declaredSoftwareOnly, nameOf } from './nameOf'
+import { DeviceSources } from './DeviceSources'
 import type { DeviceDetail, Observation, RegularScan, SoftwareView } from './types'
 
 function Overview({ d }: { d: DeviceDetail }) {
@@ -369,11 +370,13 @@ function Body() {
         actions={<Button disabled={!can || a.is_box} title={a.is_box ? t('box.noDelete') : needRole} onClick={() => setDel(true)}><Trash2 />{t('detail.delete')}</Button>} />
       {a.is_box ? <BoxNotice findings={d.findings_count} /> : null}
       {!a.approved ? <Approval d={d} /> : null}
+      {declaredSoftwareOnly(a) ? <Notice tone="accent" title={t('declared.title')}>{t('declared.body')}</Notice> : null}
       <DeviceKpis d={d} />
       <PageTabs label={t('detail.tabs.label')} tabs={[
         { id: 'overview', label: t('detail.tabs.overview'), panel: (
           <>
             <Section id="overview" title={t('detail.overview')}><Panel className="p-4"><Overview d={d} /></Panel></Section>
+            {a.is_box || declaredSoftwareOnly(a) ? null : <DeviceSources d={d} />}
             <Slot name="device.panels" props={{ assetId: a.id }} />
             <Section id="notes" title={t('notes.title')}><Notes key={a.notes ?? ''} d={d} /></Section>
           </>

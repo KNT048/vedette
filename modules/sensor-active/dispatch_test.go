@@ -694,7 +694,7 @@ func TestProbeRefusesAnArgvOutsideTheGrammar(t *testing.T) {
 	t.Parallel()
 	r := newDRig(t)
 	r.beat(t, true)
-	if _, err := r.d.Probe(t.Context(), []string{"-A", "-oX", "-", "10.0.0.1"}); err == nil {
+	if _, err := r.d.Probe(t.Context(), []string{"-A", "--stats-every", "5s", "-oX", "-", "10.0.0.1"}); err == nil {
 		t.Fatal("accepted")
 	}
 	if rep := r.poll(t, "", 0); len(rep.Jobs) != 0 {

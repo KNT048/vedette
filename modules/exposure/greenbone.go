@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	vprogress "github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/scan/commonports"
 )
@@ -1296,6 +1297,9 @@ func (s *Service) gbWait(ctx context.Context, g *gmpConn, st ScanTarget, ip neti
 			return w
 		}
 		w.scanned = w.scanned || gbScanning(state, progress)
+		if progress >= 0 && progress <= 100 { // #830: gvmd's own percent of the task, read by this poll anyway
+			reportOpenVAS(ctx, progress)
+		}
 		switch state {
 		case gmpDone:
 			w.end = gbEndDone
@@ -1713,4 +1717,9 @@ func (s *Service) waitSync(done <-chan struct{}) {
 	case <-time.After(gbSyncStopWait):
 		s.cfg.Log.Error("exposure: Greenbone's feed update did not end within 30 seconds of being cancelled")
 	}
+}
+
+// reportOpenVAS is the progress of the OpenVAS step (#830): the percent gvmd gives its task, which the wait loop polls anyway.
+func reportOpenVAS(ctx context.Context, pct int) {
+	vprogress.Report(ctx, vprogress.Update{Phase: vprogress.PhaseOpenVAS, Percent: float64(pct)})
 }

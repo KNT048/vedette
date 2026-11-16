@@ -43,7 +43,6 @@ type Agent struct {
 	ErrorStatus gosnmp.SNMPError
 
 	requests atomic.Int64
-	conn     *net.UDPConn
 	mu       sync.Mutex
 	lastErr  error // why the latest message got no answer, for a failing test to print
 }
@@ -58,25 +57,24 @@ func (a *Agent) Start(t testing.TB) uint16 {
 	if err != nil {
 		t.Fatal(err)
 	}
-	a.conn = c
 	t.Cleanup(func() { _ = c.Close() })
-	go a.serve()
+	go a.serve(c)                                    // the connection is the goroutine's own: an Agent started again (a test's second target) races on no field
 	return uint16(c.LocalAddr().(*net.UDPAddr).Port) //nolint:gosec // a port number
 }
 
 // Requests is how many messages the agent has received.
 func (a *Agent) Requests() int { return int(a.requests.Load()) }
 
-func (a *Agent) serve() {
+func (a *Agent) serve(conn *net.UDPConn) {
 	buf := make([]byte, 65535)
 	for {
-		n, from, err := a.conn.ReadFromUDP(buf)
+		n, from, err := conn.ReadFromUDP(buf)
 		if err != nil {
 			return
 		}
 		a.requests.Add(1)
 		if out := a.answer(append([]byte(nil), buf[:n]...)); out != nil {
-			_, _ = a.conn.WriteToUDP(out, from)
+			_, _ = conn.WriteToUDP(out, from)
 		}
 	}
 }

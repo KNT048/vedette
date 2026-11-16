@@ -47,7 +47,7 @@ function Form({ data }: { data: ScanConfigResponse }) {
     <form onSubmit={submit} className="grid max-w-3xl gap-8" noValidate>
       {dis ? <Notice tone="off" className="mb-0" title={t('safety.adminOnly')} /> : null}
 
-      <Section id="window" title={t('safety.windowTitle')} description={t('safety.windowDescription')} stories={['S-SCAN-4']}>
+      <Section id="window" title={t('safety.windowTitle')} description={t('safety.windowDescription')} info={t('safety.windowDescriptionInfo')} stories={['S-SCAN-4']}>
         <div className="grid gap-4">
           <fieldset className="grid gap-2" disabled={dis}>
             <legend className="mb-1 text-sm font-medium">{t('safety.days')}</legend>
@@ -73,7 +73,7 @@ function Form({ data }: { data: ScanConfigResponse }) {
       </Section>
 
       <Section id="exclusions" title={t('safety.exclTitle')} description={t('safety.exclDescription')} stories={['S-SCAN-4']}>
-        <Field htmlFor="excl" label={t('safety.exclLabel')} hint={t('safety.exclHint')}>
+        <Field htmlFor="excl" label={t('safety.exclLabel')} hint={t('safety.exclHint')} info={t('safety.exclHintInfo')}>
           <Textarea id="excl" value={excl} onChange={(e) => setExcl(e.target.value)} disabled={dis} spellCheck={false} rows={4} />
         </Field>
       </Section>
@@ -92,7 +92,8 @@ function Form({ data }: { data: ScanConfigResponse }) {
         </div>
       </Section>
 
-      <Section id="never" title={t('safety.neverTitle')} description={t('safety.neverDescription')}>
+      <Section id="never" title={t('safety.neverTitle')} description={t('safety.neverDescription')}
+        info={(['exploit', 'write', 'tags'] as const).map((k) => <p key={k}>{t(`safety.never.${k}Info`)}</p>)}>
         <Panel className="grid gap-2 p-4">
           <p className="flex items-center gap-2 text-sm font-medium"><ShieldCheck className="size-4 text-ok" aria-hidden />{t('safety.neverHeadline')}</p>
           <ul className="grid list-disc gap-1 pl-9 text-sm">

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Plus, Trash2 } from 'lucide-react'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, Panel } from '@/components/common/PageHeader'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -26,7 +27,7 @@ export function NeverTouch() {
   const add = () => { if (valid(nv.trim())) { setDraft([...items, { value: nv.trim().toLowerCase(), label: nl.trim() || nv.trim() }]); setNv(''); setNl('') } }
   return (
     <div className="grid gap-3">
-      <div><h3 className="text-sm font-medium">{t('allow.title')}</h3><p className="text-[13px] text-muted">{t('allow.description')}</p></div>
+      <div><div className="flex items-center gap-1"><h3 className="text-sm font-medium">{t('allow.title')}</h3><InfoTip topic={t('allow.title')}>{t('allow.descriptionInfo')}</InfoTip></div><p className="text-[13px] text-muted">{t('allow.description')}</p></div>
       {!items.length ? <Notice tone="warn" className="mb-0" title={t('allow.empty')} /> : null}
       <Panel>
         <ul className="divide-y divide-rule">

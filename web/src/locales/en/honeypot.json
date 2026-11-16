@@ -11,7 +11,8 @@
     "failed": "A Trap IP is on, but the box could not set it up",
     "starting": "Trap IPs are starting. Nothing is listening yet."
   },
-  "meta": "Updated {{time}}. Traps only listen and log. They do not block or hit back.",
+  "meta": "Updated {{time}}. Traps only listen and log.",
+  "metaInfo": "They do not block or hit back.",
   "needAdmin": "Only administrators can add, change or switch Trap IPs. Operators can still view and test traps.",
   "problem": {
     "title": "The traps are not up",
@@ -58,18 +59,18 @@
     "ssh": "Counted on every connection, even one that only reads the banner",
     "mssql": "Counted when a client tries to log in",
     "http": "Counted on GET /, the fake login page and refused methods",
-    "https": "Counted on GET /, the fake login page and refused methods, as HTTP. The certificate is the trap's own, made by the box",
-    "ftp": "Counted when a client sends a user name and password. A client that only connects is not recorded",
+    "https": "Like HTTP. The certificate is the trap's own, made by the box",
+    "ftp": "Counted when a client sends a user name and password, not on connect",
     "telnet": "Counted on every connection and on each login attempt",
     "mysql": "Counted on every connection and on each login attempt",
     "mongodb": "Counted on every connection, command and login attempt",
     "redis": "Counted on every command. The command is shown, never its arguments",
-    "vnc": "Counted when a client answers the password challenge. A client that only connects is not recorded",
+    "vnc": "Counted when a client answers the password challenge, not on connect",
     "git": "Counted when a client asks to clone a repository",
-    "httpproxy": "Counted only when a client sends proxy credentials. A request without them gets the login answer but is not recorded",
+    "httpproxy": "Counted only on proxy credentials; without them it answers a login page",
     "tcpbanner": "Counted on every connection to port 25",
     "tftp": "UDP, never answers. Counted on each read or write request",
-    "ntp": "UDP, never answers. Counted only on a monlist request; a plain time query is not recorded",
+    "ntp": "UDP, never answers. Counted only on a monlist request, not time queries",
     "sip": "UDP, never answers. Counted on each SIP request"
   },
   "state": {
@@ -83,7 +84,8 @@
   },
   "traps": {
     "title": "Services",
-    "description": "Which services the Trap IPs answer on. Each Trap IP answers only the services picked for it; its other ports are closed, as on a real machine. A trap records what its service can see, listed under each service: a client that only connects is not recorded for every service.",
+    "description": "Which services the Trap IPs answer on.",
+    "descriptionInfo": "Each Trap IP answers only the services picked for it; its other ports are closed, as on a real machine. A trap records what its service can see, listed under each service: a client that only connects is not recorded for every service.",
     "caption": "Services and their status",
     "col": {
       "service": "Service",
@@ -102,19 +104,23 @@
     "testNote": "Test a trap to confirm it records hits. The test comes from the Vedette box itself, is labelled as a test, is not counted as a hit and sends no alert.",
     "testConflictReason": "Every Trap IP with this service clashes with a real device. Change its address before testing.",
     "limitsTitle": "One box, one share name and one login page",
-    "smbName": "Every Trap IP with SMB shows the same file share under the NetBIOS name {{name}}: the name of the first Trap IP with SMB. The other names are labels Vedette uses in alerts.",
+    "smbName": "Every Trap IP with SMB shows the share name {{name}}.",
+    "smbNameInfo": "It is the name of the first Trap IP with SMB. The other names are labels Vedette uses in alerts.",
     "smbNone": "No Trap IP that is on has SMB.",
-    "httpPage": "Every Trap IP with HTTP shows the same {{page}}. It is the NAS login page when the first Trap IP with HTTP looks like a NAS.",
+    "httpPage": "Every Trap IP with HTTP shows the same {{page}}.",
+    "httpPageInfo": "It is the NAS login page when the first Trap IP with HTTP looks like a NAS.",
     "httpNone": "No Trap IP that is on has HTTP.",
     "page": {
       "login": "admin login page",
       "nas": "NAS login page"
     },
-    "banners": "Each service shows one banner for the whole box, chosen by the first Trap IP with it: an FTP or mail greeting looks like that device's maker, and the HTTPS certificate carries its name."
+    "banners": "Each service shows one banner for the whole box.",
+    "bannersInfo": "The first Trap IP with the service chooses it: an FTP or mail greeting looks like that device's maker, and the HTTPS certificate carries its name."
   },
   "exclusion": {
     "title": "Vedette's own scanner does not count as a trap hit",
-    "description": "When Vedette scans for vulnerabilities or inventories actively, the box knocks on every port, traps included. To avoid false alarms, connections from the box are always ignored.",
+    "description": "Connections from the box itself are always ignored.",
+    "descriptionInfo": "When Vedette scans for vulnerabilities or inventories actively, the box knocks on every port, traps included. Ignoring the box avoids false alarms.",
     "who": "Excluded machine",
     "locked": "Always excluded",
     "why": "Reason",
@@ -125,7 +131,8 @@
   },
   "hits": {
     "title": "Trap hits",
-    "description": "Newest first. Includes connections to Trap IPs, honey token use and port scans across the Trap IPs. Select a time to see the hour of events around the hit.",
+    "description": "Trap connections, honey token use and port scans, newest first.",
+    "descriptionInfo": "Port scans are sweeps across the Trap IPs. Select a time to see the hour of events around the hit.",
     "caption": "Trap hits",
     "filter": "Filter by service, IP or device",
     "col": {
@@ -141,8 +148,10 @@
     "deviceBox": "Vedette box (test)",
     "deviceUnknown": "Not in inventory",
     "emptyTitle": "No hits yet",
-    "emptyBody": "Nothing has connected to a trap yet. That is good news. To see that a trap is recording, select Test trap on the Services tab.",
-    "emptyBodyOff": "No Trap IP is on yet, so there is nothing to record. Add one on the Trap IPs tab, then select Test trap on the Services tab to see that the trap is recording.",
+    "emptyBody": "Nothing has connected to a trap yet. That is good news.",
+    "emptyBodyInfo": "To see that a trap is recording, select Test trap on the Services tab.",
+    "emptyBodyOff": "No Trap IP is on yet, so there is nothing to record.",
+    "emptyBodyOffInfo": "Add one on the Trap IPs tab, then select Test trap on the Services tab to see that the trap is recording.",
     "respond": "Respond",
     "respondLabel": "Respond to the hit from {{src}} at {{time}}",
     "kind": {
@@ -160,12 +169,13 @@
     "srcIp": "Source IP",
     "srcDevice": "Source device",
     "unapproved": "Not approved",
-    "noDevice": "This IP is not in the inventory. It may be an unknown device that just joined the network.",
+    "noDevice": "Not in the inventory: maybe an unknown device that just joined.",
     "session": "Session excerpt",
     "sessionHint": "Content sent by the connecting machine. Treat it as untrusted data.",
     "sessionLabel": "Recorded by the trap",
     "events": "Events in the {{minutes}} minutes around the hit",
-    "eventsHint": "Firewall, DHCP, AD and trap events about the source machine. Rows tagged Trap come from the trap.",
+    "eventsHint": "Firewall, DHCP, AD and trap events about the source machine.",
+    "eventsHintInfo": "Rows tagged Trap come from the trap.",
     "eventsCaption": "Events around the trap hit",
     "col": {
       "time": "Time",
@@ -193,20 +203,22 @@
   },
   "device": {
     "title": "Internal trap hits",
-    "description": "Times this device connected to a trap. A normal machine has no reason to.",
+    "description": "Times this device connected to a trap.",
+    "descriptionInfo": "A normal machine has no reason to.",
     "none": "This device has not hit any trap.",
     "item": "{{service}} at {{time}}"
   },
   "start": {
     "title": "Get started with internal traps in three steps",
-    "step1": "On the Trap IPs tab, add a Trap IP: an address in {{lan}} that no device uses, a name, and what it should look like.",
+    "step1": "On the Trap IPs tab, add a Trap IP at an unused address in {{lan}}.",
     "step2": "Check that its status says Listening.",
-    "step3": "On the Services tab, select Test trap to make sure the trap is recording. From then on every connection to a Trap IP shows up under Hits."
+    "step3": "On the Services tab, select Test trap. Hits then show up under Hits."
   },
   "lanUnknown": "your LAN (add it first under Devices, Scope and sensors)",
   "trapIp": {
     "title": "Trap IPs",
-    "description": "Each Trap IP is a fake machine on {{lan}}: an address no device uses, a name, and the services it answers on. Nobody has a reason to connect to it, so every connection deserves a look.",
+    "description": "Fake machines on {{lan}}, each on an address no device uses.",
+    "descriptionInfo": "Each Trap IP has a name and the services it answers on. Nobody has a reason to connect to it, so every connection deserves a look.",
     "suggestTitle": "Suggested from your inventory",
     "suggestItem_one": "You have {{count}} {{type}} ({{names}}), so an attacker expects to find one.",
     "suggestItem_other": "You have {{count}} {{type}} devices ({{names}}), so an attacker expects to find them.",
@@ -241,20 +253,25 @@
       "preset": "Looks like",
       "presetHint": "Fills in the services and the vendor. You can change both.",
       "name": "Name",
-      "nameHint": "The host name it claims, up to 15 characters: letters, digits and hyphens. It names this Trap IP in alerts.",
+      "nameHint": "Up to 15 characters: letters, digits and hyphens.",
+      "nameHintInfo": "The host name it claims. It names this Trap IP in alerts.",
       "namePlaceholder": "e.g. {{example}}",
       "nameRequired": "Enter a name, for example {{example}}.",
       "ip": "Address",
       "ipPlaceholder": "e.g. {{ip}}",
       "ipRequired": "Enter an address for the Trap IP.",
-      "ipHint": "Not seen by Vedette so far: {{ips}}. That is not proof they are free: before a Trap IP takes an address, the box checks the network (ARP) and stops if another device answers. Use an address outside your router's DHCP pool, or reserve it there.",
-      "ipHintUnchecked": "No devices discovered yet, so these are only guesses: {{ips}}. Before a Trap IP takes an address, the box checks the network (ARP) and stops if another device answers. Use an address outside your router's DHCP pool, or reserve it there.",
-      "ipHintNone": "An address in your LAN that no device uses, outside your router's DHCP pool. Before a Trap IP takes it, the box checks the network (ARP).",
+      "ipHint": "Not seen so far: {{ips}}. Use one outside your DHCP pool.",
+      "ipHintInfo": "That is not proof they are free: before a Trap IP takes an address, the box checks the network (ARP) and stops if another device answers. Use an address outside your router's DHCP pool, or reserve it there.",
+      "ipHintUnchecked": "Only guesses, nothing discovered yet: {{ips}}. Use one outside your DHCP pool.",
+      "ipHintUncheckedInfo": "No devices are discovered yet. Before a Trap IP takes an address, the box checks the network (ARP) and stops if another device answers. Use an address outside your router's DHCP pool, or reserve it there.",
+      "ipHintNone": "An unused address in your LAN, outside your router's DHCP pool.",
+      "ipHintNoneInfo": "Before a Trap IP takes it, the box checks the network (ARP) and stops if another device answers.",
       "vendor": "Vendor (MAC prefix)",
       "vendorHint": "Its MAC address starts with {{oui}}, so a scanner guesses a {{vendor}} device.",
-      "vendorHintNone": "It gets a random-looking local MAC address, as phones and virtual machines often have.",
+      "vendorHintNone": "It gets a random-looking local MAC, like phones and VMs.",
       "services": "Services",
-      "servicesHint": "It answers only on these ports; every other port is closed, as on a real machine. A box has one SMB share name, one login page and one banner per service for all its Trap IPs: the first Trap IP with the service decides it (see the Services tab).",
+      "servicesHint": "It answers only on these ports; every other port is closed.",
+      "servicesHintInfo": "As on a real machine, other ports are closed. A box has one SMB share name, one login page and one banner per service for all its Trap IPs: the first Trap IP with the service decides it (see the Services tab).",
       "servicesRequired": "Pick at least one service.",
       "add": "Add Trap IP",
       "save": "Save changes",
@@ -264,7 +281,8 @@
     "added": "Trap IP {{name}} added",
     "saved": "Trap IP {{name}} saved",
     "listLabel": "Trap IPs",
-    "none": "No Trap IP yet. Add one on an address no device uses. Two or more Trap IPs also let Vedette spot a scan.",
+    "none": "No Trap IP yet. Add one on an address no device uses.",
+    "noneInfo": "Two or more Trap IPs also let Vedette spot a scan.",
     "switchLabel": "Trap IP {{name}}",
     "edit": "Edit",
     "editLabel": "Edit Trap IP {{name}}",
@@ -274,12 +292,13 @@
     "smbName": "Its name is the NetBIOS name of the box's SMB share.",
     "scan": {
       "title": "Scan detection",
-      "body": "A device that touches two or more Trap IPs within a minute raises one High alert that names the source device. Normal machines have no reason to do this. Each touch is also a hit of its own.",
+      "body": "A device that touches two or more Trap IPs within a minute raises one High alert.",
+      "bodyInfo": "The alert names the source device. Normal machines have no reason to do this. Each touch is also a hit of its own.",
       "last": "Last scan {{when}} from {{src}}: touched {{trapIps}}.",
       "never": "No scan has been seen.",
       "test": "Test scan",
       "testToast": "Recorded a test scan alert",
-      "needDecoys": "Turn on two or more Trap IPs first. Detection needs at least two Trap IPs."
+      "needDecoys": "Turn on two or more Trap IPs first."
     },
     "where": {
       "looks": "Looks like",
@@ -289,10 +308,12 @@
       "macNone": "Given when the box holds the address",
       "open": "Answers on",
       "openNone": "Nothing while it does not listen",
-      "openAll": "Every service the box's Trap IPs use: the host program is older and cannot keep each Trap IP to its own",
+      "openAll": "All Trap IPs share these services on this host.",
+      "openAllInfo": "Every service the box's Trap IPs use: the host program is older and cannot keep each Trap IP to its own services.",
       "attached": "Lives on",
-      "attachedMacvlan": "Its own network link {{link}} (macvlan, with its own MAC) on the box card {{parent}}, inside the honeypot's isolated network. The box's own address, routes and firewall are not touched.",
-      "attachedMacvlanNoParent": "Its own network link {{link}} (macvlan, with its own MAC) on the box's network card, inside the honeypot's isolated network. The box's own address, routes and firewall are not touched.",
+      "attachedMacvlan": "Its own network link {{link}} (macvlan, with its own MAC) on the box card {{parent}}, inside the honeypot's isolated network.",
+      "attachedMacvlanInfo": "The box's own address, routes and firewall are not touched.",
+      "attachedMacvlanNoParent": "Its own network link {{link}} (macvlan, with its own MAC) on the box's network card, inside the honeypot's isolated network.",
       "attachedNone": "Not on the network yet",
       "lastHit": "Last touched",
       "lastHitNever": "Never",
@@ -303,7 +324,8 @@
   },
   "token": {
     "title": "Honey tokens",
-    "description": "Bait you plant on real systems. Nobody has a reason to use it, so any use is an alert that names where it came from. Plant a few in places an intruder would look.",
+    "description": "Bait you plant on real systems; any use raises an alert.",
+    "descriptionInfo": "Nobody has a reason to use it, so any use is an alert that names where it came from. Plant a few in places an intruder would look.",
     "type": {
       "file": "Decoy file",
       "credential": "Fake credentials",
@@ -312,12 +334,13 @@
     },
     "what": {
       "file": "A .docx or .xlsx for a file share. It calls home when opened.",
-      "credential": "A user and password for a password manager or a script. Any login attempt with them alerts.",
+      "credential": "User and password for a password manager or script; any login alerts.",
       "url": "A web link. Opening it alerts."
     },
     "form": {
       "preset": "Start from",
-      "presetHint": "Fills in the type, the name and where to plant it, like a real file or account in your office. You can change every field.",
+      "presetHint": "Like a real file or account in your office.",
+      "presetHintInfo": "Fills in the type, the name and where to plant it. You can change every field.",
       "type": "Token type",
       "ext": "File type",
       "plant": "Where will you plant it?",
@@ -329,7 +352,8 @@
       },
       "nameHint": {
         "file": "Looks tempting: Payroll-2026-Q4, Passwords-IT.",
-        "credential": "Names this token in alerts, for example Backup service account. The box makes the account name and password, unique to this token.",
+        "credential": "For example Backup service account.",
+        "credentialInfo": "Names this token in alerts. The box makes the account name and password, unique to this token.",
         "url": "Names this token in alerts, for example Wiki admin link."
       },
       "plantHint": {
@@ -408,12 +432,16 @@
       "file": "someone opens the file in Word or Excel and it loads a hidden image from the box.",
       "credential": "anyone tries to sign in with this user name, from any machine.",
       "url": "anyone opens the link in a browser or a link scanner fetches it.",
-      "dns": "nothing. The box runs no DNS server, so a lookup of this name is never seen, even if your DNS server forwards vedette.internal to the box. New DNS tokens are no longer offered: use a URL token or fake credentials for an alert you can count on."
+      "dns": "nothing: the box runs no DNS server.",
+      "dnsInfo": "A lookup of this name is never seen, even if your DNS server forwards vedette.internal to the box. New DNS tokens are no longer offered: use a URL token or fake credentials for an alert you can count on."
     },
     "how": {
-      "file": "Download {{value}} from this page and copy it to the share. In this preview there is no download: the real box generates the file with its call-home address inside, and you copy it to the share like any other document.",
-      "credential": "Save the user and password as an entry in a password manager or a script config. Do not create the account in Active Directory: the box alerts on the failed login.",
-      "url": "Paste the link into a wiki page, a document or a note where an intruder reads about admin systems. Whoever opens it sees a plain \"404 page not found\", like a dead link, and the box records who opened it.",
+      "file": "Download {{value}} from this page and copy it to the share.",
+      "fileInfo": "In this preview there is no download: the real box generates the file with its call-home address inside, and you copy it to the share like any other document.",
+      "credential": "Save it in a password manager or script config. Do not create it in AD.",
+      "credentialInfo": "The box alerts on the failed login; a real Active Directory account would let the login succeed.",
+      "url": "Paste the link where an intruder reads about admin systems.",
+      "urlInfo": "For example a wiki page, a document or a note. Whoever opens it sees a plain \"404 page not found\", like a dead link, and the box records who opened it.",
       "dns": "Do not plant {{value}}: it can never alert, because the box runs no DNS server. Delete this token and use a URL token instead."
     },
     "noAlert": "Cannot alert"
@@ -421,13 +449,16 @@
   "notHere": {
     "page": "Honeypot",
     "title": "Traps need the appliance install",
-    "body": "This is a container-only install: there is no vedette-host to run the honeypot container and its Trap IPs, so no trap can listen here and nothing on this page would be covered. Use the appliance install to run traps.",
+    "body": "Container-only install: no trap can run here.",
+    "bodyInfo": "There is no vedette-host to run the honeypot container and its Trap IPs, so no trap can listen here and nothing on this page would be covered. Use the appliance install to run traps.",
     "modules": "Turn the module off in Settings, Modules"
   },
   "coverage": {
     "title": "Is this enough?",
-    "description": "A guide to which common attacker moves traps and tokens can see. It is not a score.",
-    "notListening": "No Trap IP is listening yet: only URL tokens can alert, because the box answers their links itself. The traps, fake credentials and decoy files see nothing until a Trap IP listens. Add a Trap IP and check that its status says Listening.",
+    "description": "Which common attacker moves traps and tokens can see.",
+    "descriptionInfo": "It is a guide, not a score.",
+    "notListening": "No Trap IP is listening yet: only URL tokens can alert.",
+    "notListeningInfo": "The box answers URL token links itself. The traps, fake credentials and decoy files see nothing until a Trap IP listens. Add a Trap IP and check that its status says Listening.",
     "listLabel": "Coverage by attacker move",
     "level": {
       "covered": "Covered",
@@ -444,12 +475,14 @@
       "credentials": {
         "move": "Using stolen or guessed credentials",
         "how": "Fake credentials alert on any login attempt. Real accounts that were stolen are not seen.",
-        "howNoLogin": "No listening Trap IP has a service with a login (SSH, RDP, a database, FTP, Telnet, a web or proxy login), so a fake credential has nowhere to be tried."
+        "howNoLogin": "No listening Trap IP has a login service, so fake credentials go untried.",
+        "howNoLoginInfo": "Login services: SSH, RDP, a database, FTP, Telnet, a web or proxy login."
       },
       "scanning": {
         "move": "Scanning the network for targets",
         "how": "A sweep across the Trap IPs raises one alert that names the source.",
-        "howOneTrap": "One Trap IP alerts when a scan touches it. The single sweep alert that names the source needs two or more listening Trap IPs."
+        "howOneTrap": "One Trap IP alerts when scanned; the named sweep alert needs two.",
+        "howOneTrapInfo": "The single sweep alert that names the source needs two or more listening Trap IPs."
       },
       "documents": {
         "move": "Opening or following bait",

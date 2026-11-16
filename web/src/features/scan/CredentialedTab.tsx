@@ -3,7 +3,8 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Upload } from 'lucide-react'
-import { Notice, Section, Panel } from '@/components/common/PageHeader'
+import { InfoTip } from '@/components/common/InfoTip'
+import { Notice, Section } from '@/components/common/PageHeader'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState, RequireModule } from '@/components/common/States'
@@ -68,7 +69,13 @@ function AddForm({ options }: { options: ScanTarget[] }) {
       onError: (err) => setError(errMsg(err)),
     })
   }
-  if (!options.length) return <p className="max-w-2xl rounded-md border border-dashed border-rule bg-surface px-4 py-3 text-sm text-muted">{t('cred.noHosts')} <Link to="/devices" className="text-accent underline underline-offset-4">{t('start.openDevices')}</Link></p>
+  if (!options.length) return (
+    <div className="flex max-w-2xl flex-wrap items-center gap-x-1 rounded-md border border-dashed border-rule bg-surface px-4 py-3 text-sm text-muted">
+      <span>{t('cred.noHosts')}</span>
+      <InfoTip topic={t('cred.addTitle')}>{t('cred.noHostsInfo')}</InfoTip>
+      <Link to="/devices" className="text-accent underline underline-offset-4">{t('start.openDevices')}</Link>
+    </div>
+  )
   return (
     <form onSubmit={submit} className="grid max-w-2xl gap-4" noValidate>
       <div className="grid gap-4 sm:grid-cols-[1fr_100px_1fr]">
@@ -81,7 +88,7 @@ function AddForm({ options }: { options: ScanTarget[] }) {
         <Field htmlFor="cr-port" label={t('cred.port')}><Input id="cr-port" inputMode="numeric" value={port} onChange={(e) => setPort(e.target.value)} disabled={!can} /></Field>
         <Field htmlFor="cr-user" label={t('cred.user')}><Input id="cr-user" value={user} onChange={(e) => setUser(e.target.value)} disabled={!can} autoComplete="off" spellCheck={false} /></Field>
       </div>
-      <Field htmlFor="cr-key" label={t('cred.key')} hint={t('cred.keyHint')}>
+      <Field htmlFor="cr-key" label={t('cred.key')} hint={t('cred.keyHint')} info={<><p>{t('cred.keyHintInfo')}</p><p>{t('cred.privacy')} {t('cred.privacyInfo')}</p></>}>
         <Textarea id="cr-key" value={key} onChange={(e) => { setKey(e.target.value); setFileName('') }} disabled={!can} autoComplete="off" spellCheck={false} rows={4}
           className="[-webkit-text-security:disc]" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----" />
       </Field>
@@ -147,12 +154,8 @@ function Inner() {
   const creds = useCreds()
   const targets = useTargets()
   return (
-    <Section id="cred" title={t('cred.title')} description={t('cred.description')} stories={['S-SCAN-5']}>
+    <Section id="cred" title={t('cred.title')} description={t('cred.description')} info={<><p>{t('cred.descriptionInfo')}</p><p>{t('cred.how')}</p></>} stories={['S-SCAN-5']}>
       <div className="grid gap-6">
-        <Panel className="grid gap-1 p-4 text-sm">
-          <p>{t('cred.how')}</p>
-          <p className="text-muted">{t('cred.privacy')}</p>
-        </Panel>
         <Prepare />
         <QueryState query={creds}>
           {(c) => (

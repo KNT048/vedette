@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Download, Plus, Settings2 } from 'lucide-react'
 import { PageHeader } from '@/components/common/PageHeader'
+import { InfoTip } from '@/components/common/InfoTip'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, ModuleOff, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
@@ -149,7 +150,7 @@ function AllSoftware({ items }: { items: DeviceRow[] }) {
   const rows = useMemo<SoftwareRow[]>(() => items.flatMap((d) => d.software.map((s) => ({
     key: `${d.id}/${s.id}`, display: s.display, raw: rawProductLine(s.display, s.vendor, s.product), version: s.version, source: s.source, confidence: s.confidence, device: d,
   }))), [items])
-  if (!rows.length) return <EmptyState title={t('softwareTab.empty')}>{t('softwareTab.emptyBody')}</EmptyState>
+  if (!rows.length) return <EmptyState title={t('softwareTab.empty')}><span className="inline-flex items-center gap-1">{t('softwareTab.emptyBody')}<InfoTip topic={t('softwareTab.empty')}>{t('softwareTab.emptyBodyInfo')}</InfoTip></span></EmptyState>
   const device = (d: DeviceRow) => <Link to={`/devices/${d.id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{nameOf(d, kindLabel(d.kind))}</Link>
   const version = (v: string | null) => v || <span className="text-muted">{t('software.noVersion')}</span>
   const columns: ColumnDef<SoftwareRow>[] = [
@@ -160,7 +161,7 @@ function AllSoftware({ items }: { items: DeviceRow[] }) {
   ]
   return (
     <section aria-label={t('tabs.software')} className="grid gap-3">
-      <p className="max-w-3xl text-[13px] text-muted">{t('softwareTab.description')}</p>
+      <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{t('softwareTab.description')}</p><InfoTip topic={t('tabs.software')}>{t('softwareTab.descriptionInfo')}</InfoTip></div>
       <DataTable caption={t('softwareTab.caption')} data={rows} columns={columns} filterPlaceholder={t('softwareTab.search')} initialSort={[{ id: 'name', desc: false }]}
         mobileRow={(r) => (
           <div className="grid gap-1">
@@ -182,7 +183,7 @@ function NoDevices({ boxOnly, canOp, canAdmin, needRole, onAdd, onImport }: { bo
   const kind = ranges === 'saved' ? 'Watching' : ranges === 'none' ? '' : 'Neutral'
   const body = (boxOnly ? 'empty.bodyBoxOnly' : 'empty.body') + kind
   return (
-    <EmptyState title={boxOnly ? t('empty.titleBoxOnly') : t('empty.title')} action={<div className="flex flex-wrap gap-2"><Button variant="primary" disabled={!canOp} title={needRole} onClick={onAdd}>{t('add.open')}</Button><Button disabled={!canOp} title={needRole} onClick={onImport}>{t('import.open')}</Button>{ranges === 'none' ? <Link to="/devices/setup" className={cn(buttonVariants({ variant: 'secondary' }))}>{t('empty.range')}</Link> : null}</div>}>{t(body)}</EmptyState>
+    <EmptyState title={boxOnly ? t('empty.titleBoxOnly') : t('empty.title')} action={<div className="flex flex-wrap gap-2"><Button variant="primary" disabled={!canOp} title={needRole} onClick={onAdd}>{t('add.open')}</Button><Button disabled={!canOp} title={needRole} onClick={onImport}>{t('import.open')}</Button>{ranges === 'none' ? <Link to="/devices/setup" className={cn(buttonVariants({ variant: 'secondary' }))}>{t('empty.range')}</Link> : null}</div>}><span className="inline-flex items-center gap-1">{t(body)}<InfoTip topic={boxOnly ? t('empty.titleBoxOnly') : t('empty.title')}>{t('empty.info')}</InfoTip></span></EmptyState>
   )
 }
 
@@ -201,7 +202,7 @@ function Body() {
   return (
     <>
       <PageHeader title={title} stories={['S-INV-1', 'S-INV-2', 'S-INV-3', 'S-INV-4']}
-        meta={<span className="inline-flex flex-wrap items-center gap-2"><SampleDataNote />{t('list.meta')}</span>}
+        meta={<span className="inline-flex flex-wrap items-center gap-2"><SampleDataNote />{t('list.meta')}</span>} info={t('list.metaInfo')}
         actions={
           <>
             <Button variant="primary" disabled={!canOp} title={needRole} onClick={() => setAdding(true)}><Plus />{t('add.open')}</Button>

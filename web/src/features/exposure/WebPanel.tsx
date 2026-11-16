@@ -3,6 +3,8 @@ import { Section } from '@/components/common/PageHeader'
 import { EmptyState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
+import { InfoTip } from '@/components/common/InfoTip'
+import { InfoLine } from './InfoLine'
 import type { Snapshot, WebFinding } from './types'
 
 const ORDER = { high: 0, medium: 1, low: 2, info: 3 } as const
@@ -39,21 +41,21 @@ export function WebSection({ s }: { s: Snapshot }) {
     { id: 'fix', header: t('web.col.fix'), enableSorting: false, accessorFn: (r) => r.solution, cell: ({ row }) => <span className="text-[13px]">{row.original.solution}</span> },
   ]
   return (
-    <Section id="web" title={t('web.title')} description={rows.length > 0 || scanned ? t('web.description') : undefined}>
+    <Section id="web" title={t('web.title')} description={rows.length > 0 || scanned ? t('web.description') : undefined} info={rows.length > 0 || scanned ? t('web.descriptionInfo') : undefined}>
       {rows.length > 0 ? (
         <div className="grid gap-6">
           {groups.map(({ g, rows: data }) => (
             <section key={g} aria-labelledby={`web-${g}-title`} className="grid gap-2">
-              <div className="grid gap-0.5">
+              <div className="flex items-center gap-1">
                 <h3 id={`web-${g}-title`} className="text-sm font-semibold">{t(`web.group.${g}.title`)}</h3>
-                <p className="max-w-3xl text-[13px] text-muted">{t(`web.group.${g}.description`)}</p>
+                <InfoTip topic={t(`web.group.${g}.title`)}>{t(`web.group.${g}.description`)}</InfoTip>
               </div>
               <DataTable caption={t(`web.group.${g}.caption`)} data={data} columns={cols} pageSize={20} rowTone={(r) => (g === 'fix' || r.risk === 'high' ? 'warn' : undefined)} />
             </section>
           ))}
         </div>
       ) : scanned ? (
-        <EmptyState title={t('web.noneTitle')}>{t('web.noneBody')}</EmptyState>
+        <EmptyState title={t('web.noneTitle')}><InfoLine topic={t('web.noneTitle')} info={t('web.noneBodyInfo')}>{t('web.noneBody')}</InfoLine></EmptyState>
       ) : (
         <EmptyState title={t('web.notScannedTitle')}>{why?.text ?? t('web.notScannedBody')}</EmptyState>
       )}

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Notice, PageHeader, Section, Panel } from '@/components/common/PageHeader'
+import { InfoTip } from '@/components/common/InfoTip'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, ErrorState, Loading, ModuleOff, RequireModule, SampleDataNote } from '@/components/common/States'
@@ -59,12 +60,14 @@ function Overview({ d }: { d: DeviceDetail }) {
         </span>
         {guess ? (
           <div className="mt-2 grid max-w-2xl gap-1.5 rounded-md border border-border p-3" data-testid="kind-guess">
-            <p className="text-sm">
-              <span className="font-medium">{t('guess.title', { kind: kindLabel(guess.kind), category: categoryLabel(categoryOf(guess.kind)) })}</span>
-              {guess.model ? <span className="text-muted"> {t('guess.model', { model: guess.model })}</span> : null}
-            </p>
+            <div className="flex items-center gap-1">
+              <p className="text-sm">
+                <span className="font-medium">{t('guess.title', { kind: kindLabel(guess.kind), category: categoryLabel(categoryOf(guess.kind)) })}</span>
+                {guess.model ? <span className="text-muted"> {t('guess.model', { model: guess.model })}</span> : null}
+              </p>
+              <InfoTip topic={t('guess.topic')}><p>{t('guess.hint')}</p>{guess.alternatives?.length ? <p>{t('guess.alternativesInfo')}</p> : null}</InfoTip>
+            </div>
             <p className="text-[13px] text-muted [overflow-wrap:anywhere]">{guess.evidence}</p>
-            <p className="text-[12px] text-muted">{t('guess.hint')}</p>
             {guess.alternatives?.length ? <p className="text-[12px] text-muted">{t('guess.alternatives', { list: guess.alternatives.map(kindLabel).join(', ') })}</p> : null}
             <span className="flex flex-wrap gap-2">
               <Button size="sm" disabled={!can || act.patch.isPending} title={needRole} onClick={() => setKind(guess.kind)}>{t('guess.confirm', { kind: kindLabel(guess.kind) })}</Button>
@@ -73,7 +76,7 @@ function Overview({ d }: { d: DeviceDetail }) {
           </div>
         ) : null}
       </dd>
-      <dt className="text-[13px] text-muted"><Label htmlFor="device-fragile" className="text-[13px] font-normal text-muted">{t('detail.fragile')}</Label></dt>
+      <dt className="flex items-center gap-1 text-[13px] text-muted"><Label htmlFor="device-fragile" className="text-[13px] font-normal text-muted">{t('detail.fragile')}</Label><InfoTip topic={t('detail.fragile')}>{t('detail.fragileInfo')}</InfoTip></dt>
       <dd className="flex flex-wrap items-center gap-3">
         <Switch id="device-fragile" checked={a.fragile} disabled={!can || act.patch.isPending} title={needRole}
           onCheckedChange={(v) => act.patch.mutate({ fragile: v }, { onSuccess: () => toast.success(v ? t('detail.fragileOn') : t('detail.fragileOff')), onError: fail })} />
@@ -81,13 +84,12 @@ function Overview({ d }: { d: DeviceDetail }) {
       </dd>
       {a.fragile ? (
         <>
-          <dt className="text-[13px] text-muted"><Label htmlFor="device-regular" className="text-[13px] font-normal text-muted">{t('detail.regularScan')}</Label></dt>
+          <dt className="flex items-center gap-1 text-[13px] text-muted"><Label htmlFor="device-regular" className="text-[13px] font-normal text-muted">{t('detail.regularScan')}</Label><InfoTip topic={t('detail.regularScan')}>{t('detail.regularScanHint')}</InfoTip></dt>
           <dd className="flex flex-wrap items-center gap-3">
             <Select id="device-regular" className="max-w-xs" value={a.regular_scan} disabled={!can || act.patch.isPending} title={needRole}
               onChange={(e) => act.patch.mutate({ regular_scan: e.target.value as RegularScan }, { onSuccess: () => toast.success(t('detail.regularScanSaved')), onError: fail })}>
               {(['follow', 'allow', 'never'] as const).map((o) => <option key={o} value={o}>{t(`detail.regularScanOpt.${o}`)}</option>)}
             </Select>
-            <span className="max-w-xl text-[13px] text-muted">{t('detail.regularScanHint')}</span>
           </dd>
           {row(t('detail.firstScan'), a.first_scan_at ? fmtDateTime(a.first_scan_at) : <span className="text-muted">{t('detail.firstScanNone')}</span>)}
         </>
@@ -130,7 +132,7 @@ function Observations({ list }: { list: Observation[] }) {
 
 function Services({ list, fragile }: { list: Service[]; fragile: boolean }) {
   const { t } = useTranslation('inventory')
-  if (!list.length) return <EmptyState title={t('services.empty')}>{fragile ? t('services.emptyFragile') : t('services.emptyBody')}</EmptyState>
+  if (!list.length) return <EmptyState title={t('services.empty')}><span className="inline-flex items-center gap-1">{fragile ? t('services.emptyFragile') : t('services.emptyBody')}<InfoTip topic={t('services.empty')}>{fragile ? t('services.emptyFragileInfo') : t('services.emptyBodyInfo')}</InfoTip></span></EmptyState>
   const columns: ColumnDef<Service>[] = [
     { id: 'port', header: t('services.port'), accessorFn: (s) => s.port, cell: ({ row }) => <span className="whitespace-nowrap">{row.original.port}/{row.original.proto}</span> },
     { id: 'name', header: t('services.name'), accessorFn: (s) => s.name },
@@ -179,7 +181,7 @@ function VersionDialog({ sw, assetId, onClose }: { sw: SoftwareView | null; asse
   }
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent title={t('software.editTitle', { name: sw.display })} description={t('software.editBody')}>
+      <DialogContent title={t('software.editTitle', { name: sw.display })} description={t('software.editBody')} info={t('software.editBodyInfo')}>
         <form onSubmit={save} className="grid gap-4" noValidate>
           <Field label={t('add.version')} htmlFor="sw-version" hint={t('add.versionHint')}>
             <Input id="sw-version" value={value} maxLength={40} placeholder={t('add.versionPlaceholder')} aria-describedby="sw-version-hint" onChange={(e) => { setValue(e.target.value); setError(null) }} />
@@ -227,7 +229,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
   const [editing, setEditing] = useState<SoftwareView | null>(null)
   const open = useOpenFindings(d.asset.id)
   const list = d.asset.software
-  if (!list.length) return <EmptyState title={t('software.empty')}>{t('software.emptyBody')}</EmptyState>
+  if (!list.length) return <EmptyState title={t('software.empty')}><span className="inline-flex items-center gap-1">{t('software.emptyBody')}<InfoTip topic={t('software.empty')}>{t('software.emptyBodyInfo')}</InfoTip></span></EmptyState>
   const openCount = (sw: SoftwareView) => (open instanceof Map ? sw.kev_cves.filter((c) => open.has(c)).length : 0)
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const version = (sw: SoftwareView) => {
@@ -311,7 +313,7 @@ function Approval({ d }: { d: DeviceDetail }) {
   const name = nameOf(d.asset, kindLabel(d.asset.kind))
   const fail = (e: unknown) => toast.error(errMsg(e))
   return (
-    <Notice tone="warn" title={d.suspicious ? t('approval.suspicious') : t('approval.pending')} actions={<>
+    <Notice tone="warn" title={d.suspicious ? t('approval.suspicious') : t('approval.pending')} info={t('approval.bodyInfo')} actions={<>
         <Button variant="primary" disabled={!can || act.approve.isPending} onClick={() => act.approve.mutate(undefined, { onSuccess: () => toast.success(t('pending.approved', { name }), { description: t('pending.findLater') }), onError: fail })}>{t('pending.approve')}</Button>
         <Button disabled={!can || act.suspicious.isPending} onClick={() => act.suspicious.mutate(!d.suspicious, { onSuccess: () => toast.success(d.suspicious ? t('pending.unmarked', { name }) : t('pending.marked', { name })), onError: fail })}>{d.suspicious ? t('pending.unmark') : t('pending.mark')}</Button>
         <Button disabled={!can} onClick={() => setDel(true)}>{t('pending.delete')}</Button>
@@ -329,8 +331,8 @@ function BoxNotice({ findings }: { findings: number }) {
   const install = useInstallKind() // D-381; undefined while GET /modules loads: then neither claim about packages is made
   const packages = install === 'container' ? t('box.packagesContainer') : install === 'appliance' ? t('box.packagesAppliance') : ''
   return (
-    <Notice tone="accent" title={t('box.title')}>
-      <p>{[t('box.lead'), packages, t('box.matched')].filter(Boolean).join(' ')}</p>
+    <Notice tone="accent" title={t('box.title')} info={[t('box.lead'), packages].filter(Boolean).join(' ')}>
+      <p>{t('box.matched')}</p>
       <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-ink">
         <Link to="/settings/updates" className="font-medium text-accent underline-offset-4 hover:underline">{t('box.fix')}</Link>
         <span className="text-[13px] text-muted">{t('box.noDelete')}</span>
@@ -379,17 +381,16 @@ function Body() {
           </>
         ) },
         { id: 'software', label: t('detail.tabs.software'), panel: (
-          <Section id="software" title={t('software.title')} description={t('software.description')}
+          <Section id="software" title={t('software.title')} description={t('software.description')} info={t('software.descriptionInfo')}
             actions={<Button disabled={!can} title={needRole} onClick={() => setAdding(true)}><Plus />{t('software.add')}</Button>}>
             <SoftwareList d={d} />
           </Section>
         ) },
         { id: 'services', label: t('detail.tabs.services'), panel: (
-          <Section id="services" title={t('services.title')} description={t('services.description')}><Services list={a.services} fragile={a.fragile} /></Section>
+          <Section id="services" title={t('services.title')} description={t('services.description')} info={<><p>{t('services.descriptionInfo')}</p><p>{t('services.descriptionInfo2')}</p></>}><Services list={a.services} fragile={a.fragile} /></Section>
         ) },
         { id: 'observations', label: t('detail.tabs.observations'), panel: (
-          <Section id="obs" title={t('obs.title')} description={t('obs.description')}>
-            <p className="mb-3 max-w-3xl text-[13px] text-muted">{t('detail.meta')}</p>
+          <Section id="obs" title={t('obs.title')} description={t('obs.description')} info={<><p>{t('obs.descriptionInfo')}</p><p>{t('detail.meta')}</p></>}>
             <Observations list={d.observations} />
           </Section>
         ) },

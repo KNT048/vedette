@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { CircleCheck, CircleDashed } from 'lucide-react'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Panel, Section } from '@/components/common/PageHeader'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -28,7 +29,8 @@ const aiOfferable = (a: CatalogAction) => a.params.length > 0 && a.params.every(
 const ASKED = ['finding']
 const link = 'text-accent underline underline-offset-4'
 
-function Step({ n, title, done, optional, children, leaves }: { n: number; title: string; done: boolean | undefined; optional?: boolean; children: ReactNode; leaves: string }) {
+/** `info` is how the step works (behind ⓘ next to its title, #824); `leaves` stays visible as one line, its detail in `leavesInfo`. */
+function Step({ n, title, done, optional, info, children, leaves, leavesInfo }: { n: number; title: string; done: boolean | undefined; optional?: boolean; info: ReactNode; children: ReactNode; leaves: string; leavesInfo?: string }) {
   const { t } = useTranslation('response')
   const Icon = done ? CircleCheck : CircleDashed
   return (
@@ -37,10 +39,11 @@ function Step({ n, title, done, optional, children, leaves }: { n: number; title
       <div className="grid min-w-0 gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-semibold">{n}. {title}</h3>
+          <InfoTip topic={title} className="-ml-1.5">{info}</InfoTip>
           <Chip tone={done ? 'ok' : done === undefined ? 'off' : 'warn'}>{done ? t('setup.done') : done === undefined ? t('setup.unknown') : optional ? t('setup.optional') : t('setup.todo')}</Chip>
         </div>
         {children}
-        <p className="text-[12px] text-muted"><span className="font-medium">{t('setup.leaves')}</span> {leaves}</p>
+        <div className="flex items-center gap-1 text-[12px] text-muted"><p><span className="font-medium">{t('setup.leaves')}</span> {leaves}</p>{leavesInfo ? <InfoTip topic={t('setup.leaves')}>{leavesInfo}</InfoTip> : null}</div>
       </div>
     </li>
   )
@@ -65,8 +68,7 @@ function ProfileStep({ done, admin, ready }: { done: boolean; admin: boolean; re
     })
   }
   return (
-    <Step n={5} title={t('setup.profile.title')} done={done} leaves={t('setup.profile.leaves')}>
-      <p className="text-[13px]">{t('setup.profile.body')}</p>
+    <Step n={5} title={t('setup.profile.title')} done={done} info={<><p>{t('setup.profile.body')}</p><p>{t('setup.profile.waitInfo')}</p></>} leaves={t('setup.profile.leaves')} leavesInfo={t('setup.profile.leavesInfo')}>
       {aiOn === false ? <p className="text-[13px]">{t('setup.profile.aiOff')} {admin ? <Link className={link} to="/settings/modules">{t('setup.toModules')}</Link> : null}</p>
         : !admin ? <p className="text-[13px] text-muted">{t('setup.adminDoes')}</p>
         : profiles.data && !usable.length ? <p className="text-[13px]">{t('setup.profile.none')} <Link className={link} to="/settings/ai">{t('setup.profile.toAi')}</Link></p>
@@ -90,8 +92,7 @@ function ConnectStep({ cat, pulled, done, admin }: { cat: CatalogAction[]; pulle
   const { t } = useTranslation('response')
   const ready = cat.filter((a) => a.device && aiOfferable(a) && a.available)
   return (
-    <Step n={1} title={t('setup.connect.title')} done={done} leaves={t('setup.connect.leaves')}>
-      <p className="text-[13px]">{t('setup.connect.body')}</p>
+    <Step n={1} title={t('setup.connect.title')} done={done} info={<><p>{t('setup.connect.body')}</p><p>{t('setup.connect.blocklistInfo')}</p></>} leaves={t('setup.connect.leaves')} leavesInfo={t('setup.connect.leavesInfo')}>
       <ul className="ml-5 list-disc text-[13px]">
         <li>{ready.length ? t('setup.connect.ready', { names: ready.map((a) => a.name).join(', ') }) : t('setup.connect.noneReady')}{' '}
           {admin ? <><Link className={link} to="/settings/connections">{t('setup.connect.toConnections')}</Link>{' · '}<Link className={link} to="/response?tab=actions">{t('setup.connect.toActions')}</Link></> : null}</li>
@@ -115,8 +116,7 @@ function ChooseStep({ cat, s, triggers, done, admin }: { cat: CatalogAction[]; s
       { onSuccess: () => toast.success(t('common:saved')), onError: (e) => toast.error(errText(e)) })
   }
   return (
-    <Step n={2} title={t('setup.choose.title')} done={done} leaves={t('setup.choose.leaves')}>
-      <p className="text-[13px]">{t('setup.choose.body')}</p>
+    <Step n={2} title={t('setup.choose.title')} done={done} info={t('setup.choose.body')} leaves={t('setup.choose.leaves')}>
       <div className="flex items-start gap-2.5">
         <Checkbox id="setup-finding" checked={!!finding?.ai_allowed} disabled={!admin || !s || save.isPending} onCheckedChange={(v) => setFinding(v === true)} />
         <label htmlFor="setup-finding" className="text-sm">{t('setup.choose.finding')}</label>
@@ -143,8 +143,7 @@ function ApproverStep({ s }: { s: SettingsView | undefined }) {
   const chosen = s ? s.channels.filter((c) => c.ready && s.approval_channels.includes(c.type)) : []
   const done = s ? chosen.some((c) => c.linked > 0) : undefined
   return (
-    <Step n={3} title={t('setup.approvers.title')} done={done} optional leaves={t('setup.approvers.leaves')}>
-      <p className="text-[13px]">{t('setup.approvers.body')}</p>
+    <Step n={3} title={t('setup.approvers.title')} done={done} optional info={t('setup.approvers.body')} leaves={t('setup.approvers.leaves')} leavesInfo={t('setup.approvers.leavesInfo')}>
       {!s ? <p className="text-[13px] text-muted">{t('setup.adminDoes')}</p> : (
         <p className="text-[13px]">
           {chosen.length ? t('setup.approvers.chosen', { channels: chosen.map((c) => `${c.label} (${t('form.linkedCount', { linked: c.linked, count: c.approvers })})`).join(', ') }) : t('setup.approvers.none')}{' '}
@@ -159,8 +158,7 @@ function ExecutionStep({ on, admin }: { on: boolean; admin: boolean }) {
   const { t } = useTranslation('response')
   const [open, setOpen] = useState(false)
   return (
-    <Step n={4} title={t('setup.execution.title')} done={on} leaves={t('setup.execution.leaves')}>
-      <p className="text-[13px]">{t('setup.execution.body')}</p>
+    <Step n={4} title={t('setup.execution.title')} done={on} info={t('setup.execution.body')} leaves={t('setup.execution.leaves')} leavesInfo={t('setup.execution.leavesInfo')}>
       {on ? null : admin ? <div><Button variant="danger" size="sm" onClick={() => setOpen(true)}>{t('setup.execution.button')}</Button></div> : <p className="text-[13px] text-muted">{t('setup.adminDoes')}</p>}
       {admin ? <EnableDialog open={open} onOpenChange={setOpen} /> : null}
     </Step>
@@ -221,7 +219,7 @@ export function AiSetup({ compact = false }: { compact?: boolean }) {
     )
   }
   return (
-    <Section id="ai-setup" title={title} description={<>{t('setup.description')} <span className="font-medium">{count}</span></>} stories={['S-RESP-2']}>
+    <Section id="ai-setup" title={title} description={<>{t('setup.description')} <span className="font-medium">{count}</span></>} info={t('setup.descriptionInfo')} stories={['S-RESP-2']}>
       <Panel className="p-4">{steps}</Panel>
     </Section>
   )
@@ -259,8 +257,7 @@ export function InboxWhy() {
           {p.ran_at && !p.blocked && !p.considered ? <p className="text-[13px] text-muted">{t('why.noFindings')}</p> : null}
         </div>
         <div className="grid gap-1">
-          <h3 className="text-sm font-semibold">{t('why.triggers')}</h3>
-          <p className="text-[13px] text-muted">{t('why.triggersBody')}</p>
+          <div className="flex items-center gap-1"><h3 className="text-sm font-semibold">{t('why.triggers')}</h3><InfoTip topic={t('why.triggers')}>{t('why.triggersBody')}</InfoTip></div>
           <ul className="grid gap-1 text-[13px]">
             {triggers.data.items.map((x) => <li key={x.id}><span className="font-medium">{x.name}</span>: {trig(x)}</li>)}
           </ul>

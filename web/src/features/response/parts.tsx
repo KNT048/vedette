@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { OctagonAlert } from 'lucide-react'
 import { AiBlock } from '@/components/common/AiBlock'
 import { CodeBlock } from '@/components/common/CodeBlock'
+import { InfoTip } from '@/components/common/InfoTip'
 import { KeyValue } from '@/components/common/PageHeader'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -44,9 +45,10 @@ function Blocked({ state }: { state: Proposal['state'] }) {
   const admin = useCan('admin')
   if (state === 'ready') return null
   return (
-    <p className="rounded-md border border-dashed border-rule bg-sunken px-3 py-2 text-[13px] text-muted">
-      {t(`blocked.${state}`)} {admin && state !== 'tool_unavailable' && state !== 'not_publishable' ?<Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link> : null}
-    </p>
+    <div className="flex items-start gap-1 rounded-md border border-dashed border-rule bg-sunken px-3 py-2 text-[13px] text-muted">
+      <p>{t(`blocked.${state}`)} {admin && state !== 'tool_unavailable' && state !== 'not_publishable' ?<Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link> : null}</p>
+      {state === 'not_publishable' ? <InfoTip topic={t('proposal.label')}>{t('blocked.not_publishableInfo')}</InfoTip> : null}
+    </div>
   )
 }
 

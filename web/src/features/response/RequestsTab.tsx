@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Section } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, Loading } from '@/components/common/States'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Segmented } from '@/components/ui/segmented'
 import { useActions, usePlans } from './api'
 import { PlanView } from './parts'
@@ -17,7 +18,7 @@ function Plans() {
   if (plans.error) return <ErrorState error={plans.error} onRetry={() => void plans.refetch()} />
   const { items, ai_available } = plans.data
   return (
-    <Section title={t('plans.title')} description={t('plans.description')} stories={['S-RESP-1']}>
+    <Section title={t('plans.title')} description={t('plans.description')} info={t('plans.descriptionInfo')} stories={['S-RESP-1']}>
       {items.length ? (
         <div className="grid gap-6">{items.map((p) => <PlanView key={p.id} plan={p} heading />)}</div>
       ) : (
@@ -46,14 +47,14 @@ export function RequestsTab() {
   return (
     <div className="grid gap-2">
       {pending && setupDone === false ? <AiSetup compact /> : null}
-      <Section id="requests" title={t('requests.title')} description={t('requests.description')} stories={['S-RESP-2', 'S-RESP-3']}
+      <Section id="requests" title={t('requests.title')} description={t('requests.description')} info={t('requests.descriptionInfo')} stories={['S-RESP-2', 'S-RESP-3']}
         actions={<div className="flex flex-wrap gap-2">
           <Segmented label={t('requests.view')} value={view} onChange={setView} options={[{ value: 'pending', label: t('requests.pending', { count: pending }) }, { value: 'history', label: t('requests.history') }]} />
           <Segmented label={t('requests.source')} value={src} onChange={setSrc} options={[{ value: 'all', label: t('requests.all') }, { value: 'ai', label: t('requests.ai') }, { value: 'rule', label: t('requests.rules') }, { value: 'person', label: t('requests.people') }]} />
           <Segmented label={t('requests.risk')} value={risk} onChange={setRisk} options={[{ value: 'all', label: t('requests.anyRisk') }, ...(['high', 'medium', 'low'] as const).map((r) => ({ value: r, label: t(`catalog.risks.${r}`) }))]} />
         </div>}>
         {items.length ? <div className="grid gap-4">{items.map((a) => <RequestCard key={a.id} a={a} />)}</div>
-          : <EmptyState title={view === 'pending' ? t('requests.emptyPending') : t('requests.empty')}>{filtered ? t('requests.emptyFiltered') : t('requests.emptyBody')}</EmptyState>}
+          : <EmptyState title={view === 'pending' ? t('requests.emptyPending') : t('requests.empty')}>{filtered ? <span className="inline-flex items-center gap-1">{t('requests.emptyFiltered')}<InfoTip topic={t('requests.title')}>{t('requests.emptyFilteredInfo')}</InfoTip></span> : t('requests.emptyBody')}</EmptyState>}
       </Section>
       {!pending ? <><AiSetup /><InboxWhy /></> : null}
       <Plans />

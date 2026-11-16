@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Notice, Section } from '@/components/common/PageHeader'
+import { InfoTip } from '@/components/common/InfoTip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { ModuleOff, QueryState, RequireModule } from '@/components/common/States'
 import { Chip, type Tone } from '@/components/common/StatusChip'
@@ -45,10 +46,10 @@ function StatusDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void
   const { t } = useTranslation('inventory')
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent title={t('sensors.configTitle', { name: sensor.name })} description={t(SPAN_IN_UI || sensor.span ? 'sensors.configBody' : 'sensors.configBodyNoSpan')}>
+      <DialogContent title={t('sensors.configTitle', { name: sensor.name })} description={t(SPAN_IN_UI || sensor.span ? 'sensors.configBody' : 'sensors.configBodyNoSpan')}
+        info={SPAN_IN_UI || sensor.span ? t('sensors.spanHint') : undefined}>
         <div className="grid gap-4">
           <Hearing sensor={sensor} />
-          {SPAN_IN_UI || sensor.span ? <p className="max-w-lg text-[13px] text-muted">{t('sensors.spanHint')}</p> : null}
           <Link to="/settings/network" className="text-sm font-medium text-accent underline-offset-4 hover:underline" onClick={onClose}>{t(SPAN_IN_UI ? 'sensors.spanLink' : 'sensors.networkLink')}</Link>
           <DialogFooter><DialogClose asChild><Button>{t('common:close')}</Button></DialogClose></DialogFooter>
         </div>
@@ -80,7 +81,8 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
   const [errorAt, setErrorAt] = useState<'card' | 'span' | 'form'>('form')
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent title={t('sensors.configTitle', { name: sensor.name })} description={t(SPAN_IN_UI ? 'sensors.card.body' : 'sensors.card.bodyNoSpan')}>
+      <DialogContent title={t('sensors.configTitle', { name: sensor.name })} description={t(SPAN_IN_UI ? 'sensors.card.body' : 'sensors.card.bodyNoSpan')}
+        info={SPAN_IN_UI || showSpan ? <>{SPAN_IN_UI ? <p>{t('sensors.card.bodyInfo')}</p> : null}{showSpan ? <p>{t('sensors.spanHint')}</p> : null}</> : undefined}>
         <div className="grid gap-4">
           <Hearing sensor={sensor} />
           {cards.length === 0 ? (
@@ -94,9 +96,9 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
               const asked = { interface: card || null, span: card !== '' && span }
               save.mutate(asked, { onSuccess: () => { toast.success(t('sensors.card.saved')); onClose() }, onError: (er) => { setErrorAt(er instanceof ApiError && er.code === 'bad_interface' ? (asked.span ? 'span' : 'card') : 'form'); setError(errMsg(er)) } })
             }}>
-              {!sensor.interface ? <p role="status" className="rounded-md border border-rule bg-surface px-3 py-2 text-sm">{t('sensors.card.notListening')}</p> : null}
+              {!sensor.interface ? <div className="flex items-center gap-1 rounded-md border border-rule bg-surface px-3 py-2 text-sm"><p role="status">{t('sensors.card.notListening')}</p><InfoTip>{t('sensors.card.notListeningInfo')}</InfoTip></div> : null}
               <div className="grid gap-1">
-                <Field label={t('sensors.card.label')} htmlFor="sensor-card" hint={t('sensors.card.hint')} className="max-w-sm">
+                <Field label={t('sensors.card.label')} htmlFor="sensor-card" hint={t('sensors.card.hint')} info={t('sensors.card.hintInfo')} className="max-w-sm">
                   <Select id="sensor-card" value={card} onChange={(e) => { setCard(e.target.value); setSpan(false); setError(null) }}
                     aria-invalid={error && errorAt === 'card' ? true : undefined} aria-describedby={error && errorAt === 'card' ? 'sensor-card-error sensor-card-hint' : 'sensor-card-hint'}>
                     <option value="">{autoLabel}</option>
@@ -115,7 +117,6 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
                 {/* "Automatic" is whatever card the sensor takes by itself: SPAN is a property of one named card, so the tick waits for one (D-393). */}
                 <p id="sensor-span-hint" className="max-w-lg text-[13px] text-muted">{(!SPAN_IN_UI ? t('sensors.card.spanKept', { name: sensor.interface ?? '' }) : t(card === '' ? 'sensors.card.spanNeedsCard' : 'sensors.card.spanHint'))}</p>
               </div> : null}
-              {showSpan ? <p className="max-w-lg text-[13px] text-muted">{t('sensors.spanHint')}</p> : null}
               {error && errorAt === 'form' ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
               <DialogFooter>
                 <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
@@ -145,7 +146,7 @@ export function SensorsSection() {
           ? <><Chip tone="warn">{t('sensors.capture.notCapturing')}</Chip><span className="max-w-xs text-[12px] text-warn">{t(`sensors.capture.${row.original.capture_error}`)}</span></>
           : <Chip tone={TONE[row.original.status]}>{t(`sensors.status.${row.original.status}`)}</Chip>}
         {row.original.last_seen ? <span className="text-[12px] text-muted">{t('sensors.lastSeen', { when: fmtRelative(row.original.last_seen) })}</span> : null}
-        {row.original.status === 'never_connected' && install ? <span className="max-w-xs text-[12px] text-muted">{t(install === 'container' ? 'sensors.startHint' : 'sensors.notStartedHint')}</span> : null}
+        {row.original.status === 'never_connected' && install ? <span className="flex max-w-xs items-center gap-1 text-[12px] text-muted">{t(install === 'container' ? 'sensors.startHint' : 'sensors.notStartedHint')}{install === 'container' ? null : <InfoTip>{t('sensors.notStartedHintInfo')}</InfoTip>}</span> : null}
         {row.original.status === 'starting' ? <span className="max-w-xs text-[12px] text-muted">{t('sensors.startingHint')}</span> : null}
       </div>
     ) },
@@ -156,7 +157,8 @@ export function SensorsSection() {
     ) },
   ]
   return (
-    <Section id="sensors" title={t('sensors.title')} description={install ? t(`sensors.${install === 'container' ? 'descriptionContainer' : 'description'}${SPAN_IN_UI || q.data?.sensors.some((x) => x.span) ? '' : 'NoSpan'}`) : undefined} stories={['S-INV-1', 'S-CORE-8']}>
+    <Section id="sensors" title={t('sensors.title')} description={install ? t('sensors.description') : undefined}
+      info={install ? t(`sensors.${install === 'container' ? 'descriptionContainer' : 'description'}${SPAN_IN_UI || q.data?.sensors.some((x) => x.span) ? '' : 'NoSpan'}Info`) : undefined} stories={['S-INV-1', 'S-CORE-8']}>
       <RequireModule module="sensor-passive" fallback={<ModuleOff module="sensor-passive">{t('sensors.off')}</ModuleOff>}>
         <QueryState query={q}>
           {(d) => <DataTable caption={t('sensors.caption')} data={d.sensors} columns={columns} />}

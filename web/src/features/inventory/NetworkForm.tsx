@@ -16,8 +16,8 @@ import { kindLabel } from '@/lib/deviceTypes'
 
 const RATES = [10, 50, 200, 500]
 
-function ListEditor({ id, label, listLabel, hint, items, onChange, validate, placeholder, addLabel, removeLabel, emptyText }: {
-  id: string; label: string; listLabel: string; hint: string; items: string[]; onChange: (v: string[]) => void; validate: (v: string) => string | null
+function ListEditor({ id, label, listLabel, hint, info, items, onChange, validate, placeholder, addLabel, removeLabel, emptyText }: {
+  id: string; label: string; listLabel: string; hint: string; info?: string; items: string[]; onChange: (v: string[]) => void; validate: (v: string) => string | null
   placeholder: string; addLabel: string; removeLabel: (v: string) => string; emptyText: string
 }) {
   const [draft, setDraft] = useState('')
@@ -32,7 +32,7 @@ function ListEditor({ id, label, listLabel, hint, items, onChange, validate, pla
   }
   return (
     <div className="grid gap-2">
-      <Field label={label} htmlFor={id} hint={hint} error={error}>
+      <Field label={label} htmlFor={id} hint={hint} info={info} error={error}>
         <div className="flex max-w-md gap-2">
           <Input id={id} value={draft} placeholder={placeholder} aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : `${id}-hint`}
             onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }} />
@@ -80,7 +80,7 @@ function RangeEditor({ items, onChange }: { items: string[]; onChange: (v: strin
   }
   return (
     <div className="grid gap-2">
-      <Field label={t('network.rangeLabel')} htmlFor="range-input" hint={t('network.rangeHint')} error={error}>
+      <Field label={t('network.rangeLabel')} htmlFor="range-input" hint={t('network.rangeHint')} info={t('network.rangeHintInfo')} error={error}>
         <div className="flex max-w-md gap-2">
           <Input id="range-input" value={draft} placeholder="192.168.10.0/24" aria-invalid={error ? true : undefined} aria-describedby={error ? 'range-input-error' : 'range-input-hint'}
             onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }} />
@@ -132,13 +132,13 @@ export function NetworkForm({ settings }: { settings: InventorySettings }) {
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); submit() }} noValidate>
-      <Section id="ranges" title={t('network.title')} description={t('network.description')} stories={['S-INV-1']}>
+      <Section id="ranges" title={t('network.title')} description={t('network.description')} info={t('network.descriptionInfo')} stories={['S-INV-1']}>
         <Panel className="p-4">
           <RangeEditor items={draft.lan_ranges} onChange={(v) => { set({ lan_ranges: v }); setConfirmed(false) }} />
         </Panel>
       </Section>
 
-      <Section id="active" title={t('active.title')} description={t('active.description')}>
+      <Section id="active" title={t('active.title')} description={t('active.description')} info={t('active.descriptionInfo')}>
         <RequireModule module="sensor-active" fallback={<ModuleOff module="sensor-active">{t('active.off')}</ModuleOff>}>
           <Panel className="grid gap-5 p-4">
             <div className="flex flex-wrap items-center gap-3">
@@ -157,16 +157,15 @@ export function NetworkForm({ settings }: { settings: InventorySettings }) {
               </div>
               <div className="mt-2 flex flex-wrap gap-4">
                 <Field label={t('active.from')} htmlFor="active-from"><Input id="active-from" type="time" className="w-32" value={draft.active.from} onChange={(e) => setActive({ from: e.target.value })} /></Field>
-                <Field label={t('active.to')} htmlFor="active-to"><Input id="active-to" type="time" className="w-32" value={draft.active.to} onChange={(e) => setActive({ to: e.target.value })} /></Field>
+                <Field label={t('active.to')} htmlFor="active-to" info={t('active.crossMidnight')}><Input id="active-to" type="time" className="w-32" value={draft.active.to} onChange={(e) => setActive({ to: e.target.value })} /></Field>
                 <Field label={t('active.rate')} htmlFor="active-rate" hint={t('active.rateHint')} className="max-w-xs">
                   <Select id="active-rate" value={draft.active.rate} onChange={(e) => setActive({ rate: Number(e.target.value) })} aria-describedby="active-rate-hint">
                     {rates.map((r) => <option key={r} value={r}>{t('active.rateOption', { rate: r, name: t(`active.rateName.${r}`, { defaultValue: t('active.rateCustom') }) })}</option>)}
                   </Select>
                 </Field>
               </div>
-              <p className="text-[13px] text-muted">{t('active.crossMidnight')}</p>
             </fieldset>
-            <ListEditor id="excl-input" label={t('active.exclusions')} listLabel={t('active.exclusionsList')} hint={t('active.exclusionsHint')} items={draft.active.exclusions} placeholder="192.168.10.10"
+            <ListEditor id="excl-input" label={t('active.exclusions')} listLabel={t('active.exclusionsList')} hint={t('active.exclusionsHint')} info={t('active.exclusionsHintInfo')} items={draft.active.exclusions} placeholder="192.168.10.10"
               addLabel={t('active.addExclusion')} removeLabel={(v) => t('active.removeExclusion', { value: v })} emptyText={t('active.noExclusions')}
               validate={(v) => (IPV4_RE_UI.test(v) || (CIDR_RE_UI.test(v) && !hasHostBits(v)) ? null : t('active.badExclusion'))}
               onChange={(v) => setActive({ exclusions: v })} />
@@ -175,7 +174,7 @@ export function NetworkForm({ settings }: { settings: InventorySettings }) {
         </RequireModule>
       </Section>
 
-      <Section id="fragile" title={t('fragile.title')} description={t('fragile.description')}>
+      <Section id="fragile" title={t('fragile.title')} description={t('fragile.description')} info={<><p>{t('fragile.descriptionInfo')}</p><p>{t('fragile.note')}</p></>}>
         <Panel className="p-4">
           <fieldset>
             <legend className="sr-only">{t('fragile.title')}</legend>
@@ -197,7 +196,6 @@ export function NetworkForm({ settings }: { settings: InventorySettings }) {
               ))}
             </div>
           </fieldset>
-          <p className="mt-3 text-[13px] text-muted">{t('fragile.note')}</p>
         </Panel>
       </Section>
 

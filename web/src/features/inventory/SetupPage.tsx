@@ -33,7 +33,7 @@ function Body() {
   return (
     <>
       {back}
-      <PageHeader title={title} stories={['S-INV-1', 'S-INV-4']} meta={<span className="inline-flex flex-wrap items-center gap-2"><SampleDataNote />{t('setup.meta')}</span>} />
+      <PageHeader title={title} stories={['S-INV-1', 'S-INV-4']} meta={<span className="inline-flex flex-wrap items-center gap-2"><SampleDataNote />{t('setup.meta')}</span>} info={t('setup.metaInfo')} />
       <OldHashToTab map={OLD_HASH} />
       {/* D-519: four areas that each save on their own (scope, the box's sensor, SNMP credentials, agents), as Lansweeper keeps
           scanning targets and scanning credentials on separate pages. */}

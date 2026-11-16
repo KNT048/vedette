@@ -73,7 +73,7 @@ export function AddDeviceDialog({ open, onOpenChange, deviceId }: { open: boolea
   const listOpenRef = useRef(false)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={deviceId ? t('add.softwareTitle') : t('add.title')} description={deviceId ? t('add.softwareBody') : t('add.body')}
+      <DialogContent title={deviceId ? t('add.softwareTitle') : t('add.title')} description={deviceId ? t('add.softwareBody') : t('add.body')} info={deviceId ? undefined : t('add.bodyInfo')}
         onEscapeKeyDown={(e) => { if (listOpenRef.current) e.preventDefault() }}>
         <AddForm deviceId={deviceId} onDone={() => onOpenChange(false)} listOpenRef={listOpenRef} />
       </DialogContent>

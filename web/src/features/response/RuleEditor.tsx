@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ArrowDown, ArrowUp, FlaskConical, Plus, Trash2 } from 'lucide-react'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, Panel } from '@/components/common/PageHeader'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -82,7 +83,7 @@ function ActionRow({ a, i, n, cat, trig, errs, onChange, onMove, onRemove }: { a
           {!c.available ? <p className="text-[13px] text-warn">{c.unavailable_reason}</p> : null}
           <div className="grid gap-3 sm:grid-cols-2">
             {c.params.map((p) => (
-              <Field key={p} htmlFor={`rp-${i}-${p}`} label={t('editor.param', { p: t(`editor.types.${p}`) })} hint={t('editor.paramHint')} error={errs[`rp-${i}-${p}`]}>
+              <Field key={p} htmlFor={`rp-${i}-${p}`} label={t('editor.param', { p: t(`editor.types.${p}`) })} hint={t('editor.paramHint')} info={t('editor.paramHintInfo')} error={errs[`rp-${i}-${p}`]}>
                 <div className="grid gap-1.5">
                   <Input id={`rp-${i}-${p}`} {...inv(errs, `rp-${i}-${p}`)} spellCheck={false} value={a.params[p] ?? ''} onChange={(e) => onChange({ ...a, params: { ...a.params, [p]: e.target.value } })} placeholder={`{{trigger.${trig?.fields.find((f) => compatible(p, f.type))?.key ?? 'field'}}}`} />
                   <Select aria-label={t('editor.useField', { p })} value="" onChange={(e) => e.target.value && onChange({ ...a, params: { ...a.params, [p]: `{{trigger.${e.target.value}}}` } })}>
@@ -182,7 +183,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
   return (
     <>
       <Dialog open onOpenChange={(v) => { if (!v) onClose() }}>
-        <DialogContent title={rule ? t('rules.editTitle') : t('rules.addTitle')} description={t('editor.hint')} wide>
+        <DialogContent title={rule ? t('rules.editTitle') : t('rules.addTitle')} description={t('editor.hint')} info={t('editor.hintInfo')} wide>
           <form className="grid gap-5" noValidate onSubmit={(e) => { e.preventDefault()
             if (!r.actions.length) { setError(t('editor.needAction')); return }
             if (!checked()) return
@@ -229,7 +230,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
 
             <section className="grid gap-3" aria-label={t('editor.then')}>
               <h3 className="text-sm font-semibold">{t('editor.then')}</h3>
-              <Notice tone="warn" role="note" className="mb-0" title={t('editor.attacker')} />
+              <Notice tone="warn" role="note" className="mb-0" title={t('editor.attacker')} info={t('editor.attackerInfo')} />
               <ol className="grid gap-3">
                 {actions.map((a, i) => <ActionRow key={`${a.action_id}-${i}`} a={a} i={i} n={actions.length} cat={cat} trig={trig} errs={errs}
                   onChange={(x) => set({ actions: r.actions.map((y, j) => (j === i ? x : y)) })} onMove={(d) => { const l = [...r.actions]; const [m] = l.splice(i, 1); l.splice(i + d, 0, m!); set({ actions: l }) }} onRemove={() => set({ actions: r.actions.filter((_, j) => j !== i) })} />)}
@@ -238,7 +239,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
                 <Button size="sm" onClick={() => addAction(first)}><Plus className="size-4" aria-hidden />{t('editor.addAction')}</Button>
                 {admin ? <Button size="sm" onClick={() => setCustom(true)}><Plus className="size-4" aria-hidden />{t('editor.newCustom')}</Button> : null}
               </div>
-              <p className="text-[13px] text-muted">{t('editor.approvalDefault')}</p>
+              <div className="flex items-center gap-1 text-[13px] text-muted"><p>{t('editor.approvalDefault')}</p><InfoTip topic={t('editor.then')}>{t('editor.approvalDefaultInfo')}</InfoTip></div>
             </section>
 
             <section className="grid gap-3" aria-label={t('editor.limits')}>
@@ -248,9 +249,10 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
                 <div className="flex items-center gap-2.5">
                   <Switch id="rule-pre" checked={r.pre_approved} disabled={!admin || (!r.pre_approved && !eligible)} onCheckedChange={(v) => set({ pre_approved: v })} />
                   <label htmlFor="rule-pre" className="grid text-sm"><span className="font-medium">{t('editor.pre')}</span><span className="text-[13px] text-muted">{t('editor.preHint')}</span></label>
+                  <InfoTip topic={t('editor.pre')}>{t('editor.preHintInfo')}</InfoTip>
                 </div>
                 {!admin ? <p className="text-[13px] text-muted">{t('editor.preAdmin')}</p> : !eligible && !r.pre_approved ? <p className="text-[13px] text-muted">{t('editor.preNotEligible')}</p> : null}
-                {r.pre_approved ? <Notice tone="danger" role="alert" className="mb-0" title={t('editor.preWarning')} /> : null}
+                {r.pre_approved ? <Notice tone="danger" role="alert" className="mb-0" title={t('editor.preWarning')} info={t('editor.preWarningInfo')} /> : null}
                 {why ? <p role="alert" className="text-[13px] text-danger">{t('editor.preBad')}</p> : null}
               </Panel>
             </section>

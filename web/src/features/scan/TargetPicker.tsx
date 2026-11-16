@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { ChevronDown, ChevronRight } from 'lucide-react'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Pager, groupState, pageOf } from '@/components/common/Selection'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -264,7 +265,11 @@ export function TargetPicker({ targets, sel, onToggle, onAdd, onRemove, onReplac
         {external.length === 0 ? <p className="px-3 py-3 text-sm text-muted">{t('start.noExternal')}</p>
           : shownExt.length === 0 ? <p className="px-3 py-3 text-sm text-muted">{t('start.noExternalMatch')}</p>
             : <ul className="divide-y divide-rule">{shownExt.map((x) => <TargetRow key={x.id} t={x} checked={sel.has(x.id)} onChange={(v) => onToggle(x.id, v)} />)}</ul>}
-        <p className="border-t border-rule px-3 py-2 text-[13px] text-muted">{t('start.externalHint')} <Link to="/exposure" className="text-accent underline underline-offset-4">{t('start.openExposure')}</Link></p>
+        <div className="flex flex-wrap items-center gap-x-1 border-t border-rule px-3 py-2 text-[13px] text-muted">
+          <span>{t('start.externalHint')}</span>
+          <InfoTip topic={t('start.external')}>{t('start.externalHintInfo')}</InfoTip>
+          <Link to="/exposure" className="text-accent underline underline-offset-4">{t('start.openExposure')}</Link>
+        </div>
       </fieldset>
     </div>
   )

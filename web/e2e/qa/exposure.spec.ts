@@ -241,8 +241,9 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await page.goto('/exposure')
   const box = page.locator('#box-ip')
   await box.getByRole('button', { name: 'Detect now' }).waitFor()
-  await box.getByText('How the box finds its IPs').click()
-  for (const t of [/You cannot type an IP/, /Private, reserved and shared carrier \(CGNAT/, /Detect now, Verify again and the DNS Check of a domain share 10 attempts per hour/]) await expect(box.getByText(t)).toBeVisible()
+  // #824: how the box finds its IPs is behind the section's ⓘ; its text is the button's accessible description
+  const help = box.getByRole('button', { name: 'About Public IPs of this box' })
+  for (const t of [/You cannot type an IP/, /Private, reserved and shared carrier \(CGNAT/, /Detect now, Verify again and the DNS Check of a domain share 10 attempts per hour/]) await expect(help).toHaveAccessibleDescription(t)
   await setEgress(page, '100.64.20.7')
   await box.getByRole('button', { name: 'Detect now' }).click()
   await expect(box.getByRole('status')).toContainText('private, reserved or shared carrier (CGNAT) address')

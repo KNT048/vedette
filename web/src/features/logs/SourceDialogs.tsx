@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { CodeBlock } from '@/components/common/CodeBlock'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Notice } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -107,7 +108,7 @@ export function SourceFormDialog({ open, onOpenChange, source, sender, onAdded }
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={source ? t('form.editTitle') : t('form.addTitle')} description={source ? undefined : t('form.addDesc')}>
+      <DialogContent title={source ? t('form.editTitle') : t('form.addTitle')} description={source ? undefined : t('form.addDesc')} info={source ? undefined : t('form.addDescInfo')}>
         <form onSubmit={submit} className="grid gap-4" noValidate>
           {error && !error.field ? <Notice tone="danger" role="alert" title={error.message} /> : null}
           {kind ? (
@@ -122,7 +123,7 @@ export function SourceFormDialog({ open, onOpenChange, source, sender, onAdded }
             <KindPicker find={find} setFind={setFind} onPick={pickKind} />
           )}
           {kind ? (<>
-          <Field label={t('form.name')} hint={t('form.nameHint')} htmlFor="ls-name" error={fieldErr('name')}>
+          <Field label={t('form.name')} hint={t('form.nameHint')} info={t('form.nameHintInfo')} htmlFor="ls-name" error={fieldErr('name')}>
             <Input id="ls-name" value={name} onChange={(e) => { setName(e.target.value); fixed('name') }} autoComplete="off" required {...aria('name', true)} />
           </Field>
           <Field label={t('form.ip')} hint={t('form.ipHint')} htmlFor="ls-ip" error={fieldErr('ip')}>
@@ -140,7 +141,7 @@ export function SourceFormDialog({ open, onOpenChange, source, sender, onAdded }
             </Field>
           </div>
           {proto === 'tls' ? (
-            <Field label={t('form.cert')} hint={t('form.certHint')} htmlFor="ls-cert" error={fieldErr('cert')}>
+            <Field label={t('form.cert')} hint={t('form.certHint')} info={t('form.certHintInfo')} htmlFor="ls-cert" error={fieldErr('cert')}>
               <Input id="ls-cert" value={cert} onChange={(e) => { setCert(e.target.value); fixed('cert') }} autoComplete="off" spellCheck={false} className="font-mono" {...aria('cert', true)} />
             </Field>
           ) : null}
@@ -165,8 +166,14 @@ export function ConfigDialog({ source, boxIp, lan, onClose }: { source: LogSourc
         const ctx = { ip, port: source.port, proto: source.proto }
         return (
           <DialogContent wide title={t('config.title', { name: source.name })} description={t('config.target', { ip, port: source.port, proto: source.proto.toUpperCase(), sender: source.sender_ip })}>
-            {boxIp ? null : <Notice tone="warn" role="alert" title={lan ? t('config.noIpLan', { lan, placeholder: BOX_PLACEHOLDER }) : t('config.noIp', { placeholder: BOX_PLACEHOLDER })} />}
-            {source.proto === 'tls' ? <p className="rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">{t(source.client_cert_sha256 ? 'config.tlsTrustPinned' : 'config.tlsTrust')}</p> : null}
+            {boxIp ? null : <Notice tone="warn" role="alert" title={lan ? t('config.noIpLan', { lan, placeholder: BOX_PLACEHOLDER }) : t('config.noIp', { placeholder: BOX_PLACEHOLDER })}
+              info={lan ? t('config.noIpLanInfo', { lan, placeholder: BOX_PLACEHOLDER }) : t('config.noIpInfo', { placeholder: BOX_PLACEHOLDER })} />}
+            {source.proto === 'tls' ? (
+              <div className="flex items-start gap-1 rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">
+                <p>{t(source.client_cert_sha256 ? 'config.tlsTrustPinned' : 'config.tlsTrust')}</p>
+                <InfoTip topic={t('boxCert.title')}>{t(source.client_cert_sha256 ? 'config.tlsTrustPinnedInfo' : 'config.tlsTrustInfo')}</InfoTip>
+              </div>
+            ) : null}
             <p className="text-sm">{e.intro}</p>
             <p className="rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]"><span className="font-medium">{t('config.reads')}: </span>{e.readsNote}</p>
             <h3 className="text-sm font-medium">{t('config.steps')}</h3>
@@ -188,7 +195,7 @@ export function DeleteDialog({ source, onClose }: { source: LogSource | null; on
   return (
     <Dialog open={source !== null} onOpenChange={(o) => { if (!o) onClose() }}>
       {source ? (
-        <DialogContent title={t('form.deleteTitle', { name: source.name })} description={t('form.deleteBody')}>
+        <DialogContent title={t('form.deleteTitle', { name: source.name })} description={t('form.deleteBody')} info={t('form.deleteBodyInfo')}>
           <DialogFooter>
             <Button onClick={onClose}>{t('common:cancel')}</Button>
             <Button variant="danger" disabled={del.isPending} onClick={() => del.mutate(source.id, { onSuccess: () => { toast.success(t('form.deleted')); onClose() }, onError: (e) => toast.error(errMsg(e)) })}>{t('common:delete')}</Button>
@@ -213,7 +220,10 @@ export function BoxCertificate({ tls }: { tls: BoxTls }) {
   return (
     <div className="mt-4 grid gap-2 rounded-md border border-rule bg-sunken px-3 py-3 text-sm" aria-labelledby="box-cert-title">
       <h3 id="box-cert-title" className="font-medium">{t('boxCert.title')}</h3>
-      <p className="text-[13px] text-muted">{t(`boxCert.${tls.kind}`, { port: tls.port, issuer: tls.issuer })}</p>
+      <div className="flex items-start gap-1">
+        <p className="text-[13px] text-muted">{t(`boxCert.${tls.kind}`, { port: tls.port, issuer: tls.issuer })}</p>
+        <InfoTip topic={t('boxCert.title')}>{t(`boxCert.${tls.kind}Info`, { port: tls.port, issuer: tls.issuer })}</InfoTip>
+      </div>
       <dl className="grid gap-1 text-[13px]">
         <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t(`boxCert.fingerprint_${tls.kind}`)}</dt><dd><code className="break-all font-mono">{tls.fingerprint_sha256}</code></dd></div>
         <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t('boxCert.subject')}</dt><dd>{tls.subject}</dd></div>

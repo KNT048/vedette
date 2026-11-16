@@ -148,7 +148,7 @@ export function PlanDataState({ plan, compact = false }: { plan: Plan; compact?:
   const { t } = useTranslation('findings')
   if (!plan.compared) {
     return compact ? <p className="text-sm text-muted">{t('plan.state.notCompared')}</p> : (
-      <Notice tone="accent" title={t('plan.state.notComparedTitle')}><p>{t('plan.state.notCompared')}</p></Notice>
+      <Notice tone="accent" title={t('plan.state.notComparedTitle')} info={t('plan.state.notComparedInfo')}><p>{t('plan.state.notCompared')}</p></Notice>
     )
   }
   const { epss, recent } = plan.data
@@ -164,7 +164,7 @@ export function PlanDataState({ plan, compact = false }: { plan: Plan; compact?:
   const feedsLink = <Link to="/settings/feeds" className="text-accent underline underline-offset-4" />
   if (epss === 'off' && recent === 'off') {
     return compact ? <p className="text-sm text-muted"><Trans t={t} i18nKey="plan.state.offShort" components={{ a: feedsLink }} /></p> : (
-      <Notice tone="off" title={t('plan.state.offTitle')} actions={<Link to="/settings/feeds" className="text-sm text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link>}>
+      <Notice tone="off" title={t('plan.state.offTitle')} info={t('plan.state.offBodyInfo')} actions={<Link to="/settings/feeds" className="text-sm text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link>}>
         <p>{t('plan.state.offBody')}</p>
       </Notice>
     )
@@ -174,7 +174,7 @@ export function PlanDataState({ plan, compact = false }: { plan: Plan; compact?:
   if (loading.length) parts.push(t('plan.state.loading', { feeds: loading.map(name).join(t('plan.and')) }))
   if (!parts.length) return null
   return compact ? <p className="text-sm text-muted">{parts.join(' ')} <Link to="/settings/feeds" className="text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link></p> : (
-    <Notice tone="off" title={t('plan.state.partialTitle')} actions={<Link to="/settings/feeds" className="text-sm text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link>}>
+    <Notice tone="off" title={t('plan.state.partialTitle')} info={loading.length ? t('plan.state.loadingInfo') : undefined} actions={<Link to="/settings/feeds" className="text-sm text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link>}>
       <p>{parts.join(' ')}</p>
     </Notice>
   )

@@ -286,6 +286,8 @@
   "POST /response/rules/{id}/manual": "response",
   "POST /response/templates/{id}/clone": "response",
   "POST /scanning/engines/nmap-discovery/run": "core",
+  "POST /scanning/safety/exclusions": "core",
+  "POST /scanning/safety/ranges": "core",
   "POST /scans/credentialed": "scan-credentialed",
   "POST /scans/credentialed/{id}/test": "scan-credentialed",
   "POST /scans/runs": "scan",

@@ -96462,6 +96462,10 @@ type InventoryGetInventorySettingsOK struct {
 	RegularScanKinds []InventoryGetInventorySettingsOKRegularScanKindsItem `json:"regular_scan_kinds"`
 	ScopeConfirmedAt NilDateTime                                           `json:"scope_confirmed_at"`
 	ScopeConfirmedBy NilString                                             `json:"scope_confirmed_by"`
+	// Version of the shared safety block (the same as GET /scanning safety.version, inventory INV-32):
+	// send it back on PUT to be refused with 409 safety_changed instead of replacing a change made since
+	// the page loaded.
+	Version string `json:"version"`
 }
 
 // GetActive returns the value of Active.
@@ -96494,6 +96498,11 @@ func (s *InventoryGetInventorySettingsOK) GetScopeConfirmedBy() NilString {
 	return s.ScopeConfirmedBy
 }
 
+// GetVersion returns the value of Version.
+func (s *InventoryGetInventorySettingsOK) GetVersion() string {
+	return s.Version
+}
+
 // SetActive sets the value of Active.
 func (s *InventoryGetInventorySettingsOK) SetActive(val InventoryGetInventorySettingsOKActive) {
 	s.Active = val
@@ -96522,6 +96531,11 @@ func (s *InventoryGetInventorySettingsOK) SetScopeConfirmedAt(val NilDateTime) {
 // SetScopeConfirmedBy sets the value of ScopeConfirmedBy.
 func (s *InventoryGetInventorySettingsOK) SetScopeConfirmedBy(val NilString) {
 	s.ScopeConfirmedBy = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryGetInventorySettingsOK) SetVersion(val string) {
+	s.Version = val
 }
 
 type InventoryGetInventorySettingsOKActive struct {
@@ -101587,6 +101601,10 @@ type InventoryPutInventorySettingsOK struct {
 	RegularScanKinds []InventoryPutInventorySettingsOKRegularScanKindsItem `json:"regular_scan_kinds"`
 	ScopeConfirmedAt NilDateTime                                           `json:"scope_confirmed_at"`
 	ScopeConfirmedBy NilString                                             `json:"scope_confirmed_by"`
+	// Version of the shared safety block (the same as GET /scanning safety.version, inventory INV-32):
+	// send it back on PUT to be refused with 409 safety_changed instead of replacing a change made since
+	// the page loaded.
+	Version string `json:"version"`
 }
 
 // GetActive returns the value of Active.
@@ -101624,6 +101642,11 @@ func (s *InventoryPutInventorySettingsOK) GetScopeConfirmedBy() NilString {
 	return s.ScopeConfirmedBy
 }
 
+// GetVersion returns the value of Version.
+func (s *InventoryPutInventorySettingsOK) GetVersion() string {
+	return s.Version
+}
+
 // SetActive sets the value of Active.
 func (s *InventoryPutInventorySettingsOK) SetActive(val InventoryPutInventorySettingsOKActive) {
 	s.Active = val
@@ -101657,6 +101680,11 @@ func (s *InventoryPutInventorySettingsOK) SetScopeConfirmedAt(val NilDateTime) {
 // SetScopeConfirmedBy sets the value of ScopeConfirmedBy.
 func (s *InventoryPutInventorySettingsOK) SetScopeConfirmedBy(val NilString) {
 	s.ScopeConfirmedBy = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryPutInventorySettingsOK) SetVersion(val string) {
+	s.Version = val
 }
 
 type InventoryPutInventorySettingsOKActive struct {
@@ -102006,6 +102034,10 @@ type InventoryPutInventorySettingsReq struct {
 	ScopeConfirmed   bool        `json:"scope_confirmed"`
 	ScopeConfirmedAt NilDateTime `json:"scope_confirmed_at"`
 	ScopeConfirmedBy NilString   `json:"scope_confirmed_by"`
+	// The version this page read. Given and not the stored one: 409 safety_changed, nothing stored (review
+	// #860 M1). Left out: no check, so a range or exclusion added since the page loaded is replaced; this
+	// page is being replaced by Settings › Scanning (#850).
+	Version OptString `json:"version"`
 }
 
 // GetActive returns the value of Active.
@@ -102043,6 +102075,11 @@ func (s *InventoryPutInventorySettingsReq) GetScopeConfirmedBy() NilString {
 	return s.ScopeConfirmedBy
 }
 
+// GetVersion returns the value of Version.
+func (s *InventoryPutInventorySettingsReq) GetVersion() OptString {
+	return s.Version
+}
+
 // SetActive sets the value of Active.
 func (s *InventoryPutInventorySettingsReq) SetActive(val InventoryPutInventorySettingsReqActive) {
 	s.Active = val
@@ -102076,6 +102113,11 @@ func (s *InventoryPutInventorySettingsReq) SetScopeConfirmedAt(val NilDateTime) 
 // SetScopeConfirmedBy sets the value of ScopeConfirmedBy.
 func (s *InventoryPutInventorySettingsReq) SetScopeConfirmedBy(val NilString) {
 	s.ScopeConfirmedBy = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryPutInventorySettingsReq) SetVersion(val OptString) {
+	s.Version = val
 }
 
 type InventoryPutInventorySettingsReqActive struct {
@@ -176260,6 +176302,9 @@ type ScanGetScansConfigOK struct {
 	// cannot be read; next_run is null then (D-261 (3)).
 	ScheduleBlockedReason NilString                 `json:"schedule_blocked_reason"`
 	Scope                 ScanGetScansConfigOKScope `json:"scope"`
+	// Version of the shared safety block (window, rate, exclusions live in inventory INV-32; the same as
+	// GET /scanning safety.version); "" when this module keeps its own copy.
+	Version string `json:"version"`
 }
 
 // GetBlockReason returns the value of BlockReason.
@@ -176297,6 +176342,11 @@ func (s *ScanGetScansConfigOK) GetScope() ScanGetScansConfigOKScope {
 	return s.Scope
 }
 
+// GetVersion returns the value of Version.
+func (s *ScanGetScansConfigOK) GetVersion() string {
+	return s.Version
+}
+
 // SetBlockReason sets the value of BlockReason.
 func (s *ScanGetScansConfigOK) SetBlockReason(val NilString) {
 	s.BlockReason = val
@@ -176330,6 +176380,11 @@ func (s *ScanGetScansConfigOK) SetScheduleBlockedReason(val NilString) {
 // SetScope sets the value of Scope.
 func (s *ScanGetScansConfigOK) SetScope(val ScanGetScansConfigOKScope) {
 	s.Scope = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanGetScansConfigOK) SetVersion(val string) {
+	s.Version = val
 }
 
 type ScanGetScansConfigOKConfig struct {
@@ -181428,6 +181483,9 @@ type ScanPutScansConfigOK struct {
 	// cannot be read; next_run is null then (D-261 (3)).
 	ScheduleBlockedReason NilString                 `json:"schedule_blocked_reason"`
 	Scope                 ScanPutScansConfigOKScope `json:"scope"`
+	// Version of the shared safety block (window, rate, exclusions live in inventory INV-32; the same as
+	// GET /scanning safety.version); "" when this module keeps its own copy.
+	Version string `json:"version"`
 }
 
 // GetBlockReason returns the value of BlockReason.
@@ -181465,6 +181523,11 @@ func (s *ScanPutScansConfigOK) GetScope() ScanPutScansConfigOKScope {
 	return s.Scope
 }
 
+// GetVersion returns the value of Version.
+func (s *ScanPutScansConfigOK) GetVersion() string {
+	return s.Version
+}
+
 // SetBlockReason sets the value of BlockReason.
 func (s *ScanPutScansConfigOK) SetBlockReason(val NilString) {
 	s.BlockReason = val
@@ -181498,6 +181561,11 @@ func (s *ScanPutScansConfigOK) SetScheduleBlockedReason(val NilString) {
 // SetScope sets the value of Scope.
 func (s *ScanPutScansConfigOK) SetScope(val ScanPutScansConfigOKScope) {
 	s.Scope = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanPutScansConfigOK) SetVersion(val string) {
+	s.Version = val
 }
 
 type ScanPutScansConfigOKConfig struct {
@@ -181772,7 +181840,12 @@ type ScanPutScansConfigReq struct {
 	Schedule           OptScanPutScansConfigReqSchedule `json:"schedule"`
 	StopOnUnresponsive OptBool                          `json:"stop_on_unresponsive"`
 	UnresponsiveAfter  OptInt                           `json:"unresponsive_after"`
-	Window             OptScanPutScansConfigReqWindow   `json:"window"`
+	// The version of the shared safety block this page read (version of GET /scans/config). Given and not
+	// the stored one: 409 safety_changed, nothing stored (review #860 M1). Left out: no check, so an
+	// exclusion added since the page loaded is replaced when exclusions are sent; this page is being
+	// replaced by Settings › Scanning (#850).
+	Version OptString                      `json:"version"`
+	Window  OptScanPutScansConfigReqWindow `json:"window"`
 }
 
 // GetAutoRescan returns the value of AutoRescan.
@@ -181808,6 +181881,11 @@ func (s *ScanPutScansConfigReq) GetStopOnUnresponsive() OptBool {
 // GetUnresponsiveAfter returns the value of UnresponsiveAfter.
 func (s *ScanPutScansConfigReq) GetUnresponsiveAfter() OptInt {
 	return s.UnresponsiveAfter
+}
+
+// GetVersion returns the value of Version.
+func (s *ScanPutScansConfigReq) GetVersion() OptString {
+	return s.Version
 }
 
 // GetWindow returns the value of Window.
@@ -181848,6 +181926,11 @@ func (s *ScanPutScansConfigReq) SetStopOnUnresponsive(val OptBool) {
 // SetUnresponsiveAfter sets the value of UnresponsiveAfter.
 func (s *ScanPutScansConfigReq) SetUnresponsiveAfter(val OptInt) {
 	s.UnresponsiveAfter = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanPutScansConfigReq) SetVersion(val OptString) {
+	s.Version = val
 }
 
 // SetWindow sets the value of Window.
@@ -183340,6 +183423,11 @@ type ScanningGetScanningOKSafety struct {
 	Fragile    ScanningGetScanningOKSafetyFragile `json:"fragile"`
 	Scope      ScanningGetScanningOKSafetyScope   `json:"scope"`
 	Speed      ScanningGetScanningOKSafetySpeed   `json:"speed"`
+	// Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the
+	// version it was built on (409 safety_changed otherwise), so a page opened before an inline add never
+	// drops it. Every answer that changed the block carries the new one. The same values give the same
+	// version.
+	Version string `json:"version"`
 	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
 	// Check this device now and external scans are not bound by it.
 	Window ScanningGetScanningOKSafetyWindow `json:"window"`
@@ -183365,6 +183453,11 @@ func (s *ScanningGetScanningOKSafety) GetSpeed() ScanningGetScanningOKSafetySpee
 	return s.Speed
 }
 
+// GetVersion returns the value of Version.
+func (s *ScanningGetScanningOKSafety) GetVersion() string {
+	return s.Version
+}
+
 // GetWindow returns the value of Window.
 func (s *ScanningGetScanningOKSafety) GetWindow() ScanningGetScanningOKSafetyWindow {
 	return s.Window
@@ -183388,6 +183481,11 @@ func (s *ScanningGetScanningOKSafety) SetScope(val ScanningGetScanningOKSafetySc
 // SetSpeed sets the value of Speed.
 func (s *ScanningGetScanningOKSafety) SetSpeed(val ScanningGetScanningOKSafetySpeed) {
 	s.Speed = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanningGetScanningOKSafety) SetVersion(val string) {
+	s.Version = val
 }
 
 // SetWindow sets the value of Window.
@@ -185242,6 +185340,11 @@ type ScanningPatchScanningEnginesIDOKSafety struct {
 	Fragile    ScanningPatchScanningEnginesIDOKSafetyFragile `json:"fragile"`
 	Scope      ScanningPatchScanningEnginesIDOKSafetyScope   `json:"scope"`
 	Speed      ScanningPatchScanningEnginesIDOKSafetySpeed   `json:"speed"`
+	// Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the
+	// version it was built on (409 safety_changed otherwise), so a page opened before an inline add never
+	// drops it. Every answer that changed the block carries the new one. The same values give the same
+	// version.
+	Version string `json:"version"`
 	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
 	// Check this device now and external scans are not bound by it.
 	Window ScanningPatchScanningEnginesIDOKSafetyWindow `json:"window"`
@@ -185267,6 +185370,11 @@ func (s *ScanningPatchScanningEnginesIDOKSafety) GetSpeed() ScanningPatchScannin
 	return s.Speed
 }
 
+// GetVersion returns the value of Version.
+func (s *ScanningPatchScanningEnginesIDOKSafety) GetVersion() string {
+	return s.Version
+}
+
 // GetWindow returns the value of Window.
 func (s *ScanningPatchScanningEnginesIDOKSafety) GetWindow() ScanningPatchScanningEnginesIDOKSafetyWindow {
 	return s.Window
@@ -185290,6 +185398,11 @@ func (s *ScanningPatchScanningEnginesIDOKSafety) SetScope(val ScanningPatchScann
 // SetSpeed sets the value of Speed.
 func (s *ScanningPatchScanningEnginesIDOKSafety) SetSpeed(val ScanningPatchScanningEnginesIDOKSafetySpeed) {
 	s.Speed = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanningPatchScanningEnginesIDOKSafety) SetVersion(val string) {
+	s.Version = val
 }
 
 // SetWindow sets the value of Window.
@@ -186165,6 +186278,1059 @@ func (s *ScanningPostScanningEnginesNmapDiscoveryRunReq) SetTargets(val []string
 	s.Targets = val
 }
 
+type ScanningPostScanningSafetyExclusionsOK struct {
+	// IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the
+	// 200 a save accepts).
+	Exclusions []string                                      `json:"exclusions"`
+	Fragile    ScanningPostScanningSafetyExclusionsOKFragile `json:"fragile"`
+	Scope      ScanningPostScanningSafetyExclusionsOKScope   `json:"scope"`
+	Speed      ScanningPostScanningSafetyExclusionsOKSpeed   `json:"speed"`
+	// Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the
+	// version it was built on (409 safety_changed otherwise), so a page opened before an inline add never
+	// drops it. Every answer that changed the block carries the new one. The same values give the same
+	// version.
+	Version string `json:"version"`
+	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
+	// Check this device now and external scans are not bound by it.
+	Window ScanningPostScanningSafetyExclusionsOKWindow `json:"window"`
+}
+
+// GetExclusions returns the value of Exclusions.
+func (s *ScanningPostScanningSafetyExclusionsOK) GetExclusions() []string {
+	return s.Exclusions
+}
+
+// GetFragile returns the value of Fragile.
+func (s *ScanningPostScanningSafetyExclusionsOK) GetFragile() ScanningPostScanningSafetyExclusionsOKFragile {
+	return s.Fragile
+}
+
+// GetScope returns the value of Scope.
+func (s *ScanningPostScanningSafetyExclusionsOK) GetScope() ScanningPostScanningSafetyExclusionsOKScope {
+	return s.Scope
+}
+
+// GetSpeed returns the value of Speed.
+func (s *ScanningPostScanningSafetyExclusionsOK) GetSpeed() ScanningPostScanningSafetyExclusionsOKSpeed {
+	return s.Speed
+}
+
+// GetVersion returns the value of Version.
+func (s *ScanningPostScanningSafetyExclusionsOK) GetVersion() string {
+	return s.Version
+}
+
+// GetWindow returns the value of Window.
+func (s *ScanningPostScanningSafetyExclusionsOK) GetWindow() ScanningPostScanningSafetyExclusionsOKWindow {
+	return s.Window
+}
+
+// SetExclusions sets the value of Exclusions.
+func (s *ScanningPostScanningSafetyExclusionsOK) SetExclusions(val []string) {
+	s.Exclusions = val
+}
+
+// SetFragile sets the value of Fragile.
+func (s *ScanningPostScanningSafetyExclusionsOK) SetFragile(val ScanningPostScanningSafetyExclusionsOKFragile) {
+	s.Fragile = val
+}
+
+// SetScope sets the value of Scope.
+func (s *ScanningPostScanningSafetyExclusionsOK) SetScope(val ScanningPostScanningSafetyExclusionsOKScope) {
+	s.Scope = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *ScanningPostScanningSafetyExclusionsOK) SetSpeed(val ScanningPostScanningSafetyExclusionsOKSpeed) {
+	s.Speed = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanningPostScanningSafetyExclusionsOK) SetVersion(val string) {
+	s.Version = val
+}
+
+// SetWindow sets the value of Window.
+func (s *ScanningPostScanningSafetyExclusionsOK) SetWindow(val ScanningPostScanningSafetyExclusionsOKWindow) {
+	s.Window = val
+}
+
+type ScanningPostScanningSafetyExclusionsOKFragile struct {
+	// Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter;
+	// read-only.
+	Devices int `json:"devices"`
+	// Types scanned once, gently, when first seen; passive-only after that (D-45, D-511).
+	Kinds []ScanningPostScanningSafetyExclusionsOKFragileKindsItem `json:"kinds"`
+	// Subset of kinds that may still get regular scans.
+	RegularScanKinds []ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem `json:"regular_scan_kinds"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ScanningPostScanningSafetyExclusionsOKFragile) GetDevices() int {
+	return s.Devices
+}
+
+// GetKinds returns the value of Kinds.
+func (s *ScanningPostScanningSafetyExclusionsOKFragile) GetKinds() []ScanningPostScanningSafetyExclusionsOKFragileKindsItem {
+	return s.Kinds
+}
+
+// GetRegularScanKinds returns the value of RegularScanKinds.
+func (s *ScanningPostScanningSafetyExclusionsOKFragile) GetRegularScanKinds() []ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem {
+	return s.RegularScanKinds
+}
+
+// SetDevices sets the value of Devices.
+func (s *ScanningPostScanningSafetyExclusionsOKFragile) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetKinds sets the value of Kinds.
+func (s *ScanningPostScanningSafetyExclusionsOKFragile) SetKinds(val []ScanningPostScanningSafetyExclusionsOKFragileKindsItem) {
+	s.Kinds = val
+}
+
+// SetRegularScanKinds sets the value of RegularScanKinds.
+func (s *ScanningPostScanningSafetyExclusionsOKFragile) SetRegularScanKinds(val []ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem) {
+	s.RegularScanKinds = val
+}
+
+type ScanningPostScanningSafetyExclusionsOKFragileKindsItem string
+
+const (
+	ScanningPostScanningSafetyExclusionsOKFragileKindsItemFirewall ScanningPostScanningSafetyExclusionsOKFragileKindsItem = "firewall"
+	ScanningPostScanningSafetyExclusionsOKFragileKindsItemRouter   ScanningPostScanningSafetyExclusionsOKFragileKindsItem = "router"
+	ScanningPostScanningSafetyExclusionsOKFragileKindsItemSwitch   ScanningPostScanningSafetyExclusionsOKFragileKindsItem = "switch"
+	ScanningPostScanningSafetyExclusionsOKFragileKindsItemAp       ScanningPostScanningSafetyExclusionsOKFragileKindsItem = "ap"
+	ScanningPostScanningSafetyExclusionsOKFragileKindsItemNas      ScanningPostScanningSafetyExclusionsOKFragileKindsItem = "nas"
+	ScanningPostScanningSafetyExclusionsOKFragileKindsItemServer   ScanningPostScanningSafetyExclusionsOKFragileKindsItem = "server"
+	ScanningPostScanningSafetyExclusionsOKFragileKindsItemPc       ScanningPostScanningSafetyExclusionsOKFragileKindsItem = "pc"
+	ScanningPostScanningSafetyExclusionsOKFragileKindsItemPrinter  ScanningPostScanningSafetyExclusionsOKFragileKindsItem = "printer"
+	ScanningPostScanningSafetyExclusionsOKFragileKindsItemCamera   ScanningPostScanningSafetyExclusionsOKFragileKindsItem = "camera"
+	ScanningPostScanningSafetyExclusionsOKFragileKindsItemNvr      ScanningPostScanningSafetyExclusionsOKFragileKindsItem = "nvr"
+	ScanningPostScanningSafetyExclusionsOKFragileKindsItemIot      ScanningPostScanningSafetyExclusionsOKFragileKindsItem = "iot"
+	ScanningPostScanningSafetyExclusionsOKFragileKindsItemWeb      ScanningPostScanningSafetyExclusionsOKFragileKindsItem = "web"
+	ScanningPostScanningSafetyExclusionsOKFragileKindsItemUnknown  ScanningPostScanningSafetyExclusionsOKFragileKindsItem = "unknown"
+)
+
+// AllValues returns all ScanningPostScanningSafetyExclusionsOKFragileKindsItem values.
+func (ScanningPostScanningSafetyExclusionsOKFragileKindsItem) AllValues() []ScanningPostScanningSafetyExclusionsOKFragileKindsItem {
+	return []ScanningPostScanningSafetyExclusionsOKFragileKindsItem{
+		ScanningPostScanningSafetyExclusionsOKFragileKindsItemFirewall,
+		ScanningPostScanningSafetyExclusionsOKFragileKindsItemRouter,
+		ScanningPostScanningSafetyExclusionsOKFragileKindsItemSwitch,
+		ScanningPostScanningSafetyExclusionsOKFragileKindsItemAp,
+		ScanningPostScanningSafetyExclusionsOKFragileKindsItemNas,
+		ScanningPostScanningSafetyExclusionsOKFragileKindsItemServer,
+		ScanningPostScanningSafetyExclusionsOKFragileKindsItemPc,
+		ScanningPostScanningSafetyExclusionsOKFragileKindsItemPrinter,
+		ScanningPostScanningSafetyExclusionsOKFragileKindsItemCamera,
+		ScanningPostScanningSafetyExclusionsOKFragileKindsItemNvr,
+		ScanningPostScanningSafetyExclusionsOKFragileKindsItemIot,
+		ScanningPostScanningSafetyExclusionsOKFragileKindsItemWeb,
+		ScanningPostScanningSafetyExclusionsOKFragileKindsItemUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPostScanningSafetyExclusionsOKFragileKindsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemFirewall:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemRouter:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemSwitch:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemAp:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemNas:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemServer:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemPc:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemPrinter:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemCamera:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemNvr:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemIot:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemWeb:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPostScanningSafetyExclusionsOKFragileKindsItem) UnmarshalText(data []byte) error {
+	switch ScanningPostScanningSafetyExclusionsOKFragileKindsItem(data) {
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemFirewall:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileKindsItemFirewall
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemRouter:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileKindsItemRouter
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemSwitch:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileKindsItemSwitch
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemAp:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileKindsItemAp
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemNas:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileKindsItemNas
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemServer:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileKindsItemServer
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemPc:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileKindsItemPc
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemPrinter:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileKindsItemPrinter
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemCamera:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileKindsItemCamera
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemNvr:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileKindsItemNvr
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemIot:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileKindsItemIot
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemWeb:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileKindsItemWeb
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileKindsItemUnknown:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileKindsItemUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem string
+
+const (
+	ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemFirewall ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem = "firewall"
+	ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemRouter   ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem = "router"
+	ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemSwitch   ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem = "switch"
+	ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemAp       ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem = "ap"
+	ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemNas      ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem = "nas"
+	ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemServer   ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem = "server"
+	ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemPc       ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem = "pc"
+	ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemPrinter  ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem = "printer"
+	ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemCamera   ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem = "camera"
+	ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemNvr      ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem = "nvr"
+	ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemIot      ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem = "iot"
+	ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemWeb      ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem = "web"
+	ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemUnknown  ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem = "unknown"
+)
+
+// AllValues returns all ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem values.
+func (ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem) AllValues() []ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem {
+	return []ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem{
+		ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemFirewall,
+		ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemRouter,
+		ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemSwitch,
+		ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemAp,
+		ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemNas,
+		ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemServer,
+		ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemPc,
+		ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemPrinter,
+		ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemCamera,
+		ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemNvr,
+		ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemIot,
+		ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemWeb,
+		ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemFirewall:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemRouter:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemSwitch:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemAp:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemNas:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemServer:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemPc:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemPrinter:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemCamera:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemNvr:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemIot:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemWeb:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem) UnmarshalText(data []byte) error {
+	switch ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItem(data) {
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemFirewall:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemFirewall
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemRouter:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemRouter
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemSwitch:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemSwitch
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemAp:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemAp
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemNas:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemNas
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemServer:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemServer
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemPc:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemPc
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemPrinter:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemPrinter
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemCamera:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemCamera
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemNvr:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemNvr
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemIot:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemIot
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemWeb:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemWeb
+		return nil
+	case ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemUnknown:
+		*s = ScanningPostScanningSafetyExclusionsOKFragileRegularScanKindsItemUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPostScanningSafetyExclusionsOKScope struct {
+	ConfirmedAt NilDateTime `json:"confirmed_at"`
+	ConfirmedBy NilString   `json:"confirmed_by"`
+	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges.
+	LanRanges []string `json:"lan_ranges"`
+}
+
+// GetConfirmedAt returns the value of ConfirmedAt.
+func (s *ScanningPostScanningSafetyExclusionsOKScope) GetConfirmedAt() NilDateTime {
+	return s.ConfirmedAt
+}
+
+// GetConfirmedBy returns the value of ConfirmedBy.
+func (s *ScanningPostScanningSafetyExclusionsOKScope) GetConfirmedBy() NilString {
+	return s.ConfirmedBy
+}
+
+// GetLanRanges returns the value of LanRanges.
+func (s *ScanningPostScanningSafetyExclusionsOKScope) GetLanRanges() []string {
+	return s.LanRanges
+}
+
+// SetConfirmedAt sets the value of ConfirmedAt.
+func (s *ScanningPostScanningSafetyExclusionsOKScope) SetConfirmedAt(val NilDateTime) {
+	s.ConfirmedAt = val
+}
+
+// SetConfirmedBy sets the value of ConfirmedBy.
+func (s *ScanningPostScanningSafetyExclusionsOKScope) SetConfirmedBy(val NilString) {
+	s.ConfirmedBy = val
+}
+
+// SetLanRanges sets the value of LanRanges.
+func (s *ScanningPostScanningSafetyExclusionsOKScope) SetLanRanges(val []string) {
+	s.LanRanges = val
+}
+
+type ScanningPostScanningSafetyExclusionsOKSpeed struct {
+	// Nmap and SNMP (inventory active.rate).
+	PacketsPerS int `json:"packets_per_s"`
+	// Nuclei on LAN devices (was scan config rate).
+	RequestsPerS int `json:"requests_per_s"`
+}
+
+// GetPacketsPerS returns the value of PacketsPerS.
+func (s *ScanningPostScanningSafetyExclusionsOKSpeed) GetPacketsPerS() int {
+	return s.PacketsPerS
+}
+
+// GetRequestsPerS returns the value of RequestsPerS.
+func (s *ScanningPostScanningSafetyExclusionsOKSpeed) GetRequestsPerS() int {
+	return s.RequestsPerS
+}
+
+// SetPacketsPerS sets the value of PacketsPerS.
+func (s *ScanningPostScanningSafetyExclusionsOKSpeed) SetPacketsPerS(val int) {
+	s.PacketsPerS = val
+}
+
+// SetRequestsPerS sets the value of RequestsPerS.
+func (s *ScanningPostScanningSafetyExclusionsOKSpeed) SetRequestsPerS(val int) {
+	s.RequestsPerS = val
+}
+
+// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
+// Check this device now and external scans are not bound by it.
+type ScanningPostScanningSafetyExclusionsOKWindow struct {
+	// Empty only on a box whose discovery was saved off without a day; a save needs one.
+	Days []int `json:"days"`
+	// HH:MM.
+	From string `json:"from"`
+	// IANA zone the window is read in (the organization time zone); read-only.
+	TimeZone string `json:"time_zone"`
+	// Earlier than from: crosses midnight.
+	To string `json:"to"`
+}
+
+// GetDays returns the value of Days.
+func (s *ScanningPostScanningSafetyExclusionsOKWindow) GetDays() []int {
+	return s.Days
+}
+
+// GetFrom returns the value of From.
+func (s *ScanningPostScanningSafetyExclusionsOKWindow) GetFrom() string {
+	return s.From
+}
+
+// GetTimeZone returns the value of TimeZone.
+func (s *ScanningPostScanningSafetyExclusionsOKWindow) GetTimeZone() string {
+	return s.TimeZone
+}
+
+// GetTo returns the value of To.
+func (s *ScanningPostScanningSafetyExclusionsOKWindow) GetTo() string {
+	return s.To
+}
+
+// SetDays sets the value of Days.
+func (s *ScanningPostScanningSafetyExclusionsOKWindow) SetDays(val []int) {
+	s.Days = val
+}
+
+// SetFrom sets the value of From.
+func (s *ScanningPostScanningSafetyExclusionsOKWindow) SetFrom(val string) {
+	s.From = val
+}
+
+// SetTimeZone sets the value of TimeZone.
+func (s *ScanningPostScanningSafetyExclusionsOKWindow) SetTimeZone(val string) {
+	s.TimeZone = val
+}
+
+// SetTo sets the value of To.
+func (s *ScanningPostScanningSafetyExclusionsOKWindow) SetTo(val string) {
+	s.To = val
+}
+
+type ScanningPostScanningSafetyExclusionsReq struct {
+	// One IPv4 address or IPv4 CIDR without host bits that no engine on the LAN may touch, e.g.
+	// 192.168.18.9 or 192.168.18.64/28.
+	Entry string `json:"entry"`
+}
+
+// GetEntry returns the value of Entry.
+func (s *ScanningPostScanningSafetyExclusionsReq) GetEntry() string {
+	return s.Entry
+}
+
+// SetEntry sets the value of Entry.
+func (s *ScanningPostScanningSafetyExclusionsReq) SetEntry(val string) {
+	s.Entry = val
+}
+
+type ScanningPostScanningSafetyRangesOK struct {
+	// Ranges and exclusions normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24.
+	Adjusted []ScanningPostScanningSafetyRangesOKAdjustedItem `json:"adjusted"`
+	// IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the
+	// 200 a save accepts).
+	Exclusions []string                                  `json:"exclusions"`
+	Fragile    ScanningPostScanningSafetyRangesOKFragile `json:"fragile"`
+	Scope      ScanningPostScanningSafetyRangesOKScope   `json:"scope"`
+	Speed      ScanningPostScanningSafetyRangesOKSpeed   `json:"speed"`
+	// Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the
+	// version it was built on (409 safety_changed otherwise), so a page opened before an inline add never
+	// drops it. Every answer that changed the block carries the new one. The same values give the same
+	// version.
+	Version string `json:"version"`
+	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
+	// Check this device now and external scans are not bound by it.
+	Window ScanningPostScanningSafetyRangesOKWindow `json:"window"`
+}
+
+// GetAdjusted returns the value of Adjusted.
+func (s *ScanningPostScanningSafetyRangesOK) GetAdjusted() []ScanningPostScanningSafetyRangesOKAdjustedItem {
+	return s.Adjusted
+}
+
+// GetExclusions returns the value of Exclusions.
+func (s *ScanningPostScanningSafetyRangesOK) GetExclusions() []string {
+	return s.Exclusions
+}
+
+// GetFragile returns the value of Fragile.
+func (s *ScanningPostScanningSafetyRangesOK) GetFragile() ScanningPostScanningSafetyRangesOKFragile {
+	return s.Fragile
+}
+
+// GetScope returns the value of Scope.
+func (s *ScanningPostScanningSafetyRangesOK) GetScope() ScanningPostScanningSafetyRangesOKScope {
+	return s.Scope
+}
+
+// GetSpeed returns the value of Speed.
+func (s *ScanningPostScanningSafetyRangesOK) GetSpeed() ScanningPostScanningSafetyRangesOKSpeed {
+	return s.Speed
+}
+
+// GetVersion returns the value of Version.
+func (s *ScanningPostScanningSafetyRangesOK) GetVersion() string {
+	return s.Version
+}
+
+// GetWindow returns the value of Window.
+func (s *ScanningPostScanningSafetyRangesOK) GetWindow() ScanningPostScanningSafetyRangesOKWindow {
+	return s.Window
+}
+
+// SetAdjusted sets the value of Adjusted.
+func (s *ScanningPostScanningSafetyRangesOK) SetAdjusted(val []ScanningPostScanningSafetyRangesOKAdjustedItem) {
+	s.Adjusted = val
+}
+
+// SetExclusions sets the value of Exclusions.
+func (s *ScanningPostScanningSafetyRangesOK) SetExclusions(val []string) {
+	s.Exclusions = val
+}
+
+// SetFragile sets the value of Fragile.
+func (s *ScanningPostScanningSafetyRangesOK) SetFragile(val ScanningPostScanningSafetyRangesOKFragile) {
+	s.Fragile = val
+}
+
+// SetScope sets the value of Scope.
+func (s *ScanningPostScanningSafetyRangesOK) SetScope(val ScanningPostScanningSafetyRangesOKScope) {
+	s.Scope = val
+}
+
+// SetSpeed sets the value of Speed.
+func (s *ScanningPostScanningSafetyRangesOK) SetSpeed(val ScanningPostScanningSafetyRangesOKSpeed) {
+	s.Speed = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanningPostScanningSafetyRangesOK) SetVersion(val string) {
+	s.Version = val
+}
+
+// SetWindow sets the value of Window.
+func (s *ScanningPostScanningSafetyRangesOK) SetWindow(val ScanningPostScanningSafetyRangesOKWindow) {
+	s.Window = val
+}
+
+type ScanningPostScanningSafetyRangesOKAdjustedItem struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+// GetFrom returns the value of From.
+func (s *ScanningPostScanningSafetyRangesOKAdjustedItem) GetFrom() string {
+	return s.From
+}
+
+// GetTo returns the value of To.
+func (s *ScanningPostScanningSafetyRangesOKAdjustedItem) GetTo() string {
+	return s.To
+}
+
+// SetFrom sets the value of From.
+func (s *ScanningPostScanningSafetyRangesOKAdjustedItem) SetFrom(val string) {
+	s.From = val
+}
+
+// SetTo sets the value of To.
+func (s *ScanningPostScanningSafetyRangesOKAdjustedItem) SetTo(val string) {
+	s.To = val
+}
+
+type ScanningPostScanningSafetyRangesOKFragile struct {
+	// Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter;
+	// read-only.
+	Devices int `json:"devices"`
+	// Types scanned once, gently, when first seen; passive-only after that (D-45, D-511).
+	Kinds []ScanningPostScanningSafetyRangesOKFragileKindsItem `json:"kinds"`
+	// Subset of kinds that may still get regular scans.
+	RegularScanKinds []ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem `json:"regular_scan_kinds"`
+}
+
+// GetDevices returns the value of Devices.
+func (s *ScanningPostScanningSafetyRangesOKFragile) GetDevices() int {
+	return s.Devices
+}
+
+// GetKinds returns the value of Kinds.
+func (s *ScanningPostScanningSafetyRangesOKFragile) GetKinds() []ScanningPostScanningSafetyRangesOKFragileKindsItem {
+	return s.Kinds
+}
+
+// GetRegularScanKinds returns the value of RegularScanKinds.
+func (s *ScanningPostScanningSafetyRangesOKFragile) GetRegularScanKinds() []ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem {
+	return s.RegularScanKinds
+}
+
+// SetDevices sets the value of Devices.
+func (s *ScanningPostScanningSafetyRangesOKFragile) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetKinds sets the value of Kinds.
+func (s *ScanningPostScanningSafetyRangesOKFragile) SetKinds(val []ScanningPostScanningSafetyRangesOKFragileKindsItem) {
+	s.Kinds = val
+}
+
+// SetRegularScanKinds sets the value of RegularScanKinds.
+func (s *ScanningPostScanningSafetyRangesOKFragile) SetRegularScanKinds(val []ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem) {
+	s.RegularScanKinds = val
+}
+
+type ScanningPostScanningSafetyRangesOKFragileKindsItem string
+
+const (
+	ScanningPostScanningSafetyRangesOKFragileKindsItemFirewall ScanningPostScanningSafetyRangesOKFragileKindsItem = "firewall"
+	ScanningPostScanningSafetyRangesOKFragileKindsItemRouter   ScanningPostScanningSafetyRangesOKFragileKindsItem = "router"
+	ScanningPostScanningSafetyRangesOKFragileKindsItemSwitch   ScanningPostScanningSafetyRangesOKFragileKindsItem = "switch"
+	ScanningPostScanningSafetyRangesOKFragileKindsItemAp       ScanningPostScanningSafetyRangesOKFragileKindsItem = "ap"
+	ScanningPostScanningSafetyRangesOKFragileKindsItemNas      ScanningPostScanningSafetyRangesOKFragileKindsItem = "nas"
+	ScanningPostScanningSafetyRangesOKFragileKindsItemServer   ScanningPostScanningSafetyRangesOKFragileKindsItem = "server"
+	ScanningPostScanningSafetyRangesOKFragileKindsItemPc       ScanningPostScanningSafetyRangesOKFragileKindsItem = "pc"
+	ScanningPostScanningSafetyRangesOKFragileKindsItemPrinter  ScanningPostScanningSafetyRangesOKFragileKindsItem = "printer"
+	ScanningPostScanningSafetyRangesOKFragileKindsItemCamera   ScanningPostScanningSafetyRangesOKFragileKindsItem = "camera"
+	ScanningPostScanningSafetyRangesOKFragileKindsItemNvr      ScanningPostScanningSafetyRangesOKFragileKindsItem = "nvr"
+	ScanningPostScanningSafetyRangesOKFragileKindsItemIot      ScanningPostScanningSafetyRangesOKFragileKindsItem = "iot"
+	ScanningPostScanningSafetyRangesOKFragileKindsItemWeb      ScanningPostScanningSafetyRangesOKFragileKindsItem = "web"
+	ScanningPostScanningSafetyRangesOKFragileKindsItemUnknown  ScanningPostScanningSafetyRangesOKFragileKindsItem = "unknown"
+)
+
+// AllValues returns all ScanningPostScanningSafetyRangesOKFragileKindsItem values.
+func (ScanningPostScanningSafetyRangesOKFragileKindsItem) AllValues() []ScanningPostScanningSafetyRangesOKFragileKindsItem {
+	return []ScanningPostScanningSafetyRangesOKFragileKindsItem{
+		ScanningPostScanningSafetyRangesOKFragileKindsItemFirewall,
+		ScanningPostScanningSafetyRangesOKFragileKindsItemRouter,
+		ScanningPostScanningSafetyRangesOKFragileKindsItemSwitch,
+		ScanningPostScanningSafetyRangesOKFragileKindsItemAp,
+		ScanningPostScanningSafetyRangesOKFragileKindsItemNas,
+		ScanningPostScanningSafetyRangesOKFragileKindsItemServer,
+		ScanningPostScanningSafetyRangesOKFragileKindsItemPc,
+		ScanningPostScanningSafetyRangesOKFragileKindsItemPrinter,
+		ScanningPostScanningSafetyRangesOKFragileKindsItemCamera,
+		ScanningPostScanningSafetyRangesOKFragileKindsItemNvr,
+		ScanningPostScanningSafetyRangesOKFragileKindsItemIot,
+		ScanningPostScanningSafetyRangesOKFragileKindsItemWeb,
+		ScanningPostScanningSafetyRangesOKFragileKindsItemUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPostScanningSafetyRangesOKFragileKindsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemFirewall:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemRouter:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemSwitch:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemAp:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemNas:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemServer:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemPc:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemPrinter:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemCamera:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemNvr:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemIot:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemWeb:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPostScanningSafetyRangesOKFragileKindsItem) UnmarshalText(data []byte) error {
+	switch ScanningPostScanningSafetyRangesOKFragileKindsItem(data) {
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemFirewall:
+		*s = ScanningPostScanningSafetyRangesOKFragileKindsItemFirewall
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemRouter:
+		*s = ScanningPostScanningSafetyRangesOKFragileKindsItemRouter
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemSwitch:
+		*s = ScanningPostScanningSafetyRangesOKFragileKindsItemSwitch
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemAp:
+		*s = ScanningPostScanningSafetyRangesOKFragileKindsItemAp
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemNas:
+		*s = ScanningPostScanningSafetyRangesOKFragileKindsItemNas
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemServer:
+		*s = ScanningPostScanningSafetyRangesOKFragileKindsItemServer
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemPc:
+		*s = ScanningPostScanningSafetyRangesOKFragileKindsItemPc
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemPrinter:
+		*s = ScanningPostScanningSafetyRangesOKFragileKindsItemPrinter
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemCamera:
+		*s = ScanningPostScanningSafetyRangesOKFragileKindsItemCamera
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemNvr:
+		*s = ScanningPostScanningSafetyRangesOKFragileKindsItemNvr
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemIot:
+		*s = ScanningPostScanningSafetyRangesOKFragileKindsItemIot
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemWeb:
+		*s = ScanningPostScanningSafetyRangesOKFragileKindsItemWeb
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileKindsItemUnknown:
+		*s = ScanningPostScanningSafetyRangesOKFragileKindsItemUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem string
+
+const (
+	ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemFirewall ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem = "firewall"
+	ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemRouter   ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem = "router"
+	ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemSwitch   ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem = "switch"
+	ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemAp       ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem = "ap"
+	ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemNas      ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem = "nas"
+	ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemServer   ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem = "server"
+	ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemPc       ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem = "pc"
+	ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemPrinter  ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem = "printer"
+	ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemCamera   ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem = "camera"
+	ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemNvr      ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem = "nvr"
+	ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemIot      ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem = "iot"
+	ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemWeb      ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem = "web"
+	ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemUnknown  ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem = "unknown"
+)
+
+// AllValues returns all ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem values.
+func (ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem) AllValues() []ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem {
+	return []ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem{
+		ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemFirewall,
+		ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemRouter,
+		ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemSwitch,
+		ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemAp,
+		ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemNas,
+		ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemServer,
+		ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemPc,
+		ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemPrinter,
+		ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemCamera,
+		ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemNvr,
+		ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemIot,
+		ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemWeb,
+		ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemFirewall:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemRouter:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemSwitch:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemAp:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemNas:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemServer:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemPc:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemPrinter:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemCamera:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemNvr:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemIot:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemWeb:
+		return []byte(s), nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem) UnmarshalText(data []byte) error {
+	switch ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItem(data) {
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemFirewall:
+		*s = ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemFirewall
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemRouter:
+		*s = ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemRouter
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemSwitch:
+		*s = ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemSwitch
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemAp:
+		*s = ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemAp
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemNas:
+		*s = ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemNas
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemServer:
+		*s = ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemServer
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemPc:
+		*s = ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemPc
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemPrinter:
+		*s = ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemPrinter
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemCamera:
+		*s = ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemCamera
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemNvr:
+		*s = ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemNvr
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemIot:
+		*s = ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemIot
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemWeb:
+		*s = ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemWeb
+		return nil
+	case ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemUnknown:
+		*s = ScanningPostScanningSafetyRangesOKFragileRegularScanKindsItemUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanningPostScanningSafetyRangesOKScope struct {
+	ConfirmedAt NilDateTime `json:"confirmed_at"`
+	ConfirmedBy NilString   `json:"confirmed_by"`
+	// Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges.
+	LanRanges []string `json:"lan_ranges"`
+}
+
+// GetConfirmedAt returns the value of ConfirmedAt.
+func (s *ScanningPostScanningSafetyRangesOKScope) GetConfirmedAt() NilDateTime {
+	return s.ConfirmedAt
+}
+
+// GetConfirmedBy returns the value of ConfirmedBy.
+func (s *ScanningPostScanningSafetyRangesOKScope) GetConfirmedBy() NilString {
+	return s.ConfirmedBy
+}
+
+// GetLanRanges returns the value of LanRanges.
+func (s *ScanningPostScanningSafetyRangesOKScope) GetLanRanges() []string {
+	return s.LanRanges
+}
+
+// SetConfirmedAt sets the value of ConfirmedAt.
+func (s *ScanningPostScanningSafetyRangesOKScope) SetConfirmedAt(val NilDateTime) {
+	s.ConfirmedAt = val
+}
+
+// SetConfirmedBy sets the value of ConfirmedBy.
+func (s *ScanningPostScanningSafetyRangesOKScope) SetConfirmedBy(val NilString) {
+	s.ConfirmedBy = val
+}
+
+// SetLanRanges sets the value of LanRanges.
+func (s *ScanningPostScanningSafetyRangesOKScope) SetLanRanges(val []string) {
+	s.LanRanges = val
+}
+
+type ScanningPostScanningSafetyRangesOKSpeed struct {
+	// Nmap and SNMP (inventory active.rate).
+	PacketsPerS int `json:"packets_per_s"`
+	// Nuclei on LAN devices (was scan config rate).
+	RequestsPerS int `json:"requests_per_s"`
+}
+
+// GetPacketsPerS returns the value of PacketsPerS.
+func (s *ScanningPostScanningSafetyRangesOKSpeed) GetPacketsPerS() int {
+	return s.PacketsPerS
+}
+
+// GetRequestsPerS returns the value of RequestsPerS.
+func (s *ScanningPostScanningSafetyRangesOKSpeed) GetRequestsPerS() int {
+	return s.RequestsPerS
+}
+
+// SetPacketsPerS sets the value of PacketsPerS.
+func (s *ScanningPostScanningSafetyRangesOKSpeed) SetPacketsPerS(val int) {
+	s.PacketsPerS = val
+}
+
+// SetRequestsPerS sets the value of RequestsPerS.
+func (s *ScanningPostScanningSafetyRangesOKSpeed) SetRequestsPerS(val int) {
+	s.RequestsPerS = val
+}
+
+// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
+// Check this device now and external scans are not bound by it.
+type ScanningPostScanningSafetyRangesOKWindow struct {
+	// Empty only on a box whose discovery was saved off without a day; a save needs one.
+	Days []int `json:"days"`
+	// HH:MM.
+	From string `json:"from"`
+	// IANA zone the window is read in (the organization time zone); read-only.
+	TimeZone string `json:"time_zone"`
+	// Earlier than from: crosses midnight.
+	To string `json:"to"`
+}
+
+// GetDays returns the value of Days.
+func (s *ScanningPostScanningSafetyRangesOKWindow) GetDays() []int {
+	return s.Days
+}
+
+// GetFrom returns the value of From.
+func (s *ScanningPostScanningSafetyRangesOKWindow) GetFrom() string {
+	return s.From
+}
+
+// GetTimeZone returns the value of TimeZone.
+func (s *ScanningPostScanningSafetyRangesOKWindow) GetTimeZone() string {
+	return s.TimeZone
+}
+
+// GetTo returns the value of To.
+func (s *ScanningPostScanningSafetyRangesOKWindow) GetTo() string {
+	return s.To
+}
+
+// SetDays sets the value of Days.
+func (s *ScanningPostScanningSafetyRangesOKWindow) SetDays(val []int) {
+	s.Days = val
+}
+
+// SetFrom sets the value of From.
+func (s *ScanningPostScanningSafetyRangesOKWindow) SetFrom(val string) {
+	s.From = val
+}
+
+// SetTimeZone sets the value of TimeZone.
+func (s *ScanningPostScanningSafetyRangesOKWindow) SetTimeZone(val string) {
+	s.TimeZone = val
+}
+
+// SetTo sets the value of To.
+func (s *ScanningPostScanningSafetyRangesOKWindow) SetTo(val string) {
+	s.To = val
+}
+
+type ScanningPostScanningSafetyRangesReq struct {
+	// The attestation of PUT /scanning/safety (scope.confirmed): the ranges shown, and this one, belong to
+	// the company and scanning them is permitted. Must be true (400 scope_not_confirmed); recorded as
+	// confirmed_at/confirmed_by.
+	Confirm bool `json:"confirm"`
+	// One internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461) to add to the scope, e.g. 192.168.20.0/24;
+	// host bits are dropped and reported in adjusted.
+	Range string `json:"range"`
+	// The confirmation the dialog showed (safety.scope.confirmed_at as read, compared to the second; null:
+	// shown as not confirmed). When the stored one is another (an admin unconfirmed the scope, or
+	// confirmed it again, since), 409 scope_changed with the current block, nothing stored (review #860 r2
+	// M1).
+	ShownConfirmedAt NilString `json:"shown_confirmed_at"`
+	// The ranges the dialog showed next to the tick (safety.scope.lan_ranges as read; order does not
+	// matter, compared as networks). The tick confirms exactly these and the new range: when the stored
+	// list is another one (an admin changed the ranges since), 409 scope_changed with the current block
+	// (error.safety) and nothing stored (review #860 H1).
+	ShownRanges []string `json:"shown_ranges"`
+}
+
+// GetConfirm returns the value of Confirm.
+func (s *ScanningPostScanningSafetyRangesReq) GetConfirm() bool {
+	return s.Confirm
+}
+
+// GetRange returns the value of Range.
+func (s *ScanningPostScanningSafetyRangesReq) GetRange() string {
+	return s.Range
+}
+
+// GetShownConfirmedAt returns the value of ShownConfirmedAt.
+func (s *ScanningPostScanningSafetyRangesReq) GetShownConfirmedAt() NilString {
+	return s.ShownConfirmedAt
+}
+
+// GetShownRanges returns the value of ShownRanges.
+func (s *ScanningPostScanningSafetyRangesReq) GetShownRanges() []string {
+	return s.ShownRanges
+}
+
+// SetConfirm sets the value of Confirm.
+func (s *ScanningPostScanningSafetyRangesReq) SetConfirm(val bool) {
+	s.Confirm = val
+}
+
+// SetRange sets the value of Range.
+func (s *ScanningPostScanningSafetyRangesReq) SetRange(val string) {
+	s.Range = val
+}
+
+// SetShownConfirmedAt sets the value of ShownConfirmedAt.
+func (s *ScanningPostScanningSafetyRangesReq) SetShownConfirmedAt(val NilString) {
+	s.ShownConfirmedAt = val
+}
+
+// SetShownRanges sets the value of ShownRanges.
+func (s *ScanningPostScanningSafetyRangesReq) SetShownRanges(val []string) {
+	s.ShownRanges = val
+}
+
 type ScanningPutScanningSafetyOK struct {
 	// Ranges and exclusions normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24.
 	Adjusted []ScanningPutScanningSafetyOKAdjustedItem `json:"adjusted"`
@@ -186174,6 +187340,11 @@ type ScanningPutScanningSafetyOK struct {
 	Fragile    ScanningPutScanningSafetyOKFragile `json:"fragile"`
 	Scope      ScanningPutScanningSafetyOKScope   `json:"scope"`
 	Speed      ScanningPutScanningSafetyOKSpeed   `json:"speed"`
+	// Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the
+	// version it was built on (409 safety_changed otherwise), so a page opened before an inline add never
+	// drops it. Every answer that changed the block carries the new one. The same values give the same
+	// version.
+	Version string `json:"version"`
 	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
 	// Check this device now and external scans are not bound by it.
 	Window ScanningPutScanningSafetyOKWindow `json:"window"`
@@ -186204,6 +187375,11 @@ func (s *ScanningPutScanningSafetyOK) GetSpeed() ScanningPutScanningSafetyOKSpee
 	return s.Speed
 }
 
+// GetVersion returns the value of Version.
+func (s *ScanningPutScanningSafetyOK) GetVersion() string {
+	return s.Version
+}
+
 // GetWindow returns the value of Window.
 func (s *ScanningPutScanningSafetyOK) GetWindow() ScanningPutScanningSafetyOKWindow {
 	return s.Window
@@ -186232,6 +187408,11 @@ func (s *ScanningPutScanningSafetyOK) SetScope(val ScanningPutScanningSafetyOKSc
 // SetSpeed sets the value of Speed.
 func (s *ScanningPutScanningSafetyOK) SetSpeed(val ScanningPutScanningSafetyOKSpeed) {
 	s.Speed = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanningPutScanningSafetyOK) SetVersion(val string) {
+	s.Version = val
 }
 
 // SetWindow sets the value of Window.
@@ -186663,7 +187844,10 @@ type ScanningPutScanningSafetyReq struct {
 	Fragile    ScanningPutScanningSafetyReqFragile `json:"fragile"`
 	Scope      ScanningPutScanningSafetyReqScope   `json:"scope"`
 	Speed      ScanningPutScanningSafetyReqSpeed   `json:"speed"`
-	Window     ScanningPutScanningSafetyReqWindow  `json:"window"`
+	// The version of GET /scanning (safety.version) this page was built on. Not the stored one: 409
+	// safety_changed with the current block (error.safety), nothing stored.
+	Version string                             `json:"version"`
+	Window  ScanningPutScanningSafetyReqWindow `json:"window"`
 }
 
 // GetExclusions returns the value of Exclusions.
@@ -186684,6 +187868,11 @@ func (s *ScanningPutScanningSafetyReq) GetScope() ScanningPutScanningSafetyReqSc
 // GetSpeed returns the value of Speed.
 func (s *ScanningPutScanningSafetyReq) GetSpeed() ScanningPutScanningSafetyReqSpeed {
 	return s.Speed
+}
+
+// GetVersion returns the value of Version.
+func (s *ScanningPutScanningSafetyReq) GetVersion() string {
+	return s.Version
 }
 
 // GetWindow returns the value of Window.
@@ -186709,6 +187898,11 @@ func (s *ScanningPutScanningSafetyReq) SetScope(val ScanningPutScanningSafetyReq
 // SetSpeed sets the value of Speed.
 func (s *ScanningPutScanningSafetyReq) SetSpeed(val ScanningPutScanningSafetyReqSpeed) {
 	s.Speed = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanningPutScanningSafetyReq) SetVersion(val string) {
+	s.Version = val
 }
 
 // SetWindow sets the value of Window.

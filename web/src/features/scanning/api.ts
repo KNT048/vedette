@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
-import type { EngineId, RunningJob, SafetyInput, SafetySaved, Safety, Scanning } from './types'
+import { api, ApiError } from '@/lib/api'
+import type { EngineId, RunningJob, SafetyInput, SafetySaved, Scanning } from './types'
+import type { z } from 'zod'
+import type { RangeAdd } from './contract'
 
 /** GET /scanning: the page, the engines, the shared safety block and the runs going on (served by core, so it answers while every
  *  engine's module is off). Read every 5 s while a run goes on (its progress), every 30 s otherwise so the top-bar indicator sees a
@@ -35,19 +37,24 @@ export function useSaveSafety() {
   const qc = useQueryClient()
   const refresh = useRefresh()
   return useMutation({
+    // b.version is the block the form was built on (#860): another one stored is 409 safety_changed, nothing stored; the page reads again
     mutationFn: (b: SafetyInput) => api.put<SafetySaved>('/scanning/safety', b),
     onSuccess: () => { void qc.invalidateQueries({ queryKey: ['scanning'] }); refresh() },
+    onError: (e) => { if (e instanceof ApiError && e.code === 'safety_changed') void qc.invalidateQueries({ queryKey: ['scanning'] }) },
   })
 }
 
-/** The block as a save body: what GET /scanning shows, with the changes of `patch`. */
-export function safetyInput(s: Safety, patch: Partial<SafetyInput> = {}): SafetyInput {
-  return {
-    scope: { lan_ranges: s.scope.lan_ranges, confirmed: !!s.scope.confirmed_at },
-    window: { days: s.window.days, from: s.window.from, to: s.window.to }, // as they are: an empty list is the server's no_days to fix, never a window nobody chose
-    speed: s.speed, exclusions: s.exclusions, fragile: { kinds: s.fragile.kinds, regular_scan_kinds: s.fragile.regular_scan_kinds },
-    ...patch,
-  }
+/** POST /scanning/safety/ranges (#860): one range added, or the shown ranges confirmed, in one transaction on the server, never a
+ *  read-modify-write of the block. The tick confirms exactly what the dialog showed (shown_ranges, shown_confirmed_at): another
+ *  admin's change since is 409 scope_changed and nothing is stored; the page reads the block again. */
+export function useAddRange() {
+  const qc = useQueryClient()
+  const refresh = useRefresh()
+  return useMutation({
+    mutationFn: (b: z.infer<typeof RangeAdd>) => api.post<SafetySaved>('/scanning/safety/ranges', b),
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['scanning'] }); refresh() },
+    onError: (e) => { if (e instanceof ApiError && e.code === 'scope_changed') void qc.invalidateQueries({ queryKey: ['scanning'] }) },
+  })
 }
 
 /** POST /scanning/engines/nmap-discovery/run: "Scan the LAN now" (no targets) or check these devices now. */

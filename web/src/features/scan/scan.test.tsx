@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
+import { toast } from 'sonner'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
@@ -306,6 +307,28 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     expect(screen.getByText('No changes, no denial of service')).toBeInTheDocument()
     expect(screen.getByText(/Never guesses passwords/)).toBeInTheDocument()
     await expectNoA11yViolations()
+  })
+
+  it('review #860 r2 M2: the shared block sends the version it read; a save over settings changed elsewhere is refused, says so, and shows the stored values', async () => {
+    const { inventorySettingsStore } = await import('@/features/inventory/mocks')
+    const puts: Array<Record<string, unknown>> = []
+    server.events.on('request:start', async ({ request }) => {
+      if (request.method === 'PUT' && request.url.endsWith('/scanning/safety')) puts.push(await request.clone().json() as Record<string, unknown>)
+    })
+    renderApp('/settings/scanning?tab=safety')
+    await userEvent.selectOptions(await screen.findByLabelText('Vulnerability checks on the LAN'), '2')
+    inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, exclusions: [...st.active.exclusions, '192.168.10.40'] } })) // an inline add elsewhere
+    await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
+    expect(await screen.findByText(/Someone else changed these settings/)).toBeInTheDocument()
+    expect(puts[0]?.version).toEqual(expect.any(String))
+    await waitFor(() => expect(screen.getByLabelText('One IP or network per line')).toHaveValue('192.168.10.40')) // the form was built again on the stored values
+    await userEvent.selectOptions(screen.getByLabelText('Vulnerability checks on the LAN'), '2')
+    await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
+    expect(await screen.findByText('Safety settings saved')).toBeInTheDocument()
+    expect(puts[1]?.version).not.toBe(puts[0]?.version)
+    server.events.removeAllListeners()
+    toast.dismiss() // the toasts outlive this page: the next test looks for its own
+    await waitFor(() => expect(screen.queryByText('Safety settings saved')).toBeNull())
   })
 
   it('lưu tốc độ và loại trừ: lưu bền, ghi kiểm toán, còn sau khi mở lại', async () => {

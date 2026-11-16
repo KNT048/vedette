@@ -185,14 +185,18 @@
     "dialogTitle": "Network ranges you may scan",
     "dialogDescription": "Vedette scans nothing outside these ranges.",
     "dialogInfo": "Internal IPv4 ranges only (RFC 1918 or 100.64.0.0/10). They stay editable under Settings, Scanning, Safety and Devices, Scope and sensors.",
-    "ranges": "Network ranges, one per line",
     "rangesHint": "For example 192.168.10.0/24.",
-    "save": "Save and confirm",
+    "save": "Add and confirm",
     "saved": "Network ranges saved and confirmed",
-    "fixExclusions": "The exclusion list has more lines than a save takes (at most 200).",
-    "fixExclusionsLink": "Shorten it: Safety, Exclusions",
-    "fixWindow": "The shared window needs at least one day.",
-    "fixWindowLink": "Choose its days: Safety, Time window"
+    "current": "Ranges now",
+    "noneYet": "No range yet.",
+    "confirmedBy": "Confirmed by {{by}}.",
+    "notConfirmed": "Not confirmed yet.",
+    "add": "Network range to add",
+    "addOptional": "Another range to add (optional)",
+    "confirmOnly": "Confirm these ranges",
+    "changed": "The ranges changed since this dialog opened (another admin or tab). The current list is shown: check it and tick again.",
+    "ranges": "Network ranges, one per line"
   },
   "module": {
     "turnOn": "Turn on {{name}}",
@@ -240,7 +244,8 @@
     "fragileDevices_other": "{{count}} fragile devices today: see them on Devices",
     "save": "Save settings",
     "saved": "Safety settings saved",
-    "savedAdjusted": "Safety settings saved. Adjusted: {{list}}"
+    "savedAdjusted": "Safety settings saved. Adjusted: {{list}}",
+    "changedElsewhere": "Someone else changed these settings since you opened this page, so nothing was saved. The current values are shown again: check them and save."
   },
   "scanNow": {
     "device": "Check this device now",

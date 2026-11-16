@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/lib/api'
+import i18n from 'i18next'
+import { toast } from 'sonner'
+import { api, ApiError } from '@/lib/api'
 import type { CredTarget, ProbeEntry, RescanEvent, ScanConfig, ScanConfigResponse, ScanRun, ScanTarget } from './types'
 
 export const isLive = (r: ScanRun) => r.status === 'running' || r.status === 'stopping'
@@ -36,7 +38,21 @@ function useScanMutation<V, R>(fn: (v: V) => Promise<R>, extra: string[] = []) {
   })
 }
 
-export const useSaveConfig = () => useScanMutation((c: Partial<ScanConfig>) => api.put<ScanConfigResponse>('/scans/config', c))
+/** PUT /scans/config with the version of the shared safety block the page read (review #860 r2 M2). On 409 safety_changed the
+ *  settings are read again: the form is built again on the current values (SafetyTab keys it by version) and a toast says why. */
+export function useSaveConfig() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (c: Partial<ScanConfig> & { version?: string }) => api.put<ScanConfigResponse>('/scans/config', c),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['scan'] }),
+    onError: async (e) => {
+      if (e instanceof ApiError && e.code === 'safety_changed') {
+        toast.error(i18n.t('scan:safety.changedElsewhere'))
+        await qc.invalidateQueries({ queryKey: ['scan', 'config'] })
+      }
+    },
+  })
+}
 export function useStartRun() {
   const qc = useQueryClient()
   return useMutation({

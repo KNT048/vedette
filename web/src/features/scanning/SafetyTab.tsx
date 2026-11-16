@@ -12,6 +12,7 @@ import { Switch } from '@/components/ui/switch'
 import { BEHAVIOUR_KINDS, kindLabel } from '@/lib/deviceTypes'
 import { fmtDate } from '@/lib/format'
 import { useCan } from '@/lib/session'
+import { ApiError } from '@/lib/api'
 import { useSaveSafety } from './api'
 import type { Safety, SafetyInput } from './types'
 
@@ -28,7 +29,7 @@ type Kind = SafetyInput['fragile']['kinds'][number]
  * network discovery, version scans, SNMP and the vulnerability checks on the LAN obey it; scans of public targets follow their own
  * testing terms and are not covered by it in this version (review r1 H4). The ranges and the commitment are edited here too (§0).
  */
-function Form({ s, devices, onSaved }: { s: Safety; devices: number; onSaved: (r: Safety) => void }) {
+function Form({ s, devices, onSaved, onChanged }: { s: Safety; devices: number; onSaved: (r: Safety) => void; /** 409 safety_changed: the block stored now, to build the form again on it (#860). */ onChanged: (current: Safety | null) => void }) {
   const { t } = useTranslation('scanning')
   const admin = useCan('admin')
   const save = useSaveSafety()
@@ -51,7 +52,15 @@ function Form({ s, devices, onSaved }: { s: Safety; devices: number; onSaved: (r
     save.mutate({
       scope: { lan_ranges: lines(ranges), confirmed }, window: { days, from, to }, speed: { packets_per_s: pps, requests_per_s: rps },
       exclusions: lines(excl), fragile: { kinds, regular_scan_kinds: regular.filter((k) => kinds.includes(k)) },
-    }, { onSuccess: (r) => { onSaved(r); toast.success(r.adjusted.length ? t('safety.savedAdjusted', { list: r.adjusted.map((a) => `${a.from} → ${a.to}`).join(', ') }) : t('safety.saved')) }, onError: (err) => setError(errMsg(err)) })
+      version: s.version, // the block this form was built on: another one stored is refused, never overwritten (#860)
+    }, { onSuccess: (r) => { onSaved(r); toast.success(r.adjusted.length ? t('safety.savedAdjusted', { list: r.adjusted.map((a) => `${a.from} → ${a.to}`).join(', ') }) : t('safety.saved')) }, onError: (err) => {
+      if (err instanceof ApiError && err.code === 'safety_changed') {
+        toast.error(t('safety.changedElsewhere'))
+        onChanged((err.details.safety as Safety | undefined) ?? null)
+        return
+      }
+      setError(errMsg(err))
+    } })
   }
   return (
     <form onSubmit={submit} className="grid max-w-3xl gap-8" noValidate>
@@ -161,5 +170,9 @@ export function SafetyTab({ s }: { s: Safety }) {
   // review r2 L-g: the form starts from the block once, and again only from the answer of its own save (the server may normalize
   // ranges); the page's regular reads (a new fragile device, a run) never wipe what is being typed
   const [base, setBase] = useState<{ v: number; s: Safety }>({ v: 0, s })
-  return <Form key={base.v} s={base.s} devices={s.fragile.devices} onSaved={(r) => setBase((b) => ({ v: b.v + 1, s: r }))} />
+  const reset = (n: Safety) => setBase((b) => ({ v: b.v + 1, s: n }))
+  // another change came first (#860): the form is built again on the stored block, from the 409's own copy or from the next read
+  const [waiting, setWaiting] = useState(false)
+  if (waiting && s.version !== base.s.version) { setWaiting(false); reset(s) }
+  return <Form key={base.v} s={base.s} devices={s.fragile.devices} onSaved={reset} onChanged={(cur) => (cur ? reset(cur) : setWaiting(true))} />
 }

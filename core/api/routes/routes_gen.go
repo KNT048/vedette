@@ -357,5 +357,7 @@ var Operations = map[string]Operation{
 	"scanning_get_scanning":                                 {Method: "GET", Path: "/scanning", MinRole: Viewer, Tag: "scanning"},
 	"scanning_patch_scanning_engines_id":                    {Method: "PATCH", Path: "/scanning/engines/{id}", MinRole: Admin, Tag: "scanning"},
 	"scanning_post_scanning_engines_nmap_discovery_run":     {Method: "POST", Path: "/scanning/engines/nmap-discovery/run", MinRole: Admin, Tag: "scanning"},
+	"scanning_post_scanning_safety_exclusions":              {Method: "POST", Path: "/scanning/safety/exclusions", MinRole: Admin, Tag: "scanning"},
+	"scanning_post_scanning_safety_ranges":                  {Method: "POST", Path: "/scanning/safety/ranges", MinRole: Admin, Tag: "scanning"},
 	"scanning_put_scanning_safety":                          {Method: "PUT", Path: "/scanning/safety", MinRole: Admin, Tag: "scanning"},
 }

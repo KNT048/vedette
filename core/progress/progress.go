@@ -136,8 +136,8 @@ func NewTracker(now func() time.Time) *Tracker {
 // Report implements Sink: it checks u and keeps it as the latest state. A report with an unknown phase is dropped whole; an
 // out-of-range number is dropped alone.
 //
-// Within a pass of a phase the bar never goes back (#830 FAIL 2: the page read 85 % → 39 % → 82 %): a lower percent keeps the
-// percent and the count shown before. Only a new pass starts lower: a report that says so (NewPass), another phase, or a percent
+// Within a pass of a phase the bar never goes back (#830 FAIL 2: the page read 85 % → 39 % → 82 %): a report with a lower percent
+// keeps the state shown before whole (percent, count, estimate, message); only updated_at moves. Only a new pass starts lower: a report that says so (NewPass), another phase, or a percent
 // without a count that falls by more than restartDrop (the second nmap run of a device: that tool's percent restarts on its own).
 // A count never starts a pass by falling: the jobs of one pass are added up by a Series.
 func (t *Tracker) Report(u Update) {
@@ -152,8 +152,9 @@ func (t *Tracker) Report(u Update) {
 	if !pass && u.Percent >= 0 && t.cur.Percent >= 0 && u.Percent < t.cur.Percent {
 		if u.Total == 0 && t.cur.Total == 0 && u.Percent < t.cur.Percent-restartDrop {
 			pass = true
-		} else {
-			u.Percent, u.Done, u.Total, u.Unit = t.cur.Percent, t.cur.Done, t.cur.Total, t.cur.Unit
+		} else { // the state shown stays whole, its estimate and note too (review r1 #3): only the time of the last word moves
+			t.updated = now
+			return
 		}
 	}
 	if pass {

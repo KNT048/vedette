@@ -189,10 +189,12 @@ func TestNeverBackwardsWithinAPass(t *testing.T) {
 	if d, _ := val(v.Done); d != 170 || *v.Percent != 85 || v.PhaseStartedAt != "2026-11-16T08:00:00.000Z" {
 		t.Fatalf("after a lower count: done %v percent %v phase start %s, want 170, 85, the same pass", d, *v.Percent, v.PhaseStartedAt)
 	}
-	tr.Report(Update{Phase: PhaseServices, Percent: 50})
-	tr.Report(Update{Phase: PhaseServices, Percent: 40})
-	if p, _ := val(tr.View().Percent); p != 50 {
-		t.Fatalf("services percent = %v, want 50 kept", p)
+	tr.Report(Update{Phase: PhaseServices, Percent: 90, Remaining: time.Minute, Message: "first"})
+	c.add(5 * time.Second)
+	tr.Report(Update{Phase: PhaseServices, Percent: 80, Remaining: 20 * time.Minute, Message: "second"})
+	v = tr.View()
+	if p, _ := val(v.Percent); p != 90 || *v.ETA != "2026-11-16T08:01:05.000Z" || *v.Message != "first" || v.UpdatedAt != "2026-11-16T08:00:10.000Z" {
+		t.Fatalf("held: percent %v eta %v message %v updated %s; want 90 with its own estimate and note, updated now", p, *v.ETA, *v.Message, v.UpdatedAt)
 	}
 	tr.Report(Update{Phase: PhaseVulns, Percent: -1, Done: 0, Total: 10, Unit: UnitChecks, NewPass: true})
 	if d, _ := val(tr.View().Done); d != 0 {

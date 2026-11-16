@@ -11,12 +11,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
+	"os"
 	osexec "os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 )
 
@@ -49,6 +53,14 @@ type Binary struct {
 	// (DEBIAN_FRONTEND, HOME with an absolute path, and NEEDRESTART_MODE=l and NEEDRESTART_SUSPEND=1 with exactly
 	// those values) are accepted; the parent environment is never inherited.
 	Env []string
+	// TTY gives the program a terminal of its own (#830): a new pseudo-terminal is its stdin and its controlling terminal, in a new
+	// session it leads, so a program that stays quiet without one talks. nmap 7.95 prints its --stats-every progress only when
+	// /dev/tty opens and its process group is the terminal's foreground one (nmap_tty.cc tty_init and keyWasPressed; nmap changed
+	// that only in 2026-06, "Allow --stats-every and --noninteractive together", nmap#3175). stdout and stderr stay the capped
+	// pipes; what the program writes to the terminal is read and dropped, so it never blocks on it. It is a property of the
+	// allowlist entry, never an argument, and a run of a TTY binary takes no stdin. Linux only; elsewhere, or when no terminal can
+	// be opened, the program runs as without TTY (a warning, once per Runner).
+	TTY bool
 }
 
 // Result is what a finished process produced.
@@ -72,8 +84,11 @@ func (e *ExitError) Error() string {
 
 // Runner runs allowlisted binaries.
 type Runner struct {
-	log  *slog.Logger
-	bins map[string]Binary
+	log        *slog.Logger
+	bins       map[string]Binary
+	ptmx       string                     // the master device of the terminals of TTY binaries
+	inTerminal func(*syscall.SysProcAttr) // how a TTY child takes its terminal (a test makes it fail in the child)
+	noTTY      sync.Once                  // the warning that a TTY binary runs without a terminal
 }
 
 var nameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,63}$`)
@@ -83,7 +98,7 @@ func NewRunner(log *slog.Logger, bins ...Binary) (*Runner, error) {
 	if log == nil {
 		return nil, errors.New("exec: nil logger")
 	}
-	r := &Runner{log: log, bins: make(map[string]Binary, len(bins))}
+	r := &Runner{log: log, bins: make(map[string]Binary, len(bins)), ptmx: "/dev/ptmx", inTerminal: inTerminal}
 	for _, b := range bins {
 		switch {
 		case !nameRE.MatchString(b.Name):
@@ -193,19 +208,31 @@ func (r *Runner) RunWatch(ctx context.Context, name string, args []string, stdin
 	if err := bin.Validate(args); err != nil {
 		return Result{}, fmt.Errorf("%w: %s: %w", ErrBadArgs, name, err)
 	}
+	if bin.TTY && stdin != nil {
+		return Result{}, fmt.Errorf("%w: %s reads its terminal, it takes no stdin", ErrBadArgs, name)
+	}
 
-	cmd := osexec.CommandContext(ctx, bin.Path, args...) //nolint:gosec // path from the allowlist, argv validated, no shell
-	cmd.Env = append([]string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C"}, bin.Env...)
-	cmd.Dir = "/"
-	cmd.Stdin = stdin
 	stdout, stderr := &capped{max: bin.MaxOutput, watch: w.Stdout}, &capped{max: bin.MaxOutput, watch: w.Stderr}
 	if bin.MaxStderr > 0 {
 		stderr.max = bin.MaxStderr
 	}
-	cmd.Stdout, cmd.Stderr = stdout, stderr
-	cmd.WaitDelay = waitDelay
-	if err := isolate(cmd); err != nil {
+	newCmd := func() (*osexec.Cmd, error) {
+		cmd := osexec.CommandContext(ctx, bin.Path, args...) //nolint:gosec // path from the allowlist, argv validated, no shell
+		cmd.Env = append([]string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C"}, bin.Env...)
+		cmd.Dir = "/"
+		cmd.Stdin = stdin
+		cmd.Stdout, cmd.Stderr = stdout, stderr
+		cmd.WaitDelay = waitDelay
+		return cmd, isolate(cmd)
+	}
+	cmd, err := newCmd()
+	if err != nil {
 		return Result{}, err
+	}
+	var term *terminal
+	defer func() { term.close() }()
+	if bin.TTY {
+		term = r.attachTerminal(ctx, name, cmd)
 	}
 
 	// Keep this goroutine on one OS thread while the child runs: on Linux the child's
@@ -214,7 +241,22 @@ func (r *Runner) RunWatch(ctx context.Context, name string, args []string, stdin
 	defer runtime.UnlockOSThread()
 
 	start := time.Now()
-	runErr := cmd.Run()
+	runErr := cmd.Start()
+	if runErr != nil && term != nil && !errors.Is(runErr, fs.ErrNotExist) {
+		// The child could not take the terminal (its setsid or TIOCSCTTY failed, review r1 #1): it runs without one, as when no
+		// terminal opens, rather than not at all. A missing binary is missing either way: no second start, no warning.
+		term.close()
+		term = nil
+		r.warnNoTTY(ctx, name, runErr)
+		if cmd, err = newCmd(); err != nil {
+			return Result{}, err
+		}
+		runErr = cmd.Start()
+	}
+	if runErr == nil {
+		term.started()
+		runErr = cmd.Wait()
+	}
 	reapGroup(cmd) // whatever the child left behind dies with the command, however it ended
 	// A grandchild that kept the output pipes open only delays Run; the child itself succeeded.
 	if errors.Is(runErr, osexec.ErrWaitDelay) && cmd.ProcessState != nil && cmd.ProcessState.Success() {
@@ -240,5 +282,62 @@ func (r *Runner) RunWatch(ctx context.Context, name string, args []string, stdin
 		return res, &ExitError{Name: name, ExitCode: res.ExitCode}
 	default:
 		return res, fmt.Errorf("exec: %s: %w", name, runErr)
+	}
+}
+
+// terminal is the pseudo-terminal of one run of a TTY binary.
+type terminal struct {
+	master, peer *os.File
+	drained      chan struct{} // closed when the reader of the master stopped; nil until the child started
+}
+
+// attachTerminal gives cmd a new terminal as its stdin and controlling terminal (Binary.TTY). When none can be opened the child runs
+// without one, as before #830, and the Runner says so once: nil is returned, and the nil terminal's methods do nothing.
+func (r *Runner) attachTerminal(ctx context.Context, name string, cmd *osexec.Cmd) *terminal {
+	master, peer, err := openTerm(r.ptmx)
+	if err != nil {
+		r.warnNoTTY(ctx, name, err)
+		return nil
+	}
+	cmd.Stdin = peer
+	r.inTerminal(cmd.SysProcAttr)
+	return &terminal{master: master, peer: peer}
+}
+
+// warnNoTTY says once per Runner that a TTY binary runs without a terminal.
+func (r *Runner) warnNoTTY(ctx context.Context, name string, err error) {
+	r.noTTY.Do(func() {
+		r.log.WarnContext(ctx, "exec: no terminal could be opened, the program runs without one (no live progress)", "binary", name, "error", err)
+	})
+}
+
+// started is called once the child runs: the peer is the child's now (this process keeps no copy, so the master reads EIO once the
+// child's session is gone), and what the child writes to its terminal is read and dropped, a buffer at a time, so it never fills.
+// The master stays open while the child runs: closing it would hang the terminal up and SIGHUP the child.
+func (t *terminal) started() {
+	if t == nil {
+		return
+	}
+	_ = t.peer.Close()
+	t.drained = make(chan struct{})
+	go func() {
+		defer close(t.drained)
+		_, _ = io.Copy(io.Discard, t.master)
+	}()
+}
+
+// close releases the terminal after the run. The reader ends with the master (or earlier, with EIO); it is waited for at most
+// waitDelay, the bound Run already gives a grandchild that holds the output open.
+func (t *terminal) close() {
+	if t == nil {
+		return
+	}
+	_ = t.peer.Close() // already closed when the child started; this is for a start that failed
+	_ = t.master.Close()
+	if t.drained != nil {
+		select {
+		case <-t.drained:
+		case <-time.After(waitDelay):
+		}
 	}
 }

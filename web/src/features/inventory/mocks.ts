@@ -14,7 +14,7 @@ import { sha256Hex } from './kinds'
 import { customEntry, findById, findCatalog, searchCatalog, type CatalogEntry } from './catalog'
 import type {
   AddDeviceInput, AddDeviceResult, AgentToken, DeviceDetail, DeviceRow, DeviceSource, DevicesResponse, ImportResult,
-  InventorySettings, ObsField, Observation, OsqueryPackage, RegularScan, Sensor, SettingsInput, SnmpCredential, SnmpCredentialInput, SnmpRead, SnmpTestReason, SnmpTestResult,
+  InventorySettings, KeepSeparateInput, MergeInput, ObsField, Observation, OsqueryPackage, PossibleSame, RegularScan, SamePairs, Sensor, SettingsInput, SnmpCredential, SnmpCredentialInput, SnmpRead, SnmpTestReason, SnmpTestResult,
   SoftwareView, WazuhConnection, WazuhInput,
 } from './types'
 import { KINDS } from './types'
@@ -300,6 +300,32 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
       || (macLike && (r.mac ?? '').toLowerCase().includes(macBytes)))
 }
 const find = (id: string) => allAssets().find((x) => x.id === id)
+
+// ---- D-599: possibly the same device (Merge / Keep separate). The mock offers rows of one host name (first label) where one is
+// still waiting for review; the backend's rules (shared MAC, name or model with a private Wi-Fi address, never online together) are
+// in modules/inventory/samedevice.go. ----
+const separateStore = collection<string[]>('inv_separate', () => [])
+const pairKey = (x: string, y: string) => (x < y ? `${x}|${y}` : `${y}|${x}`)
+const label = (h: string | null) => (h ?? '').split('.')[0]!.toLowerCase()
+function samePairs(): { a: Asset; b: Asset; why: string }[] {
+  const list = allAssets().filter((a) => a.id !== BOX_ID && label(a.hostname).length >= 3)
+  const out: { a: Asset; b: Asset; why: string }[] = []
+  list.forEach((x, i) => list.slice(i + 1).forEach((y) => {
+    if (label(x.hostname) !== label(y.hostname) || (x.approved && y.approved) || separateStore.get().includes(pairKey(x.id, y.id))) return
+    const [a, b] = y.approved ? [y, x] : [x, y]
+    out.push({ a, b, why: `Same name "${(a.hostname ?? '').split('.')[0]}", never online at the same time, and a private Wi-Fi address (phones and laptops change it).` })
+  }))
+  return out
+}
+const sameRef = (a: Asset) => ({ id: a.id, name: nameOf(a, a.kind), approved: a.approved, last_seen: a.last_seen })
+function possibleSameAs(id: string): PossibleSame[] {
+  return samePairs().filter((p) => p.a.id === id || p.b.id === id).map((p) => ({ ...sameRef(p.a.id === id ? p.b : p.a), why: p.why }))
+}
+function pairRefusal(x: Asset | undefined, y: Asset | undefined, request: Request, what: string) {
+  if (!x || !y) return notFound(request)
+  if (x.id === BOX_ID || y.id === BOX_ID) return fail(409, 'box_device', `This is the Vedette box itself, so it cannot be ${what}. It is always its own device.`)
+  return null
+}
 const notFound = (_request?: Request) => fail(404, 'not_found', 'No such device. It may have been removed; go back to the list to see the remaining devices.')
 
 function createManual(entry: CatalogEntry | null, o: { version?: string; name?: string; ip?: string; kind?: AssetKind }): Asset {
@@ -616,7 +642,42 @@ export const handlers = [
     if (!a) return notFound(request)
     const software: SoftwareView[] = a.software.map((s) => ({ id: s.id, display: s.display, vendor: s.vendor, product: s.product, version: s.version, source: s.source, confidence: s.confidence, kev_cves: cvesFor(s.kev) }))
     const observations = markCurrent(obsOf(a)).sort((x, y) => FIELD_ORDER.indexOf(x.field) - FIELD_ORDER.indexOf(y.field) || new Date(y.seen_at).getTime() - new Date(x.seen_at).getTime())
-    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), observations, kinds: KINDS } satisfies DeviceDetail)
+    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), observations, kinds: KINDS, possible_same: possibleSameAs(a.id) } satisfies DeviceDetail)
+  }),
+
+  http.get(`${API}/inventory/possible-same`, () => {
+    const denied = guard('viewer'); if (denied) return denied
+    return HttpResponse.json({ items: samePairs().map((p) => ({ a: sameRef(p.a), b: sameRef(p.b), why: p.why })) } satisfies SamePairs)
+  }),
+
+  http.post(`${API}/inventory/devices/:id/merge`, async ({ params, request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<MergeInput>(request)
+    if (b.from === String(params.id)) return fail(400, 'invalid', 'A device cannot be merged with itself. Pick the other device.')
+    const into = find(String(params.id)); const from = find(String(b.from ?? ''))
+    const refused = pairRefusal(into, from, request, 'merged with another device'); if (refused) return refused
+    const a = into!; const f = from!
+    const notes = [a.notes, f.notes].filter((n) => n?.trim()).filter((n, i, l) => l.indexOf(n) === i).join('\n\n').slice(0, 2000) || undefined
+    assetsStore.update((l) => l.filter((x) => x.id !== f.id).map((x) => (x.id === a.id ? { ...x, approved: a.approved || f.approved, notes, software: [...x.software, ...f.software.filter((s) => !x.software.some((t) => t.product === s.product && t.vendor === s.vendor))] } : x)))
+    obsStore.update((m) => { const { [f.id]: moved = [], ...rest } = m; return { ...rest, [a.id]: [...(rest[a.id] ?? []), ...moved] } })
+    metaStore.update((m) => { const { [f.id]: gone, ...rest } = m; return a.approved || !f.approved ? rest : { ...rest, [a.id]: { ...rest[a.id], approved_at: gone?.approved_at } } })
+    findingsStore.update((l) => l.map((x) => (x.asset_id === f.id ? { ...x, asset_id: a.id } : x)))
+    audit('inventory.merge', nameOf(a, a.kind), `${nameOf(f, f.kind)} is the same device: a person merged them`)
+    return HttpResponse.json({ id: a.id })
+  }),
+
+  http.post(`${API}/inventory/devices/:id/keep-separate`, async ({ params, request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<KeepSeparateInput>(request)
+    if (b.other === String(params.id)) return fail(400, 'invalid', 'A device is always itself. Pick the other device.')
+    const x = find(String(params.id)); const y = find(String(b.other ?? ''))
+    const refused = pairRefusal(x, y, request, 'compared with another device'); if (refused) return refused
+    const key = pairKey(x!.id, y!.id)
+    if (!separateStore.get().includes(key)) {
+      separateStore.update((l) => [...l, key])
+      audit('inventory.keep_separate', nameOf(x!, x!.kind), `${nameOf(y!, y!.kind)} is another device`)
+    }
+    return HttpResponse.json({ ok: true })
   }),
 
   http.patch(`${API}/inventory/devices/:id`, async ({ params, request }) => {

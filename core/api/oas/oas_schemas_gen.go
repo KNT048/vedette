@@ -88376,7 +88376,12 @@ type InventoryGetInventoryDevicesIDOK struct {
 	FindingsCount int                                                `json:"findings_count"`
 	Kinds         []InventoryGetInventoryDevicesIDOKKindsItem        `json:"kinds"`
 	Observations  []InventoryGetInventoryDevicesIDOKObservationsItem `json:"observations"`
-	Suspicious    bool                                               `json:"suspicious"`
+	// Devices that may be this same machine (D-599), the one seen last first; empty for the box and when
+	// none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a
+	// private Wi-Fi address; never when a person kept them separate, two agents or two different burned-in
+	// MACs say two machines, they state another name, model or OS, or they were online at the same time.
+	PossibleSame []InventoryGetInventoryDevicesIDOKPossibleSameItem `json:"possible_same"`
+	Suspicious   bool                                               `json:"suspicious"`
 }
 
 // GetAsset returns the value of Asset.
@@ -88397,6 +88402,11 @@ func (s *InventoryGetInventoryDevicesIDOK) GetKinds() []InventoryGetInventoryDev
 // GetObservations returns the value of Observations.
 func (s *InventoryGetInventoryDevicesIDOK) GetObservations() []InventoryGetInventoryDevicesIDOKObservationsItem {
 	return s.Observations
+}
+
+// GetPossibleSame returns the value of PossibleSame.
+func (s *InventoryGetInventoryDevicesIDOK) GetPossibleSame() []InventoryGetInventoryDevicesIDOKPossibleSameItem {
+	return s.PossibleSame
 }
 
 // GetSuspicious returns the value of Suspicious.
@@ -88422,6 +88432,11 @@ func (s *InventoryGetInventoryDevicesIDOK) SetKinds(val []InventoryGetInventoryD
 // SetObservations sets the value of Observations.
 func (s *InventoryGetInventoryDevicesIDOK) SetObservations(val []InventoryGetInventoryDevicesIDOKObservationsItem) {
 	s.Observations = val
+}
+
+// SetPossibleSame sets the value of PossibleSame.
+func (s *InventoryGetInventoryDevicesIDOK) SetPossibleSame(val []InventoryGetInventoryDevicesIDOKPossibleSameItem) {
+	s.PossibleSame = val
 }
 
 // SetSuspicious sets the value of Suspicious.
@@ -92454,6 +92469,67 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItemSource) UnmarshalText(d
 	}
 }
 
+type InventoryGetInventoryDevicesIDOKPossibleSameItem struct {
+	Approved bool      `json:"approved"`
+	ID       string    `json:"id"`
+	LastSeen time.Time `json:"last_seen"`
+	// The other device, named as every page names it (D-471).
+	Name string `json:"name"`
+	// What the two share, in plain words to show as is, e.g. Same name "iPhone", never online at the same
+	// time, and a private Wi-Fi address (phones and laptops change it).
+	Why string `json:"why"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetApproved() bool {
+	return s.Approved
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetID() string {
+	return s.ID
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetName() string {
+	return s.Name
+}
+
+// GetWhy returns the value of Why.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetWhy() string {
+	return s.Why
+}
+
+// SetApproved sets the value of Approved.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetApproved(val bool) {
+	s.Approved = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetWhy sets the value of Why.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetWhy(val string) {
+	s.Why = val
+}
+
 type InventoryGetInventoryDevicesOK struct {
 	Counts InventoryGetInventoryDevicesOKCounts      `json:"counts"`
 	Items  []InventoryGetInventoryDevicesOKItemsItem `json:"items"`
@@ -96071,6 +96147,157 @@ func (s InventoryGetInventoryImportTemplateCsvOK) Read(p []byte) (n int, err err
 	return s.Data.Read(p)
 }
 
+type InventoryGetInventoryPossibleSameOK struct {
+	// Every pair of devices that may be one machine (D-599), the pair seen last first.
+	Items []InventoryGetInventoryPossibleSameOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *InventoryGetInventoryPossibleSameOK) GetItems() []InventoryGetInventoryPossibleSameOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *InventoryGetInventoryPossibleSameOK) SetItems(val []InventoryGetInventoryPossibleSameOKItemsItem) {
+	s.Items = val
+}
+
+type InventoryGetInventoryPossibleSameOKItemsItem struct {
+	// The approved device when one is, else the one seen first: the one a merge most likely keeps.
+	A InventoryGetInventoryPossibleSameOKItemsItemA `json:"a"`
+	B InventoryGetInventoryPossibleSameOKItemsItemB `json:"b"`
+	// What the two share, in plain words to show as is, e.g. Same name "iPhone", never online at the same
+	// time, and a private Wi-Fi address (phones and laptops change it).
+	Why string `json:"why"`
+}
+
+// GetA returns the value of A.
+func (s *InventoryGetInventoryPossibleSameOKItemsItem) GetA() InventoryGetInventoryPossibleSameOKItemsItemA {
+	return s.A
+}
+
+// GetB returns the value of B.
+func (s *InventoryGetInventoryPossibleSameOKItemsItem) GetB() InventoryGetInventoryPossibleSameOKItemsItemB {
+	return s.B
+}
+
+// GetWhy returns the value of Why.
+func (s *InventoryGetInventoryPossibleSameOKItemsItem) GetWhy() string {
+	return s.Why
+}
+
+// SetA sets the value of A.
+func (s *InventoryGetInventoryPossibleSameOKItemsItem) SetA(val InventoryGetInventoryPossibleSameOKItemsItemA) {
+	s.A = val
+}
+
+// SetB sets the value of B.
+func (s *InventoryGetInventoryPossibleSameOKItemsItem) SetB(val InventoryGetInventoryPossibleSameOKItemsItemB) {
+	s.B = val
+}
+
+// SetWhy sets the value of Why.
+func (s *InventoryGetInventoryPossibleSameOKItemsItem) SetWhy(val string) {
+	s.Why = val
+}
+
+// The approved device when one is, else the one seen first: the one a merge most likely keeps.
+type InventoryGetInventoryPossibleSameOKItemsItemA struct {
+	Approved bool      `json:"approved"`
+	ID       string    `json:"id"`
+	LastSeen time.Time `json:"last_seen"`
+	// The other device, named as every page names it (D-471).
+	Name string `json:"name"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) GetApproved() bool {
+	return s.Approved
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) GetID() string {
+	return s.ID
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) GetName() string {
+	return s.Name
+}
+
+// SetApproved sets the value of Approved.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) SetApproved(val bool) {
+	s.Approved = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) SetID(val string) {
+	s.ID = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) SetName(val string) {
+	s.Name = val
+}
+
+type InventoryGetInventoryPossibleSameOKItemsItemB struct {
+	Approved bool      `json:"approved"`
+	ID       string    `json:"id"`
+	LastSeen time.Time `json:"last_seen"`
+	// The other device, named as every page names it (D-471).
+	Name string `json:"name"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) GetApproved() bool {
+	return s.Approved
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) GetID() string {
+	return s.ID
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) GetName() string {
+	return s.Name
+}
+
+// SetApproved sets the value of Approved.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) SetApproved(val bool) {
+	s.Approved = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) SetID(val string) {
+	s.ID = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) SetName(val string) {
+	s.Name = val
+}
+
 type InventoryGetInventorySensorsOK struct {
 	Sensors []InventoryGetInventorySensorsOKSensorsItem `json:"sensors"`
 }
@@ -99676,6 +99903,64 @@ func (s *InventoryPostInventoryDevicesIDApproveOK) GetOk() bool {
 // SetOk sets the value of Ok.
 func (s *InventoryPostInventoryDevicesIDApproveOK) SetOk(val bool) {
 	s.Ok = val
+}
+
+type InventoryPostInventoryDevicesIDKeepSeparateOK struct {
+	Ok bool `json:"ok"`
+}
+
+// GetOk returns the value of Ok.
+func (s *InventoryPostInventoryDevicesIDKeepSeparateOK) GetOk() bool {
+	return s.Ok
+}
+
+// SetOk sets the value of Ok.
+func (s *InventoryPostInventoryDevicesIDKeepSeparateOK) SetOk(val bool) {
+	s.Ok = val
+}
+
+type InventoryPostInventoryDevicesIDKeepSeparateReq struct {
+	// The other device of the pair.
+	Other string `json:"other"`
+}
+
+// GetOther returns the value of Other.
+func (s *InventoryPostInventoryDevicesIDKeepSeparateReq) GetOther() string {
+	return s.Other
+}
+
+// SetOther sets the value of Other.
+func (s *InventoryPostInventoryDevicesIDKeepSeparateReq) SetOther(val string) {
+	s.Other = val
+}
+
+type InventoryPostInventoryDevicesIDMergeOK struct {
+	ID string `json:"id"`
+}
+
+// GetID returns the value of ID.
+func (s *InventoryPostInventoryDevicesIDMergeOK) GetID() string {
+	return s.ID
+}
+
+// SetID sets the value of ID.
+func (s *InventoryPostInventoryDevicesIDMergeOK) SetID(val string) {
+	s.ID = val
+}
+
+type InventoryPostInventoryDevicesIDMergeReq struct {
+	// The device that goes into the device of the path.
+	From string `json:"from"`
+}
+
+// GetFrom returns the value of From.
+func (s *InventoryPostInventoryDevicesIDMergeReq) GetFrom() string {
+	return s.From
+}
+
+// SetFrom sets the value of From.
+func (s *InventoryPostInventoryDevicesIDMergeReq) SetFrom(val string) {
+	s.From = val
 }
 
 type InventoryPostInventoryDevicesIDSoftwareCreated struct {

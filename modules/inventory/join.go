@@ -169,6 +169,11 @@ const (
 // its id; in a chassis join also its address and MAC; in a machine join it takes from's address when from was seen later and into is
 // a discovered device (a person's address and the box's stay). The fields are folded again by the usual rules (RecomputeAsset).
 func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why string, mode joinMode) error {
+	return s.joinAs(ctx, tx, from, into, why, mode, systemActor)
+}
+
+// joinAs is joinInto with the audit row written as actor: systemActor for the join rules, the person who merged two rows (D-599).
+func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string, mode joinMode, actor string) error {
 	fromName, intoName := deviceName(ctx, tx, from), deviceName(ctx, tx, into)
 	rows, err := tx.QueryContext(ctx, `SELECT field, value, source, confidence, seen_at, evidence FROM inv_observation WHERE asset_id = ?`, from)
 	if err != nil {
@@ -243,7 +248,7 @@ func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why stri
 			return fmt.Errorf("inventory: move the address: %w", err)
 		}
 	}
-	return s.auditTx(ctx, tx, systemActor, "inventory.merge", intoName, fromName+" is the same device: "+why)
+	return s.auditTx(ctx, tx, actor, "inventory.merge", intoName, fromName+" is the same device: "+why)
 }
 
 // chassisOwner is the device a join left the chassis MAC mac on, when it still has an address: an observation that names only that

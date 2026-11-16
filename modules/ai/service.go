@@ -116,8 +116,9 @@ type Config struct {
 // stored is a profile as the service holds it: the library profile (with its key opened) and the id of its sealed key.
 type stored struct {
 	Profile
-	secretID string
-	lastTest *LastTest // the last connection test of the profile as saved; nil = not tested since it was added or its connection changed
+	secretID  string
+	lostLast4 string    // KeyLost: the last four characters saved with the key, so the page names which key to enter again
+	lastTest  *LastTest // the last connection test of the profile as saved; nil = not tested since it was added or its connection changed
 }
 
 // snapshot is one immutable generation of the saved settings. A change builds the next one, writes it, then swaps it in.
@@ -355,19 +356,20 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 		return nil, err
 	}
 
-	prof, err := q.QueryContext(ctx, `SELECT id, name, kind, api_style, base_url, model, secret_id, location, monthly_budget FROM ai_profile ORDER BY rowid`)
+	prof, err := q.QueryContext(ctx, `SELECT id, name, kind, api_style, base_url, model, secret_id, key_last4, location, monthly_budget FROM ai_profile ORDER BY rowid`)
 	if err != nil {
 		return nil, fmt.Errorf("profiles: %w", err)
 	}
 	type raw struct {
 		p        Profile
 		secretID sql.NullString
+		last4    sql.NullString
 	}
 	var raws []raw
 	for prof.Next() {
 		var r raw
 		var style, loc string
-		if err := prof.Scan(&r.p.ID, &r.p.Name, &r.p.Kind, &style, &r.p.BaseURL, &r.p.Model, &r.secretID, &loc, &r.p.MonthlyBudget); err != nil {
+		if err := prof.Scan(&r.p.ID, &r.p.Name, &r.p.Kind, &style, &r.p.BaseURL, &r.p.Model, &r.secretID, &r.last4, &loc, &r.p.MonthlyBudget); err != nil {
 			_ = prof.Close()
 			return nil, fmt.Errorf("profiles: %w", err)
 		}
@@ -386,6 +388,14 @@ func (s *Service) load(ctx context.Context) (*snapshot, error) {
 		}
 		if r.secretID.Valid {
 			key, err := s.cfg.Secrets.Open(ctx, q, r.secretID.String, secretPurpose)
+			if secrets.IsWrongKey(err) {
+				// #847: sealed under another master key. The profile loads without it (listed, never called) instead of the whole module
+				// starting degraded, so it can still be edited with the key typed again, or deleted.
+				st.KeyLost, st.secretID, st.lostLast4 = true, r.secretID.String, r.last4.String
+				s.cfg.Log.WarnContext(ctx, "ai: the saved API key of a profile cannot be opened with this box's master key (restored without the decryption key, or the key file was made again); the profile is not used until its key is entered again", "profile", r.p.ID)
+				sn.profiles = append(sn.profiles, st)
+				continue
+			}
 			if err != nil {
 				return nil, fmt.Errorf("profile %s: key: %w", r.p.ID, err)
 			}

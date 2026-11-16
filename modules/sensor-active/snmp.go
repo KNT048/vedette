@@ -20,6 +20,7 @@ import (
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/core/store"
+	"github.com/knt048/vedette/core/store/coredb"
 )
 
 // SNMP reads (D-512, INV-10, S-INV-1). An administrator saves SNMP credentials (a v2c community, or a v3 user with SHA or SHA-256
@@ -66,13 +67,14 @@ const (
 )
 
 // SNMPCredential is a saved credential without its secrets (SnmpCredential in contract.ts). Priv is "aes128" or "none" for v3, ""
-// for v2c; Auth is "" for v2c.
+// for v2c; Auth is "" for v2c. SecretLost is set by SNMPCredentials only: a saved secret this box cannot open (#868).
 type SNMPCredential struct {
 	ID, Name, Version, Username, Auth, Priv string
 	SecretLast4, PrivLast4                  string
 	Scope                                   []string
 	CreatedAt, LastAnswerAt                 time.Time // LastAnswerAt zero: never
 	Answered                                int
+	SecretLost                              bool
 }
 
 // SNMPCredentialInput is the form (SnmpCredentialInput in contract.ts). A blank secret on an edit keeps the saved one.
@@ -133,7 +135,8 @@ func (s *Service) SNMPStatus() (ready bool, message string) {
 	return true, ""
 }
 
-// SNMPCredentials lists the saved credentials in the order they are tried: oldest first.
+// SNMPCredentials lists the saved credentials in the order they are tried: oldest first, each saying whether a saved secret of it
+// cannot be opened on this box (SecretLost, #868).
 func (s *Service) SNMPCredentials(ctx context.Context) ([]SNMPCredential, error) {
 	rows, err := s.snmpRows(ctx, s.db.Reader())
 	if err != nil {
@@ -142,8 +145,67 @@ func (s *Service) SNMPCredentials(ctx context.Context) ([]SNMPCredential, error)
 	out := make([]SNMPCredential, len(rows))
 	for i, r := range rows {
 		out[i] = r.SNMPCredential
+		if s.secrets == nil {
+			continue
+		}
+		// Only a secret sealed under another master key is "lost"; any other failure to open one (a row of another key version, a read
+		// error) leaves the list as it was: a Test or a round reports it as before.
+		lost, err := s.snmpLost(ctx, s.db.Reader(), r)
+		if err != nil {
+			s.log.WarnContext(ctx, "sensoractive: checking an snmp credential's secret failed", "credential", r.ID, "error", err)
+		}
+		out[i].SecretLost = lost
 	}
 	return out, nil
+}
+
+// codeSecretLost is the refusal of a saved secret this box cannot open (#847, #868; core/conn, agent-intake and response use the
+// same code).
+const codeSecretLost = "secret_lost"
+
+// snmpLostText is what a person is told about a credential whose saved secret is sealed under another master key (#868).
+const snmpLostText = "The saved SNMP community or password of this credential was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter it again and save."
+
+// errSNMPSecretLost is a credential's secret found sealed under another master key while a job was built (snmpJob): nothing was sent.
+var errSNMPSecretLost = errors.New("the saved SNMP community or password was not restored")
+
+// snmpSecretLost is the answer of a Test, a Read now and an Edit that keeps a secret this box cannot open (#868).
+func snmpSecretLost() *apierr.Error {
+	return apierr.New(409, codeSecretLost, snmpLostText+" Nothing was sent.")
+}
+
+// snmpLost reports whether a saved secret of credential c is sealed under another master key (a backup restored without its
+// decryption key, or a key file made again: #868). Such a secret is gone for good: the credential is skipped until a person types it
+// again (Edit). Any other failure to open it is an error, never "lost" (secrets.IsWrongKey). The opened bytes are cleared at once.
+func (s *Service) snmpLost(ctx context.Context, q coredb.DBTX, c snmpRow) (bool, error) {
+	for _, x := range [...]struct{ id, purpose string }{{c.secretID, snmpSecretPurpose}, {c.privID, snmpPrivPurpose}} {
+		if lost, err := s.secretLost(ctx, q, x.id, x.purpose); lost || err != nil {
+			return lost, err
+		}
+	}
+	return false, nil
+}
+
+// secretLost is snmpLost for one secret; an empty id (no privacy password) is not lost.
+func (s *Service) secretLost(ctx context.Context, q coredb.DBTX, id, purpose string) (bool, error) {
+	if id == "" {
+		return false, nil
+	}
+	b, err := s.secrets.Open(ctx, q, id, purpose)
+	clear(b)
+	switch {
+	case secrets.IsWrongKey(err):
+		return true, nil
+	case err != nil:
+		return false, fmt.Errorf("sensoractive: open snmp secret: %w", err)
+	}
+	return false, nil
+}
+
+// snmpKeptLost is the refusal of an edit that keeps (leaves blank) a saved secret this box cannot open: it would save a credential
+// that can never be sent (#868).
+func snmpKeptLost() *apierr.Error {
+	return apierr.New(409, codeSecretLost, "The saved SNMP community or password of this credential was not restored (the backup was restored without its decryption key, or the box key changed). Enter it again, then save.")
 }
 
 const snmpCols = `id, name, version, username, auth, priv, secret_id, secret_last4, priv_secret_id, priv_last4, scope, created_at, last_answer_at, answered, updated_at`
@@ -419,6 +481,8 @@ func (s *Service) EditSNMP(ctx context.Context, actor, id string, in SNMPCredent
 			if last4, err = s.secrets.Replace(ctx, tx, prev.secretID, snmpSecretPurpose, []byte(f.secret), true); err != nil {
 				return fmt.Errorf("sensoractive: replace snmp secret: %w", err)
 			}
+		} else if lost, _ := s.secretLost(ctx, tx, prev.secretID, snmpSecretPurpose); lost { // another failure to open it: kept, as before
+			return snmpKeptLost()
 		}
 		var privID any
 		privLast4 := ""
@@ -439,6 +503,8 @@ func (s *Service) EditSNMP(ctx context.Context, actor, id string, in SNMPCredent
 				if privLast4, err = s.secrets.Replace(ctx, tx, prev.privID, snmpPrivPurpose, []byte(f.privSecret), true); err != nil {
 					return fmt.Errorf("sensoractive: replace snmp privacy password: %w", err)
 				}
+			} else if lost, _ := s.secretLost(ctx, tx, prev.privID, snmpPrivPurpose); lost { // another failure to open it: kept, as before
+				return snmpKeptLost()
 			}
 		}
 		scope, _ := json.Marshal(f.scopeText)
@@ -532,7 +598,8 @@ type snmpTarget struct {
 }
 
 // TestSNMP reads one device with one credential now (POST /inventory/snmp/{id}/test): every rule of the window's round but the
-// window. It answers what the device said, recorded in the inventory, or a plain reason; one audit row says who tested what.
+// window. It answers what the device said, recorded in the inventory, or a plain reason; one audit row says who tested what. A
+// credential whose saved secret this box cannot open is 409 secret_lost and nothing is sent (#868).
 func (s *Service) TestSNMP(ctx context.Context, actor, id, ipText string) (SNMPTestResult, error) {
 	if s.secrets == nil {
 		return SNMPTestResult{}, snmpOff()
@@ -544,6 +611,10 @@ func (s *Service) TestSNMP(ctx context.Context, actor, id, ipText string) (SNMPT
 	cred, err := s.snmpRow(ctx, s.db.Reader(), id)
 	if err != nil {
 		return SNMPTestResult{}, err
+	}
+	// Only a lost secret is refused here; any other failure to open one is reported where the job is built, as before.
+	if lost, _ := s.snmpLost(ctx, s.db.Reader(), *cred); lost {
+		return SNMPTestResult{}, snmpSecretLost()
 	}
 	res, err := s.testSNMP(ctx, *cred, ip)
 	if err != nil {
@@ -612,6 +683,8 @@ func (s *Service) testSNMP(ctx context.Context, cred snmpRow, ip netip.Addr) (SN
 	switch {
 	case errors.Is(err, ErrStopped):
 		return SNMPTestResult{}, apierr.New(409, "stopped", "The test was stopped: the scan settings changed or the module was turned off.")
+	case errors.Is(err, errSNMPSecretLost):
+		return SNMPTestResult{}, snmpSecretLost()
 	case errors.Is(err, ErrSNMPUnavailable), errors.Is(err, ErrWorkerLost), errors.Is(err, context.DeadlineExceeded):
 		_, msg := s.SNMPStatus()
 		res.Reason, res.Message = SNMPUnavailable, cmpOr(msg, "the scan worker did not finish the read in time")
@@ -768,6 +841,9 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 	case err != nil && rctx.Err() != nil:
 		s.finishProbe(ctx, probeID, stoppedText)
 		return nil, ErrStopped
+	case errors.Is(err, errSNMPSecretLost):
+		s.finishProbe(ctx, probeID, "failed: a saved SNMP secret was not restored")
+		return nil, err
 	case err != nil:
 		s.finishProbe(ctx, probeID, "failed: the credentials could not be read")
 		return nil, err
@@ -875,6 +951,9 @@ func (s *Service) snmpJob(ctx context.Context, rate int, creds []snmpRow, target
 			return job, ErrStopped
 		}
 		secret, err := s.secrets.Open(ctx, tx, c.secretID, snmpSecretPurpose)
+		if secrets.IsWrongKey(err) {
+			return job, fmt.Errorf("%w (%s)", errSNMPSecretLost, c.Name)
+		}
 		if err != nil {
 			return job, fmt.Errorf("sensoractive: open snmp secret: %w", err)
 		}
@@ -886,6 +965,9 @@ func (s *Service) snmpJob(ctx context.Context, rate int, creds []snmpRow, target
 			w.User, w.Auth, w.AuthPass = c.Username, c.Auth, string(secret)
 			if c.privID != "" {
 				priv, err := s.secrets.Open(ctx, tx, c.privID, snmpPrivPurpose)
+				if secrets.IsWrongKey(err) {
+					return job, fmt.Errorf("%w (%s)", errSNMPSecretLost, c.Name)
+				}
 				if err != nil {
 					return job, fmt.Errorf("sensoractive: open snmp privacy password: %w", err)
 				}
@@ -1008,7 +1090,9 @@ func (s *Service) snmpRoundDue(ctx context.Context, start time.Time) (bool, erro
 
 // snmpRound is the window's round of SNMP reads (Tick, after the sweep and the queue): once per window, every device the policy
 // lets be read, with the credentials whose scope holds it (in order, at most 4), in batches of 64. The job row is written first, so
-// a window with nothing to read is not looked at again every minute.
+// a window with nothing to read is not looked at again every minute. A credential whose saved secret this box cannot open is left
+// out (#868): the others are read; its row in the list and the Scanning card say it needs typing again. While every credential is
+// so, no round starts (the next Tick checks again, locally), so one typed again is read in the same window.
 func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 	if s.snmp == nil || s.secrets == nil {
 		return nil
@@ -1023,6 +1107,23 @@ func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 	if ready, _ := s.SNMPStatus(); !ready {
 		return nil // the next Tick tries again
 	}
+	usable := creds[:0:0]
+	var lost []string
+	for _, c := range creds {
+		// Another failure to open a secret is not "lost": the credential stays in, and the batch fails on it as before (snmpJob).
+		if gone, _ := s.snmpLost(ctx, s.db.Reader(), c); gone {
+			lost = append(lost, c.Name)
+			continue
+		}
+		usable = append(usable, c)
+	}
+	if len(usable) == 0 {
+		return nil
+	}
+	if len(lost) > 0 {
+		s.log.WarnContext(ctx, "sensoractive: snmp credentials skipped: their saved secret was not restored", "credentials", lost)
+	}
+	creds = usable
 	jobID, err := s.startJob(ctx, KindSNMP, snmpReasonWindow, 0)
 	if err != nil {
 		return err

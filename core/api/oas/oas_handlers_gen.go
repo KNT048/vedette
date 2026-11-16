@@ -29725,7 +29725,8 @@ func (s *Server) handleInventoryPostInventorySnmpRequest(args [0]string, argsEsc
 // Read now every approved device in this credential's scope (read-only GETs from the scan container,
 // logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the
 // window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent;
-// 409 stopped when active discovery was turned off while the read started.
+// 409 secret_lost when its saved secret cannot be opened on this box (Edit and type it again); 409
+// stopped when active discovery was turned off while the read started.
 //
 // POST /inventory/snmp/{id}/read
 func (s *Server) handleInventoryPostInventorySnmpIDReadRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29804,7 +29805,7 @@ func (s *Server) handleInventoryPostInventorySnmpIDReadRequest(args [1]string, a
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPostInventorySnmpIDReadOperation,
-			OperationSummary: "Read now every approved device in this credential's scope (read-only GETs from the scan container, logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent; 409 stopped when active discovery was turned off while the read started",
+			OperationSummary: "Read now every approved device in this credential's scope (read-only GETs from the scan container, logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent; 409 secret_lost when its saved secret cannot be opened on this box (Edit and type it again); 409 stopped when active discovery was turned off while the read started",
 			OperationID:      "inventory_post_inventory_snmp_id_read",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -29867,7 +29868,9 @@ func (s *Server) handleInventoryPostInventorySnmpIDReadRequest(args [1]string, a
 // handleInventoryPostInventorySnmpIDTestRequest handles inventory_post_inventory_snmp_id_test operation.
 //
 // Read one device with this credential now (read-only GETs from the scan container, logged in the
-// probe log) and say what it answered, or why not; an answer is recorded in the inventory.
+// probe log) and say what it answered, or why not; an answer is recorded in the inventory. 409
+// secret_lost when its saved secret cannot be opened on this box (nothing is sent; Edit and type it
+// again).
 //
 // POST /inventory/snmp/{id}/test
 func (s *Server) handleInventoryPostInventorySnmpIDTestRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29961,7 +29964,7 @@ func (s *Server) handleInventoryPostInventorySnmpIDTestRequest(args [1]string, a
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPostInventorySnmpIDTestOperation,
-			OperationSummary: "Read one device with this credential now (read-only GETs from the scan container, logged in the probe log) and say what it answered, or why not; an answer is recorded in the inventory",
+			OperationSummary: "Read one device with this credential now (read-only GETs from the scan container, logged in the probe log) and say what it answered, or why not; an answer is recorded in the inventory. 409 secret_lost when its saved secret cannot be opened on this box (nothing is sent; Edit and type it again)",
 			OperationID:      "inventory_post_inventory_snmp_id_test",
 			Body:             request,
 			RawBody:          rawBody,
@@ -30447,7 +30450,8 @@ func (s *Server) handleInventoryPutInventorySettingsRequest(args [0]string, args
 
 // handleInventoryPutInventorySnmpIDRequest handles inventory_put_inventory_snmp_id operation.
 //
-// Edit an SNMP credential; a blank secret keeps the saved one.
+// Edit an SNMP credential; a blank secret keeps the saved one. 409 secret_lost when a blank secret
+// would keep one this box cannot open (type it again).
 //
 // PUT /inventory/snmp/{id}
 func (s *Server) handleInventoryPutInventorySnmpIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -30541,7 +30545,7 @@ func (s *Server) handleInventoryPutInventorySnmpIDRequest(args [1]string, argsEs
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPutInventorySnmpIDOperation,
-			OperationSummary: "Edit an SNMP credential; a blank secret keeps the saved one",
+			OperationSummary: "Edit an SNMP credential; a blank secret keeps the saved one. 409 secret_lost when a blank secret would keep one this box cannot open (type it again)",
 			OperationID:      "inventory_put_inventory_snmp_id",
 			Body:             request,
 			RawBody:          rawBody,

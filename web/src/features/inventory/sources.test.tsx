@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { renderSnmp } from './snmpHarness'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { modulesStore, sessionStore } from '@/mocks/stores'
 import { ensureBox } from './mocks'
@@ -34,10 +35,11 @@ describe('Device page: Sources (D-598)', () => {
     await user.click(within(snmp).getByRole('button', { name: 'Read this device now' }))
     expect(await within(snmp).findByText(/192\.168\.10\.21 (answered|was not read)\./, undefined, T)).toBeInTheDocument()
     const agent = item(list, 'Agent (osquery or Wazuh)')
-    expect(within(agent).getByRole('link', { name: 'Install osquery' })).toHaveAttribute('href', '/devices/setup?tab=agents')
+    // #849: Install osquery opens the Add a device dialog's osquery method on this page
+    expect(within(agent).getByRole('button', { name: 'Install osquery' })).toBeInTheDocument()
     expect(screen.getByText(/set up the new one first, then stop the old one/)).toBeInTheDocument()
     await expectNoA11yViolations(container)
-    await user.click(within(snmp).getByRole('button', { name: 'Add a credential for this address' }))
+    await user.selectOptions(within(snmp).getByLabelText('Credential'), '+ New credential') // #842: made right here, in a small dialog
     const dialog = await screen.findByRole('dialog', undefined, T)
     expect(within(dialog).getByDisplayValue('192.168.10.21')).toBeInTheDocument()
   })
@@ -82,13 +84,13 @@ describe('Device page: Sources (D-598)', () => {
 
   it('?snmp_ip= does not open the add form when the 8 credentials are saved', async () => {
     for (let i = 0; i < 8; i++) await api('POST', '/snmp', { name: `Extra ${i}`, version: 'v2c', community: 'public-ro', scope: ['192.168.10.0/24'] })
-    renderApp('/devices/setup?tab=snmp&snmp_ip=192.168.10.21', { role: 'admin' })
+    renderSnmp('/?snmp_ip=192.168.10.21')
     await screen.findByRole('list', { name: 'SNMP credentials, in the order they are tried' }, T)
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('"Add a credential for <ip>" opens the SNMP form with that address as the scope', async () => {
-    renderApp('/devices/setup?tab=snmp&snmp_ip=192.168.10.21', { role: 'admin' })
+    renderSnmp('/?snmp_ip=192.168.10.21')
     const dialog = await screen.findByRole('dialog', undefined, T)
     expect(within(dialog).getByDisplayValue('192.168.10.21')).toBeInTheDocument()
   })

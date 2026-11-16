@@ -21,10 +21,13 @@ const NAS_IP = '192.168.10.21' // the device the pack finding is on, on the mock
 
 async function asMockRole(page: Page, role: Role) {
   await startWithSample(page)
-  await page.evaluate((u) => {
-    const k = 'vedette-mock-db-v4'
-    const raw = localStorage.getItem(k)
-    if (raw) { const db = JSON.parse(raw); db.core_session = { userId: u }; localStorage.setItem(k, JSON.stringify(db)) }
+  // before every page load (as reports.spec.ts): a late write of the page already open cannot put the old session back
+  await page.addInitScript((u) => {
+    try {
+      const k = 'vedette-mock-db-v4'
+      const raw = localStorage.getItem(k)
+      if (raw) { const db = JSON.parse(raw); db.core_session = { userId: u }; localStorage.setItem(k, JSON.stringify(db)) }
+    } catch { /* no storage: the page keeps its session */ }
   }, USER[role])
 }
 async function login(page: Page, role: Role) {
@@ -227,7 +230,7 @@ test.describe('findings: no pack yet, and the AI (S-MIT-1, S-AI-2)', () => {
       await expect(ask).toBeDisabled()
       await expect(explain).toBeDisabled()
       await expect(page.getByText('The AI assistant is off, or no AI profile is assigned to this job.').first()).toBeVisible()
-      await expect(page.getByRole('link', { name: 'Open AI assistant settings' }).first()).toHaveAttribute('href', '/settings/ai')
+      await expect(page.getByRole('link', { name: 'Open AI assistant settings' }).first()).toHaveAttribute('href', '/settings/ai#ai-profiles')
     } else {
       await ask.click()
       await expect(page.getByText(/AI-generated/).locator('visible=true').first()).toBeVisible() // #824: the no-pack note's "AI-generated" mention is behind its ⓘ; the label on the answer must show
@@ -342,7 +345,7 @@ test.describe('findings: device panel, missing finding, signed out', () => {
   test('a finding that does not exist says so and offers the way back', async ({ page }) => {
     await start(page, 'operator', '/findings/does-not-exist')
     await expect(page.getByText(/No such finding/).first()).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Back to findings' })).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Findings' })).toBeVisible() // docs/UI.md §3: the parent in the breadcrumb
     await page.goto(`/findings/${'f'.repeat(80)}`) // longer than any id
     await expect(page.getByText(/No such finding|not valid|invalid/i).first()).toBeVisible()
   })

@@ -90,10 +90,10 @@
     "iocCleanBody": "That does not mean it is safe, only that no source has flagged it.",
     "addedOn": "listed {{date}}",
     "textNone": "No exploited vulnerability matches \"{{q}}\"",
-    "textNoneBody": "Try a vendor name (Fortinet, QNAP) or a shorter product name."
+    "textNoneBody": "Try a vendor name (Fortinet, QNAP) or a shorter product name.",
+    "results": "Results for {{q}}"
   },
   "cve": {
-    "back": "Home",
     "title": "{{cve}}: {{product}}",
     "ransomware": "Used in ransomware",
     "inKev": "Added to exploited list {{date}}",

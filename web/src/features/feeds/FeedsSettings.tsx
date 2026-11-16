@@ -39,13 +39,13 @@ function Hosts({ items }: { items: Feed[] }) {
       <ul className="grid max-w-3xl gap-1 text-sm">
         {rows.map((f) => (
           <li key={f.id} className="flex flex-wrap items-baseline gap-x-2">
-            <span className="font-mono text-[13px]">{hostOf(f.url)}</span>
-            <span className="text-[13px] text-muted">{f.name}{f.builtin ? '' : `, ${t('hosts.yours')}`}{f.enabled ? '' : `, ${t('hosts.off')}`}</span>
-            {f.id === 'cisa-kev' && f.enabled && f.url === f.default_url ? <span className="text-[13px] text-muted">{t('hosts.cisaMirror')}</span> : null}
+            <span className="font-mono text-meta">{hostOf(f.url)}</span>
+            <span className="text-meta text-muted">{f.name}{f.builtin ? '' : `, ${t('hosts.yours')}`}{f.enabled ? '' : `, ${t('hosts.off')}`}</span>
+            {f.id === 'cisa-kev' && f.enabled && f.url === f.default_url ? <span className="text-meta text-muted">{t('hosts.cisaMirror')}</span> : null}
           </li>
         ))}
       </ul>
-      <p className="mt-2 text-[13px] text-muted"><Link className="text-accent underline-offset-4 hover:underline" to="/settings/privacy">{t('hosts.privacy')}</Link></p>
+      <p className="mt-2 text-meta text-muted"><Link className="text-accent underline-offset-4 hover:underline" to="/settings/privacy">{t('hosts.privacy')}</Link></p>
     </Section>
   )
 }
@@ -75,14 +75,18 @@ function Tables({ items }: { items: Feed[] }) {
   const status = (f: Feed) => (
     <span className="grid gap-0.5">
       <span><Chip tone={f.status === 'ok' ? 'ok' : f.status === 'error' ? 'danger' : 'off'}>{t(`status.${f.status}`)}</Chip></span>
-      {f.answered_by ? <span className="text-[12px] text-muted">{t('row.answeredBy', { source: f.answered_by })}</span> : null}
-      {f.error ? <span className="max-w-64 text-[12px] text-muted">{f.error}</span> : null}
-      {needsKey(f) ? <span className="max-w-64 text-[12px] text-muted">{t('row.needsKey')}</span> : null}
-      {f.status === 'never' && f.enabled && !f.error ? <span className="max-w-64 text-[12px] text-muted">{t('row.firstFetch')}</span> : null}
+      {f.answered_by ? <span className="text-caption text-muted">{t('row.answeredBy', { source: f.answered_by })}</span> : null}
+      {f.error ? <span className="max-w-64 text-caption text-muted">{f.error}</span> : null}
+      {/* docs/UI.md §0: the missing key is added right here (the same dialog as the row's Settings) */}
+      {needsKey(f) ? (admin
+        ? <button type="button" className="w-fit max-w-64 text-left text-caption text-accent underline-offset-4 hover:underline" onClick={() => setBuiltin(f)}>{t('row.needsKey')}</button>
+        : <span className="max-w-64 text-caption text-muted">{t('row.needsKey')}</span>) : null}
+      {f.status === 'never' && f.enabled && !f.error ? <span className="max-w-64 text-caption text-muted">{t('row.firstFetch')}</span> : null}
     </span>
   )
   const toggle = (f: Feed) => (
-    <Switch checked={f.enabled} disabled={!admin || patch.isPending || needsKey(f)} title={reason ?? (needsKey(f) ? t('row.needsKey') : undefined)} aria-label={t(f.enabled ? 'row.disable' : 'row.enable', { name: f.name })}
+    // id: the place a deep link names (docs/UI.md §0), e.g. Updates to plan's /settings/feeds#feed-epss-all
+    <Switch id={`feed-${f.id}`} checked={f.enabled} disabled={!admin || patch.isPending || needsKey(f)} title={reason ?? (needsKey(f) ? t('row.needsKey') : undefined)} aria-label={t(f.enabled ? 'row.disable' : 'row.enable', { name: f.name })}
       onCheckedChange={(v) => patch.mutate({ id: f.id, enabled: v }, { onSuccess: () => toast.success(v ? t('row.nowOn', { name: f.name }) : t('row.nowOff', { name: f.name })) })} />
   )
   const last = (f: Feed) => (f.last_fetch ? <span title={f.last_fetch}>{fmtRelative(f.last_fetch)}</span> : <span className="text-muted">{t('row.never')}</span>)
@@ -100,7 +104,7 @@ function Tables({ items }: { items: Feed[] }) {
     status: { id: 'status', header: t('col.status'), accessorKey: 'status', cell: ({ row }: R) => status(row.original) },
   }
   const name = (f: Feed) => (
-    <span className="grid"><span className="font-medium">{f.name}</span><span className="text-[12px] text-muted">{t(`kind.${f.kind}`)}{f.builtin && f.license ? `, ${f.license}` : `, ${t(`parser.formats.${f.format}`)}`}</span></span>
+    <span className="grid"><span className="font-medium">{f.name}</span><span className="text-caption text-muted">{t(`kind.${f.kind}`)}{f.builtin && f.license ? `, ${f.license}` : `, ${t(`parser.formats.${f.format}`)}`}</span></span>
   )
   const mobile = (f: Feed, actions: React.ReactNode) => (
     <div className="grid gap-1.5 text-sm">
@@ -140,7 +144,7 @@ function Tables({ items }: { items: Feed[] }) {
           <EmptyState title={t('custom.empty')} info={t('custom.emptyBodyInfo')} action={addBtn}>{t('custom.emptyBody')}</EmptyState>
         ) : (
           <>
-          {customs.some((f) => f.kind === 'vulnerabilities') ? <div className="mb-2 flex items-center gap-1 text-[13px] text-muted"><p>{t('custom.vulnNote')}</p><InfoTip topic={t('custom.title')}>{t('custom.vulnNoteInfo')}</InfoTip></div> : null}
+          {customs.some((f) => f.kind === 'vulnerabilities') ? <div className="mb-2 flex items-center gap-1 text-meta text-muted"><p>{t('custom.vulnNote')}</p><InfoTip topic={t('custom.title')}>{t('custom.vulnNoteInfo')}</InfoTip></div> : null}
           <DataTable<Feed> caption={t('custom.caption')} data={customs} mobileRow={(f) => mobile(f, customActions(f))}
             columns={[
               { id: 'name', header: t('col.feed'), accessorKey: 'name', cell: ({ row }: R) => name(row.original) },

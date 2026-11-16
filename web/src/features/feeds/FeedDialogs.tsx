@@ -56,12 +56,12 @@ export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => vo
       <DialogContent title={t('dialog.builtinTitle', { name: feed.name })} description={t('dialog.builtinBody')}>
         <form noValidate onSubmit={submit} className="grid gap-4" aria-label={t('dialog.builtinTitle', { name: feed.name })}>
           <Interval id="bf-hours" value={hours} onChange={setHours} />
-          {byok ? <div className="flex items-center gap-1 text-[13px] text-muted"><p>{t('dialog.vulncheckNoMirror')}</p><InfoTip topic={t('dialog.address')}>{t('dialog.vulncheckNoMirrorInfo')}</InfoTip></div> : (
+          {byok ? <div className="flex items-center gap-1 text-meta text-muted"><p>{t('dialog.vulncheckNoMirror')}</p><InfoTip topic={t('dialog.address')}>{t('dialog.vulncheckNoMirrorInfo')}</InfoTip></div> : (
             <>
               <Field label={t('dialog.address')} htmlFor="bf-url" hint={t('dialog.mirrorHint')} info={t('dialog.mirrorInfo')} error={urlErr}>
                 <Input id="bf-url" value={url} onChange={(e) => { setUrl(e.target.value); setErr(undefined) }} inputMode="url" autoComplete="off" aria-invalid={urlErr ? true : undefined} aria-describedby={urlErr ? 'bf-url-error' : 'bf-url-hint'} />
               </Field>
-              <div className="flex flex-wrap items-center gap-3 text-[13px] text-muted">
+              <div className="flex flex-wrap items-center gap-3 text-meta text-muted">
                 <Button type="button" size="sm" disabled={url === feed.default_url} onClick={() => { setUrl(feed.default_url ?? ''); setErr(undefined) }}>{t('dialog.reset')}</Button>
                 <span className="break-all">{t('dialog.defaultIs', { url: feed.default_url })}</span>
               </div>
@@ -72,7 +72,7 @@ export function BuiltinDialog({ feed, onClose }: { feed: Feed; onClose: () => vo
               <Input id="bf-key" type="password" value={key} onChange={(e) => { setKey(e.target.value); setKeyErr(undefined) }} autoComplete="off" placeholder={last4 ? `••••${last4}` : ''} aria-invalid={keyErr ? true : undefined} />
               {last4 && !confirmRemove ? <Button type="button" size="sm" onClick={() => setConfirmRemove(true)}>{t('dialog.vulncheckKeyRemove')}</Button> : null}
               {last4 && confirmRemove ? (
-                <div role="alert" className="grid gap-2 rounded-md border border-warn bg-warn-soft/60 p-3 text-sm">
+                <div role="alert" className="grid gap-2 rounded-md border border-warn/50 bg-warn-soft p-3 text-sm">
                   <div className="flex items-center gap-1"><p>{t('dialog.vulncheckRemoveBody', { count: onlyVulnCheck, n: onlyVulnCheck })}</p><InfoTip topic={t('dialog.vulncheckKeyRemove')}>{t('dialog.vulncheckRemoveInfo', { count: onlyVulnCheck, n: onlyVulnCheck })}</InfoTip></div>
                   <span className="flex gap-2">
                     <Button type="button" size="sm" variant="primary" disabled={patch.isPending} onClick={() => patch.mutate({ id: feed.id, api_key: '' }, { onSuccess: () => { toast.success(t('dialog.vulncheckKeyRemoved', { name: feed.name })); onClose() } })}>{t('dialog.vulncheckRemoveConfirm')}</Button>
@@ -163,7 +163,7 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
             <div className="grid gap-1.5">
               <div className="flex items-center gap-1"><span id="cf-kind-label" className="text-sm font-medium">{t('dialog.type')}</span><InfoTip topic={t('dialog.type')}>{t(`dialog.typeInfo.${kind}`)}</InfoTip></div>
               <Segmented<FeedKind> label={t('dialog.type')} value={kind} onChange={pickKind} options={[{ value: 'ioc', label: t('kind.ioc') }, { value: 'vulnerabilities', label: t('kind.vulnerabilities') }]} />
-              <p className="text-[13px] text-muted">{t(`dialog.typeHint.${kind}`)}</p>
+              <p className="text-meta text-muted">{t(`dialog.typeHint.${kind}`)}</p>
             </div>
             <Field label={t('dialog.address')} htmlFor="cf-url" hint={t('dialog.urlHint')} info={t('dialog.urlInfo')} error={err('url')} className="sm:col-span-2">
               <Input id="cf-url" value={url} onChange={(e) => { setUrl(e.target.value); clear('url') }} inputMode="url" autoComplete="off" placeholder="https://" {...aria('url')} />
@@ -181,7 +181,7 @@ export function CustomDialog({ feed, onClose }: { feed: Feed | null; onClose: ()
             ) : null}
           </div>
           <ParserEditor kind={kind} parser={parser} onChange={(p) => { setParser(p); clear('parser') }} onFormat={(f) => { setParser(defaultParser(kind, f)); clear('parser') }} />
-          {err('parser') ? <p role="alert" className="text-[13px] text-danger">{err('parser')}</p> : null}
+          {err('parser') ? <p role="alert" className="text-meta text-danger">{err('parser')}</p> : null}
           {save.error && !serverField(save.error) ? <p role="alert" id="cf-error" tabIndex={-1} className="text-sm text-danger outline-none">{(save.error as Error).message}</p> : null}
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>

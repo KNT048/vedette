@@ -1356,7 +1356,7 @@ describe('response: screens', () => {
     await userEvent.click(sw)
     const dialog = await screen.findByRole('dialog')
     expect(dialog).toHaveTextContent('This is a high-risk feature. Your AI can be wrong and can change your network devices. You carry the risk yourself. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for actions your AI takes.')
-    expect(screen.getByRole('link', { name: 'Turn it on in My account' })).toHaveAttribute('href', '/settings/account?tab=sign-in')
+    expect(screen.getByRole('link', { name: 'Turn it on in My account' })).toHaveAttribute('href', '/settings/account?tab=sign-in#two-step')
     await userEvent.type(screen.getByLabelText(`Type ${PHRASE} to confirm`), PHRASE)
     expect(screen.getByRole('button', { name: 'Turn on AI execution' })).toBeDisabled() // two-step sign-in is off
   })
@@ -1997,7 +1997,7 @@ describe('response: Respond from an incident (S-RESP-3, D-509)', () => {
     expect(await within(panel).findByText('192.168.10.107')).toBeInTheDocument()
     expect(within(panel).getByText('On your network')).toBeInTheDocument()
     expect(within(panel).getByText('Vedette cannot cut this machine off for you yet.')).toBeInTheDocument()
-    expect(within(panel).getByRole('link', { name: 'Settings, Connections' })).toHaveAttribute('href', '/settings/connections')
+    expect(within(panel).getByRole('link', { name: 'Settings, Connections' })).toHaveAttribute('href', '/settings/connections#connections-add')
     expect(within(panel).getByText(/The block list only carries public addresses, so it cannot hold 192.168.10.107/)).toBeInTheDocument()
     for (const b of within(panel).getAllByRole('button', { name: 'Ask for approval' })) expect(b).toBeDisabled()
   })
@@ -2141,7 +2141,7 @@ describe('D-624 (#819): a box that had AI response on before v1', () => {
     try {
       const u = userEvent.setup()
       renderApp('/response?tab=requests&view=history')
-      const card = (await screen.findByRole('heading', { level: 3, name: 'Add 185.220.101.47 to the block list' })).closest('div.grid')!
+      const card = (await screen.findByRole('heading', { level: 3, name: 'Add 185.220.101.47 to the block list' })).closest('section')!
       const back = within(card as HTMLElement).getByRole('button', { name: 'Roll back' })
       expect(enabled(back)).toBe(true)
       await u.click(back)
@@ -2155,12 +2155,12 @@ describe('D-624 (#819): a box that had AI response on before v1', () => {
     const calls = rollbackCalls()
     try {
       renderApp('/response?tab=requests&view=history')
-      const card = (await screen.findByRole('heading', { level: 3, name: 'Add 185.220.101.47 to the block list' })).closest('div.grid')!
+      const card = (await screen.findByRole('heading', { level: 3, name: 'Add 185.220.101.47 to the block list' })).closest('section')!
       const back = within(card as HTMLElement).getByRole('button', { name: 'Roll back' })
       expect(back).toBeDisabled()
       expect(back).toHaveAccessibleDescription('Execution is off: undo this on the device itself.')
       expect(calls).toHaveLength(0)
-      const other = (screen.getByRole('heading', { level: 3, name: 'Add 45.9.148.20 to the block list' })).closest('div.grid')!
+      const other = (screen.getByRole('heading', { level: 3, name: 'Add 45.9.148.20 to the block list' })).closest('section')!
       expect(within(other as HTMLElement).getByRole('button', { name: 'Roll back' })).toBeEnabled()
     } finally { postV1.POST_V1_IN_UI = true; server.events.removeAllListeners() }
   })

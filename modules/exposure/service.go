@@ -445,6 +445,10 @@ func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) erro
 		if err := deleteTarget(ctx, tx, id); err != nil {
 			return err
 		}
+		// INV-30: Settings › Scanning no longer names the target as an engine's last run (#863 r1 L4)
+		if _, err := tx.ExecContext(ctx, `DELETE FROM exp_engine_run WHERE target = ?`, t.Value); err != nil {
+			return fmt.Errorf("exposure: removing the target's engine runs: %w", err)
+		}
 		if err := s.audit(ctx, tx, user, "exposure.target_delete", t.Value, ""); err != nil {
 			return err
 		}

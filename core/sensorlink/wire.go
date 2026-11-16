@@ -600,7 +600,7 @@ var DropKeys = []string{
 	"flows_dropped", "fragment_skipped", "malformed_arp", "malformed_dhcp", "malformed_dns", "malformed_ethernet", "malformed_http",
 	"malformed_ipv4", "malformed_lldp", "malformed_mdns", "malformed_ssdp", "malformed_tcp", "malformed_tls", "malformed_udp", "metadata_dropped",
 	"metadata_failed", "new_macs_dropped", "new_macs_unconfirmed", "non_unicast_ip", "observation_failed", "observation_rejected",
-	"observations_dropped", "unusable_record", "value_empty", "value_truncated", "values_dropped", "vendor_rejected",
+	"observations_dropped", "unusable_record", "value_empty", "value_meaningless", "value_truncated", "values_dropped", "vendor_rejected",
 }
 
 // ValidDropKey reports whether k is in DropKeys.

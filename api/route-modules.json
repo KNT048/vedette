@@ -143,6 +143,7 @@
   "GET /response/settings": "response",
   "GET /response/templates": "response",
   "GET /response/triggers": "response",
+  "GET /scanning": "core",
   "GET /scans/config": "scan",
   "GET /scans/credentialed": "scan-credentialed",
   "GET /scans/events": "scan",
@@ -162,6 +163,7 @@
   "PATCH /inventory/sensors/{id}": "sensor-passive",
   "PATCH /modules/{id}": "core",
   "PATCH /notify/incidents/{id}": "notify",
+  "PATCH /scanning/engines/{id}": "core",
   "POST /ai/ask": "ai",
   "POST /ai/cve/{id}/explain": "ai",
   "POST /ai/cve/{id}/news": "ai",
@@ -283,6 +285,7 @@
   "POST /response/rules/simulate": "response",
   "POST /response/rules/{id}/manual": "response",
   "POST /response/templates/{id}/clone": "response",
+  "POST /scanning/engines/nmap-discovery/run": "core",
   "POST /scans/credentialed": "scan-credentialed",
   "POST /scans/credentialed/{id}/test": "scan-credentialed",
   "POST /scans/runs": "scan",
@@ -328,5 +331,6 @@
   "PUT /response/catalog/{id}": "response",
   "PUT /response/rules/{id}": "response",
   "PUT /response/settings": "response",
+  "PUT /scanning/safety": "core",
   "PUT /scans/config": "scan"
 }

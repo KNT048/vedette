@@ -1,5 +1,10 @@
 # Sensor-active — Change Impact Map
 
+## Modifying: manual runs and the engine view (`StartManual`, `Manual`, `WaitManual`, `Engine`, `manualUntil`; #850, INV-21)
+- **core** (`POST /scanning/engines/nmap-discovery/run`, `GET /scanning` `running[]` and the nmap-discovery, nmap-versions and snmp cards) reaches them through `cmd/vedette/scanning.go`: `TargetError` reasons and the `Err*` refusals map to the API's codes there; renaming one changes what a person reads.
+- **The window rule** (`windowNow`) now also opens for `manualUntil`: a change to it changes the first pass, the queue drain and `SettingsChanged`.
+- **`DiscoverRanges`** runs its batches without the context's progress sink and reports the sweep's own count instead (#830 FAIL 2): a caller that wants a batch's own nmap percent must not rely on the sink.
+
 ## Modifying: hai mẫu sâu `external_full`/`external_disruptive`, `ScanExternal(ctx, ip, kind, own)`, `DeepGate`, `ExternalScript` (D-526, INV-19)
 - **cmd/vedette** `exposureservices.go`: chọn mẫu từ `exposure.ScanTarget.Mode` (`shapeOf`), `ownGate` cài `DeepGate` qua `exposure.ModeNow`, đổi `ErrNotDeep`/`ErrFullUnsupported` thành dòng của trang, chuyển `External.Scripts` → `exposure.ScriptRow`. Đổi `nmapargv.FullHostTimeout` thì đổi cả `exposure.FullHostLimit` và xem lại `exposure.FullServicesTimeout` (`TestExposureServiceShapeFollowsTheMode` giữ ba số cùng nhau).
 - **exposure** (module của Mlee): bước dịch vụ của lượt quét sâu, dòng "did not finish within …", cột `exp_snapshot.scripts` (migration 0010 của exposure), `modules/core/export_policy.go`.

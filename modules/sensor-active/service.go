@@ -19,6 +19,7 @@ import (
 	"github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
@@ -120,23 +121,34 @@ type Service struct {
 	allPortsHeldIn time.Time
 	// firstUntil is set while the first pass of a new box runs (firstPass, D-501): until then the window counts as open. Zero otherwise.
 	firstUntil time.Time
+	// manualUntil is firstUntil for a sweep a person started (Scan the LAN now, INV-21); manual is that run, or the device checks a
+	// person started, while it goes on.
+	manualUntil time.Time
+	manual      *manualRun
 }
 
 // firstPassFor bounds the first pass: it may run outside the window for at most this long; a sweep it did not finish goes on from
 // its cursor in the next window.
 const firstPassFor = time.Hour
 
-// windowNow is the window rule of every automatic run (INV-3): whether the window is open now, and when it ends. While the
-// first pass of a new box runs it is open until firstUntil (D-501).
-func (s *Service) windowNow(st Settings) (end time.Time, ok bool) {
+// windowNow is the window rule of every automatic run (INV-3): whether the window is open now, and when it ends. Inside a window it
+// is that window's own end, whatever else runs. Outside one it is open until firstUntil while the first pass of a new box runs
+// (D-501), and, for the runs of a person's "Scan the LAN now" only (ctx marked by withManual), until manualUntil (INV-21, review
+// #857 L2): a manual run never opens or lengthens the window of the box's own runs (rounds, queue, SNMP).
+func (s *Service) windowNow(ctx context.Context, st Settings) (end time.Time, ok bool) {
+	if _, end, ok = st.window(s.local()); ok {
+		return end, true
+	}
 	s.mu.Lock()
 	until := s.firstUntil
+	if isManual(ctx) && s.manualUntil.After(until) {
+		until = s.manualUntil
+	}
 	s.mu.Unlock()
 	if s.clock().Before(until) {
 		return until, true
 	}
-	_, end, ok = st.window(s.local())
-	return end, ok
+	return time.Time{}, false
 }
 
 type running struct {
@@ -155,7 +167,10 @@ type running struct {
 	external bool
 	// weekly: the weekly scan of every port of a device (D-592), with its -sV follow-up. A Scan now identification or an exposure
 	// scan stops it (lockWithin, review r1 M1); it stays due.
-	weekly bool
+	weekly  bool
+	started time.Time // when it was registered (setCur), for Settings › Scanning
+	// manual: a run of a person's "Scan the LAN now" (INV-21): the window it is checked against is its manualUntil too (windowNow).
+	manual bool
 }
 
 // New returns the service.
@@ -279,7 +294,7 @@ func (s *Service) permit(ctx context.Context) (Settings, error) {
 	if err := st.allowed(); err != nil {
 		return st, err
 	}
-	if _, ok := s.windowNow(st); !ok {
+	if _, ok := s.windowNow(ctx, st); !ok {
 		return st, ErrOutsideWindow
 	}
 	if err := s.available(ctx); err != nil {
@@ -399,7 +414,7 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 		return nil, s.stopFor(err)
 	}
 	picked := s.isPicked()
-	end, ok := s.windowNow(st)
+	end, ok := s.windowNow(ctx, st)
 	if !ok && !picked {
 		return nil, ErrStopped
 	}
@@ -538,6 +553,7 @@ func (s *Service) Stop() {
 	s.mu.Lock()
 	cur, snmp := s.cur, s.snmpCur
 	s.mu.Unlock()
+	s.stopManual()
 	if cur != nil {
 		cur.cancel()
 	}
@@ -766,7 +782,7 @@ func (s *Service) DiscoverRanges(ctx context.Context) (Result, error) {
 	defer s.runMu.Unlock()
 	jctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	s.setCur(&running{cancel: cancel})
+	s.setCur(&running{cancel: cancel, manual: isManual(ctx)})
 	defer s.setCur(nil)
 	st, err := s.permit(jctx)
 	if err != nil {
@@ -790,6 +806,14 @@ func (s *Service) DiscoverRanges(ctx context.Context) (Result, error) {
 		return Result{}, err
 	}
 	res := Result{JobID: id}
+	// A sweep a person started reports how far it is (#850): the addresses swept out of the scope, batch by batch. Each batch's own
+	// nmap reports would start at 0 again (#830 FAIL 2), so the batches run without the sink.
+	sink := progress.SinkFrom(ctx)
+	pctx, planned := jctx, int64(newScope(st).count())
+	if sink != nil {
+		pctx = progress.WithSink(jctx, nil)
+		sink.Report(progress.Update{Phase: progress.PhaseDiscovery, Percent: -1, Total: planned, Unit: progress.UnitHosts, NewPass: true})
+	}
 	var failed int
 	var firstErr string
 	status := StatusDone
@@ -803,7 +827,7 @@ loop:
 			status, firstErr = StatusStopped, "stopped: "+err.Error()
 			break
 		}
-		if _, ok := s.windowNow(st); !ok {
+		if _, ok := s.windowNow(jctx, st); !ok {
 			status, firstErr = StatusStopped, "stopped: the window closed"
 			break
 		}
@@ -819,7 +843,7 @@ loop:
 			s.setCursor(ctx, netip.Addr{}) // the pass reached the end of the ranges
 			break
 		}
-		hosts, err := s.probe(jctx, id, nmapargv.Sweep, st.Rate, batch)
+		hosts, err := s.probe(pctx, id, nmapargv.Sweep, st.Rate, batch)
 		switch {
 		case errors.Is(err, ErrStopped):
 			status, firstErr = StatusStopped, stoppedText
@@ -835,6 +859,9 @@ loop:
 				res.Targets += len(batch)
 				res.NewDevices += n
 				s.setCursor(ctx, batch[len(batch)-1])
+				if sink != nil {
+					sink.Report(progress.Update{Phase: progress.PhaseDiscovery, Percent: -1, Done: int64(res.Targets), Total: max(planned, int64(res.Targets)), Unit: progress.UnitHosts})
+				}
 				continue
 			}
 			fallthrough
@@ -952,6 +979,9 @@ func (s *Service) setAsset(id string) {
 func (s *Service) setCur(r *running) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if r != nil && r.started.IsZero() {
+		r.started = s.clock()
+	}
 	s.cur = r
 }
 
@@ -977,7 +1007,7 @@ func (s *Service) scanDevice(ctx context.Context, assetID, reason string, all bo
 	defer cancel()
 	// The weekly run is registered with its kind before its policy is read (review r1 L2), so a change of the device in between
 	// reaches it.
-	cur := &running{cancel: cancel, asset: assetID, weekly: all}
+	cur := &running{cancel: cancel, asset: assetID, weekly: all, manual: isManual(ctx)}
 	if all {
 		cur.kind = nmapargv.AllPorts
 	}
@@ -1383,8 +1413,17 @@ func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identific
 	} else if !in {
 		return refuse("out_of_scope")
 	}
-	// The box's own addresses and its decoys are never probed (review L1). The list also holds devices discovery leaves to the
-	// passive sensors after their gentle scan, which a pick may identify: only those are let through.
+	// The box's own addresses and its decoys are never probed, whatever the device row says (BoxIPs, as SNMP does: review #857 L3);
+	// the passive-only exemption below is for the rest of ProtectedIPs.
+	box, err := s.inv.BoxIPs(jctx)
+	if err != nil {
+		return Identification{}, stopped(err)
+	}
+	if slices.Contains(box, asset.IP) {
+		return refuse(reasonBox)
+	}
+	// ProtectedIPs also holds devices discovery leaves to the passive sensors after their gentle scan, which a pick may identify: only
+	// those are let through (review L1); the box itself was refused above.
 	protected, err := s.inv.ProtectedIPs(jctx)
 	if err != nil {
 		return Identification{}, stopped(err)
@@ -1660,9 +1699,9 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 	var targets []netip.Addr
 	var rate int
 	var deadline time.Time
-	var picked, external bool
+	var picked, external, manual bool
 	if cur != nil {
-		targets, rate, deadline, picked, external = slices.Clone(cur.targets), cur.rate, cur.deadline, cur.picked, cur.external
+		targets, rate, deadline, picked, external, manual = slices.Clone(cur.targets), cur.rate, cur.deadline, cur.picked, cur.external, cur.manual
 	}
 	s.mu.Unlock()
 	if cur == nil || external { // an external run is not under the LAN settings (D-514)
@@ -1675,7 +1714,11 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 	}
 	// A window shortened under a run in progress ends it: the run's deadline came from the old end (INV-3). A picked
 	// identification is not bound to the window (D-501); the rate and the scope still bind it.
-	end, ok := s.windowNow(st)
+	wctx := ctx
+	if manual {
+		wctx = withManual(ctx)
+	}
+	end, ok := s.windowNow(wctx, st)
 	if (!ok && !picked) || st.Rate < rate || (!picked && !deadline.IsZero() && end.Before(deadline)) {
 		cur.cancel()
 		return nil

@@ -1,6 +1,7 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, type ComponentType } from 'react'
 import type { Feature } from '@/app/feature'
 import { Loading } from '@/components/common/States'
+import { ScansRunningIndicator } from './ScanNow'
 
 const ScanningSettings = lazy(() => import('./ScanningSettings'))
 
@@ -9,6 +10,8 @@ const ScanningSettings = lazy(() => import('./ScanningSettings'))
 export const feature: Feature = {
   id: 'scan',
   routes: [{ path: 'scans', lazy: () => import('./ScansMoved').then((m) => ({ Component: m.default })) }],
+  // #850: "1 scan running" in the shell (phone top bar, sidebar foot); it reads nothing while the scan module is off
+  slots: { 'shell.status': ScansRunningIndicator as ComponentType<Record<string, unknown>> },
   settings: [{ id: 'scanning', label: 'scan:settings.nav', module: 'core', minRole: 'viewer', order: 22, element: <Suspense fallback={<Loading />}><ScanningSettings /></Suspense> }],
 }
 

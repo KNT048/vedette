@@ -3,7 +3,8 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ShieldCheck } from 'lucide-react'
-import { Notice, Section, Panel } from '@/components/common/PageHeader'
+import { Notice, Section } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -49,13 +50,13 @@ function Form({ data }: { data: ScanConfigResponse }) {
       <p className="max-w-3xl text-sm">{t('safety.appliesTo')}</p>
 
       <Section id="scope" title={t('safety.scopeTitle')} description={t('safety.scopeDescription')} info={t('safety.scopeInfo')} stories={['S-SCAN-1']}>
-        <Panel className="grid gap-1 p-4 text-sm">
+        <Card className="grid gap-1 text-sm">
           <p>{data.scope.networks.length ? t('start.scope', { networks: data.scope.networks.join(', ') }) : t('start.noNetworks')}</p>
           <p className={data.scope.commitment ? 'text-muted' : 'text-danger'}>
             {data.scope.commitment ? t('start.commitment', { date: fmtDate(data.scope.commitment.confirmed_at), by: data.scope.commitment.by }) : t('start.noCommitment')}
           </p>
           <Link to="/devices/setup" className="w-fit text-[13px] text-accent underline-offset-4 hover:underline">{t('safety.scopeChange')}</Link>
-        </Panel>
+        </Card>
       </Section>
 
       <Section id="window" title={t('safety.windowTitle')} description={t('safety.windowDescription')} info={t('safety.windowDescriptionInfo')} stories={['S-SCAN-4']}>
@@ -109,13 +110,13 @@ function Form({ data }: { data: ScanConfigResponse }) {
 
       <Section id="never" title={t('safety.neverTitle')} description={t('safety.neverDescription')}
         info={(['exploit', 'write', 'tags'] as const).map((k) => <p key={k}>{t(`safety.never.${k}Info`)}</p>)}>
-        <Panel className="grid gap-2 p-4">
+        <Card className="grid gap-2">
           <p className="flex items-center gap-2 text-sm font-medium"><ShieldCheck className="size-4 text-ok" aria-hidden />{t('safety.neverHeadline')}</p>
           <ul className="grid list-disc gap-1 pl-9 text-sm">
             {(['exploit', 'dos', 'brute', 'write', 'tags'] as const).map((k) => <li key={k}>{t(`safety.never.${k}`)}</li>)}
           </ul>
           <p className="text-[13px] text-muted">{t('safety.neverLocked')}</p>
-        </Panel>
+        </Card>
       </Section>
 
 

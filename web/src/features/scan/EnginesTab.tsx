@@ -3,7 +3,8 @@ import { Link, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ChevronDown } from 'lucide-react'
-import { Panel, Section } from '@/components/common/PageHeader'
+import { Section } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { QueryState } from '@/components/common/States'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { ScopeBadge } from '@/components/common/V1Scope'
@@ -90,7 +91,7 @@ function LastNext({ e }: { e: Engine }) {
           <dd>{last ? <time dateTime={last.at} title={fmtDateTime(last.at)}>{t(`engine.outcome.${last.outcome}`, { time: fmtRelative(last.at) })}</time> : t('engine.never')}
             {last?.summary ? <span className="text-muted">{t('engine.summary', { text: last.summary })}</span> : null}</dd></div>
       )}
-      {always ? null : <div className="flex gap-1.5"><dt className="whitespace-nowrap text-muted">{t('engine.next')}</dt><dd>{e.next_run ? <time dateTime={e.next_run}>{fmtDateTime(e.next_run)}</time> : t('engine.onDemand')}</dd></div>}
+      {always || !e.enabled ? null : <div className="flex gap-1.5"><dt className="whitespace-nowrap text-muted">{t('engine.next')}</dt><dd>{e.next_run ? <time dateTime={e.next_run}>{fmtDateTime(e.next_run)}</time> : t('engine.onDemand')}</dd></div>}
     </dl>
   )
 }
@@ -172,11 +173,11 @@ function Groups({ d }: { d: EnginesResponse }) {
         if (!list.length) return null
         return (
           <Section key={g} id={`group-${g}`} title={t(`group.${g}.title`)} description={t(`group.${g}.description`)} info={t(`group.${g}.info`)}>
-            <Panel>
+            <Card flush>
               <ul className="divide-y divide-rule">
                 {list.map((e) => <EngineRow key={e.id} e={e} open={open.has(e.id)} onOpen={(v) => setOpen((s) => { const n = new Set(s); if (v) n.add(e.id); else n.delete(e.id); return n })} />)}
               </ul>
-            </Panel>
+            </Card>
           </Section>
         )
       })}

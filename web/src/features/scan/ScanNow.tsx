@@ -99,7 +99,7 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
  * #850: the small "1 scan running" of the top bar; it opens the run. Nothing while no scan runs, or while the scan module is off
  * (its read would be 404). The same read as Settings › Scanning (GET /scans/engines, read every 10 s only while one runs).
  */
-export function ScansRunningIndicator({ className }: { className?: string }) {
+export function ScansRunningIndicator({ className, compact = false }: { className?: string; compact?: boolean }) {
   const { t } = useTranslation('scan')
   const on = useModuleEnabled('scan') === true
   const q = useEngines(on)
@@ -107,10 +107,12 @@ export function ScansRunningIndicator({ className }: { className?: string }) {
   if (!on || running.length === 0) return null
   const one = running.length === 1 ? running[0]! : null
   const to = one ? (one.engine === 'nuclei' ? runHref(one.run_id) : `/settings/scanning?tab=engines#${one.engine}`) : '/settings/scanning?tab=engines'
+  const label = t('running.count', { count: running.length })
+  // compact (the phone top bar, the rail): the icon and the number, the words for screen readers and as the tooltip
   return (
-    <Link to={to} className={cn('inline-flex h-8 items-center gap-2 rounded-md border border-accent/40 bg-accent-soft px-3 text-[13px] font-medium text-ink hover:bg-sunken', className)}>
+    <Link to={to} title={compact ? label : undefined} className={cn('inline-flex h-8 items-center gap-2 rounded-md border border-accent/40 bg-accent-soft text-[13px] font-medium text-ink hover:bg-sunken', compact ? 'px-2' : 'px-3', className)}>
       <Radar className="size-4 text-accent" aria-hidden />
-      <span role="status">{t('running.count', { count: running.length })}</span>
+      <span role="status">{compact ? <><span aria-hidden className="tabular-nums">{running.length}</span><span className="sr-only">{label}</span></> : label}</span>
     </Link>
   )
 }

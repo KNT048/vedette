@@ -550,6 +550,12 @@ func buildServices(ctx context.Context, d *deps) error {
 		gate = d.Reg
 	}
 	d.FindingHandlers = findings.NewFindingHandlers(d.Findings, inv, feed, gate)
+	// Home's one read (GET /findings/summary, #825) carries inventory's device counts and notify's sent messages; findings imports neither.
+	home := findings.HomeSources{Alerts: notifySvc.SentSince}
+	if d.Inventory != nil {
+		home.Devices = d.Inventory.DeviceCounts
+	}
+	d.FindingHandlers.SetHome(home)
 	// The ai service comes before mitigation: mitigation reaches the AI only through this door (mitigation.AI), and the door is
 	// unavailable while no profile is assigned, so the page offers no AI button then.
 	d.AIFacts = aiFacts{fs.Store(), d.Findings, inv, aiBoxID(d.Inventory)}

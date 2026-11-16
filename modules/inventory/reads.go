@@ -224,6 +224,16 @@ func (s *Service) Devices(ctx context.Context) (DeviceList, error) {
 	return out, nil
 }
 
+// DeviceCounts is the "All" and "To review" counts of the device list without the list (Home's device tile, findings
+// GET /findings/summary, #825): one aggregate over inv_asset.
+func (s *Service) DeviceCounts(ctx context.Context) (total, pending int, err error) {
+	err = s.db.Reader().QueryRowContext(ctx, `SELECT count(*), ifnull(sum(approved = 0), 0) FROM inv_asset`).Scan(&total, &pending)
+	if err != nil {
+		return 0, 0, fmt.Errorf("inventory: count devices: %w", err)
+	}
+	return total, pending, nil
+}
+
 // Device returns one device as a list row, or ErrNotFound. findings, notify and the other modules read it.
 func (s *Service) Device(ctx context.Context, id string) (Device, error) {
 	items, err := s.loadDevices(ctx, s.db.Reader(), "WHERE a.id = ?", 0, id)

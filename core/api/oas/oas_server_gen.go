@@ -1144,6 +1144,13 @@ type Handler interface {
 	//
 	// GET /findings/plan
 	FindingsGetFindingsPlan(ctx context.Context, params FindingsGetFindingsPlanParams) (*FindingsGetFindingsPlanOK, error)
+	// FindingsGetFindingsSummary implements findings_get_findings_summary operation.
+	//
+	// Home at a glance (#825): open findings, the few to fix first with their CVSS, 30 days of trend,
+	// device and alert counts; one cached read.
+	//
+	// GET /findings/summary
+	FindingsGetFindingsSummary(ctx context.Context) (*FindingsGetFindingsSummaryOK, error)
 	// FindingsPostFindingsIDAi implements findings_post_findings_id_ai operation.
 	//
 	// Explain or draft a recommendation with the customer AI key (BYOK); fails if AI is off.

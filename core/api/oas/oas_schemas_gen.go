@@ -68530,6 +68530,1339 @@ func (s *FindingsGetFindingsPlanTier) UnmarshalText(data []byte) error {
 	}
 }
 
+type FindingsGetFindingsSummaryOK struct {
+	// Messages the alert channels sent and failed to send in the last `days` days; null when Notifications
+	// is off.
+	Alerts  NilFindingsGetFindingsSummaryOKAlerts `json:"alerts"`
+	Devices FindingsGetFindingsSummaryOKDevices   `json:"devices"`
+	// When the box computed this summary (it keeps it up to 60 s, and drops it at every finding change).
+	GeneratedAt time.Time                        `json:"generated_at"`
+	Open        FindingsGetFindingsSummaryOKOpen `json:"open"`
+	// The open findings to fix first: confirmed before suspected, then ransomware, then the highest CVSS
+	// (no score last), then the newest.
+	Top []FindingsGetFindingsSummaryOKTopItem `json:"top"`
+	// Open findings at the end of each of the last 30 days (UTC), oldest first; the last is now.
+	Trend []int `json:"trend"`
+}
+
+// GetAlerts returns the value of Alerts.
+func (s *FindingsGetFindingsSummaryOK) GetAlerts() NilFindingsGetFindingsSummaryOKAlerts {
+	return s.Alerts
+}
+
+// GetDevices returns the value of Devices.
+func (s *FindingsGetFindingsSummaryOK) GetDevices() FindingsGetFindingsSummaryOKDevices {
+	return s.Devices
+}
+
+// GetGeneratedAt returns the value of GeneratedAt.
+func (s *FindingsGetFindingsSummaryOK) GetGeneratedAt() time.Time {
+	return s.GeneratedAt
+}
+
+// GetOpen returns the value of Open.
+func (s *FindingsGetFindingsSummaryOK) GetOpen() FindingsGetFindingsSummaryOKOpen {
+	return s.Open
+}
+
+// GetTop returns the value of Top.
+func (s *FindingsGetFindingsSummaryOK) GetTop() []FindingsGetFindingsSummaryOKTopItem {
+	return s.Top
+}
+
+// GetTrend returns the value of Trend.
+func (s *FindingsGetFindingsSummaryOK) GetTrend() []int {
+	return s.Trend
+}
+
+// SetAlerts sets the value of Alerts.
+func (s *FindingsGetFindingsSummaryOK) SetAlerts(val NilFindingsGetFindingsSummaryOKAlerts) {
+	s.Alerts = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *FindingsGetFindingsSummaryOK) SetDevices(val FindingsGetFindingsSummaryOKDevices) {
+	s.Devices = val
+}
+
+// SetGeneratedAt sets the value of GeneratedAt.
+func (s *FindingsGetFindingsSummaryOK) SetGeneratedAt(val time.Time) {
+	s.GeneratedAt = val
+}
+
+// SetOpen sets the value of Open.
+func (s *FindingsGetFindingsSummaryOK) SetOpen(val FindingsGetFindingsSummaryOKOpen) {
+	s.Open = val
+}
+
+// SetTop sets the value of Top.
+func (s *FindingsGetFindingsSummaryOK) SetTop(val []FindingsGetFindingsSummaryOKTopItem) {
+	s.Top = val
+}
+
+// SetTrend sets the value of Trend.
+func (s *FindingsGetFindingsSummaryOK) SetTrend(val []int) {
+	s.Trend = val
+}
+
+type FindingsGetFindingsSummaryOKAlerts struct {
+	Days   int `json:"days"`
+	Failed int `json:"failed"`
+	Sent   int `json:"sent"`
+}
+
+// GetDays returns the value of Days.
+func (s *FindingsGetFindingsSummaryOKAlerts) GetDays() int {
+	return s.Days
+}
+
+// GetFailed returns the value of Failed.
+func (s *FindingsGetFindingsSummaryOKAlerts) GetFailed() int {
+	return s.Failed
+}
+
+// GetSent returns the value of Sent.
+func (s *FindingsGetFindingsSummaryOKAlerts) GetSent() int {
+	return s.Sent
+}
+
+// SetDays sets the value of Days.
+func (s *FindingsGetFindingsSummaryOKAlerts) SetDays(val int) {
+	s.Days = val
+}
+
+// SetFailed sets the value of Failed.
+func (s *FindingsGetFindingsSummaryOKAlerts) SetFailed(val int) {
+	s.Failed = val
+}
+
+// SetSent sets the value of Sent.
+func (s *FindingsGetFindingsSummaryOKAlerts) SetSent(val int) {
+	s.Sent = val
+}
+
+type FindingsGetFindingsSummaryOKDevices struct {
+	// Devices waiting for review.
+	Pending int `json:"pending"`
+	// Devices on the Devices page.
+	Total int `json:"total"`
+}
+
+// GetPending returns the value of Pending.
+func (s *FindingsGetFindingsSummaryOKDevices) GetPending() int {
+	return s.Pending
+}
+
+// GetTotal returns the value of Total.
+func (s *FindingsGetFindingsSummaryOKDevices) GetTotal() int {
+	return s.Total
+}
+
+// SetPending sets the value of Pending.
+func (s *FindingsGetFindingsSummaryOKDevices) SetPending(val int) {
+	s.Pending = val
+}
+
+// SetTotal sets the value of Total.
+func (s *FindingsGetFindingsSummaryOKDevices) SetTotal(val int) {
+	s.Total = val
+}
+
+type FindingsGetFindingsSummaryOKOpen struct {
+	// Of them, confirmed by a scan.
+	Confirmed int `json:"confirmed"`
+	// Devices with at least one open finding.
+	Devices int `json:"devices"`
+	// Open findings whose CVE ransomware campaigns use.
+	Ransomware int `json:"ransomware"`
+	// Open findings (confirmed + suspected): a device runs software on an exploited list.
+	Total int `json:"total"`
+}
+
+// GetConfirmed returns the value of Confirmed.
+func (s *FindingsGetFindingsSummaryOKOpen) GetConfirmed() int {
+	return s.Confirmed
+}
+
+// GetDevices returns the value of Devices.
+func (s *FindingsGetFindingsSummaryOKOpen) GetDevices() int {
+	return s.Devices
+}
+
+// GetRansomware returns the value of Ransomware.
+func (s *FindingsGetFindingsSummaryOKOpen) GetRansomware() int {
+	return s.Ransomware
+}
+
+// GetTotal returns the value of Total.
+func (s *FindingsGetFindingsSummaryOKOpen) GetTotal() int {
+	return s.Total
+}
+
+// SetConfirmed sets the value of Confirmed.
+func (s *FindingsGetFindingsSummaryOKOpen) SetConfirmed(val int) {
+	s.Confirmed = val
+}
+
+// SetDevices sets the value of Devices.
+func (s *FindingsGetFindingsSummaryOKOpen) SetDevices(val int) {
+	s.Devices = val
+}
+
+// SetRansomware sets the value of Ransomware.
+func (s *FindingsGetFindingsSummaryOKOpen) SetRansomware(val int) {
+	s.Ransomware = val
+}
+
+// SetTotal sets the value of Total.
+func (s *FindingsGetFindingsSummaryOKOpen) SetTotal(val int) {
+	s.Total = val
+}
+
+type FindingsGetFindingsSummaryOKTopItem struct {
+	// Null when the device was removed.
+	Asset NilFindingsGetFindingsSummaryOKTopItemAsset `json:"asset"`
+	Cve   string                                      `json:"cve"`
+	// Null = no score known: "No score", never 0.
+	Cvss      NilFindingsGetFindingsSummaryOKTopItemCvss `json:"cvss"`
+	FirstSeen time.Time                                  `json:"first_seen"`
+	ID        string                                     `json:"id"`
+	// The product as the findings list names it (the KEV display name, else " "; empty when the CVE left
+	// the list).
+	Product string `json:"product"`
+	// The exploited list says ransomware campaigns use it.
+	Ransomware bool                                        `json:"ransomware"`
+	Severity   FindingsGetFindingsSummaryOKTopItemSeverity `json:"severity"`
+	// Which exploited list names it (D-557); null when the CVE left the list.
+	Source NilFindingsGetFindingsSummaryOKTopItemSource `json:"source"`
+	// Open findings only.
+	Status FindingsGetFindingsSummaryOKTopItemStatus `json:"status"`
+}
+
+// GetAsset returns the value of Asset.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetAsset() NilFindingsGetFindingsSummaryOKTopItemAsset {
+	return s.Asset
+}
+
+// GetCve returns the value of Cve.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetCve() string {
+	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetCvss() NilFindingsGetFindingsSummaryOKTopItemCvss {
+	return s.Cvss
+}
+
+// GetFirstSeen returns the value of FirstSeen.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetFirstSeen() time.Time {
+	return s.FirstSeen
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetID() string {
+	return s.ID
+}
+
+// GetProduct returns the value of Product.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetProduct() string {
+	return s.Product
+}
+
+// GetRansomware returns the value of Ransomware.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetRansomware() bool {
+	return s.Ransomware
+}
+
+// GetSeverity returns the value of Severity.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetSeverity() FindingsGetFindingsSummaryOKTopItemSeverity {
+	return s.Severity
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetSource() NilFindingsGetFindingsSummaryOKTopItemSource {
+	return s.Source
+}
+
+// GetStatus returns the value of Status.
+func (s *FindingsGetFindingsSummaryOKTopItem) GetStatus() FindingsGetFindingsSummaryOKTopItemStatus {
+	return s.Status
+}
+
+// SetAsset sets the value of Asset.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetAsset(val NilFindingsGetFindingsSummaryOKTopItemAsset) {
+	s.Asset = val
+}
+
+// SetCve sets the value of Cve.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetCve(val string) {
+	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetCvss(val NilFindingsGetFindingsSummaryOKTopItemCvss) {
+	s.Cvss = val
+}
+
+// SetFirstSeen sets the value of FirstSeen.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetFirstSeen(val time.Time) {
+	s.FirstSeen = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetProduct sets the value of Product.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetRansomware sets the value of Ransomware.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetRansomware(val bool) {
+	s.Ransomware = val
+}
+
+// SetSeverity sets the value of Severity.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetSeverity(val FindingsGetFindingsSummaryOKTopItemSeverity) {
+	s.Severity = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetSource(val NilFindingsGetFindingsSummaryOKTopItemSource) {
+	s.Source = val
+}
+
+// SetStatus sets the value of Status.
+func (s *FindingsGetFindingsSummaryOKTopItem) SetStatus(val FindingsGetFindingsSummaryOKTopItemStatus) {
+	s.Status = val
+}
+
+type FindingsGetFindingsSummaryOKTopItemAsset struct {
+	Display  string    `json:"display"`
+	Hostname NilString `json:"hostname"`
+	ID       string    `json:"id"`
+	// "—" when the device has no IP address.
+	IP   string                                       `json:"ip"`
+	Kind FindingsGetFindingsSummaryOKTopItemAssetKind `json:"kind"`
+	// The name the Devices page shows: hostname, else vendor and model, else the IP, else the software;
+	// never the internal id (D-484).
+	Name string `json:"name"`
+}
+
+// GetDisplay returns the value of Display.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) GetDisplay() string {
+	return s.Display
+}
+
+// GetHostname returns the value of Hostname.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) GetHostname() NilString {
+	return s.Hostname
+}
+
+// GetID returns the value of ID.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) GetID() string {
+	return s.ID
+}
+
+// GetIP returns the value of IP.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) GetIP() string {
+	return s.IP
+}
+
+// GetKind returns the value of Kind.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) GetKind() FindingsGetFindingsSummaryOKTopItemAssetKind {
+	return s.Kind
+}
+
+// GetName returns the value of Name.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) GetName() string {
+	return s.Name
+}
+
+// SetDisplay sets the value of Display.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetHostname sets the value of Hostname.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) SetHostname(val NilString) {
+	s.Hostname = val
+}
+
+// SetID sets the value of ID.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) SetID(val string) {
+	s.ID = val
+}
+
+// SetIP sets the value of IP.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) SetIP(val string) {
+	s.IP = val
+}
+
+// SetKind sets the value of Kind.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) SetKind(val FindingsGetFindingsSummaryOKTopItemAssetKind) {
+	s.Kind = val
+}
+
+// SetName sets the value of Name.
+func (s *FindingsGetFindingsSummaryOKTopItemAsset) SetName(val string) {
+	s.Name = val
+}
+
+type FindingsGetFindingsSummaryOKTopItemAssetKind string
+
+const (
+	FindingsGetFindingsSummaryOKTopItemAssetKindRouter              FindingsGetFindingsSummaryOKTopItemAssetKind = "router"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSwitch              FindingsGetFindingsSummaryOKTopItemAssetKind = "switch"
+	FindingsGetFindingsSummaryOKTopItemAssetKindModem               FindingsGetFindingsSummaryOKTopItemAssetKind = "modem"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSdWan               FindingsGetFindingsSummaryOKTopItemAssetKind = "sd_wan"
+	FindingsGetFindingsSummaryOKTopItemAssetKindLoadBalancer        FindingsGetFindingsSummaryOKTopItemAssetKind = "load_balancer"
+	FindingsGetFindingsSummaryOKTopItemAssetKindNetworkController   FindingsGetFindingsSummaryOKTopItemAssetKind = "network_controller"
+	FindingsGetFindingsSummaryOKTopItemAssetKindFirewall            FindingsGetFindingsSummaryOKTopItemAssetKind = "firewall"
+	FindingsGetFindingsSummaryOKTopItemAssetKindVpnGateway          FindingsGetFindingsSummaryOKTopItemAssetKind = "vpn_gateway"
+	FindingsGetFindingsSummaryOKTopItemAssetKindIdsSensor           FindingsGetFindingsSummaryOKTopItemAssetKind = "ids_sensor"
+	FindingsGetFindingsSummaryOKTopItemAssetKindProxy               FindingsGetFindingsSummaryOKTopItemAssetKind = "proxy"
+	FindingsGetFindingsSummaryOKTopItemAssetKindAp                  FindingsGetFindingsSummaryOKTopItemAssetKind = "ap"
+	FindingsGetFindingsSummaryOKTopItemAssetKindWirelessController  FindingsGetFindingsSummaryOKTopItemAssetKind = "wireless_controller"
+	FindingsGetFindingsSummaryOKTopItemAssetKindWifiExtender        FindingsGetFindingsSummaryOKTopItemAssetKind = "wifi_extender"
+	FindingsGetFindingsSummaryOKTopItemAssetKindMeshNode            FindingsGetFindingsSummaryOKTopItemAssetKind = "mesh_node"
+	FindingsGetFindingsSummaryOKTopItemAssetKindServer              FindingsGetFindingsSummaryOKTopItemAssetKind = "server"
+	FindingsGetFindingsSummaryOKTopItemAssetKindVirtualMachine      FindingsGetFindingsSummaryOKTopItemAssetKind = "virtual_machine"
+	FindingsGetFindingsSummaryOKTopItemAssetKindHypervisor          FindingsGetFindingsSummaryOKTopItemAssetKind = "hypervisor"
+	FindingsGetFindingsSummaryOKTopItemAssetKindBmc                 FindingsGetFindingsSummaryOKTopItemAssetKind = "bmc"
+	FindingsGetFindingsSummaryOKTopItemAssetKindDomainController    FindingsGetFindingsSummaryOKTopItemAssetKind = "domain_controller"
+	FindingsGetFindingsSummaryOKTopItemAssetKindMailServer          FindingsGetFindingsSummaryOKTopItemAssetKind = "mail_server"
+	FindingsGetFindingsSummaryOKTopItemAssetKindDatabaseServer      FindingsGetFindingsSummaryOKTopItemAssetKind = "database_server"
+	FindingsGetFindingsSummaryOKTopItemAssetKindBackupServer        FindingsGetFindingsSummaryOKTopItemAssetKind = "backup_server"
+	FindingsGetFindingsSummaryOKTopItemAssetKindPc                  FindingsGetFindingsSummaryOKTopItemAssetKind = "pc"
+	FindingsGetFindingsSummaryOKTopItemAssetKindLaptop              FindingsGetFindingsSummaryOKTopItemAssetKind = "laptop"
+	FindingsGetFindingsSummaryOKTopItemAssetKindWorkstation         FindingsGetFindingsSummaryOKTopItemAssetKind = "workstation"
+	FindingsGetFindingsSummaryOKTopItemAssetKindThinClient          FindingsGetFindingsSummaryOKTopItemAssetKind = "thin_client"
+	FindingsGetFindingsSummaryOKTopItemAssetKindPosTerminal         FindingsGetFindingsSummaryOKTopItemAssetKind = "pos_terminal"
+	FindingsGetFindingsSummaryOKTopItemAssetKindKiosk               FindingsGetFindingsSummaryOKTopItemAssetKind = "kiosk"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSmartphone          FindingsGetFindingsSummaryOKTopItemAssetKind = "smartphone"
+	FindingsGetFindingsSummaryOKTopItemAssetKindTablet              FindingsGetFindingsSummaryOKTopItemAssetKind = "tablet"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSmartwatch          FindingsGetFindingsSummaryOKTopItemAssetKind = "smartwatch"
+	FindingsGetFindingsSummaryOKTopItemAssetKindPrinter             FindingsGetFindingsSummaryOKTopItemAssetKind = "printer"
+	FindingsGetFindingsSummaryOKTopItemAssetKindMfp                 FindingsGetFindingsSummaryOKTopItemAssetKind = "mfp"
+	FindingsGetFindingsSummaryOKTopItemAssetKindScanner             FindingsGetFindingsSummaryOKTopItemAssetKind = "scanner"
+	FindingsGetFindingsSummaryOKTopItemAssetKindLabelPrinter        FindingsGetFindingsSummaryOKTopItemAssetKind = "label_printer"
+	FindingsGetFindingsSummaryOKTopItemAssetKindReceiptPrinter      FindingsGetFindingsSummaryOKTopItemAssetKind = "receipt_printer"
+	FindingsGetFindingsSummaryOKTopItemAssetKindPlotter             FindingsGetFindingsSummaryOKTopItemAssetKind = "plotter"
+	FindingsGetFindingsSummaryOKTopItemAssetKind3dPrinter           FindingsGetFindingsSummaryOKTopItemAssetKind = "3d_printer"
+	FindingsGetFindingsSummaryOKTopItemAssetKindCamera              FindingsGetFindingsSummaryOKTopItemAssetKind = "camera"
+	FindingsGetFindingsSummaryOKTopItemAssetKindNvr                 FindingsGetFindingsSummaryOKTopItemAssetKind = "nvr"
+	FindingsGetFindingsSummaryOKTopItemAssetKindDvr                 FindingsGetFindingsSummaryOKTopItemAssetKind = "dvr"
+	FindingsGetFindingsSummaryOKTopItemAssetKindVideoEncoder        FindingsGetFindingsSummaryOKTopItemAssetKind = "video_encoder"
+	FindingsGetFindingsSummaryOKTopItemAssetKindDoorbell            FindingsGetFindingsSummaryOKTopItemAssetKind = "doorbell"
+	FindingsGetFindingsSummaryOKTopItemAssetKindVideoConferencing   FindingsGetFindingsSummaryOKTopItemAssetKind = "video_conferencing"
+	FindingsGetFindingsSummaryOKTopItemAssetKindIPPhone             FindingsGetFindingsSummaryOKTopItemAssetKind = "ip_phone"
+	FindingsGetFindingsSummaryOKTopItemAssetKindPbx                 FindingsGetFindingsSummaryOKTopItemAssetKind = "pbx"
+	FindingsGetFindingsSummaryOKTopItemAssetKindVoipAdapter         FindingsGetFindingsSummaryOKTopItemAssetKind = "voip_adapter"
+	FindingsGetFindingsSummaryOKTopItemAssetKindVoipGateway         FindingsGetFindingsSummaryOKTopItemAssetKind = "voip_gateway"
+	FindingsGetFindingsSummaryOKTopItemAssetKindConferencePhone     FindingsGetFindingsSummaryOKTopItemAssetKind = "conference_phone"
+	FindingsGetFindingsSummaryOKTopItemAssetKindIntercom            FindingsGetFindingsSummaryOKTopItemAssetKind = "intercom"
+	FindingsGetFindingsSummaryOKTopItemAssetKindNas                 FindingsGetFindingsSummaryOKTopItemAssetKind = "nas"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSan                 FindingsGetFindingsSummaryOKTopItemAssetKind = "san"
+	FindingsGetFindingsSummaryOKTopItemAssetKindBackupAppliance     FindingsGetFindingsSummaryOKTopItemAssetKind = "backup_appliance"
+	FindingsGetFindingsSummaryOKTopItemAssetKindTapeLibrary         FindingsGetFindingsSummaryOKTopItemAssetKind = "tape_library"
+	FindingsGetFindingsSummaryOKTopItemAssetKindIot                 FindingsGetFindingsSummaryOKTopItemAssetKind = "iot"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSmartTv             FindingsGetFindingsSummaryOKTopItemAssetKind = "smart_tv"
+	FindingsGetFindingsSummaryOKTopItemAssetKindMediaPlayer         FindingsGetFindingsSummaryOKTopItemAssetKind = "media_player"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSmartSpeaker        FindingsGetFindingsSummaryOKTopItemAssetKind = "smart_speaker"
+	FindingsGetFindingsSummaryOKTopItemAssetKindGameConsole         FindingsGetFindingsSummaryOKTopItemAssetKind = "game_console"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSmartPlug           FindingsGetFindingsSummaryOKTopItemAssetKind = "smart_plug"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSmartLight          FindingsGetFindingsSummaryOKTopItemAssetKind = "smart_light"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSmartHub            FindingsGetFindingsSummaryOKTopItemAssetKind = "smart_hub"
+	FindingsGetFindingsSummaryOKTopItemAssetKindThermostat          FindingsGetFindingsSummaryOKTopItemAssetKind = "thermostat"
+	FindingsGetFindingsSummaryOKTopItemAssetKindProjector           FindingsGetFindingsSummaryOKTopItemAssetKind = "projector"
+	FindingsGetFindingsSummaryOKTopItemAssetKindDigitalSignage      FindingsGetFindingsSummaryOKTopItemAssetKind = "digital_signage"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSingleBoardComputer FindingsGetFindingsSummaryOKTopItemAssetKind = "single_board_computer"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSmartAppliance      FindingsGetFindingsSummaryOKTopItemAssetKind = "smart_appliance"
+	FindingsGetFindingsSummaryOKTopItemAssetKindRobotVacuum         FindingsGetFindingsSummaryOKTopItemAssetKind = "robot_vacuum"
+	FindingsGetFindingsSummaryOKTopItemAssetKindWirelessBridge      FindingsGetFindingsSummaryOKTopItemAssetKind = "wireless_bridge"
+	FindingsGetFindingsSummaryOKTopItemAssetKindPlc                 FindingsGetFindingsSummaryOKTopItemAssetKind = "plc"
+	FindingsGetFindingsSummaryOKTopItemAssetKindHmi                 FindingsGetFindingsSummaryOKTopItemAssetKind = "hmi"
+	FindingsGetFindingsSummaryOKTopItemAssetKindRtu                 FindingsGetFindingsSummaryOKTopItemAssetKind = "rtu"
+	FindingsGetFindingsSummaryOKTopItemAssetKindScadaServer         FindingsGetFindingsSummaryOKTopItemAssetKind = "scada_server"
+	FindingsGetFindingsSummaryOKTopItemAssetKindIndustrialSwitch    FindingsGetFindingsSummaryOKTopItemAssetKind = "industrial_switch"
+	FindingsGetFindingsSummaryOKTopItemAssetKindUps                 FindingsGetFindingsSummaryOKTopItemAssetKind = "ups"
+	FindingsGetFindingsSummaryOKTopItemAssetKindPdu                 FindingsGetFindingsSummaryOKTopItemAssetKind = "pdu"
+	FindingsGetFindingsSummaryOKTopItemAssetKindAccessControl       FindingsGetFindingsSummaryOKTopItemAssetKind = "access_control"
+	FindingsGetFindingsSummaryOKTopItemAssetKindTimeClock           FindingsGetFindingsSummaryOKTopItemAssetKind = "time_clock"
+	FindingsGetFindingsSummaryOKTopItemAssetKindAlarmPanel          FindingsGetFindingsSummaryOKTopItemAssetKind = "alarm_panel"
+	FindingsGetFindingsSummaryOKTopItemAssetKindHvacController      FindingsGetFindingsSummaryOKTopItemAssetKind = "hvac_controller"
+	FindingsGetFindingsSummaryOKTopItemAssetKindBuildingController  FindingsGetFindingsSummaryOKTopItemAssetKind = "building_controller"
+	FindingsGetFindingsSummaryOKTopItemAssetKindPowerMeter          FindingsGetFindingsSummaryOKTopItemAssetKind = "power_meter"
+	FindingsGetFindingsSummaryOKTopItemAssetKindEnvironmentMonitor  FindingsGetFindingsSummaryOKTopItemAssetKind = "environment_monitor"
+	FindingsGetFindingsSummaryOKTopItemAssetKindEvCharger           FindingsGetFindingsSummaryOKTopItemAssetKind = "ev_charger"
+	FindingsGetFindingsSummaryOKTopItemAssetKindSolarInverter       FindingsGetFindingsSummaryOKTopItemAssetKind = "solar_inverter"
+	FindingsGetFindingsSummaryOKTopItemAssetKindMedicalDevice       FindingsGetFindingsSummaryOKTopItemAssetKind = "medical_device"
+	FindingsGetFindingsSummaryOKTopItemAssetKindWeb                 FindingsGetFindingsSummaryOKTopItemAssetKind = "web"
+	FindingsGetFindingsSummaryOKTopItemAssetKindCloudService        FindingsGetFindingsSummaryOKTopItemAssetKind = "cloud_service"
+	FindingsGetFindingsSummaryOKTopItemAssetKindUnknown             FindingsGetFindingsSummaryOKTopItemAssetKind = "unknown"
+)
+
+// AllValues returns all FindingsGetFindingsSummaryOKTopItemAssetKind values.
+func (FindingsGetFindingsSummaryOKTopItemAssetKind) AllValues() []FindingsGetFindingsSummaryOKTopItemAssetKind {
+	return []FindingsGetFindingsSummaryOKTopItemAssetKind{
+		FindingsGetFindingsSummaryOKTopItemAssetKindRouter,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSwitch,
+		FindingsGetFindingsSummaryOKTopItemAssetKindModem,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSdWan,
+		FindingsGetFindingsSummaryOKTopItemAssetKindLoadBalancer,
+		FindingsGetFindingsSummaryOKTopItemAssetKindNetworkController,
+		FindingsGetFindingsSummaryOKTopItemAssetKindFirewall,
+		FindingsGetFindingsSummaryOKTopItemAssetKindVpnGateway,
+		FindingsGetFindingsSummaryOKTopItemAssetKindIdsSensor,
+		FindingsGetFindingsSummaryOKTopItemAssetKindProxy,
+		FindingsGetFindingsSummaryOKTopItemAssetKindAp,
+		FindingsGetFindingsSummaryOKTopItemAssetKindWirelessController,
+		FindingsGetFindingsSummaryOKTopItemAssetKindWifiExtender,
+		FindingsGetFindingsSummaryOKTopItemAssetKindMeshNode,
+		FindingsGetFindingsSummaryOKTopItemAssetKindServer,
+		FindingsGetFindingsSummaryOKTopItemAssetKindVirtualMachine,
+		FindingsGetFindingsSummaryOKTopItemAssetKindHypervisor,
+		FindingsGetFindingsSummaryOKTopItemAssetKindBmc,
+		FindingsGetFindingsSummaryOKTopItemAssetKindDomainController,
+		FindingsGetFindingsSummaryOKTopItemAssetKindMailServer,
+		FindingsGetFindingsSummaryOKTopItemAssetKindDatabaseServer,
+		FindingsGetFindingsSummaryOKTopItemAssetKindBackupServer,
+		FindingsGetFindingsSummaryOKTopItemAssetKindPc,
+		FindingsGetFindingsSummaryOKTopItemAssetKindLaptop,
+		FindingsGetFindingsSummaryOKTopItemAssetKindWorkstation,
+		FindingsGetFindingsSummaryOKTopItemAssetKindThinClient,
+		FindingsGetFindingsSummaryOKTopItemAssetKindPosTerminal,
+		FindingsGetFindingsSummaryOKTopItemAssetKindKiosk,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSmartphone,
+		FindingsGetFindingsSummaryOKTopItemAssetKindTablet,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSmartwatch,
+		FindingsGetFindingsSummaryOKTopItemAssetKindPrinter,
+		FindingsGetFindingsSummaryOKTopItemAssetKindMfp,
+		FindingsGetFindingsSummaryOKTopItemAssetKindScanner,
+		FindingsGetFindingsSummaryOKTopItemAssetKindLabelPrinter,
+		FindingsGetFindingsSummaryOKTopItemAssetKindReceiptPrinter,
+		FindingsGetFindingsSummaryOKTopItemAssetKindPlotter,
+		FindingsGetFindingsSummaryOKTopItemAssetKind3dPrinter,
+		FindingsGetFindingsSummaryOKTopItemAssetKindCamera,
+		FindingsGetFindingsSummaryOKTopItemAssetKindNvr,
+		FindingsGetFindingsSummaryOKTopItemAssetKindDvr,
+		FindingsGetFindingsSummaryOKTopItemAssetKindVideoEncoder,
+		FindingsGetFindingsSummaryOKTopItemAssetKindDoorbell,
+		FindingsGetFindingsSummaryOKTopItemAssetKindVideoConferencing,
+		FindingsGetFindingsSummaryOKTopItemAssetKindIPPhone,
+		FindingsGetFindingsSummaryOKTopItemAssetKindPbx,
+		FindingsGetFindingsSummaryOKTopItemAssetKindVoipAdapter,
+		FindingsGetFindingsSummaryOKTopItemAssetKindVoipGateway,
+		FindingsGetFindingsSummaryOKTopItemAssetKindConferencePhone,
+		FindingsGetFindingsSummaryOKTopItemAssetKindIntercom,
+		FindingsGetFindingsSummaryOKTopItemAssetKindNas,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSan,
+		FindingsGetFindingsSummaryOKTopItemAssetKindBackupAppliance,
+		FindingsGetFindingsSummaryOKTopItemAssetKindTapeLibrary,
+		FindingsGetFindingsSummaryOKTopItemAssetKindIot,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSmartTv,
+		FindingsGetFindingsSummaryOKTopItemAssetKindMediaPlayer,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSmartSpeaker,
+		FindingsGetFindingsSummaryOKTopItemAssetKindGameConsole,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSmartPlug,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSmartLight,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSmartHub,
+		FindingsGetFindingsSummaryOKTopItemAssetKindThermostat,
+		FindingsGetFindingsSummaryOKTopItemAssetKindProjector,
+		FindingsGetFindingsSummaryOKTopItemAssetKindDigitalSignage,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSingleBoardComputer,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSmartAppliance,
+		FindingsGetFindingsSummaryOKTopItemAssetKindRobotVacuum,
+		FindingsGetFindingsSummaryOKTopItemAssetKindWirelessBridge,
+		FindingsGetFindingsSummaryOKTopItemAssetKindPlc,
+		FindingsGetFindingsSummaryOKTopItemAssetKindHmi,
+		FindingsGetFindingsSummaryOKTopItemAssetKindRtu,
+		FindingsGetFindingsSummaryOKTopItemAssetKindScadaServer,
+		FindingsGetFindingsSummaryOKTopItemAssetKindIndustrialSwitch,
+		FindingsGetFindingsSummaryOKTopItemAssetKindUps,
+		FindingsGetFindingsSummaryOKTopItemAssetKindPdu,
+		FindingsGetFindingsSummaryOKTopItemAssetKindAccessControl,
+		FindingsGetFindingsSummaryOKTopItemAssetKindTimeClock,
+		FindingsGetFindingsSummaryOKTopItemAssetKindAlarmPanel,
+		FindingsGetFindingsSummaryOKTopItemAssetKindHvacController,
+		FindingsGetFindingsSummaryOKTopItemAssetKindBuildingController,
+		FindingsGetFindingsSummaryOKTopItemAssetKindPowerMeter,
+		FindingsGetFindingsSummaryOKTopItemAssetKindEnvironmentMonitor,
+		FindingsGetFindingsSummaryOKTopItemAssetKindEvCharger,
+		FindingsGetFindingsSummaryOKTopItemAssetKindSolarInverter,
+		FindingsGetFindingsSummaryOKTopItemAssetKindMedicalDevice,
+		FindingsGetFindingsSummaryOKTopItemAssetKindWeb,
+		FindingsGetFindingsSummaryOKTopItemAssetKindCloudService,
+		FindingsGetFindingsSummaryOKTopItemAssetKindUnknown,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsSummaryOKTopItemAssetKind) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsSummaryOKTopItemAssetKindRouter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindModem:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSdWan:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindLoadBalancer:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindNetworkController:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindFirewall:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVpnGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIdsSensor:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindProxy:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindAp:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWirelessController:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWifiExtender:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMeshNode:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindServer:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVirtualMachine:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindHypervisor:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindBmc:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDomainController:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMailServer:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDatabaseServer:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindBackupServer:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPc:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindLaptop:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWorkstation:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindThinClient:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPosTerminal:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindKiosk:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartphone:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindTablet:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartwatch:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMfp:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindScanner:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindLabelPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindReceiptPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPlotter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKind3dPrinter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindCamera:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindNvr:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDvr:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVideoEncoder:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDoorbell:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVideoConferencing:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIPPhone:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPbx:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVoipAdapter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVoipGateway:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindConferencePhone:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIntercom:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindNas:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSan:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindBackupAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindTapeLibrary:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIot:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartTv:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMediaPlayer:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartSpeaker:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindGameConsole:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartPlug:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartLight:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartHub:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindThermostat:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindProjector:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDigitalSignage:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSingleBoardComputer:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartAppliance:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindRobotVacuum:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWirelessBridge:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPlc:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindHmi:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindRtu:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindScadaServer:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIndustrialSwitch:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindUps:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPdu:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindAccessControl:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindTimeClock:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindAlarmPanel:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindHvacController:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindBuildingController:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPowerMeter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindEnvironmentMonitor:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindEvCharger:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSolarInverter:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMedicalDevice:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWeb:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindCloudService:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindUnknown:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsSummaryOKTopItemAssetKind) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsSummaryOKTopItemAssetKind(data) {
+	case FindingsGetFindingsSummaryOKTopItemAssetKindRouter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindRouter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSwitch:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSwitch
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindModem:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindModem
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSdWan:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSdWan
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindLoadBalancer:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindLoadBalancer
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindNetworkController:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindNetworkController
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindFirewall:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindFirewall
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVpnGateway:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindVpnGateway
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIdsSensor:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindIdsSensor
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindProxy:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindProxy
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindAp:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindAp
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWirelessController:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindWirelessController
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWifiExtender:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindWifiExtender
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMeshNode:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindMeshNode
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindServer:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindServer
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVirtualMachine:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindVirtualMachine
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindHypervisor:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindHypervisor
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindBmc:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindBmc
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDomainController:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindDomainController
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMailServer:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindMailServer
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDatabaseServer:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindDatabaseServer
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindBackupServer:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindBackupServer
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPc:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindPc
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindLaptop:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindLaptop
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWorkstation:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindWorkstation
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindThinClient:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindThinClient
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPosTerminal:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindPosTerminal
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindKiosk:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindKiosk
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartphone:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSmartphone
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindTablet:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindTablet
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartwatch:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSmartwatch
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPrinter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindPrinter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMfp:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindMfp
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindScanner:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindScanner
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindLabelPrinter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindLabelPrinter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindReceiptPrinter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindReceiptPrinter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPlotter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindPlotter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKind3dPrinter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKind3dPrinter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindCamera:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindCamera
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindNvr:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindNvr
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDvr:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindDvr
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVideoEncoder:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindVideoEncoder
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDoorbell:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindDoorbell
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVideoConferencing:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindVideoConferencing
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIPPhone:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindIPPhone
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPbx:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindPbx
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVoipAdapter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindVoipAdapter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindVoipGateway:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindVoipGateway
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindConferencePhone:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindConferencePhone
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIntercom:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindIntercom
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindNas:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindNas
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSan:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSan
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindBackupAppliance:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindBackupAppliance
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindTapeLibrary:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindTapeLibrary
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIot:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindIot
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartTv:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSmartTv
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMediaPlayer:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindMediaPlayer
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartSpeaker:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSmartSpeaker
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindGameConsole:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindGameConsole
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartPlug:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSmartPlug
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartLight:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSmartLight
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartHub:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSmartHub
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindThermostat:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindThermostat
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindProjector:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindProjector
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindDigitalSignage:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindDigitalSignage
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSingleBoardComputer:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSingleBoardComputer
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSmartAppliance:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSmartAppliance
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindRobotVacuum:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindRobotVacuum
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWirelessBridge:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindWirelessBridge
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPlc:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindPlc
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindHmi:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindHmi
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindRtu:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindRtu
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindScadaServer:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindScadaServer
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindIndustrialSwitch:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindIndustrialSwitch
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindUps:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindUps
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPdu:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindPdu
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindAccessControl:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindAccessControl
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindTimeClock:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindTimeClock
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindAlarmPanel:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindAlarmPanel
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindHvacController:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindHvacController
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindBuildingController:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindBuildingController
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindPowerMeter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindPowerMeter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindEnvironmentMonitor:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindEnvironmentMonitor
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindEvCharger:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindEvCharger
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindSolarInverter:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindSolarInverter
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindMedicalDevice:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindMedicalDevice
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindWeb:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindWeb
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindCloudService:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindCloudService
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemAssetKindUnknown:
+		*s = FindingsGetFindingsSummaryOKTopItemAssetKindUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsGetFindingsSummaryOKTopItemCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsGetFindingsSummaryOKTopItemCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsGetFindingsSummaryOKTopItemCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsGetFindingsSummaryOKTopItemCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsSummaryOKTopItemCvss) GetSource() FindingsGetFindingsSummaryOKTopItemCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsGetFindingsSummaryOKTopItemCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsSummaryOKTopItemCvss) GetVersion() FindingsGetFindingsSummaryOKTopItemCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsGetFindingsSummaryOKTopItemCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsSummaryOKTopItemCvss) SetSource(val FindingsGetFindingsSummaryOKTopItemCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsGetFindingsSummaryOKTopItemCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsSummaryOKTopItemCvss) SetVersion(val FindingsGetFindingsSummaryOKTopItemCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsGetFindingsSummaryOKTopItemCvssSource string
+
+const (
+	FindingsGetFindingsSummaryOKTopItemCvssSourceNvd FindingsGetFindingsSummaryOKTopItemCvssSource = "nvd"
+	FindingsGetFindingsSummaryOKTopItemCvssSourceCna FindingsGetFindingsSummaryOKTopItemCvssSource = "cna"
+)
+
+// AllValues returns all FindingsGetFindingsSummaryOKTopItemCvssSource values.
+func (FindingsGetFindingsSummaryOKTopItemCvssSource) AllValues() []FindingsGetFindingsSummaryOKTopItemCvssSource {
+	return []FindingsGetFindingsSummaryOKTopItemCvssSource{
+		FindingsGetFindingsSummaryOKTopItemCvssSourceNvd,
+		FindingsGetFindingsSummaryOKTopItemCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsSummaryOKTopItemCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsSummaryOKTopItemCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsSummaryOKTopItemCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsSummaryOKTopItemCvssSource(data) {
+	case FindingsGetFindingsSummaryOKTopItemCvssSourceNvd:
+		*s = FindingsGetFindingsSummaryOKTopItemCvssSourceNvd
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemCvssSourceCna:
+		*s = FindingsGetFindingsSummaryOKTopItemCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsGetFindingsSummaryOKTopItemCvssVersion string
+
+const (
+	FindingsGetFindingsSummaryOKTopItemCvssVersion40 FindingsGetFindingsSummaryOKTopItemCvssVersion = "4.0"
+	FindingsGetFindingsSummaryOKTopItemCvssVersion31 FindingsGetFindingsSummaryOKTopItemCvssVersion = "3.1"
+	FindingsGetFindingsSummaryOKTopItemCvssVersion30 FindingsGetFindingsSummaryOKTopItemCvssVersion = "3.0"
+	FindingsGetFindingsSummaryOKTopItemCvssVersion20 FindingsGetFindingsSummaryOKTopItemCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsGetFindingsSummaryOKTopItemCvssVersion values.
+func (FindingsGetFindingsSummaryOKTopItemCvssVersion) AllValues() []FindingsGetFindingsSummaryOKTopItemCvssVersion {
+	return []FindingsGetFindingsSummaryOKTopItemCvssVersion{
+		FindingsGetFindingsSummaryOKTopItemCvssVersion40,
+		FindingsGetFindingsSummaryOKTopItemCvssVersion31,
+		FindingsGetFindingsSummaryOKTopItemCvssVersion30,
+		FindingsGetFindingsSummaryOKTopItemCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsSummaryOKTopItemCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsSummaryOKTopItemCvssVersion40:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemCvssVersion31:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemCvssVersion30:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsSummaryOKTopItemCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsSummaryOKTopItemCvssVersion(data) {
+	case FindingsGetFindingsSummaryOKTopItemCvssVersion40:
+		*s = FindingsGetFindingsSummaryOKTopItemCvssVersion40
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemCvssVersion31:
+		*s = FindingsGetFindingsSummaryOKTopItemCvssVersion31
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemCvssVersion30:
+		*s = FindingsGetFindingsSummaryOKTopItemCvssVersion30
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemCvssVersion20:
+		*s = FindingsGetFindingsSummaryOKTopItemCvssVersion20
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsSummaryOKTopItemSeverity string
+
+const (
+	FindingsGetFindingsSummaryOKTopItemSeverityCritical FindingsGetFindingsSummaryOKTopItemSeverity = "critical"
+	FindingsGetFindingsSummaryOKTopItemSeverityHigh     FindingsGetFindingsSummaryOKTopItemSeverity = "high"
+	FindingsGetFindingsSummaryOKTopItemSeverityMedium   FindingsGetFindingsSummaryOKTopItemSeverity = "medium"
+	FindingsGetFindingsSummaryOKTopItemSeverityLow      FindingsGetFindingsSummaryOKTopItemSeverity = "low"
+	FindingsGetFindingsSummaryOKTopItemSeverityInfo     FindingsGetFindingsSummaryOKTopItemSeverity = "info"
+)
+
+// AllValues returns all FindingsGetFindingsSummaryOKTopItemSeverity values.
+func (FindingsGetFindingsSummaryOKTopItemSeverity) AllValues() []FindingsGetFindingsSummaryOKTopItemSeverity {
+	return []FindingsGetFindingsSummaryOKTopItemSeverity{
+		FindingsGetFindingsSummaryOKTopItemSeverityCritical,
+		FindingsGetFindingsSummaryOKTopItemSeverityHigh,
+		FindingsGetFindingsSummaryOKTopItemSeverityMedium,
+		FindingsGetFindingsSummaryOKTopItemSeverityLow,
+		FindingsGetFindingsSummaryOKTopItemSeverityInfo,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsSummaryOKTopItemSeverity) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsSummaryOKTopItemSeverityCritical:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemSeverityHigh:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemSeverityMedium:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemSeverityLow:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemSeverityInfo:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsSummaryOKTopItemSeverity) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsSummaryOKTopItemSeverity(data) {
+	case FindingsGetFindingsSummaryOKTopItemSeverityCritical:
+		*s = FindingsGetFindingsSummaryOKTopItemSeverityCritical
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemSeverityHigh:
+		*s = FindingsGetFindingsSummaryOKTopItemSeverityHigh
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemSeverityMedium:
+		*s = FindingsGetFindingsSummaryOKTopItemSeverityMedium
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemSeverityLow:
+		*s = FindingsGetFindingsSummaryOKTopItemSeverityLow
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemSeverityInfo:
+		*s = FindingsGetFindingsSummaryOKTopItemSeverityInfo
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsSummaryOKTopItemSource string
+
+const (
+	FindingsGetFindingsSummaryOKTopItemSourceCisaKev      FindingsGetFindingsSummaryOKTopItemSource = "cisa-kev"
+	FindingsGetFindingsSummaryOKTopItemSourceVulncheckKev FindingsGetFindingsSummaryOKTopItemSource = "vulncheck-kev"
+)
+
+// AllValues returns all FindingsGetFindingsSummaryOKTopItemSource values.
+func (FindingsGetFindingsSummaryOKTopItemSource) AllValues() []FindingsGetFindingsSummaryOKTopItemSource {
+	return []FindingsGetFindingsSummaryOKTopItemSource{
+		FindingsGetFindingsSummaryOKTopItemSourceCisaKev,
+		FindingsGetFindingsSummaryOKTopItemSourceVulncheckKev,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsSummaryOKTopItemSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsSummaryOKTopItemSourceCisaKev:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemSourceVulncheckKev:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsSummaryOKTopItemSource) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsSummaryOKTopItemSource(data) {
+	case FindingsGetFindingsSummaryOKTopItemSourceCisaKev:
+		*s = FindingsGetFindingsSummaryOKTopItemSourceCisaKev
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemSourceVulncheckKev:
+		*s = FindingsGetFindingsSummaryOKTopItemSourceVulncheckKev
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Open findings only.
+type FindingsGetFindingsSummaryOKTopItemStatus string
+
+const (
+	FindingsGetFindingsSummaryOKTopItemStatusConfirmed FindingsGetFindingsSummaryOKTopItemStatus = "confirmed"
+	FindingsGetFindingsSummaryOKTopItemStatusSuspected FindingsGetFindingsSummaryOKTopItemStatus = "suspected"
+)
+
+// AllValues returns all FindingsGetFindingsSummaryOKTopItemStatus values.
+func (FindingsGetFindingsSummaryOKTopItemStatus) AllValues() []FindingsGetFindingsSummaryOKTopItemStatus {
+	return []FindingsGetFindingsSummaryOKTopItemStatus{
+		FindingsGetFindingsSummaryOKTopItemStatusConfirmed,
+		FindingsGetFindingsSummaryOKTopItemStatusSuspected,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsSummaryOKTopItemStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsSummaryOKTopItemStatusConfirmed:
+		return []byte(s), nil
+	case FindingsGetFindingsSummaryOKTopItemStatusSuspected:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsSummaryOKTopItemStatus) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsSummaryOKTopItemStatus(data) {
+	case FindingsGetFindingsSummaryOKTopItemStatusConfirmed:
+		*s = FindingsGetFindingsSummaryOKTopItemStatusConfirmed
+		return nil
+	case FindingsGetFindingsSummaryOKTopItemStatusSuspected:
+		*s = FindingsGetFindingsSummaryOKTopItemStatusSuspected
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type FindingsPostFindingsIDAiOK struct {
 	// Risk_accepted only (D-498): the last day of the acceptance (UTC); the finding reopens by itself
 	// after it.
@@ -113740,6 +115073,186 @@ func (o NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity) Get() (v Findings
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity) Or(d FindingsGetFindingsPlanOKItemsItemCvesItemSeverity) FindingsGetFindingsPlanOKItemsItemCvesItemSeverity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsSummaryOKAlerts returns new NilFindingsGetFindingsSummaryOKAlerts with value set to v.
+func NewNilFindingsGetFindingsSummaryOKAlerts(v FindingsGetFindingsSummaryOKAlerts) NilFindingsGetFindingsSummaryOKAlerts {
+	return NilFindingsGetFindingsSummaryOKAlerts{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsSummaryOKAlerts is nullable FindingsGetFindingsSummaryOKAlerts.
+type NilFindingsGetFindingsSummaryOKAlerts struct {
+	Value FindingsGetFindingsSummaryOKAlerts
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsSummaryOKAlerts) SetTo(v FindingsGetFindingsSummaryOKAlerts) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsSummaryOKAlerts) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsSummaryOKAlerts) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsSummaryOKAlerts
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsSummaryOKAlerts) Get() (v FindingsGetFindingsSummaryOKAlerts, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsSummaryOKAlerts) Or(d FindingsGetFindingsSummaryOKAlerts) FindingsGetFindingsSummaryOKAlerts {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsSummaryOKTopItemAsset returns new NilFindingsGetFindingsSummaryOKTopItemAsset with value set to v.
+func NewNilFindingsGetFindingsSummaryOKTopItemAsset(v FindingsGetFindingsSummaryOKTopItemAsset) NilFindingsGetFindingsSummaryOKTopItemAsset {
+	return NilFindingsGetFindingsSummaryOKTopItemAsset{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsSummaryOKTopItemAsset is nullable FindingsGetFindingsSummaryOKTopItemAsset.
+type NilFindingsGetFindingsSummaryOKTopItemAsset struct {
+	Value FindingsGetFindingsSummaryOKTopItemAsset
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsSummaryOKTopItemAsset) SetTo(v FindingsGetFindingsSummaryOKTopItemAsset) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsSummaryOKTopItemAsset) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsSummaryOKTopItemAsset) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsSummaryOKTopItemAsset
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsSummaryOKTopItemAsset) Get() (v FindingsGetFindingsSummaryOKTopItemAsset, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsSummaryOKTopItemAsset) Or(d FindingsGetFindingsSummaryOKTopItemAsset) FindingsGetFindingsSummaryOKTopItemAsset {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsSummaryOKTopItemCvss returns new NilFindingsGetFindingsSummaryOKTopItemCvss with value set to v.
+func NewNilFindingsGetFindingsSummaryOKTopItemCvss(v FindingsGetFindingsSummaryOKTopItemCvss) NilFindingsGetFindingsSummaryOKTopItemCvss {
+	return NilFindingsGetFindingsSummaryOKTopItemCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsSummaryOKTopItemCvss is nullable FindingsGetFindingsSummaryOKTopItemCvss.
+type NilFindingsGetFindingsSummaryOKTopItemCvss struct {
+	Value FindingsGetFindingsSummaryOKTopItemCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsSummaryOKTopItemCvss) SetTo(v FindingsGetFindingsSummaryOKTopItemCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsSummaryOKTopItemCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsSummaryOKTopItemCvss) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsSummaryOKTopItemCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsSummaryOKTopItemCvss) Get() (v FindingsGetFindingsSummaryOKTopItemCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsSummaryOKTopItemCvss) Or(d FindingsGetFindingsSummaryOKTopItemCvss) FindingsGetFindingsSummaryOKTopItemCvss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsSummaryOKTopItemSource returns new NilFindingsGetFindingsSummaryOKTopItemSource with value set to v.
+func NewNilFindingsGetFindingsSummaryOKTopItemSource(v FindingsGetFindingsSummaryOKTopItemSource) NilFindingsGetFindingsSummaryOKTopItemSource {
+	return NilFindingsGetFindingsSummaryOKTopItemSource{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsSummaryOKTopItemSource is nullable FindingsGetFindingsSummaryOKTopItemSource.
+type NilFindingsGetFindingsSummaryOKTopItemSource struct {
+	Value FindingsGetFindingsSummaryOKTopItemSource
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsSummaryOKTopItemSource) SetTo(v FindingsGetFindingsSummaryOKTopItemSource) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsSummaryOKTopItemSource) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsSummaryOKTopItemSource) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsSummaryOKTopItemSource
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsSummaryOKTopItemSource) Get() (v FindingsGetFindingsSummaryOKTopItemSource, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsSummaryOKTopItemSource) Or(d FindingsGetFindingsSummaryOKTopItemSource) FindingsGetFindingsSummaryOKTopItemSource {
 	if v, ok := o.Get(); ok {
 		return v
 	}

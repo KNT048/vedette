@@ -535,6 +535,17 @@ func (s *Service) History(ctx context.Context) (HistoryView, error) {
 	return v, nil
 }
 
+// SentSince counts the delivery attempts of the history since a time (Home's "alerts sent", #825): sent = arrived, failed = did
+// not arrive and is not waiting to be sent again (a "Delayed" row resends by itself, D-483). One indexed range over notify_send.at.
+func (s *Service) SentSince(ctx context.Context, since time.Time) (sent, failed int, err error) {
+	err = s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT ifnull(sum(ok = 1), 0), ifnull(sum(ok = 0 AND delayed = 0), 0) FROM notify_send WHERE at >= ?`,
+		store.FormatTS(since)).Scan(&sent, &failed)
+	if err != nil {
+		return 0, 0, fmt.Errorf("notify: count sent messages: %w", err)
+	}
+	return sent, failed, nil
+}
+
 // historyLimit is the most rows History returns (API_CONVENTIONS 6: /notify/history max 500).
 const historyLimit = 500
 

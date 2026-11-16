@@ -133,6 +133,12 @@ function history(): HistoryItem[] {
   return [...inc, ...vul, ...apr].sort((a, b) => b.at.localeCompare(a.at))
 }
 
+/** #825: Home's "Alerts sent" count: messages of the history sent and failed (a delayed row is not a failure) since a time. */
+export function sentSince(since: string): { sent: number; failed: number } {
+  const rows = history().filter((h) => h.at >= since)
+  return { sent: rows.filter((h) => h.ok).length, failed: rows.filter((h) => !h.ok && !h.delayed).length }
+}
+
 const last4 = (v?: string) => (v ? v.slice(-4) : null)
 const shownUrl = (u?: string) => { try { const x = new URL(u ?? ''); return `${x.protocol}//${x.host}/…${(u as string).slice(-4)}` } catch { return '' } }
 const pub = (c: StoredChannel): Channel => { const { secret, url, app_token, bot_token, approvals, approvers, secret_key: _k, refresh_token, ...r } = c; return { ...r, fields: c.type === 'webhook' && url ? { url: shownUrl(url) } : r.fields, secret_last4: last4(refresh_token || secret), approvals: approvals === true, approvers: approvers ?? [], approval_last4: { app_token: last4(app_token), bot_token: last4(bot_token) } } }

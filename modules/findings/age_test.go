@@ -286,10 +286,9 @@ func TestGolden_D615_WhatTheAgeRuleCloses(t *testing.T) {
 	}
 	t.Logf("all devices: %d open findings before; the age rule closes %d product-only and %d version ones; %d stay", totOpen, totP, totV, totKept)
 	// pinned: a change of the rule or the data shows here. D-616: only product-only findings close (the first build, which also
-	// closed banner and typed versions, closed 12 + 68 and kept 27; supervisor 2026-11-15: too strict for unpatched gear). #901: Office
-	// 2016's CVE-2015-2545 entry ("office:2016:*:-:*:-:*:-:*", NA attributes) is a version match now, so the rule keeps it: 11, 96.
-	if totOpen != 107 || totP != 11 || totV != 0 || totKept != 96 {
-		t.Errorf("before %d, closed product %d, version %d, kept %d; want 107, 11, 0, 96", totOpen, totP, totV, totKept)
+	// closed banner and typed versions, closed 12 + 68 and kept 27; supervisor 2026-11-15: too strict for unpatched gear).
+	if totOpen != 107 || totP != 12 || totV != 0 || totKept != 95 {
+		t.Errorf("before %d, closed product %d, version %d, kept %d; want 107, 12, 0, 95", totOpen, totP, totV, totKept)
 	}
 }
 

@@ -106,9 +106,8 @@ func FixedInFor(a Asset, v Vuln) *FixedIn {
 }
 
 type fixedEntry struct {
-	c      CPE
-	r      VersionRange
-	valued uint8 // naValued of the row in its list (#901)
+	c CPE
+	r VersionRange
 }
 
 // boundsReadable says every bound the range has is a version Vedette can compare.
@@ -141,18 +140,19 @@ func fixedPartsOf(in swInfo, v Vuln, key []identity) fixedParts {
 		if !own && !byKey || !byKey && distroRelease(c) {
 			continue
 		}
-		ents = append(ents, fixedEntry{c, af.Range, naValued(v, c, af.Range)})
+		ents = append(ents, fixedEntry{c, af.Range})
 	}
 	// usable are the entries that carry a range with readable bounds: the only ones a fix can be read from.
 	var usable []fixedEntry
 	for _, e := range ents {
+		// update NA is the release without an update (D-500, #901): its range reads as one whose update is ANY
 		if !e.r.IsZero() && e.c.Version.Kind == Any && (e.c.Update.Kind == Any || e.c.Update.Kind == NA) && boundsReadable(e.r) {
 			usable = append(usable, e)
 		}
 	}
 	outside := func(x string) bool {
 		for _, e := range ents {
-			if t, _ := evalAffected(e.c, e.r, x, in.cpe, in.hasCPE, e.valued); t != No {
+			if t, _ := evalAffected(e.c, e.r, x, in.cpe, in.hasCPE); t != No {
 				return false
 			}
 		}
@@ -160,7 +160,7 @@ func fixedPartsOf(in swInfo, v Vuln, key []identity) fixedParts {
 	}
 	listed := func(x string) bool {
 		for _, e := range ents {
-			if t, _ := evalAffected(e.c, e.r, x, in.cpe, in.hasCPE, e.valued); t == Yes {
+			if t, _ := evalAffected(e.c, e.r, x, in.cpe, in.hasCPE); t == Yes {
 				return true
 			}
 		}
@@ -213,7 +213,7 @@ func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
 func fixedForVersion(in swInfo, usable []fixedEntry, outside func(string) bool, distro bool) *FixedIn {
 	var excl, incl []string // end bounds of the ranges the device's version is inside
 	for _, e := range usable {
-		if t, _ := evalAffected(e.c, e.r, in.ver, in.cpe, in.hasCPE, e.valued); t != Yes {
+		if t, _ := evalAffected(e.c, e.r, in.ver, in.cpe, in.hasCPE); t != Yes {
 			continue
 		}
 		if e.r.EndExcl != "" {
@@ -433,7 +433,7 @@ func groupFixOf(in swInfo, vulns []Vuln) *GroupFix {
 					ends = append(ends, b)
 				}
 			}
-			if t, _ := evalAffected(e.c, e.r, in.ver, in.cpe, in.hasCPE, e.valued); t == Yes && (e.r.EndExcl != "" || e.r.EndIncl != "") {
+			if t, _ := evalAffected(e.c, e.r, in.ver, in.cpe, in.hasCPE); t == Yes && (e.r.EndExcl != "" || e.r.EndIncl != "") {
 				closed[v.CVE] = true
 				haveExcl = haveExcl || e.r.EndExcl != ""
 			}

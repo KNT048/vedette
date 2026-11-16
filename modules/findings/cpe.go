@@ -256,16 +256,13 @@ func attrMatch(c, t Attr) bool {
 }
 
 // naCovers reports whether a configuration attribute c of NA ("not applicable", written "-") covers the software's attribute t
-// after the version (#901). This is a product rule, not NISTIR 7696's name matching: there NA against ANY is SUBSET, not a match,
-// and attrMatch keeps that. A software row's ANY means "not stated": inventory never knows an edition, a language or a target
-// software. NVD writes "-" both for "the product has no such attribute" ("windows_server_2025:*:*:*:*:-:*:x64:*") and for "the
-// plain edition" beside a named one ("firefox:*:*:*:*:-:*:*:*" next to "firefox:*:*:*:*:esr:*:*:*", review H1 of #906). An
-// unstated attribute is taken as NA only when the list has no valued sibling (valuedSibling false: no row of the same CVE and
-// product states a value there, naValued); with one, the install may be that edition, and NA does not cover it. NA always
-// covers NA and never a value ("enterprise", "x86"). Part, vendor, product and version go by attrMatch and the version rules.
-func naCovers(c, t Attr, valuedSibling bool) bool {
-	return c.Kind == NA && (t.Kind == NA || t.Kind == Any && !valuedSibling)
-}
+// after the version: NA or unstated (ANY), never a value (#901). This is a product rule, not NISTIR 7696's name matching: there
+// NA against ANY is SUBSET, not a match, and attrMatch keeps that. It is used only where "-" cannot mean "the plain edition
+// beside a named one": the Windows release rows (winUnpinned: "windows_server_2025:*:*:*:*:-:*:x64:*" is every install of the
+// release) and the update of the D-500 rule (evalUpdate: "9.8:-" is the release without an update, read from the version
+// string). Elsewhere NVD's "-" often means "not ESR" or "not LTS", which inventory cannot tell (reviews H1 of #906 r1 and r2),
+// so pinnedAttrs keeps NA pinned. Do not widen it to application rows.
+func naCovers(c, t Attr) bool { return c.Kind == NA && t.Kind != Value }
 
 // Matches reports whether configuration cpe c covers every attribute of the
 // target cpe t. The target is normally a CPE of installed software.

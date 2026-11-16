@@ -17,7 +17,7 @@ export default function FindingNotices({ findingId }: Record<string, unknown>) {
   const failed = sends.filter((s) => !s.ok).map((s) => t('finding.entryFailed', { channel: t(`ch.${s.channel}`), reason: s.error ?? t('history.failed') })).join(', ')
   return (
     <Section id="notified" title={t('finding.title')} description={t('finding.description')} stories={['S-ALERT-1']}
-      actions={<Link to="/settings/channels" className="text-[13px] text-accent underline-offset-4 hover:underline">{t('finding.history')}</Link>}>
+      actions={<Link to="/settings/channels#history" className="text-meta text-accent underline-offset-4 hover:underline">{t('finding.history')}</Link>}>
       {ok ? <p className="text-sm">{t('finding.notified', { list: ok })}</p> : null}
       {failed ? <p className="text-sm">{t('finding.notDelivered', { list: failed })}</p> : null}
     </Section>

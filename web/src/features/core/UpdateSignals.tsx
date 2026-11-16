@@ -38,7 +38,7 @@ export function RunningVersion({ onNavigate }: { onNavigate?: () => void }) {
   const { data } = useUpdatesBanner()
   const version = data?.components.find((c) => c.id === 'software')?.version
   if (!version) return null
-  return <Link to="/settings/updates" onClick={onNavigate} className="truncate px-2.5 text-[12px] text-muted underline-offset-4 hover:text-ink hover:underline">{t('updates.footerVersion', { version })}</Link>
+  return <Link to="/settings/updates" onClick={onNavigate} className="truncate px-2.5 text-caption text-muted underline-offset-4 hover:text-ink hover:underline">{t('updates.footerVersion', { version })}</Link>
 }
 
 /** D-386 (1b), (2): on the Updates page only, a withdrawn release with block_install and stale update information. `bundle`: the install can import an offline bundle (appliance, and only while BUNDLE_IN_UI, D-408). */

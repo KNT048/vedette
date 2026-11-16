@@ -120,7 +120,7 @@ test.describe('a finding made through the CISA list and a device (S-MIT-1, S-INV
     const ev = page.locator('#evidence')
     await expect(ev).toContainText(BASIS.product!)
     await expect(ev).toContainText(new Intl.NumberFormat('en-GB', { style: 'percent', maximumFractionDigits: 0 }).format(d.confidence)) // the page's own fmtPercent(confidence, 0)
-    await expect(page.getByRole('link', { name: 'Rescan this device' })).toHaveAttribute('href', `/scans?target=${s.deviceId}`)
+    await expect(page.getByRole('link', { name: 'Rescan this device' })).toHaveAttribute('href', `/devices/${s.deviceId}`)
     await expect(page.getByRole('link', { name: `Open ${s.cve} page` })).toHaveAttribute('href', `/cve/${s.cve}`)
     await expect(page.getByRole('link', { name: s.host }).first()).toHaveAttribute('href', `/devices/${s.deviceId}`)
     await expect(page.getByText(s.ip, { exact: true }).first()).toBeVisible()

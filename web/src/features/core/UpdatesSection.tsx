@@ -7,6 +7,7 @@ import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
 import { InfoTip } from '@/components/common/InfoTip'
+import { Card } from '@/components/common/Card'
 import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -51,11 +52,11 @@ function RunPanel({ run, name, reconnecting, after }: { run: UpdateRun; name: st
   const tone = run.status === 'running' ? 'accent' : run.status === 'done' ? 'ok' : 'danger'
   const why = run.status === 'failed' || run.status === 'reverted' ? (run.error ?? t(`updates.run.${run.status}Toast.${run.action}`, { from: run.from ?? '' })) : null
   return (
-    <div className="mb-6 grid gap-3 rounded-md border border-rule bg-surface px-4 py-3">
+    <Card className="mb-6 grid gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold">{t(`updates.run.title.${run.action}.${run.status}`, { name, version: run.to, from: run.from ?? '' })}</h3>
         <Chip tone={tone}>{t(`updates.run.status.${run.status}`)}</Chip>
-        <span className="text-[13px] text-muted">{fmtDateTime(run.started_at)}, {run.user === 'system' ? t('updates.hist.system') : run.user}</span>
+        <span className="text-meta text-muted">{fmtDateTime(run.started_at)}, {run.user === 'system' ? t('updates.hist.system') : run.user}</span>
       </div>
       {run.status === 'running' ? (
         <div className="grid gap-3" aria-live="polite">
@@ -66,14 +67,14 @@ function RunPanel({ run, name, reconnecting, after }: { run: UpdateRun; name: st
               </li>
             ))}
           </ol>
-          {run.step === 'restart' ? <p className="text-[13px] text-muted">{t('updates.run.restartNote')}</p> : null}
-          {run.step === 'host' ? <p className="text-[13px] text-muted">{t('updates.run.hostNote')}</p> : null}
+          {run.step === 'restart' ? <p className="text-meta text-muted">{t('updates.run.restartNote')}</p> : null}
+          {run.step === 'host' ? <p className="text-meta text-muted">{t('updates.run.hostNote')}</p> : null}
         </div>
       ) : null}
-      {reconnecting ? <p role="status" className="text-[13px] text-muted">{t('updates.run.reconnecting')}</p> : null}
-      {run.status === 'done' && sawEnd ? <div><Button size="sm" onClick={() => window.location.reload()}>{t('updates.run.reload')}</Button> <span className="text-[13px] text-muted">{t('updates.run.reloadWhy')}</span></div> : null}
+      {reconnecting ? <p role="status" className="text-meta text-muted">{t('updates.run.reconnecting')}</p> : null}
+      {run.status === 'done' && sawEnd ? <div><Button size="sm" onClick={() => window.location.reload()}>{t('updates.run.reload')}</Button> <span className="text-meta text-muted">{t('updates.run.reloadWhy')}</span></div> : null}
       {why ? <p role={sawEnd ? 'alert' : undefined} className="text-sm text-danger">{why}</p> : null}
-    </div>
+    </Card>
   )
 }
 
@@ -93,7 +94,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
   const availableOf = (id: string): UpdateAvailable | undefined => s.available.find((a) => a.component === id)
   // The system helper (D-316) has no Apply of its own: the software release brings it, and the software run updates it first.
   const hostNext = availableOf('software')?.host_version
-  const includesHost = (a: UpdateAvailable) => (a.host_version ? <span className="max-w-xs text-[12px] text-muted">{t('updates.host.includes', { version: a.host_version })}</span> : null)
+  const includesHost = (a: UpdateAvailable) => (a.host_version ? <span className="max-w-xs text-caption text-muted">{t('updates.host.includes', { version: a.host_version })}</span> : null)
 
   async function check() {
     try {
@@ -139,19 +140,19 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
     : <Chip tone="danger">{t(`updates.sig.${c.signature}`)}</Chip>)
 
   // The helper row: one short line, the rollback detail behind ⓘ (#824).
-  const hostHow = <div className="flex items-center gap-1"><span className="text-[12px] text-muted">{t('updates.host.how')}</span><InfoTip topic={comp('host')}>{t('updates.host.howInfo')}</InfoTip></div>
+  const hostHow = <div className="flex items-center gap-1"><span className="text-caption text-muted">{t('updates.host.how')}</span><InfoTip topic={comp('host')}>{t('updates.host.howInfo')}</InfoTip></div>
 
   const columns: ColumnDef<UpdateComponent>[] = [
-    { id: 'name', header: t('updates.col.component'), accessorFn: (c) => comp(c.id), cell: ({ row }) => <div className="grid"><span className="font-medium">{comp(row.original.id)}</span>{row.original.id === 'host' ? hostHow : <span className="text-[12px] text-muted">{t(`updates.kind.${row.original.kind}`)}</span>}</div> },
-    { id: 'version', header: t('updates.col.version'), accessorFn: (c) => c.version, cell: ({ row }) => <div className="grid"><span className="font-mono text-[12.5px]">{row.original.version}</span><span className="text-[12px] text-muted">{fmtDateTime(row.original.installed_at)}</span></div> },
+    { id: 'name', header: t('updates.col.component'), accessorFn: (c) => comp(c.id), cell: ({ row }) => <div className="grid"><span className="font-medium">{comp(row.original.id)}</span>{row.original.id === 'host' ? hostHow : <span className="text-caption text-muted">{t(`updates.kind.${row.original.kind}`)}</span>}</div> },
+    { id: 'version', header: t('updates.col.version'), accessorFn: (c) => c.version, cell: ({ row }) => <div className="grid"><span className="font-mono text-meta">{row.original.version}</span><span className="text-caption text-muted">{fmtDateTime(row.original.installed_at)}</span></div> },
     { id: 'sig', header: t('updates.col.signature'), accessorFn: (c) => c.signature, cell: ({ row }) => sigChip(row.original) },
     { id: 'available', header: t('updates.col.available'), enableSorting: false, accessorFn: (c) => availableOf(c.id)?.version ?? '', cell: ({ row }) => {
-      if (row.original.id === 'host') return hostNext ? <span className="font-mono text-[12.5px]">{hostNext}</span> : <span className="text-muted">{t('updates.latest')}</span>
+      if (row.original.id === 'host') return hostNext ? <span className="font-mono text-meta">{hostNext}</span> : <span className="text-muted">{t('updates.latest')}</span>
       const a = availableOf(row.original.id)
       if (!a) return <span className="text-muted">{t('updates.latest')}</span>
       return (
         <div className="flex flex-wrap items-center gap-2">
-          <div className="grid"><span className="font-mono text-[12.5px]">{a.version}</span><span className="max-w-xs text-[12px] text-muted">{a.note}</span>{includesHost(a)}</div>
+          <div className="grid"><span className="font-mono text-meta">{a.version}</span><span className="max-w-xs text-caption text-muted">{a.note}</span>{includesHost(a)}</div>
           <Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} title={admin.title} onClick={() => void apply(a.component)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button>
         </div>
       )
@@ -164,14 +165,14 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
     { id: 'ts', header: t('updates.hist.time'), accessorFn: (h) => h.ts, cell: ({ row }) => <span className="whitespace-nowrap">{fmtDateTime(row.original.ts)}</span> },
     { id: 'c', header: t('updates.col.component'), accessorFn: (h) => comp(h.component) },
     { id: 'act', header: t('updates.hist.action'), accessorFn: (h) => h.action, cell: ({ row }) => t(`updates.act.${row.original.action}`) },
-    { id: 'ver', header: t('updates.hist.change'), accessorFn: (h) => h.to, cell: ({ row }) => <span className="font-mono text-[12.5px]">{row.original.from ?? '–'} {'>'} {row.original.to}</span> },
+    { id: 'ver', header: t('updates.hist.change'), accessorFn: (h) => h.to, cell: ({ row }) => <span className="font-mono text-meta">{row.original.from ?? '–'} {'>'} {row.original.to}</span> },
     { id: 'u', header: t('updates.hist.by'), accessorFn: (h) => h.user, cell: ({ row }) => (row.original.user === 'system' ? t('updates.hist.system') : row.original.user) },
   ]
   const managedCols: ColumnDef<ManagedPackage>[] = [
     { id: 'name', header: t('updates.managed.col.package'), accessorFn: (p) => p.name, cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
-    { id: 'version', header: t('updates.managed.col.version'), accessorFn: (p) => p.version, cell: ({ row }) => <span className="font-mono text-[12.5px]">{row.original.version}</span> },
+    { id: 'version', header: t('updates.managed.col.version'), accessorFn: (p) => p.version, cell: ({ row }) => <span className="font-mono text-meta">{row.original.version}</span> },
     { id: 'status', header: t('updates.managed.col.status'), accessorFn: (p) => p.status, cell: ({ row }) => (row.original.status === 'ok' ? <Chip tone="ok">{t('updates.managed.pinned')}</Chip> : <Chip tone="warn">{t('updates.managed.pending')}</Chip>) },
-    { id: 'how', header: t('updates.managed.col.how'), enableSorting: false, accessorFn: () => '', cell: () => <span className="text-[13px] text-muted">{t('updates.managed.how')}</span> },
+    { id: 'how', header: t('updates.managed.col.how'), enableSorting: false, accessorFn: () => '', cell: () => <span className="text-meta text-muted">{t('updates.managed.how')}</span> },
   ]
   const affected = s.advisories.filter((a) => a.status === 'affected')
 
@@ -182,7 +183,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
         {/* No empty table (D-407): the list comes from the running release's signed manifest, which a build without a release never gets. */}
         {s.managed.length ? (
           <DataTable data={s.managed} columns={managedCols} caption={t('updates.managed.title')} pageSize={20}
-            mobileRow={(p) => <div className="flex flex-wrap items-center justify-between gap-2"><div className="grid"><span className="font-medium">{p.name}</span><span className="font-mono text-[12px] text-muted">{p.version}</span></div>{p.status === 'ok' ? <Chip tone="ok">{t('updates.managed.pinned')}</Chip> : <Chip tone="warn">{t('updates.managed.pending')}</Chip>}</div>} />
+            mobileRow={(p) => <div className="flex flex-wrap items-center justify-between gap-2"><div className="grid"><span className="font-medium">{p.name}</span><span className="font-mono text-caption text-muted">{p.version}</span></div>{p.status === 'ok' ? <Chip tone="ok">{t('updates.managed.pinned')}</Chip> : <Chip tone="warn">{t('updates.managed.pending')}</Chip>}</div>} />
         ) : <div className="flex items-center gap-1"><p className="text-sm text-muted">{t('updates.managed.none')}</p><InfoTip topic={t('updates.managed.none')}>{t('updates.managed.noneInfo')}</InfoTip></div>}
       </section>
 
@@ -199,16 +200,16 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
           <div className="grid gap-1.5">
             <span className="text-sm font-medium">{t('updates.channel')}</span>
             <Segmented label={t('updates.channel')} value={s.channel} onChange={(v) => admin.ok && void m.settings.mutateAsync({ channel: v }).catch((e) => toast.error(errMsg(e, t)))} options={[{ value: 'stable', label: t('updates.stable') }, { value: 'beta', label: t('updates.beta') }]} />
-            <p className="text-[13px] text-muted">{t(`updates.channelHint.${s.channel}`)}</p>
+            <p className="text-meta text-muted">{t(`updates.channelHint.${s.channel}`)}</p>
           </div>
           <div className="grid gap-1.5">
             <div className="flex items-center gap-1"><span className="text-sm font-medium">{t('updates.mode')}</span><InfoTip topic={t('updates.mode')}>{t('updates.modeInfo')}</InfoTip></div>
             <Segmented label={t('updates.mode')} value={s.mode} onChange={(v) => admin.ok && void m.settings.mutateAsync({ mode: v }).catch((e) => toast.error(errMsg(e, t)))} options={[{ value: 'manual', label: t('updates.manual') }, { value: 'auto', label: t('updates.auto') }]} />
-            <p className="text-[13px] text-muted">{t(`updates.modeHint.${s.mode}`)}</p>
+            <p className="text-meta text-muted">{t(`updates.modeHint.${s.mode}`)}</p>
           </div>
         </fieldset>
         {/* One status line (D-407): a failed check says why, then the last good one if any; never "Never checked." above a failure. */}
-        <p className={`mt-3 text-[13px] ${s.last_check_error && s.last_check_error.code !== 'update_not_published' ? 'text-warn' : 'text-muted'}`}>
+        <p className={`mt-3 text-meta ${s.last_check_error && s.last_check_error.code !== 'update_not_published' ? 'text-warn' : 'text-muted'}`}>
           {s.last_check_error ? t('updates.checkFailed', { time: fmtRelative(s.last_check_error.at), reason: s.last_check_error.message }) : isNever(s.last_check) ? t('updates.neverChecked') : t('updates.lastCheck', { time: fmtRelative(s.last_check) })}
           {s.last_check_error && !isNever(s.last_check) ? ` ${t('updates.lastGood', { time: fmtRelative(s.last_check) })}` : ''} {s.check_enabled ? '' : t('updates.checkOff')}
         </p>
@@ -226,9 +227,9 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
               <div className="grid gap-1.5">
                 <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{comp(c.id)}</span>{sigChip(c)}</div>
                 {c.id === 'host' ? hostHow : null}
-                <span className="font-mono text-[12.5px]">{c.version} <span className="font-sans text-[12px] text-muted">{fmtDateTime(c.installed_at)}</span></span>
-                {c.id === 'host' ? (hostNext ? <span className="text-[13px]">{t('updates.col.available')}: <span className="font-mono">{hostNext}</span></span> : <span className="text-[13px] text-muted">{t('updates.latest')}</span>)
-                : a ? <div className="flex flex-wrap items-center gap-2"><span className="text-[13px]">{t('updates.col.available')}: <span className="font-mono">{a.version}</span></span><Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} title={admin.title} onClick={() => void apply(a.component)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button></div> : <span className="text-[13px] text-muted">{t('updates.latest')}</span>}
+                <span className="font-mono text-meta">{c.version} <span className="font-sans text-caption text-muted">{fmtDateTime(c.installed_at)}</span></span>
+                {c.id === 'host' ? (hostNext ? <span className="text-meta">{t('updates.col.available')}: <span className="font-mono">{hostNext}</span></span> : <span className="text-meta text-muted">{t('updates.latest')}</span>)
+                : a ? <div className="flex flex-wrap items-center gap-2"><span className="text-meta">{t('updates.col.available')}: <span className="font-mono">{a.version}</span></span><Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} title={admin.title} onClick={() => void apply(a.component)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button></div> : <span className="text-meta text-muted">{t('updates.latest')}</span>}
                 {a ? includesHost(a) : null}
                 {c.previous ? <div><Button size="sm" disabled={admin.disabled || (running && c.id === 'software')} title={admin.title} onClick={() => askRollback(c)}>{t('updates.rollbackTo', { version: c.previous })} <span className="sr-only">{comp(c.id)}</span></Button></div> : null}
               </div>
@@ -240,14 +241,14 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
         {s.advisories.length ? (
         <ul className="grid gap-2">
           {s.advisories.map((a) => (
-            <li key={a.id} className="rounded-md border border-rule bg-surface px-4 py-3 text-sm">
+            <li key={a.id}><Card className="text-sm">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{a.title}</span>
                 {a.status === 'affected' ? <Chip tone="danger">{t('updates.advisoryAffected')}</Chip> : <Chip tone="ok">{t('updates.advisoryFixed')}</Chip>}
               </div>
-              <p className="mt-1 text-[13px] text-muted">{a.id}, {fmtDate(a.published)}. {t('updates.fixedIn', { version: a.fixed_in })}</p>
+              <p className="mt-1 text-meta text-muted">{a.id}, {fmtDate(a.published)}. {t('updates.fixedIn', { version: a.fixed_in })}</p>
               <p className="mt-1">{a.summary}</p>
-            </li>
+            </Card></li>
           ))}
         </ul>
         ) : <p className="max-w-3xl text-sm text-muted">{t(isNever(s.last_check) ? 'updates.advisoriesNotYet' : s.stale_since ? 'updates.advisoriesStale' : 'updates.advisoriesNone')}</p>}
@@ -265,7 +266,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
 
       <Section title={t('updates.history')} description={t('updates.historyDesc')}>
         <DataTable data={s.history} columns={hist} caption={t('updates.history')} pageSize={20} empty={t('updates.historyEmpty')}
-          mobileRow={(h) => <div className="grid gap-0.5"><span className="font-medium">{comp(h.component)}, {t(`updates.act.${h.action}`)}</span><span className="font-mono text-[12px] [overflow-wrap:anywhere]">{h.from ?? '–'} {'>'} {h.to}</span><span className="text-[12px] text-muted">{fmtDateTime(h.ts)}, {h.user === 'system' ? t('updates.hist.system') : h.user}</span></div>} />
+          mobileRow={(h) => <div className="grid gap-0.5"><span className="font-medium">{comp(h.component)}, {t(`updates.act.${h.action}`)}</span><span className="font-mono text-caption [overflow-wrap:anywhere]">{h.from ?? '–'} {'>'} {h.to}</span><span className="text-caption text-muted">{fmtDateTime(h.ts)}, {h.user === 'system' ? t('updates.hist.system') : h.user}</span></div>} />
       </Section>
 
       <Dialog open={!!rollback} onOpenChange={(o) => !o && setRollback(null)}>

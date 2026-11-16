@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { Loading } from '@/components/common/States'
 import { InfoTip } from '@/components/common/InfoTip'
+import { Card } from '@/components/common/Card'
+import { StandalonePage } from '@/components/common/StandalonePage'
 import { MIN_PASSWORD } from './util'
 
 /** D-180 (S-CORE-3): the screen of a user who signed in with a password an administrator set. Same rules as My account → Change password. */
@@ -55,21 +57,16 @@ export default function ChangePasswordPage() {
   }
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-paper px-4">
-      <div className="w-full max-w-sm">
-        <div className="flex items-center gap-1">
-          <h1 className="text-2xl font-semibold tracking-[-0.01em]">{t('changePassword.title')}</h1>
-          <InfoTip topic={t('changePassword.title')}>{t('changePassword.descInfo')}</InfoTip>
-        </div>
-        <p className="mt-1 text-sm text-muted">{t('changePassword.desc', { min: MIN_PASSWORD })}</p>
-        <form onSubmit={(e) => void submit(e)} className="mt-6 grid gap-4 rounded-md border border-rule bg-surface p-5" noValidate>
+    <StandalonePage title={t('changePassword.title')} subtitle={<span className="inline-flex items-center gap-1">{t('changePassword.desc', { min: MIN_PASSWORD })}<InfoTip topic={t('changePassword.title')}>{t('changePassword.descInfo')}</InfoTip></span>}>
+      <Card>
+        <form onSubmit={(e) => void submit(e)} className="grid gap-4" noValidate>
           <Field label={t('changePassword.current')} htmlFor="cp-current" error={err.current}><Input id="cp-current" type="password" autoComplete="current-password" autoFocus value={v.current} aria-invalid={!!err.current} onChange={(e) => setV({ ...v, current: e.target.value })} /></Field>
           <Field label={t('account.password.next')} htmlFor="cp-next" error={err.next}><Input id="cp-next" type="password" autoComplete="new-password" value={v.next} aria-invalid={!!err.next} onChange={(e) => setV({ ...v, next: e.target.value })} /></Field>
           <Field label={t('account.password.again')} htmlFor="cp-again" error={err.again}><Input id="cp-again" type="password" autoComplete="new-password" value={v.again} aria-invalid={!!err.again} onChange={(e) => setV({ ...v, again: e.target.value })} /></Field>
           <Button type="submit" variant="primary" disabled={busy}>{t('changePassword.submit')}</Button>
           <Button onClick={() => void signOut()} disabled={busy}>{t('layout.logout', { ns: 'common' })}</Button>
         </form>
-      </div>
-    </main>
+      </Card>
+    </StandalonePage>
   )
 }

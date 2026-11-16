@@ -229,7 +229,7 @@ const IDENT_NOTE: Record<IdentReason | 'identified', string> = {
   timed_out: 'Scan incomplete: nmap gave up before it finished (the device or a firewall slowed the probes), so nothing new was recorded. Scan it again later.',
   busy: 'Another network scan was running at that moment (device discovery, or a scan of your public IP under Exposure; a deep one takes up to an hour), so this device was not identified in this scan. Scan it again once it has finished.',
   unavailable: "The network scanner (nmap in the scan container, Active discovery) is not available, so this device was not identified. Check the box's services and that Active discovery is on, then scan again.",
-  declared_by_hand: 'Added by hand: Vedette does not port-scan it. The software you entered is what was checked.',
+  declared_by_hand: 'Added manually: Vedette does not port-scan it. The software you entered is what was checked.',
   scanning_off: 'Active scanning is off under Devices, Scope and sensors, so this device was not identified. Only what was already known was checked.',
   not_approved: 'Not approved in the inventory: not scanned, so not identified.',
   out_of_scope: 'Outside the confirmed scope now: not scanned, so not identified.',
@@ -356,6 +356,10 @@ function startRun(ids: string[], trigger: ScanRun['trigger'], note: string | nul
 }
 
 const allRuns = () => runs.get().map(advance)
+/** #850: the LAN vulnerability checks going on now, for GET /scanning running[] (features/scanning/mocks.ts). */
+export const liveScanRuns = () => allRuns().filter((r) => r.status === 'running' || r.status === 'stopping').map(strip)
+export const lastScanRun = () => allRuns().find((r) => r.status !== 'running' && r.status !== 'stopping')
+
 
 // ---- validate cấu hình ----
 function validateConfig(c: ScanConfig): string | null {

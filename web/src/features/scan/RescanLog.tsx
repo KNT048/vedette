@@ -1,16 +1,12 @@
 import { Link } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
 import { Notice, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
-import { Label } from '@/components/ui/input'
-import { Switch } from '@/components/ui/switch'
 import { fmtDateTime } from '@/lib/format'
-import { useCan } from '@/lib/session'
-import { useEvents, useSaveConfig } from './api'
-import { errMsg } from './errors'
+import { useEvents } from './api'
+import { runHref } from './links'
 import type { RescanEvent } from './types'
 
 // clear is only "no match reported" (D-133 (5)): neutral, never green; pick_only and stopped are neutral too (D-145 (7))
@@ -22,19 +18,18 @@ const linkClass = 'font-medium text-accent underline underline-offset-4'
 function ResultCell({ r }: { r: RescanEvent }) {
   const { t } = useTranslation('scan')
   if (r.result === 'pick_only') {
-    return <Chip tone={tone.pick_only}><Trans t={t} i18nKey="auto.result.pick_only" count={r.devices.length} components={{ nav: <Link to="/scans?tab=runs" className={linkClass} /> }} /></Chip>
+    return <Chip tone={tone.pick_only}><Trans t={t} i18nKey="auto.result.pick_only" count={r.devices.length} components={{ nav: <Link to="/devices" className={linkClass} /> }} /></Chip>
   }
   if (r.result === 'stopped') {
-    const link = r.run_id ? <Link to={`/scans?tab=runs&run=${encodeURIComponent(r.run_id)}`} className={linkClass} /> : <span />
+    const link = r.run_id ? <Link to={runHref(r.run_id)} className={linkClass} /> : <span />
     return <Chip tone={tone.stopped}><Trans t={t} i18nKey="auto.result.stopped" components={{ nav: link }} /></Chip>
   }
   return <Chip tone={tone[r.result]}>{t(`auto.result.${r.result}`)}</Chip>
 }
 
-export function AutoTab() {
+/** S-SCAN-2: the log of automatic rescans when a new KEV entry has a template. Its switch is on the Nuclei engine card (#850). */
+export function RescanLog() {
   const { t } = useTranslation('scan')
-  const can = useCan('admin')
-  const save = useSaveConfig()
   const q = useEvents()
   const columns: ColumnDef<RescanEvent>[] = [
     { id: 'ts', header: t('auto.col.when'), accessorFn: (r) => r.ts, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap">{fmtDateTime(r.ts)}</span> },
@@ -49,12 +44,6 @@ export function AutoTab() {
       <QueryState query={q}>
         {(d) => (
           <div className="grid gap-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <Switch id="auto-on" checked={d.auto_rescan} disabled={!can || save.isPending}
-                onCheckedChange={(v) => save.mutate({ auto_rescan: v }, { onSuccess: () => toast.success(v ? t('auto.onToast') : t('auto.offToast')), onError: (e) => toast.error(errMsg(e)) })} />
-              <Label htmlFor="auto-on">{t('auto.switch')}</Label>
-              {!can ? <span className="text-[13px] text-muted">{t('common:needRole', { role: t('common:role.admin') })}</span> : null}
-            </div>
             {!d.auto_rescan ? <Notice tone="warn" className="mb-0" title={t('auto.offNote')} info={t('auto.offNoteInfo')} /> : null}
             <DataTable caption={t('auto.caption')} data={d.items} columns={columns} pageSize={10} empty={<EmptyState title={t('auto.empty')}>{t('auto.emptyHelp')}</EmptyState>} />
           </div>

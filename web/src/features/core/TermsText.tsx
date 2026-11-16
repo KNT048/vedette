@@ -34,7 +34,7 @@ export function TermsText({ id }: { id?: string }) {
         : b.kind === 'ul'
           ? <ul key={i} className="grid list-disc gap-1.5 pl-5">{b.items.map((x, k) => <li key={k}>{x}</li>)}</ul>
           : <p key={i}>{b.text}</p>)}
-      <p className="text-[13px] text-muted">{t('setup.terms.version', { version: TERMS_VERSION })}</p>
+      <p className="text-meta text-muted">{t('setup.terms.version', { version: TERMS_VERSION })}</p>
     </div>
   )
 }

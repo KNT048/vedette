@@ -249,12 +249,40 @@ func (s *Service) startScan(ctx context.Context, who Actor, id, noticeVersion st
 			return nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
 		}
 	}
+	if reason == "" { // INV-31: the shared block is read before anything is sent, for every kind of target
+		if err = s.checkSafety(ctx, t); err != nil {
+			s.auditFailedScan(ctx, who.Email, t, err)
+			return nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
+		}
+	}
 	run, err := s.begin(ctx, who.Email, t, reason)
 	if err != nil {
 		s.auditFailedScan(ctx, who.Email, t, err)
 		return nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
 	}
 	return run, nil
+}
+
+// checkSafety reads the shared safety block before a scan (INV-31): an unreadable block refuses every scan (503, nothing is sent); an IP
+// target on the exclusion list is refused (400 out_of_scope), the runner's ports included. A domain's excluded addresses are skipped by
+// each step (ScannableIP, the web step, the deep step, the templates).
+func (s *Service) checkSafety(ctx context.Context, t Target) error {
+	sf, err := s.safety(ctx)
+	if err != nil {
+		s.cfg.Log.ErrorContext(ctx, "exposure: reading the shared safety settings failed", "error", err)
+		return apiErr(503, "scanner_unavailable", "%s", notSafetyRead)
+	}
+	if t.Kind != KindIP {
+		return nil
+	}
+	ip, err := netip.ParseAddr(t.Value)
+	if err != nil {
+		return fmt.Errorf("exposure: reading the address %q: %w", t.Value, err)
+	}
+	if sf.excluded(ip) {
+		return errExcluded(ip.String())
+	}
+	return nil
 }
 
 // auditFailedScan writes the exposure.scan row of an attempt that ended without a snapshot: refused by the gate, busy, too soon,
@@ -297,6 +325,13 @@ func clipText(v string, n int) string {
 func (s *Service) ScannableIP(ctx context.Context, actor string, ip netip.Addr) (bool, error) {
 	ip = ip.Unmap()
 	if !IsPublicIPv4(ip) {
+		return false, nil
+	}
+	// INV-31: an address on the shared exclusion list, or any address while the list cannot be read, is never port-scanned
+	if sf, err := s.safety(ctx); err != nil || sf.excluded(ip) {
+		if err != nil {
+			s.cfg.Log.ErrorContext(ctx, "exposure: reading the shared safety settings failed", "error", err)
+		}
 		return false, nil
 	}
 	t, ok, err := loadTargetByValue(ctx, s.cfg.DB.Reader(), ip.String())

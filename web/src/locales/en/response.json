@@ -45,7 +45,9 @@
     "tool_unavailable": "The connection or its write tool is turned off in Settings → Connections.",
     "not_publishable": "The block list never publishes private or reserved addresses, so this does nothing.",
     "not_publishableInfo": "Use a device action to stop a device on your LAN.",
-    "toSettings": "Open settings"
+    "toSettings": "Open settings",
+    "toCatalog": "Open the action catalog",
+    "toConnections": "Open Settings, Connections"
   },
   "requests": {
     "title": "Inbox",
@@ -64,8 +66,7 @@
     "people": "People",
     "risk": "Risk",
     "anyRisk": "Any risk",
-    "emptyFiltered": "No request matches these filters.",
-    "emptyFilteredInfo": "Choose All and Any risk to see every request."
+    "emptyFiltered": "No request matches these filters."
   },
   "status": {
     "pending": "Pending",
@@ -515,9 +516,9 @@
     "pick": "Include: {{title}}",
     "via": "Through {{connection}}",
     "undoAfter": "Undone after {{time}}",
-    "undoManual": "Undone by hand",
+    "undoManual": "Undone manually",
     "undoAt": "Undone automatically at {{time}}",
-    "noAutoUndo": "Not undone automatically (undo it by hand)",
+    "noAutoUndo": "Not undone automatically (undo it manually)",
     "noUndo": "Cannot be undone",
     "unknown": "The result of this change is unknown. Undo it to be sure it is not in force.",
     "targets_one": "touches {{count}} target",
@@ -852,6 +853,7 @@
     "sentToast": "Request sent for approval",
     "toRequests": "Open Requests",
     "lanNothing": "Vedette cannot cut this machine off for you yet.",
+    "askAdmin": "To let Vedette block it next time, ask an administrator to connect your firewall or switch and turn on a trap rule.",
     "doNow": "Do this now:",
     "letVedette": "To let Vedette block it next time: connect your firewall or switch in",
     "toConnections": "Settings, Connections",
@@ -859,7 +861,7 @@
     "toCatalog": "the action catalog",
     "thenRule": ", and turn on a trap rule from",
     "noBlocklist": "The block list only carries public addresses, so it cannot hold {{ip}}: it is on your network.",
-    "offNothing": "The response module is off, so Vedette cannot ask for any block here. Handle it by hand.",
+    "offNothing": "The response module is off, so Vedette cannot ask for any block here. Handle it manually.",
     "offNext": "An administrator can set Vedette up to block it next time.",
     "offNextTopic": "Blocking next time",
     "offNextInfo": "To let Vedette block a source next time: an administrator turns on the response module in Settings, Modules, connects your firewall or switch in Settings, Connections, and turns on a trap rule."

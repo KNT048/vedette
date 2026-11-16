@@ -38,6 +38,7 @@ type Config struct {
 	Probes      ProbeLog         // nil: the template and web steps do not run (nothing is sent without a probe log row, LEGAL §3)
 	Matcher     Matcher          // nil: identified services are not compared with exploited CVEs, and the page says so (INV-20)
 	Outside     *InternetDB      // nil: "Check what Shodan has seen" answers 501 (INV-21); cmd/vedette wires Shodan InternetDB
+	Safety      ScanSafety       // nil: the module's own rates and no exclusion; cmd/vedette wires the scan module's shared safety block (INV-31, #850)
 	Location    *time.Location   // the day of a snapshot (nil: time.Local)
 	Log         *slog.Logger     //
 	Clock       func() time.Time // nil: time.Now

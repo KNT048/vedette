@@ -37,13 +37,13 @@ export function TelegramFind({ token, hasSaved, chatId, onPick, onTokenError }: 
           {find.isPending ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : null}
           {t('tgFind.button')}
         </Button>
-        {!ready ? <span className="text-[13px] text-muted">{t('tgFind.needToken')}</span> : null}
+        {!ready ? <span className="text-meta text-muted">{t('tgFind.needToken')}</span> : null}
       </div>
-      {error ? <p role="alert" className="text-[13px] text-danger">{error}</p> : null}
-      {chats && chats.length === 0 ? <p role="status" className="text-[13px] text-muted">{t(fresh ? 'tgFind.fresh' : 'tgFind.none')}</p> : null}
+      {error ? <p role="alert" className="text-meta text-danger">{error}</p> : null}
+      {chats && chats.length === 0 ? <p role="status" className="text-meta text-muted">{t(fresh ? 'tgFind.fresh' : 'tgFind.none')}</p> : null}
       {chats && chats.length > 0 ? (
         <fieldset className="grid gap-1 rounded-md border border-rule p-2">
-          <legend className="px-1 text-[13px] font-medium">{t('tgFind.pick')}</legend>
+          <legend className="px-1 text-meta font-medium">{t('tgFind.pick')}</legend>
           {chats.map((c) => (
             <Button key={c.id} aria-pressed={chatId === c.id} onClick={() => onPick(c.id)} className="justify-start">
               {t('tgFind.option', { name: label(c), kind: t(`tgFind.kind.${c.kind}`), id: c.id })}

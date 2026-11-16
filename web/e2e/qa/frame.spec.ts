@@ -7,7 +7,7 @@ import { sampleStart } from './clean'
 test.describe.configure({ timeout: 120_000 })
 
 const PAGES = [
-  { path: '/scans', second: 'Auto rescan', id: 'auto', other: 'Probe log' },
+  { path: '/settings/scanning', second: 'Safety', id: 'safety', other: 'Probe log' }, // #850: Vulnerability scans became Settings › Scanning
   { path: '/response', second: 'Log', id: 'log', other: 'Rules' },
   { path: '/logs', second: 'Sources', id: 'sources', other: 'Events' },
   { path: '/findings', second: 'Accepted risk', id: 'accepted', other: 'Handled' },
@@ -124,10 +124,10 @@ test.describe('page frame (S-UI-1)', () => {
   for (const theme of ['light', 'dark'] as const) {
     test(`keyboard focus ring sits inside the tab, so the scrolling row does not clip it (${theme})`, async ({ page }) => {
       await page.evaluate((v) => localStorage.setItem('vedette-theme', v), theme)
-      await page.goto('/scans')
-      await page.getByRole('tab', { name: 'Scans and history' }).click()
+      await page.goto('/settings/scanning')
+      await page.getByRole('tab', { name: 'Engines' }).click()
       await page.keyboard.press('ArrowRight')
-      const tab = page.getByRole('tab', { name: 'Schedule and safety' })
+      const tab = page.getByRole('tab', { name: 'Safety' })
       await expect(tab).toBeFocused()
       await expect(page).toHaveURL(/\?tab=safety$/)
       const ring = await tab.evaluate((el) => { const s = getComputedStyle(el); return { style: s.outlineStyle, width: s.outlineWidth, offset: s.outlineOffset, scrollbar: getComputedStyle(el.parentElement!).scrollbarWidth } })
@@ -136,14 +136,14 @@ test.describe('page frame (S-UI-1)', () => {
     })
   }
 
-  test('phone: the Scans tab row scrolls inside itself and the deep-linked last tab is in view', async ({ page }) => {
+  test('phone: the Scanning tab row scrolls inside itself and the deep-linked last tab is in view', async ({ page }) => {
     test.skip(device(page) !== 'phone', 'phone only')
-    await page.goto('/scans?tab=probes') // the last tab in v1: the credentialed scan is not offered (D-417)
+    await page.goto('/settings/scanning?tab=probes') // the last tab in v1: the credentialed scan is not offered (D-417)
     await expect(page.getByRole('tab', { name: 'Probe log' })).toHaveAttribute('aria-selected', 'true')
     const row = await page.getByRole('tablist').evaluate((el) => ({ sw: el.scrollWidth, cw: el.clientWidth, left: el.scrollLeft }))
     expect(row.sw, 'four tabs do not fit a phone, so the row scrolls').toBeGreaterThan(row.cw)
     expect(row.left, 'the row was scrolled to the open tab').toBeGreaterThan(0)
-    await noHScroll(page, '/scans?tab=probes')
+    await noHScroll(page, '/settings/scanning?tab=probes')
     await shot(page, 'frame', 'scans-probes-phone')
   })
 })

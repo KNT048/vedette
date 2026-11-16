@@ -54,10 +54,12 @@ describe('findings: danh sách (S-MIT-1)', () => {
     expect(within(table).getAllByRole('row')).toHaveLength(2)
     await userEvent.click(screen.getByRole('tab', { name: /Accepted risk/ }))
     expect(await screen.findByRole('tab', { name: /Accepted risk/, selected: true })).toBeInTheDocument()
-    // the device filter stayed: f-2 is on another device
-    expect(await screen.findByText('No findings in this list.')).toBeInTheDocument()
+    // the device filter stayed: f-2 is on another device, so the list says a filter hides it (docs/UI.md §5), with the way out
+    expect(await screen.findByText('No rows match these filters.')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('tab', { name: /Handled/ }))
-    expect(await screen.findByText('No findings in this list.')).toBeInTheDocument()
+    expect(await screen.findByText('No rows match these filters.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
+    expect((await screen.findAllByText('SRV-AD')).length).toBeGreaterThan(0)
     renderApp('/findings?tab=handled')
     expect((await screen.findAllByText('SRV-AD')).length).toBeGreaterThan(0)
   })
@@ -66,7 +68,7 @@ describe('findings: danh sách (S-MIT-1)', () => {
     findingsStore.update((l) => l.map((f) => ({ ...f, status: 'patched' as const })))
     renderApp('/findings')
     expect(await screen.findByRole('heading', { level: 1, name: 'No unresolved findings' })).toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: 'Open Vulnerability scans' })[0]).toHaveAttribute('href', '/scans')
+    expect(screen.getAllByRole('link', { name: 'Open Settings, Scanning' })[0]).toHaveAttribute('href', '/settings/scanning') // #850
     expect(screen.getAllByRole('link', { name: 'Open Devices' })[0]).toHaveAttribute('href', '/devices')
   })
 
@@ -138,7 +140,7 @@ describe('findings: f-1 có khuyến nghị Vedette đã xác nhận (D-21, S-MI
     expect(within(ev).getByText('http/cves/2022/CVE-2022-27593.yaml')).toBeInTheDocument()
     expect(within(ev).getByText(/GET http:\/\/192\.168\.10\.21\/photo/)).toBeInTheDocument()
     expect(within(ev).getByText('curl -sI http://192.168.10.21/photo/')).toBeInTheDocument()
-    expect(within(ev).getByRole('link', { name: 'Rescan this device' })).toHaveAttribute('href', '/scans?target=a-nas02')
+    expect(within(ev).getByRole('link', { name: 'Rescan this device' })).toHaveAttribute('href', '/devices/a-nas02') // #850: the device page, with its scan buttons
   })
 
   it('FortiGate được chọn sẵn; mỗi bước một khung, dùng IP thật của NAS, có tác dụng phụ và kiểm tra', async () => {
@@ -312,7 +314,7 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     renderApp('/findings/f-2')
     expect(await screen.findByRole('button', { name: 'Ask my AI' })).toBeDisabled()
     expect(screen.getAllByText('The AI assistant is off, or no AI profile is assigned to this job.').length).toBeGreaterThan(0)
-    expect(screen.getAllByRole('link', { name: 'Open AI assistant settings' })[0]).toHaveAttribute('href', '/settings/ai')
+    expect(screen.getAllByRole('link', { name: 'Open AI assistant settings' })[0]).toHaveAttribute('href', '/settings/ai#ai-profiles') // the exact section (docs/UI.md §0)
     expect(screen.getByRole('button', { name: 'Explain' })).toBeDisabled()
     const res = await fetch(`${location.origin}/api/v1/findings/f-2/ai`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ skill: 'explain' }) })
     expect(res.status).toBe(409)
@@ -671,7 +673,7 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
     const dlg = await screen.findByRole('dialog', { name: 'I updated FortiOS' })
     expect(within(dlg).queryByLabelText('New version')).toBeNull()
     expect(within(dlg).getByText('Vedette reads this version from the device. Run a scan of SRV-AD to check.')).toBeInTheDocument()
-    expect(within(dlg).getByRole('link', { name: 'Scan SRV-AD' })).toHaveAttribute('href', '/scans?target=a-srvad')
+    expect(within(dlg).getByRole('link', { name: 'Scan SRV-AD' })).toHaveAttribute('href', '/devices/a-srvad')
   })
 
   it('software an agent reads (the Windows row of osquery, D-546): no version box, no scan, the agent reports it', async () => {

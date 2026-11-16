@@ -105,7 +105,7 @@ test.describe('findings: IT operator', () => {
     await dlg.getByRole('button', { name: 'Save status' }).click()
     await expect(dlg).toHaveCount(0)
     await expect(page.getByRole('heading', { level: 1 })).toContainText('false positive')
-    await expect(page.getByText('WordPress already updated, checked by hand')).toBeVisible()
+    await expect(page.getByTestId('closed-notice').getByText('WordPress already updated, checked by hand')).toBeVisible()
     await page.reload()
     await expect(page.getByRole('heading', { level: 1 })).toContainText('false positive')
     await page.goto('/findings')
@@ -156,13 +156,13 @@ test.describe('findings: IT operator', () => {
     await expect(page.getByRole('button', { name: 'Ask my AI', exact: true })).toBeDisabled()
     await expect(page.getByRole('button', { name: 'Explain', exact: true })).toBeDisabled()
     await expect(page.getByText('The AI assistant is off, or no AI profile is assigned to this job.').first()).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Open AI assistant settings' }).first()).toHaveAttribute('href', '/settings/ai')
+    await expect(page.getByRole('link', { name: 'Open AI assistant settings' }).first()).toHaveAttribute('href', '/settings/ai#ai-profiles') // docs/UI.md §0: the exact place
     expect(errors).toEqual([])
   })
 
   test('links: device, CVE page, rescan; a missing finding says so', async ({ page }) => {
     await page.goto('/findings/f-1')
-    await expect(page.getByRole('link', { name: 'Rescan this device' })).toHaveAttribute('href', '/scans?target=a-nas02')
+    await expect(page.getByRole('link', { name: 'Rescan this device' })).toHaveAttribute('href', '/devices/a-nas02')
     await page.getByRole('link', { name: /Open CVE-2022-27593 page/ }).click()
     await expect(page).toHaveURL(/\/cve\/CVE-2022-27593/)
     await page.goto('/devices/a-nas02')
@@ -171,7 +171,7 @@ test.describe('findings: IT operator', () => {
     await expect(page).toHaveURL(/\/findings\/f-1/)
     await page.goto('/findings/does-not-exist')
     await expect(page.getByText(/No such finding/)).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Back to findings' })).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Findings' })).toBeVisible() // docs/UI.md §3: the parent in the breadcrumb
   })
 
   test('keyboard: dialog keeps focus, Esc closes it and returns focus to the button', async ({ page }) => {
@@ -218,7 +218,7 @@ test.describe('findings: clean install', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('No unresolved findings')
     await expect(page.locator('body')).not.toContainText('NAS')
     await expect(page.getByRole('link', { name: 'Open Devices' }).first()).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Open Vulnerability scans' }).first()).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Open Settings, Scanning' }).first()).toBeVisible()
     await english(page, 'clean findings')
     await page.goto('/findings/f-1')
     await expect(page.getByText(/No such finding/)).toBeVisible()

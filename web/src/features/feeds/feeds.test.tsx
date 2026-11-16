@@ -302,6 +302,15 @@ describe('feeds: lookup and CVE (S-FEED-3)', () => {
   })
 })
 
+describe('feeds: the missing VulnCheck key is added where the row says so (docs/UI.md §0)', () => {
+  it('an administrator clicks "Off: add your VulnCheck API key" and gets the key field of that feed', async () => {
+    renderApp('/settings/feeds')
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Off: add your VulnCheck API key' }))[0]!)
+    const dlg = await screen.findByRole('dialog', { name: 'VulnCheck KEV settings' })
+    expect(within(dlg).getByLabelText('VulnCheck API key')).toBeInTheDocument()
+  })
+})
+
 describe('feeds: custom feed form matrix (docs/QA.md §2)', () => {
   async function openAdd() {
     renderApp('/settings/feeds')

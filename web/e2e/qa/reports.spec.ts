@@ -138,10 +138,10 @@ test.describe('reports: weekly report (sample data)', () => {
     await shot(page, 'reports', `print-weekly-screen-${device(page)}`)
     await page.emulateMedia({ media: 'print' })
     await expect(page.getByRole('button', { name: 'Print / Save PDF' })).toBeHidden()
-    await expect(page.getByRole('link', { name: 'Back to reports' })).toBeHidden()
+    await expect(page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Reports' })).toBeHidden()
     await page.screenshot({ path: `qa-shots/reports/print-weekly-print-${device(page)}.png`, fullPage: true })
     await page.emulateMedia({ media: 'screen' })
-    await page.getByRole('link', { name: 'Back to reports' }).click()
+    await page.getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link', { name: 'Reports' }).click() // docs/UI.md §3: the parent in the breadcrumb
     await expect(page).toHaveURL(/\/reports$/)
     await page.goBack()
     await expect(page).toHaveURL(/print\/weekly/)

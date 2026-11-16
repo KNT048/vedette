@@ -74,11 +74,15 @@ type cleanObs struct {
 	list  bool       // a list (software, services: deviceFor), not an observation: at a stale address it makes no device (review r1 L1 of #872)
 	// agentMACs are the MACs the agent reports in this batch (its mac observations); bindAgent checks the device against them.
 	agentMACs []string
-	field     string
-	value     string
-	source    string
-	conf      float64
-	seenAt    string
+	// own: an agent's report by address only at a hand-added address another MAC was seen at (handClaims): a device of its own, never
+	// the hand-added one. card is the card it claims there, which may reach only the newcomer a sensor saw (ownDevice), never a lookup key.
+	own    bool
+	card   string
+	field  string
+	value  string
+	source string
+	conf   float64
+	seenAt string
 }
 
 func invalid(format string, a ...any) error {
@@ -244,6 +248,9 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 		}
 	}
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+		if err := handClaims(ctx, tx, clean); err != nil {
+			return err
+		}
 		notify, err := notifyNew(ctx, tx)
 		if err != nil {
 			return err
@@ -256,7 +263,8 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 				}
 			}
 		}
-		created := map[string]string{} // device → the source whose observation created it
+		created := map[string]string{}   // device → the source whose observation created it
+		ownAt := map[netip.Addr]string{} // address → the device of its own an agent's report there resolved to (handClaims)
 		touched := []string{}
 		before := map[string]string{}  // what the findings matcher reads of each device (matchView), before the batch
 		binds := map[string]cleanObs{} // device → an observation of the agent that reported on it (D-598)
@@ -270,9 +278,15 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 					continue
 				}
 			}
-			id, isNew, err := s.resolve(ctx, tx, o, c)
-			if err != nil {
-				return err
+			var id string
+			var isNew bool
+			if id = ownAt[c.ip]; !c.own || id == "" { // one report, one device of its own (handClaims)
+				if id, isNew, err = s.resolve(ctx, tx, o, c); err != nil {
+					return err
+				}
+				if c.own {
+					ownAt[c.ip] = id
+				}
 			}
 			if id == "" { // no device may take it (resolve: an agent-only report of an unbound agent, an address not confirmed lately)
 				continue
@@ -418,6 +432,9 @@ func (s *Service) ApproveEnrolled(ctx context.Context, hint observe.AssetHint, n
 				return nil
 			}
 		}
+		if shared, err := handShared(ctx, tx, id); err != nil || shared { // found by its address only, which another machine shares (#829 n71)
+			return err
+		}
 		found = true
 		var other sql.NullString
 		err = tx.QueryRowContext(ctx, `SELECT value FROM inv_observation WHERE asset_id = ? AND field = 'mac' AND value <> ? LIMIT 1`, id, nodeMAC).Scan(&other)
@@ -506,14 +523,17 @@ const ipTrust = 72 * time.Hour
 // does not probe that device). Otherwise a sensor's hint or a list goes nowhere (logged), and an agent's observation makes a device of its own,
 // which agentOrphan joins to the old one when the agent reports its card.
 //
-// A hint with a MAC nobody owns binds the address's device when that device has no MAC yet: a hand-added one when the MAC is burned in
-// and a person declared the address within ipTrust (the bootstrap Lansweeper and Tenable do; a private MAC is a phone or a guest, never
-// bound by an address alone: review r1 H2 of #872), a discovered one when its address was seen within ipTrust; otherwise, or when the
+// A hint with a MAC nobody owns binds the address's device when that device has no MAC yet: a hand-added one when the MAC is burned in,
+// a person declared the address within ipTrust (the bootstrap Lansweeper and Tenable do; a private MAC is a phone or a guest, never
+// bound by an address alone: review r1 H2 of #872) and no other MAC was seen at the address since (firstAtHand, n71), a discovered one when its address was seen within ipTrust; otherwise, or when the
 // holder has another MAC, a new device is made and takes the address (claimIP). A known MAC at such a hand-added device's address
 // whose device is a waiting discovered one goes to the hand-added device, and joinSame folds the other into it (handBound, review r1
 // M1: the duplicate an earlier batch made). A hint with only a MAC that a join left as a chassis MAC (D-515) is about the device it
 // joined.
 func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs) (id string, created bool, err error) {
+	if err := handSeen(ctx, tx, c); err != nil {
+		return "", false, err
+	}
 	if c.agent != "" { // the agent bound to a device finds it wherever its address went (D-598); an agent moves the address
 		if id, err := s.keyHit(ctx, tx, o, c); id != "" || err != nil {
 			return id, false, err
@@ -521,6 +541,9 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs
 		if c.mac == "" && !c.ip.IsValid() { // the agent's key alone (AssetHint.From): only its bound device takes it
 			return "", false, nil
 		}
+	}
+	if c.own && c.mac == "" {
+		return s.ownDevice(ctx, tx, c)
 	}
 	cutoff := store.FormatTS(s.clock().Add(-ipTrust))
 	if c.mac != "" {
@@ -547,6 +570,12 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs
 		var manual bool
 		err := tx.QueryRowContext(ctx, `SELECT id, mac, ip_confirmed_at, origin = 'manual' FROM inv_asset WHERE ip = ?`, c.ip.String()).Scan(&id, &holderMAC, &confirmed, &manual)
 		fresh := confirmed.Valid && confirmed.String >= cutoff
+		first := true // c's MAC is the only one seen at a hand-added device's address since a person added it (inv_hand_seen)
+		if err == nil && manual && !holderMAC.Valid && c.mac != "" {
+			if first, err = firstAtHand(ctx, tx, id, c.mac); err != nil {
+				return "", false, err
+			}
+		}
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 		case err != nil:
@@ -555,7 +584,16 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs
 			switch {
 			case !holderMAC.Valid: // known by its address only: the address is its identity, and this is a sighting of it
 				if manual { // a hand-added device's address stays the person's word (handHolder, the bind below)
-					return id, false, nil
+					if !c.list {
+						return id, false, nil
+					}
+					// a list by address only (an osquery node not bound yet, Wazuh) at an address where a MAC was seen that this device
+					// did not take is not known to be the person's machine (#829 n71, review r1 H1): dropped until a person merges
+					if shared, err := handShared(ctx, tx, id); err != nil || !shared {
+						return id, false, err
+					}
+					s.staleLog(ctx, id, c, "", staleHandList)
+					return "", false, nil
 				}
 				return id, false, confirmIP(ctx, tx, id, c.ip, c.seenAt)
 			case fresh:
@@ -569,12 +607,12 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs
 			case !judged:
 				return id, false, nil
 			case c.agent == "" || c.list:
-				s.staleLog(ctx, id, c, confirmed.String)
+				s.staleLog(ctx, id, c, confirmed.String, staleSwept)
 				return "", false, nil
 			}
 			// an agent's observation at a stale address: a device of its own takes the address (below); when the agent reports the old
 			// device's card, agentOrphan joins the two in this write (INV-31 (3)), keeping the old device
-		case !holderMAC.Valid && (manual && fresh && !localMAC(c.mac) || !manual && fresh):
+		case !holderMAC.Valid && fresh && (!manual || first && !localMAC(c.mac)):
 			// Same device, first time its MAC is known. Set it now so the next observation of this batch finds the device by MAC
 			// (RecomputeAsset only runs at the end of the batch).
 			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET mac = ? WHERE id = ?`, c.mac, id); err != nil {
@@ -596,8 +634,144 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs
 	return id, true, s.claimIP(ctx, tx, o, id, c.ip, c.source, c.seenAt)
 }
 
+// handSeen records that a sighting put c's MAC at the address of a device added by hand and known by that address only (no MAC, no
+// agent): inv_hand_seen, any source, before anything else decides (#829, the N100 n71 walk). It is how the inventory knows that the
+// address was not the person's machine alone since they added it.
+func handSeen(ctx context.Context, tx *sql.Tx, c cleanObs) error {
+	if c.mac == "" || !c.ip.IsValid() {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_hand_seen (asset_id, mac, first_seen, last_seen)
+		SELECT id, ?2, ?3, ?3 FROM inv_asset WHERE ip = ?1 AND origin = 'manual' AND mac IS NULL AND agent_key IS NULL AND is_box = 0
+		AND NOT EXISTS (SELECT 1 FROM inv_asset WHERE is_box = 1 AND mac = ?2)
+		ON CONFLICT (asset_id, mac) DO UPDATE SET last_seen = max(last_seen, excluded.last_seen)`, c.ip.String(), c.mac, c.seenAt); err != nil {
+		return fmt.Errorf("inventory: record a MAC at a hand-added address: %w", err)
+	}
+	return nil
+}
+
+// handClaims runs before a batch resolves (#829 n71, reviews r1 H1 and L2, r2 H-new-1 and M-new-1 of the n71 fix). It records every
+// MAC the batch puts at an address (a hint's MAC, or the card an agent hinted by address only reports as a mac observation: osquery,
+// Wazuh), so a bind sees every MAC of the batch, not only those resolved before it. An agent's report by address only at the address of
+// a hand-added device known by that address only, where a MAC the report does not claim was seen since the person added it, is marked
+// own: a device of its own (ownDevice), announced and offered as possibly the same device, never the person's device by its address.
+// Its card is never a lookup key (a node declares it, D-265 (4)): it may reach only the newcomer a sensor saw at that address, and only
+// for an agent no device is bound to (a binding keyHit drops as a spoof never comes back through it).
+func handClaims(ctx context.Context, tx *sql.Tx, clean []cleanObs) error {
+	claims := map[netip.Addr][]string{} // address → the cards agents' reports by address only claim there
+	agentAt := []netip.Addr{}           // the addresses of agents' reports by address only, in batch order
+	for _, c := range clean {
+		mac := c.mac
+		if mac == "" && c.ip.IsValid() && c.source == string(observe.Agent) {
+			if !slices.Contains(agentAt, c.ip) {
+				agentAt = append(agentAt, c.ip)
+			}
+			if c.field == string(observe.MAC) {
+				mac = c.value
+				if !slices.Contains(claims[c.ip], mac) {
+					claims[c.ip] = append(claims[c.ip], mac)
+				}
+			}
+		}
+		if mac != "" && c.ip.IsValid() {
+			if err := handSeen(ctx, tx, cleanObs{ip: c.ip, mac: mac, seenAt: c.seenAt}); err != nil {
+				return err
+			}
+		}
+	}
+	for _, ip := range agentAt {
+		var id string
+		switch err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE ip = ? AND origin = 'manual' AND mac IS NULL AND agent_key IS NULL AND is_box = 0`, ip.String()).Scan(&id); {
+		case errors.Is(err, sql.ErrNoRows):
+			continue
+		case err != nil:
+			return fmt.Errorf("inventory: find the hand-added device at the address: %w", err)
+		}
+		seen, err := candidates(ctx, tx, `SELECT mac FROM inv_hand_seen WHERE asset_id = ?`, id)
+		if err != nil {
+			return err
+		}
+		if !slices.ContainsFunc(seen, func(m string) bool { return !slices.Contains(claims[ip], m) }) {
+			continue // the report's cards are the only MACs seen there: the person's device (C1)
+		}
+		for i := range clean {
+			c := &clean[i]
+			if c.ip != ip || c.mac != "" || c.source != string(observe.Agent) {
+				continue
+			}
+			c.own = true
+			if len(claims[ip]) == 0 {
+				continue
+			}
+			bound := false
+			if c.agent != "" {
+				if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM inv_asset WHERE agent_key = ?)`, c.agent).Scan(&bound); err != nil {
+					return fmt.Errorf("inventory: find the agent's device: %w", err)
+				}
+			}
+			if !bound {
+				c.card = claims[ip][0]
+			}
+		}
+	}
+	return nil
+}
+
+// ownDevice is the device of its own of an agent's report c that handClaims marked own: the newcomer a sensor saw with c's card at the
+// hand-added address (a discovered row nobody approved or bound, with no address: the hand-added row holds it), or the device of its own
+// an earlier report with that card made (a Wazuh report has no key to find it by), else a new device with no MAC and no address (the
+// card stays an agent observation, which never takes a MAC another device owns, D-265 (4)). A report with neither a key nor a card is
+// held ("": nothing would find its device again, so each report would make one).
+func (s *Service) ownDevice(ctx context.Context, tx *sql.Tx, c cleanObs) (string, bool, error) {
+	var id string
+	if c.card != "" {
+		switch err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE origin = 'discovered' AND approved = 0 AND agent_key IS NULL AND is_box = 0
+			AND ip IS NULL AND (mac = ?1 OR id IN (SELECT asset_id FROM inv_observation WHERE field = 'mac' AND source = 'agent' AND value = ?1))
+			ORDER BY mac = ?1 DESC, last_seen DESC LIMIT 1`, c.card).Scan(&id); {
+		case err == nil:
+			return id, false, nil
+		case !errors.Is(err, sql.ErrNoRows):
+			return "", false, fmt.Errorf("inventory: find the newcomer: %w", err)
+		}
+	}
+	if c.agent == "" && c.card == "" { // no key and no card (Wazuh with no network data): nothing would find it again; held, logged
+		s.staleLog(ctx, c.ip.String(), c, "", staleHandNoKey)
+		return "", false, nil
+	}
+	id = store.NewID("a")
+	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_asset (id, kind, origin, approved, fragile, first_seen, last_seen) VALUES (?, 'unknown', 'discovered', 0, 0, ?, ?)`,
+		id, c.seenAt, c.seenAt); err != nil {
+		return "", false, fmt.Errorf("inventory: create device: %w", err)
+	}
+	return id, true, nil
+}
+
+// handShared reports whether a MAC was seen at the address of hand-added device id since it was added while it is still known by
+// that address only: the MAC was not given to it (another machine, a private MAC, a MAC known elsewhere), so the address is shared.
+func handShared(ctx context.Context, tx *sql.Tx, id string) (bool, error) {
+	var shared bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM inv_hand_seen s JOIN inv_asset a ON a.id = s.asset_id
+		WHERE s.asset_id = ? AND a.origin = 'manual' AND a.mac IS NULL AND a.agent_key IS NULL)`, id).Scan(&shared); err != nil {
+		return false, fmt.Errorf("inventory: read the MACs seen at a hand-added address: %w", err)
+	}
+	return shared, nil
+}
+
+// firstAtHand reports whether mac is the only MAC seen at the address of hand-added device id since the person added it (handSeen).
+// Only then may an address bind it (#829, n71: a person adds "printer .201", the printer is off, DHCP gives .201 to a laptop, then to
+// another one; the second must not silently become the approved printer). Any other MAC there, private or burned in, known or new,
+// means the address is shared: the newcomer is a new, announced device, offered as possibly the same device (D-599, byAddress).
+func firstAtHand(ctx context.Context, tx *sql.Tx, id, mac string) (bool, error) {
+	var other bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM inv_hand_seen WHERE asset_id = ? AND mac <> ?)`, id, mac).Scan(&other); err != nil {
+		return false, fmt.Errorf("inventory: read the MACs seen at a hand-added address: %w", err)
+	}
+	return !other, nil
+}
+
 // handHolder is the hand-added device at c's address that a sighting of c's burned-in MAC, which device other already owns, is about
-// (review r1 M1 of #872): it has no MAC and no agent, a person declared its address within ipTrust (cutoff), and other is a discovered
+// (review r1 M1 of #872): it has no MAC and no agent, a person declared its address within ipTrust (cutoff), no other MAC was seen at
+// that address since (firstAtHand), and other is a discovered
 // device nobody approved that never had an address (the duplicate an earlier batch made of it: a MAC-only hint before the ARP, an LLDP
 // frame; a machine already announced at another address is not folded, review r2 L-new-1). "" otherwise.
 // The hint then goes to the hand-added device, and joinSame folds other into it (handBound).
@@ -608,8 +782,8 @@ func handHolder(ctx context.Context, tx *sql.Tx, c cleanObs, other, cutoff strin
 	var id string
 	err := tx.QueryRowContext(ctx, `SELECT h.id FROM inv_asset h, inv_asset o WHERE h.ip = ? AND h.origin = 'manual' AND h.mac IS NULL AND h.agent_key IS NULL
 		AND h.is_box = 0 AND h.ip_confirmed_at >= ? AND o.id = ? AND o.id <> h.id AND o.origin = 'discovered' AND o.approved = 0 AND o.is_box = 0
-		AND o.ip IS NULL`,
-		c.ip.String(), cutoff, other).Scan(&id)
+		AND o.ip IS NULL AND NOT EXISTS (SELECT 1 FROM inv_hand_seen WHERE asset_id = h.id AND mac <> ?)`,
+		c.ip.String(), cutoff, other, c.mac).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
 	} else if err != nil {
@@ -664,22 +838,38 @@ func sweptAway(ctx context.Context, tx *sql.Tx, id, cutoff string) (bool, error)
 	return st.ScopeConfirmedAt != nil && f.addr.IsValid() && st.InScope(f.addr) && !sweepSkips(st, f), nil
 }
 
-// staleLog logs, at most once an hour per device, that a report by address only was not given to the device at the address.
-func (s *Service) staleLog(ctx context.Context, id string, c cleanObs, confirmed string) {
+// Why a report by address only was not given to the device at the address (staleLog).
+const (
+	staleSwept     = "inventory: reports by address only are not given to the device at that address: the discovery sweep has not seen it there for 3 days (DHCP may have given the address to another machine)"
+	staleHandList  = "inventory: a list by address only is not given to the hand-added device at that address: another machine was seen there since it was added (on the device page: merge it when it is that machine; else delete the hand-added device, or keep it, and the machine's own lists by address only stay held)"
+	staleHandNoKey = "inventory: an agent report by address only, with no card and no key, is not given to the hand-added device at that address: another machine was seen there since it was added"
+)
+
+// staleLog logs, at most once an hour per device and reason (one of the stale* messages), that a report by address only was not given
+// to the device at the address.
+func (s *Service) staleLog(ctx context.Context, id string, c cleanObs, confirmed, msg string) {
 	s.staleMu.Lock()
 	if s.stale == nil || len(s.stale) > 4096 {
 		s.stale = map[string]time.Time{}
 	}
 	now := s.clock()
-	last, seen := s.stale[id]
+	key := id + "\x00" + msg // one line an hour per device and reason
+	last, seen := s.stale[key]
 	due := !seen || now.Sub(last) >= time.Hour
 	if due {
-		s.stale[id] = now
+		s.stale[key] = now
 	}
 	s.staleMu.Unlock()
 	if due {
-		s.log.InfoContext(ctx, "inventory: reports by address only are not given to the device at that address: the discovery sweep has not seen it there for 3 days (DHCP may have given the address to another machine)",
-			"device", id, "ip", c.ip, "source", c.source, "confirmed_at", confirmed)
+		args := []any{"device", id, "ip", c.ip, "source", c.source, "confirmed_at", confirmed}
+		switch msg {
+		case staleHandList:
+			s.log.InfoContext(ctx, staleHandList, args...)
+		case staleHandNoKey:
+			s.log.InfoContext(ctx, staleHandNoKey, args...)
+		default:
+			s.log.InfoContext(ctx, staleSwept, args...)
+		}
 	}
 }
 
@@ -759,7 +949,12 @@ func bindAgent(ctx context.Context, tx *sql.Tx, id, agent string, macs []string)
 	if err != nil {
 		return err
 	}
-	for _, m := range seen {
+	// a hand-added device known by its address only takes no agent whose cards are not every MAC seen at its address (#829 n71)
+	atAddr, err := candidates(ctx, tx, `SELECT s.mac FROM inv_hand_seen s JOIN inv_asset a ON a.id = s.asset_id WHERE s.asset_id = ? AND a.mac IS NULL`, id)
+	if err != nil {
+		return err
+	}
+	for _, m := range slices.Concat(seen, atAddr) {
 		if !slices.Contains(macs, m) {
 			return nil
 		}

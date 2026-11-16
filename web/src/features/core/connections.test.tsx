@@ -42,7 +42,7 @@ describe('Settings → Connections: the page', () => {
     expect(within(ssh).getByText(/Pinned host key/)).toBeInTheDocument()
     expect(within(card('Office FortiGate')).getByText(/Pinned certificate/)).toBeInTheDocument()
     expect(within(card('Vendor advisories')).queryByText(/Pinned/)).toBeNull()
-    expect(screen.getByRole('link', { name: 'See privacy flow 12' })).toHaveAttribute('href', '/settings/privacy')
+    expect(screen.getByRole('link', { name: 'See privacy flow 12' })).toHaveAttribute('href', '/settings/privacy#flow-12')
     await expectNoA11yViolations()
   })
 

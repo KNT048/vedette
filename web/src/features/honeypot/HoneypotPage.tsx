@@ -2,7 +2,9 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { FlaskConical } from 'lucide-react'
-import { Notice, PageHeader, Section, Panel, KeyValue } from '@/components/common/PageHeader'
+import { Notice, PageHeader, Section, KeyValue } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
+import { DependencyLink } from '@/components/common/DependencyLink'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
@@ -34,7 +36,7 @@ export default function HoneypotPage() {
       <PageHeader title={t('notHere.page')} stories={['S-HP-1', 'S-CORE-9']} />
       <EmptyState title={t('notHere.title')} info={t('notHere.bodyInfo')}>
         {t('notHere.body')}
-        {hp.enabled ? <p className="mt-2"><Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules">{t('notHere.modules')}</Link></p> : null}
+        {hp.enabled ? <DependencyLink className="mt-2" reason={t('notHere.modulesWhy')} to="/settings/modules#module-honeypot" label={t('notHere.modules')} /> : null}
       </EmptyState>
     </>
   )
@@ -76,7 +78,7 @@ function HoneypotBody() {
               ) : null}
               <PageTabs label={t('tabs.label')} tabs={[
                 { id: 'overview', label: t('tabs.overview'), panel: <OverviewTab data={data} lan={lan} /> },
-                { id: 'trap-ips', label: t('tabs.trapIps'), panel: <TrapIpsTab hits={hits.data?.items ?? []} lan={lan} smbName={data.smb_name} />, badge: { count: data.trap_ips.failing, label: t('tabs.attention') } },
+                { id: 'trap-ips', label: t('tabs.trapIps'), panel: <TrapIpsTab hits={hits.data?.items ?? []} lan={lan} lanKnown={!!data.lan} smbName={data.smb_name} />, badge: { count: data.trap_ips.failing, label: t('tabs.attention') } },
                 { id: 'services', label: t('tabs.services'), panel: <ServicesTab data={data} /> },
                 { id: 'tokens', label: t('tabs.tokens'), panel: <TokensSection /> },
                 { id: 'hits', label: t('tabs.hits'), panel: (
@@ -95,10 +97,11 @@ function HoneypotBody() {
 
 function OverviewTab({ data, lan }: { data: HpOverview; lan: string }) {
   const { t } = useTranslation('honeypot')
+  const admin = useCan('admin') // #trap-ip-add is an administrator's button: anyone else lands on the tab (#875 r1)
   return (
     <>
       {data.trap_ips.total === 0 ? (
-        <EmptyState title={t('start.title')} info={t('start.info', { lan })}>
+        <EmptyState title={t('start.title')} info={t('start.info', { lan })} action={<Link className="text-sm font-medium text-accent underline underline-offset-4" to={admin ? '?tab=trap-ips#trap-ip-add' : '?tab=trap-ips'}>{t('start.action')}</Link>}>
           <ol className="mt-1 grid list-decimal gap-1 pl-5">
             <li>{t('start.step1', { lan })}</li>
             <li>{t('start.step2')}</li>
@@ -132,13 +135,13 @@ function ServicesTab({ data }: { data: HpOverview }) {
   }
   const columns: ColumnDef<Trap>[] = [
     { id: 'service', header: t('traps.col.service'), cell: ({ row }) => (
-      <span className="grid"><span className="font-medium">{svc(row.original.service)}</span><span className="text-[12px] text-muted">{t(`serviceHint.${row.original.service}`)}</span></span>
+      <span className="grid"><span className="font-medium">{svc(row.original.service)}</span><span className="text-caption text-muted">{t(`serviceHint.${row.original.service}`)}</span></span>
     ) },
     { id: 'port', header: t('traps.col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="tabular-nums">{portLabel(row.original.service)}</span> },
-    { id: 'where', header: t('traps.col.trapIps'), enableSorting: false, cell: ({ row }) => <span className="text-[13px]">{where(row.original)}</span> },
+    { id: 'where', header: t('traps.col.trapIps'), enableSorting: false, cell: ({ row }) => <span className="text-meta">{where(row.original)}</span> },
     { id: 'state', header: t('traps.col.state'), cell: ({ row }) => stateChip(row.original) },
     { id: 'hits', header: t('traps.col.hits'), accessorFn: (r) => r.hits_7d, cell: ({ row }) => (
-      <span className="grid"><span className="tabular-nums">{row.original.hits_7d}</span>{row.original.last_hit_at ? <span className="text-[12px] text-muted">{t('traps.lastHit', { when: fmtRelative(row.original.last_hit_at) })}</span> : null}</span>
+      <span className="grid"><span className="tabular-nums">{row.original.hits_7d}</span>{row.original.last_hit_at ? <span className="text-caption text-muted">{t('traps.lastHit', { when: fmtRelative(row.original.last_hit_at) })}</span> : null}</span>
     ) },
     { id: 'test', header: t('traps.col.test'), enableSorting: false, cell: ({ row }) => testBtn(row.original) },
   ]
@@ -148,10 +151,10 @@ function ServicesTab({ data }: { data: HpOverview }) {
         <DataTable caption={t('traps.caption')} data={data.traps} columns={columns} pageSize={data.traps.length}
           mobileRow={(tr) => (
             <div className="grid gap-2">
-              <span className="grid"><span className="font-medium">{svc(tr.service)} <span className="text-[12px] text-muted tabular-nums">{portLabel(tr.service)}</span></span><span className="text-[12px] text-muted">{t(`serviceHint.${tr.service}`)}</span></span>
-              <span className="text-[13px]">{t('traps.col.trapIps')}: {where(tr)}</span>
+              <span className="grid"><span className="font-medium">{svc(tr.service)} <span className="text-caption text-muted tabular-nums">{portLabel(tr.service)}</span></span><span className="text-caption text-muted">{t(`serviceHint.${tr.service}`)}</span></span>
+              <span className="text-meta">{t('traps.col.trapIps')}: {where(tr)}</span>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="flex flex-wrap items-center gap-2">{stateChip(tr)}<span className="text-[13px] text-muted">{t('traps.col.hits')}: {tr.hits_7d}{tr.last_hit_at ? `, ${t('traps.lastHit', { when: fmtRelative(tr.last_hit_at) })}` : ''}</span></span>
+                <span className="flex flex-wrap items-center gap-2">{stateChip(tr)}<span className="text-meta text-muted">{t('traps.col.hits')}: {tr.hits_7d}{tr.last_hit_at ? `, ${t('traps.lastHit', { when: fmtRelative(tr.last_hit_at) })}` : ''}</span></span>
                 {testBtn(tr)}
               </div>
             </div>
@@ -162,11 +165,11 @@ function ServicesTab({ data }: { data: HpOverview }) {
         {data.http_page ? <p>{t('traps.httpPageInfo')}</p> : null}
         <p>{t('traps.bannersInfo')}</p>
       </>}>
-        <Panel className="grid gap-1.5 p-4 text-sm">
+        <Card className="grid gap-1.5 text-sm">
           <p>{data.smb_name ? t('traps.smbName', { name: data.smb_name }) : t('traps.smbNone')}</p>
           <p>{data.http_page ? t('traps.httpPage', { page: t(`traps.page.${data.http_page}`) }) : t('traps.httpNone')}</p>
           <p>{t('traps.banners')}</p>
-        </Panel>
+        </Card>
       </Section>
     </>
   )
@@ -176,30 +179,31 @@ function ExclusionSection({ data }: { data: HpOverview }) {
   const { t } = useTranslation('honeypot')
   return (
     <Section id="exclusion" title={t('exclusion.title')} description={t('exclusion.description')} info={t('exclusion.descriptionInfo')}>
-      <Panel className="p-4">
+      <Card>
         <KeyValue items={[
           { label: t('exclusion.who'), value: <span className="flex flex-wrap items-center gap-2">{data.box.name}{data.box.ip ? ` (${data.box.ip})` : ''} <Chip tone="off">{t('exclusion.locked')}</Chip></span> },
           { label: t('exclusion.why'), value: t('exclusion.whyBody') },
           { label: t('exclusion.ignored'), value: t('exclusion.ignoredBody', { count: data.ignored_7d }) },
         ]} />
-      </Panel>
+      </Card>
     </Section>
   )
 }
 
 export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn?: boolean }) {
   const { t } = useTranslation('honeypot')
+  const admin = useCan('admin')
   const respond = useScope('response') !== 'hidden' // D-624 (#819): no Respond link while the response module is hidden
   const columns: ColumnDef<Hit>[] = [
     { id: 'ts', header: t('hits.col.time'), accessorFn: (r) => r.ts, cell: ({ row }) => (
       <Link className="whitespace-nowrap text-accent underline-offset-4 hover:underline" to={`/honeypot/hits/${row.original.id}`}>{fmtDateTime(row.original.ts)}</Link>
     ) },
     { id: 'service', header: t('hits.col.service'), accessorFn: (r) => hitName(t, r), cell: ({ row }) => (
-      <span className="flex flex-wrap items-center gap-2">{hitName(t, row.original)} {row.original.port ? <span className="text-[12px] text-muted tabular-nums">{row.original.port}</span> : null}{row.original.kind === 'scan' ? <Chip tone="danger">{t('hits.kind.scan')}</Chip> : row.original.kind === 'token' ? <Chip tone="warn">{t('hits.kind.token')}</Chip> : null}{row.original.is_test ? <Chip tone="off">{t('hits.test')}</Chip> : null}</span>
+      <span className="flex flex-wrap items-center gap-2">{hitName(t, row.original)} {row.original.port ? <span className="text-caption text-muted tabular-nums">{row.original.port}</span> : null}{row.original.kind === 'scan' ? <Chip tone="danger">{t('hits.kind.scan')}</Chip> : row.original.kind === 'token' ? <Chip tone="warn">{t('hits.kind.token')}</Chip> : null}{row.original.is_test ? <Chip tone="off">{t('hits.test')}</Chip> : null}</span>
     ) },
     // W1-13: which Trap IP was hit (a scan: the ones it touched; a token: the token).
     { id: 'trap', header: t('hits.col.trapIp'), accessorFn: (r) => `${r.trap_hostname} ${r.trap_ip}`, cell: ({ row }) => (
-      <span className="grid max-w-[16rem]"><span className="truncate" title={row.original.trap_hostname}>{row.original.trap_hostname || row.original.trap_ip}</span>{row.original.kind === 'service' && row.original.trap_hostname ? <span className="text-[12px] text-muted tabular-nums">{row.original.trap_ip}</span> : null}</span>
+      <span className="grid max-w-64"><span className="truncate" title={row.original.trap_hostname}>{row.original.trap_hostname || row.original.trap_ip}</span>{row.original.kind === 'service' && row.original.trap_hostname ? <span className="text-caption text-muted tabular-nums">{row.original.trap_ip}</span> : null}</span>
     ) },
     { id: 'src', header: t('hits.col.src'), accessorFn: (r) => r.src_ip },
     { id: 'device', header: t('hits.col.device'), accessorFn: (r) => r.src_name ?? '', cell: ({ row }) => {
@@ -207,9 +211,16 @@ export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn
       if (h.src_asset_id && h.src_name) return <Link className="text-accent underline-offset-4 hover:underline" to={`/devices/${h.src_asset_id}`}>{h.src_name}</Link>
       return <span className="text-muted">{h.is_test ? t('hits.deviceBox') : t('hits.deviceUnknown')}</span>
     } },
-    { id: 'excerpt', header: t('hits.col.excerpt'), enableSorting: false, accessorFn: (r) => r.excerpt, cell: ({ row }) => <span className="block max-w-xs truncate text-[13px] text-muted" title={row.original.excerpt}>{row.original.excerpt}</span> },
+    { id: 'excerpt', header: t('hits.col.excerpt'), enableSorting: false, accessorFn: (r) => r.excerpt, cell: ({ row }) => <span className="block max-w-xs truncate text-meta text-muted" title={row.original.excerpt}>{row.original.excerpt}</span> },
     ...(respond ? [{ id: 'respond', header: t('hits.col.respond'), enableSorting: false, cell: ({ row }) => <RespondLink h={row.original} /> } satisfies ColumnDef<Hit>] : []),
   ]
+  // UI.md §6: no hit at all yet is "nothing yet" (the drawing, and the way to the step it waits for); the table's own filter keeps its text-only state.
+  if (items.length === 0) return (
+    <EmptyState art="no-alerts" title={t('hits.emptyTitle')} info={anyTrapOn ? t('hits.emptyBodyInfo') : t('hits.emptyBodyOffInfo')}
+      action={<Link className="text-sm font-medium text-accent underline underline-offset-4" to={anyTrapOn ? '?tab=services#services' : admin ? '?tab=trap-ips#trap-ip-add' : '?tab=trap-ips'}>{anyTrapOn ? t('hits.emptyActionTest') : t('hits.emptyActionAdd')}</Link>}>
+      {anyTrapOn ? t('hits.emptyBody') : t('hits.emptyBodyOff')}
+    </EmptyState>
+  )
   return (
     <DataTable caption={t('hits.caption')} data={items} columns={columns}
       mobileRow={(h) => (
@@ -218,13 +229,12 @@ export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn
             <Link className="font-medium text-accent underline-offset-4 hover:underline" to={`/honeypot/hits/${h.id}`}>{fmtDateTime(h.ts)}</Link>
             {h.is_test ? <Chip tone="off">{t('hits.test')}</Chip> : null}
           </div>
-          <p className="text-sm">{hitName(t, h)} {h.port ? <span className="text-[12px] text-muted tabular-nums">{h.port}</span> : null}</p>
-          <p className="text-[13px]">{t('hits.col.trapIp')}: {h.trap_hostname || h.trap_ip}{h.kind === 'service' && h.trap_hostname ? <span className="text-muted tabular-nums"> {h.trap_ip}</span> : null}</p>
-          <p className="text-[13px] text-muted">{h.src_ip} · {h.src_name ?? (h.is_test ? t('hits.deviceBox') : t('hits.deviceUnknown'))}</p>
+          <p className="text-sm">{hitName(t, h)} {h.port ? <span className="text-caption text-muted tabular-nums">{h.port}</span> : null}</p>
+          <p className="text-meta">{t('hits.col.trapIp')}: {h.trap_hostname || h.trap_ip}{h.kind === 'service' && h.trap_hostname ? <span className="text-muted tabular-nums"> {h.trap_ip}</span> : null}</p>
+          <p className="text-meta text-muted">{h.src_ip} · {h.src_name ?? (h.is_test ? t('hits.deviceBox') : t('hits.deviceUnknown'))}</p>
           {respond ? <RespondLink h={h} /> : null}
         </div>
       )}
-      filterPlaceholder={t('hits.filter')} initialSort={[{ id: 'ts', desc: true }]}
-      empty={<EmptyState title={t('hits.emptyTitle')} info={anyTrapOn ? t('hits.emptyBodyInfo') : t('hits.emptyBodyOffInfo')}>{anyTrapOn ? t('hits.emptyBody') : t('hits.emptyBodyOff')}</EmptyState>} />
+      filterPlaceholder={t('hits.filter')} initialSort={[{ id: 'ts', desc: true }]} />
   )
 }

@@ -40,7 +40,7 @@ test.describe('the list with nothing of mine in it (S-MIT-1)', () => {
     await page.goto('/findings?cve=cve-2099-000001')
     await expect(page.getByText('No findings for CVE-2099-000001 in this filter.')).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open Devices' }).first()).toHaveAttribute('href', '/devices')
-    await expect(page.getByRole('link', { name: 'Open Vulnerability scans' }).first()).toHaveAttribute('href', '/scans')
+    await expect(page.getByRole('link', { name: 'Open Settings, Scanning' }).first()).toHaveAttribute('href', '/settings/scanning')
     await expect(page.locator('body')).not.toContainText(/undefined|NaN|\[object|1970/)
     await page.getByRole('button', { name: 'Clear CVE-2099-000001 filter' }).click()
     await expect(page).not.toHaveURL(/cve=/)

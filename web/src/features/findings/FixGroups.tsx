@@ -27,17 +27,17 @@ export function FixGroupList({ groups, showDevice }: { groups: FixGroup[]; showD
                   <span className="font-medium">{action(g.fix)}</span>{': '}{t('fix.fixes', { count: g.members.length })}
                 </p>
                 <details>
-                  <summary className="w-fit cursor-pointer text-[13px] text-accent underline-offset-4 hover:underline">{t('fix.show', { count: g.members.length })}</summary>
+                  <summary className="w-fit cursor-pointer text-meta text-accent underline-offset-4 hover:underline">{t('fix.show', { count: g.members.length })}</summary>
                   <ul className="mt-1 grid gap-1">
                     {g.members.map((f) => (
                       <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <Link to={`/findings/${f.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{f.cve}</Link>
-                        <span className="text-[13px] text-muted">{f.kev?.name ?? f.kev?.display ?? ''}</span>
+                        <span className="text-meta text-muted">{f.kev?.name ?? f.kev?.display ?? ''}</span>
                         <FindingStatusChip f={f} /><RiskChip f={f} />
                       </li>
                     ))}
                   </ul>
-                  <Link to={`/findings?fix=${encodeURIComponent(g.key)}`} className="mt-1 inline-block text-[13px] text-accent underline underline-offset-4">{t('fix.select', { count: g.members.length })}</Link>
+                  <Link to={`/findings?fix=${encodeURIComponent(g.key)}`} className="mt-1 inline-block text-meta text-accent underline underline-offset-4">{t('fix.select', { count: g.members.length })}</Link>
                 </details>
               </li>
             )

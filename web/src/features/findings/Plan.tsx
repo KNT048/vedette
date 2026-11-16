@@ -4,10 +4,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
+import { Card } from '@/components/common/Card'
 import { Notice } from '@/components/common/PageHeader'
 import { Chip } from '@/components/common/StatusChip'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { ApiError } from '@/lib/api'
 import { fmtPercent } from '@/lib/format'
+import { useCan } from '@/lib/session'
+import { useModules } from '@/lib/modules'
+import { useToggleModule } from '@/features/core/api'
+import { usePatchFeed } from '@/features/feeds/api'
 import { fmtDay } from '@/features/feeds/dates'
 import { usePlanAction } from './fix'
 import type { Plan, PlanCve, PlanItem } from './types'
@@ -15,8 +23,8 @@ import { InfoTip } from '@/components/common/InfoTip'
 
 function Severity({ c }: { c: PlanCve }) {
   const { t } = useTranslation('findings')
-  if (!c.severity) return <span className="text-[13px] text-muted">{t('plan.cve.notScored')}</span>
-  return <span className="whitespace-nowrap text-[13px]">{t(`plan.sev.${c.severity}`)}{c.score !== null ? ` ${c.score.toFixed(1)}` : ''}</span>
+  if (!c.severity) return <span className="text-meta text-muted">{t('plan.cve.notScored')}</span>
+  return <span className="whitespace-nowrap text-meta">{t(`plan.sev.${c.severity}`)}{c.score !== null ? ` ${c.score.toFixed(1)}` : ''}</span>
 }
 
 /** The evidence chip of D-615: how Vedette knows the device has the flaw. */
@@ -51,7 +59,7 @@ function CveList({ item }: { item: PlanItem }) {
     <div className="mt-2 overflow-x-auto rounded-md border border-rule bg-surface">
       <table className="w-full min-w-[640px] text-sm">
         <caption className="sr-only">{t('plan.cve.caption', { software: item.software, device: item.asset.name })}</caption>
-        <thead className="text-left text-[12px] text-muted">
+        <thead className="bg-sunken text-left text-caption text-muted">
           <tr className="border-b border-rule">
             <th scope="col" className="px-3 py-2 font-medium">{t('plan.cve.cve')}</th>
             <th scope="col" className="px-3 py-2 font-medium">{t('plan.cve.tier')}</th>
@@ -69,11 +77,11 @@ function CveList({ item }: { item: PlanItem }) {
               </th>
               <td className="px-3 py-2"><TierChip tier={c.tier} /></td>
               <td className="px-3 py-2"><Severity c={c} /></td>
-              <td className="whitespace-nowrap px-3 py-2 text-[13px]">
+              <td className="whitespace-nowrap px-3 py-2 text-meta">
                 {fmtDay(c.published)}
-                {c.published < old ? <span className="block text-[12px] text-muted">{t('plan.cve.old')}</span> : null}
+                {c.published < old ? <span className="block text-caption text-muted">{t('plan.cve.old')}</span> : null}
               </td>
-              <td className="whitespace-nowrap px-3 py-2 text-right text-[13px] tabular-nums">{c.epss === null ? '–' : fmtPercent(c.epss)}</td>
+              <td className="whitespace-nowrap px-3 py-2 text-right text-meta tabular-nums">{c.epss === null ? '–' : fmtPercent(c.epss)}</td>
               <td className="px-3 py-2"><EvidenceChip basis={c.basis} /></td>
             </tr>
           ))}
@@ -81,7 +89,7 @@ function CveList({ item }: { item: PlanItem }) {
       </table>
       {cves.length < item.cves.length ? (
         <div className="flex flex-wrap items-center gap-3 border-t border-rule px-3 py-2">
-          <p className="text-[13px] text-muted">{t('plan.firstCves', { shown: cves.length, count: item.cves.length })}</p>
+          <p className="text-meta text-muted">{t('plan.firstCves', { shown: cves.length, count: item.cves.length })}</p>
           <Button variant="secondary" size="sm" onClick={() => setAll(true)}>{t('plan.showAllCves', { count: item.cves.length })}</Button>
         </div>
       ) : null}
@@ -99,7 +107,7 @@ function Legend({ item }: { item: PlanItem }) {
     <div key={key}><dt className="inline font-medium">{term}</dt><dd className="inline">{': '}{hint}</dd></div>
   )
   return (
-    <dl className="grid gap-1 border-t border-rule px-3 py-2 text-[12px] text-muted">
+    <dl className="grid gap-1 border-t border-rule px-3 py-2 text-caption text-muted">
       {tiers.map((x) => row(`tier-${x}`, t(`plan.tier.${x}`), t(`plan.tier.${x}Hint`)))}
       {bases.map((x) => row(`basis-${x}`, t(`plan.evidence.${x}`), t(`plan.evidence.${x}Hint`)))}
     </dl>
@@ -116,7 +124,8 @@ export function PlanItems({ items, showDevice, likelyOnly = false }: { items: Pl
   useEffect(() => { if (all) list.current?.children[PLAN_FIRST]?.querySelector<HTMLElement>('a, summary')?.focus() }, [all])
   return (
     <>
-    <ul ref={list} aria-label={t('plan.listLabel')} className="grid min-w-0 divide-y divide-rule rounded-md border border-rule bg-surface">
+    <Card flush>
+    <ul ref={list} aria-label={t('plan.listLabel')} className="grid min-w-0 divide-y divide-rule">
       {shown.map((i) => (
         <li key={i.group} className="grid min-w-0 gap-1 px-4 py-3">
           <p className="text-sm">
@@ -130,12 +139,13 @@ export function PlanItems({ items, showDevice, likelyOnly = false }: { items: Pl
             )}
           </p>
           <details className="min-w-0">
-            <summary className="w-fit cursor-pointer text-[13px] text-accent underline-offset-4 hover:underline">{t('plan.show', { count: i.cves.length })}</summary>
+            <summary className="w-fit cursor-pointer text-meta text-accent underline-offset-4 hover:underline">{t('plan.show', { count: i.cves.length })}</summary>
             <CveList item={i} />
           </details>
         </li>
       ))}
     </ul>
+    </Card>
     {shown.length < items.length ? (
       <Button variant="secondary" size="sm" className="mt-3" onClick={() => setAll(true)}>{t('plan.showAllItems', { count: items.length })}</Button>
     ) : null}
@@ -143,9 +153,65 @@ export function PlanItems({ items, showDevice, likelyOnly = false }: { items: Pl
   )
 }
 
+/** The two feeds of this page (D-614) by the name the plan API gives them. */
+const FEED_ID = { epss: 'epss-all', recent: 'nvd-recent' } as const
+type TierFeed = keyof typeof FEED_ID
+/** Settings › Feeds, at the switch of the first feed named (docs/UI.md §0: the exact place, not "see Settings"). */
+const feedsAt = (feeds: TierFeed[]) => `/settings/feeds#feed-${FEED_ID[feeds[0] ?? 'epss']}`
+
+/** Do it where you are (docs/UI.md §0): an administrator turns the missing feeds on from this page; the same switches stay in
+ *  Settings › Feeds. Anyone else gets nothing here (the line above already says an administrator does it, with the link). */
+function TurnOnFeeds({ feeds }: { feeds: TierFeed[] }) {
+  const { t } = useTranslation('findings')
+  const admin = useCan('admin')
+  const patch = usePatchFeed()
+  const qc = useQueryClient()
+  if (!admin || feeds.length === 0) return null
+  const names = feeds.map((f) => t(`plan.feed.${f}`)).join(t('plan.and'))
+  async function turnOn() {
+    try {
+      for (const f of feeds) await patch.mutateAsync({ id: FEED_ID[f], enabled: true })
+      toast.success(t('plan.state.turnedOn', { feeds: names, count: feeds.length }))
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : String(e))
+    }
+    void qc.invalidateQueries({ queryKey: ['findings', 'plan'] })
+  }
+  return <Button size="sm" variant="primary" disabled={patch.isPending} onClick={() => void turnOn()}>{patch.isPending ? t('plan.state.turningOn') : t('plan.state.turnOn', { count: feeds.length })}</Button>
+}
+
+/** The feeds module is off: an administrator turns it on here (with what it needs), anyone else gets the exact page. */
+function TurnOnModule() {
+  const { t } = useTranslation('findings')
+  const admin = useCan('admin')
+  const toggle = useToggleModule()
+  const qc = useQueryClient()
+  const mods = useModules().data?.modules ?? []
+  // what the feeds module needs that is off is turned on with it (Settings › Modules asks first): the toast names those modules
+  const also = (mods.find((m) => m.id === 'feeds')?.depends ?? []).filter((d) => mods.find((m) => m.id === d)?.enabled === false).map((d) => t(`modules.${d}.name`, { ns: 'common' }))
+  const link = <Link to="/settings/modules" className="text-sm text-accent underline underline-offset-4">{t('plan.state.openModules')}</Link>
+  if (!admin) return link
+  return (
+    <span className="flex flex-wrap items-center gap-3">
+      <Button size="sm" variant="primary" disabled={toggle.isPending}
+        onClick={() => toggle.mutate({ id: 'feeds', enabled: true, withDependencies: true }, {
+          onSuccess: (r) => {
+            // the cached plan still says module_off: ask again, so the Notice and this button go away (as TurnOnFeeds does)
+            void qc.invalidateQueries({ queryKey: ['findings', 'plan'] })
+            if (r.kind === 'ok') toast.success(also.length ? t('plan.state.moduleOnWith', { modules: also.join(', ') }) : t('plan.state.moduleOn'))
+          },
+          onError: (e) => toast.error(e instanceof ApiError ? e.message : String(e)),
+        })}>
+        {t('plan.state.turnOnModule')}
+      </Button>
+      {link}
+    </span>
+  )
+}
+
 /** Why the list is empty or partial (D-613 states, review r1 #4 of #803): first that this version does not compare yet (then nothing
  *  invites anyone to turn feeds on: they would load ~105,000 NVD records for nothing), else the feeds module off, a feed off or still
- *  loading. null when the data is there and compared. */
+ *  loading. null when the data is there and compared. Every missing piece is turned on right here by an administrator (docs/UI.md §0). */
 export function PlanDataState({ plan, compact = false }: { plan: Plan; compact?: boolean }) {
   const { t } = useTranslation('findings')
   if (!plan.compared) {
@@ -155,18 +221,19 @@ export function PlanDataState({ plan, compact = false }: { plan: Plan; compact?:
   }
   const { epss, recent } = plan.data
   if (epss === 'module_off' || recent === 'module_off') {
-    const link = <Link to="/settings/modules" className="text-sm text-accent underline underline-offset-4">{t('plan.state.openModules')}</Link>
-    return compact ? <p className="text-sm text-muted">{t('plan.state.moduleOff')} {link}</p> : (
-      <Notice tone="off" title={t('plan.state.moduleOffTitle')} actions={link}><p>{t('plan.state.moduleOff')}</p></Notice>
+    return compact ? <div className="grid gap-2"><p className="text-sm text-muted">{t('plan.state.moduleOff')}</p><TurnOnModule /></div> : (
+      <Notice tone="off" title={t('plan.state.moduleOffTitle')} actions={<TurnOnModule />}><p>{t('plan.state.moduleOff')}</p></Notice>
     )
   }
-  const name = (f: 'epss' | 'recent') => t(`plan.feed.${f}`)
+  const name = (f: TierFeed) => t(`plan.feed.${f}`)
   const off = (['epss', 'recent'] as const).filter((f) => plan.data[f] === 'off')
   const loading = (['epss', 'recent'] as const).filter((f) => plan.data[f] === 'loading')
-  const feedsLink = <Link to="/settings/feeds" className="text-accent underline underline-offset-4" />
+  const feedsLink = <Link to={feedsAt(off)} className="text-accent underline underline-offset-4" />
+  const openFeeds = <Link to={feedsAt(off)} className="text-sm text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link>
+  const actions = <span className="flex flex-wrap items-center gap-3"><TurnOnFeeds feeds={off} />{openFeeds}</span>
   if (epss === 'off' && recent === 'off') {
-    return compact ? <p className="text-sm text-muted"><Trans t={t} i18nKey="plan.state.offShort" components={{ a: feedsLink }} /></p> : (
-      <Notice tone="off" title={t('plan.state.offTitle')} info={t('plan.state.offBodyInfo')} actions={<Link to="/settings/feeds" className="text-sm text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link>}>
+    return compact ? <div className="grid gap-2"><p className="text-sm text-muted"><Trans t={t} i18nKey="plan.state.offShort" components={{ a: feedsLink }} /></p><div><TurnOnFeeds feeds={off} /></div></div> : (
+      <Notice tone="off" title={t('plan.state.offTitle')} info={t('plan.state.offBodyInfo')} actions={actions}>
         <p>{t('plan.state.offBody')}</p>
       </Notice>
     )
@@ -175,8 +242,8 @@ export function PlanDataState({ plan, compact = false }: { plan: Plan; compact?:
   if (off.length) parts.push(t('plan.state.someOff', { feeds: off.map(name).join(t('plan.and')) }))
   if (loading.length) parts.push(t('plan.state.loading', { feeds: loading.map(name).join(t('plan.and')) }))
   if (!parts.length) return null
-  return compact ? <p className="text-sm text-muted">{parts.join(' ')} <Link to="/settings/feeds" className="text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link></p> : (
-    <Notice tone="off" title={t('plan.state.partialTitle')} info={loading.length ? t('plan.state.loadingInfo') : undefined} actions={<Link to="/settings/feeds" className="text-sm text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link>}>
+  return compact ? <div className="grid gap-2"><p className="text-sm text-muted">{parts.join(' ')} {openFeeds}</p>{off.length ? <div><TurnOnFeeds feeds={off} /></div> : null}</div> : (
+    <Notice tone="off" title={t('plan.state.partialTitle')} info={loading.length ? t('plan.state.loadingInfo') : undefined} actions={off.length ? actions : openFeeds}>
       <p>{parts.join(' ')}</p>
     </Notice>
   )

@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Copy, FlaskConical, Pencil, Play, Plus, Trash2 } from 'lucide-react'
 import { InfoTip } from '@/components/common/InfoTip'
-import { Notice, Panel, Section } from '@/components/common/PageHeader'
+import { Notice, Section } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
+import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -20,7 +22,7 @@ import { RiskChip } from './parts'
 import { RuleDialog, SimResult } from './RuleEditor'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Rule, RuleInput, Simulation } from './types'
+import type { EventView, Rule, RuleInput, Simulation } from './types'
 import { useFrozen } from './frozen'
 
 const toInput = (r: Rule): RuleInput => ({ name: r.name, enabled: r.enabled, live: r.live, trigger: r.trigger, match: r.match, conditions: r.conditions, actions: r.actions, pre_approved: r.pre_approved, max_per_hour: r.max_per_hour, schedule_min: r.schedule_min })
@@ -77,7 +79,7 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
   const name = (id: string) => cat.data?.items.find((a) => a.id === id)?.name ?? id
   const tname = trig.data?.items.find((x) => x.id === rule.trigger)?.name ?? rule.trigger
   return (
-    <Panel className="grid gap-3 p-4">
+    <Card className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-3">
           <Switch id={`rs-${rule.id}`} checked={rule.enabled} disabled={!admin || save.isPending || (frozen && !rule.enabled)} title={frozen && !rule.enabled ? t('leaving.frozen') : undefined} aria-label={t('rules.enabledLabel', { name: rule.name })}
@@ -105,8 +107,8 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
         <div className="flex gap-2"><dt className="w-12 shrink-0 text-muted">{t('rules.then')}</dt>
           <dd><ol className="grid gap-0.5">{rule.actions.map((a, i) => <li key={i}>{i + 1}. {name(a.action_id)} <span className="text-muted">({a.ttl_min ? t('rules.undoIn', { time: mins(a.ttl_min) }) : t('rules.noUndoTime')})</span></li>)}</ol></dd></div>
       </dl>
-      <p className="text-[12px] text-muted">{t('rules.limit', { n: rule.max_per_hour })} {rule.last_fired ? t('rules.lastFired', { time: fmtDateTime(rule.last_fired) }) : t('rules.neverFired')}</p>
-      {!rule.live && rule.enabled ? <div className="flex items-center gap-1 text-[13px] text-muted"><p>{t('rules.dryNote')}</p><InfoTip topic={t('rules.dryRun')}>{t('rules.dryNoteInfo')}</InfoTip></div> : null}
+      <p className="text-caption text-muted">{t('rules.limit', { n: rule.max_per_hour })} {rule.last_fired ? t('rules.lastFired', { time: fmtDateTime(rule.last_fired) }) : t('rules.neverFired')}</p>
+      {!rule.live && rule.enabled ? <div className="flex items-center gap-1 text-meta text-muted"><p>{t('rules.dryNote')}</p><InfoTip topic={t('rules.dryRun')}>{t('rules.dryNoteInfo')}</InfoTip></div> : null}
       {rule.trigger === 'manual' && !frozen ? <ManualRun rule={rule} /> : null}
       {result ? <SimResult s={result} /> : null}
       {live ? <LiveDialog rule={rule} onClose={() => setLive(false)} /> : null}
@@ -121,7 +123,7 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
           </DialogContent>
         </Dialog>
       ) : null}
-    </Panel>
+    </Card>
   )
 }
 
@@ -142,13 +144,13 @@ function Templates() {
             const gone = unavailable(tp.rule.trigger)
             return (
             <li key={tp.id}>
-              <Panel className="grid h-full content-start gap-2 p-4">
+              <Card className="grid h-full content-start gap-2">
                 <div className="flex flex-wrap items-start justify-between gap-2"><h3 className="text-sm font-semibold">{tp.name}</h3><div className="flex gap-2"><RiskChip risk={tp.risk} />{tp.approvals > 1 ? <Chip tone="warn">{t('request.twoApprovers')}</Chip> : null}</div></div>
-                <p className="text-[13px] text-muted">{tp.description}</p>
-                {gone ? <p className="text-[13px] text-warn">{t('templates.notHere')}</p> : null}
+                <p className="text-meta text-muted">{tp.description}</p>
+                {gone ? <p className="text-meta text-warn">{t('templates.notHere')}</p> : null}
                 <div><Button size="sm" disabled={!admin || gone || clone.isPending} title={!admin ? t('common:needRole', { role: t('common:role.admin') }) : gone ? t('templates.notHere') : undefined} aria-label={t('templates.cloneFor', { name: tp.name })}
                   onClick={() => clone.mutate(tp.id, { onSuccess: () => toast.success(t('templates.cloned')), onError: (e) => toast.error(errText(e)) })}><Copy className="size-4" aria-hidden />{t('templates.clone')}</Button></div>
-              </Panel>
+              </Card>
             </li>
             )
           })}
@@ -165,30 +167,20 @@ function Events() {
   const q = useEvents()
   const run = useRunRules()
   const noHoneypot = useModuleAvailable('honeypot') === false // D-390: the text does not promise honeypot touches where there are none
+  const columns: ColumnDef<EventView>[] = [
+    { id: 'ts', header: t('det.time'), accessorFn: (d) => d.ts, cell: ({ row }) => <span className="whitespace-nowrap">{fmtDateTime(row.original.ts)}</span> },
+    { id: 'what', header: t('det.what'), accessorFn: (d) => d.summary, cell: ({ row }) => <>{row.original.summary} <span className="text-muted">({t(`rules.triggerShort.${row.original.trigger}`)})</span></> },
+    { id: 'handled', header: t('det.handled'), enableSorting: false, cell: ({ row }) => (row.original.handled_by.length ? row.original.handled_by.join(', ') : <span className="text-muted">{t('det.notYet')}</span>) },
+  ]
   return (
     <Section title={t('det.title')} description={t('det.description')} info={t(noHoneypot ? 'det.descriptionNoTrapsInfo' : 'det.descriptionInfo')} stories={['S-RESP-3']}
       actions={import.meta.env.VITE_API_MOCK !== 'off' && !frozen ? <Button disabled={!operator || run.isPending} title={!operator ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
         onClick={() => run.mutate(undefined, { onSuccess: (r) => toast.success(t('det.ran', r)), onError: (e) => toast.error(errText(e)) })}>{t('det.run')}</Button> : undefined}>
       {q.isPending ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : q.data.items.length ? (
         <>
-          <Panel>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <caption className="sr-only">{t('det.title')}</caption>
-                <thead><tr className="border-b border-rule text-left text-[12px] text-muted"><th scope="col" className="px-3 py-2 font-medium">{t('det.time')}</th><th scope="col" className="px-3 py-2 font-medium">{t('det.what')}</th><th scope="col" className="px-3 py-2 font-medium">{t('det.handled')}</th></tr></thead>
-                <tbody className="divide-y divide-rule">
-                  {q.data.items.map((d) => (
-                    <tr key={d.id} className="align-top">
-                      <td className="whitespace-nowrap px-3 py-2">{fmtDateTime(d.ts)}</td>
-                      <td className="px-3 py-2">{d.summary} <span className="text-muted">({t(`rules.triggerShort.${d.trigger}`)})</span></td>
-                      <td className="px-3 py-2">{d.handled_by.length ? d.handled_by.join(', ') : <span className="text-muted">{t('det.notYet')}</span>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Panel>
-          {import.meta.env.VITE_API_MOCK !== 'off' ? <div className="mt-2 flex items-center gap-1 text-[13px] text-muted"><p>{t('det.previewNote')}</p><InfoTip topic={t('det.title')}>{t('det.previewNoteInfo')}</InfoTip></div> : null}
+          <DataTable caption={t('det.title')} data={q.data.items} columns={columns} pageSize={50}
+            mobileRow={(d) => <div className="grid gap-0.5 text-sm"><span>{d.summary} <span className="text-muted">({t(`rules.triggerShort.${d.trigger}`)})</span></span><span className="text-meta text-muted">{fmtDateTime(d.ts)}, {d.handled_by.length ? d.handled_by.join(', ') : t('det.notYet')}</span></div>} />
+          {import.meta.env.VITE_API_MOCK !== 'off' ? <div className="mt-2 flex items-center gap-1 text-meta text-muted"><p>{t('det.previewNote')}</p><InfoTip topic={t('det.title')}>{t('det.previewNoteInfo')}</InfoTip></div> : null}
         </>
       ) : <p className="text-sm text-muted">{t('det.empty')}</p>}
     </Section>
@@ -208,7 +200,7 @@ export function RulesTab() {
       <Section title={t('rules.title')} description={t('rules.description')} info={t('rules.descriptionInfo')} stories={['S-RESP-3']}
         actions={admin && !frozen ? <Button variant="primary" onClick={() => setEdit('new')}><Plus className="size-4" aria-hidden />{t('rules.add')}</Button> : undefined}>
         <div className="grid gap-4">
-          <p className="rounded-md border border-rule bg-surface px-4 py-3 text-sm">{t('rules.safetyNote')} {admin ? <Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link> : null}</p>
+          <Card className="text-sm"><p>{t('rules.safetyNote')} {admin ? <Link className="text-accent underline underline-offset-4" to="/settings/response#resp-breaker">{t('blocked.toSettings')}</Link> : null}</p></Card>
           {rules.data.items.length ? rules.data.items.map((r) => <RuleCard key={r.id} rule={r} onEdit={() => setEdit(r)} />) : <p className="text-sm text-muted">{t('rules.empty')}</p>}
         </div>
       </Section>

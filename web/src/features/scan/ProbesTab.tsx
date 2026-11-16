@@ -32,7 +32,7 @@ export function ProbesTab() {
           <div className="grid gap-3">
             <p className="text-[13px] text-muted">{t('probes.retention', { days: d.retention_days, count: d.items.length, oldest: fmtDate(d.items.at(-1)?.ts) })}</p>
             <DataTable caption={t('probes.caption')} data={d.items} columns={columns} filterPlaceholder={t('probes.filter')} pageSize={15}
-              empty={<EmptyState title={t('probes.empty')}>{t('probes.emptyHelp')}</EmptyState>} initialSort={[{ id: 'ts', desc: true }]} />
+              empty={<EmptyState title={t('probes.empty')}>{t('probes.emptyHelp')}</EmptyState>} emptyFiltered={t('probes.noMatch')} initialSort={[{ id: 'ts', desc: true }]} />
           </div>
         )}
       </QueryState>

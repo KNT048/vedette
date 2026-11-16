@@ -6,6 +6,7 @@ import { Chip, type Tone } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
+import { DependencyLink } from '@/components/common/DependencyLink'
 import { dateText, dateTimeText } from './dates'
 import { InfoLine } from './InfoLine'
 import { useGreenbone, useSetGreenbone } from './api'
@@ -24,9 +25,11 @@ const gb = (n: number | null) => (n === null ? null : `${(Math.floor(n / 1e8) / 
  * S-EXP-2 (INV-25, D-563): the optional deep scan with Greenbone (OpenVAS), off by default, admin only. The box measures its memory and
  * free disk first and refuses with the numbers; the first start loads Greenbone's feed for about 2 hours, shown as a phase.
  */
-export function GreenboneSetting() {
+export function GreenboneSetting({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation('exposure')
   const q = useGreenbone()
+  // #850: on the OpenVAS engine card of Settings › Scanning the card's switch turns it on or off; this shows its state and needs only
+  if (embedded) return <QueryState query={q}>{(g) => <GreenboneBody g={g} embedded />}</QueryState>
   return (
     <Section id="greenbone" title={t('greenbone.title')} description={t('greenbone.description')} info={<>
       <p>{t('greenbone.descriptionInfo')}</p><p>{t('greenbone.what')}</p><p>{t('greenbone.apart')}</p><p>{t('greenbone.weekly')}</p><p>{t('greenbone.offKeeps')}</p>
@@ -36,7 +39,7 @@ export function GreenboneSetting() {
   )
 }
 
-function GreenboneBody({ g }: { g: Greenbone }) {
+function GreenboneBody({ g, embedded = false }: { g: Greenbone; embedded?: boolean }) {
   const { t } = useTranslation('exposure')
   const can = useCan('admin')
   const set = useSetGreenbone()
@@ -50,18 +53,19 @@ function GreenboneBody({ g }: { g: Greenbone }) {
   })
   const p = g.preflight
   const f = g.feed_sync
+  const Box = embedded ? 'div' : Panel
   return (
-    <Panel className="grid max-w-3xl gap-4 p-4">
+    <Box className={embedded ? 'grid max-w-3xl gap-4' : 'grid max-w-3xl gap-4 p-4'}>
       <p className="flex flex-wrap items-center gap-2 text-sm font-medium" role="status">
         <Chip tone={STATE_TONE[g.state]}>{t(`greenbone.state.${g.state}`)}</Chip>
         {g.state === 'loading' ? g.reason ?? t('greenbone.loading') : g.state === 'error' || g.state === 'unavailable' ? g.reason : t(`greenbone.stateText.${g.state}`)}
       </p>
-      {heldOn ? (
+      {heldOn ? (embedded ? null : (
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={() => change(false)} disabled={!can || set.isPending} title={locked}>{t('greenbone.disable')}</Button>
-          <span className="text-[12px] text-muted">{t('greenbone.heldOn')}</span>
+          <span className="text-caption text-muted">{t('greenbone.heldOn')}</span>
         </div>
-      ) : g.state === 'unavailable' ? null : (
+      )) : g.state === 'unavailable' ? null : (
         <>
           <KeyValue items={[
             { label: t('greenbone.memory'), value: gb(p.memory_bytes) ?? t('common:unknown') },
@@ -74,21 +78,21 @@ function GreenboneBody({ g }: { g: Greenbone }) {
             ...(f.last_at ? [{ label: t('greenbone.feedLast'), value: `${dateTimeText(f.last_at)}. ${f.note ?? ''}` }] : []),
             ...(f.next_at ? [{ label: t('greenbone.feedNext'), value: dateTimeText(f.next_at) }] : []),
           ]} />
-          {!on ? <InfoLine className="text-[13px]" topic={t('greenbone.needsTopic')} info={t('greenbone.needsInfo')}>{t('greenbone.needs')}</InfoLine> : null}
-          {(!on || (g.state === 'loading' && !f.last_at)) && p.ok && p.memory_bytes != null && p.memory_bytes < SWAP_BELOW ? <InfoLine className="text-[13px] text-muted" topic={t('greenbone.memory')} info={t('greenbone.swapNoteInfo')}>{t('greenbone.swapNote')}</InfoLine> : null}
+          {!on ? <InfoLine className="text-meta" topic={t('greenbone.needsTopic')} info={t('greenbone.needsInfo')}>{t('greenbone.needs')}</InfoLine> : null}
+          {(!on || (g.state === 'loading' && !f.last_at)) && p.ok && p.memory_bytes != null && p.memory_bytes < SWAP_BELOW ? <InfoLine className="text-meta text-muted" topic={t('greenbone.memory')} info={t('greenbone.swapNoteInfo')}>{t('greenbone.swapNote')}</InfoLine> : null}
           {!on && !p.ok ? <p role="alert" className="text-sm text-warn">{p.reason}</p> : null}
-          <div className="flex flex-wrap items-center gap-3">
+          {embedded ? null : <div className="flex flex-wrap items-center gap-3">
             {on ? (
               <Button onClick={() => change(false)} disabled={!can || set.isPending} title={locked}>{t('greenbone.disable')}</Button>
             ) : (
               <Button variant="primary" onClick={() => change(true)} disabled={!can || !p.ok || set.isPending} title={locked ?? (p.ok ? undefined : p.reason ?? undefined)}>{t('greenbone.enable')}</Button>
             )}
-            {g.changed_by && g.changed_at ? <span className="text-[12px] text-muted">{t(on ? 'greenbone.changedOn' : 'greenbone.changedOff', { by: g.changed_by, time: dateTimeText(g.changed_at) })}</span> : null}
-          </div>
-          {locked ? <p className="text-[13px] text-muted">{locked}</p> : null}
+            {g.changed_by && g.changed_at ? <span className="text-caption text-muted">{t(on ? 'greenbone.changedOn' : 'greenbone.changedOff', { by: g.changed_by, time: dateTimeText(g.changed_at) })}</span> : null}
+          </div>}
+          {locked && !embedded ? <p className="text-meta text-muted">{locked}</p> : null}
         </>
       )}
-    </Panel>
+    </Box>
   )
 }
 
@@ -100,6 +104,14 @@ function FeedTests({ g }: { g: Greenbone }) {
     return <InfoLine topic={t('greenbone.feedTests')} info={t('greenbone.feedTestsInfo', { version: feed.nvt_version })}>{feed.nvt_date ? dateText(feed.nvt_date) : feed.nvt_version}</InfoLine>
   }
   return <>{g.changed_at ? t('greenbone.feedFirstDoneAt', { time: dateTimeText(g.changed_at) }) : t('greenbone.feedFirstDone')}</>
+}
+
+/** docs/UI.md §0: OpenVAS did not run because it is off: the place to turn it on, on the External exposure page. */
+function OpenVasOffLink() {
+  const { t } = useTranslation('exposure')
+  const q = useGreenbone()
+  if (q.data?.state !== 'off') return null
+  return <DependencyLink className="mt-2" reason={t('greenbone.offReason')} to="/exposure?tab=targets#greenbone" label={t('greenbone.offLink')} />
 }
 
 /** A snapshot read from a box older than greenbone_run (or the mock's stored days) has none: the lines say what happened. */
@@ -158,9 +170,9 @@ export function GreenboneSection({ s }: { s: Snapshot }) {
     { id: 'port', header: t('greenbone.col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="tabular-nums">{row.original.port || t('common:unknown')}</span> },
     { id: 'qod', header: t('greenbone.col.qod'), accessorFn: (r) => r.qod, cell: ({ row }) => <span className="tabular-nums">{row.original.qod}%</span> },
     { id: 'cves', header: t('greenbone.col.cves'), enableSorting: false, accessorFn: (r) => r.cves.join(' '), cell: ({ row }) => (
-      row.original.cves.length > 0 ? <span className="grid gap-0.5 text-[12px]">{row.original.cves.map((c) => <span key={c}>{c}</span>)}</span> : <span className="text-[12px] text-muted">{t('greenbone.noCve')}</span>
+      row.original.cves.length > 0 ? <span className="grid gap-0.5 text-caption">{row.original.cves.map((c) => <span key={c}>{c}</span>)}</span> : <span className="text-caption text-muted">{t('greenbone.noCve')}</span>
     ) },
-    { id: 'solution', header: t('greenbone.col.solution'), enableSorting: false, accessorFn: (r) => r.solution, cell: ({ row }) => <span className="text-[13px]">{row.original.solution}</span> },
+    { id: 'solution', header: t('greenbone.col.solution'), enableSorting: false, accessorFn: (r) => r.solution, cell: ({ row }) => <span className="text-meta">{row.original.solution}</span> },
   ]
   const emptyBody = run.state === 'running' ? (started ? t('greenbone.results.runningBody', { time: started }) : t('greenbone.results.runningBodyNoTime'))
     : run.state === 'done' ? t('greenbone.results.noneBody')
@@ -174,9 +186,9 @@ export function GreenboneSection({ s }: { s: Snapshot }) {
         {shown ? (
           <DataTable caption={t('greenbone.results.caption')} data={findings} columns={cols} pageSize={20} initialSort={[{ id: 'severity', desc: true }]} rowTone={(r) => (r.severity >= 7 ? 'warn' : undefined)} />
         ) : (
-          <EmptyState title={t(EMPTY_TITLE[run.state])} info={emptyInfo}>{emptyBody}</EmptyState>
+          <EmptyState title={t(EMPTY_TITLE[run.state])} info={emptyInfo}>{emptyBody}{run.state === 'not_run' ? <OpenVasOffLink /> : null}</EmptyState>
         )}
-        {started && run.state !== 'running' ? <p className="mt-2 text-[12px] text-muted">{t('greenbone.results.startedAt', { time: started })}</p> : null}
+        {started && run.state !== 'running' ? <p className="mt-2 text-caption text-muted">{t('greenbone.results.startedAt', { time: started })}</p> : null}
       </Section>
       {read && notes.length > 0 ? (
         <Section id="greenbone-notes" title={t('greenbone.results.notesTitle')} description={t('greenbone.results.notesHeader')} info={t('greenbone.results.notesHeaderInfo')}>

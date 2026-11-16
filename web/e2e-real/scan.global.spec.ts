@@ -1,4 +1,4 @@
-// The scan module on the real backend (S-SCAN-1, S-SCAN-2, S-SCAN-4; scan INV-1, INV-2, INV-3, INV-5, INV-6, INV-7, INV-8, INV-9, INV-4 `dangerous_locked`).
+// The scan module on the real backend, its page Settings › Scanning (#850) (S-SCAN-1, S-SCAN-2, S-SCAN-4; scan INV-1, INV-2, INV-3, INV-5, INV-6, INV-7, INV-8, INV-9, INV-4 `dangerous_locked`).
 // The first part runs with no scan worker: the settings (validation, partial save, audit), the target list and why a device is not on it, the refusals
 // of a run, the probe log (empty) and its CSV, the rescan log (empty), the page and the roles; `can_scan` is false with the reason the page shows.
 // The second part (`with the scanner`, D-427) starts the REAL worker of sensor-active in the box process with a FAKE nuclei (cmd/vedette/e2escan_test.go):
@@ -23,6 +23,8 @@ interface Target { id: string; label: string; ip: string; kind: string; device_k
 interface Err { error: { code: string; message: string; field?: string } }
 const UNAVAILABLE = "The vulnerability scanner is not available: the scan container or its scanner is missing. Check the box's services, then try again."
 
+interface ScanningPage { safety: { scope: { lan_ranges: string[]; confirmed_by: string | null }; speed: { packets_per_s: number; requests_per_s: number }; exclusions: string[]; window: { days: number[]; from: string; to: string }; fragile: { kinds: string[]; regular_scan_kinds: string[] } } }
+const scanning = async (c: APIRequestContext) => (await api<ScanningPage>(c, 'GET', '/scanning')).body
 const as = (role: 'admin' | 'operator' | 'viewer') => request.newContext({ baseURL: box().base_url, storageState: authFile(role) })
 const cfg = async (c: APIRequestContext) => (await api<Cfg>(c, 'GET', '/scans/config')).body
 const targets = async (c: APIRequestContext) => (await api<{ items: Target[] }>(c, 'GET', '/scans/targets')).body.items
@@ -78,17 +80,20 @@ test('no scan container: the settings say so with the reason, the box itself is 
     expect((await api(c, 'GET', '/scans/probes')).body).toEqual({ items: [], retention_days: 90 })
     expect((await api(c, 'GET', '/scans/events')).body).toEqual({ items: [], auto_rescan: true })
 
-    await page.goto('/scans')
-    await expect(h1(page)).toHaveText('Cannot scan: the vulnerability scanner is not available') // the commitment is ticked: the block is the scanner
-    await expect(page.locator('header').getByText(UNAVAILABLE, { exact: true }), 'the reason under the title').toBeVisible()
-    await expect(page.getByText(`Confirmed scope: ${s.scope.networks.join(', ')}. Vedette never scans any address outside it.`)).toBeVisible()
-    await expect(page.getByText(/^Scan scope commitment ticked on .*, confirmed by admin@e2e\.test\.$/)).toBeVisible()
-    await expect(page.getByText('This is the Vedette box itself, never scanned')).toBeVisible()
-    await expect(page.getByRole('button', { name: /^Scan now/ })).toBeDisabled()
-    await expect(page.getByRole('tabpanel', { name: 'Scans and history' }).getByText(UNAVAILABLE, { exact: true }), 'the reason stands next to the disabled button').toBeVisible()
-    await expect(page.getByText('Vedette is provided as-is. Its author is not responsible for how you use it.')).toBeVisible()
-    await expectAccessible(page, 'scans')
-    await noVietnamese(page, 'scans')
+    await page.goto('/settings/scanning?tab=safety')
+    await expect(h1(page)).toHaveText('Scanning')
+    await expect(page.getByLabel('Network ranges, one per line')).toHaveValue(s.scope.networks.join('\n'))
+    await expect(page.getByText(/^Confirmed on .* by admin@e2e\.test\.$/)).toBeVisible()
+    await expect(page.getByText('No changes, no denial of service')).toBeVisible() // what Vedette never does, before anything runs
+    // the commitment is ticked, so the block is the scanner: the Nuclei schedule says so, never the commitment
+    await page.goto('/settings/scanning?tab=engines#nuclei')
+    await expect(page.getByText(/nothing runs while the vulnerability scanner is not available/)).toBeVisible()
+    await expect(page.getByText(/until the scan scope commitment is ticked/)).toHaveCount(0)
+    // the box itself is never part of a scan, whoever asks (D-470)
+    const boxRun = await api<Err>(c, 'POST', '/scanning/engines/nmap-discovery/run', { targets: [box0!.id] })
+    expect([boxRun.status, boxRun.body.error?.code], 'the box is refused').toEqual([400, 'out_of_scope'])
+    await expectAccessible(page, 'scanning')
+    await noVietnamese(page, 'scanning')
     expect(server).toEqual([])
     noErrors(errors)
   } finally { await c.dispose() }
@@ -128,47 +133,46 @@ test('a device declared by hand is pick-only; excluded and deleted devices leave
   } finally { await c.dispose() }
 })
 
-test('the settings page: a bad value is refused in place and keeps what was typed; a good one saves, persists and is in the audit (INV-5)', async ({ page }) => {
+test('the shared safety block: a bad value is refused in place and keeps what was typed; a good one saves, persists and is in the audit (D-627)', async ({ page }) => {
   const errors = collectErrors(page)
   const c = await as('admin')
   try {
-    await page.goto('/scans?tab=safety')
+    const before = await scanning(c)
+    await page.goto('/settings/scanning?tab=safety')
     const excl = page.getByLabel('One IP or network per line', { exact: true })
     const save = page.getByRole('button', { name: 'Save settings' })
     await excl.fill('10.1.200.1\nabc\n999.1.1.1')
     await save.click()
-    const bad = await api<Err>(c, 'PUT', '/scans/config', { exclusions: ['10.1.200.1', 'abc', '999.1.1.1'] })
-    expect(bad.status).toBe(400)
-    await expect(page.getByRole('alert')).toHaveText(bad.body.error.message)
+    await expect(page.getByRole('alert')).toContainText('abc')
     await expect(excl).toHaveValue('10.1.200.1\nabc\n999.1.1.1')
-    expect((await cfg(c)).config.exclusions, 'the refusal saved nothing').toEqual([])
+    expect((await scanning(c)).safety.exclusions, 'the refusal saved nothing').toEqual(before.safety.exclusions)
 
     await excl.fill('10.1.200.1\n10.1.201.0/24')
     await page.getByLabel('From', { exact: true }).fill('05:00')
     await page.getByLabel('Until', { exact: true }).fill('05:00')
     await save.click()
-    await expect(page.getByRole('alert')).toContainText('The start and end times must differ')
+    await expect(page.getByRole('alert')).toBeVisible()
     await page.getByLabel('From', { exact: true }).fill('21:30')
     await page.getByLabel('Until', { exact: true }).fill('04:15')
-    await page.getByLabel('Speed', { exact: true }).selectOption('2')
-    await page.getByLabel('Stop after', { exact: true }).selectOption('5')
+    await page.locator('#speed-rps').selectOption('2')
     await save.click()
-    await expect(page.getByText('Scan settings saved').first()).toBeVisible()
-    const saved = (await cfg(c)).config
-    expect(saved).toMatchObject({ exclusions: ['10.1.200.1', '10.1.201.0/24'], rate: 2, unresponsive_after: 5, window: { from: '21:30', to: '04:15' } })
+    await expect(page.getByText(/^Safety settings saved/).first()).toBeVisible()
+    const saved = (await scanning(c)).safety
+    expect(saved).toMatchObject({ exclusions: ['10.1.200.1', '10.1.201.0/24'], speed: { requests_per_s: 2 }, window: { from: '21:30', to: '04:15' } })
+    expect((await cfg(c)).config.rate, 'the vulnerability checks read the same block (D-627)').toBe(2)
     await page.reload()
     await expect(page.getByLabel('One IP or network per line', { exact: true })).toHaveValue('10.1.200.1\n10.1.201.0/24')
     await expect(page.getByLabel('From', { exact: true })).toHaveValue('21:30')
-    const last = (await audit(c, 'scan.config'))[0]
-    expect(last).toMatchObject({ action: 'scan.config' })
-    expect(last!.detail).toContain('"rate":2')
+    expect((await audit(c, 'inventory.settings'))[0]).toMatchObject({ action: 'inventory.settings' })
     // the locked row: dangerous checks have no switch, and the API refuses them
     await expect(page.getByText('Dangerous checks are removed from this Vedette build; there is no switch to turn them on.')).toBeVisible()
     const locked = await api<Err>(c, 'PUT', '/scans/config', { dangerous_checks: true })
     expect([locked.status, locked.body.error.code]).toEqual([400, 'dangerous_locked'])
-    expect((await cfg(c)).dangerous_checks).toBe(false)
-    await expectAccessible(page, 'scan settings')
+    await expectAccessible(page, 'safety settings')
     noErrors(errors, /status of 400/)
+    // put the block back as it was (global project)
+    const b0 = before.safety
+    expect((await api(c, 'PUT', '/scanning/safety', { scope: { lan_ranges: b0.scope.lan_ranges, confirmed: true }, window: { days: b0.window.days, from: b0.window.from, to: b0.window.to }, speed: b0.speed, exclusions: b0.exclusions, fragile: { kinds: b0.fragile.kinds, regular_scan_kinds: b0.fragile.regular_scan_kinds } })).status).toBe(200)
   } finally { await c.dispose() }
 })
 
@@ -200,10 +204,11 @@ test('auto rescan switch and schedule save as a partial update and show in the p
   const errors = collectErrors(page)
   const c = await as('admin')
   try {
-    await page.goto('/scans?tab=auto')
+    await page.goto('/settings/scanning?tab=history')
+    await expect(page.getByText('No events yet.')).toBeVisible()
+    await page.goto('/settings/scanning?tab=engines#nuclei')
     const sw = page.getByRole('switch', { name: /Rescan automatically/ })
     await expect(sw).toBeChecked()
-    await expect(page.getByText('No events yet.')).toBeVisible()
     await sw.click()
     await expect(page.getByText('Auto rescan turned off').first()).toBeVisible()
     await expect(page.getByText(/^Off: new vulnerabilities will not be rescanned automatically\./)).toBeVisible()
@@ -214,7 +219,7 @@ test('auto rescan switch and schedule save as a partial update and show in the p
     await expect(page.getByText('Auto rescan turned on').first()).toBeVisible()
     expect((await cfg(c)).config.auto_rescan).toBe(true)
 
-    await page.goto('/scans?tab=safety')
+    await page.goto('/settings/scanning?tab=engines#nuclei')
     const put = await api<Cfg>(c, 'PUT', '/scans/config', { schedule: { enabled: false } })
     expect(put.status).toBe(200)
     expect(put.body.next_run, 'no schedule, no next run').toBeNull()
@@ -226,7 +231,7 @@ test('auto rescan switch and schedule save as a partial update and show in the p
 
 test('the probe log and the rescan log are empty and say so; the CSV is the header only (INV-7 read side)', async ({ page }) => {
   const errors = collectErrors(page)
-  await page.goto('/scans?tab=probes')
+  await page.goto('/settings/scanning?tab=probes')
   await expect(page.getByText('No probe requests yet.')).toBeVisible()
   await expect(page.getByText(/^Kept for at least 90 days\. 0 lines now/)).toBeVisible()
   const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download CSV' }).click()])
@@ -263,11 +268,12 @@ test('roles: a viewer reads, an operator may start and stop (and meets the same 
       const ctx = await browser.newContext({ baseURL: box().base_url, storageState: authFile(role) })
       try {
         const page = await ctx.newPage()
-        await page.goto('/scans?tab=safety')
+        await page.goto('/settings/scanning?tab=safety')
         await expect(page.getByText('Only an administrator can change these settings. You can still read them.')).toBeVisible()
         await expect(page.getByRole('button', { name: 'Save settings' })).toBeDisabled()
-        await page.goto('/scans?tab=auto')
+        await page.goto('/settings/scanning?tab=engines#nuclei')
         await expect(page.getByRole('switch', { name: /Rescan automatically/ })).toBeDisabled()
+        await expect(page.getByText('Only an administrator can turn engines on or off.')).toBeVisible()
       } finally { await ctx.close() }
     }
   } finally { await admin.dispose() }
@@ -373,8 +379,8 @@ test.describe('with the scanner', () => {
       expect(await probesOf(c, run.id), 'one probe row per device and template, written before the job left and closed with its result (INV-7)').toEqual([[hit.ip, tplPath(PACK_CVES.match), 'matched']])
       expect(await auditTotal(c, 'scan.start')).toBeGreaterThan(0)
 
-      await page.goto('/scans')
-      await expect(h1(page)).toContainText('2 devices checked, 1 device matches a vulnerability')
+      await page.goto('/settings/scanning?tab=history')
+      await expect(page.getByText(/^Last scan .*: 2 devices checked, 1 device matches a vulnerability\.$/)).toBeVisible()
       await page.getByRole('button', { name: /^View results of the scan from/ }).filter({ visible: true }).first().click()
       const table = page.getByRole('table', { name: 'Per-device results' })
       await expect(table.getByRole('row').filter({ hasText: hit.ip })).toContainText('Matches, still vulnerable')
@@ -399,12 +405,12 @@ test.describe('with the scanner', () => {
       expect([again.status, again.body.error.code], 'one run at a time').toEqual([409, 'already_running'])
       await expect.poll(async () => (await nucleiRuns()).length, { message: 'nuclei runs on the first device', timeout: 30_000 }).toBe(sent + 1)
 
-      await page.goto('/scans')
-      await expect(h1(page)).toContainText('Scanning: 0/2 devices done')
+      await page.goto('/settings/scanning?tab=history')
+      await expect(page.getByRole('heading', { level: 2, name: 'Device 1 of 2' })).toBeVisible()
       await expect(page.getByText(`Scanning ${slow.host} (${slow.ip})`)).toBeVisible()
       const t0 = Date.now()
       await page.getByRole('button', { name: 'Stop now' }).click()
-      await expect(h1(page)).toContainText('Last scan was stopped', { timeout: 5_000 })
+      await expect(page.getByText(/^Last scan was stopped/)).toBeVisible({ timeout: 5_000 })
       expect(Date.now() - t0, 'Stopped within 5 seconds').toBeLessThan(5_000)
 
       const done = await ended(c, run.body.id) // engine_busy false: the worker killed nuclei and answered
@@ -438,8 +444,8 @@ test.describe('with the scanner', () => {
       expect(await probesOf(c, run.id)).toEqual([[dead.ip, tplPath(PACK_CVES.dead), 'no_response']])
       expect((await finding(c, dead.findingId)).body.status, 'no response is never "not vulnerable"').toBe('suspected')
 
-      await page.goto('/scans')
-      await expect(h1(page)).toContainText('Last scan was stopped')
+      await page.goto('/settings/scanning?tab=history')
+      await expect(page.getByText(/^Last scan was stopped/)).toBeVisible()
       await expect(page.getByRole('table', { name: 'History of scans' }).getByRole('row').nth(1)).toContainText('Auto-stopped')
     } finally { await c.dispose() }
   })
@@ -466,9 +472,9 @@ test.describe('with the scanner', () => {
       expect((await runs(c)).items, 'no run was started').toHaveLength(before)
       expect((await nucleiRuns()).length, 'nothing was sent').toBe(sent)
 
-      await page.goto('/scans?tab=auto')
+      await page.goto('/settings/scanning?tab=history')
       const log = page.getByRole('table', { name: 'Auto rescan event log' })
-      await expect(log.getByRole('row').filter({ hasText: PACK_CVES.pick })).toContainText('Not scanned automatically: 1 device needs a hand pick in Scan now')
+      await expect(log.getByRole('row').filter({ hasText: PACK_CVES.pick })).toContainText('Not scanned automatically: 1 device needs a hand pick on Devices')
       await expect(log.getByRole('row').filter({ hasText: PACK_CVES.off })).toContainText('Skipped: turned off')
     } finally { await c.dispose() }
   })

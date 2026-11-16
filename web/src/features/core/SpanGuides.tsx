@@ -31,17 +31,17 @@ export function SpanGuides({ spanPort }: { spanPort: string }) {
               <Chip tone={TONE[g.check]}>{t(`network.guides.check.${g.check}`)}</Chip>
             </div>
             <div className="flex items-center gap-1">
-              <p className="text-[13px] text-muted">{t('network.guides.replace')}</p>
+              <p className="text-meta text-muted">{t('network.guides.replace')}</p>
               <InfoTip topic={g.vendor}>{t('network.guides.replaceInfo', { port: spanPort })}</InfoTip>
             </div>
             {g.steps ? <ol className="grid max-w-2xl list-decimal gap-1 pl-5 text-sm">{g.steps.map((s) => <li key={s}>{s}</li>)}</ol> : null}
             {g.commands?.map((c) => <CodeBlock key={c.label} label={c.label} code={c.code} />)}
-            {g.notes.length ? <ul className="grid max-w-2xl list-disc gap-1 pl-5 text-[13px] text-muted">{g.notes.map((n) => <li key={n}>{n}</li>)}</ul> : null}
-            {g.source ? <a href={g.source} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1.5 text-[13px] text-accent underline-offset-4 hover:underline">{t('network.guides.source')}<ExternalLink className="size-3.5" aria-hidden /></a> : null}
+            {g.notes.length ? <ul className="grid max-w-2xl list-disc gap-1 pl-5 text-meta text-muted">{g.notes.map((n) => <li key={n}>{n}</li>)}</ul> : null}
+            {g.source ? <a href={g.source} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1.5 text-meta text-accent underline-offset-4 hover:underline">{t('network.guides.source')}<ExternalLink className="size-3.5" aria-hidden /></a> : null}
           </div>
         ) : <p className="text-sm text-muted">{t('network.guides.prompt')}</p>}
         <div className="flex items-center gap-1">
-          <p className="max-w-2xl text-[13px] text-muted">{t('network.guides.after')}</p>
+          <p className="max-w-2xl text-meta text-muted">{t('network.guides.after')}</p>
           <InfoTip topic={t('network.guides.title')}>{t('network.guides.afterInfo', { port: spanPort })}</InfoTip>
         </div>
       </div>

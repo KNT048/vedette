@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Section } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, Loading } from '@/components/common/States'
 import { Segmented } from '@/components/ui/segmented'
+import { Button } from '@/components/ui/button'
 import { useActions, usePlans } from './api'
 import { PlanView } from './parts'
 import { RequestCard } from './RequestCard'
@@ -22,7 +23,7 @@ function Plans() {
       {items.length ? (
         <div className="grid gap-6">{items.map((p) => <PlanView key={p.id} plan={p} heading />)}</div>
       ) : (
-        <EmptyState title={ai_available ? t('plans.empty') : t('plans.noAi')}>{ai_available ? t('plans.emptyBody') : <>{t('plans.noAiBody')} <Link className="text-accent underline underline-offset-4" to="/settings/ai">{t('plans.toAi')}</Link></>}</EmptyState>
+        <EmptyState title={ai_available ? t('plans.empty') : t('plans.noAi')}>{ai_available ? t('plans.emptyBody') : <>{t('plans.noAiBody')} <Link className="text-accent underline underline-offset-4" to="/settings/ai#ai-routing">{t('plans.toAi')}</Link></>}</EmptyState>
       )}
     </Section>
   )
@@ -59,7 +60,13 @@ export function RequestsTab() {
           <Segmented label={t('requests.risk')} value={risk} onChange={setRisk} options={[{ value: 'all', label: t('requests.anyRisk') }, ...(['high', 'medium', 'low'] as const).map((r) => ({ value: r, label: t(`catalog.risks.${r}`) }))]} />
         </div>}>
         {items.length ? <div className="grid gap-4">{items.map((a) => <RequestCard key={a.id} a={a} />)}</div>
-          : <EmptyState title={view === 'pending' ? t('requests.emptyPending') : t('requests.empty')} info={filtered ? t('requests.emptyFilteredInfo') : undefined}>{filtered ? t('requests.emptyFiltered') : t('requests.emptyBody')}</EmptyState>}
+          // UI.md §6: a filter that finds nothing is text only, with the way back to every request
+          : filtered ? (
+            <p role="status" className="flex flex-wrap items-center justify-center gap-x-2 rounded-md border border-rule bg-surface px-4 py-6 text-center text-sm text-muted">
+              {t('requests.emptyFiltered')}
+              <Button size="sm" variant="link" onClick={() => { setSrc('all'); setRisk('all') }}>{t('common:table.clearFilters')}</Button>
+            </p>
+          ) : <EmptyState title={view === 'pending' ? t('requests.emptyPending') : t('requests.empty')}>{t('requests.emptyBody')}</EmptyState>}
       </Section>
       {!pending ? <>{frozen ? null : <AiSetup />}<InboxWhy /></> : null}
       <Plans />

@@ -2,23 +2,21 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Check, Circle, OctagonX, Play } from 'lucide-react'
-import { InfoTip } from '@/components/common/InfoTip'
-import { Notice, Section, Panel } from '@/components/common/PageHeader'
+import { OctagonX } from 'lucide-react'
+import { Notice, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { useRowSelection } from '@/components/common/Selection'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { JobProgress } from '@/components/progress/JobProgress'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
+import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
-import { isLive, useRuns, useScanConfig, useStartRun, useStopRun, useTargets } from './api'
+import { isLive, useRuns, useStopRun } from './api'
 import { errMsg } from './errors'
 import { ResultChip, RunStatusChip } from './shared'
-import { TargetPicker } from './TargetPicker'
-import type { RunIdentRow, RunResultRow, ScanConfigResponse, ScanRun, ScanTarget } from './types'
+import { RescanLog } from './RescanLog'
+import type { RunIdentRow, RunResultRow, ScanRun } from './types'
 
 function Progress({ run }: { run: ScanRun }) {
   const { t } = useTranslation('scan')
@@ -45,98 +43,6 @@ function Progress({ run }: { run: ScanRun }) {
       {stopping ? null : <JobProgress progress={run.progress} className="mt-3 rounded-md bg-surface p-3" />}
       <p className="mt-2 text-[13px] text-muted">{t('progress.note')}</p>
     </section>
-  )
-}
-
-/** The most targets of one run (contract.ts POST /scans/runs, scan errTooMany). */
-const MAX_TARGETS = 200
-
-function Setup({ cfg, internal }: { cfg: ScanConfigResponse; internal: ScanTarget[] }) {
-  const { t } = useTranslation('scan')
-  const scopeOk = cfg.can_scan && cfg.scope.networks.length > 0
-  const devOk = internal.some((x) => x.selectable && !x.box) // the box alone does not finish setup: it is pick-only (D-470)
-  if (scopeOk && devOk) return null
-  const steps = [
-    { key: 'scope', ok: scopeOk, title: t('start.stepScope'), help: t('start.stepScopeHelp'), to: '/devices/setup', cta: t('start.openSetup') },
-    { key: 'devices', ok: devOk, title: t('start.stepDevices'), help: internal.length ? t('start.stepDevicesNoneOk') : t('start.stepDevicesNone'), to: '/devices', cta: t('start.openDevices') },
-  ]
-  return (
-    <Notice tone="warn" className="mb-0" title={t('start.setupTitle')} info={t('start.setupIntroInfo')}>
-      <p>{t('start.setupIntro')}</p>
-      <ol className="mt-3 grid gap-3 text-ink">
-        {steps.map((s, i) => (
-          <li key={s.key} className="flex items-start gap-3 text-sm">
-            {s.ok ? <Check className="mt-0.5 size-4 shrink-0 text-ok" aria-hidden /> : <Circle className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />}
-            <div className="grid gap-1">
-              <span className="font-medium">{i + 1}. {s.title} <span className="sr-only">({s.ok ? t('start.stepDone') : t('start.stepTodo')})</span></span>
-              {s.ok ? null : (
-                <>
-                  <span className="max-w-2xl text-[13px] text-muted">{s.help}</span>
-                  <Link to={s.to} className="w-fit text-accent underline underline-offset-4">{s.cta}</Link>
-                </>
-              )}
-            </div>
-          </li>
-        ))}
-      </ol>
-    </Notice>
-  )
-}
-
-function StartPanel({ targets, cfg, live, engineBusy }: { targets: ScanTarget[]; cfg: ScanConfigResponse; live: boolean; engineBusy: boolean }) {
-  const { t } = useTranslation('scan')
-  const can = useCan('operator')
-  const start = useStartRun()
-  const [params] = useSearchParams()
-  const [raw, rawOps] = useRowSelection(() => {
-    const bulk = targets.filter((x) => x.selectable && !x.pick_only)
-    const want = params.get('target')
-    // D-126 (2): only a person's own tick picks a fragile, unclassified or hand-declared device; the page never ticks one for them.
-    const hit = want ? bulk.find((x) => x.id === want) : undefined
-    if (want) return hit ? [hit.id] : [] // came for one device: tick nothing else
-    return bulk.filter((x) => x.findings > 0).map((x) => x.id)
-  })
-  const internal = targets.filter((x) => x.kind === 'internal')
-  // The ids the person ticked by hand: the only way a pick-only device gets in (D-126 (2)). Bulk actions never add here.
-  const [picks, pickOps] = useRowSelection()
-  const toggle = (id: string, v: boolean) => { rawOps.toggle(id, v); pickOps.toggle(id, v) }
-  // Security review M1: whenever the list refreshes, a device that became pick-only leaves a selection it entered without a tick.
-  const sel = useMemo(() => {
-    const byId = new Map(targets.map((x) => [x.id, x]))
-    return new Set([...raw].filter((id) => {
-      const x = byId.get(id)
-      return !!x && x.selectable && (!x.pick_only || picks.has(id))
-    }))
-  }, [raw, picks, targets])
-  const blocked = !cfg.can_scan ? cfg.block_reason : live ? t('start.busy') : engineBusy ? t('start.engineBusy') : !can ? t('common:needRole', { role: t('common:role.operator') })
-    : sel.size === 0 ? t('start.none') : sel.size > MAX_TARGETS ? t('start.tooMany', { max: MAX_TARGETS, count: sel.size }) : null
-  const c = cfg.config
-  return (
-    <div className="grid gap-4">
-      <Setup cfg={cfg} internal={internal} />
-      <Panel className="grid gap-1 p-4 text-sm">
-        <div className="flex items-start gap-1">
-          <p>{cfg.scope.networks.length ? t('start.scope', { networks: cfg.scope.networks.join(', ') }) : t('start.noNetworks')}</p>
-          <InfoTip topic={t('start.howTopic')}>
-            <p>{t('start.manualNote', { from: c.window.from, to: c.window.to, rate: c.rate })}</p>
-            <p>{t('start.safeNote')}</p>
-          </InfoTip>
-        </div>
-        <p className={cfg.scope.commitment ? 'text-muted' : 'text-danger'}>
-          {cfg.scope.commitment ? t('start.commitment', { date: fmtDate(cfg.scope.commitment.confirmed_at), by: cfg.scope.commitment.by }) : t('start.noCommitment')}
-        </p>
-        <p className="text-[13px] text-muted">{t('start.asIs')}</p>
-      </Panel>
-      <TargetPicker targets={targets} sel={sel} onToggle={toggle} onAdd={rawOps.add} onReplace={rawOps.replace}
-        onRemove={(ids) => { rawOps.remove(ids); pickOps.remove(ids) }} onClear={() => { rawOps.clear(); pickOps.clear() }} />
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="primary" disabled={!!blocked || start.isPending}
-          onClick={() => start.mutate([...sel], { onSuccess: () => toast.success(t('start.started')), onError: (e) => toast.error(errMsg(e)) })}>
-          <Play />{t('start.go', { count: sel.size })}
-        </Button>
-        {blocked ? <span className="text-[13px] text-muted">{blocked}</span> : null}
-      </div>
-    </div>
   )
 }
 
@@ -243,22 +149,21 @@ function Last({ run }: { run: ScanRun }) {
   )
 }
 
-export function RunsTab() {
+/** #850: Settings › Scanning › History: the run going on (with Stop now), the last one, every run with its results, and the automatic rescans. */
+export function HistoryTab() {
   const { t } = useTranslation('scan')
+  const [params] = useSearchParams()
   const runs = useRuns()
-  const cfg = useScanConfig()
-  const targets = useTargets()
   const live = runs.data?.items.find(isLive)
   const last = runs.data?.items.find((r) => !isLive(r))
   return (
     <>
       {live ? <Progress run={live} /> : last ? <Last run={last} /> : null}
-      <Section id="start" title={t('start.title')} description={t('start.description')} info={t('start.descriptionInfo')} stories={['S-SCAN-1', 'S-SCAN-4']}>
-        <QueryState query={targets}>{(d) => <QueryState query={cfg}>{(c) => <StartPanel targets={d.items} cfg={c} live={!!live} engineBusy={!!runs.data?.engine_busy} />}</QueryState>}</QueryState>
-      </Section>
       <Section id="history" title={t('hist.title')} description={t('hist.description')} info={t('hist.descriptionInfo')} stories={['S-SCAN-3']}>
-        <QueryState query={runs}>{(d) => <History runs={d.items} />}</QueryState>
+        {/* a link with another ?run= (a rescan's "see the run") opens that run: the table starts again from the link */}
+        <QueryState query={runs}>{(d) => <History key={params.get('run') ?? ''} runs={d.items} />}</QueryState>
       </Section>
+      <RescanLog />
     </>
   )
 }

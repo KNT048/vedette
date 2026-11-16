@@ -1,12 +1,15 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Notice, Section, Panel } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
+import { Notice, Section } from '@/components/common/PageHeader'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Select } from '@/components/ui/input'
+import { DependencyLink } from '@/components/common/DependencyLink'
+import { useCan } from '@/lib/session'
 import { fmtNumber, fmtRelative } from '@/lib/format'
 import { useProfiles } from '../api'
 import { fileBase64, useAddDoc, useDocJobs, useIndexProfile, useKnowledge, useRemoveDoc } from '../harness-api'
@@ -23,6 +26,7 @@ export default function KnowledgeTab() {
   const { t } = useTranslation('ai')
   const kb = useKnowledge()
   const profiles = useProfiles()
+  const admin = useCan('admin')
   const index = useIndexProfile()
   const add = useAddDoc()
   const remove = useRemoveDoc()
@@ -51,7 +55,7 @@ export default function KnowledgeTab() {
         return (
           <>
             <Section title={t('harness.knowledge.indexTitle')} description={t('harness.knowledge.indexBody')} info={t('harness.knowledge.indexInfo')} stories={['S-AI-7']}>
-              <Panel className="grid gap-3 p-4">
+              <Card className="grid gap-3">
                 <Field label={t('harness.knowledge.indexLabel')} htmlFor="kb-index" hint={t('harness.knowledge.indexHint')}>
                   <Select id="kb-index" className="max-w-sm" value={k.index_profile ?? ''} disabled={index.isPending}
                     onChange={(e) => index.mutate(e.target.value || null, { onSuccess: () => { add.reset(); toast.success(t('harness.knowledge.indexSaved')) } })}>
@@ -59,10 +63,13 @@ export default function KnowledgeTab() {
                     {list.map((p) => <option key={p.id} value={p.id} disabled={!p.usable}>{p.name} ({t(`profiles.location.${p.location}`)}){!p.usable ? ` - ${t('assign.optNoKey')}` : ''}</option>)}
                   </Select>
                 </Field>
+                {/* §0: no profile can index yet: the way to add one (the administrator's), not a select that offers only None */}
+                {profiles.data && !list.some((p) => p.usable) ? (admin ? <DependencyLink reason={t('harness.knowledge.noProfile')} to="/settings/ai?tab=profiles#ai-profiles" label={t('harness.knowledge.toProfiles')} />
+                  : <p className="text-meta text-muted">{t('harness.knowledge.noProfile')} {t('gate.askAdmin')}</p>) : null}
                 {chosen?.location === 'cloud' ? <Notice tone="warn" role="alert" title={t('harness.knowledge.cloudWarn', { host: hostOf(chosen.base_url) })} info={t('harness.knowledge.cloudWarnInfo')} /> : null}
-                {chosen?.location === 'internal' ? <p className="text-[13px] text-muted">{t('harness.knowledge.internalNote')}</p> : null}
+                {chosen?.location === 'internal' ? <p className="text-meta text-muted">{t('harness.knowledge.internalNote')}</p> : null}
                 <ActionError error={index.error} />
-              </Panel>
+              </Card>
             </Section>
             <Section title={t('harness.knowledge.title')} description={t('harness.knowledge.body')} info={t('harness.knowledge.bodyInfo')}
               actions={<><Button variant="primary" onClick={() => file.current?.click()} disabled={add.isPending || !k.index_profile} title={!k.index_profile ? t('harness.knowledge.needIndex') : undefined}>{add.isPending ? t('harness.knowledge.uploading') : t('harness.knowledge.upload')}</Button>
@@ -78,8 +85,8 @@ export default function KnowledgeTab() {
                         <Button size="sm" onClick={() => setDel(d)} aria-label={t('harness.deleteNamed', { name: d.name })}>{t('harness.delete')}</Button>
                       </>}>
                         <p className="flex flex-wrap items-center gap-2 font-medium">{d.name} <Chip tone={d.status === 'ready' ? 'ok' : 'warn'}>{t(`harness.knowledge.status.${d.status}`)}</Chip></p>
-                        <p className="text-[13px] text-muted">{size(d.size)} · {d.chunks === null ? t('harness.knowledge.noChunks') : t('harness.knowledge.chunks', { count: d.chunks, n: fmtNumber(d.chunks) })} · {fmtRelative(d.uploaded_at)}</p>
-                        <p className="text-[13px] text-muted">{t('harness.knowledge.usedBy', { jobs: jobNames(t, d.jobs) })}</p>
+                        <p className="text-meta text-muted">{size(d.size)} · {d.chunks === null ? t('harness.knowledge.noChunks') : t('harness.knowledge.chunks', { count: d.chunks, n: fmtNumber(d.chunks) })} · {fmtRelative(d.uploaded_at)}</p>
+                        <p className="text-meta text-muted">{t('harness.knowledge.usedBy', { jobs: jobNames(t, d.jobs) })}</p>
                       </Row>
                     ))}
                   </List>

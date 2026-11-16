@@ -1,6 +1,7 @@
-import { Link, useParams } from 'react-router'
+import { useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Printer } from 'lucide-react'
+import { Printer } from 'lucide-react'
+import { PageHeader } from '@/components/common/PageHeader'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { useMe } from '@/lib/session'
@@ -13,8 +14,8 @@ const PRINT_CSS = `
 @media print {
   body * { visibility: hidden !important; }
   .print-doc, .print-doc * { visibility: visible !important; }
-  .print-doc { position: absolute; left: 0; top: 0; width: 100%; background: #fff; color: #111; padding: 0 !important; border: 0 !important; }
-  .print-doc * { color: #111 !important; border-color: #bbb !important; background-color: transparent !important; }
+  .print-doc { position: absolute; left: 0; top: 0; width: 100%; background: white; color: black; padding: 0 !important; border: 0 !important; }
+  .print-doc * { color: black !important; border-color: silver !important; background-color: transparent !important; }
   .no-print { display: none !important; }
   @page { size: A4; margin: 16mm; }
 }`
@@ -24,13 +25,10 @@ function Shell({ back, title, children }: { back: string; title: string; childre
   return (
     <>
       <style>{PRINT_CSS}</style>
-      <h1 className="no-print mb-3 text-xl font-semibold">{title}</h1>
-      <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Link to={back} className="inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink"><ArrowLeft className="size-3.5" aria-hidden />{t('print.back')}</Link>
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="text-[13px] text-muted">{t('print.hint')}</p>
-          <Button variant="primary" onClick={() => window.print()}><Printer aria-hidden />{t('print.button')}</Button>
-        </div>
+      {/* docs/UI.md §3: the parent above the title; the one primary action on the right of the header */}
+      <div className="no-print">
+        <PageHeader breadcrumbs={[{ label: t('nav.reports'), to: back }]} title={title} meta={t('print.hint')}
+          actions={<Button variant="primary" onClick={() => window.print()}><Printer aria-hidden />{t('print.button')}</Button>} />
       </div>
       <div className="print-doc mx-auto max-w-[210mm] rounded-md border border-rule bg-surface p-8">{children}</div>
     </>

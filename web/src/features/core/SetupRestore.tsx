@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { InfoTip } from '@/components/common/InfoTip'
+import { Notice } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, Input, Label } from '@/components/ui/input'
@@ -109,7 +110,7 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
           <>
             <p role="status" className="text-sm">{t('setup.restore.running', { org: checked?.org ?? '' })}</p>
             {/* The restored box may serve a new certificate (box CA, D-351): a browser that accepted the old one then fails every poll. */}
-            {poll.isError ? <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{t('setup.restore.reconnect')}</p><InfoTip topic={t('setup.restore.reconnect')}>{t('setup.restore.reconnectInfo')}</InfoTip></div> : null}
+            {poll.isError ? <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('setup.restore.reconnect')}</p><InfoTip topic={t('setup.restore.reconnect')}>{t('setup.restore.reconnectInfo')}</InfoTip></div> : null}
           </>
         )}
       </div>
@@ -130,26 +131,22 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
         <input id="r-key" type="file" accept=".key" className={FILE_INPUT} aria-invalid={!!errors.key} onChange={(e) => { setKeyFile(e.target.files?.[0] ?? null); setErrors((x) => ({ ...x, key: '' })) }} />
       </Field>
       {!keyFile ? (
-        <div className="grid gap-1 rounded-md border border-rule bg-sunken p-3 text-[13px]" role="note">
-          <p className="font-medium">{t('setup.restore.noKey.title')}</p>
-          <ul className="list-disc pl-5"><li>{t('setup.restore.noKey.secrets')}</li><li>{t('setup.restore.noKey.twofa')}</li></ul>
-        </div>
+        <Notice tone="warn" role="note" className="mb-0" title={t('setup.restore.noKey.title')}>
+          <ul className="list-disc pl-5 text-meta"><li>{t('setup.restore.noKey.secrets')}</li><li>{t('setup.restore.noKey.twofa')}</li></ul>
+        </Notice>
       ) : null}
       {checked ? (
-        <div className="grid gap-2 rounded-md border border-rule p-3 text-sm" aria-label={t('setup.restore.checkedLabel')}>
+        <div role="group" className="grid gap-2 border-y border-rule py-3 text-sm" aria-label={t('setup.restore.checkedLabel')}>
           <p>{t('setup.restore.checked', { org: checked.org, when: fmtDateTime(checked.created_at), users: checked.users })}</p>
-          {keyFile ? <p className="text-[13px] text-muted">{t(checked.secrets > 0 ? 'setup.restore.withKey' : 'setup.restore.keyNotNeeded')}</p> : null}
+          {keyFile ? <p className="text-meta text-muted">{t(checked.secrets > 0 ? 'setup.restore.withKey' : 'setup.restore.keyNotNeeded')}</p> : null}
           {noKeyLoss ? (
             <>
-              <ul className="list-disc pl-5 text-[13px]">
+              <ul className="list-disc pl-5 text-meta">
                 <li>{t('setup.restore.lost.secrets', { n: checked.secrets })}</li>
                 {checked.twofa_users > 0 ? <li>{t('setup.restore.lost.twofa', { n: checked.twofa_users })}</li> : null}
               </ul>
               {checked.admins_without_key === 0 ? (
-                <div role="alert" className="flex items-center gap-1 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-[13px]">
-                  <p>{t('setup.restore.lost.noAdmin')}</p>
-                  <InfoTip topic={t('setup.restore.key')}>{t('setup.restore.lost.noAdminInfo')}</InfoTip>
-                </div>
+                <Notice tone="danger" role="alert" className="mb-0" title={t('setup.restore.lost.noAdmin')} info={t('setup.restore.lost.noAdminInfo')} />
               ) : null}
               <div className="flex items-start gap-2">
                 <Checkbox id="r-sure" checked={sure} onCheckedChange={(on) => setSure(on === true)} className="mt-0.5" />
@@ -159,7 +156,7 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
           ) : null}
         </div>
       ) : null}
-      {errors.form ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{errors.form}</p> : null}
+      {errors.form ? <Notice tone="danger" role="alert" className="mb-0" title={errors.form} /> : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Button onClick={onBack} disabled={upload.isPending || restore.isPending}>{t('setup.back')}</Button>
         {checked

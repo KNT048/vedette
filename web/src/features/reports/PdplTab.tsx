@@ -3,7 +3,8 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { FileText, Printer, Sparkles } from 'lucide-react'
-import { Notice, Panel, Section } from '@/components/common/PageHeader'
+import { Notice, Section } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -81,7 +82,7 @@ function OrgSection({ s }: { s: PdplState }) {
       <Checkbox id={`pd-${k}`} checked={f[k]} onCheckedChange={(v) => set(k, v === true)} disabled={!operator} className="mt-0.5" />
       <div className="grid gap-0.5">
         <div className="flex items-center gap-1"><Label htmlFor={`pd-${k}`} className="font-normal">{label}</Label>{info ? <InfoTip topic={label}>{info}</InfoTip> : null}</div>
-        <p className="text-[13px] text-muted">{hint}</p>
+        <p className="text-meta text-muted">{hint}</p>
       </div>
     </div>
   )
@@ -149,8 +150,8 @@ function ReportSection({ s }: { s: PdplState }) {
         <ActionError error={ai.error} />
         {r ? (
           <>
-            <p className="text-[13px] text-muted">{t('pdpl.report.at', { time: fmtDateTime(r.generated_at) })}</p>
-            <Panel className="p-6"><PdplDocument report={r} /></Panel>
+            <p className="text-meta text-muted">{t('pdpl.report.at', { time: fmtDateTime(r.generated_at) })}</p>
+            <Card><PdplDocument report={r} /></Card>
           </>
         ) : <EmptyState title={t('pdpl.report.empty')}>{needOrg ? t('pdpl.report.emptyNeedOrg') : t('pdpl.report.emptyReady')}</EmptyState>}
       </div>

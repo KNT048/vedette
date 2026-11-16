@@ -13,8 +13,8 @@ export const useDiff = (id: string, from: string | null, to: string | null) =>
 /** How often the page asks how the scan is going while one runs: 5 s, the box reports a step's progress at most every 5 s (#830). Tests shorten it. */
 export const scanPoll = { ms: 5000 }
 /** The scan that runs now, or the last one (null before the first since the box started). Polls only while it runs. */
-export const useScanRun = () => useQuery({
-  queryKey: ['exposure', 'scan'], queryFn: () => api.get<ScanRun | null>('/exposure/scan'),
+export const useScanRun = (enabled = true) => useQuery({
+  queryKey: ['exposure', 'scan'], queryFn: () => api.get<ScanRun | null>('/exposure/scan'), enabled,
   // a failed poll slows down but does not stop while the last answer says running, so the row cannot hang on "Scanning"
   refetchInterval: (q) => (q.state.data?.status === 'running' ? (q.state.status === 'error' ? scanPoll.ms * 5 : scanPoll.ms) : false) })
 

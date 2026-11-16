@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Plus, Trash2 } from 'lucide-react'
 import { InfoTip } from '@/components/common/InfoTip'
-import { Notice, Panel } from '@/components/common/PageHeader'
+import { Notice } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
@@ -27,9 +28,9 @@ export function NeverTouch() {
   const add = () => { if (valid(nv.trim())) { setDraft([...items, { value: nv.trim().toLowerCase(), label: nl.trim() || nv.trim() }]); setNv(''); setNl('') } }
   return (
     <div className="grid gap-3">
-      <div><div className="flex items-center gap-1"><h3 className="text-sm font-medium">{t('allow.title')}</h3><InfoTip topic={t('allow.title')}>{t('allow.descriptionInfo')}</InfoTip></div><p className="text-[13px] text-muted">{t('allow.description')}</p></div>
+      <div><div className="flex items-center gap-1"><h3 className="text-sm font-medium">{t('allow.title')}</h3><InfoTip topic={t('allow.title')}>{t('allow.descriptionInfo')}</InfoTip></div><p className="text-meta text-muted">{t('allow.description')}</p></div>
       {!items.length ? <Notice tone="warn" className="mb-0" title={t('allow.empty')} /> : null}
-      <Panel>
+      <Card flush>
         <ul className="divide-y divide-rule">
           {items.map((e, i) => (
             <li key={e.value} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
@@ -38,7 +39,7 @@ export function NeverTouch() {
             </li>
           ))}
         </ul>
-      </Panel>
+      </Card>
       {admin ? (
         <form className="flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); add() }}>
           <Field htmlFor="al-value" label={t('allow.value')} hint={t('allow.valueHint')} className="min-w-52"><Input id="al-value" value={nv} onChange={(e) => setNv(e.target.value)} placeholder="192.168.10.5" /></Field>

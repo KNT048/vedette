@@ -112,6 +112,10 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     renderApp('/plan')
     await userEvent.click(await screen.findByRole('button', { name: 'Turn on the feeds module' }))
     await waitFor(() => expect(modulesStore.get().find((m) => m.id === 'feeds')?.enabled).toBe(true))
+    // review r1 M2 of #879: the page reads the plan again, so the "module is off" Notice and its button go away with the toast
+    expect(await screen.findByText('The feeds module is on.')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByText('The feeds module is off')).toBeNull())
+    expect(screen.queryByRole('button', { name: 'Turn on the feeds module' })).toBeNull()
   })
 
   it('Findings links to the page; the device page lists its own items', async () => {

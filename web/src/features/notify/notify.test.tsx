@@ -192,11 +192,32 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Set up alert channels' }))
     expect(await screen.findByRole('dialog', { name: /Webhook/ })).toBeInTheDocument()
     await userEvent.keyboard('{Escape}')
+    // docs/UI.md §8: focus returns to the button that opened the form
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Set up alert channels' })).toHaveFocus())
     view.unmount()
     server.use(channels(true))
     renderApp('/incidents')
     expect(await screen.findByRole('heading', { level: 1, name: 'No new incidents' })).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Set up alert channels' })).toBeNull())
+  })
+
+  it('review r1 M1 of #879: "Save and send test" from Incidents shows the test result although the save turned the channel on and the button went', async () => {
+    sessionStore.set({ userId: USER.admin })
+    const all = (await getJson('/notify/channels')) as { channels: { type: string; configured: boolean }[] }
+    for (const c of all.channels.filter((x) => x.configured)) expect((await fetch(`${location.origin}/api/v1/notify/channels/${c.type}`, { method: 'DELETE' })).status).toBe(204)
+    server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json({ incidents: [] })))
+    renderApp('/incidents')
+    await userEvent.click(await screen.findByRole('button', { name: 'Set up alert channels' }))
+    const chooser = await screen.findByRole('dialog', { name: 'Set up an alert channel' })
+    await userEvent.selectOptions(within(chooser).getByLabelText('Channel'), 'webhook')
+    await userEvent.click(within(chooser).getByRole('button', { name: 'Continue' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Webhook' })
+    await userEvent.type(within(dlg).getByLabelText('Webhook URL'), 'https://hooks.khong-co.invalid/vedette')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Generate random' }))
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save and send test' }))
+    // the channel is on: the button goes, and the test's answer still reaches the person
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Set up alert channels' })).toBeNull())
+    expect(await screen.findByText(/Could not connect to hooks\.khong-co\.invalid/)).toBeInTheDocument()
   })
 
   it('container-only: the empty state does not promise trap touches (the honeypot cannot run there)', async () => {

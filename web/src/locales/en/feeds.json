@@ -94,7 +94,6 @@
     "results": "Results for {{q}}"
   },
   "cve": {
-    "back": "Home",
     "title": "{{cve}}: {{product}}",
     "ransomware": "Used in ransomware",
     "inKev": "Added to exploited list {{date}}",

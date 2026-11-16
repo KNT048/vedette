@@ -18,7 +18,7 @@ import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useCan, useMe } from '@/lib/session'
 import { useChannels } from '@/features/notify/api'
-import { NewChannelButton } from '@/features/notify/NewChannel'
+import { useNewChannel } from '@/features/notify/NewChannel'
 import { useModuleEnabled } from '@/lib/modules'
 import { useHistory, useSaveSchedule, useSchedule, useSendWeekly, useWeekly, useWeeklyAi } from './api'
 import { WeeklyDocument } from './WeeklyDocument'
@@ -46,6 +46,7 @@ function Preview() {
   const { data: me } = useMe()
   const sched = useSchedule()
   const operator = useCan('operator')
+  const admin = useCan('admin')
   const ai = useWeeklyAi()
   const send = useSendWeekly()
   const [confirm, setConfirm] = useState(false)
@@ -63,8 +64,11 @@ function Preview() {
           <Button variant="primary" onClick={() => setConfirm(true)} disabled={!operator} title={needRole}><Send aria-hidden />{t('weekly.send.button')}</Button>
         </>
       ) : null}>
-      {/* docs/UI.md §0: a disabled AI button says why and links to the exact place (its title alone reaches no keyboard or touch) */}
-      {operator && weekly.data && !noData && !weekly.data.ai_available ? <DependencyLink className="mb-3" reason={t('weekly.ai.why')} to={aiOn ? '/settings/ai#ai-profiles' : '/settings/modules'} label={t(aiOn ? 'weekly.ai.openAi' : 'weekly.ai.openModules')} /> : null}
+      {/* docs/UI.md §0: a disabled AI button says why and links to the exact place (its title alone reaches no keyboard or touch).
+          Settings › AI assistant is an administrator's page: anyone else is told who sets it, with no link to a page they cannot open. */}
+      {operator && weekly.data && !noData && !weekly.data.ai_available ? (aiOn && !admin
+        ? <p className="mb-3 text-meta text-muted">{t('weekly.ai.why')} {t('weekly.ai.askAdmin')}</p>
+        : <DependencyLink className="mb-3" reason={t('weekly.ai.why')} to={aiOn ? '/settings/ai#ai-profiles' : '/settings/modules'} label={t(aiOn ? 'weekly.ai.openAi' : 'weekly.ai.openModules')} />) : null}
       <ActionError error={ai.error} />
       <QueryState query={weekly}>
         {(w) => noData
@@ -118,6 +122,7 @@ function ScheduleForm({ s, noChannel }: { s: Schedule; noChannel: boolean }) {
   const [emailErr, setEmailErr] = useState('')
   const [savedErr, setSavedErr] = useState('') // the box refused one address on the list: said at the field until the list changes
   const reason = admin ? undefined : t('common:needRole', { role: t('common:role.admin') })
+  const newChannel = useNewChannel('email')
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -142,6 +147,7 @@ function ScheduleForm({ s, noChannel }: { s: Schedule; noChannel: boolean }) {
     setRec([...rec, e]); setEmail(''); setEmailErr('')
   }
   return (
+    <>
     <form noValidate className="grid max-w-2xl gap-4" onSubmit={submit}>
       <div className="flex items-center gap-3">
         <Switch id="rep-enabled" checked={enabled} onCheckedChange={setEnabled} disabled={!admin} title={reason} />
@@ -170,18 +176,22 @@ function ScheduleForm({ s, noChannel }: { s: Schedule; noChannel: boolean }) {
       </div>
       {enabled && noChannel ? (
         // docs/UI.md §0: the email channel is set up right here (the same form as Settings › Alert channels)
-        <Notice tone="warn" role="alert" className="mb-0" title={t('weekly.schedule.noChannel')} actions={<NewChannelButton type="email" label={t('weekly.schedule.setupChannel')} />} />
+        <Notice tone="warn" role="alert" className="mb-0" title={t('weekly.schedule.noChannel')} actions={newChannel.button(t('weekly.schedule.setupChannel'))} />
       ) : null}
-      <p className="text-meta text-muted">{s.next_run && s.enabled && !noChannel ? t('weekly.schedule.next', { time: fmtDateTime(s.next_run) }) : t('weekly.schedule.off')} {/* docs/UI.md §13 (3): the place it names links to the exact channel */}<Trans t={t} i18nKey="weekly.schedule.channel" components={{ a: <Link to="/settings/channels#channel-email" className="text-accent underline-offset-4 hover:underline" /> }} /></p>
+      <p className="text-meta text-muted">{s.next_run && s.enabled && !noChannel ? t('weekly.schedule.next', { time: fmtDateTime(s.next_run) }) : t('weekly.schedule.off')} {/* docs/UI.md §13 (3): the place it names links to the exact channel, for the administrator who can open it */}{admin ? <Trans t={t} i18nKey="weekly.schedule.channel" components={{ a: <Link to="/settings/channels#channel-email" className="text-accent underline-offset-4 hover:underline" /> }} /> : t('weekly.schedule.channelByAdmin')}</p>
       <ActionError error={savedErr ? null : save.error} />
       <div><Button type="submit" variant="primary" disabled={!admin || save.isPending} title={reason}>{save.isPending ? t('weekly.schedule.saving') : t('common:save')}</Button></div>
     </form>
+    {/* outside the form: the channel form's submit must not bubble (through the portal) into this one; kept mounted after the save */}
+    {newChannel.dialogs}
+    </>
   )
 }
 
 function HistorySection() {
   const { t } = useTranslation('reports')
   const hist = useHistory()
+  const admin = useCan('admin') // the email channel is an administrator's page: no link for anyone else
   type Row = Omit<HistoryEntry, 'report'>
   return (
     <Section id="rep-history" title={t('weekly.history.title')} description={t('weekly.history.description')} stories={['S-REP-1']}>
@@ -192,7 +202,7 @@ function HistorySection() {
               { id: 'ts', header: t('weekly.history.col.time'), accessorKey: 'ts', cell: ({ getValue }: { getValue: () => unknown }) => fmtDateTime(getValue() as string) },
               { id: 'trigger', header: t('weekly.history.col.trigger'), accessorFn: (r: Row) => t(`weekly.history.trigger.${r.trigger}`) },
               { id: 'to', header: t('weekly.history.col.to'), accessorFn: (r: Row) => t('weekly.history.people', { count: r.recipients.length }), cell: ({ row }: { row: { original: Row } }) => <span title={row.original.recipients.join(', ')}>{t('weekly.history.people', { count: row.original.recipients.length })}</span> },
-              { id: 'status', header: t('weekly.history.col.status'), accessorKey: 'status', cell: ({ row }: { row: { original: Row } }) => row.original.status === 'sent' ? <Chip tone="ok">{t('weekly.history.sent')}</Chip> : <span className="grid gap-1"><Chip tone="warn">{t('weekly.history.failed')}</Chip><span className="max-w-xs whitespace-normal text-caption text-muted">{row.original.error}</span><Link to="/settings/channels#channel-email" className="w-fit text-caption text-accent underline-offset-4 hover:underline">{t('weekly.history.openChannel')}</Link></span> },
+              { id: 'status', header: t('weekly.history.col.status'), accessorKey: 'status', cell: ({ row }: { row: { original: Row } }) => row.original.status === 'sent' ? <Chip tone="ok">{t('weekly.history.sent')}</Chip> : <span className="grid gap-1"><Chip tone="warn">{t('weekly.history.failed')}</Chip><span className="max-w-xs whitespace-normal text-caption text-muted">{row.original.error}</span>{admin ? <Link to="/settings/channels#channel-email" className="w-fit text-caption text-accent underline-offset-4 hover:underline">{t('weekly.history.openChannel')}</Link> : null}</span> },
               { id: 'open', header: t('weekly.history.col.open'), enableSorting: false, cell: ({ row }: { row: { original: Row } }) => <Link to={`/reports/print/weekly/${row.original.id}`} className="text-accent underline-offset-4 hover:underline">{t('weekly.history.open')}</Link> },
             ]} />
         )}

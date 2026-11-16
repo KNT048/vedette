@@ -717,6 +717,7 @@
     "title": "Set up an alert channel",
     "body": "Choose where incidents are sent. It stays editable in Settings, Alert channels.",
     "kind": "Channel",
-    "continue": "Continue"
+    "continue": "Continue",
+    "off": "{{name}} (set up, switched off)"
   }
 }

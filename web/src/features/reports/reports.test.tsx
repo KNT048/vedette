@@ -119,6 +119,23 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(((await res.json()) as { error: { message: string } }).error.message).toMatch(/Add an email/)
   })
 
+  it('operator (review r1 M3 of #879): no link to the administrator-only AI and email channel settings; the text says who sets them', async () => {
+    server.use(http.get('*/api/v1/reports/weekly/preview', () => HttpResponse.json({ report: buildWeekly(), ai_available: false })))
+    const { unmount } = renderApp('/reports', { role: 'operator' })
+    expect(await screen.findByText(/AI commentary needs an AI profile for this job\. An administrator sets it up in Settings, AI assistant\./)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Open AI assistant settings' })).toBeNull()
+    expect(await screen.findByText(/Sent through the email channel, which an administrator sets up/)).toBeInTheDocument()
+    const table = await screen.findByRole('table', { name: 'History of weekly reports sent' })
+    expect(within(table).getByText('Failed')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /email channel/ })).toBeNull()
+    unmount()
+    // the administrator, who can open them, gets the exact places
+    renderApp('/reports')
+    expect(await screen.findByRole('link', { name: 'Open AI assistant settings' })).toHaveAttribute('href', '/settings/ai#ai-profiles')
+    expect(await screen.findByRole('link', { name: 'Open the email channel' })).toHaveAttribute('href', '/settings/channels#channel-email')
+    expect(screen.getByRole('link', { name: 'email channel' })).toHaveAttribute('href', '/settings/channels#channel-email')
+  })
+
   it('viewer: cannot send or change the schedule; the server refuses too', async () => {
     renderApp('/reports', { role: 'viewer' })
     const send = await screen.findByRole('button', { name: 'Send now' })

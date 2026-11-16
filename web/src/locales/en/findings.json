@@ -509,7 +509,8 @@
       "turnedOn_one": "{{feeds}} is on. Its first load can take an hour.",
       "turnedOn_other": "{{feeds}} are on. Their first load can take an hour.",
       "turnOnModule": "Turn on the feeds module",
-      "moduleOn": "The feeds module is on."
+      "moduleOn": "The feeds module is on.",
+      "moduleOnWith": "The feeds module is on, with what it needs: {{modules}}."
     },
     "line_one": "1 update to plan fixes CVEs not exploited yet",
     "line_other": "{{count}} updates to plan fix CVEs not exploited yet",

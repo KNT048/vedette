@@ -34,7 +34,8 @@
       "unavailable": "Connect AI in Settings, AI assistant",
       "why": "AI commentary needs an AI profile for this job.",
       "openAi": "Open AI assistant settings",
-      "openModules": "Turn on the AI assistant in Settings, Modules"
+      "openModules": "Turn on the AI assistant in Settings, Modules",
+      "askAdmin": "An administrator sets it up in Settings, AI assistant."
     },
     "send": {
       "button": "Send now",
@@ -71,6 +72,7 @@
       "next": "Next send: {{time}}.",
       "off": "Automatic sending is off.",
       "channel": "Sent through the <a>email channel</a> in Settings, Alert channels.",
+      "channelByAdmin": "Sent through the email channel, which an administrator sets up in Settings, Alert channels.",
       "noChannel": "No email channel is on, so nothing will be sent until you set one up.",
       "setupChannel": "Set up the email channel",
       "saved": "Schedule saved",

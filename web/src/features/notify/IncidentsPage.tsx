@@ -20,7 +20,7 @@ import { useCan } from '@/lib/session'
 import { useBulkIncidents, useChannels, useIncidents } from './api'
 import { MAX_BULK_INCIDENTS } from './contract'
 import { DeliveryBadges, IncidentStatusChip, kindKey, needsFix } from './shared'
-import { NewChannelButton } from './NewChannel'
+import { useNewChannel } from './NewChannel'
 import { X } from 'lucide-react'
 import { INCIDENT_KINDS, type Incident, type IncidentKind } from './types'
 
@@ -95,6 +95,7 @@ function Content() {
   const admin = useCan('admin')
   const channels = useChannels({ retry: false, enabled: admin }) // not asked of a role that would get 403
   const noChannel = channels.data !== undefined && !channels.data.channels.some((c) => c.enabled)
+  const newChannel = useNewChannel() // its dialogs stay mounted after the save turns a channel on and the button goes
   const responseScope = useScope('response')
   const [params, setParams] = useSearchParams()
   const tab: Tab = params.get('tab') === 'resolved' ? 'resolved' : 'open'
@@ -174,7 +175,7 @@ function Content() {
           </div>
           {noChannel && rows.some((r) => r.not_sent?.reason === 'no_channel') ? (
             // docs/UI.md §0: the channel is set up right here (same form as Settings › Alert channels)
-            <Notice tone="warn" title={t('incidents.noChannelTitle')} actions={<NewChannelButton label={t('incidents.setupChannels')} />} />
+            <Notice tone="warn" title={t('incidents.noChannelTitle')} actions={newChannel.button(t('incidents.setupChannels'))} />
           ) : null}
           {tab === 'open' && can && shown.length > 0 ? (
             <div role="region" aria-label={t('bulk.region')} className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-rule bg-sunken px-3 py-2 text-sm">
@@ -194,7 +195,7 @@ function Content() {
           ) : null}
           {rows.length === 0 && tab === 'open' && !filtersOn ? (
             // docs/UI.md §6: nothing open is good news: the drawing, what shows up here, and the channel when none is set up
-            <EmptyState art="no-alerts" title={t('incidents.emptyOpenTitle')} action={noChannel ? <NewChannelButton label={t('incidents.setupChannels')} /> : undefined} info={t(noTraps ? 'incidents.emptyBodyNoTrapsInfo' : 'incidents.emptyBodyInfo')}>{t(noTraps ? 'incidents.emptyBodyNoTraps' : 'incidents.emptyBody')}</EmptyState>
+            <EmptyState art="no-alerts" title={t('incidents.emptyOpenTitle')} action={noChannel ? newChannel.button(t('incidents.setupChannels')) : undefined} info={t(noTraps ? 'incidents.emptyBodyNoTrapsInfo' : 'incidents.emptyBodyInfo')}>{t(noTraps ? 'incidents.emptyBodyNoTraps' : 'incidents.emptyBody')}</EmptyState>
           ) : (
             <DataTable caption={t('incidents.caption')} data={rows} columns={columns} onRowClick={(r) => navigate(`/incidents/${r.id}`)} rowTone={(r) => (r.status === 'new' ? (r.severity === 'critical' ? 'danger' : 'warn') : undefined)} initialSort={[{ id: 'seen', desc: true }]}
               empty={tab === 'open' ? t('incidents.emptyOpenTitle') : t('incidents.emptyResolvedTitle')} filtered={filtersOn} onClearFilters={clearFilters}
@@ -226,6 +227,7 @@ function Content() {
         { id: 'resolved', label: t('tabs.resolved'), panel },
       ]} />
       <BulkDialog ids={shown} status={bulk} onOpenChange={(v) => { if (!v) setBulk(null) }} opener={opener} onDone={clear} />
+      {newChannel.dialogs}
     </>
   )
 }

@@ -18,7 +18,7 @@ import { useCan } from '@/lib/session'
 import { useScope } from '@/lib/v1'
 import { useIncident, useSetStatus } from './api'
 import { IncidentStatusChip, MessagePreview, NotSentFix, kindKey } from './shared'
-import { NewChannelButton } from './NewChannel'
+import { useNewChannel } from './NewChannel'
 import type { IncidentDetail, IncidentStatus, SendRecord } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
@@ -61,6 +61,7 @@ function Content() {
   const { id = '' } = useParams()
   const q = useIncident(id)
   const admin = useCan('admin') // the fix links open Settings, Alert channels: an admin's page
+  const newChannel = useNewChannel()
   const respond = useScope('response') !== 'hidden' // D-624 (#819): the response module is not offered in v1
   // docs/UI.md §3: the parent above the title, also while the incident loads or is missing, so the way back is always there.
   const crumbs = [{ label: t('nav.incidents'), to: '/incidents' }]
@@ -103,7 +104,7 @@ function Content() {
                 a.not_sent ? (
                   // D-551: why no channel has it, from the box's decision, and where to fix it
                   <EmptyState title={a.not_sent.reason === 'queued' || a.not_sent.reason === 'quiet_hours' ? t('detail.notYetTitle') : t('detail.noSendsTitle')} action={<NotSentFix notSent={a.not_sent} admin={admin} />}>{a.not_sent.text}</EmptyState>
-                ) : <EmptyState title={t('detail.noSendsTitle')} action={<NewChannelButton label={t('incidents.setupChannels')} />} info={t('detail.noSendsBodyInfo')}>{t('detail.noSendsBody')}</EmptyState>
+                ) : <EmptyState title={t('detail.noSendsTitle')} action={newChannel.button(t('incidents.setupChannels'))} info={t('detail.noSendsBodyInfo')}>{t('detail.noSendsBody')}</EmptyState>
               ) : (
                 <Tabs defaultValue={d.previews[0]!.channel}>
                   <TabsList>{d.previews.map((p) => <TabsTrigger key={p.channel} value={p.channel}>{t(`ch.${p.channel}`)}</TabsTrigger>)}</TabsList>
@@ -120,6 +121,7 @@ function Content() {
         )
       }}
     </QueryState>
+    {newChannel.dialogs}
     </>
   )
 }

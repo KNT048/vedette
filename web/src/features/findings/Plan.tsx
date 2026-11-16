@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { ApiError } from '@/lib/api'
 import { fmtPercent } from '@/lib/format'
 import { useCan } from '@/lib/session'
+import { useModules } from '@/lib/modules'
 import { useToggleModule } from '@/features/core/api'
 import { usePatchFeed } from '@/features/feeds/api'
 import { fmtDay } from '@/features/feeds/dates'
@@ -184,13 +185,21 @@ function TurnOnModule() {
   const { t } = useTranslation('findings')
   const admin = useCan('admin')
   const toggle = useToggleModule()
+  const qc = useQueryClient()
+  const mods = useModules().data?.modules ?? []
+  // what the feeds module needs that is off is turned on with it (Settings › Modules asks first): the toast names those modules
+  const also = (mods.find((m) => m.id === 'feeds')?.depends ?? []).filter((d) => mods.find((m) => m.id === d)?.enabled === false).map((d) => t(`modules.${d}.name`, { ns: 'common' }))
   const link = <Link to="/settings/modules" className="text-sm text-accent underline underline-offset-4">{t('plan.state.openModules')}</Link>
   if (!admin) return link
   return (
     <span className="flex flex-wrap items-center gap-3">
       <Button size="sm" variant="primary" disabled={toggle.isPending}
         onClick={() => toggle.mutate({ id: 'feeds', enabled: true, withDependencies: true }, {
-          onSuccess: (r) => { if (r.kind === 'ok') toast.success(t('plan.state.moduleOn')) },
+          onSuccess: (r) => {
+            // the cached plan still says module_off: ask again, so the Notice and this button go away (as TurnOnFeeds does)
+            void qc.invalidateQueries({ queryKey: ['findings', 'plan'] })
+            if (r.kind === 'ok') toast.success(also.length ? t('plan.state.moduleOnWith', { modules: also.join(', ') }) : t('plan.state.moduleOn'))
+          },
           onError: (e) => toast.error(e instanceof ApiError ? e.message : String(e)),
         })}>
         {t('plan.state.turnOnModule')}

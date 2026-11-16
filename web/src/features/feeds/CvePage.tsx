@@ -23,7 +23,8 @@ export default function CvePage() {
   // D-613 (S-TIER-1): a CVE on no exploited list answers from the tier data instead of a dead end
   const notInKev = cve.error instanceof ApiError && cve.error.code === 'not_in_kev'
   const tier = useTierCve(id, notInKev)
-  // docs/UI.md §3: a CVE page's parent is Lookup (where any CVE is looked up), shown in every state of the page
+  // docs/UI.md §3: a CVE page's parent is Lookup (where any CVE is looked up), shown in every state of the page. Breadcrumbs show where
+  // the page sits, not the path taken (Primer, Atlassian page header): Home and Findings link here too, the browser's Back returns there.
   const crumbs = <Breadcrumbs items={[{ label: t('nav.lookup'), to: '/lookup' }]} />
   if (notInKev && !(tier.error instanceof ApiError && tier.error.code === 'not_in_data')) {
     return (

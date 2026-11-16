@@ -169,7 +169,7 @@ func distinctDevices(gs []*deviceRisk) []string {
 
 // where is what the step is about and where: the product and " on " the devices. A product added by hand with no device (D-471) is
 // named after the product already, so it is not named again ("Cisco BroadWorks on Cisco BroadWorks (no device)", W5-2): alone it
-// is said once after the product; next to real devices it is "the copy added by hand".
+// is said once after the product; next to real devices it is "the copy added manually".
 func where(product string, gs []*deviceRisk) (what, on string) {
 	seen := map[string]bool{}
 	var names []string
@@ -186,10 +186,10 @@ func where(product string, gs []*deviceRisk) (what, on string) {
 		}
 	}
 	if len(names) == 0 {
-		return product + " (added by hand, no device)", ""
+		return product + " (added manually, no device)", ""
 	}
 	if byHand {
-		names = append(names, "the copy added by hand")
+		names = append(names, "the copy added manually")
 	}
 	return product, " on " + nameList(names)
 }

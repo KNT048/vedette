@@ -16,6 +16,7 @@
   --ok: #3b6b1e; --ok-soft: #ebf3e3;
   --off: #5a635f; --off-soft: #edf0ee;
   --focus: #1d5a45;
+  --control: #848e89; /* edge of inputs, selects, textareas, switch off (3:1 on surface, docs/UI.md §1) */
   color-scheme: light;
 }
 [data-theme="dark"] {
@@ -27,8 +28,23 @@
   --ok: #97c977; --ok-soft: #213019;
   --off: #8e9893; --off-soft: #1f2a2e;
   --focus: #6bbe9c;
+  --control: #64716c;
   color-scheme: dark;
 }
+/* Page title (docs/UI.md §1): PageHeader and StandalonePage; no arbitrary tracking in pages. */
+@utility page-title {
+  font-size: var(--text-xl);
+  line-height: var(--text-xl--line-height);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* The current entry of a nav or link row (docs/UI.md §1): a 3 px accent bar at the leading edge, so the state never rests on the
+   1.2:1 accent-soft fill alone. Sidebar and UnderlineNav (vertical) use it. */
+@utility nav-current {
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
 /* Trước khi JS chạy (hoặc khi chọn "Theo hệ thống"): theo cài đặt máy, tránh nháy nền sáng. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -40,6 +56,7 @@
   --ok: #97c977; --ok-soft: #213019;
   --off: #8e9893; --off-soft: #1f2a2e;
   --focus: #6bbe9c;
+  --control: #64716c;
   color-scheme: dark;
 }
 }
@@ -64,6 +81,12 @@
   --color-off: var(--off);
   --color-off-soft: var(--off-soft);
   --color-focus: var(--focus);
+  --color-control: var(--control);
+  /* docs/UI.md §1: the two named sizes between xs and sm; the codemod PR resets --text-* to the six names. */
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-meta: 13px;
+  --text-meta--line-height: 20px;
   --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
 }

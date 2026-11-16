@@ -147,3 +147,6 @@
 
 ## Modifying: `MatchDevice.AgentOS` (D-549)
 - **findings** (qua `cmd/vedette/wiring.go` `findingsInventory.MatchInput` → `findings.Asset.AgentOS`): bằng chứng nền tảng của dòng agent (findings INV-16); cả trang CVE của feeds (`feedsInventory.NotAffected`). Đổi nguồn hay thứ tự ⇒ finding nền tảng đóng/mở lại.
+
+## Modifying: `inventory.Service.DeviceCounts(ctx)` (#825)
+- **findings** (`GET /findings/summary`, `HomeSources.Devices`, nối ở `cmd/vedette/wiring.go`): ô thiết bị của Home. Phải giữ cùng định nghĩa với `Devices().Counts.All/Pending` (`TestDeviceCountsAreTheListCounts`); đổi một bên = đổi cả hai.

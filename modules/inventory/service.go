@@ -322,7 +322,7 @@ func (o *outbox) readdress(id string) {
 
 // readdressedEvents is inventory.asset.updated for each readdressed device the write does not announce discovered (created in it: no job
 // holds it) or deleted. They go out before the write's other events (review r1 L2 of #881): a job holding the old address stops before
-// the newcomer's discovered handlers and the post-commit reads run. A device the write also announces updated gets both.
+// the newcomer's discovered handlers and the post-commit reads run (write publishes them on their own, first). A device the write also announces updated gets both.
 func (o *outbox) readdressedEvents() []Event {
 	var out []Event
 	for _, id := range o.readdressed {
@@ -343,7 +343,8 @@ func (s *Service) write(ctx context.Context, fn func(tx *sql.Tx, o *outbox) erro
 	if err := s.db.Write(ctx, func(tx *sql.Tx) error { return fn(tx, &o) }); err != nil {
 		return err
 	}
-	events := append(o.readdressedEvents(), o.events...)
+	s.publish(ctx, o.readdressedEvents()) // first, before the post-commit reads (review r2 L1 of #881): a job holding the old address stops now
+	events := o.events
 	for _, f := range o.after {
 		events = append(events, f(ctx)...)
 	}

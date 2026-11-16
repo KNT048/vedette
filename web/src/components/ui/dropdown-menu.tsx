@@ -8,7 +8,7 @@ export const DropdownMenuTrigger = Menu.Trigger
 export function DropdownMenuContent({ className, sideOffset = 6, ...props }: ComponentProps<typeof Menu.Content>) {
   return (
     <Menu.Portal>
-      <Menu.Content sideOffset={sideOffset} className={cn('z-50 min-w-48 rounded-md border border-rule bg-surface p-1 shadow-md', className)} {...props} />
+      <Menu.Content sideOffset={sideOffset} className={cn('z-50 min-w-48 rounded-lg border border-rule bg-surface p-1 shadow-md', className)} {...props} />
     </Menu.Portal>
   )
 }

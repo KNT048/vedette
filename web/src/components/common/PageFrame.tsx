@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Counter } from './Counter'
 
 // Khung trang D-464 (S-UI-1): PageHeader → KpiStrip (tuỳ chọn) → PageTabs. Settings giữ menu dọc.
 
@@ -62,12 +63,7 @@ export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
         {tabs.map((x) => (
           <TabsTrigger key={x.id} value={x.id} className="mb-0 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap focus-visible:-outline-offset-2">
             {x.label}{' '}
-            {x.badge && x.badge.count > 0 ? (
-              <span className="rounded-full bg-danger px-1.5 text-[11px] font-semibold leading-[18px] text-paper tabular-nums">
-                {x.badge.count > 99 ? '99+' : x.badge.count}{' '}
-                <span className="sr-only">{x.badge.label}</span>
-              </span>
-            ) : null}
+            {x.badge ? <Counter count={x.badge.count} label={x.badge.label} tone="danger" /> : null}
           </TabsTrigger>
         ))}
       </TabsList>

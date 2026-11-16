@@ -45,6 +45,7 @@ function NoBoxAddress() {
   const install = useInstallKind()
   return (
     <Notice tone="warn" role="status" className="mb-0" title={t('agents.noAddress.title')}
+      actions={install === 'container' ? undefined : <Link to="/settings/network?tab=box-address" className="text-sm font-medium text-accent underline-offset-4 hover:underline">{t('agents.boxAddress.change')}</Link>}
       info={<><p>{t(install === 'container' ? 'agents.noAddress.container' : 'agents.noAddress.appliance')}</p><p>{t('agents.noAddress.token')}</p></>}>
       <p className="text-ink">{t('agents.noAddress.body')}</p>
     </Notice>
@@ -129,7 +130,7 @@ function Downloads({ packages }: { packages: OsqueryPackage[] }) {
 }
 
 /** Một dòng lệnh cài và gỡ cho Linux hoặc Windows Server, script đọc được, tải gói trực tiếp (D-404), và cài tay ở mục "Advanced". */
-function InstallPanel({ data, token }: { data: AgentsResponse; token: string }) {
+export function InstallPanel({ data, token }: { data: AgentsResponse; token: string }) {
   const { t } = useTranslation('inventory')
   const [platform, setPlatform] = useState<Platform>('linux')
   const box = data.server_url
@@ -193,44 +194,55 @@ function InstallPanel({ data, token }: { data: AgentsResponse; token: string }) 
   )
 }
 
-function CreateDialog({ open, onOpenChange, data }: { open: boolean; onOpenChange: (o: boolean) => void; data: AgentsResponse }) {
+/** Name and expiry of an osquery enrolment token, then the token once and the install commands (S-INV-4). Inside CreateDialog and the
+ *  Add a device dialog's osquery method (#849); `onCreated` lets the dialog widen and retitle itself once the token exists. */
+export function OsqueryEnrol({ data, onCreated }: { data: AgentsResponse; onCreated?: (r: CreateTokenResult) => void }) {
   const { t } = useTranslation('inventory')
   const { create } = useAgentActions()
   const [name, setName] = useState('')
   const [days, setDays] = useState(7)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<CreateTokenResult | null>(null)
-  function close(o: boolean) { onOpenChange(o); if (!o) { setName(''); setDays(7); setError(null); setResult(null) } }
   function submit(e: FormEvent) {
     e.preventDefault(); setError(null)
-    create.mutate({ name, kind: 'osquery', expires_in_days: days }, { onSuccess: setResult, onError: (er) => setError(errMsg(er)) })
+    create.mutate({ name, kind: 'osquery', expires_in_days: days }, { onSuccess: (r) => { setResult(r); onCreated?.(r) }, onError: (er) => setError(errMsg(er)) })
   }
+  if (result) {
+    return (
+      <div className="grid min-w-0 gap-4 [&>*]:min-w-0">
+        <CodeBlock label={t('agents.tokenLabel')} code={result.secret} />
+        <div className="flex items-center gap-1"><p className="text-meta text-warn">{t('agents.tokenOnce')}</p><InfoTip>{t('agents.tokenOnceInfo')}</InfoTip></div>
+        <InstallPanel data={data} token={result.secret} />
+        <DialogFooter><DialogClose asChild><Button variant="primary">{t('agents.done')}</Button></DialogClose></DialogFooter>
+      </div>
+    )
+  }
+  return (
+    <form onSubmit={submit} className="grid gap-4" noValidate>
+      <p className="text-meta text-muted">{t('agents.serverOnly')}</p>
+      <Field label={t('agents.name')} htmlFor="agent-name" hint={t('agents.nameHint')}><Input id="agent-name" value={name} maxLength={64} onChange={(e) => setName(e.target.value)} aria-describedby="agent-name-hint" /></Field>
+      <Field label={t('agents.expiry')} htmlFor="agent-expiry" hint={t('agents.expiryHint')}>
+        <Select id="agent-expiry" className="max-w-xs" value={days} onChange={(e) => setDays(Number(e.target.value))} aria-describedby="agent-expiry-hint">
+          {[1, 7, 30, 90, 0].map((d) => <option key={d} value={d}>{t(`agents.expiryOption.${d}`)}</option>)}
+        </Select>
+      </Field>
+      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
+      <DialogFooter>
+        <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
+        <Button type="submit" variant="primary" disabled={!name.trim() || create.isPending}>{t('agents.createSubmit')}</Button>
+      </DialogFooter>
+    </form>
+  )
+}
+
+function CreateDialog({ open, onOpenChange, data }: { open: boolean; onOpenChange: (o: boolean) => void; data: AgentsResponse }) {
+  const { t } = useTranslation('inventory')
+  const [result, setResult] = useState<CreateTokenResult | null>(null)
+  function close(o: boolean) { onOpenChange(o); if (!o) setResult(null) }
   return (
     <Dialog open={open} onOpenChange={close}>
       <DialogContent wide={!!result} title={result ? t('agents.createdTitle', { name: result.token.name }) : t('agents.createTitle')} description={result ? t('agents.createdBody') : t('agents.recommendation')}>
-        {result ? (
-          <div className="grid min-w-0 gap-4 [&>*]:min-w-0">
-            <CodeBlock label={t('agents.tokenLabel')} code={result.secret} />
-            <div className="flex items-center gap-1"><p className="text-[13px] text-warn">{t('agents.tokenOnce')}</p><InfoTip>{t('agents.tokenOnceInfo')}</InfoTip></div>
-            <InstallPanel data={data} token={result.secret} />
-            <DialogFooter><DialogClose asChild><Button variant="primary">{t('agents.done')}</Button></DialogClose></DialogFooter>
-          </div>
-        ) : (
-          <form onSubmit={submit} className="grid gap-4" noValidate>
-            <p className="text-[13px] text-muted">{t('agents.serverOnly')}</p>
-            <Field label={t('agents.name')} htmlFor="agent-name" hint={t('agents.nameHint')}><Input id="agent-name" value={name} maxLength={64} onChange={(e) => setName(e.target.value)} aria-describedby="agent-name-hint" /></Field>
-            <Field label={t('agents.expiry')} htmlFor="agent-expiry" hint={t('agents.expiryHint')}>
-              <Select id="agent-expiry" className="max-w-xs" value={days} onChange={(e) => setDays(Number(e.target.value))} aria-describedby="agent-expiry-hint">
-                {[1, 7, 30, 90, 0].map((d) => <option key={d} value={d}>{t(`agents.expiryOption.${d}`)}</option>)}
-              </Select>
-            </Field>
-            {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-            <DialogFooter>
-              <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-              <Button type="submit" variant="primary" disabled={!name.trim() || create.isPending}>{t('agents.createSubmit')}</Button>
-            </DialogFooter>
-          </form>
-        )}
+        <OsqueryEnrol data={data} onCreated={setResult} />
       </DialogContent>
     </Dialog>
   )
@@ -239,6 +251,18 @@ function CreateDialog({ open, onOpenChange, data }: { open: boolean; onOpenChang
 const INTERVALS = [5, 15, 60, 360, 1440]
 
 function WazuhDialog({ open, onOpenChange, current }: { open: boolean; onOpenChange: (o: boolean) => void; current: WazuhConnection | null }) {
+  const { t } = useTranslation('inventory')
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent wide title={t('agents.wazuh.formTitle')} description={t('agents.wazuh.formBody')} info={t('agents.wazuh.formBodyInfo')}>
+        <WazuhForm current={current} onSaved={() => onOpenChange(false)} />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** The Wazuh connection form (read-only API user, Test, Save), in WazuhDialog and in the Add a device dialog's Wazuh method (#849). */
+export function WazuhForm({ current, onSaved }: { current: WazuhConnection | null; onSaved: () => void }) {
   const { t } = useTranslation('inventory')
   const { test, save } = useWazuhActions()
   const [url, setUrl] = useState(current?.url ?? '')
@@ -254,11 +278,9 @@ function WazuhDialog({ open, onOpenChange, current }: { open: boolean; onOpenCha
   }
   function submit(e: FormEvent) {
     e.preventDefault(); setError(null); setOk(null)
-    save.mutate(input, { onSuccess: () => { toast.success(t('agents.wazuh.saved')); onOpenChange(false) }, onError: (er) => setError(errMsg(er)) })
+    save.mutate(input, { onSuccess: () => { toast.success(t('agents.wazuh.saved')); onSaved() }, onError: (er) => setError(errMsg(er)) })
   }
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent wide title={t('agents.wazuh.formTitle')} description={t('agents.wazuh.formBody')} info={t('agents.wazuh.formBodyInfo')}>
         <div className="grid min-w-0 gap-4 [&>*]:min-w-0">
           <details className="rounded-md border border-rule p-3" open={!current}>
             <summary className="cursor-pointer text-sm font-medium">{t('agents.wazuh.stepsTitle')}</summary>
@@ -284,8 +306,6 @@ function WazuhDialog({ open, onOpenChange, current }: { open: boolean; onOpenCha
             </DialogFooter>
           </form>
         </div>
-      </DialogContent>
-    </Dialog>
   )
 }
 

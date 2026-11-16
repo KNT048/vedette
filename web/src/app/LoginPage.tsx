@@ -6,7 +6,8 @@ import { api, ApiError } from '@/lib/api'
 import { useSetup } from './RequireSession'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
-import { Logo } from '@/components/brand/Logo'
+import { StandalonePage } from '@/components/common/StandalonePage'
+import { Card } from '@/components/common/Card'
 import { useAuthOptions } from '@/features/core/api'
 import { PreviewCode } from '@/features/core/parts'
 import { useCountdown } from '@/features/core/useCountdown'
@@ -95,40 +96,34 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-paper px-4">
-      <div className="w-full max-w-sm">
-        {/* The stacked logo (the brand sheet's splash variant) is the page's one h1; its name is the visually hidden text. */}
-        <header className="grid justify-items-center text-center">
-          <h1><span className="sr-only">Vedette</span><Logo variant="stacked" decorative className="h-20" /></h1>
-          <p className="mt-5 text-sm text-muted">{t('login.subtitle')}</p>
-        </header>
-        <form onSubmit={(e) => void submit(e)} className="mt-6 grid gap-4 rounded-md border border-rule bg-surface p-5" noValidate>
-          <Field label={t('login.email')} htmlFor="email">
-            <Input id="email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!error} />
-          </Field>
-          <Field label={t('login.password')} htmlFor="password" error={needCode ? undefined : (error ?? undefined)}>
-            <Input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} aria-invalid={!!error && !needCode} aria-describedby={error && !needCode ? 'password-error' : undefined} />
-          </Field>
-          {needCode ? (
-            <>
-              <Field label={t('core:login.code')} hint={second.method === 'email' ? t('core:login.codeHintEmail', { to: second.sentTo }) : t('core:login.codeHint')} htmlFor="code" error={error ?? undefined}>
-                <Input id="code" inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={7} value={code} onChange={(e) => setCode(e.target.value)} aria-invalid={!!error} />
-              </Field>
-              {second.method === 'email' ? (
-                <>
-                  <PreviewCode code={second.preview} />
-                  {second.resent ? <p role="status" className="text-[13px]">{t('core:login.resent', { to: second.sentTo })}</p> : null}
-                  <Button disabled={busy || cooldown.left > 0} onClick={() => void resend()}>{cooldown.left > 0 ? t('core:login.resendIn', { s: cooldown.left }) : t('core:login.resend')}</Button>
-                </>
-              ) : null}
-            </>
-          ) : null}
-          <Button type="submit" variant="primary" disabled={busy || !email || !password || (needCode && !code)}>{busy && !ssoBusy ? t('login.signingIn') : t('login.signIn')}</Button>
-          {sso ? <Button onClick={() => void signInSso()} disabled={busy}>{ssoBusy ? t('core:login.ssoStarting') : t('core:login.sso')}</Button> : null}
-          {ssoError ? <p role="alert" className="text-[13px] text-danger">{ssoError}</p> : null}
-        </form>
-        {mock ? <p className="mt-4 text-[13px] text-muted">{t('login.demoHint')}</p> : null}
-      </div>
-    </main>
+    <StandalonePage subtitle={t('login.subtitle')} footer={mock ? t('login.demoHint') : undefined}>
+      <Card>
+          <form onSubmit={(e) => void submit(e)} className="grid gap-4" noValidate>
+            <Field label={t('login.email')} htmlFor="email">
+              <Input id="email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!error} />
+            </Field>
+            <Field label={t('login.password')} htmlFor="password" error={needCode ? undefined : (error ?? undefined)}>
+              <Input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} aria-invalid={!!error && !needCode} aria-describedby={error && !needCode ? 'password-error' : undefined} />
+            </Field>
+            {needCode ? (
+              <>
+                <Field label={t('core:login.code')} hint={second.method === 'email' ? t('core:login.codeHintEmail', { to: second.sentTo }) : t('core:login.codeHint')} htmlFor="code" error={error ?? undefined}>
+                  <Input id="code" inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={7} value={code} onChange={(e) => setCode(e.target.value)} aria-invalid={!!error} />
+                </Field>
+                {second.method === 'email' ? (
+                  <>
+                    <PreviewCode code={second.preview} />
+                    {second.resent ? <p role="status" className="text-meta">{t('core:login.resent', { to: second.sentTo })}</p> : null}
+                    <Button disabled={busy || cooldown.left > 0} onClick={() => void resend()}>{cooldown.left > 0 ? t('core:login.resendIn', { s: cooldown.left }) : t('core:login.resend')}</Button>
+                  </>
+                ) : null}
+              </>
+            ) : null}
+            <Button type="submit" variant="primary" disabled={busy || !email || !password || (needCode && !code)}>{busy && !ssoBusy ? t('login.signingIn') : t('login.signIn')}</Button>
+            {sso ? <Button onClick={() => void signInSso()} disabled={busy}>{ssoBusy ? t('core:login.ssoStarting') : t('core:login.sso')}</Button> : null}
+            {ssoError ? <p role="alert" className="text-meta text-danger">{ssoError}</p> : null}
+          </form>
+      </Card>
+    </StandalonePage>
   )
 }

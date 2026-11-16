@@ -24,7 +24,13 @@
     "feeds": "Reporting",
     "notYet": "Not set up",
     "lastSeen": "last report {{when}}",
-    "name": { "scan": "Network scan", "passive": "Passive listening", "snmp": "SNMP", "agent": "Agent (osquery or Wazuh)", "manual": "Added by hand" },
+    "name": {
+      "scan": "Network scan",
+      "passive": "Passive listening",
+      "snmp": "SNMP",
+      "agent": "Agent (osquery or Wazuh)",
+      "manual": "Manual"
+    },
     "what": {
       "scan": "The box's active scan, in the scan window you set: open ports, services and a guess of the operating system.",
       "passive": "What the sensor hears on the network: the MAC, the name the device gives itself, its maker.",
@@ -35,11 +41,16 @@
     "both": "To switch from SNMP to an agent or back, set up the new one first, then stop the old one: uninstall osquery on the machine, or remove this address from the SNMP credential's scope.",
     "noIp": "Needs an IP address.",
     "adminOnly": "An administrator sets this up.",
-    "agent": { "off": "Turn on the Agents module in Settings to use osquery or Wazuh.", "add": "Install osquery", "manage": "Agents and tokens" },
+    "agent": {
+      "off": "Turn on the Agents module in Settings to use osquery or Wazuh.",
+      "add": "Install osquery",
+      "manage": "Agents and tokens"
+    },
     "snmp": {
       "movedOut": "This device moved to {{ip}}, outside the scope of SNMP credential {{name}}, so it is not read there. If it is still this device (check on the device itself: a copied network card looks the same), add the address to that credential's scope (Devices, Scope and sensors, SNMP, Edit) to keep reading it.",
       "off": "Turn on active discovery in Settings to read devices with SNMP.",
-      "declared": "Added by hand: Vedette sends nothing to it.",
+      "declared": "Added manually: Vedette sends nothing to it.",
+      "approveHere": "Approve, then add SNMP",
       "approveFirst": "Approve the device first: SNMP reads only approved devices.",
       "add": "Add SNMP",
       "readAgain": "Read with SNMP now",
@@ -60,7 +71,7 @@
     "title_other": "{{count}} devices, {{pending}} not yet approved",
     "titleAllApproved_one": "{{count}} device, approved",
     "titleAllApproved_other": "{{count}} devices, all approved",
-    "meta": "Every value shows its source and confidence.",
+    "meta": "Open a device for each value's source and confidence.",
     "metaInfo": "New values are added; old values are never overwritten.",
     "all": "All devices",
     "titleEmpty": "No devices yet",
@@ -68,29 +79,10 @@
   },
   "noDevice": "{{product}} (no device)",
   "tabs": {
-    "label": "Device areas",
-    "all": "All devices",
+    "label": "Device lists",
+    "devices": "Devices",
     "review": "To review",
-    "reviewBadge": "waiting for your approval",
-    "software": "Software",
-    "add": "Add devices"
-  },
-  "kpi": {
-    "label": "Devices at a glance",
-    "devices": "devices",
-    "review": "to review",
-    "recent": "approved in the last 24 h",
-    "manual": "added by hand"
-  },
-  "filter": {
-    "label": "Filter devices",
-    "all": "All ({{count}})",
-    "recent": "Approved in the last 24 h ({{count}})",
-    "manual": "Added by hand ({{count}})",
-    "agent": "From an agent ({{count}})",
-    "fragile": "Fragile ({{count}})",
-    "category": "Category",
-    "allCategories": "All categories"
+    "reviewBadge": "waiting for your approval"
   },
   "col": {
     "name": "Name",
@@ -99,30 +91,26 @@
     "hardware": "Make and model",
     "os": "Operating system",
     "source": "Source",
-    "lastSeen": "Last seen"
+    "lastSeen": "Last seen",
+    "sources": "Sources",
+    "device": "Make, model and OS",
+    "matched": "Matched software"
   },
   "table": {
     "caption": "Device list",
-    "search": "Search by name, IP, make, operating system",
-    "empty": {
-      "all": "No device matches this search.",
-      "recent": "No device was approved in the last 24 hours. Devices you approve appear here for a day.",
-      "fragile": "No fragile device matches.",
-      "manual": "No device added by hand yet. Use \"Add a device\" to add one.",
-      "agent": "No device reports through an agent yet. See \"Add devices\" to set up osquery or Wazuh."
-    }
+    "emptyApproved": "No approved devices yet. New devices wait under To review."
   },
   "empty": {
     "title": "No devices yet",
     "titleBoxOnly": "No other devices yet",
     "body": "Plug the box into your LAN; Vedette finds devices within about an hour.",
-    "info": "You can also add devices by hand or import a list from a CSV file (for example from Excel).",
+    "info": "You can also add devices manually or import a list from a CSV file (for example from Excel).",
     "range": "Set the box's network ranges",
     "bodyNeutral": "Devices appear as the sensor hears them, usually within an hour.",
     "bodyBoxOnlyNeutral": "Other devices appear as the sensor hears them.",
     "bodyWatching": "Vedette is watching your saved ranges; devices appear within about an hour.",
     "bodyBoxOnlyWatching": "Vedette is watching your saved ranges; other devices appear as it hears them.",
-    "bodyBoxOnly": "Add devices by hand, or set your network ranges so Vedette finds them."
+    "bodyBoxOnly": "Add devices manually, or set your network ranges so Vedette finds them."
   },
   "export": "Export CSV",
   "pending": {
@@ -134,7 +122,7 @@
     "firstSeen": "First seen {{when}}.",
     "approve": "Approve",
     "approved": "Approved {{name}}.",
-    "findLater": "Find it later under All devices → Approved in the last 24 h.",
+    "findLater": "Find it later in Devices.",
     "mark": "Mark unknown",
     "unmark": "Remove unknown mark",
     "marked": "Marked {{name}} as unknown.",
@@ -162,16 +150,16 @@
     "open": "Add a device",
     "openDevice": "Open device",
     "title": "Add a device",
-    "body": "Pick a product you use to get alerts when it is exploited.",
+    "body": "Choose how Vedette learns about the device.",
     "bodyInfo": "Vedette alerts you when an actively exploited vulnerability matches it, even if the box is not plugged into your network yet.",
     "product": "Product",
     "version": "Version (optional)",
     "versionHint": "With the version, alerts are more precise. Leave empty if unknown.",
     "versionPlaceholder": "For example 7.2.5",
-    "name": "Name (optional)",
-    "nameHint": "A name you recognise, for example \"Office firewall\".",
-    "ip": "IP address (optional)",
-    "ipHint": "Leave empty if unknown or the device is outside this network.",
+    "name": "Host name",
+    "nameHint": "The name it has on your network, for example \"fw-hq\".",
+    "ip": "IP address",
+    "ipHint": "IPv4, or a host name below. One of the two is needed.",
     "submit": "Add",
     "done": "Added {{name}}. Vedette will alert you when an actively exploited vulnerability matches this product.",
     "softwareTitle": "Add software to the device",
@@ -180,7 +168,11 @@
     "doneKev_one": "Added {{name}}. Attackers have already exploited {{count}} vulnerability in this product; Vedette will alert you when it matters.",
     "doneKev_other": "Added {{name}}. Attackers have already exploited {{count}} vulnerabilities in this product; Vedette will alert you when it matters.",
     "softwareDoneKev_one": "Added {{name}}. Attackers have already exploited {{count}} vulnerability in this software.",
-    "softwareDoneKev_other": "Added {{name}}. Attackers have already exploited {{count}} vulnerabilities in this software."
+    "softwareDoneKev_other": "Added {{name}}. Attackers have already exploited {{count}} vulnerabilities in this software.",
+    "needAddress": "Enter an IP address or a host name, so Vedette knows which device this is.",
+    "ipBad": "That IP address is not valid. Enter something like 192.168.10.25.",
+    "productRuns": "Product it runs",
+    "openExisting": "Open {{name}}"
   },
   "picker": {
     "placeholder": "Type a product, model or maker, for example FortiGate 60F",
@@ -197,7 +189,7 @@
     "productPlaceholder": "For example FortiGate",
     "customNote": "Alerts still match by maker, even without an exact product.",
     "customNoteInfo": "Vedette matches alerts by maker, so you still hear about exploited vulnerabilities in this maker's products even without an exact product match.",
-    "customHint": "entered by hand",
+    "customHint": "entered manually",
     "backToList": "Back to the list",
     "more_one": "{{count}} more match. Keep typing to narrow the list.",
     "more_other": "{{count}} more matches. Keep typing to narrow the list."
@@ -244,7 +236,7 @@
     "firstSeen": "First seen",
     "lastSeen": "Last seen",
     "origin": "How it got on the list",
-    "originManual": "Added by hand",
+    "originManual": "Manual",
     "originDiscovered": "Found on the network",
     "regularScan": "Regular scans",
     "regularScanHint": "After the first gentle scan, Vedette only listens to a fragile device or one of unknown type unless regular scans are allowed. Never means never, for every type of device.",
@@ -255,7 +247,7 @@
     },
     "regularScanSaved": "Regular scan setting saved.",
     "firstScan": "First scan",
-    "firstScanNone": "No gentle first scan (declared by hand, the Vedette box itself, or a known type that is not fragile)",
+    "firstScanNone": "No gentle first scan (added manually, the Vedette box itself, or a known type that is not fragile)",
     "kindFrom": "Set from",
     "tabs": {
       "label": "Sections of the device page",
@@ -269,7 +261,8 @@
       "findings": "Findings",
       "software": "Software",
       "services": "Open services"
-    }
+    },
+    "metaLine": "{{kind}}, last seen {{when}}"
   },
   "approval": {
     "pending": "This device is not approved yet",
@@ -346,51 +339,6 @@
     "seenTyped": "You entered {{typed}}; the device reports {{version}} ({{source}}).",
     "accept": "Use {{version}}",
     "acceptLabel": "Use version {{version}} for {{name}}"
-  },
-  "softwareTab": {
-    "description": "Every piece of software on every device, with its version.",
-    "descriptionInfo": "Each row says where Vedette learned it. Search for a product to see which devices run it.",
-    "caption": "Software on all devices",
-    "search": "Search by software, version or device",
-    "device": "Device",
-    "empty": "No software yet",
-    "emptyBody": "Add software by hand, install an agent, or run a scan.",
-    "emptyBodyInfo": "Software appears when you add a product by hand, when an agent reports, or when a scan reads a version."
-  },
-  "ways": {
-    "intro": "Vedette learns about devices in these ways; use several at once.",
-    "introInfo": "What an agent reports wins over a scan's guess.",
-    "when": "When to use it",
-    "adminOnly": "An administrator sets this up in Scope, sensors and agents.",
-    "agentsOff": "The Agent intake module is off; an administrator turns it on in Settings → Modules.",
-    "discovery": {
-      "title": "Found on the network (automatic)",
-      "when": "Everything plugged into your LAN.",
-      "info": "The box's sensor listens and a gentle scan in the night names devices; new ones wait under \"To review\".",
-      "action": "Set network ranges and sensors"
-    },
-    "manual": {
-      "title": "Add by hand",
-      "when": "A product you know you run, even if the box cannot see it.",
-      "info": "For example a branch firewall, a cloud service or software on a laptop. Pick it from the suggestions in three clicks."
-    },
-    "csv": {
-      "title": "Import a CSV file",
-      "when": "You already keep a list in Excel.",
-      "info": "Columns name, ip, product, version and kind; up to 500 rows. Wrong rows are reported by line."
-    },
-    "osquery": {
-      "title": "osquery agent on servers",
-      "when": "Linux and Windows servers.",
-      "info": "The agent reads the exact packages and versions, so alerts say \"confirmed\" instead of \"suspected\".",
-      "action": "Download osquery and create a token"
-    },
-    "wazuh": {
-      "title": "Connect Wazuh",
-      "when": "You already run Wazuh.",
-      "info": "Vedette reads its agents and packages through the read-only Wazuh API; nothing is installed.",
-      "action": "Connect Wazuh"
-    }
   },
   "notes": {
     "title": "Notes",
@@ -515,7 +463,7 @@
     "descriptionNoSpanInfo": "It hears DHCP, ARP, mDNS, SSDP and LLDP. It listens on the box's management port, set in Settings → Box network.",
     "descriptionContainerNoSpanInfo": "It hears DHCP, ARP, mDNS, SSDP and LLDP. On this container-only install you choose the card it listens on here with Configure.",
     "descriptionContainerInfo": "It hears DHCP, ARP, mDNS, SSDP and LLDP. On this container-only install you choose the card it listens on, and the SPAN card, here with Configure.",
-    "off": "The passive sensor is off, so Vedette does not discover new devices by itself. Devices you add by hand still work.",
+    "off": "The passive sensor is off, so Vedette does not discover new devices by itself. Devices you add manually still work.",
     "caption": "Sensors on this box",
     "col": {
       "name": "Sensor",
@@ -926,5 +874,240 @@
     "alternatives": "The same signals also fit: {{list}}.",
     "alternativesInfo": "Pick the right one: the type decides whether Vedette scans the device gently as fragile.",
     "instead": "It is a {{kind}}"
+  },
+  "select": {
+    "all": "Select every device shown",
+    "one": "Select {{name}}"
+  },
+  "addDialog": {
+    "body": "Pick how Vedette learns about the device.",
+    "bodyInfo": "Use several at once on the same device: an agent's values win over SNMP, SNMP over a scan, a scan over passive listening. Devices on your LAN are also found by themselves and wait under To review.",
+    "method": "How to add it",
+    "adminOnly": "Admin only",
+    "name": {
+      "manual": "Manual",
+      "snmp": "SNMP",
+      "osquery": "osquery",
+      "wazuh": "Wazuh",
+      "csv": "CSV import"
+    },
+    "when": {
+      "manual": "IP or host name",
+      "snmp": "Switches, routers, printers",
+      "osquery": "Linux and Windows servers",
+      "wazuh": "You already run Wazuh",
+      "csv": "A list from Excel"
+    },
+    "title": {
+      "manual": "Add a device manually",
+      "snmp": "Read a device with SNMP",
+      "osquery": "Install the osquery agent",
+      "wazuh": "Connect Wazuh",
+      "csv": "Import a CSV file"
+    },
+    "info": {
+      "manual": "Name the device by its IP address or host name and pick the product it runs, in three clicks. Vedette alerts you when an actively exploited vulnerability matches it. A device you add yourself is never scanned.",
+      "snmp": "Vedette asks the device read-only questions with a credential you give: maker, model, firmware version. Test reads one address now. A range goes into the credential's scope and every device in it is read at each scan window.",
+      "osquery": "Create a token, then run one command on the server. osquery reports installed software with exact versions, so alerts say confirmed instead of suspected.",
+      "wazuh": "Vedette reads the agents and packages of your Wazuh server through its read-only API. Nothing is installed on the machines.",
+      "csv": "Columns name, ip, product, version and kind; up to 500 rows. Wrong rows are reported by line, correct rows are still added."
+    },
+    "snmp": {
+      "target": "IP address or range",
+      "targetHint": "One address is read now. A range is read at every scan.",
+      "targetBad": "Enter one IP address, such as 192.168.10.3, or a range, such as 192.168.10.0/24.",
+      "newCredential": "New credential",
+      "rangeCovered": "{{range}} is in the scope of {{name}}",
+      "rangeWhen": "Every approved device in it is read at the next scan window.",
+      "addRange": "Add range to {{name}}",
+      "test": "Test",
+      "editCredential": "Edit {{name}}",
+      "outsideLan": "{{range}} is outside the scan scope",
+      "outsideLanWhy": "Vedette only sends SNMP inside the ranges you allowed. Add it to the scan scope here.",
+      "noCredential": "No credential yet",
+      "capReason": "{{count}} credentials at most",
+      "capWhy": "The box keeps {{count}} credentials at most.",
+      "capLink": "Remove one in Scope, sensors and agents, SNMP",
+      "first": "Add the credential your devices use: choose New credential below.",
+      "needCredential": "Add a credential first: choose + New credential."
+    },
+    "osquery": {
+      "noMac": "macOS is not supported: osquery runs on Linux and Windows servers.",
+      "noMacTopic": "macOS",
+      "noMacInfo": "Vedette reads servers. Laptops and Macs are seen by the network scan and passive listening."
+    },
+    "wazuh": {
+      "connected": "Connected to {{url}}",
+      "connectedBody": "Saving again replaces the connection."
+    },
+    "moduleOff": "Module is off: turn it on here",
+    "needs": {
+      "snmp": "SNMP reads run in the Active sensor module, which is off.",
+      "osquery": "osquery reports arrive through the Agent intake module, which is off.",
+      "wazuh": "Wazuh is read through the Agent intake module, which is off."
+    }
+  },
+  "search": {
+    "label": "Search devices",
+    "placeholder": "Name, IP, MAC, maker, or type:switch",
+    "chipsLabel": "Common filters",
+    "chip": {
+      "fragile": "Fragile",
+      "snmp": "SNMP",
+      "osquery": "osquery",
+      "manual": "Manual",
+      "findings": "Has findings",
+      "same": "Possibly the same"
+    },
+    "matches_one": "{{shown}} of {{count}} device",
+    "matches_other": "{{shown}} of {{count}} devices",
+    "clear": "Clear filters",
+    "none": "No devices match.",
+    "key": {
+      "type": "Device type or category",
+      "source": "What reports on it",
+      "fragile": "Fragile devices",
+      "has": "Has findings, software or open ports",
+      "software": "Runs this software",
+      "suspicious": "Marked unknown",
+      "approved": "Approved recently",
+      "possible": "Possibly the same device"
+    },
+    "source": {
+      "snmp": "SNMP",
+      "osquery": "osquery agent",
+      "wazuh": "Wazuh",
+      "scan": "Network scan",
+      "passive": "Passive listening",
+      "manual": "Manual"
+    },
+    "has": {
+      "findings": "Open findings",
+      "software": "Known software",
+      "ports": "Open ports"
+    },
+    "approved": {
+      "24h": "In the last 24 hours",
+      "7d": "In the last 7 days"
+    },
+    "anyType": "Any {{category}} device",
+    "short": {
+      "osquery": "osquery",
+      "wazuh": "Wazuh",
+      "snmp": "SNMP",
+      "scan": "Scan",
+      "passive": "Passive",
+      "manual": "Manual"
+    },
+    "lowConfidence": "(low confidence)",
+    "possible": {
+      "same": "As another device (merge or keep separate)"
+    }
+  },
+  "declaredPage": {
+    "nav": "Declared software",
+    "title": "Declared software",
+    "description": "Products you run that are not tied to a device.",
+    "info": "For example Microsoft Office, a cloud service or a branch firewall you cannot reach. They come from your answers to the weekly question, a CSV row with only a product, or Add here.",
+    "info2": "Vedette matches each one against exploited vulnerabilities by its product, so they feed Findings like a device. Nothing scans them. To tie one to a machine, add the software on that device's page and remove it here.",
+    "add": "Add software",
+    "addTitle": "Add declared software",
+    "addBody": "Pick a product you run to get alerts when it is exploited.",
+    "addInfo": "Use this for software with no device in the list. For software on a known device, open the device and add it there.",
+    "done": "Added {{name}}. Vedette will alert you when an actively exploited vulnerability matches it.",
+    "doneKev_one": "Added {{name}}. Attackers have already exploited {{count}} vulnerability in this product; Vedette will alert you when it matters.",
+    "doneKev_other": "Added {{name}}. Attackers have already exploited {{count}} vulnerabilities in this product; Vedette will alert you when it matters.",
+    "caption": "Declared software",
+    "search": "Search declared software",
+    "col": {
+      "product": "Product",
+      "findings": "Findings",
+      "added": "Added",
+      "actions": "Actions"
+    },
+    "findings_one": "{{count}} finding",
+    "findings_other": "{{count}} findings",
+    "noFindings": "None",
+    "noFindingsLong": "No findings",
+    "noProduct": "Product not named",
+    "editVersion": "Change the version of {{name}}",
+    "remove": "Remove {{name}}",
+    "removed": "Removed {{name}}.",
+    "empty": "No declared software",
+    "emptyBody": "Add a product you run that is not on a device in the list.",
+    "emptyInfo": "Your answers to the weekly question (\"I have this\") appear here too.",
+    "elsewhere_one": "{{count}} product declared without a device is in",
+    "elsewhere_other": "{{count}} products declared without a device are in",
+    "open": "Settings, Declared software"
+  },
+  "inline": {
+    "modulesPage": "Turn it on in Settings, Modules (admin)",
+    "turnOn": "Turn on {{name}}",
+    "moduleOn": "{{name}} is on.",
+    "alsoOn": "Turning it on also turns on {{list}}, which it needs."
+  },
+  "snmpNext": {
+    "edit": "Edit {{name}}",
+    "approve": "Approve {{ip}} and read it",
+    "approved": "Approved {{ip}}. Reading it now.",
+    "scopeWhy": "An administrator adds it to the scan scope.",
+    "scope": "Open the scan scope",
+    "addToScope": "Add {{ip}} to the scan scope",
+    "confirmScope": "Confirm the scan scope",
+    "scanningWhy": "Active scanning is off, so the box sends nothing to devices.",
+    "scanning": "Turn on active scanning in Scope",
+    "neverWhy": "This device is set to Never scan.",
+    "never": "Change it on the device page",
+    "notListedWhy": "Vedette has not found this address yet. The next scan or the sensor finds it; approve it under To review, then read it here.",
+    "notListed": "Open To review",
+    "manualWhy": "This device was added manually, so Vedette never probes it.",
+    "manual": "Open the device",
+    "publicWhy": "{{ip}} is a public address: Vedette only reads devices inside your own network.",
+    "excludedWhy": "{{ip}} is inside the scan scope but excluded from it.",
+    "excluded": "Change the exclusions in Scope"
+  },
+  "toScope": {
+    "title": "Add {{range}} to the scan scope",
+    "confirmTitle": "Confirm the scan scope",
+    "body": "Vedette only scans and asks SNMP inside the ranges you allow.",
+    "info": "Vedette sends scans and SNMP questions only inside these ranges, and only after someone confirms they belong to the company.",
+    "now": "Allowed now: {{list}}.",
+    "none": "No range is allowed yet.",
+    "add": "Add to scope",
+    "confirm": "Confirm",
+    "restWhy": "The scan window, speed and fragile types stay as they are.",
+    "rest": "Change them in Scope",
+    "changed": "Someone changed the scan scope meanwhile. Check the ranges above and tick again."
+  },
+  "same": {
+    "title": "Possibly the same device as",
+    "titleMany_one": "Possibly the same device as {{count}} other device",
+    "titleMany_other": "Possibly the same device as one of {{count}} other devices",
+    "info": "Vedette could not be sure these rows are one machine: phones and laptops change their private Wi-Fi address, and many share a name such as \"iPhone\". Merge keeps one device with its approval, notes and findings, and moves the other one's addresses, software and findings to it. Keep separate means Vedette will not ask again for these two. Two machines that agents or hardware MAC addresses tell apart are never offered.",
+    "stateApproved": "Approved, seen {{when}}",
+    "statePending": "Waiting for review, seen {{when}}",
+    "merge": "Merge",
+    "mergeWith": "Merge with {{name}}",
+    "keepSeparate": "Keep separate",
+    "keepSeparateWith": "Keep separate from {{name}}",
+    "adminOnly": "An admin can merge these.",
+    "keptSeparate": "Kept separate from {{name}}. Vedette will not ask again for these two.",
+    "merged": "Merged into {{name}}.",
+    "mergeTitle": "Merge {{from}} into {{into}}?",
+    "mergeBody": "{{from}} disappears; its addresses, software and findings move to {{into}}. This cannot be undone.",
+    "mergeInfo": "The device you keep keeps its name, approval, notes, findings and settings, and becomes approved when the other one was. Both notes are kept.",
+    "keepLabel": "Device to keep",
+    "keepHint": "Usually the approved one.",
+    "thisOne": "this {{name}}",
+    "otherOne": "the other {{name}}",
+    "keepOptionApproved": "{{name}} (approved)",
+    "keepOptionPending": "{{name}} (waiting for review)",
+    "mergeConfirm": "Merge into {{into}}",
+    "keepTitle": "Keep {{a}} and {{b}} separate?",
+    "keepBody": "Vedette will not ask again for these two and will not join them on its own. This cannot be undone.",
+    "keepConfirm": "Keep separate",
+    "hint": "Possibly the same device as {{name}}",
+    "hintMany_one": "Possibly the same device as {{name}} or {{count}} other",
+    "hintMany_other": "Possibly the same device as {{name}} or {{count}} others"
   }
 }

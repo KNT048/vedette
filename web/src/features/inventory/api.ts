@@ -5,7 +5,7 @@ import { api, ApiError } from '@/lib/api'
 import type { AssetKind } from '@/lib/types'
 import type {
   AddDeviceInput, AddDeviceResult, AgentKind, AgentsResponse, CatalogResponse, CreateTokenResult, DeviceDetail, DevicesResponse,
-  ImportResult, InventorySettings, RegularScan, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, SnmpCredential, SnmpCredentialInput, SnmpResponse, SnmpTestResult,
+  ImportResult, InventorySettings, KeepSeparateInput, MergeInput, RegularScan, SamePairs, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, SnmpCredential, SnmpCredentialInput, SnmpResponse, SnmpTestResult,
   WazuhConnection, WazuhInput, WazuhTestResult,
 } from './types'
 
@@ -58,6 +58,34 @@ export function useDeviceAction(id: string) {
     setVersion: useMutation({ mutationFn: (b: { sid: string; version: string }) => api.patch(`${base}/software/${encodeURIComponent(b.sid)}`, { version: b.version }), onSuccess: inv }),
   }
 }
+/** D-599 (#829): every pair of devices that may be one machine; one cached read for the To review hints and the `possible:same` filter. */
+export const usePossibleSame = () => useQuery({ queryKey: ['inventory', 'possible-same'], queryFn: () => api.get<SamePairs>('/inventory/possible-same'), retry: false })
+/** D-599 (#829, J2): Merge (`from` joins `into` and is gone) and Keep separate, admin only. After a merge the device that went is not
+ *  read again (its page would answer 404 while it navigates away); every other inventory, feeds and findings query is. */
+export function useSameDevice() {
+  const qc = useQueryClient()
+  const refresh = (gone?: string) => Promise.all([
+    qc.invalidateQueries({ queryKey: ['inventory'], predicate: (q) => !(gone && q.queryKey[1] === 'device' && q.queryKey[2] === gone) }),
+    qc.invalidateQueries({ queryKey: ['feeds'] }), qc.invalidateQueries({ queryKey: ['findings'] }),
+  ])
+  return {
+    merge: useMutation({
+      mutationFn: ({ into, from }: { into: string } & MergeInput) => api.post<{ id: string }>(`/inventory/devices/${encodeURIComponent(into)}/merge`, { from } satisfies MergeInput),
+      onSuccess: (_r, v) => { qc.removeQueries({ queryKey: ['inventory', 'device', v.from], exact: true, type: 'inactive' }); return refresh(v.from) },
+      // #876 r1: a device gone meanwhile (404) or a pair the box now tells apart (409): read both devices and the pairs again, so the
+      // notice stops offering what no longer exists (the dialog keeps the words; it lives outside the notice).
+      onError: (e, v) => {
+        if (!(e instanceof ApiError) || (e.status !== 404 && e.status !== 409)) return
+        for (const id of [v.into, v.from]) void qc.invalidateQueries({ queryKey: ['inventory', 'device', id], exact: true })
+        void qc.invalidateQueries({ queryKey: ['inventory', 'possible-same'], exact: true })
+      },
+    }),
+    keepSeparate: useMutation({
+      mutationFn: ({ id, other }: { id: string } & KeepSeparateInput) => api.post(`/inventory/devices/${encodeURIComponent(id)}/keep-separate`, { other } satisfies KeepSeparateInput),
+      onSuccess: () => refresh(),
+    }),
+  }
+}
 export function useNotifyNew() {
   const inv = useInvalidate()
   return useMutation({ mutationFn: (enabled: boolean) => api.put('/inventory/notify-new', { enabled }), onSuccess: inv })
@@ -79,6 +107,16 @@ export function useSaveSettings() {
         await inv()
       }
     },
+  })
+}
+/** Add one range to the scan scope without sending the whole block (#860, append-only): the ranges and confirmation the dialog showed
+ *  go back with it, so a change made meanwhile is a 409 scope_changed instead of being overwritten. */
+export function useAddScopeRange() {
+  const inv = useInvalidate()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (b: { range: string; confirm: boolean; shown_ranges: string[]; shown_confirmed_at: string | null }) => api.post('/scanning/safety/ranges', b),
+    onSettled: async () => { await Promise.all([inv(), qc.invalidateQueries({ queryKey: ['scanning'] })]) },
   })
 }
 export function useAgentActions() {

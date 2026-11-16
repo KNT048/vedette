@@ -13,16 +13,15 @@ import { Segmented } from '@/components/ui/segmented'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { useSnmp, useSnmpActions } from './api'
+import { kindLabel } from '@/lib/deviceTypes'
 import { errMsg } from './kinds'
 import type { SnmpCredential, SnmpCredentialInput, SnmpTestResult } from './types'
-import { CIDR_RE_UI, IPV4_RE_UI, isPrivateCidr, LOCAL_RANGE_NAMES } from './validate'
+import { CIDR_RE_UI, IPV4_RE_UI, isPrivateCidr, LOCAL_RANGE_NAMES, SNMP_MAX } from './validate'
 
 type Version = SnmpCredentialInput['version']
 type Auth = NonNullable<SnmpCredentialInput['auth']>
 type Priv = NonNullable<SnmpCredentialInput['priv']>
 
-/** At most 8 credentials (409 too_many on the server). */
-const SNMP_MAX = 8
 const SCOPE_MAX = 16
 // Browser-side checks so mistakes show early; the server checks the same rules again (SYS-2, contract.ts SnmpCredentialInput).
 // eslint-disable-next-line no-control-regex
@@ -41,8 +40,21 @@ function SecretMask({ last4 }: { last4: string }) {
 }
 
 /** Add or edit a credential. scope pre-fills the scope (a device page's address, D-598); widen: the scope given reaches a new address, so
- *  the saved secrets cannot be kept (the server answers secret_required otherwise, D-512) and the form asks for them again. */
-export function CredentialDialog({ current, scope, widen = false, onClose }: { current: SnmpCredential | null; scope?: string; widen?: boolean; onClose: () => void }) {
+ *  the saved secrets cannot be kept (the server answers secret_required otherwise, D-512) and the form asks for them again.
+ *  `onSaved` gets the saved credential (the Add a device dialog selects it, #849). */
+export function CredentialDialog({ current, scope, widen = false, onClose, onSaved }: { current: SnmpCredential | null; scope?: string; widen?: boolean; onClose: () => void; onSaved?: (c: SnmpCredential) => void }) {
+  const { t } = useTranslation('inventory')
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent title={current ? t('snmp.form.editTitle', { name: current.name }) : t('snmp.form.addTitle')} description={t('snmp.form.body')} info={t('snmp.form.bodyInfo')}>
+        <CredentialForm current={current} scope={scope} widen={widen} onCancel={onClose} onSaved={(c) => { onSaved?.(c); onClose() }} />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** The credential form itself, inline in the Add a device dialog (#849) or inside CredentialDialog. */
+export function CredentialForm({ current, scope, widen = false, onCancel, onSaved, idPrefix = 'snmp' }: { current: SnmpCredential | null; scope?: string; widen?: boolean; onCancel: () => void; onSaved: (c: SnmpCredential) => void; idPrefix?: string }) {
   const { t } = useTranslation('inventory')
   const { create, update } = useSnmpActions()
   const [name, setName] = useState(current?.name ?? '')
@@ -97,7 +109,7 @@ export function CredentialDialog({ current, scope, widen = false, onClose }: { c
     const input: SnmpCredentialInput = version === 'v2c'
       ? { name: name.trim(), version, community: community || undefined, scope: parseScope(scopeText) }
       : { name: name.trim(), version, username: username.trim(), auth, auth_password: authPassword || undefined, priv, priv_password: priv === 'aes128' ? privPassword || undefined : undefined, scope: parseScope(scopeText) }
-    const done = (c: SnmpCredential) => { toast.success(t(current ? 'snmp.form.saved' : 'snmp.form.added', { name: c.name })); onClose() }
+    const done = (c: SnmpCredential) => { toast.success(t(current ? 'snmp.form.saved' : 'snmp.form.added', { name: c.name })); onSaved(c) }
     const fail = (er: unknown) => setError(errMsg(er))
     if (current) update.mutate({ id: current.id, ...input }, { onSuccess: done, onError: fail })
     else create.mutate(input, { onSuccess: done, onError: fail })
@@ -106,11 +118,9 @@ export function CredentialDialog({ current, scope, widen = false, onClose }: { c
   const hint = (keep: boolean) => (keep ? t('snmp.form.keep') : t('snmp.form.passwordHint'))
   const described = (id: string, err?: string) => (err ? `${id}-error` : `${id}-hint`)
   return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent title={current ? t('snmp.form.editTitle', { name: current.name }) : t('snmp.form.addTitle')} description={t('snmp.form.body')} info={t('snmp.form.bodyInfo')}>
         <form onSubmit={submit} className="grid gap-4" noValidate>
-          <Field label={t('snmp.form.name')} htmlFor="snmp-name" hint={t('snmp.form.nameHint')} error={errors.name}>
-            <Input id="snmp-name" value={name} maxLength={64} autoComplete="off" onChange={(e) => setName(e.target.value)} aria-invalid={!!errors.name} aria-describedby={described('snmp-name', errors.name)} />
+          <Field label={t('snmp.form.name')} htmlFor={`${idPrefix}-name`} hint={t('snmp.form.nameHint')} error={errors.name}>
+            <Input id={`${idPrefix}-name`} value={name} maxLength={64} autoComplete="off" onChange={(e) => setName(e.target.value)} aria-invalid={!!errors.name} aria-describedby={described(`${idPrefix}-name`, errors.name)} />
           </Field>
           <div className="grid gap-1.5">
             <span className="text-sm font-medium">{t('snmp.form.version')}</span>
@@ -118,50 +128,48 @@ export function CredentialDialog({ current, scope, widen = false, onClose }: { c
               options={[{ value: 'v2c', label: t('snmp.version.v2c') }, { value: 'v3', label: t('snmp.version.v3') }]} />
           </div>
           {version === 'v2c' ? (
-            <Field label={t('snmp.form.community')} htmlFor="snmp-community" hint={keepCommunity ? t('snmp.form.keep') : t('snmp.form.communityHint')} error={errors.community}>
-              <Input id="snmp-community" type="password" value={community} maxLength={64} autoComplete="off" onChange={(e) => setCommunity(e.target.value)} aria-invalid={!!errors.community} aria-describedby={described('snmp-community', errors.community)} />
+            <Field label={t('snmp.form.community')} htmlFor={`${idPrefix}-community`} hint={keepCommunity ? t('snmp.form.keep') : t('snmp.form.communityHint')} error={errors.community}>
+              <Input id={`${idPrefix}-community`} type="password" value={community} maxLength={64} autoComplete="off" onChange={(e) => setCommunity(e.target.value)} aria-invalid={!!errors.community} aria-describedby={described(`${idPrefix}-community`, errors.community)} />
             </Field>
           ) : (
             <>
-              <Field label={t('snmp.form.user')} htmlFor="snmp-user" hint={t('snmp.form.userHint')} error={errors.username}>
-                <Input id="snmp-user" value={username} maxLength={64} autoComplete="off" onChange={(e) => setUsername(e.target.value)} aria-invalid={!!errors.username} aria-describedby={described('snmp-user', errors.username)} />
+              <Field label={t('snmp.form.user')} htmlFor={`${idPrefix}-user`} hint={t('snmp.form.userHint')} error={errors.username}>
+                <Input id={`${idPrefix}-user`} value={username} maxLength={64} autoComplete="off" onChange={(e) => setUsername(e.target.value)} aria-invalid={!!errors.username} aria-describedby={described(`${idPrefix}-user`, errors.username)} />
               </Field>
               <div className="grid gap-4 sm:grid-cols-[minmax(0,12rem)_1fr]">
-                <Field label={t('snmp.form.auth')} htmlFor="snmp-auth">
-                  <Select id="snmp-auth" value={auth} onChange={(e) => setAuth(e.target.value as Auth)}>
+                <Field label={t('snmp.form.auth')} htmlFor={`${idPrefix}-auth`}>
+                  <Select id={`${idPrefix}-auth`} value={auth} onChange={(e) => setAuth(e.target.value as Auth)}>
                     {(['sha256', 'sha'] as const).map((a) => <option key={a} value={a}>{t(`snmp.authName.${a}`)}</option>)}
                   </Select>
                 </Field>
-                <Field label={t('snmp.form.authPassword')} htmlFor="snmp-authpw" hint={hint(keepAuth)} error={errors.auth_password}>
-                  <Input id="snmp-authpw" type="password" value={authPassword} maxLength={64} autoComplete="new-password" onChange={(e) => setAuthPassword(e.target.value)} aria-invalid={!!errors.auth_password} aria-describedby={described('snmp-authpw', errors.auth_password)} />
+                <Field label={t('snmp.form.authPassword')} htmlFor={`${idPrefix}-authpw`} hint={hint(keepAuth)} error={errors.auth_password}>
+                  <Input id={`${idPrefix}-authpw`} type="password" value={authPassword} maxLength={64} autoComplete="new-password" onChange={(e) => setAuthPassword(e.target.value)} aria-invalid={!!errors.auth_password} aria-describedby={described(`${idPrefix}-authpw`, errors.auth_password)} />
                 </Field>
               </div>
               <div className="grid gap-4 sm:grid-cols-[minmax(0,12rem)_1fr]">
-                <Field label={t('snmp.form.priv')} htmlFor="snmp-priv">
-                  <Select id="snmp-priv" value={priv} onChange={(e) => setPriv(e.target.value as Priv)}>
+                <Field label={t('snmp.form.priv')} htmlFor={`${idPrefix}-priv`}>
+                  <Select id={`${idPrefix}-priv`} value={priv} onChange={(e) => setPriv(e.target.value as Priv)}>
                     {(['aes128', 'none'] as const).map((p) => <option key={p} value={p}>{t(`snmp.privName.${p}`)}</option>)}
                   </Select>
                 </Field>
                 {priv === 'aes128' ? (
-                  <Field label={t('snmp.form.privPassword')} htmlFor="snmp-privpw" hint={hint(keepPriv)} error={errors.priv_password}>
-                    <Input id="snmp-privpw" type="password" value={privPassword} maxLength={64} autoComplete="new-password" onChange={(e) => setPrivPassword(e.target.value)} aria-invalid={!!errors.priv_password} aria-describedby={described('snmp-privpw', errors.priv_password)} />
+                  <Field label={t('snmp.form.privPassword')} htmlFor={`${idPrefix}-privpw`} hint={hint(keepPriv)} error={errors.priv_password}>
+                    <Input id={`${idPrefix}-privpw`} type="password" value={privPassword} maxLength={64} autoComplete="new-password" onChange={(e) => setPrivPassword(e.target.value)} aria-invalid={!!errors.priv_password} aria-describedby={described(`${idPrefix}-privpw`, errors.priv_password)} />
                   </Field>
                 ) : null}
               </div>
             </>
           )}
-          <Field label={t('snmp.form.scope')} htmlFor="snmp-scope" hint={t('snmp.form.scopeHint')} info={t('snmp.form.scopeHintInfo')} error={errors.scope}>
-            <Textarea id="snmp-scope" rows={3} value={scopeText} placeholder={'192.168.10.0/24\n192.168.20.5'} spellCheck={false} onChange={(e) => setScopeText(e.target.value)} aria-invalid={!!errors.scope} aria-describedby={described('snmp-scope', errors.scope)} className="font-mono text-[13px]" />
+          <Field label={t('snmp.form.scope')} htmlFor={`${idPrefix}-scope`} hint={t('snmp.form.scopeHint')} info={t('snmp.form.scopeHintInfo')} error={errors.scope}>
+            <Textarea id={`${idPrefix}-scope`} rows={3} value={scopeText} placeholder={'192.168.10.0/24\n192.168.20.5'} spellCheck={false} onChange={(e) => setScopeText(e.target.value)} aria-invalid={!!errors.scope} aria-describedby={described(`${idPrefix}-scope`, errors.scope)} className="font-mono text-meta" />
           </Field>
           <p className="text-[12px] text-muted">{t('snmp.form.insecure')}</p>
           {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
           <DialogFooter>
-            <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
+            <Button onClick={onCancel}>{t('common:cancel')}</Button>
             <Button type="submit" variant="primary" disabled={pending}>{current ? t('snmp.form.save') : t('snmp.form.create')}</Button>
           </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
   )
 }
 
@@ -177,7 +185,7 @@ export function SnmpAnswer({ r, ip }: { r: SnmpTestResult; ip: string }) {
   }
   const rows: [string, string][] = ([
     ['sysName', a.sys_name], ['vendor', [a.vendor, a.product].filter(Boolean).join(' ')], ['model', a.model], ['os', a.os],
-    ['kind', a.kind ? t(`kind.${a.kind}`, { defaultValue: a.kind }) : ''], ['serial', a.serial], ['firmware', a.firmware], ['objectId', a.sys_object_id],
+    ['kind', a.kind ? kindLabel(a.kind) : ''], ['serial', a.serial], ['firmware', a.firmware], ['objectId', a.sys_object_id],
   ] as [string, string][]).filter(([, v]) => v)
   return (
     <div role="status" className="grid min-w-0 gap-2 rounded-md border border-ok/40 bg-ok-soft px-3 py-2 text-sm">

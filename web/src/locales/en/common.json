@@ -40,6 +40,8 @@
     "page": "Page {{page}} of {{pages}}",
     "prev": "Previous",
     "next": "Next",
+    "emptyFiltered": "No rows match these filters.",
+    "clearFilters": "Clear filters",
     "sortBy": "Sort by",
     "sortOption": "Sort by {{column}}"
   },
@@ -59,7 +61,7 @@
     "info": "Info"
   },
   "source": {
-    "manual": "Added by hand",
+    "manual": "Manual",
     "agent": "Agent",
     "snmp": "SNMP",
     "nmap": "Active scan",
@@ -200,7 +202,18 @@
       "assist": "Assistant and reports"
     },
     "myAccount": "My account",
-    "reportProblem": "Report a problem"
+    "reportProblem": "Report a problem",
+    "collapse": "Collapse menu",
+    "expand": "Expand menu",
+    "breadcrumb": "Breadcrumb",
+    "version": "Version",
+    "badge": {
+      "findings": "confirmed to handle",
+      "devices": "to review",
+      "incidents": "high or critical open"
+    },
+    "groupWaiting": "waiting: {{parts}}",
+    "groupHere": "holds this page"
   },
   "login": {
     "subtitle": "Sign in to see exploited vulnerabilities that match your devices.",
@@ -229,5 +242,13 @@
     "leavingLine": "Not part of v1: you can turn it off; once off it is hidden.",
     "leavingInfo": "This box turned it on before v1 left it out. It keeps working as set and its data is kept. This build does not offer it, so once it is off it cannot be turned on again here; it comes back in a later release.",
     "turnOff": "Turn off in Settings, Modules"
+  },
+  "tokenSearch": {
+    "clear": "Clear search",
+    "suggestions": "Filters",
+    "chips": "Common filters"
+  },
+  "creatable": {
+    "added": "{{label}} added and selected."
   }
 }

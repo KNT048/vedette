@@ -216,7 +216,7 @@
       "valueLabel": "TXT record value"
     },
     "dnsHint": "Paste the value without quotes.",
-    "dnsHintInfo": "This record only proves you control the DNS. It gives Vedette no other access. If your DNS provider appends the domain to the Name field automatically, type just @. DNS usually updates within minutes, can take up to 72 hours (as in Google domain verification guidance). Keep the record until Vedette confirms verification; you can delete it afterwards.",
+    "dnsHintInfo": "This record only proves you control the DNS. It gives Vedette no other access. If your DNS provider appends the domain to the Name field automatically, type just @. DNS usually updates within minutes, can take up to 72 hours (as in Google domain verification guidance). Keep the record in DNS after verification: Vedette checks it again before each scan.",
     "doneDomain": "Verified with a DNS TXT record on {{time}}.",
     "doneDomainInfo": "Vedette re-checks the record right before every scan.",
     "keepRecord": "Keep the TXT record in DNS: if it disappears, scanning is blocked until you add it back.",

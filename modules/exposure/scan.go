@@ -249,6 +249,12 @@ func (s *Service) startScan(ctx context.Context, who Actor, id, noticeVersion st
 			return nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
 		}
 	}
+	if reason == "" && t.Kind == KindIP { // INV-30: an IP on the shared exclusion list is not scanned at all, the runner's ports included
+		if err = s.checkExcluded(ctx, t.Value); err != nil {
+			s.auditFailedScan(ctx, who.Email, t, err)
+			return nil, fmt.Errorf("exposure: scanning %s: %w", t.Value, err)
+		}
+	}
 	run, err := s.begin(ctx, who.Email, t, reason)
 	if err != nil {
 		s.auditFailedScan(ctx, who.Email, t, err)
@@ -259,6 +265,23 @@ func (s *Service) startScan(ctx context.Context, who Actor, id, noticeVersion st
 
 // auditFailedScan writes the exposure.scan row of an attempt that ended without a snapshot: refused by the gate, busy, too soon,
 // the scan module off, or failed. The write outlives a caller that hung up; a failure to write is logged.
+// checkExcluded refuses an address on the shared exclusion list (400 out_of_scope), or any scan while that list cannot be read (503).
+func (s *Service) checkExcluded(ctx context.Context, value string) error {
+	ip, err := netip.ParseAddr(value)
+	if err != nil {
+		return fmt.Errorf("exposure: reading the address %q: %w", value, err)
+	}
+	sf, err := s.safety(ctx)
+	if err != nil {
+		s.cfg.Log.ErrorContext(ctx, "exposure: reading the shared safety settings failed", "error", err)
+		return apiErr(503, "scanner_unavailable", "%s", notSafetyRead)
+	}
+	if sf.excluded(ip) {
+		return errExcluded(ip.String())
+	}
+	return nil
+}
+
 func (s *Service) auditFailedScan(ctx context.Context, user string, t Target, cause error) {
 	detail := "failed: the scan stopped (" + clipText(cause.Error(), 200) + ")"
 	var ae *APIError

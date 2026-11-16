@@ -4,13 +4,14 @@ import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, CIDR_RE, currentUser, fail, guard, IPV4_RE } from '@/mocks/http'
 import { collection, daysAgo, dataMode, newId, nowIso, peek } from '@/mocks/db'
+import type { ModuleId } from '@/lib/modules'
 import { assetsStore, findingsStore, isOn } from '@/mocks/stores'
 import type { Asset, Finding } from '@/lib/types'
 import { BOX_ID, inventorySettingsStore } from '@/features/inventory/mocks'
 import { displayName } from '@/features/inventory/nameOf'
-import { exposureSnapshotsStore, exposureTargetsStore } from '@/features/exposure/mocks'
+import { exposureMockRun, exposureSnapshotsStore, exposureTargetsStore, greenboneMock } from '@/features/exposure/mocks'
 import { mockDeviceProgress } from '@/lib/progress'
-import type { CredTarget, IdentReason, ProbeEntry, RescanEvent, RunIdentRow, RunResultRow, ScanConfig, ScanConfigResponse, ScanRun, ScanScope, ScanTarget } from './types'
+import type { Engine, EngineId, EngineRunning, EnginesResponse, CredTarget, IdentReason, ProbeEntry, RescanEvent, RunIdentRow, RunResultRow, ScanConfig, ScanConfigResponse, ScanRun, ScanScope, ScanTarget } from './types'
 
 
 /** Tests đặt nhỏ lại; trình duyệt dùng giá trị thật. */
@@ -357,6 +358,103 @@ function startRun(ids: string[], trigger: ScanRun['trigger'], note: string | nul
 
 const allRuns = () => runs.get().map(advance)
 
+
+// ---- #850: the engines of Settings › Scanning (GET /scans/engines, PUT /scans/engines/{id}) ----
+// Costs are the figures the box will report as measured on the N100 (proposal on #850); here they are sample values.
+// lib/v1 PREVIEW_MODULES, copied: importing lib/v1 here would load lib/credentialed before a test can mock it
+const PREVIEW_MODULES: readonly ModuleId[] = ['scan', 'honeypot', 'logs', 'ai', 'reports']
+type EngineDef = Pick<Engine, 'group' | 'cost'> & { module: ModuleId }
+const ENGINES: Record<EngineId, EngineDef> = {
+  passive: { group: 'discover', module: 'sensor-passive', cost: { ram_mb: 60, cpu: 'low' } },
+  nmap_discovery: { group: 'discover', module: 'sensor-active', cost: { ram_mb: 80, cpu: 'low' } },
+  nmap_versions: { group: 'identify', module: 'sensor-active', cost: { ram_mb: 150, cpu: 'medium' } },
+  snmp: { group: 'identify', module: 'sensor-active', cost: { ram_mb: 20, cpu: 'low' } },
+  osquery: { group: 'identify', module: 'agent-intake', cost: { ram_mb: 30, cpu: 'low' } },
+  wazuh: { group: 'identify', module: 'agent-intake', cost: { ram_mb: 30, cpu: 'low' } },
+  nuclei: { group: 'vulns', module: 'scan', cost: { ram_mb: 400, cpu: 'medium' } },
+  zap: { group: 'vulns', module: 'exposure', cost: { ram_mb: 1200, cpu: 'high' } },
+  openvas: { group: 'vulns', module: 'exposure', cost: { ram_mb: 5500, cpu: 'high' } },
+  honeypot: { group: 'traps', module: 'honeypot', cost: { ram_mb: 120, cpu: 'low' } },
+}
+/** The person's own switch per engine (on unless turned off); OpenVAS keeps exposure's own switch (D-563). */
+export const enginesStore = collection<Partial<Record<EngineId, boolean>>>('scan_engines', () => ({}))
+
+/** The next start of a daily window, from its "from" time (the box's own clock in the mock). */
+function nextWindowStart(from: string, days: number[]): string | null {
+  const [h, m] = from.split(':').map(Number)
+  const d = new Date()
+  for (let i = 0; i < 8; i++) {
+    const c = new Date(d.getFullYear(), d.getMonth(), d.getDate() + i, h, m)
+    const wd = c.getDay() === 0 ? 7 : c.getDay()
+    if (c.getTime() > d.getTime() && days.includes(wd)) return c.toISOString()
+  }
+  return null
+}
+
+function engineRunning(): EngineRunning[] {
+  const out: EngineRunning[] = []
+  const live = allRuns().find((r) => r.status === 'running' || r.status === 'stopping')
+  if (live) out.push({ run_id: live.id, engine: 'nuclei', started_at: live.started_at, target_count: live.total })
+  const ex = exposureMockRun()
+  if (ex?.status === 'running') out.push({ run_id: ex.id, engine: ex.phase === 'greenbone' ? 'openvas' : 'zap', started_at: ex.started_at, target_count: 1 })
+  return out
+}
+
+function enginesView(): EnginesResponse {
+  const own = enginesStore.get()
+  const running = engineRunning()
+  const inv = inventorySettingsStore.get()
+  const done = allRuns().filter((r) => r.status !== 'running' && r.status !== 'stopping')
+  const lastScan = done[0]
+  const cfg = configResponse()
+  const ex = exposureMockRun()
+  const exLast = ex && ex.status !== 'running' && ex.finished_at ? { at: ex.finished_at, outcome: (ex.status === 'done' ? 'ok' : ex.status === 'stopped' ? 'stopped' : 'failed') as 'ok' | 'stopped' | 'failed', run_id: ex.id, summary: null } : null
+  const snmp = peek<unknown[]>('sa_snmp')
+  const wazuh = peek<unknown>('intake_wazuh')
+  const gb = greenboneMock.view()
+  const discoveryNext = inv.active.enabled ? nextWindowStart(inv.active.from, inv.active.days) : null
+  const items = (Object.keys(ENGINES) as EngineId[]).map((id): Engine => {
+    const d = ENGINES[id]
+    const modOn = isOn(d.module)
+    const base: Engine = {
+      id, group: d.group, module: d.module, preview: PREVIEW_MODULES.includes(d.module), enabled: modOn && own[id] !== false,
+      can_toggle: modOn, toggle_blocked: modOn ? null : 'module_off', state: 'idle', state_detail: null, cost: d.cost,
+      last_run: null, next_run: null, settings_href: `/settings/scanning?tab=engines#${id}`,
+    }
+    if (!modOn) return { ...base, state: 'off', state_detail: 'Its module is off' }
+    if (id === 'openvas') {
+      const on = gb.state !== 'off' && gb.state !== 'unavailable'
+      const r = running.find((x) => x.engine === 'openvas')
+      if (gb.state === 'unavailable') return { ...base, enabled: gb.enabled, can_toggle: false, toggle_blocked: 'not_installed', state: 'not_installed', state_detail: gb.reason ?? 'OpenVAS is not on this box' }
+      if (!on) return { ...base, enabled: false, can_toggle: gb.preflight.ok, toggle_blocked: gb.preflight.ok ? null : 'needs_setup', state: gb.preflight.ok ? 'off' : 'needs_setup', state_detail: gb.preflight.ok ? null : gb.preflight.reason, last_run: exLast }
+      return { ...base, enabled: true, state: r ? 'running' : gb.state === 'ready' ? 'idle' : gb.state === 'error' ? 'error' : 'queued',
+        state_detail: gb.state === 'starting' || gb.state === 'loading' ? 'Loading its feed, about 2 hours the first time' : gb.state === 'error' ? gb.reason : null, last_run: exLast }
+    }
+    if (!base.enabled) return { ...base, state: 'off' }
+    switch (id) {
+      case 'passive': return { ...base, state_detail: 'Listens all the time' }
+      case 'nmap_discovery': case 'nmap_versions':
+        return { ...base, last_run: { at: daysAgo(0, 2), outcome: 'ok', run_id: null, summary: id === 'nmap_discovery' ? '14 devices answered' : '11 devices identified' },
+          next_run: discoveryNext, state_detail: inv.active.enabled ? null : 'Active discovery is off under Devices, Scope and sensors' }
+      case 'snmp': return Array.isArray(snmp) && snmp.length === 0 ? { ...base, state: 'needs_setup', state_detail: 'Add an SNMP credential to read devices' } : { ...base, next_run: discoveryNext }
+      case 'osquery': return { ...base, state_detail: 'Servers report in every hour' }
+      case 'wazuh': return wazuh ? { ...base, next_run: null } : { ...base, state: 'needs_setup', state_detail: 'Connect your Wazuh server' }
+      case 'nuclei': {
+        const r = running.find((x) => x.engine === 'nuclei')
+        const last = lastScan ? { at: lastScan.ended_at ?? lastScan.started_at, outcome: (lastScan.status === 'done' ? 'ok' : 'stopped') as 'ok' | 'stopped', run_id: lastScan.id, summary: `${lastScan.total} devices checked, ${lastScan.matched} matched` } : null
+        // no scope commitment, or the scanner of the scan container down: it cannot run, and says why
+        if (!r && !cfg.can_scan) return { ...base, state: cfg.scope.commitment ? 'error' : 'needs_setup', state_detail: cfg.block_reason, last_run: last }
+        return { ...base, state: r ? 'running' : 'idle', next_run: cfg.next_run, state_detail: cfg.schedule_blocked_reason,
+          last_run: lastScan ? { at: lastScan.ended_at ?? lastScan.started_at, outcome: lastScan.status === 'done' ? 'ok' : 'stopped', run_id: lastScan.id, summary: `${lastScan.total} devices checked, ${lastScan.matched} matched` } : null }
+      }
+      case 'zap': return { ...base, state: running.some((x) => x.engine === 'zap') ? 'running' : 'idle', last_run: exLast }
+      case 'honeypot': return { ...base, state_detail: 'Decoys wait for a touch' }
+      default: return base
+    }
+  })
+  return { items, running }
+}
+
 // ---- validate cấu hình ----
 function validateConfig(c: ScanConfig): string | null {
   const w = c.window
@@ -403,6 +501,27 @@ function keyLast4(raw: string): string | { error: string } {
 const NOT_FOUND = () => fail(404, 'not_found', 'No such item.')
 
 export const handlers = [
+  http.get(`${API}/scans/engines`, () => { const d = guard('viewer'); return d ?? HttpResponse.json(enginesView()) }),
+
+  http.put(`${API}/scans/engines/:id`, async ({ params, request }) => {
+    const d = guard('admin'); if (d) return d
+    const id = String(params.id) as EngineId
+    if (!(id in ENGINES)) return fail(404, 'not_found', 'There is no such engine.')
+    const b = await body<{ enabled: boolean }>(request)
+    if (typeof b.enabled !== 'boolean') return fail(400, 'bad_body', 'enabled must be true or false.')
+    if (!isOn(ENGINES[id].module)) return fail(409, 'module_off', 'Its module is off. Turn the module on under Settings, Modules first.')
+    if (id === 'openvas') {
+      const err = greenboneMock.set(b.enabled)
+      if (err) return fail(422, 'needs_setup', err.message)
+    } else {
+      enginesStore.update((m) => ({ ...m, [id]: b.enabled }))
+      // turning off an engine that runs stops its run, as Stop now does
+      if (!b.enabled && id === 'nuclei') runs.update((l) => l.map((r) => (r.status === 'running' ? { ...r, status: 'stopping', stop_requested_at: nowIso() } : r)))
+    }
+    audit(b.enabled ? 'scan.engine_on' : 'scan.engine_off', id, b.enabled ? 'on' : 'off')
+    return HttpResponse.json(enginesView().items.find((e) => e.id === id))
+  }),
+
   http.get(`${API}/scans/config`, () => { const d = guard('viewer'); return d ?? HttpResponse.json(configResponse()) }),
 
   // Cấu hình phạm vi/an toàn = admin (spec §4). Nhận một phần, gộp rồi kiểm tra toàn bộ.

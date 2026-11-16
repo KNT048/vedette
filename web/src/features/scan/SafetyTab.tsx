@@ -1,20 +1,21 @@
 import { useState } from 'react'
+import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ShieldCheck } from 'lucide-react'
 import { Notice, Section, Panel } from '@/components/common/PageHeader'
-import { QueryState } from '@/components/common/States'
+import { EmptyState, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, Input, Label, Select, Textarea } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { fmtDateTime } from '@/lib/format'
+import { fmtDate } from '@/lib/format'
 import { useCan } from '@/lib/session'
-import { useSaveConfig, useScanConfig } from './api'
+import { useSaveConfig, useScanConfig, useTargets } from './api'
 import { errMsg } from './errors'
-import type { ScanConfig, ScanConfigResponse } from './types'
+import { DAY_ORDER } from './links'
+import type { ScanConfigResponse, ScanTarget } from './types'
 
-const DAY_ORDER = [1, 2, 3, 4, 5, 6, 7]
 const RATES = [1, 2, 5, 10, 20]
 const AFTER = [2, 3, 5, 10]
 
@@ -30,7 +31,6 @@ function Form({ data }: { data: ScanConfigResponse }) {
   const [excl, setExcl] = useState(c0.exclusions.join('\n'))
   const [stopOn, setStopOn] = useState(c0.stop_on_unresponsive)
   const [after, setAfter] = useState(c0.unresponsive_after)
-  const [sch, setSch] = useState<ScanConfig['schedule']>(c0.schedule)
   const [error, setError] = useState<string | undefined>()
   const dis = !can
 
@@ -39,13 +39,24 @@ function Form({ data }: { data: ScanConfigResponse }) {
     setError(undefined)
     save.mutate({
       window: { days, from, to }, rate, exclusions: excl.split('\n').map((l) => l.trim()).filter(Boolean),
-      stop_on_unresponsive: stopOn, unresponsive_after: after, schedule: sch,
+      stop_on_unresponsive: stopOn, unresponsive_after: after,
     }, { onSuccess: () => toast.success(t('safety.saved')), onError: (err) => setError(errMsg(err)) })
   }
 
   return (
     <form onSubmit={submit} className="grid max-w-3xl gap-8" noValidate>
       {dis ? <Notice tone="off" className="mb-0" title={t('safety.adminOnly')} /> : null}
+      <p className="max-w-3xl text-sm">{t('safety.appliesTo')}</p>
+
+      <Section id="scope" title={t('safety.scopeTitle')} description={t('safety.scopeDescription')} info={t('safety.scopeInfo')} stories={['S-SCAN-1']}>
+        <Panel className="grid gap-1 p-4 text-sm">
+          <p>{data.scope.networks.length ? t('start.scope', { networks: data.scope.networks.join(', ') }) : t('start.noNetworks')}</p>
+          <p className={data.scope.commitment ? 'text-muted' : 'text-danger'}>
+            {data.scope.commitment ? t('start.commitment', { date: fmtDate(data.scope.commitment.confirmed_at), by: data.scope.commitment.by }) : t('start.noCommitment')}
+          </p>
+          <Link to="/devices/setup" className="w-fit text-[13px] text-accent underline-offset-4 hover:underline">{t('safety.scopeChange')}</Link>
+        </Panel>
+      </Section>
 
       <Section id="window" title={t('safety.windowTitle')} description={t('safety.windowDescription')} info={t('safety.windowDescriptionInfo')} stories={['S-SCAN-4']}>
         <div className="grid gap-4">
@@ -78,6 +89,10 @@ function Form({ data }: { data: ScanConfigResponse }) {
         </Field>
       </Section>
 
+      <Section id="fragile" title={t('safety.fragileTitle')} description={t('safety.fragileDescription')} info={t('start.safeNote')} stories={['S-SCAN-1']}>
+        <Fragile />
+      </Section>
+
       <Section id="autostop" title={t('safety.stopTitle')} description={t('safety.stopDescription')} stories={['S-SCAN-4']}>
         <div className="grid gap-3">
           <div className="flex items-center gap-3">
@@ -103,33 +118,39 @@ function Form({ data }: { data: ScanConfigResponse }) {
         </Panel>
       </Section>
 
-      <Section id="schedule" title={t('safety.schedTitle')} description={t('safety.schedDescription')} stories={['S-SCAN-4']}>
-        <div className="grid gap-4">
-          <div className="flex items-center gap-3">
-            <Switch id="sch-on" checked={sch.enabled} onCheckedChange={(v) => setSch((s) => ({ ...s, enabled: v }))} disabled={dis} />
-            <Label htmlFor="sch-on">{t('safety.schedSwitch')}</Label>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Field htmlFor="sch-freq" label={t('safety.freq')}>
-              <Select id="sch-freq" value={sch.frequency} onChange={(e) => setSch((s) => ({ ...s, frequency: e.target.value as 'daily' | 'weekly' }))} disabled={dis || !sch.enabled}>
-                <option value="daily">{t('safety.daily')}</option>
-                <option value="weekly">{t('safety.weekly')}</option>
-              </Select>
-            </Field>
-            <Field htmlFor="sch-day" label={t('safety.weekday')}>
-              <Select id="sch-day" value={sch.weekday} onChange={(e) => setSch((s) => ({ ...s, weekday: Number(e.target.value) }))} disabled={dis || !sch.enabled || sch.frequency !== 'weekly'}>
-                {DAY_ORDER.map((d) => <option key={d} value={d}>{t(`daysLong.${d}`)}</option>)}
-              </Select>
-            </Field>
-            <Field htmlFor="sch-at" label={t('safety.at')}><Input id="sch-at" type="time" value={sch.at} onChange={(e) => setSch((s) => ({ ...s, at: e.target.value }))} disabled={dis || !sch.enabled} /></Field>
-          </div>
-          <p className="text-[13px] text-muted">{data.schedule_blocked_reason ? data.schedule_blocked_reason : !data.can_scan && sch.enabled ? t(data.scope.commitment ? 'safety.nextScannerDown' : 'safety.nextBlocked') : data.next_run ? t('safety.next', { time: fmtDateTime(data.next_run) }) : t('safety.nextNone')}</p>
-        </div>
-      </Section>
 
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       <div><Button type="submit" variant="primary" disabled={dis || save.isPending}>{t('safety.save')}</Button></div>
     </form>
+  )
+}
+
+/** D-126: fragile and unclassified devices are scanned only when a person picks them, at a quarter of the speed. Set per device. */
+function Fragile() {
+  const { t } = useTranslation('scan')
+  const q = useTargets()
+  return (
+    <QueryState query={q}>
+      {(d) => {
+        const list: ScanTarget[] = d.items.filter((x) => x.kind === 'internal' && x.fragile && !x.box)
+        return (
+          <div className="grid gap-2">
+            {list.length ? (
+              <ul aria-label={t('safety.fragileTitle')} className="divide-y divide-rule rounded-md border border-rule bg-surface">
+                {list.map((x) => (
+                  <li key={x.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
+                    <Link to={`/devices/${x.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{x.label}</Link>
+                    <span className="text-[13px] text-muted">{x.ip}</span>
+                    <span className="text-[13px] text-muted">{x.device_kind === 'unknown' || !x.device_kind ? t('safety.fragileUnknown') : t('safety.fragileKind')}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : <EmptyState title={t('safety.fragileNone')} />}
+            <Link to="/devices/setup" className="w-fit text-[13px] text-accent underline-offset-4 hover:underline">{t('safety.fragileTypes')}</Link>
+          </div>
+        )
+      }}
+    </QueryState>
   )
 }
 

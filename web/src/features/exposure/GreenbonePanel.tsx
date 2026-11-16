@@ -24,9 +24,11 @@ const gb = (n: number | null) => (n === null ? null : `${(Math.floor(n / 1e8) / 
  * S-EXP-2 (INV-25, D-563): the optional deep scan with Greenbone (OpenVAS), off by default, admin only. The box measures its memory and
  * free disk first and refuses with the numbers; the first start loads Greenbone's feed for about 2 hours, shown as a phase.
  */
-export function GreenboneSetting() {
+export function GreenboneSetting({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation('exposure')
   const q = useGreenbone()
+  // #850: on the OpenVAS engine card of Settings › Scanning the card's switch turns it on or off; this shows its state and needs only
+  if (embedded) return <QueryState query={q}>{(g) => <GreenboneBody g={g} embedded />}</QueryState>
   return (
     <Section id="greenbone" title={t('greenbone.title')} description={t('greenbone.description')} info={<>
       <p>{t('greenbone.descriptionInfo')}</p><p>{t('greenbone.what')}</p><p>{t('greenbone.apart')}</p><p>{t('greenbone.weekly')}</p><p>{t('greenbone.offKeeps')}</p>
@@ -36,7 +38,7 @@ export function GreenboneSetting() {
   )
 }
 
-function GreenboneBody({ g }: { g: Greenbone }) {
+function GreenboneBody({ g, embedded = false }: { g: Greenbone; embedded?: boolean }) {
   const { t } = useTranslation('exposure')
   const can = useCan('admin')
   const set = useSetGreenbone()
@@ -50,18 +52,19 @@ function GreenboneBody({ g }: { g: Greenbone }) {
   })
   const p = g.preflight
   const f = g.feed_sync
+  const Box = embedded ? 'div' : Panel
   return (
-    <Panel className="grid max-w-3xl gap-4 p-4">
+    <Box className={embedded ? 'grid max-w-3xl gap-4' : 'grid max-w-3xl gap-4 p-4'}>
       <p className="flex flex-wrap items-center gap-2 text-sm font-medium" role="status">
         <Chip tone={STATE_TONE[g.state]}>{t(`greenbone.state.${g.state}`)}</Chip>
         {g.state === 'loading' ? g.reason ?? t('greenbone.loading') : g.state === 'error' || g.state === 'unavailable' ? g.reason : t(`greenbone.stateText.${g.state}`)}
       </p>
-      {heldOn ? (
+      {heldOn ? (embedded ? null : (
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={() => change(false)} disabled={!can || set.isPending} title={locked}>{t('greenbone.disable')}</Button>
           <span className="text-[12px] text-muted">{t('greenbone.heldOn')}</span>
         </div>
-      ) : g.state === 'unavailable' ? null : (
+      )) : g.state === 'unavailable' ? null : (
         <>
           <KeyValue items={[
             { label: t('greenbone.memory'), value: gb(p.memory_bytes) ?? t('common:unknown') },
@@ -75,18 +78,18 @@ function GreenboneBody({ g }: { g: Greenbone }) {
           {!on ? <InfoLine className="text-[13px]" topic={t('greenbone.needsTopic')} info={t('greenbone.needsInfo')}>{t('greenbone.needs')}</InfoLine> : null}
           {(!on || (g.state === 'loading' && !f.last_at)) && p.ok && p.memory_bytes != null && p.memory_bytes < SWAP_BELOW ? <InfoLine className="text-[13px] text-muted" topic={t('greenbone.memory')} info={t('greenbone.swapNoteInfo')}>{t('greenbone.swapNote')}</InfoLine> : null}
           {!on && !p.ok ? <p role="alert" className="text-sm text-warn">{p.reason}</p> : null}
-          <div className="flex flex-wrap items-center gap-3">
+          {embedded ? null : <div className="flex flex-wrap items-center gap-3">
             {on ? (
               <Button onClick={() => change(false)} disabled={!can || set.isPending} title={locked}>{t('greenbone.disable')}</Button>
             ) : (
               <Button variant="primary" onClick={() => change(true)} disabled={!can || !p.ok || set.isPending} title={locked ?? (p.ok ? undefined : p.reason ?? undefined)}>{t('greenbone.enable')}</Button>
             )}
             {g.changed_by && g.changed_at ? <span className="text-[12px] text-muted">{t(on ? 'greenbone.changedOn' : 'greenbone.changedOff', { by: g.changed_by, time: dateTimeText(g.changed_at) })}</span> : null}
-          </div>
-          {locked ? <p className="text-[13px] text-muted">{locked}</p> : null}
+          </div>}
+          {locked && !embedded ? <p className="text-[13px] text-muted">{locked}</p> : null}
         </>
       )}
-    </Panel>
+    </Box>
   )
 }
 

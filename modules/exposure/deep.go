@@ -351,7 +351,23 @@ func (s *Service) deepDomain(ctx context.Context, st ScanTarget, c Content) (Con
 	state := map[string]HostIP{}
 	var fence []string
 	var queue []deepAddr
+	// INV-30: an address on the shared exclusion list gets nothing; a list that cannot be read stops the deep step (nothing sent)
+	sf, err := s.safety(ctx)
+	if err != nil {
+		if ctx.Err() != nil {
+			return c, nil, ctx.Err()
+		}
+		s.cfg.Log.ErrorContext(ctx, "exposure: reading the shared safety settings failed", "target", st.Value, "error", err)
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "deep", Text: notSafetyRead})
+		return c, nil, nil
+	}
+	now := store.FormatTS(s.clock())
 	for _, a := range addrs {
+		if sf.excluded(a.ip) {
+			state[a.ip.String()] = HostIP{Deep: DeepRefused, LastTried: now}
+			lines = append(lines, NotCheckedRow{Kind: "deep", Text: clipText(fmt.Sprintf(notDeepExcluded, a.label()), maxLineText)})
+			continue
+		}
 		if s.cfg.DomainFence == nil && !a.box {
 			fence = append(fence, a.ip.String())
 			state[a.ip.String()] = HostIP{Deep: DeepFence}
@@ -367,7 +383,6 @@ func (s *Service) deepDomain(ctx context.Context, st ScanTarget, c Content) (Con
 	}
 	var scanned []deepAddr
 	took, refused, waiting := 0, 0, 0
-	now := store.FormatTS(s.clock())
 	for _, a := range queue {
 		if took >= MaxDeepIPs || refused >= maxDeepRefusals {
 			waiting++

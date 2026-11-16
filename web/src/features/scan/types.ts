@@ -16,3 +16,7 @@ export type IdentReason = z.infer<typeof C.IdentReason>
 export type ProbeEntry = z.infer<typeof C.ProbeEntry>
 export type RescanEvent = z.infer<typeof C.RescanEvent>
 export type CredTarget = z.infer<typeof C.CredTarget>
+export type EngineId = z.infer<typeof C.EngineId>
+export type Engine = z.infer<typeof C.Engine>
+export type EngineRunning = z.infer<typeof C.EngineRunning>
+export type EnginesResponse = z.infer<typeof C.EnginesResponse>

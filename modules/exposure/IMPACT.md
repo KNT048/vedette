@@ -1,5 +1,11 @@
 # Exposure — Change Impact Map
 
+## Modifying: `ScanSafety`, `Safety`, `Config.Safety`, `checkExcluded`, the rate of `TemplateJob` (INV-30, #850)
+- **cmd/vedette** (AI-Trưởng): wires `Config.Safety` with an adapter over the scan module's config (`rate`, `exclusions` of `GET/PUT /scans/config`); until then the port is nil and exposure keeps its own rates and no exclusion. The template scanner (`exposureTemplateScan`, `exposurefull.go`) must send each job at its `RPS`, never at the constant (`baselineInstead` sets `TemplateRPS`, the full path `nucleiargv.FullRate`).
+- **scan**: owns the block; a new field there that exposure should follow goes through `Safety` here, never through `scan_config`.
+- **SPA** `features/scan/SafetyTab.tsx` (Settings › Scanning › Safety) says the block applies to the deep scan of public IPs; `features/exposure` shows the refusal (400 `out_of_scope`) as any Scan now error.
+- **docs/API_CONVENTIONS.md** §3.3: `out_of_scope` and `scanner_unavailable` name `POST /exposure/targets/{id}/scan`. The web contract's summary of that endpoint and the exposure mock do not refuse an excluded IP yet (the mock cannot read the scan mock's config without an import cycle): listed in CONTRACT "Không khớp".
+
 ## Modifying: `ScanRun.progress`, `scanRun.prog`, `reportOpenVAS` (#830, INV-29)
 - **SPA**: the exposure page (web part of #830; contract `web/src/lib/progress.ts`). **sensor-active**/**scan**: the nmap and nuclei jobs of the runner report into the run's context; an adapter that drops the context's values loses them.
 

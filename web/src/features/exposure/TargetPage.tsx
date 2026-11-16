@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { ArrowLeft, Play, Trash2 } from 'lucide-react'
+import { ArrowLeft, Trash2 } from 'lucide-react'
 import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { PageTabs } from '@/components/common/PageFrame'
 import { QueryState, RequireModule } from '@/components/common/States'
@@ -14,6 +14,7 @@ import { useCan } from '@/lib/session'
 import { useDeleteTarget, useScan, useScanRun, useTarget } from './api'
 import { AnchorRedirect, ScrollToHash } from './anchors'
 import { ScanProgress } from './ScanProgress'
+import { ScanNowButton } from '@/features/scan/ScanNow'
 import { CommitmentPanel } from './CommitmentPanel'
 import { TermsPanel } from './TermsPanel'
 import { CommitChip, OwnerChip } from './OwnerChip'
@@ -93,9 +94,9 @@ function TargetView({ target }: { target: Target }) {
       <PageHeader title={title} stories={['S-EXP-1']}
         meta={<span className="flex flex-wrap items-center gap-2"><OwnerChip target={target} /><CommitChip target={target} />{target.last_scan_at ? t('target.lastScan', { time: dateTimeText(target.last_scan_at) }) : t('targets.neverScanned')}</span>}
         actions={<>
-          <Button variant="primary" onClick={run} disabled={!!blocked || !operator || scan.isPending || running} title={blocked ?? roleReason ?? undefined} aria-describedby={blocked ? 'scan-reason' : notice ? 'scan-notice' : undefined}>
-            <Play />{scan.isPending || running ? t('scan.running') : t('scan.button')}
-          </Button>
+          {/* #850: the contextual Scan now; its progress is the ScanProgress row under the header, with Stop */}
+          <ScanNowButton label={target.full_scan ? t('scan.deepButton') : t('scan.button')} onStart={run} running={running} pending={scan.isPending} runningLabel={t('scan.running')}
+            blocked={blocked ?? roleReason} describedBy={blocked ? 'scan-reason' : notice ? 'scan-notice' : undefined} />
           <DeleteTarget target={target} />
         </>} />
       <ScanProgress />

@@ -15,6 +15,10 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/secrets"
 )
 
 // The block list the customer's firewall pulls (INV-17, docs/specs/blocklist-format.md): plain text, one address per line,
@@ -46,12 +50,18 @@ func hashToken(t string) string {
 	return hex.EncodeToString(h[:])
 }
 
-// ensureToken returns the token, creating the first one when there is none. tx is a write transaction.
+// ensureToken returns the token, creating the first one when there is none. tx is a write transaction. A token sealed under another
+// master key (a backup restored without its decryption key, or the box key changed: #847) is 409 secret_lost: it is never replaced on
+// a read, because the firewall still pulls the old address (only its hash is checked) and keeps working until an administrator presses
+// Regenerate.
 func (s *Service) ensureToken(ctx context.Context, tx *sql.Tx) (token, last4 string, err error) {
 	var secretID string
 	err = tx.QueryRowContext(ctx, `SELECT secret_id, token_last4 FROM resp_blocklist WHERE id = 1`).Scan(&secretID, &last4)
 	if err == nil {
 		pt, oerr := s.cfg.Secrets.Open(ctx, tx, secretID, tokenPurpose)
+		if secrets.IsWrongKey(oerr) {
+			return "", "", errTokenLost()
+		}
 		if oerr != nil {
 			return "", "", fmt.Errorf("response: open the block list token: %w", oerr)
 		}
@@ -61,6 +71,14 @@ func (s *Service) ensureToken(ctx context.Context, tx *sql.Tx) (token, last4 str
 		return "", "", fmt.Errorf("response: read the block list token: %w", err)
 	}
 	return s.newTokenRow(ctx, tx, "")
+}
+
+// codeSecretLost is the refusal of a saved secret this box cannot open (#847; core/conn and agent-intake use the same code).
+const codeSecretLost = "secret_lost"
+
+func errTokenLost() *apierr.Error {
+	return fail(http.StatusConflict, codeSecretLost, "The block list address could not be read on this box (it was restored without the decryption key, or the box key changed). "+
+		"Your firewall keeps using its current address. Press Regenerate token to make a new one, then paste it into the firewall.")
 }
 
 // newTokenRow makes a token and stores it, replacing the old secret when oldSecret is set.
@@ -257,21 +275,37 @@ func (s *Service) Blocklist(ctx context.Context) (BlocklistView, error) {
 }
 
 // RegenerateToken is POST /response/blocklist/token: the old address stops working at once.
+// A token this box cannot open (#847) is replaced the same way, with one WARN and one audit row box-key.replace more.
 func (s *Service) RegenerateToken(ctx context.Context, who Actor) (BlocklistView, error) {
+	lost := false
 	s.mu.Lock()
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
 		var old string
 		if err := tx.QueryRowContext(ctx, `SELECT secret_id FROM resp_blocklist WHERE id = 1`).Scan(&old); err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return err
 		}
+		if old != "" {
+			_, oerr := s.cfg.Secrets.Open(ctx, tx, old, tokenPurpose)
+			lost = secrets.IsWrongKey(oerr)
+		}
 		if _, _, err := s.newTokenRow(ctx, tx, old); err != nil {
 			return err
+		}
+		if lost {
+			// The administrator replaces a box key the box could not open (#847): audited like secrets.OpenOrCreate's replacement (#846),
+			// with the administrator as the actor.
+			if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: who.Email, Action: "box-key.replace", Target: tokenPurpose, Detail: "reason=cannot_decrypt (restored without the decryption key, or the box key changed)"}); err != nil {
+				return fmt.Errorf("response: audit box-key.replace: %w", err)
+			}
 		}
 		return s.step(ctx, tx, "response.blocklist.token", "response", LogBlocklistToken, "The block list token was regenerated; the old address no longer works", who.Email)
 	})
 	s.mu.Unlock()
 	if err != nil {
 		return BlocklistView{}, err
+	}
+	if lost {
+		s.cfg.Log.WarnContext(ctx, "response: the block list token could not be opened with this box's master key (restored without the decryption key, or the key file was made again); an administrator made a new one", "user", who.ID)
 	}
 	return s.Blocklist(ctx)
 }
@@ -376,7 +410,7 @@ func (s *Service) FetchBlocklist(ctx context.Context, token, from string) ([]byt
 	s.allowFetch("ok:"+key, fetchPerMin, true)
 	var out []byte
 	err = s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `UPDATE resp_blocklist SET last_fetch_at = ?, last_fetch_from = ? WHERE id = 1`, s.ts(), oneLine(from, 64)); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE resp_blocklist SET last_fetch_at = ?, last_fetch_from = ? WHERE id = 1 AND token_hash = ?`, s.ts(), oneLine(from, 64), stored); err != nil {
 			return err
 		}
 		es, err := s.blockEntries(ctx, tx)

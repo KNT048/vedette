@@ -55,6 +55,7 @@
 ## Modifying: `Blocklist.Render(token) []byte` + token
 - Kiểu nội dung `text/plain; charset=utf-8` đến từ hợp đồng (`response: 'text'` trong `contract.ts` → `web/src/lib/openapi.ts` → encoder ogen), không đặt tay trong handler (#306, D-285).
 - **Firewall của khách** (FortiGate External Block List, Palo Alto EDL, pfSense/OPNsense URL Table, MikroTik fetch) kéo URL này: đổi định dạng (một IP một dòng) hoặc đường dẫn → firewall khách ngừng cập nhật mà không báo lỗi. Tạo lại token vô hiệu ngay địa chỉ cũ.
+- **Khôi phục không kèm khoá giải mã (#847):** token niêm phong bằng khoá chủ khác (`secrets.IsWrongKey`) **không bị thay khi đọc**: `GET /response/blocklist` → 409 `secret_lost` (câu nói firewall vẫn dùng địa chỉ hiện tại, bấm Regenerate token); `FetchBlocklist` chỉ so băm nên firewall vẫn kéo được địa chỉ cũ. Thẻ Block list hiện câu đó và giữ nút Regenerate token. `RegenerateToken` (hành động của quản trị viên) thay token như thường, thêm một WARN và audit `box-key.replace` (người làm là quản trị viên). Liên kết duyệt ký bằng khoá không mở được (`secrets.IsWrongKey` trên lỗi của `LinkTokens.Verify`) là liên kết không hợp lệ (`unknown`), không 500.
 
 ## Modifying: `Settings` (envelope: breaker, multi-target, maintenance, expiry, AI gates)
 - Mọi trường JSON của `Settings` phải có trong `Settings` của `contract.ts`: ogen kiểm câu trả lời của chính hộp, trường lạ → 500 (`stopped_at`, #302/#305; test qua handler `TestResponseSettingsReadableAfterEmergencyStop`).

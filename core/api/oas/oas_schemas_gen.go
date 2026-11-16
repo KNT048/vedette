@@ -43773,6 +43773,9 @@ type ExposureGetExposureGreenboneOK struct {
 	ChangedBy NilString `json:"changed_by"`
 	// The stored switch; the page offers Turn off whenever it is true.
 	Enabled bool `json:"enabled"`
+	// The feed OpenVAS itself has loaded (T10): there from the first feed load at enable on; null while it
+	// is off or unavailable, and until Vedette has read it since the box started.
+	Feed NilExposureGetExposureGreenboneOKFeed `json:"feed"`
 	// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
 	// below 60 GB free, audited.
 	FeedSync  ExposureGetExposureGreenboneOKFeedSync  `json:"feed_sync"`
@@ -43797,6 +43800,11 @@ func (s *ExposureGetExposureGreenboneOK) GetChangedBy() NilString {
 // GetEnabled returns the value of Enabled.
 func (s *ExposureGetExposureGreenboneOK) GetEnabled() bool {
 	return s.Enabled
+}
+
+// GetFeed returns the value of Feed.
+func (s *ExposureGetExposureGreenboneOK) GetFeed() NilExposureGetExposureGreenboneOKFeed {
+	return s.Feed
 }
 
 // GetFeedSync returns the value of FeedSync.
@@ -43834,6 +43842,11 @@ func (s *ExposureGetExposureGreenboneOK) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
+// SetFeed sets the value of Feed.
+func (s *ExposureGetExposureGreenboneOK) SetFeed(val NilExposureGetExposureGreenboneOKFeed) {
+	s.Feed = val
+}
+
 // SetFeedSync sets the value of FeedSync.
 func (s *ExposureGetExposureGreenboneOK) SetFeedSync(val ExposureGetExposureGreenboneOKFeedSync) {
 	s.FeedSync = val
@@ -43852,6 +43865,47 @@ func (s *ExposureGetExposureGreenboneOK) SetReason(val NilString) {
 // SetState sets the value of State.
 func (s *ExposureGetExposureGreenboneOK) SetState(val ExposureGetExposureGreenboneOKState) {
 	s.State = val
+}
+
+type ExposureGetExposureGreenboneOKFeed struct {
+	// When Vedette last read it from OpenVAS.
+	CheckedAt time.Time `json:"checked_at"`
+	// When that feed was built (UTC), read from its version; null when the version is not of the form
+	// YYYYMMDDhhmm.
+	NvtDate NilDateTime `json:"nvt_date"`
+	// Version of the vulnerability tests (NVT feed) OpenVAS reports in GMP get_feeds, e.g. "202611140611";
+	// null when it gave none or one Vedette does not show.
+	NvtVersion NilString `json:"nvt_version"`
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *ExposureGetExposureGreenboneOKFeed) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetNvtDate returns the value of NvtDate.
+func (s *ExposureGetExposureGreenboneOKFeed) GetNvtDate() NilDateTime {
+	return s.NvtDate
+}
+
+// GetNvtVersion returns the value of NvtVersion.
+func (s *ExposureGetExposureGreenboneOKFeed) GetNvtVersion() NilString {
+	return s.NvtVersion
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *ExposureGetExposureGreenboneOKFeed) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetNvtDate sets the value of NvtDate.
+func (s *ExposureGetExposureGreenboneOKFeed) SetNvtDate(val NilDateTime) {
+	s.NvtDate = val
+}
+
+// SetNvtVersion sets the value of NvtVersion.
+func (s *ExposureGetExposureGreenboneOKFeed) SetNvtVersion(val NilString) {
+	s.NvtVersion = val
 }
 
 // The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
@@ -44041,10 +44095,10 @@ type ExposureGetExposureScanOK struct {
 	Error      NilExposureGetExposureScanOKError `json:"error"`
 	FinishedAt NilDateTime                       `json:"finished_at"`
 	ID         string                            `json:"id"`
-	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-	// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-	// the snapshot exists. A failed or stopped run keeps the phase it reached.
+	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+	// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+	// snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposureGetExposureScanOKPhase `json:"phase"`
 	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
@@ -44207,10 +44261,10 @@ func (s *ExposureGetExposureScanOKError) SetMessage(val string) {
 	s.Message = val
 }
 
-// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-// the snapshot exists. A failed or stopped run keeps the phase it reached.
+// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+// snapshot exists. A failed or stopped run keeps the phase it reached.
 type ExposureGetExposureScanOKPhase string
 
 const (
@@ -50358,10 +50412,10 @@ type ExposurePostExposureScanStopOK struct {
 	Error      NilExposurePostExposureScanStopOKError `json:"error"`
 	FinishedAt NilDateTime                            `json:"finished_at"`
 	ID         string                                 `json:"id"`
-	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-	// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-	// the snapshot exists. A failed or stopped run keeps the phase it reached.
+	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+	// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+	// snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposurePostExposureScanStopOKPhase `json:"phase"`
 	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
@@ -50524,10 +50578,10 @@ func (s *ExposurePostExposureScanStopOKError) SetMessage(val string) {
 	s.Message = val
 }
 
-// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-// the snapshot exists. A failed or stopped run keeps the phase it reached.
+// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+// snapshot exists. A failed or stopped run keeps the phase it reached.
 type ExposurePostExposureScanStopOKPhase string
 
 const (
@@ -51911,10 +51965,10 @@ type ExposurePostExposureTargetsIDScanAccepted struct {
 	Error      NilExposurePostExposureTargetsIDScanAcceptedError `json:"error"`
 	FinishedAt NilDateTime                                       `json:"finished_at"`
 	ID         string                                            `json:"id"`
-	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-	// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-	// the snapshot exists. A failed or stopped run keeps the phase it reached.
+	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+	// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+	// snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposurePostExposureTargetsIDScanAcceptedPhase `json:"phase"`
 	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
@@ -52077,10 +52131,10 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedError) SetMessage(val string) 
 	s.Message = val
 }
 
-// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-// the snapshot exists. A failed or stopped run keeps the phase it reached.
+// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+// snapshot exists. A failed or stopped run keeps the phase it reached.
 type ExposurePostExposureTargetsIDScanAcceptedPhase string
 
 const (
@@ -53509,6 +53563,9 @@ type ExposurePutExposureGreenboneOK struct {
 	ChangedBy NilString `json:"changed_by"`
 	// The stored switch; the page offers Turn off whenever it is true.
 	Enabled bool `json:"enabled"`
+	// The feed OpenVAS itself has loaded (T10): there from the first feed load at enable on; null while it
+	// is off or unavailable, and until Vedette has read it since the box started.
+	Feed NilExposurePutExposureGreenboneOKFeed `json:"feed"`
 	// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
 	// below 60 GB free, audited.
 	FeedSync  ExposurePutExposureGreenboneOKFeedSync  `json:"feed_sync"`
@@ -53533,6 +53590,11 @@ func (s *ExposurePutExposureGreenboneOK) GetChangedBy() NilString {
 // GetEnabled returns the value of Enabled.
 func (s *ExposurePutExposureGreenboneOK) GetEnabled() bool {
 	return s.Enabled
+}
+
+// GetFeed returns the value of Feed.
+func (s *ExposurePutExposureGreenboneOK) GetFeed() NilExposurePutExposureGreenboneOKFeed {
+	return s.Feed
 }
 
 // GetFeedSync returns the value of FeedSync.
@@ -53570,6 +53632,11 @@ func (s *ExposurePutExposureGreenboneOK) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
+// SetFeed sets the value of Feed.
+func (s *ExposurePutExposureGreenboneOK) SetFeed(val NilExposurePutExposureGreenboneOKFeed) {
+	s.Feed = val
+}
+
 // SetFeedSync sets the value of FeedSync.
 func (s *ExposurePutExposureGreenboneOK) SetFeedSync(val ExposurePutExposureGreenboneOKFeedSync) {
 	s.FeedSync = val
@@ -53588,6 +53655,47 @@ func (s *ExposurePutExposureGreenboneOK) SetReason(val NilString) {
 // SetState sets the value of State.
 func (s *ExposurePutExposureGreenboneOK) SetState(val ExposurePutExposureGreenboneOKState) {
 	s.State = val
+}
+
+type ExposurePutExposureGreenboneOKFeed struct {
+	// When Vedette last read it from OpenVAS.
+	CheckedAt time.Time `json:"checked_at"`
+	// When that feed was built (UTC), read from its version; null when the version is not of the form
+	// YYYYMMDDhhmm.
+	NvtDate NilDateTime `json:"nvt_date"`
+	// Version of the vulnerability tests (NVT feed) OpenVAS reports in GMP get_feeds, e.g. "202611140611";
+	// null when it gave none or one Vedette does not show.
+	NvtVersion NilString `json:"nvt_version"`
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *ExposurePutExposureGreenboneOKFeed) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetNvtDate returns the value of NvtDate.
+func (s *ExposurePutExposureGreenboneOKFeed) GetNvtDate() NilDateTime {
+	return s.NvtDate
+}
+
+// GetNvtVersion returns the value of NvtVersion.
+func (s *ExposurePutExposureGreenboneOKFeed) GetNvtVersion() NilString {
+	return s.NvtVersion
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *ExposurePutExposureGreenboneOKFeed) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetNvtDate sets the value of NvtDate.
+func (s *ExposurePutExposureGreenboneOKFeed) SetNvtDate(val NilDateTime) {
+	s.NvtDate = val
+}
+
+// SetNvtVersion sets the value of NvtVersion.
+func (s *ExposurePutExposureGreenboneOKFeed) SetNvtVersion(val NilString) {
+	s.NvtVersion = val
 }
 
 // The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
@@ -61834,8 +61942,10 @@ type FindingsGetFindingsIDOK struct {
 	Compromise NilFindingsGetFindingsIDOKCompromise `json:"compromise"`
 	Confidence float64                              `json:"confidence"`
 	Cve        string                               `json:"cve"`
-	Evidence   NilFindingsGetFindingsIDOKEvidence   `json:"evidence"`
-	FirstSeen  time.Time                            `json:"first_seen"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss      NilFindingsGetFindingsIDOKCvss     `json:"cvss"`
+	Evidence  NilFindingsGetFindingsIDOKEvidence `json:"evidence"`
+	FirstSeen time.Time                          `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
 	// none to name.
 	Fix OptNilFindingsGetFindingsIDOKFix `json:"fix"`
@@ -61905,6 +62015,11 @@ func (s *FindingsGetFindingsIDOK) GetConfidence() float64 {
 // GetCve returns the value of Cve.
 func (s *FindingsGetFindingsIDOK) GetCve() string {
 	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsGetFindingsIDOK) GetCvss() NilFindingsGetFindingsIDOKCvss {
+	return s.Cvss
 }
 
 // GetEvidence returns the value of Evidence.
@@ -62030,6 +62145,11 @@ func (s *FindingsGetFindingsIDOK) SetConfidence(val float64) {
 // SetCve sets the value of Cve.
 func (s *FindingsGetFindingsIDOK) SetCve(val string) {
 	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsGetFindingsIDOK) SetCvss(val NilFindingsGetFindingsIDOKCvss) {
+	s.Cvss = val
 }
 
 // SetEvidence sets the value of Evidence.
@@ -63489,6 +63609,163 @@ func (s *FindingsGetFindingsIDOKCompromiseIndicatorsItemKind) UnmarshalText(data
 		return nil
 	case FindingsGetFindingsIDOKCompromiseIndicatorsItemKindProcess:
 		*s = FindingsGetFindingsIDOKCompromiseIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsGetFindingsIDOKCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsGetFindingsIDOKCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsGetFindingsIDOKCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsGetFindingsIDOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsIDOKCvss) GetSource() FindingsGetFindingsIDOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsGetFindingsIDOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsIDOKCvss) GetVersion() FindingsGetFindingsIDOKCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsGetFindingsIDOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsIDOKCvss) SetSource(val FindingsGetFindingsIDOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsGetFindingsIDOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsIDOKCvss) SetVersion(val FindingsGetFindingsIDOKCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsGetFindingsIDOKCvssSource string
+
+const (
+	FindingsGetFindingsIDOKCvssSourceNvd FindingsGetFindingsIDOKCvssSource = "nvd"
+	FindingsGetFindingsIDOKCvssSourceCna FindingsGetFindingsIDOKCvssSource = "cna"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKCvssSource values.
+func (FindingsGetFindingsIDOKCvssSource) AllValues() []FindingsGetFindingsIDOKCvssSource {
+	return []FindingsGetFindingsIDOKCvssSource{
+		FindingsGetFindingsIDOKCvssSourceNvd,
+		FindingsGetFindingsIDOKCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKCvssSource(data) {
+	case FindingsGetFindingsIDOKCvssSourceNvd:
+		*s = FindingsGetFindingsIDOKCvssSourceNvd
+		return nil
+	case FindingsGetFindingsIDOKCvssSourceCna:
+		*s = FindingsGetFindingsIDOKCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsGetFindingsIDOKCvssVersion string
+
+const (
+	FindingsGetFindingsIDOKCvssVersion40 FindingsGetFindingsIDOKCvssVersion = "4.0"
+	FindingsGetFindingsIDOKCvssVersion31 FindingsGetFindingsIDOKCvssVersion = "3.1"
+	FindingsGetFindingsIDOKCvssVersion30 FindingsGetFindingsIDOKCvssVersion = "3.0"
+	FindingsGetFindingsIDOKCvssVersion20 FindingsGetFindingsIDOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKCvssVersion values.
+func (FindingsGetFindingsIDOKCvssVersion) AllValues() []FindingsGetFindingsIDOKCvssVersion {
+	return []FindingsGetFindingsIDOKCvssVersion{
+		FindingsGetFindingsIDOKCvssVersion40,
+		FindingsGetFindingsIDOKCvssVersion31,
+		FindingsGetFindingsIDOKCvssVersion30,
+		FindingsGetFindingsIDOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKCvssVersion40:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKCvssVersion31:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKCvssVersion(data) {
+	case FindingsGetFindingsIDOKCvssVersion40:
+		*s = FindingsGetFindingsIDOKCvssVersion40
+		return nil
+	case FindingsGetFindingsIDOKCvssVersion31:
+		*s = FindingsGetFindingsIDOKCvssVersion31
+		return nil
+	case FindingsGetFindingsIDOKCvssVersion30:
+		*s = FindingsGetFindingsIDOKCvssVersion30
+		return nil
+	case FindingsGetFindingsIDOKCvssVersion20:
+		*s = FindingsGetFindingsIDOKCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -65037,11 +65314,13 @@ type FindingsGetFindingsOKItemsItem struct {
 	AssetID       string                                 `json:"asset_id"`
 	// Scan = confirmed by a scan template; version = suspected by version; product = only the product
 	// matches.
-	Basis      FindingsGetFindingsOKItemsItemBasis       `json:"basis"`
-	Confidence float64                                   `json:"confidence"`
-	Cve        string                                    `json:"cve"`
-	Evidence   NilFindingsGetFindingsOKItemsItemEvidence `json:"evidence"`
-	FirstSeen  time.Time                                 `json:"first_seen"`
+	Basis      FindingsGetFindingsOKItemsItemBasis `json:"basis"`
+	Confidence float64                             `json:"confidence"`
+	Cve        string                              `json:"cve"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss      NilFindingsGetFindingsOKItemsItemCvss     `json:"cvss"`
+	Evidence  NilFindingsGetFindingsOKItemsItemEvidence `json:"evidence"`
+	FirstSeen time.Time                                 `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
 	// none to name.
 	Fix     OptNilFindingsGetFindingsOKItemsItemFix     `json:"fix"`
@@ -65085,6 +65364,11 @@ func (s *FindingsGetFindingsOKItemsItem) GetConfidence() float64 {
 // GetCve returns the value of Cve.
 func (s *FindingsGetFindingsOKItemsItem) GetCve() string {
 	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsGetFindingsOKItemsItem) GetCvss() NilFindingsGetFindingsOKItemsItemCvss {
+	return s.Cvss
 }
 
 // GetEvidence returns the value of Evidence.
@@ -65175,6 +65459,11 @@ func (s *FindingsGetFindingsOKItemsItem) SetConfidence(val float64) {
 // SetCve sets the value of Cve.
 func (s *FindingsGetFindingsOKItemsItem) SetCve(val string) {
 	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsGetFindingsOKItemsItem) SetCvss(val NilFindingsGetFindingsOKItemsItemCvss) {
+	s.Cvss = val
 }
 
 // SetEvidence sets the value of Evidence.
@@ -66003,6 +66292,163 @@ func (s *FindingsGetFindingsOKItemsItemBasis) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsGetFindingsOKItemsItemBasisProduct:
 		*s = FindingsGetFindingsOKItemsItemBasisProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsGetFindingsOKItemsItemCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsGetFindingsOKItemsItemCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsGetFindingsOKItemsItemCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsGetFindingsOKItemsItemCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsOKItemsItemCvss) GetSource() FindingsGetFindingsOKItemsItemCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsGetFindingsOKItemsItemCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsOKItemsItemCvss) GetVersion() FindingsGetFindingsOKItemsItemCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsGetFindingsOKItemsItemCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsOKItemsItemCvss) SetSource(val FindingsGetFindingsOKItemsItemCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsGetFindingsOKItemsItemCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsOKItemsItemCvss) SetVersion(val FindingsGetFindingsOKItemsItemCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsGetFindingsOKItemsItemCvssSource string
+
+const (
+	FindingsGetFindingsOKItemsItemCvssSourceNvd FindingsGetFindingsOKItemsItemCvssSource = "nvd"
+	FindingsGetFindingsOKItemsItemCvssSourceCna FindingsGetFindingsOKItemsItemCvssSource = "cna"
+)
+
+// AllValues returns all FindingsGetFindingsOKItemsItemCvssSource values.
+func (FindingsGetFindingsOKItemsItemCvssSource) AllValues() []FindingsGetFindingsOKItemsItemCvssSource {
+	return []FindingsGetFindingsOKItemsItemCvssSource{
+		FindingsGetFindingsOKItemsItemCvssSourceNvd,
+		FindingsGetFindingsOKItemsItemCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOKItemsItemCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOKItemsItemCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOKItemsItemCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOKItemsItemCvssSource(data) {
+	case FindingsGetFindingsOKItemsItemCvssSourceNvd:
+		*s = FindingsGetFindingsOKItemsItemCvssSourceNvd
+		return nil
+	case FindingsGetFindingsOKItemsItemCvssSourceCna:
+		*s = FindingsGetFindingsOKItemsItemCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsGetFindingsOKItemsItemCvssVersion string
+
+const (
+	FindingsGetFindingsOKItemsItemCvssVersion40 FindingsGetFindingsOKItemsItemCvssVersion = "4.0"
+	FindingsGetFindingsOKItemsItemCvssVersion31 FindingsGetFindingsOKItemsItemCvssVersion = "3.1"
+	FindingsGetFindingsOKItemsItemCvssVersion30 FindingsGetFindingsOKItemsItemCvssVersion = "3.0"
+	FindingsGetFindingsOKItemsItemCvssVersion20 FindingsGetFindingsOKItemsItemCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsGetFindingsOKItemsItemCvssVersion values.
+func (FindingsGetFindingsOKItemsItemCvssVersion) AllValues() []FindingsGetFindingsOKItemsItemCvssVersion {
+	return []FindingsGetFindingsOKItemsItemCvssVersion{
+		FindingsGetFindingsOKItemsItemCvssVersion40,
+		FindingsGetFindingsOKItemsItemCvssVersion31,
+		FindingsGetFindingsOKItemsItemCvssVersion30,
+		FindingsGetFindingsOKItemsItemCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOKItemsItemCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOKItemsItemCvssVersion40:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemCvssVersion31:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemCvssVersion30:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOKItemsItemCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOKItemsItemCvssVersion(data) {
+	case FindingsGetFindingsOKItemsItemCvssVersion40:
+		*s = FindingsGetFindingsOKItemsItemCvssVersion40
+		return nil
+	case FindingsGetFindingsOKItemsItemCvssVersion31:
+		*s = FindingsGetFindingsOKItemsItemCvssVersion31
+		return nil
+	case FindingsGetFindingsOKItemsItemCvssVersion30:
+		*s = FindingsGetFindingsOKItemsItemCvssVersion30
+		return nil
+	case FindingsGetFindingsOKItemsItemCvssVersion20:
+		*s = FindingsGetFindingsOKItemsItemCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -68208,8 +68654,10 @@ type FindingsPostFindingsIDAiOK struct {
 	Compromise NilFindingsPostFindingsIDAiOKCompromise `json:"compromise"`
 	Confidence float64                                 `json:"confidence"`
 	Cve        string                                  `json:"cve"`
-	Evidence   NilFindingsPostFindingsIDAiOKEvidence   `json:"evidence"`
-	FirstSeen  time.Time                               `json:"first_seen"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss      NilFindingsPostFindingsIDAiOKCvss     `json:"cvss"`
+	Evidence  NilFindingsPostFindingsIDAiOKEvidence `json:"evidence"`
+	FirstSeen time.Time                             `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
 	// none to name.
 	Fix OptNilFindingsPostFindingsIDAiOKFix `json:"fix"`
@@ -68279,6 +68727,11 @@ func (s *FindingsPostFindingsIDAiOK) GetConfidence() float64 {
 // GetCve returns the value of Cve.
 func (s *FindingsPostFindingsIDAiOK) GetCve() string {
 	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsPostFindingsIDAiOK) GetCvss() NilFindingsPostFindingsIDAiOKCvss {
+	return s.Cvss
 }
 
 // GetEvidence returns the value of Evidence.
@@ -68404,6 +68857,11 @@ func (s *FindingsPostFindingsIDAiOK) SetConfidence(val float64) {
 // SetCve sets the value of Cve.
 func (s *FindingsPostFindingsIDAiOK) SetCve(val string) {
 	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsPostFindingsIDAiOK) SetCvss(val NilFindingsPostFindingsIDAiOKCvss) {
+	s.Cvss = val
 }
 
 // SetEvidence sets the value of Evidence.
@@ -69863,6 +70321,163 @@ func (s *FindingsPostFindingsIDAiOKCompromiseIndicatorsItemKind) UnmarshalText(d
 		return nil
 	case FindingsPostFindingsIDAiOKCompromiseIndicatorsItemKindProcess:
 		*s = FindingsPostFindingsIDAiOKCompromiseIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsPostFindingsIDAiOKCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsPostFindingsIDAiOKCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsPostFindingsIDAiOKCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsPostFindingsIDAiOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAiOKCvss) GetSource() FindingsPostFindingsIDAiOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsPostFindingsIDAiOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDAiOKCvss) GetVersion() FindingsPostFindingsIDAiOKCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsPostFindingsIDAiOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAiOKCvss) SetSource(val FindingsPostFindingsIDAiOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsPostFindingsIDAiOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDAiOKCvss) SetVersion(val FindingsPostFindingsIDAiOKCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsPostFindingsIDAiOKCvssSource string
+
+const (
+	FindingsPostFindingsIDAiOKCvssSourceNvd FindingsPostFindingsIDAiOKCvssSource = "nvd"
+	FindingsPostFindingsIDAiOKCvssSourceCna FindingsPostFindingsIDAiOKCvssSource = "cna"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKCvssSource values.
+func (FindingsPostFindingsIDAiOKCvssSource) AllValues() []FindingsPostFindingsIDAiOKCvssSource {
+	return []FindingsPostFindingsIDAiOKCvssSource{
+		FindingsPostFindingsIDAiOKCvssSourceNvd,
+		FindingsPostFindingsIDAiOKCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKCvssSource(data) {
+	case FindingsPostFindingsIDAiOKCvssSourceNvd:
+		*s = FindingsPostFindingsIDAiOKCvssSourceNvd
+		return nil
+	case FindingsPostFindingsIDAiOKCvssSourceCna:
+		*s = FindingsPostFindingsIDAiOKCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsPostFindingsIDAiOKCvssVersion string
+
+const (
+	FindingsPostFindingsIDAiOKCvssVersion40 FindingsPostFindingsIDAiOKCvssVersion = "4.0"
+	FindingsPostFindingsIDAiOKCvssVersion31 FindingsPostFindingsIDAiOKCvssVersion = "3.1"
+	FindingsPostFindingsIDAiOKCvssVersion30 FindingsPostFindingsIDAiOKCvssVersion = "3.0"
+	FindingsPostFindingsIDAiOKCvssVersion20 FindingsPostFindingsIDAiOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKCvssVersion values.
+func (FindingsPostFindingsIDAiOKCvssVersion) AllValues() []FindingsPostFindingsIDAiOKCvssVersion {
+	return []FindingsPostFindingsIDAiOKCvssVersion{
+		FindingsPostFindingsIDAiOKCvssVersion40,
+		FindingsPostFindingsIDAiOKCvssVersion31,
+		FindingsPostFindingsIDAiOKCvssVersion30,
+		FindingsPostFindingsIDAiOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKCvssVersion40:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKCvssVersion31:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKCvssVersion(data) {
+	case FindingsPostFindingsIDAiOKCvssVersion40:
+		*s = FindingsPostFindingsIDAiOKCvssVersion40
+		return nil
+	case FindingsPostFindingsIDAiOKCvssVersion31:
+		*s = FindingsPostFindingsIDAiOKCvssVersion31
+		return nil
+	case FindingsPostFindingsIDAiOKCvssVersion30:
+		*s = FindingsPostFindingsIDAiOKCvssVersion30
+		return nil
+	case FindingsPostFindingsIDAiOKCvssVersion20:
+		*s = FindingsPostFindingsIDAiOKCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -71449,8 +72064,10 @@ type FindingsPostFindingsIDAppliedOK struct {
 	Compromise NilFindingsPostFindingsIDAppliedOKCompromise `json:"compromise"`
 	Confidence float64                                      `json:"confidence"`
 	Cve        string                                       `json:"cve"`
-	Evidence   NilFindingsPostFindingsIDAppliedOKEvidence   `json:"evidence"`
-	FirstSeen  time.Time                                    `json:"first_seen"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss      NilFindingsPostFindingsIDAppliedOKCvss     `json:"cvss"`
+	Evidence  NilFindingsPostFindingsIDAppliedOKEvidence `json:"evidence"`
+	FirstSeen time.Time                                  `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
 	// none to name.
 	Fix OptNilFindingsPostFindingsIDAppliedOKFix `json:"fix"`
@@ -71520,6 +72137,11 @@ func (s *FindingsPostFindingsIDAppliedOK) GetConfidence() float64 {
 // GetCve returns the value of Cve.
 func (s *FindingsPostFindingsIDAppliedOK) GetCve() string {
 	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsPostFindingsIDAppliedOK) GetCvss() NilFindingsPostFindingsIDAppliedOKCvss {
+	return s.Cvss
 }
 
 // GetEvidence returns the value of Evidence.
@@ -71645,6 +72267,11 @@ func (s *FindingsPostFindingsIDAppliedOK) SetConfidence(val float64) {
 // SetCve sets the value of Cve.
 func (s *FindingsPostFindingsIDAppliedOK) SetCve(val string) {
 	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsPostFindingsIDAppliedOK) SetCvss(val NilFindingsPostFindingsIDAppliedOKCvss) {
+	s.Cvss = val
 }
 
 // SetEvidence sets the value of Evidence.
@@ -73104,6 +73731,163 @@ func (s *FindingsPostFindingsIDAppliedOKCompromiseIndicatorsItemKind) UnmarshalT
 		return nil
 	case FindingsPostFindingsIDAppliedOKCompromiseIndicatorsItemKindProcess:
 		*s = FindingsPostFindingsIDAppliedOKCompromiseIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsPostFindingsIDAppliedOKCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsPostFindingsIDAppliedOKCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsPostFindingsIDAppliedOKCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsPostFindingsIDAppliedOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKCvss) GetSource() FindingsPostFindingsIDAppliedOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsPostFindingsIDAppliedOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDAppliedOKCvss) GetVersion() FindingsPostFindingsIDAppliedOKCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsPostFindingsIDAppliedOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKCvss) SetSource(val FindingsPostFindingsIDAppliedOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsPostFindingsIDAppliedOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDAppliedOKCvss) SetVersion(val FindingsPostFindingsIDAppliedOKCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsPostFindingsIDAppliedOKCvssSource string
+
+const (
+	FindingsPostFindingsIDAppliedOKCvssSourceNvd FindingsPostFindingsIDAppliedOKCvssSource = "nvd"
+	FindingsPostFindingsIDAppliedOKCvssSourceCna FindingsPostFindingsIDAppliedOKCvssSource = "cna"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKCvssSource values.
+func (FindingsPostFindingsIDAppliedOKCvssSource) AllValues() []FindingsPostFindingsIDAppliedOKCvssSource {
+	return []FindingsPostFindingsIDAppliedOKCvssSource{
+		FindingsPostFindingsIDAppliedOKCvssSourceNvd,
+		FindingsPostFindingsIDAppliedOKCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKCvssSource(data) {
+	case FindingsPostFindingsIDAppliedOKCvssSourceNvd:
+		*s = FindingsPostFindingsIDAppliedOKCvssSourceNvd
+		return nil
+	case FindingsPostFindingsIDAppliedOKCvssSourceCna:
+		*s = FindingsPostFindingsIDAppliedOKCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsPostFindingsIDAppliedOKCvssVersion string
+
+const (
+	FindingsPostFindingsIDAppliedOKCvssVersion40 FindingsPostFindingsIDAppliedOKCvssVersion = "4.0"
+	FindingsPostFindingsIDAppliedOKCvssVersion31 FindingsPostFindingsIDAppliedOKCvssVersion = "3.1"
+	FindingsPostFindingsIDAppliedOKCvssVersion30 FindingsPostFindingsIDAppliedOKCvssVersion = "3.0"
+	FindingsPostFindingsIDAppliedOKCvssVersion20 FindingsPostFindingsIDAppliedOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKCvssVersion values.
+func (FindingsPostFindingsIDAppliedOKCvssVersion) AllValues() []FindingsPostFindingsIDAppliedOKCvssVersion {
+	return []FindingsPostFindingsIDAppliedOKCvssVersion{
+		FindingsPostFindingsIDAppliedOKCvssVersion40,
+		FindingsPostFindingsIDAppliedOKCvssVersion31,
+		FindingsPostFindingsIDAppliedOKCvssVersion30,
+		FindingsPostFindingsIDAppliedOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKCvssVersion40:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion31:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKCvssVersion(data) {
+	case FindingsPostFindingsIDAppliedOKCvssVersion40:
+		*s = FindingsPostFindingsIDAppliedOKCvssVersion40
+		return nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion31:
+		*s = FindingsPostFindingsIDAppliedOKCvssVersion31
+		return nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion30:
+		*s = FindingsPostFindingsIDAppliedOKCvssVersion30
+		return nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion20:
+		*s = FindingsPostFindingsIDAppliedOKCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -74711,8 +75495,10 @@ type FindingsPostFindingsIDStatusOK struct {
 	Compromise NilFindingsPostFindingsIDStatusOKCompromise `json:"compromise"`
 	Confidence float64                                     `json:"confidence"`
 	Cve        string                                      `json:"cve"`
-	Evidence   NilFindingsPostFindingsIDStatusOKEvidence   `json:"evidence"`
-	FirstSeen  time.Time                                   `json:"first_seen"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss      NilFindingsPostFindingsIDStatusOKCvss     `json:"cvss"`
+	Evidence  NilFindingsPostFindingsIDStatusOKEvidence `json:"evidence"`
+	FirstSeen time.Time                                 `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
 	// none to name.
 	Fix OptNilFindingsPostFindingsIDStatusOKFix `json:"fix"`
@@ -74782,6 +75568,11 @@ func (s *FindingsPostFindingsIDStatusOK) GetConfidence() float64 {
 // GetCve returns the value of Cve.
 func (s *FindingsPostFindingsIDStatusOK) GetCve() string {
 	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsPostFindingsIDStatusOK) GetCvss() NilFindingsPostFindingsIDStatusOKCvss {
+	return s.Cvss
 }
 
 // GetEvidence returns the value of Evidence.
@@ -74907,6 +75698,11 @@ func (s *FindingsPostFindingsIDStatusOK) SetConfidence(val float64) {
 // SetCve sets the value of Cve.
 func (s *FindingsPostFindingsIDStatusOK) SetCve(val string) {
 	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsPostFindingsIDStatusOK) SetCvss(val NilFindingsPostFindingsIDStatusOKCvss) {
+	s.Cvss = val
 }
 
 // SetEvidence sets the value of Evidence.
@@ -76366,6 +77162,163 @@ func (s *FindingsPostFindingsIDStatusOKCompromiseIndicatorsItemKind) UnmarshalTe
 		return nil
 	case FindingsPostFindingsIDStatusOKCompromiseIndicatorsItemKindProcess:
 		*s = FindingsPostFindingsIDStatusOKCompromiseIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsPostFindingsIDStatusOKCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsPostFindingsIDStatusOKCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsPostFindingsIDStatusOKCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsPostFindingsIDStatusOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDStatusOKCvss) GetSource() FindingsPostFindingsIDStatusOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsPostFindingsIDStatusOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDStatusOKCvss) GetVersion() FindingsPostFindingsIDStatusOKCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsPostFindingsIDStatusOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDStatusOKCvss) SetSource(val FindingsPostFindingsIDStatusOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsPostFindingsIDStatusOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDStatusOKCvss) SetVersion(val FindingsPostFindingsIDStatusOKCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsPostFindingsIDStatusOKCvssSource string
+
+const (
+	FindingsPostFindingsIDStatusOKCvssSourceNvd FindingsPostFindingsIDStatusOKCvssSource = "nvd"
+	FindingsPostFindingsIDStatusOKCvssSourceCna FindingsPostFindingsIDStatusOKCvssSource = "cna"
+)
+
+// AllValues returns all FindingsPostFindingsIDStatusOKCvssSource values.
+func (FindingsPostFindingsIDStatusOKCvssSource) AllValues() []FindingsPostFindingsIDStatusOKCvssSource {
+	return []FindingsPostFindingsIDStatusOKCvssSource{
+		FindingsPostFindingsIDStatusOKCvssSourceNvd,
+		FindingsPostFindingsIDStatusOKCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDStatusOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDStatusOKCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDStatusOKCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDStatusOKCvssSource(data) {
+	case FindingsPostFindingsIDStatusOKCvssSourceNvd:
+		*s = FindingsPostFindingsIDStatusOKCvssSourceNvd
+		return nil
+	case FindingsPostFindingsIDStatusOKCvssSourceCna:
+		*s = FindingsPostFindingsIDStatusOKCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsPostFindingsIDStatusOKCvssVersion string
+
+const (
+	FindingsPostFindingsIDStatusOKCvssVersion40 FindingsPostFindingsIDStatusOKCvssVersion = "4.0"
+	FindingsPostFindingsIDStatusOKCvssVersion31 FindingsPostFindingsIDStatusOKCvssVersion = "3.1"
+	FindingsPostFindingsIDStatusOKCvssVersion30 FindingsPostFindingsIDStatusOKCvssVersion = "3.0"
+	FindingsPostFindingsIDStatusOKCvssVersion20 FindingsPostFindingsIDStatusOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsPostFindingsIDStatusOKCvssVersion values.
+func (FindingsPostFindingsIDStatusOKCvssVersion) AllValues() []FindingsPostFindingsIDStatusOKCvssVersion {
+	return []FindingsPostFindingsIDStatusOKCvssVersion{
+		FindingsPostFindingsIDStatusOKCvssVersion40,
+		FindingsPostFindingsIDStatusOKCvssVersion31,
+		FindingsPostFindingsIDStatusOKCvssVersion30,
+		FindingsPostFindingsIDStatusOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDStatusOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDStatusOKCvssVersion40:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKCvssVersion31:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDStatusOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDStatusOKCvssVersion(data) {
+	case FindingsPostFindingsIDStatusOKCvssVersion40:
+		*s = FindingsPostFindingsIDStatusOKCvssVersion40
+		return nil
+	case FindingsPostFindingsIDStatusOKCvssVersion31:
+		*s = FindingsPostFindingsIDStatusOKCvssVersion31
+		return nil
+	case FindingsPostFindingsIDStatusOKCvssVersion30:
+		*s = FindingsPostFindingsIDStatusOKCvssVersion30
+		return nil
+	case FindingsPostFindingsIDStatusOKCvssVersion20:
+		*s = FindingsPostFindingsIDStatusOKCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -87292,6 +88245,131 @@ func (s *InventoryGetInventoryCatalogOKItemsItemKind) UnmarshalText(data []byte)
 	}
 }
 
+// True: the Devices list (approved); false: To review.
+type InventoryGetInventoryDevicesApproved string
+
+const (
+	InventoryGetInventoryDevicesApprovedTrue  InventoryGetInventoryDevicesApproved = "true"
+	InventoryGetInventoryDevicesApprovedFalse InventoryGetInventoryDevicesApproved = "false"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesApproved values.
+func (InventoryGetInventoryDevicesApproved) AllValues() []InventoryGetInventoryDevicesApproved {
+	return []InventoryGetInventoryDevicesApproved{
+		InventoryGetInventoryDevicesApprovedTrue,
+		InventoryGetInventoryDevicesApprovedFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesApproved) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesApprovedTrue:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesApprovedFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesApproved) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesApproved(data) {
+	case InventoryGetInventoryDevicesApprovedTrue:
+		*s = InventoryGetInventoryDevicesApprovedTrue
+		return nil
+	case InventoryGetInventoryDevicesApprovedFalse:
+		*s = InventoryGetInventoryDevicesApprovedFalse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryDevicesFragile string
+
+const (
+	InventoryGetInventoryDevicesFragileTrue  InventoryGetInventoryDevicesFragile = "true"
+	InventoryGetInventoryDevicesFragileFalse InventoryGetInventoryDevicesFragile = "false"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesFragile values.
+func (InventoryGetInventoryDevicesFragile) AllValues() []InventoryGetInventoryDevicesFragile {
+	return []InventoryGetInventoryDevicesFragile{
+		InventoryGetInventoryDevicesFragileTrue,
+		InventoryGetInventoryDevicesFragileFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesFragile) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesFragileTrue:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesFragileFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesFragile) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesFragile(data) {
+	case InventoryGetInventoryDevicesFragileTrue:
+		*s = InventoryGetInventoryDevicesFragileTrue
+		return nil
+	case InventoryGetInventoryDevicesFragileFalse:
+		*s = InventoryGetInventoryDevicesFragileFalse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// True: findings_count > 0.
+type InventoryGetInventoryDevicesHasFindings string
+
+const (
+	InventoryGetInventoryDevicesHasFindingsTrue  InventoryGetInventoryDevicesHasFindings = "true"
+	InventoryGetInventoryDevicesHasFindingsFalse InventoryGetInventoryDevicesHasFindings = "false"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesHasFindings values.
+func (InventoryGetInventoryDevicesHasFindings) AllValues() []InventoryGetInventoryDevicesHasFindings {
+	return []InventoryGetInventoryDevicesHasFindings{
+		InventoryGetInventoryDevicesHasFindingsTrue,
+		InventoryGetInventoryDevicesHasFindingsFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesHasFindings) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesHasFindingsTrue:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesHasFindingsFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesHasFindings) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesHasFindings(data) {
+	case InventoryGetInventoryDevicesHasFindingsTrue:
+		*s = InventoryGetInventoryDevicesHasFindingsTrue
+		return nil
+	case InventoryGetInventoryDevicesHasFindingsFalse:
+		*s = InventoryGetInventoryDevicesHasFindingsFalse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryGetInventoryDevicesIDOK struct {
 	Asset InventoryGetInventoryDevicesIDOKAsset `json:"asset"`
 	// Number of findings attached to the device; deleting the device also deletes these findings.
@@ -91507,6 +92585,10 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	Services    []InventoryGetInventoryDevicesOKItemsItemServicesItem `json:"services"`
 	Site        string                                                `json:"site"`
 	Software    []InventoryGetInventoryDevicesOKItemsItemSoftwareItem `json:"software"`
+	// Every source that told Vedette something about the device and is still kept (its details, software
+	// or open ports), plus manual for a device added manually, in the order of DeviceSource (#849 source:
+	// filter, #829 sources of the device page).
+	Sources []InventoryGetInventoryDevicesOKItemsItemSourcesItem `json:"sources"`
 	// Source of the most trusted value; confidence is that of the weakest value.
 	Summary    NilInventoryGetInventoryDevicesOKItemsItemSummary `json:"summary"`
 	Suspicious bool                                              `json:"suspicious"`
@@ -91626,6 +92708,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetSite() string {
 // GetSoftware returns the value of Software.
 func (s *InventoryGetInventoryDevicesOKItemsItem) GetSoftware() []InventoryGetInventoryDevicesOKItemsItemSoftwareItem {
 	return s.Software
+}
+
+// GetSources returns the value of Sources.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetSources() []InventoryGetInventoryDevicesOKItemsItemSourcesItem {
+	return s.Sources
 }
 
 // GetSummary returns the value of Summary.
@@ -91756,6 +92843,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetSite(val string) {
 // SetSoftware sets the value of Software.
 func (s *InventoryGetInventoryDevicesOKItemsItem) SetSoftware(val []InventoryGetInventoryDevicesOKItemsItemSoftwareItem) {
 	s.Software = val
+}
+
+// SetSources sets the value of Sources.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetSources(val []InventoryGetInventoryDevicesOKItemsItemSourcesItem) {
+	s.Sources = val
 }
 
 // SetSummary sets the value of Summary.
@@ -94547,6 +95639,75 @@ func (s *InventoryGetInventoryDevicesOKItemsItemSoftwareItemSource) UnmarshalTex
 	}
 }
 
+type InventoryGetInventoryDevicesOKItemsItemSourcesItem string
+
+const (
+	InventoryGetInventoryDevicesOKItemsItemSourcesItemManual  InventoryGetInventoryDevicesOKItemsItemSourcesItem = "manual"
+	InventoryGetInventoryDevicesOKItemsItemSourcesItemPassive InventoryGetInventoryDevicesOKItemsItemSourcesItem = "passive"
+	InventoryGetInventoryDevicesOKItemsItemSourcesItemScan    InventoryGetInventoryDevicesOKItemsItemSourcesItem = "scan"
+	InventoryGetInventoryDevicesOKItemsItemSourcesItemSnmp    InventoryGetInventoryDevicesOKItemsItemSourcesItem = "snmp"
+	InventoryGetInventoryDevicesOKItemsItemSourcesItemOsquery InventoryGetInventoryDevicesOKItemsItemSourcesItem = "osquery"
+	InventoryGetInventoryDevicesOKItemsItemSourcesItemWazuh   InventoryGetInventoryDevicesOKItemsItemSourcesItem = "wazuh"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesOKItemsItemSourcesItem values.
+func (InventoryGetInventoryDevicesOKItemsItemSourcesItem) AllValues() []InventoryGetInventoryDevicesOKItemsItemSourcesItem {
+	return []InventoryGetInventoryDevicesOKItemsItemSourcesItem{
+		InventoryGetInventoryDevicesOKItemsItemSourcesItemManual,
+		InventoryGetInventoryDevicesOKItemsItemSourcesItemPassive,
+		InventoryGetInventoryDevicesOKItemsItemSourcesItemScan,
+		InventoryGetInventoryDevicesOKItemsItemSourcesItemSnmp,
+		InventoryGetInventoryDevicesOKItemsItemSourcesItemOsquery,
+		InventoryGetInventoryDevicesOKItemsItemSourcesItemWazuh,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesOKItemsItemSourcesItem) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemPassive:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemScan:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemSnmp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemOsquery:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemWazuh:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesOKItemsItemSourcesItem) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesOKItemsItemSourcesItem(data) {
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemManual:
+		*s = InventoryGetInventoryDevicesOKItemsItemSourcesItemManual
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemPassive:
+		*s = InventoryGetInventoryDevicesOKItemsItemSourcesItemPassive
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemScan:
+		*s = InventoryGetInventoryDevicesOKItemsItemSourcesItemScan
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemSnmp:
+		*s = InventoryGetInventoryDevicesOKItemsItemSourcesItemSnmp
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemOsquery:
+		*s = InventoryGetInventoryDevicesOKItemsItemSourcesItemOsquery
+		return nil
+	case InventoryGetInventoryDevicesOKItemsItemSourcesItemWazuh:
+		*s = InventoryGetInventoryDevicesOKItemsItemSourcesItemWazuh
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryGetInventoryDevicesOKItemsItemSummary struct {
 	Confidence float64                                              `json:"confidence"`
 	Source     InventoryGetInventoryDevicesOKItemsItemSummarySource `json:"source"`
@@ -94751,6 +95912,131 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendorSource) UnmarshalText(data
 		return nil
 	case InventoryGetInventoryDevicesOKItemsItemVendorSourceScan:
 		*s = InventoryGetInventoryDevicesOKItemsItemVendorSourceScan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// True: the Devices list (approved); false: To review.
+type InventoryGetInventoryExportCsvApproved string
+
+const (
+	InventoryGetInventoryExportCsvApprovedTrue  InventoryGetInventoryExportCsvApproved = "true"
+	InventoryGetInventoryExportCsvApprovedFalse InventoryGetInventoryExportCsvApproved = "false"
+)
+
+// AllValues returns all InventoryGetInventoryExportCsvApproved values.
+func (InventoryGetInventoryExportCsvApproved) AllValues() []InventoryGetInventoryExportCsvApproved {
+	return []InventoryGetInventoryExportCsvApproved{
+		InventoryGetInventoryExportCsvApprovedTrue,
+		InventoryGetInventoryExportCsvApprovedFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryExportCsvApproved) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryExportCsvApprovedTrue:
+		return []byte(s), nil
+	case InventoryGetInventoryExportCsvApprovedFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryExportCsvApproved) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryExportCsvApproved(data) {
+	case InventoryGetInventoryExportCsvApprovedTrue:
+		*s = InventoryGetInventoryExportCsvApprovedTrue
+		return nil
+	case InventoryGetInventoryExportCsvApprovedFalse:
+		*s = InventoryGetInventoryExportCsvApprovedFalse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventoryExportCsvFragile string
+
+const (
+	InventoryGetInventoryExportCsvFragileTrue  InventoryGetInventoryExportCsvFragile = "true"
+	InventoryGetInventoryExportCsvFragileFalse InventoryGetInventoryExportCsvFragile = "false"
+)
+
+// AllValues returns all InventoryGetInventoryExportCsvFragile values.
+func (InventoryGetInventoryExportCsvFragile) AllValues() []InventoryGetInventoryExportCsvFragile {
+	return []InventoryGetInventoryExportCsvFragile{
+		InventoryGetInventoryExportCsvFragileTrue,
+		InventoryGetInventoryExportCsvFragileFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryExportCsvFragile) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryExportCsvFragileTrue:
+		return []byte(s), nil
+	case InventoryGetInventoryExportCsvFragileFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryExportCsvFragile) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryExportCsvFragile(data) {
+	case InventoryGetInventoryExportCsvFragileTrue:
+		*s = InventoryGetInventoryExportCsvFragileTrue
+		return nil
+	case InventoryGetInventoryExportCsvFragileFalse:
+		*s = InventoryGetInventoryExportCsvFragileFalse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// True: findings_count > 0.
+type InventoryGetInventoryExportCsvHasFindings string
+
+const (
+	InventoryGetInventoryExportCsvHasFindingsTrue  InventoryGetInventoryExportCsvHasFindings = "true"
+	InventoryGetInventoryExportCsvHasFindingsFalse InventoryGetInventoryExportCsvHasFindings = "false"
+)
+
+// AllValues returns all InventoryGetInventoryExportCsvHasFindings values.
+func (InventoryGetInventoryExportCsvHasFindings) AllValues() []InventoryGetInventoryExportCsvHasFindings {
+	return []InventoryGetInventoryExportCsvHasFindings{
+		InventoryGetInventoryExportCsvHasFindingsTrue,
+		InventoryGetInventoryExportCsvHasFindingsFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryExportCsvHasFindings) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryExportCsvHasFindingsTrue:
+		return []byte(s), nil
+	case InventoryGetInventoryExportCsvHasFindingsFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryExportCsvHasFindings) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryExportCsvHasFindings(data) {
+	case InventoryGetInventoryExportCsvHasFindingsTrue:
+		*s = InventoryGetInventoryExportCsvHasFindingsTrue
+		return nil
+	case InventoryGetInventoryExportCsvHasFindingsFalse:
+		*s = InventoryGetInventoryExportCsvHasFindingsFalse
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -95541,6 +96827,530 @@ func (s *InventoryGetInventorySettingsOKRegularScanKindsItem) UnmarshalText(data
 		return nil
 	case InventoryGetInventorySettingsOKRegularScanKindsItemUnknown:
 		*s = InventoryGetInventorySettingsOKRegularScanKindsItemUnknown
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventorySnmpIDReadOK struct {
+	Answered     int         `json:"answered"`
+	By           string      `json:"by"`
+	CredentialID string      `json:"credential_id"`
+	Done         int         `json:"done"`
+	FinishedAt   NilDateTime `json:"finished_at"`
+	ID           string      `json:"id"`
+	// Why the read stopped or failed, in plain words; null while running and when done.
+	Message NilString `json:"message"`
+	// One row per device read so far, as Test answers it.
+	Results []InventoryGetInventorySnmpIDReadOKResultsItem `json:"results"`
+	// Devices of the inventory in the credential's scope that are not read: not approved yet (approve them
+	// under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is
+	// sent to them, nor to an address with no device.
+	Skipped   int                                     `json:"skipped"`
+	StartedAt time.Time                               `json:"started_at"`
+	Status    InventoryGetInventorySnmpIDReadOKStatus `json:"status"`
+	// Approved devices of the scope that get one read.
+	Total int `json:"total"`
+}
+
+// GetAnswered returns the value of Answered.
+func (s *InventoryGetInventorySnmpIDReadOK) GetAnswered() int {
+	return s.Answered
+}
+
+// GetBy returns the value of By.
+func (s *InventoryGetInventorySnmpIDReadOK) GetBy() string {
+	return s.By
+}
+
+// GetCredentialID returns the value of CredentialID.
+func (s *InventoryGetInventorySnmpIDReadOK) GetCredentialID() string {
+	return s.CredentialID
+}
+
+// GetDone returns the value of Done.
+func (s *InventoryGetInventorySnmpIDReadOK) GetDone() int {
+	return s.Done
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *InventoryGetInventorySnmpIDReadOK) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventorySnmpIDReadOK) GetID() string {
+	return s.ID
+}
+
+// GetMessage returns the value of Message.
+func (s *InventoryGetInventorySnmpIDReadOK) GetMessage() NilString {
+	return s.Message
+}
+
+// GetResults returns the value of Results.
+func (s *InventoryGetInventorySnmpIDReadOK) GetResults() []InventoryGetInventorySnmpIDReadOKResultsItem {
+	return s.Results
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *InventoryGetInventorySnmpIDReadOK) GetSkipped() int {
+	return s.Skipped
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *InventoryGetInventorySnmpIDReadOK) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *InventoryGetInventorySnmpIDReadOK) GetStatus() InventoryGetInventorySnmpIDReadOKStatus {
+	return s.Status
+}
+
+// GetTotal returns the value of Total.
+func (s *InventoryGetInventorySnmpIDReadOK) GetTotal() int {
+	return s.Total
+}
+
+// SetAnswered sets the value of Answered.
+func (s *InventoryGetInventorySnmpIDReadOK) SetAnswered(val int) {
+	s.Answered = val
+}
+
+// SetBy sets the value of By.
+func (s *InventoryGetInventorySnmpIDReadOK) SetBy(val string) {
+	s.By = val
+}
+
+// SetCredentialID sets the value of CredentialID.
+func (s *InventoryGetInventorySnmpIDReadOK) SetCredentialID(val string) {
+	s.CredentialID = val
+}
+
+// SetDone sets the value of Done.
+func (s *InventoryGetInventorySnmpIDReadOK) SetDone(val int) {
+	s.Done = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *InventoryGetInventorySnmpIDReadOK) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventorySnmpIDReadOK) SetID(val string) {
+	s.ID = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InventoryGetInventorySnmpIDReadOK) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetResults sets the value of Results.
+func (s *InventoryGetInventorySnmpIDReadOK) SetResults(val []InventoryGetInventorySnmpIDReadOKResultsItem) {
+	s.Results = val
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *InventoryGetInventorySnmpIDReadOK) SetSkipped(val int) {
+	s.Skipped = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *InventoryGetInventorySnmpIDReadOK) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *InventoryGetInventorySnmpIDReadOK) SetStatus(val InventoryGetInventorySnmpIDReadOKStatus) {
+	s.Status = val
+}
+
+// SetTotal sets the value of Total.
+func (s *InventoryGetInventorySnmpIDReadOK) SetTotal(val int) {
+	s.Total = val
+}
+
+type InventoryGetInventorySnmpIDReadOKResultsItem struct {
+	// What the device said, when it answered; it is also recorded in the inventory with source snmp.
+	Answer NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer `json:"answer"`
+	// The inventory device at that IP, when there is one.
+	DeviceID NilString `json:"device_id"`
+	IP       string    `json:"ip"`
+	// Plain words for the person.
+	Message string                                             `json:"message"`
+	Ok      bool                                               `json:"ok"`
+	Reason  InventoryGetInventorySnmpIDReadOKResultsItemReason `json:"reason"`
+}
+
+// GetAnswer returns the value of Answer.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) GetAnswer() NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer {
+	return s.Answer
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) GetDeviceID() NilString {
+	return s.DeviceID
+}
+
+// GetIP returns the value of IP.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) GetIP() string {
+	return s.IP
+}
+
+// GetMessage returns the value of Message.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) GetOk() bool {
+	return s.Ok
+}
+
+// GetReason returns the value of Reason.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) GetReason() InventoryGetInventorySnmpIDReadOKResultsItemReason {
+	return s.Reason
+}
+
+// SetAnswer sets the value of Answer.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) SetAnswer(val NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer) {
+	s.Answer = val
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) SetDeviceID(val NilString) {
+	s.DeviceID = val
+}
+
+// SetIP sets the value of IP.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) SetOk(val bool) {
+	s.Ok = val
+}
+
+// SetReason sets the value of Reason.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItem) SetReason(val InventoryGetInventorySnmpIDReadOKResultsItemReason) {
+	s.Reason = val
+}
+
+type InventoryGetInventorySnmpIDReadOKResultsItemAnswer struct {
+	// ENTITY-MIB chassis firmware text; shown, not stored.
+	Firmware string `json:"firmware"`
+	// A device type id, or empty.
+	Kind  string `json:"kind"`
+	Model string `json:"model"`
+	Os    string `json:"os"`
+	// Product family from sysObjectID, e.g. FortiGate.
+	Product  string `json:"product"`
+	Serial   string `json:"serial"`
+	SysDescr string `json:"sys_descr"`
+	// What the device said, cleaned; empty when it has none.
+	SysName     string `json:"sys_name"`
+	SysObjectID string `json:"sys_object_id"`
+	Vendor      string `json:"vendor"`
+}
+
+// GetFirmware returns the value of Firmware.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetFirmware() string {
+	return s.Firmware
+}
+
+// GetKind returns the value of Kind.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetKind() string {
+	return s.Kind
+}
+
+// GetModel returns the value of Model.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetModel() string {
+	return s.Model
+}
+
+// GetOs returns the value of Os.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetOs() string {
+	return s.Os
+}
+
+// GetProduct returns the value of Product.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetProduct() string {
+	return s.Product
+}
+
+// GetSerial returns the value of Serial.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetSerial() string {
+	return s.Serial
+}
+
+// GetSysDescr returns the value of SysDescr.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetSysDescr() string {
+	return s.SysDescr
+}
+
+// GetSysName returns the value of SysName.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetSysName() string {
+	return s.SysName
+}
+
+// GetSysObjectID returns the value of SysObjectID.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetSysObjectID() string {
+	return s.SysObjectID
+}
+
+// GetVendor returns the value of Vendor.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) GetVendor() string {
+	return s.Vendor
+}
+
+// SetFirmware sets the value of Firmware.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetFirmware(val string) {
+	s.Firmware = val
+}
+
+// SetKind sets the value of Kind.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetModel sets the value of Model.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetModel(val string) {
+	s.Model = val
+}
+
+// SetOs sets the value of Os.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetOs(val string) {
+	s.Os = val
+}
+
+// SetProduct sets the value of Product.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSerial sets the value of Serial.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetSerial(val string) {
+	s.Serial = val
+}
+
+// SetSysDescr sets the value of SysDescr.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetSysDescr(val string) {
+	s.SysDescr = val
+}
+
+// SetSysName sets the value of SysName.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetSysName(val string) {
+	s.SysName = val
+}
+
+// SetSysObjectID sets the value of SysObjectID.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetSysObjectID(val string) {
+	s.SysObjectID = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetVendor(val string) {
+	s.Vendor = val
+}
+
+type InventoryGetInventorySnmpIDReadOKResultsItemReason string
+
+const (
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonOk                   InventoryGetInventorySnmpIDReadOKResultsItemReason = "ok"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonNoAnswer             InventoryGetInventorySnmpIDReadOKResultsItemReason = "no_answer"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonAuthFailed           InventoryGetInventorySnmpIDReadOKResultsItemReason = "auth_failed"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonUnknownUser          InventoryGetInventorySnmpIDReadOKResultsItemReason = "unknown_user"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonError                InventoryGetInventorySnmpIDReadOKResultsItemReason = "error"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonNotInInventory       InventoryGetInventorySnmpIDReadOKResultsItemReason = "not_in_inventory"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonNotApproved          InventoryGetInventorySnmpIDReadOKResultsItemReason = "not_approved"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonOutOfScope           InventoryGetInventorySnmpIDReadOKResultsItemReason = "out_of_scope"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonNotForThisCredential InventoryGetInventorySnmpIDReadOKResultsItemReason = "not_for_this_credential"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonScanningOff          InventoryGetInventorySnmpIDReadOKResultsItemReason = "scanning_off"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonScopeNotConfirmed    InventoryGetInventorySnmpIDReadOKResultsItemReason = "scope_not_confirmed"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonDeclaredByHand       InventoryGetInventorySnmpIDReadOKResultsItemReason = "declared_by_hand"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonBox                  InventoryGetInventorySnmpIDReadOKResultsItemReason = "box"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonRegularScanNever     InventoryGetInventorySnmpIDReadOKResultsItemReason = "regular_scan_never"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonUnavailable          InventoryGetInventorySnmpIDReadOKResultsItemReason = "unavailable"
+	InventoryGetInventorySnmpIDReadOKResultsItemReasonBusy                 InventoryGetInventorySnmpIDReadOKResultsItemReason = "busy"
+)
+
+// AllValues returns all InventoryGetInventorySnmpIDReadOKResultsItemReason values.
+func (InventoryGetInventorySnmpIDReadOKResultsItemReason) AllValues() []InventoryGetInventorySnmpIDReadOKResultsItemReason {
+	return []InventoryGetInventorySnmpIDReadOKResultsItemReason{
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonOk,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonNoAnswer,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonAuthFailed,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonUnknownUser,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonError,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonNotInInventory,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonNotApproved,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonOutOfScope,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonNotForThisCredential,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonScanningOff,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonScopeNotConfirmed,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonDeclaredByHand,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonBox,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonRegularScanNever,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonUnavailable,
+		InventoryGetInventorySnmpIDReadOKResultsItemReasonBusy,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventorySnmpIDReadOKResultsItemReason) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonOk:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonNoAnswer:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonAuthFailed:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonUnknownUser:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonError:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonNotInInventory:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonNotApproved:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonOutOfScope:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonNotForThisCredential:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonScanningOff:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonScopeNotConfirmed:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonDeclaredByHand:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonBox:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonRegularScanNever:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonUnavailable:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonBusy:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventorySnmpIDReadOKResultsItemReason) UnmarshalText(data []byte) error {
+	switch InventoryGetInventorySnmpIDReadOKResultsItemReason(data) {
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonOk:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonOk
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonNoAnswer:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonNoAnswer
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonAuthFailed:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonAuthFailed
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonUnknownUser:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonUnknownUser
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonError:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonError
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonNotInInventory:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonNotInInventory
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonNotApproved:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonNotApproved
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonOutOfScope:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonOutOfScope
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonNotForThisCredential:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonNotForThisCredential
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonScanningOff:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonScanningOff
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonScopeNotConfirmed:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonScopeNotConfirmed
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonDeclaredByHand:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonDeclaredByHand
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonBox:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonBox
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonRegularScanNever:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonRegularScanNever
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonUnavailable:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonUnavailable
+		return nil
+	case InventoryGetInventorySnmpIDReadOKResultsItemReasonBusy:
+		*s = InventoryGetInventorySnmpIDReadOKResultsItemReasonBusy
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryGetInventorySnmpIDReadOKStatus string
+
+const (
+	InventoryGetInventorySnmpIDReadOKStatusRunning InventoryGetInventorySnmpIDReadOKStatus = "running"
+	InventoryGetInventorySnmpIDReadOKStatusDone    InventoryGetInventorySnmpIDReadOKStatus = "done"
+	InventoryGetInventorySnmpIDReadOKStatusStopped InventoryGetInventorySnmpIDReadOKStatus = "stopped"
+	InventoryGetInventorySnmpIDReadOKStatusFailed  InventoryGetInventorySnmpIDReadOKStatus = "failed"
+)
+
+// AllValues returns all InventoryGetInventorySnmpIDReadOKStatus values.
+func (InventoryGetInventorySnmpIDReadOKStatus) AllValues() []InventoryGetInventorySnmpIDReadOKStatus {
+	return []InventoryGetInventorySnmpIDReadOKStatus{
+		InventoryGetInventorySnmpIDReadOKStatusRunning,
+		InventoryGetInventorySnmpIDReadOKStatusDone,
+		InventoryGetInventorySnmpIDReadOKStatusStopped,
+		InventoryGetInventorySnmpIDReadOKStatusFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventorySnmpIDReadOKStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventorySnmpIDReadOKStatusRunning:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKStatusDone:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKStatusStopped:
+		return []byte(s), nil
+	case InventoryGetInventorySnmpIDReadOKStatusFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventorySnmpIDReadOKStatus) UnmarshalText(data []byte) error {
+	switch InventoryGetInventorySnmpIDReadOKStatus(data) {
+	case InventoryGetInventorySnmpIDReadOKStatusRunning:
+		*s = InventoryGetInventorySnmpIDReadOKStatusRunning
+		return nil
+	case InventoryGetInventorySnmpIDReadOKStatusDone:
+		*s = InventoryGetInventorySnmpIDReadOKStatusDone
+		return nil
+	case InventoryGetInventorySnmpIDReadOKStatusStopped:
+		*s = InventoryGetInventorySnmpIDReadOKStatusStopped
+		return nil
+	case InventoryGetInventorySnmpIDReadOKStatusFailed:
+		*s = InventoryGetInventorySnmpIDReadOKStatusFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -98434,6 +100244,530 @@ func (s *InventoryPostInventorySnmpCreatedVersion) UnmarshalText(data []byte) er
 		return nil
 	case InventoryPostInventorySnmpCreatedVersionV3:
 		*s = InventoryPostInventorySnmpCreatedVersionV3
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostInventorySnmpIDReadAccepted struct {
+	Answered     int         `json:"answered"`
+	By           string      `json:"by"`
+	CredentialID string      `json:"credential_id"`
+	Done         int         `json:"done"`
+	FinishedAt   NilDateTime `json:"finished_at"`
+	ID           string      `json:"id"`
+	// Why the read stopped or failed, in plain words; null while running and when done.
+	Message NilString `json:"message"`
+	// One row per device read so far, as Test answers it.
+	Results []InventoryPostInventorySnmpIDReadAcceptedResultsItem `json:"results"`
+	// Devices of the inventory in the credential's scope that are not read: not approved yet (approve them
+	// under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is
+	// sent to them, nor to an address with no device.
+	Skipped   int                                            `json:"skipped"`
+	StartedAt time.Time                                      `json:"started_at"`
+	Status    InventoryPostInventorySnmpIDReadAcceptedStatus `json:"status"`
+	// Approved devices of the scope that get one read.
+	Total int `json:"total"`
+}
+
+// GetAnswered returns the value of Answered.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetAnswered() int {
+	return s.Answered
+}
+
+// GetBy returns the value of By.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetBy() string {
+	return s.By
+}
+
+// GetCredentialID returns the value of CredentialID.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetCredentialID() string {
+	return s.CredentialID
+}
+
+// GetDone returns the value of Done.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetDone() int {
+	return s.Done
+}
+
+// GetFinishedAt returns the value of FinishedAt.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetFinishedAt() NilDateTime {
+	return s.FinishedAt
+}
+
+// GetID returns the value of ID.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetID() string {
+	return s.ID
+}
+
+// GetMessage returns the value of Message.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetMessage() NilString {
+	return s.Message
+}
+
+// GetResults returns the value of Results.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetResults() []InventoryPostInventorySnmpIDReadAcceptedResultsItem {
+	return s.Results
+}
+
+// GetSkipped returns the value of Skipped.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetSkipped() int {
+	return s.Skipped
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetStatus returns the value of Status.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetStatus() InventoryPostInventorySnmpIDReadAcceptedStatus {
+	return s.Status
+}
+
+// GetTotal returns the value of Total.
+func (s *InventoryPostInventorySnmpIDReadAccepted) GetTotal() int {
+	return s.Total
+}
+
+// SetAnswered sets the value of Answered.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetAnswered(val int) {
+	s.Answered = val
+}
+
+// SetBy sets the value of By.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetBy(val string) {
+	s.By = val
+}
+
+// SetCredentialID sets the value of CredentialID.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetCredentialID(val string) {
+	s.CredentialID = val
+}
+
+// SetDone sets the value of Done.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetDone(val int) {
+	s.Done = val
+}
+
+// SetFinishedAt sets the value of FinishedAt.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetFinishedAt(val NilDateTime) {
+	s.FinishedAt = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetID(val string) {
+	s.ID = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetResults sets the value of Results.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetResults(val []InventoryPostInventorySnmpIDReadAcceptedResultsItem) {
+	s.Results = val
+}
+
+// SetSkipped sets the value of Skipped.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetSkipped(val int) {
+	s.Skipped = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetStatus sets the value of Status.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetStatus(val InventoryPostInventorySnmpIDReadAcceptedStatus) {
+	s.Status = val
+}
+
+// SetTotal sets the value of Total.
+func (s *InventoryPostInventorySnmpIDReadAccepted) SetTotal(val int) {
+	s.Total = val
+}
+
+type InventoryPostInventorySnmpIDReadAcceptedResultsItem struct {
+	// What the device said, when it answered; it is also recorded in the inventory with source snmp.
+	Answer NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer `json:"answer"`
+	// The inventory device at that IP, when there is one.
+	DeviceID NilString `json:"device_id"`
+	IP       string    `json:"ip"`
+	// Plain words for the person.
+	Message string                                                    `json:"message"`
+	Ok      bool                                                      `json:"ok"`
+	Reason  InventoryPostInventorySnmpIDReadAcceptedResultsItemReason `json:"reason"`
+}
+
+// GetAnswer returns the value of Answer.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) GetAnswer() NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer {
+	return s.Answer
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) GetDeviceID() NilString {
+	return s.DeviceID
+}
+
+// GetIP returns the value of IP.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) GetIP() string {
+	return s.IP
+}
+
+// GetMessage returns the value of Message.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) GetMessage() string {
+	return s.Message
+}
+
+// GetOk returns the value of Ok.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) GetOk() bool {
+	return s.Ok
+}
+
+// GetReason returns the value of Reason.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) GetReason() InventoryPostInventorySnmpIDReadAcceptedResultsItemReason {
+	return s.Reason
+}
+
+// SetAnswer sets the value of Answer.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) SetAnswer(val NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) {
+	s.Answer = val
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) SetDeviceID(val NilString) {
+	s.DeviceID = val
+}
+
+// SetIP sets the value of IP.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetOk sets the value of Ok.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) SetOk(val bool) {
+	s.Ok = val
+}
+
+// SetReason sets the value of Reason.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItem) SetReason(val InventoryPostInventorySnmpIDReadAcceptedResultsItemReason) {
+	s.Reason = val
+}
+
+type InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer struct {
+	// ENTITY-MIB chassis firmware text; shown, not stored.
+	Firmware string `json:"firmware"`
+	// A device type id, or empty.
+	Kind  string `json:"kind"`
+	Model string `json:"model"`
+	Os    string `json:"os"`
+	// Product family from sysObjectID, e.g. FortiGate.
+	Product  string `json:"product"`
+	Serial   string `json:"serial"`
+	SysDescr string `json:"sys_descr"`
+	// What the device said, cleaned; empty when it has none.
+	SysName     string `json:"sys_name"`
+	SysObjectID string `json:"sys_object_id"`
+	Vendor      string `json:"vendor"`
+}
+
+// GetFirmware returns the value of Firmware.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetFirmware() string {
+	return s.Firmware
+}
+
+// GetKind returns the value of Kind.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetKind() string {
+	return s.Kind
+}
+
+// GetModel returns the value of Model.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetModel() string {
+	return s.Model
+}
+
+// GetOs returns the value of Os.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetOs() string {
+	return s.Os
+}
+
+// GetProduct returns the value of Product.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetProduct() string {
+	return s.Product
+}
+
+// GetSerial returns the value of Serial.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetSerial() string {
+	return s.Serial
+}
+
+// GetSysDescr returns the value of SysDescr.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetSysDescr() string {
+	return s.SysDescr
+}
+
+// GetSysName returns the value of SysName.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetSysName() string {
+	return s.SysName
+}
+
+// GetSysObjectID returns the value of SysObjectID.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetSysObjectID() string {
+	return s.SysObjectID
+}
+
+// GetVendor returns the value of Vendor.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) GetVendor() string {
+	return s.Vendor
+}
+
+// SetFirmware sets the value of Firmware.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetFirmware(val string) {
+	s.Firmware = val
+}
+
+// SetKind sets the value of Kind.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetKind(val string) {
+	s.Kind = val
+}
+
+// SetModel sets the value of Model.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetModel(val string) {
+	s.Model = val
+}
+
+// SetOs sets the value of Os.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetOs(val string) {
+	s.Os = val
+}
+
+// SetProduct sets the value of Product.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetProduct(val string) {
+	s.Product = val
+}
+
+// SetSerial sets the value of Serial.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetSerial(val string) {
+	s.Serial = val
+}
+
+// SetSysDescr sets the value of SysDescr.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetSysDescr(val string) {
+	s.SysDescr = val
+}
+
+// SetSysName sets the value of SysName.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetSysName(val string) {
+	s.SysName = val
+}
+
+// SetSysObjectID sets the value of SysObjectID.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetSysObjectID(val string) {
+	s.SysObjectID = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetVendor(val string) {
+	s.Vendor = val
+}
+
+type InventoryPostInventorySnmpIDReadAcceptedResultsItemReason string
+
+const (
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOk                   InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "ok"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNoAnswer             InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "no_answer"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonAuthFailed           InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "auth_failed"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnknownUser          InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "unknown_user"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonError                InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "error"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotInInventory       InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "not_in_inventory"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotApproved          InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "not_approved"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOutOfScope           InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "out_of_scope"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotForThisCredential InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "not_for_this_credential"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScanningOff          InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "scanning_off"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScopeNotConfirmed    InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "scope_not_confirmed"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonDeclaredByHand       InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "declared_by_hand"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBox                  InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "box"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonRegularScanNever     InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "regular_scan_never"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnavailable          InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "unavailable"
+	InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBusy                 InventoryPostInventorySnmpIDReadAcceptedResultsItemReason = "busy"
+)
+
+// AllValues returns all InventoryPostInventorySnmpIDReadAcceptedResultsItemReason values.
+func (InventoryPostInventorySnmpIDReadAcceptedResultsItemReason) AllValues() []InventoryPostInventorySnmpIDReadAcceptedResultsItemReason {
+	return []InventoryPostInventorySnmpIDReadAcceptedResultsItemReason{
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOk,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNoAnswer,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonAuthFailed,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnknownUser,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonError,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotInInventory,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotApproved,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOutOfScope,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotForThisCredential,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScanningOff,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScopeNotConfirmed,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonDeclaredByHand,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBox,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonRegularScanNever,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnavailable,
+		InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBusy,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventorySnmpIDReadAcceptedResultsItemReason) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOk:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNoAnswer:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonAuthFailed:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnknownUser:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonError:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotInInventory:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotApproved:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOutOfScope:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotForThisCredential:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScanningOff:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScopeNotConfirmed:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonDeclaredByHand:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBox:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonRegularScanNever:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnavailable:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBusy:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventorySnmpIDReadAcceptedResultsItemReason) UnmarshalText(data []byte) error {
+	switch InventoryPostInventorySnmpIDReadAcceptedResultsItemReason(data) {
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOk:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOk
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNoAnswer:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNoAnswer
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonAuthFailed:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonAuthFailed
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnknownUser:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnknownUser
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonError:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonError
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotInInventory:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotInInventory
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotApproved:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotApproved
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOutOfScope:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonOutOfScope
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotForThisCredential:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonNotForThisCredential
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScanningOff:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScanningOff
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScopeNotConfirmed:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonScopeNotConfirmed
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonDeclaredByHand:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonDeclaredByHand
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBox:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBox
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonRegularScanNever:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonRegularScanNever
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnavailable:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonUnavailable
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBusy:
+		*s = InventoryPostInventorySnmpIDReadAcceptedResultsItemReasonBusy
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type InventoryPostInventorySnmpIDReadAcceptedStatus string
+
+const (
+	InventoryPostInventorySnmpIDReadAcceptedStatusRunning InventoryPostInventorySnmpIDReadAcceptedStatus = "running"
+	InventoryPostInventorySnmpIDReadAcceptedStatusDone    InventoryPostInventorySnmpIDReadAcceptedStatus = "done"
+	InventoryPostInventorySnmpIDReadAcceptedStatusStopped InventoryPostInventorySnmpIDReadAcceptedStatus = "stopped"
+	InventoryPostInventorySnmpIDReadAcceptedStatusFailed  InventoryPostInventorySnmpIDReadAcceptedStatus = "failed"
+)
+
+// AllValues returns all InventoryPostInventorySnmpIDReadAcceptedStatus values.
+func (InventoryPostInventorySnmpIDReadAcceptedStatus) AllValues() []InventoryPostInventorySnmpIDReadAcceptedStatus {
+	return []InventoryPostInventorySnmpIDReadAcceptedStatus{
+		InventoryPostInventorySnmpIDReadAcceptedStatusRunning,
+		InventoryPostInventorySnmpIDReadAcceptedStatusDone,
+		InventoryPostInventorySnmpIDReadAcceptedStatusStopped,
+		InventoryPostInventorySnmpIDReadAcceptedStatusFailed,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryPostInventorySnmpIDReadAcceptedStatus) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryPostInventorySnmpIDReadAcceptedStatusRunning:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedStatusDone:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedStatusStopped:
+		return []byte(s), nil
+	case InventoryPostInventorySnmpIDReadAcceptedStatusFailed:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryPostInventorySnmpIDReadAcceptedStatus) UnmarshalText(data []byte) error {
+	switch InventoryPostInventorySnmpIDReadAcceptedStatus(data) {
+	case InventoryPostInventorySnmpIDReadAcceptedStatusRunning:
+		*s = InventoryPostInventorySnmpIDReadAcceptedStatusRunning
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedStatusDone:
+		*s = InventoryPostInventorySnmpIDReadAcceptedStatusDone
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedStatusStopped:
+		*s = InventoryPostInventorySnmpIDReadAcceptedStatusStopped
+		return nil
+	case InventoryPostInventorySnmpIDReadAcceptedStatusFailed:
+		*s = InventoryPostInventorySnmpIDReadAcceptedStatusFailed
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -108896,6 +111230,51 @@ func (o NilExposureDeleteExposureTargetsIDTermsOKValidity) Or(d ExposureDeleteEx
 	return d
 }
 
+// NewNilExposureGetExposureGreenboneOKFeed returns new NilExposureGetExposureGreenboneOKFeed with value set to v.
+func NewNilExposureGetExposureGreenboneOKFeed(v ExposureGetExposureGreenboneOKFeed) NilExposureGetExposureGreenboneOKFeed {
+	return NilExposureGetExposureGreenboneOKFeed{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureGreenboneOKFeed is nullable ExposureGetExposureGreenboneOKFeed.
+type NilExposureGetExposureGreenboneOKFeed struct {
+	Value ExposureGetExposureGreenboneOKFeed
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureGreenboneOKFeed) SetTo(v ExposureGetExposureGreenboneOKFeed) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureGreenboneOKFeed) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureGreenboneOKFeed) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureGreenboneOKFeed
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureGreenboneOKFeed) Get() (v ExposureGetExposureGreenboneOKFeed, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureGreenboneOKFeed) Or(d ExposureGetExposureGreenboneOKFeed) ExposureGetExposureGreenboneOKFeed {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureScanOK returns new NilExposureGetExposureScanOK with value set to v.
 func NewNilExposureGetExposureScanOK(v ExposureGetExposureScanOK) NilExposureGetExposureScanOK {
 	return NilExposureGetExposureScanOK{
@@ -111326,6 +113705,51 @@ func (o NilExposurePutExposureBoxIPSettingsOKLastRun) Or(d ExposurePutExposureBo
 	return d
 }
 
+// NewNilExposurePutExposureGreenboneOKFeed returns new NilExposurePutExposureGreenboneOKFeed with value set to v.
+func NewNilExposurePutExposureGreenboneOKFeed(v ExposurePutExposureGreenboneOKFeed) NilExposurePutExposureGreenboneOKFeed {
+	return NilExposurePutExposureGreenboneOKFeed{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureGreenboneOKFeed is nullable ExposurePutExposureGreenboneOKFeed.
+type NilExposurePutExposureGreenboneOKFeed struct {
+	Value ExposurePutExposureGreenboneOKFeed
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureGreenboneOKFeed) SetTo(v ExposurePutExposureGreenboneOKFeed) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureGreenboneOKFeed) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureGreenboneOKFeed) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureGreenboneOKFeed
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureGreenboneOKFeed) Get() (v ExposurePutExposureGreenboneOKFeed, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureGreenboneOKFeed) Or(d ExposurePutExposureGreenboneOKFeed) ExposurePutExposureGreenboneOKFeed {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePutExposureTargetsIDTermsOKBlockedReason returns new NilExposurePutExposureTargetsIDTermsOKBlockedReason with value set to v.
 func NewNilExposurePutExposureTargetsIDTermsOKBlockedReason(v ExposurePutExposureTargetsIDTermsOKBlockedReason) NilExposurePutExposureTargetsIDTermsOKBlockedReason {
 	return NilExposurePutExposureTargetsIDTermsOKBlockedReason{
@@ -112406,6 +114830,51 @@ func (o NilFindingsGetFindingsIDOKCompromise) Or(d FindingsGetFindingsIDOKCompro
 	return d
 }
 
+// NewNilFindingsGetFindingsIDOKCvss returns new NilFindingsGetFindingsIDOKCvss with value set to v.
+func NewNilFindingsGetFindingsIDOKCvss(v FindingsGetFindingsIDOKCvss) NilFindingsGetFindingsIDOKCvss {
+	return NilFindingsGetFindingsIDOKCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsIDOKCvss is nullable FindingsGetFindingsIDOKCvss.
+type NilFindingsGetFindingsIDOKCvss struct {
+	Value FindingsGetFindingsIDOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsIDOKCvss) SetTo(v FindingsGetFindingsIDOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsIDOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsIDOKCvss) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsIDOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsIDOKCvss) Get() (v FindingsGetFindingsIDOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsIDOKCvss) Or(d FindingsGetFindingsIDOKCvss) FindingsGetFindingsIDOKCvss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsGetFindingsIDOKEvidence returns new NilFindingsGetFindingsIDOKEvidence with value set to v.
 func NewNilFindingsGetFindingsIDOKEvidence(v FindingsGetFindingsIDOKEvidence) NilFindingsGetFindingsIDOKEvidence {
 	return NilFindingsGetFindingsIDOKEvidence{
@@ -112625,6 +115094,51 @@ func (o NilFindingsGetFindingsOKItemsItemAsset) Get() (v FindingsGetFindingsOKIt
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsGetFindingsOKItemsItemAsset) Or(d FindingsGetFindingsOKItemsItemAsset) FindingsGetFindingsOKItemsItemAsset {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsOKItemsItemCvss returns new NilFindingsGetFindingsOKItemsItemCvss with value set to v.
+func NewNilFindingsGetFindingsOKItemsItemCvss(v FindingsGetFindingsOKItemsItemCvss) NilFindingsGetFindingsOKItemsItemCvss {
+	return NilFindingsGetFindingsOKItemsItemCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsOKItemsItemCvss is nullable FindingsGetFindingsOKItemsItemCvss.
+type NilFindingsGetFindingsOKItemsItemCvss struct {
+	Value FindingsGetFindingsOKItemsItemCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsOKItemsItemCvss) SetTo(v FindingsGetFindingsOKItemsItemCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsOKItemsItemCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsOKItemsItemCvss) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsOKItemsItemCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsOKItemsItemCvss) Get() (v FindingsGetFindingsOKItemsItemCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsOKItemsItemCvss) Or(d FindingsGetFindingsOKItemsItemCvss) FindingsGetFindingsOKItemsItemCvss {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -112991,6 +115505,51 @@ func (o NilFindingsPostFindingsIDAiOKCompromise) Or(d FindingsPostFindingsIDAiOK
 	return d
 }
 
+// NewNilFindingsPostFindingsIDAiOKCvss returns new NilFindingsPostFindingsIDAiOKCvss with value set to v.
+func NewNilFindingsPostFindingsIDAiOKCvss(v FindingsPostFindingsIDAiOKCvss) NilFindingsPostFindingsIDAiOKCvss {
+	return NilFindingsPostFindingsIDAiOKCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDAiOKCvss is nullable FindingsPostFindingsIDAiOKCvss.
+type NilFindingsPostFindingsIDAiOKCvss struct {
+	Value FindingsPostFindingsIDAiOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDAiOKCvss) SetTo(v FindingsPostFindingsIDAiOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDAiOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDAiOKCvss) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDAiOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDAiOKCvss) Get() (v FindingsPostFindingsIDAiOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDAiOKCvss) Or(d FindingsPostFindingsIDAiOKCvss) FindingsPostFindingsIDAiOKCvss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDAiOKEvidence returns new NilFindingsPostFindingsIDAiOKEvidence with value set to v.
 func NewNilFindingsPostFindingsIDAiOKEvidence(v FindingsPostFindingsIDAiOKEvidence) NilFindingsPostFindingsIDAiOKEvidence {
 	return NilFindingsPostFindingsIDAiOKEvidence{
@@ -113351,6 +115910,51 @@ func (o NilFindingsPostFindingsIDAppliedOKCompromise) Or(d FindingsPostFindingsI
 	return d
 }
 
+// NewNilFindingsPostFindingsIDAppliedOKCvss returns new NilFindingsPostFindingsIDAppliedOKCvss with value set to v.
+func NewNilFindingsPostFindingsIDAppliedOKCvss(v FindingsPostFindingsIDAppliedOKCvss) NilFindingsPostFindingsIDAppliedOKCvss {
+	return NilFindingsPostFindingsIDAppliedOKCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDAppliedOKCvss is nullable FindingsPostFindingsIDAppliedOKCvss.
+type NilFindingsPostFindingsIDAppliedOKCvss struct {
+	Value FindingsPostFindingsIDAppliedOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDAppliedOKCvss) SetTo(v FindingsPostFindingsIDAppliedOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDAppliedOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDAppliedOKCvss) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDAppliedOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDAppliedOKCvss) Get() (v FindingsPostFindingsIDAppliedOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDAppliedOKCvss) Or(d FindingsPostFindingsIDAppliedOKCvss) FindingsPostFindingsIDAppliedOKCvss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDAppliedOKEvidence returns new NilFindingsPostFindingsIDAppliedOKEvidence with value set to v.
 func NewNilFindingsPostFindingsIDAppliedOKEvidence(v FindingsPostFindingsIDAppliedOKEvidence) NilFindingsPostFindingsIDAppliedOKEvidence {
 	return NilFindingsPostFindingsIDAppliedOKEvidence{
@@ -113705,6 +116309,51 @@ func (o NilFindingsPostFindingsIDStatusOKCompromise) Get() (v FindingsPostFindin
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsPostFindingsIDStatusOKCompromise) Or(d FindingsPostFindingsIDStatusOKCompromise) FindingsPostFindingsIDStatusOKCompromise {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDStatusOKCvss returns new NilFindingsPostFindingsIDStatusOKCvss with value set to v.
+func NewNilFindingsPostFindingsIDStatusOKCvss(v FindingsPostFindingsIDStatusOKCvss) NilFindingsPostFindingsIDStatusOKCvss {
+	return NilFindingsPostFindingsIDStatusOKCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDStatusOKCvss is nullable FindingsPostFindingsIDStatusOKCvss.
+type NilFindingsPostFindingsIDStatusOKCvss struct {
+	Value FindingsPostFindingsIDStatusOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDStatusOKCvss) SetTo(v FindingsPostFindingsIDStatusOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDStatusOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDStatusOKCvss) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDStatusOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDStatusOKCvss) Get() (v FindingsPostFindingsIDStatusOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDStatusOKCvss) Or(d FindingsPostFindingsIDStatusOKCvss) FindingsPostFindingsIDStatusOKCvss {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -115331,6 +117980,96 @@ func (o NilInventoryGetInventorySensorsOKSensorsItemCaptureError) Or(d Inventory
 	return d
 }
 
+// NewNilInventoryGetInventorySnmpIDReadOK returns new NilInventoryGetInventorySnmpIDReadOK with value set to v.
+func NewNilInventoryGetInventorySnmpIDReadOK(v InventoryGetInventorySnmpIDReadOK) NilInventoryGetInventorySnmpIDReadOK {
+	return NilInventoryGetInventorySnmpIDReadOK{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventorySnmpIDReadOK is nullable InventoryGetInventorySnmpIDReadOK.
+type NilInventoryGetInventorySnmpIDReadOK struct {
+	Value InventoryGetInventorySnmpIDReadOK
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventorySnmpIDReadOK) SetTo(v InventoryGetInventorySnmpIDReadOK) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventorySnmpIDReadOK) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventorySnmpIDReadOK) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventorySnmpIDReadOK
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventorySnmpIDReadOK) Get() (v InventoryGetInventorySnmpIDReadOK, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventorySnmpIDReadOK) Or(d InventoryGetInventorySnmpIDReadOK) InventoryGetInventorySnmpIDReadOK {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryGetInventorySnmpIDReadOKResultsItemAnswer returns new NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer with value set to v.
+func NewNilInventoryGetInventorySnmpIDReadOKResultsItemAnswer(v InventoryGetInventorySnmpIDReadOKResultsItemAnswer) NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer {
+	return NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer is nullable InventoryGetInventorySnmpIDReadOKResultsItemAnswer.
+type NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer struct {
+	Value InventoryGetInventorySnmpIDReadOKResultsItemAnswer
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetTo(v InventoryGetInventorySnmpIDReadOKResultsItemAnswer) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventorySnmpIDReadOKResultsItemAnswer
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer) Get() (v InventoryGetInventorySnmpIDReadOKResultsItemAnswer, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventorySnmpIDReadOKResultsItemAnswer) Or(d InventoryGetInventorySnmpIDReadOKResultsItemAnswer) InventoryGetInventorySnmpIDReadOKResultsItemAnswer {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilInventoryGetInventorySnmpOKCredentialsItemAuth returns new NilInventoryGetInventorySnmpOKCredentialsItemAuth with value set to v.
 func NewNilInventoryGetInventorySnmpOKCredentialsItemAuth(v InventoryGetInventorySnmpOKCredentialsItemAuth) NilInventoryGetInventorySnmpOKCredentialsItemAuth {
 	return NilInventoryGetInventorySnmpOKCredentialsItemAuth{
@@ -115550,6 +118289,51 @@ func (o NilInventoryPostInventorySnmpCreatedPriv) Get() (v InventoryPostInventor
 
 // Or returns value if set, or given parameter if does not.
 func (o NilInventoryPostInventorySnmpCreatedPriv) Or(d InventoryPostInventorySnmpCreatedPriv) InventoryPostInventorySnmpCreatedPriv {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer returns new NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer with value set to v.
+func NewNilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer(v InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer {
+	return NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer{
+		Value: v,
+	}
+}
+
+// NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer is nullable InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer.
+type NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer struct {
+	Value InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetTo(v InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) SetToNull() {
+	o.Null = true
+	var v InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) Get() (v InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) Or(d InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer) InventoryPostInventorySnmpIDReadAcceptedResultsItemAnswer {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -129233,6 +132017,282 @@ func (o OptInt) Get() (v int, ok bool) {
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInt) Or(d int) int {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesApproved returns new OptInventoryGetInventoryDevicesApproved with value set to v.
+func NewOptInventoryGetInventoryDevicesApproved(v InventoryGetInventoryDevicesApproved) OptInventoryGetInventoryDevicesApproved {
+	return OptInventoryGetInventoryDevicesApproved{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesApproved is optional InventoryGetInventoryDevicesApproved.
+type OptInventoryGetInventoryDevicesApproved struct {
+	Value InventoryGetInventoryDevicesApproved
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesApproved was set.
+func (o OptInventoryGetInventoryDevicesApproved) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesApproved) Reset() {
+	var v InventoryGetInventoryDevicesApproved
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesApproved) SetTo(v InventoryGetInventoryDevicesApproved) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesApproved) Get() (v InventoryGetInventoryDevicesApproved, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesApproved) Or(d InventoryGetInventoryDevicesApproved) InventoryGetInventoryDevicesApproved {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesFragile returns new OptInventoryGetInventoryDevicesFragile with value set to v.
+func NewOptInventoryGetInventoryDevicesFragile(v InventoryGetInventoryDevicesFragile) OptInventoryGetInventoryDevicesFragile {
+	return OptInventoryGetInventoryDevicesFragile{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesFragile is optional InventoryGetInventoryDevicesFragile.
+type OptInventoryGetInventoryDevicesFragile struct {
+	Value InventoryGetInventoryDevicesFragile
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesFragile was set.
+func (o OptInventoryGetInventoryDevicesFragile) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesFragile) Reset() {
+	var v InventoryGetInventoryDevicesFragile
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesFragile) SetTo(v InventoryGetInventoryDevicesFragile) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesFragile) Get() (v InventoryGetInventoryDevicesFragile, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesFragile) Or(d InventoryGetInventoryDevicesFragile) InventoryGetInventoryDevicesFragile {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesHasFindings returns new OptInventoryGetInventoryDevicesHasFindings with value set to v.
+func NewOptInventoryGetInventoryDevicesHasFindings(v InventoryGetInventoryDevicesHasFindings) OptInventoryGetInventoryDevicesHasFindings {
+	return OptInventoryGetInventoryDevicesHasFindings{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesHasFindings is optional InventoryGetInventoryDevicesHasFindings.
+type OptInventoryGetInventoryDevicesHasFindings struct {
+	Value InventoryGetInventoryDevicesHasFindings
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesHasFindings was set.
+func (o OptInventoryGetInventoryDevicesHasFindings) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesHasFindings) Reset() {
+	var v InventoryGetInventoryDevicesHasFindings
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesHasFindings) SetTo(v InventoryGetInventoryDevicesHasFindings) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesHasFindings) Get() (v InventoryGetInventoryDevicesHasFindings, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesHasFindings) Or(d InventoryGetInventoryDevicesHasFindings) InventoryGetInventoryDevicesHasFindings {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryExportCsvApproved returns new OptInventoryGetInventoryExportCsvApproved with value set to v.
+func NewOptInventoryGetInventoryExportCsvApproved(v InventoryGetInventoryExportCsvApproved) OptInventoryGetInventoryExportCsvApproved {
+	return OptInventoryGetInventoryExportCsvApproved{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryExportCsvApproved is optional InventoryGetInventoryExportCsvApproved.
+type OptInventoryGetInventoryExportCsvApproved struct {
+	Value InventoryGetInventoryExportCsvApproved
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryExportCsvApproved was set.
+func (o OptInventoryGetInventoryExportCsvApproved) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryExportCsvApproved) Reset() {
+	var v InventoryGetInventoryExportCsvApproved
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryExportCsvApproved) SetTo(v InventoryGetInventoryExportCsvApproved) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryExportCsvApproved) Get() (v InventoryGetInventoryExportCsvApproved, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryExportCsvApproved) Or(d InventoryGetInventoryExportCsvApproved) InventoryGetInventoryExportCsvApproved {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryExportCsvFragile returns new OptInventoryGetInventoryExportCsvFragile with value set to v.
+func NewOptInventoryGetInventoryExportCsvFragile(v InventoryGetInventoryExportCsvFragile) OptInventoryGetInventoryExportCsvFragile {
+	return OptInventoryGetInventoryExportCsvFragile{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryExportCsvFragile is optional InventoryGetInventoryExportCsvFragile.
+type OptInventoryGetInventoryExportCsvFragile struct {
+	Value InventoryGetInventoryExportCsvFragile
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryExportCsvFragile was set.
+func (o OptInventoryGetInventoryExportCsvFragile) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryExportCsvFragile) Reset() {
+	var v InventoryGetInventoryExportCsvFragile
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryExportCsvFragile) SetTo(v InventoryGetInventoryExportCsvFragile) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryExportCsvFragile) Get() (v InventoryGetInventoryExportCsvFragile, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryExportCsvFragile) Or(d InventoryGetInventoryExportCsvFragile) InventoryGetInventoryExportCsvFragile {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryExportCsvHasFindings returns new OptInventoryGetInventoryExportCsvHasFindings with value set to v.
+func NewOptInventoryGetInventoryExportCsvHasFindings(v InventoryGetInventoryExportCsvHasFindings) OptInventoryGetInventoryExportCsvHasFindings {
+	return OptInventoryGetInventoryExportCsvHasFindings{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryExportCsvHasFindings is optional InventoryGetInventoryExportCsvHasFindings.
+type OptInventoryGetInventoryExportCsvHasFindings struct {
+	Value InventoryGetInventoryExportCsvHasFindings
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryExportCsvHasFindings was set.
+func (o OptInventoryGetInventoryExportCsvHasFindings) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryExportCsvHasFindings) Reset() {
+	var v InventoryGetInventoryExportCsvHasFindings
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryExportCsvHasFindings) SetTo(v InventoryGetInventoryExportCsvHasFindings) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryExportCsvHasFindings) Get() (v InventoryGetInventoryExportCsvHasFindings, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryExportCsvHasFindings) Or(d InventoryGetInventoryExportCsvHasFindings) InventoryGetInventoryExportCsvHasFindings {
 	if v, ok := o.Get(); ok {
 		return v
 	}

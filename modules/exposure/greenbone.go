@@ -224,6 +224,9 @@ type GreenboneView struct {
 	ChangedAt *string            `json:"changed_at"`
 	Preflight GreenbonePreflight `json:"preflight"`
 	FeedSync  GreenboneFeedSync  `json:"feed_sync"`
+	// Feed is the feed OpenVAS itself reports it has loaded (gvmd's get_feeds, T10): nil while it is off or unavailable, and until
+	// Vedette has read it since the box started.
+	Feed *GreenboneFeed `json:"feed"`
 	// Enabled is the stored switch; the page offers Turn off whenever it is true (also when the state is unavailable, D-564 r1 M1).
 	Enabled bool `json:"enabled"`
 }
@@ -235,6 +238,15 @@ type GreenboneFeedSync struct {
 	OK     *bool   `json:"ok"`
 	Note   *string `json:"note"`
 	NextAt *string `json:"next_at"`
+}
+
+// GreenboneFeed is the vulnerability tests (NVT feed) gvmd reports: the feed's version and the UTC time it encodes (nil when gvmd
+// gave none or one Vedette cannot read), and when Vedette last read it. It is there from the first feed load at Enable on, so a
+// working OpenVAS before its first weekly update shows the date of the tests it has (T10).
+type GreenboneFeed struct {
+	NVTVersion *string `json:"nvt_version"`
+	NVTDate    *string `json:"nvt_date"`
+	CheckedAt  string  `json:"checked_at"`
 }
 
 // GreenbonePreflight is the measurement of this box: memory (MemTotal) and free disk of the data directory, in bytes (nil when it
@@ -259,8 +271,9 @@ type gbState struct {
 	syncing  bool // the weekly feed update runs (D-564 G6): the state is "loading"
 	// syncCancel ends the feed update when Greenbone is turned off or the box stops.
 	syncCancel context.CancelFunc
-	syncDone   chan struct{} // closed when the running feed update has returned; nil when none runs
-	loadAt     time.Time     // when gvmd last said it was loading its feed: a slow answer soon after is "loading", not an error
+	syncDone   chan struct{}  // closed when the running feed update has returned; nil when none runs
+	loadAt     time.Time      // when gvmd last said it was loading its feed: a slow answer soon after is "loading", not an error
+	feed       *GreenboneFeed // what gvmd's get_feeds last said of its NVT feed; nil before the first read since the box started
 	probeAt    time.Time
 	state      string
 	reason     string
@@ -396,6 +409,13 @@ func (s *Service) GreenboneSetting(ctx context.Context) (GreenboneView, error) {
 	if reason != "" {
 		v.Reason = &reason
 	}
+	g := s.gb()
+	g.mu.Lock()
+	if g.feed != nil {
+		f := *g.feed
+		v.Feed = &f
+	}
+	g.mu.Unlock()
 	return v, nil
 }
 
@@ -721,10 +741,24 @@ func (s *Service) gbProbe(ctx context.Context, upAt time.Time) (string, string) 
 	defer cancel()
 	err = g.authenticate(pctx, login)
 	loading := false
+	var feeds gmpFeeds
 	if err == nil {
-		loading, err = g.readiness(pctx)
+		loading, feeds, err = g.readiness(pctx)
 	}
 	gs := s.gb()
+	if len(feeds.Feeds) > 0 { // get_feeds answered: what it said of the vulnerability tests is the setting's feed line
+		f := &GreenboneFeed{CheckedAt: store.FormatTS(s.clock())}
+		if v, at := feeds.nvtFeed(); v != nil {
+			f.NVTVersion = v
+			if at != nil {
+				d := store.FormatTS(*at)
+				f.NVTDate = &d
+			}
+		}
+		gs.mu.Lock()
+		gs.feed = f
+		gs.mu.Unlock()
+	}
 	switch {
 	case err == nil && loading:
 		gs.mu.Lock()

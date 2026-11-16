@@ -470,3 +470,63 @@ func TestHostOutageIsWarnedOnce(t *testing.T) {
 		t.Fatalf("a second outage: warnings = %d", n)
 	}
 }
+
+// J7 (#812): a restart of core (a new container with a new address of its own) keeps the certificate byte for byte while the
+// management addresses, -hosts and the box CA are the same, so a browser that accepted it does not warn again; a management
+// address the box gained while core was down still re-issues it.
+func TestRestartWithANewContainerAddressKeepsTheCertificate(t *testing.T) {
+	t.Parallel()
+	m := &fakeMgmt{}
+	r, crt := newTestRenewer(t, m)
+	r.local = func() []string { return []string{"localhost", "127.0.0.1", "172.30.77.3"} }
+	m.set(nil, "203.0.113.7")
+	if err := r.Check(t.Context(), nil); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(crt) //nolint:gosec // a path the test made
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasIP(readCert(t, crt), "172.30.77.3") {
+		t.Fatal("the container address is not in the certificate")
+	}
+	// restart builds what transport builds: the startup check of the pair on disk, then a renewer with nothing remembered.
+	restart := func(local string) *selfSignedRenewer {
+		t.Helper()
+		if err := ensureCertAt(t.Context(), r.ca, r.certPath, r.keyPath, r.hosts, time.Now, nil); err != nil {
+			t.Fatal(err)
+		}
+		cfg, _, err := loadTLS(r.certPath, r.keyPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		n := &selfSignedRenewer{certPath: r.certPath, keyPath: r.keyPath, hosts: r.hosts, ca: r.ca, now: time.Now, cert: &cfg.Certificates[0], mgmt: m.get, kick: make(chan struct{}, 1)}
+		n.local = func() []string { return []string{"localhost", "127.0.0.1", local} }
+		if err := n.Check(t.Context(), nil); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	n := restart("172.30.77.4")
+	after, err := os.ReadFile(crt) //nolint:gosec // a path the test made
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("a restart with a new container address re-issued the certificate")
+	}
+	if c, _ := n.GetCertificate(nil); !bytes.Equal(c.Certificate[0], readCert(t, crt).Raw) {
+		t.Fatal("the served certificate is not the one on disk")
+	}
+
+	kept := readCert(t, crt)
+	m.set(nil, "198.51.100.9") // the box's address changed while core was down
+	n = restart("172.30.77.5")
+	l := servedLeaf(t, n)
+	if !hasIP(l, "198.51.100.9") || hasIP(l, "203.0.113.7") || l.SerialNumber.Cmp(kept.SerialNumber) == 0 {
+		t.Fatalf("a changed management address at start: %v", l.IPAddresses)
+	}
+	if !bytes.Equal(l.Raw, readCert(t, crt).Raw) || !l.PublicKey.(*ecdsa.PublicKey).Equal(kept.PublicKey) {
+		t.Error("the re-issue is not on disk, or the key changed")
+	}
+}

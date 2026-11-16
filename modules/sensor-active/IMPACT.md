@@ -59,6 +59,7 @@
 - **sensor-passive/capture**: `ParseSysDesc` (mẫu sysDescr dùng chung với LLDP); đổi mẫu đổi cả hai nguồn.
 - **core/secrets** (`sa_snmp.secret`, `sa_snmp.priv`), **core/audit** (`inventory.snmp_add|_edit|_delete|_test`, nhãn ở `web/src/locales/en/core.json`, `TestEveryAuditActionHasALabel`), **modules/core** export policy (`sa_snmp`: id bí mật `skip`), **core/server** (`/inventory/snmp` → `sensor-active`, `api/route-modules.json`, `web/src/lib/apiModules.ts`).
 - **GUI**: `web/src/features/inventory/{SnmpSection.tsx,contract.ts,mocks.ts}`; lý do Test (`SnmpTestReason`) và câu `snmpMessage` phải giống câu của mock.
+- **Read now** (#849, INV-10 (g), `snmp_read.go`): the Add dialog of Devices (Mlee) reads `SnmpRead` (`total`, `done`, `answered`, `skipped`, `results`, `message`); the mock's `POST/GET /inventory/snmp/:id/read` follows the same rules. A read reuses `snmpBatch` with `picked=true`: a change to the batch's checks changes Read now too. Audit label `inventory.snmp_read` in `web/src/locales/en/core.json`.
 
 ## Modifying: `ScanExternal`, mẫu `external`, rào own-IP (D-514, INV-16)
 - **exposure**: `cmd/vedette/exposureservices.go` (`exposureServiceScan`, cổng `exposure.ServiceScanner`; đã nối: `cfg.Services` của exposure, câu cam kết D-559) đổi lỗi của `ScanExternal` (`ErrBusy`, `ErrNoTime`, `ErrNotOwnIP`, `ErrEgressUnverified`, `ErrHostTimedOut`, `ErrUnavailable`, `ErrWorkerRefused`, `ErrStopped`) thành câu `*exposure.Unavailable`; thêm lỗi mới phải thêm câu ở đó và `TestExposureServiceScanReasons`. `OwnEgress` ở `cmd/vedette` là `ScannableIP` của exposure (INV-13 của nó): đổi cổng đó là đổi rào phía `core`.
@@ -67,6 +68,11 @@
 - **core/sensorlink**: lý do kết quả `not_own_ip` và `egress_unverified` (`resultCode`); `Dispatcher.outcome` đổi chúng thành `ErrWorkerRefused` + `ErrNotOwnIP` / `ErrEgressUnverified`. **Image `scan` base** mang `/etc/ssl/certs/ca-certificates.crt` (sao từ image Go): bỏ nó thì rào worker luôn trả `egress_unverified`. Không tăng proto (D-514 (5)).
 - **Migration 0005** dựng lại `sa_job` và `sa_probe` như 0003/0004 (giữ id, bộ đếm AUTOINCREMENT, mọi kind/shape cũ): thêm mẫu sau này cũng phải dựng lại cả hai và giữ `TestMigration000{3,4,5}KeepsTheProbeCounter` (mỗi test chạy các migration trước số của nó).
 - `SettingsChanged` bỏ qua lượt `external` (`running.external`): sửa chỗ đó thì một đổi cài đặt LAN sẽ dừng hay để lọt lượt của exposure.
+
+## Modifying: nmap on a terminal, the worker's own phase, a pass per job (#830 FAIL 1 on the N100)
+- The scan container: nmap now opens `/dev/ptmx` and gets a `/dev/pts` peer (a new session it leads). The container's AppArmor profile (`deploy/deb/vedette-container.apparmor`) has a bare `file,` rule, so no rule changes; Podman mounts a private devpts in every container, `ReadOnly=true` included. Without a terminal nmap runs as before (one warning in the worker's log, no live percent).
+- The worker posts the first phase as a job starts (one more request a job) and moves to `ports` on nmap's `<hosthint>`.
+- `Dispatcher.JobProgress` sets `progress.Update.NewPass` on a job's first report: a consumer that keeps a Tracker sees each nmap run as a pass of its own.
 
 ## Modifying: progress of a running job (#830: `nmapargv.StatsEvery`, `worker/progress.go`, `Dispatcher.JobProgress`)
 - `nmapargv.Build`/`BuildFor`/`Validate`/`ParseFor`: `--stats-every 5s` sits before `-oX -` in every shape; every test that spells an argv carries it (`cmd/vedette` `sensoractive_test.go` too). The probe log row of a run stores it after the shape's flags (`StatsFlags`, INV-9); rows from before have none.

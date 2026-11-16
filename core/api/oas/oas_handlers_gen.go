@@ -19184,17 +19184,17 @@ func (s *Server) handleExposurePostExposureTargetsIDOutsideRequest(args [1]strin
 // target whose commitment is of the current sentence records nothing again; one of an older sentence
 // (D-559) is asked again once: it counts as missing (operators get 400 commitment_required "the
 // confirmation text changed"), a request without notice_version gets 409 notice_changed, and the
-// administrator's press replaces it. After those checks the Vulnerability scans module does the scan
-// (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names
-// from certificate transparency, its MX and NS records and a list of common names (looked up through
-// the box's DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by
-// name on ports 80 and 443; only the box's own address is scanned beyond that. 409 module_off while
-// that module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes
-// of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has
-// more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh)
-// does not answer or the scan does not finish within 5 minutes; module_off when the module is switched
-// off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every
-// attempt is audited.
+// administrator's press replaces it. After those checks the scan module's runner does the scan (D-229,
+// D-57 (7); it follows this module's switch, so the Vulnerability scans module may be off): ports are
+// scanned only on the box's own verified public IPs; a domain's names from certificate transparency,
+// its MX and NS records and a list of common names (looked up through the box's DNS resolver) are
+// listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; only
+// the box's own address is scanned beyond that. 409 module_off while the External exposure module is
+// off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's
+// last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300
+// names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer
+// or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile)
+// end the run as status failed with that code and text, and nothing is saved. Every attempt is audited.
 //
 // POST /exposure/targets/{id}/scan
 func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -19288,7 +19288,7 @@ func (s *Server) handleExposurePostExposureTargetsIDScanRequest(args [1]string, 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ExposurePostExposureTargetsIDScanOperation,
-			OperationSummary: "Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation (D-473, amends D-26): it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target whose commitment is of the current sentence records nothing again; one of an older sentence (D-559) is asked again once: it counts as missing (operators get 400 commitment_required \"the confirmation text changed\"), a request without notice_version gets 409 notice_changed, and the administrator's press replaces it. After those checks the Vulnerability scans module does the scan (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names from certificate transparency, its MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; only the box's own address is scanned beyond that. 409 module_off while that module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited",
+			OperationSummary: "Scan now. Answers at once with 202 and the run (ScanRun, status running): the scan itself goes on in the background and the page polls GET /exposure/scan. The checks below still answer synchronously. 409 when not verified, verification expired or the DNS TXT record is gone (re-checked right before the scan); 409 ip_not_current when an IP is no longer the one the box goes out through (the latest check, or a fresh full check just before the scan, must see it); 400 commitment_required when the commitment is missing and the caller is an operator (an administrator must run the first scan). For an administrator that first scan IS the confirmation (D-473, amends D-26): it needs two-step sign-in on the account (403 twofa_required otherwise) and `notice_version` of the sentence shown next to the button (400 commitment_required when left out, 409 notice_changed when it is not the current one); the commitment is then recorded with who, when and that exact sentence, and the scan goes on. A target whose commitment is of the current sentence records nothing again; one of an older sentence (D-559) is asked again once: it counts as missing (operators get 400 commitment_required \"the confirmation text changed\"), a request without notice_version gets 409 notice_changed, and the administrator's press replaces it. After those checks the scan module's runner does the scan (D-229, D-57 (7); it follows this module's switch, so the Vulnerability scans module may be off): ports are scanned only on the box's own verified public IPs; a domain's names from certificate transparency, its MX and NS records and a list of common names (looked up through the box's DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; only the box's own address is scanned beyond that. 409 module_off while the External exposure module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every attempt is audited",
 			OperationID:      "exposure_post_exposure_targets_id_scan",
 			Body:             request,
 			RawBody:          rawBody,
@@ -26198,7 +26198,7 @@ func (s *Server) handleInventoryGetInventoryCatalogRequest(args [0]string, argsE
 
 // handleInventoryGetInventoryDevicesRequest handles inventory_get_inventory_devices operation.
 //
-// List devices with counts per filter.
+// List devices matching the filters (all when none), with counts per tab over the whole inventory.
 //
 // GET /inventory/devices
 func (s *Server) handleInventoryGetInventoryDevicesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -26259,6 +26259,16 @@ func (s *Server) handleInventoryGetInventoryDevicesRequest(args [0]string, argsE
 			return
 		}
 	}
+	params, err := decodeInventoryGetInventoryDevicesParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
 
 	var rawBody []byte
 
@@ -26267,17 +26277,42 @@ func (s *Server) handleInventoryGetInventoryDevicesRequest(args [0]string, argsE
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryGetInventoryDevicesOperation,
-			OperationSummary: "List devices with counts per filter",
+			OperationSummary: "List devices matching the filters (all when none), with counts per tab over the whole inventory",
 			OperationID:      "inventory_get_inventory_devices",
 			Body:             nil,
 			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
+			Params: middleware.Parameters{
+				{
+					Name: "approved",
+					In:   "query",
+				}: params.Approved,
+				{
+					Name: "type",
+					In:   "query",
+				}: params.Type,
+				{
+					Name: "source",
+					In:   "query",
+				}: params.Source,
+				{
+					Name: "fragile",
+					In:   "query",
+				}: params.Fragile,
+				{
+					Name: "has_findings",
+					In:   "query",
+				}: params.HasFindings,
+				{
+					Name: "q",
+					In:   "query",
+				}: params.Q,
+			},
+			Raw: r,
 		}
 
 		type (
 			Request  = struct{}
-			Params   = struct{}
+			Params   = InventoryGetInventoryDevicesParams
 			Response = *InventoryGetInventoryDevicesOK
 		)
 		response, err = middleware.HookMiddleware[
@@ -26287,14 +26322,14 @@ func (s *Server) handleInventoryGetInventoryDevicesRequest(args [0]string, argsE
 		](
 			m,
 			mreq,
-			nil,
+			unpackInventoryGetInventoryDevicesParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.InventoryGetInventoryDevices(ctx)
+				response, err = s.h.InventoryGetInventoryDevices(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.InventoryGetInventoryDevices(ctx)
+		response, err = s.h.InventoryGetInventoryDevices(ctx, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
@@ -26465,7 +26500,8 @@ func (s *Server) handleInventoryGetInventoryDevicesIDRequest(args [1]string, arg
 
 // handleInventoryGetInventoryExportCsvRequest handles inventory_get_inventory_export_csv operation.
 //
-// Download the device list as CSV (UTF-8 with BOM, opens in Excel).
+// Download the device list as CSV (UTF-8 with BOM, opens in Excel); the filters of GET
+// /inventory/devices export what the page shows.
 //
 // GET /inventory/export.csv
 func (s *Server) handleInventoryGetInventoryExportCsvRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -26526,6 +26562,16 @@ func (s *Server) handleInventoryGetInventoryExportCsvRequest(args [0]string, arg
 			return
 		}
 	}
+	params, err := decodeInventoryGetInventoryExportCsvParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
 
 	var rawBody []byte
 
@@ -26534,17 +26580,42 @@ func (s *Server) handleInventoryGetInventoryExportCsvRequest(args [0]string, arg
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryGetInventoryExportCsvOperation,
-			OperationSummary: "Download the device list as CSV (UTF-8 with BOM, opens in Excel)",
+			OperationSummary: "Download the device list as CSV (UTF-8 with BOM, opens in Excel); the filters of GET /inventory/devices export what the page shows",
 			OperationID:      "inventory_get_inventory_export_csv",
 			Body:             nil,
 			RawBody:          rawBody,
-			Params:           middleware.Parameters{},
-			Raw:              r,
+			Params: middleware.Parameters{
+				{
+					Name: "approved",
+					In:   "query",
+				}: params.Approved,
+				{
+					Name: "type",
+					In:   "query",
+				}: params.Type,
+				{
+					Name: "source",
+					In:   "query",
+				}: params.Source,
+				{
+					Name: "fragile",
+					In:   "query",
+				}: params.Fragile,
+				{
+					Name: "has_findings",
+					In:   "query",
+				}: params.HasFindings,
+				{
+					Name: "q",
+					In:   "query",
+				}: params.Q,
+			},
+			Raw: r,
 		}
 
 		type (
 			Request  = struct{}
-			Params   = struct{}
+			Params   = InventoryGetInventoryExportCsvParams
 			Response = InventoryGetInventoryExportCsvOK
 		)
 		response, err = middleware.HookMiddleware[
@@ -26554,14 +26625,14 @@ func (s *Server) handleInventoryGetInventoryExportCsvRequest(args [0]string, arg
 		](
 			m,
 			mreq,
-			nil,
+			unpackInventoryGetInventoryExportCsvParams,
 			func(ctx context.Context, request Request, params Params) (response Response, err error) {
-				response, err = s.h.InventoryGetInventoryExportCsv(ctx)
+				response, err = s.h.InventoryGetInventoryExportCsv(ctx, params)
 				return response, err
 			},
 		)
 	} else {
-		response, err = s.h.InventoryGetInventoryExportCsv(ctx)
+		response, err = s.h.InventoryGetInventoryExportCsv(ctx, params)
 	}
 	if err != nil {
 		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
@@ -27087,6 +27158,147 @@ func (s *Server) handleInventoryGetInventorySnmpRequest(args [0]string, argsEsca
 	}
 
 	if err := encodeInventoryGetInventorySnmpResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleInventoryGetInventorySnmpIDReadRequest handles inventory_get_inventory_snmp_id_read operation.
+//
+// The read of this credential that runs now, or the last one; null when none since the box started.
+//
+// GET /inventory/snmp/{id}/read
+func (s *Server) handleInventoryGetInventorySnmpIDReadRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryGetInventorySnmpIDReadOperation,
+			ID:   "inventory_get_inventory_snmp_id_read",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, InventoryGetInventorySnmpIDReadOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeInventoryGetInventorySnmpIDReadParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response NilInventoryGetInventorySnmpIDReadOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryGetInventorySnmpIDReadOperation,
+			OperationSummary: "The read of this credential that runs now, or the last one; null when none since the box started",
+			OperationID:      "inventory_get_inventory_snmp_id_read",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = InventoryGetInventorySnmpIDReadParams
+			Response = NilInventoryGetInventorySnmpIDReadOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackInventoryGetInventorySnmpIDReadParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.InventoryGetInventorySnmpIDRead(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.InventoryGetInventorySnmpIDRead(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryGetInventorySnmpIDReadResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)
@@ -29373,6 +29585,150 @@ func (s *Server) handleInventoryPostInventorySnmpRequest(args [0]string, argsEsc
 	}
 
 	if err := encodeInventoryPostInventorySnmpResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleInventoryPostInventorySnmpIDReadRequest handles inventory_post_inventory_snmp_id_read operation.
+//
+// Read now every approved device in this credential's scope (read-only GETs from the scan container,
+// logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the
+// window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent;
+// 409 stopped when active discovery was turned off while the read started.
+//
+// POST /inventory/snmp/{id}/read
+func (s *Server) handleInventoryPostInventorySnmpIDReadRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: InventoryPostInventorySnmpIDReadOperation,
+			ID:   "inventory_post_inventory_snmp_id_read",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, InventoryPostInventorySnmpIDReadOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+	params, err := decodeInventoryPostInventorySnmpIDReadParams(args, argsEscaped, r)
+	if err != nil {
+		err = &ogenerrors.DecodeParamsError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeParams", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+
+	var rawBody []byte
+
+	var response *InventoryPostInventorySnmpIDReadAccepted
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    InventoryPostInventorySnmpIDReadOperation,
+			OperationSummary: "Read now every approved device in this credential's scope (read-only GETs from the scan container, logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent; 409 stopped when active discovery was turned off while the read started",
+			OperationID:      "inventory_post_inventory_snmp_id_read",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params: middleware.Parameters{
+				{
+					Name: "id",
+					In:   "path",
+				}: params.ID,
+			},
+			Raw: r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = InventoryPostInventorySnmpIDReadParams
+			Response = *InventoryPostInventorySnmpIDReadAccepted
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			unpackInventoryPostInventorySnmpIDReadParams,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.InventoryPostInventorySnmpIDRead(ctx, params)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.InventoryPostInventorySnmpIDRead(ctx, params)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeInventoryPostInventorySnmpIDReadResponse(response, w); err != nil {
 		defer recordError("EncodeResponse", err)
 		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
 			s.cfg.ErrorHandler(ctx, w, r, err)

@@ -65,7 +65,7 @@ type scanRun struct {
 	snap   Snapshot
 	err    error
 
-	prevLast    time.Time // the target's lastScan before this run, put back when the scan module was off (nothing was asked)
+	prevLast    time.Time // the target's lastScan before this run, put back when the runner found the module off (nothing was asked)
 	hadPrevLast bool
 	mode        ScanMode          // what this run may do (D-566): set when it starts; withdrawing or lowering the terms stops a run above them
 	gbSnap      string            // the snapshot whose OpenVAS step runs now (set under runMu): its "running" is real (N49-3, D-595)
@@ -315,7 +315,7 @@ func (s *Service) finish(ctx context.Context, run *scanRun, user string, t Targe
 		s.cfg.Log.ErrorContext(ctx, "an exposure scan failed", "target", t.Value, "error", err)
 		v.Status, v.Error = RunFailed, &RunError{Code: "internal", Message: "The scan stopped because of an error on the box, so nothing was saved. Try again; if it keeps happening, check the box logs."}
 	}
-	if errors.Is(err, ErrScanOff) { // the scan module was off: nothing was asked or probed, so it does not count against ScanEvery
+	if errors.Is(err, ErrScanOff) { // the runner found the module off: nothing was asked or probed, so it does not count against ScanEvery
 		if run.hadPrevLast {
 			s.lastScan[t.ID] = run.prevLast
 		} else {

@@ -2,6 +2,9 @@
 
 > Mã Go có từ WP-26 lát 2 (package `modules/agent-intake`, tên Go `agentintake`): osquery `enroll`/`config`/`log`/`status`, token ở mức dịch vụ, ánh xạ gói. Lát 4: Wazuh. Lát 3: đường admin, script cài, `ca.pem`, kho gói. Kế hoạch: `docs/plans/2026-11-11-wp26-agent-intake.md`.
 
+## Modifying: where the Wazuh pull delivered (`intake_wazuh_agent`, `wazuhAgentSeen`, `WazuhAgentAddresses`; #849)
+- **inventory** (`Config.WazuhAgents`, wired in `cmd/vedette/inventory.go` `wazuhAgents`): the only way the Devices list says `wazuh` for a device (`source:wazuh` filter, `DeviceRow.sources`). Writing it before the agent's data, or not cleaning it at the end of a pass, makes a device that took over an old agent's address say Wazuh. `modules/core/export_policy.go` lists the table.
+
 ## Modifying: the device hint of a report (`hint` in `Log`, `nodeAgent`, D-598, INV-12)
 - **inventory** binds `AssetHint.Agent` to a device (INV-31) and finds the device by it before the address: a key that changes per report (or names something other than this box's node id) makes every report a candidate for a second device; never put a value the machine sends (host_identifier, MAC) in it.
 

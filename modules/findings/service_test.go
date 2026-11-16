@@ -63,6 +63,7 @@ func (f *fakeInv) AssetIDs(context.Context) ([]string, error) {
 
 type fakeFeeds struct {
 	kev   map[string]KevInfo
+	cvss  map[string]CVSS
 	vulns []Vuln
 	tier  TierStatus
 	tiers []TierVuln // TierVulns keeps those whose entries the scope keeps
@@ -77,6 +78,16 @@ func (f *fakeFeeds) KevInfo(_ context.Context, cves []string) (map[string]KevInf
 	for _, c := range cves {
 		if k, ok := f.kev[c]; ok {
 			out[c] = k
+		}
+	}
+	return out, nil
+}
+
+func (f *fakeFeeds) CVSS(_ context.Context, cves []string) (map[string]CVSS, error) {
+	out := map[string]CVSS{}
+	for _, c := range cves {
+		if v, ok := f.cvss[c]; ok {
+			out[c] = v
 		}
 	}
 	return out, nil

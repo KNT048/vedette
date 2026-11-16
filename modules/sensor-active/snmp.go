@@ -679,6 +679,9 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 	for _, c := range creds { // registered before the batch reads them again: an edit committed after that read still stops it
 		run.credIDs = append(run.credIDs, c.ID)
 	}
+	if s.beforeSNMPBatch != nil {
+		s.beforeSNMPBatch()
+	}
 	s.mu.Lock()
 	s.snmpCur = run
 	s.mu.Unlock()
@@ -687,6 +690,11 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 		s.snmpCur = nil
 		s.mu.Unlock()
 	}()
+	// The module turned off before the batch registered had nothing to cancel: off is sticky, and Stop sets it before it reads
+	// snmpCur, so either Stop saw this run and cancels it, or this sees off (SYS-5, review #855 r2 L1).
+	if s.off.Load() {
+		return nil, ErrStopped
+	}
 
 	st, err := s.inv.Settings(rctx)
 	if err == nil {

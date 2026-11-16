@@ -985,17 +985,17 @@ type Handler interface {
 	// target whose commitment is of the current sentence records nothing again; one of an older sentence
 	// (D-559) is asked again once: it counts as missing (operators get 400 commitment_required "the
 	// confirmation text changed"), a request without notice_version gets 409 notice_changed, and the
-	// administrator's press replaces it. After those checks the Vulnerability scans module does the scan
-	// (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names
-	// from certificate transparency, its MX and NS records and a list of common names (looked up through
-	// the box's DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by
-	// name on ports 80 and 443; only the box's own address is scanned beyond that. 409 module_off while
-	// that module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes
-	// of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has
-	// more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh)
-	// does not answer or the scan does not finish within 5 minutes; module_off when the module is switched
-	// off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every
-	// attempt is audited.
+	// administrator's press replaces it. After those checks the scan module's runner does the scan (D-229,
+	// D-57 (7); it follows this module's switch, so the Vulnerability scans module may be off): ports are
+	// scanned only on the box's own verified public IPs; a domain's names from certificate transparency,
+	// its MX and NS records and a list of common names (looked up through the box's DNS resolver) are
+	// listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; only
+	// the box's own address is scanned beyond that. 409 module_off while the External exposure module is
+	// off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's
+	// last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300
+	// names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer
+	// or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile)
+	// end the run as status failed with that code and text, and nothing is saved. Every attempt is audited.
 	//
 	// POST /exposure/targets/{id}/scan
 	ExposurePostExposureTargetsIDScan(ctx context.Context, req OptExposurePostExposureTargetsIDScanReq, params ExposurePostExposureTargetsIDScanParams) (*ExposurePostExposureTargetsIDScanAccepted, error)
@@ -1332,10 +1332,10 @@ type Handler interface {
 	InventoryGetInventoryCatalog(ctx context.Context, params InventoryGetInventoryCatalogParams) (*InventoryGetInventoryCatalogOK, error)
 	// InventoryGetInventoryDevices implements inventory_get_inventory_devices operation.
 	//
-	// List devices with counts per filter.
+	// List devices matching the filters (all when none), with counts per tab over the whole inventory.
 	//
 	// GET /inventory/devices
-	InventoryGetInventoryDevices(ctx context.Context) (*InventoryGetInventoryDevicesOK, error)
+	InventoryGetInventoryDevices(ctx context.Context, params InventoryGetInventoryDevicesParams) (*InventoryGetInventoryDevicesOK, error)
 	// InventoryGetInventoryDevicesID implements inventory_get_inventory_devices_id operation.
 	//
 	// Device details: observations, services, software.
@@ -1344,10 +1344,11 @@ type Handler interface {
 	InventoryGetInventoryDevicesID(ctx context.Context, params InventoryGetInventoryDevicesIDParams) (*InventoryGetInventoryDevicesIDOK, error)
 	// InventoryGetInventoryExportCsv implements inventory_get_inventory_export_csv operation.
 	//
-	// Download the device list as CSV (UTF-8 with BOM, opens in Excel).
+	// Download the device list as CSV (UTF-8 with BOM, opens in Excel); the filters of GET
+	// /inventory/devices export what the page shows.
 	//
 	// GET /inventory/export.csv
-	InventoryGetInventoryExportCsv(ctx context.Context) (InventoryGetInventoryExportCsvOK, error)
+	InventoryGetInventoryExportCsv(ctx context.Context, params InventoryGetInventoryExportCsvParams) (InventoryGetInventoryExportCsvOK, error)
 	// InventoryGetInventoryImportTemplateCsv implements inventory_get_inventory_import_template_csv operation.
 	//
 	// Download a sample CSV for importing devices.
@@ -1374,6 +1375,12 @@ type Handler interface {
 	//
 	// GET /inventory/snmp
 	InventoryGetInventorySnmp(ctx context.Context) (*InventoryGetInventorySnmpOK, error)
+	// InventoryGetInventorySnmpIDRead implements inventory_get_inventory_snmp_id_read operation.
+	//
+	// The read of this credential that runs now, or the last one; null when none since the box started.
+	//
+	// GET /inventory/snmp/{id}/read
+	InventoryGetInventorySnmpIDRead(ctx context.Context, params InventoryGetInventorySnmpIDReadParams) (NilInventoryGetInventorySnmpIDReadOK, error)
 	// InventoryPatchInventoryDevicesID implements inventory_patch_inventory_devices_id operation.
 	//
 	// Change the type, mark as fragile, override regular scans or edit the notes of a device.
@@ -1485,6 +1492,15 @@ type Handler interface {
 	//
 	// POST /inventory/snmp
 	InventoryPostInventorySnmp(ctx context.Context, req *InventoryPostInventorySnmpReq) (*InventoryPostInventorySnmpCreated, error)
+	// InventoryPostInventorySnmpIDRead implements inventory_post_inventory_snmp_id_read operation.
+	//
+	// Read now every approved device in this credential's scope (read-only GETs from the scan container,
+	// logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the
+	// window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent;
+	// 409 stopped when active discovery was turned off while the read started.
+	//
+	// POST /inventory/snmp/{id}/read
+	InventoryPostInventorySnmpIDRead(ctx context.Context, params InventoryPostInventorySnmpIDReadParams) (*InventoryPostInventorySnmpIDReadAccepted, error)
 	// InventoryPostInventorySnmpIDTest implements inventory_post_inventory_snmp_id_test operation.
 	//
 	// Read one device with this credential now (read-only GETs from the scan container, logged in the

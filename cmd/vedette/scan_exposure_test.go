@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -18,70 +17,92 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/modreg"
-	"github.com/knt048/vedette/modules"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/scan/surface"
 )
 
-// D-229, exposure INV-12: exposure scans with the scan module's runner, which follows that module's switch. Off (the default), the
-// answer is 409 module_off and nothing is probed; on, it scans, and only what exposure's own public-address rule allows; switched
-// off while a scan runs, the scan stops and answers module_off (SYS-5).
-func TestExposureRunnerFollowsTheScanModule(t *testing.T) {
+// D-229, exposure INV-12, J6: exposure scans with the scan module's runner behind exposure's own switch. v1's bundles turn exposure on
+// and leave the Vulnerability scans module (LAN nuclei scans, Preview) off (#841), so the external scan must run with scan off. Exposure
+// off, the runner answers 409 module_off and nothing is probed; on, it scans, and only what exposure's own public-address rule
+// allows; switched off while a scan runs, the scan stops and answers module_off (SYS-5). LAN scans still need the scan module.
+func TestExposureRunnerFollowsTheExposureModule(t *testing.T) {
 	t.Parallel()
+	s := newStack(t)
 	ctx := t.Context()
-	log := slog.New(slog.DiscardHandler)
-	db, err := openMigrated(ctx, filepath.Join(t.TempDir(), "v.db"), log)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
-	reg, err := modreg.New(ctx, modreg.Config{DB: db, Audit: audit.New(nil), Manifests: modules.Manifests, Version: version, Log: log})
-	if err != nil {
-		t.Fatal(err)
-	}
-	toggle := func(on bool) {
+	toggle := func(id string, on bool) {
 		t.Helper()
 		var ch modreg.Change
-		if err := db.Write(ctx, func(tx *sql.Tx) error {
+		if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+			var err error
 			if on {
-				ch, err = reg.Enable(ctx, tx, "admin@acme.example", "scan", true)
+				ch, err = s.d.Reg.Enable(ctx, tx, "admin@acme.example", id, true)
 			} else {
-				ch, err = reg.Disable(ctx, tx, "admin@acme.example", "scan")
+				ch, err = s.d.Reg.Disable(ctx, tx, "admin@acme.example", id)
 			}
 			return err
 		}); err != nil {
 			t.Fatal(err)
 		}
-		reg.Publish(ch)
+		s.d.Reg.Publish(ch)
 	}
-	r := scanRunner(deps{Log: log, DB: db, Reg: reg})
+	if s.d.Reg.Enabled(exposure.ModuleID) || s.d.Reg.Enabled("scan") {
+		t.Fatal("both modules start off (default: false)")
+	}
+	r := scanRunner(*s.d)
 	private := exposure.ScanTarget{ID: "xt-1", Kind: exposure.KindIP, Value: "10.0.0.1", User: "operator@acme.example"}
 	wantOff := func(err error) {
 		t.Helper()
 		var ae *exposure.APIError
-		if !errors.As(err, &ae) || ae.HTTP != 409 || ae.Code != "module_off" {
-			t.Fatalf("want 409 module_off, got %v", err)
+		if !errors.As(err, &ae) || ae.HTTP != 409 || ae.Code != "module_off" || !strings.Contains(ae.Message, "External exposure module is off") {
+			t.Fatalf("want 409 module_off naming the External exposure module, got %v", err)
 		}
 	}
+	_, err := r.Scan(ctx, private)
+	wantOff(err)
+	// scan on, exposure off: still off, the scan module's switch does not start an external scan
+	toggle("scan", true)
 	_, err = r.Scan(ctx, private)
 	wantOff(err)
-	toggle(true)
-	// on: a private address is refused by exposure's rule before anything is dialed
-	if _, err := r.Scan(ctx, private); !errors.Is(err, surface.ErrNotPublic) {
-		t.Fatalf("scan module on, private IP: %v", err)
+	toggle("scan", false)
+	toggle(exposure.ModuleID, true) // v1's MID bundle: exposure on, scan off
+	if s.d.Reg.Enabled("scan") {
+		t.Fatal("turning exposure on turned the scan module on")
 	}
-	// switched off while a scan runs: it is stopped, and nothing it found is kept
+	// exposure on, scan off: a private address is refused by exposure's rule before anything is dialed, so the gate let it through
+	if _, err := r.Scan(ctx, private); !errors.Is(err, surface.ErrNotPublic) {
+		t.Fatalf("exposure on, scan off, private IP: %v", err)
+	}
+	// and the box's public IP is scanned
+	ip := netip.MustParseAddr("203.0.113.10")
+	r.(*exposureRunner).scan = &fakeSurface{res: surface.Result{Ports: []surface.Port{{IP: ip, Port: 443, Service: "https"}}}} //nolint:forcetypeassert // scanRunner's own type
+	c, err := r.Scan(ctx, exposure.ScanTarget{ID: "xt-2", Kind: exposure.KindIP, Value: ip.String()})
+	if err != nil || len(c.Ports) != 1 || c.Ports[0].Port != 443 {
+		t.Fatalf("exposure on, scan off, public IP: %+v, %v", c, err)
+	}
+	// a LAN vulnerability scan still needs the scan module: its routes are off (404, core/server ModuleOf, SYS-5) and nothing runs
+	if code, body := s.do("POST", "/scans/runs", "operator", `{"targets":["a-1"]}`); code != 404 {
+		t.Fatalf("POST /scans/runs with scan off: %d %v", code, body)
+	}
+	if code, body := s.do("GET", "/scans/config", "admin", ""); code != 404 {
+		t.Fatalf("GET /scans/config (the schedule) with scan off: %d %v", code, body)
+	}
+	// scan switched on and off while a scan runs: the scan goes on; exposure switched off: it is stopped, and nothing it found is kept
 	blocking := &fakeSurface{started: make(chan struct{})}
 	r.(*exposureRunner).scan = blocking //nolint:forcetypeassert // scanRunner's own type
 	done := make(chan error, 1)
 	go func() {
-		_, err := r.Scan(ctx, exposure.ScanTarget{ID: "xt-2", Kind: exposure.KindIP, Value: "203.0.113.10"})
+		_, err := r.Scan(ctx, exposure.ScanTarget{ID: "xt-2", Kind: exposure.KindIP, Value: ip.String()})
 		done <- err
 	}()
 	<-blocking.started
-	toggle(false)
+	toggle("scan", true)
+	toggle("scan", false)
+	// Publish calls the subscribers before it returns and a stop cancels the scan's context at once, so this is not a race
+	if err := context.Cause(blocking.ctx); err != nil {
+		t.Fatalf("switching scan off stopped the external scan: %v", err)
+	}
+	toggle(exposure.ModuleID, false)
 	wantOff(<-done)
 }
 
@@ -91,7 +112,8 @@ type fakeSurface struct {
 	domain  string
 	ip      netip.Addr
 	allowed []string
-	started chan struct{} // set: the scan blocks until its context ends
+	started chan struct{}   // set: the scan blocks until its context ends
+	ctx     context.Context // the context of that blocking scan, set before started is closed
 }
 
 func (f *fakeSurface) Domain(ctx context.Context, d string, may func(context.Context, netip.Addr) bool) (surface.Result, error) {
@@ -107,6 +129,7 @@ func (f *fakeSurface) Domain(ctx context.Context, d string, may func(context.Con
 func (f *fakeSurface) IP(ctx context.Context, ip netip.Addr) (surface.Result, error) {
 	f.ip = ip
 	if f.started != nil {
+		f.ctx = ctx
 		close(f.started)
 		<-ctx.Done()
 		return surface.Result{}, ctx.Err()

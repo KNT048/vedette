@@ -14,11 +14,12 @@ export function InfoTip({ topic, children, className }: { topic?: string; childr
   // L1: Section, Notice, EmptyState, DialogContent, Field, Band và PageHeader truyền tiêu đề làm `topic`. Chỉ tên ngắn (≤ 6 từ) vào tên nút;
   // tiêu đề là cả một câu thì nút đọc "More about this", để trình đọc màn hình không đọc câu đó hai lần.
   const name = topic && topic.trim().split(/\s+/).length <= 6 ? topic : undefined
+  const label = name ? t('infoAbout', { topic: name }) : t('infoAboutThis')
   return (
     <Popover.Root>
       <Popover.Trigger
         type="button"
-        aria-label={name ? t('infoAbout', { topic: name }) : t('infoAboutThis')}
+        aria-label={label}
         aria-describedby={id}
         // Một ⓘ trong hàng bảng bấm được (onRowClick) chỉ mở popover, không mở hàng.
         onClick={(e) => e.stopPropagation()}
@@ -33,7 +34,9 @@ export function InfoTip({ topic, children, className }: { topic?: string; childr
       {/* Portal ra <body> cả khi ở trong hộp thoại: RemoveScroll của Radix Dialog theo cây React nên popover vẫn cuộn bằng chuột và cảm ứng
           (đo trên điện thoại 390 px, ⓘ nhà cung cấp email, #824 M3). Bấm/chạm trong popover không lan tới hàng bảng phía sau. */}
       <Popover.Portal>
+        {/* Radix gives the popover role="dialog": it needs a name (axe aria-dialog-name), the same one as its button. */}
         <Popover.Content
+          aria-label={label}
           onClick={(e) => e.stopPropagation()}
           side="bottom"
           align="start"

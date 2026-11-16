@@ -1,0 +1,128 @@
+import i18n from '@/lib/i18n'
+import { actsAs, categoryLabel, categoryOf, DEVICE_CATEGORIES, DEVICE_TYPES, kindLabel, lookupType } from '@/lib/deviceTypes'
+import { parseQuery, type TokenKey, type TokenValue } from '@/components/common/TokenSearch'
+import { shownKind } from './kinds'
+import { nameOf } from './nameOf'
+import type { DeviceRow } from './types'
+
+// The Devices search (#849): free text over name, IP, MAC, vendor, model and OS, plus tokens. Same key twice = either
+// (`source:snmp source:osquery`), different keys = both. The list is bounded (MaxListed = 2000) and loaded whole, so this runs in the client.
+
+/** The six feeds a customer names (#849). osquery and Wazuh both report as source `agent` today (DeviceRow has no agent kind):
+ *  until the API says which agent fed a device, each of the two matches every agent-fed device. */
+export const SOURCES = ['snmp', 'osquery', 'wazuh', 'scan', 'passive', 'manual'] as const
+export type SourceToken = (typeof SOURCES)[number]
+const OF_OBS: Record<string, SourceToken[]> = { snmp: ['snmp'], agent: ['osquery', 'wazuh'], nmap: ['scan'], scan: ['scan'], passive: ['passive'], manual: ['manual'] }
+
+/** The feeds that reported on a row: from every value's source, its software and ports, and a declared row is "manual". */
+export function feedsOfRow(d: DeviceRow): Set<SourceToken> {
+  const out = new Set<SourceToken>()
+  const add = (s: string | null | undefined) => { for (const f of (s ? OF_OBS[s] : undefined) ?? []) out.add(f) }
+  add(d.vendor?.source); add(d.model?.source); add(d.os?.source); add(d.kind_source); add(d.summary?.source)
+  for (const s of d.software) add(s.source)
+  for (const s of d.services) add(s.source)
+  if (d.origin === 'manual') out.add('manual')
+  return out
+}
+
+const DAY = 24 * 60 * 60 * 1000
+export const APPROVED_WITHIN = { '24h': DAY, '7d': 7 * DAY } as const
+
+/** Whether a row is of `type`: a type id, a category id, or the kind it acts as (`type:server` holds every server type). */
+function isType(d: DeviceRow, type: string): boolean {
+  const kind = shownKind(d).kind
+  const want = lookupType(type) ?? type
+  return kind === want || categoryOf(kind) === type || actsAs(kind) === want
+}
+
+const mac = (s: string) => s.toLowerCase().replace(/[^0-9a-f]/g, '')
+
+/** The text one row is searched in. */
+function haystack(d: DeviceRow): string {
+  return [nameOf(d, kindLabel(d.kind)), d.hostname, d.ip, d.mac, d.vendor?.value, d.model?.value, d.os?.value].filter(Boolean).join(' ').toLowerCase()
+}
+
+function tokenMatch(d: DeviceRow, key: string, value: string | null, now: number): boolean {
+  switch (key) {
+    case 'type': return !!value && isType(d, value)
+    case 'source': return feedsOfRow(d).has(value as SourceToken)
+    case 'fragile': return d.fragile
+    case 'suspicious': return d.suspicious
+    case 'has': return value === 'findings' ? d.findings_count > 0 : value === 'software' ? d.software.length > 0 : value === 'ports' ? d.services.length > 0 : false
+    case 'software': return !!value && d.software.some((s) => `${s.display} ${s.vendor} ${s.product}`.toLowerCase().includes(value))
+    case 'approved': {
+      const span = APPROVED_WITHIN[value as keyof typeof APPROVED_WITHIN]
+      return !!span && !!d.approved_at && now - new Date(d.approved_at).getTime() < span
+    }
+    default: return true
+  }
+}
+
+/** The rows a query keeps. `now`: when the list was read, so "approved in the last 24 h" does not move while the page is open. */
+export function filterDevices(rows: DeviceRow[], q: string, now: number): DeviceRow[] {
+  const p = parseQuery(q, DEVICE_KEYS)
+  if (!p.text.length && !p.tokens.length) return rows
+  const byKey = new Map<string, (string | null)[]>()
+  for (const tk of p.tokens) byKey.set(tk.key, [...(byKey.get(tk.key) ?? []), tk.value])
+  return rows.filter((d) => {
+    const hay = haystack(d)
+    const hayMac = d.mac ? mac(d.mac) : ''
+    if (!p.text.every((w) => hay.includes(w) || (hayMac && mac(w).length >= 4 && hayMac.includes(mac(w))))) return false
+    for (const [key, values] of byKey) if (!values.some((v) => tokenMatch(d, key, v, now))) return false
+    return true
+  })
+}
+
+const t = (k: string, o?: Record<string, string>) => i18n.t(`inventory:search.${k}`, o)
+
+/** The keys, with the values offered for each counted over `rows` (only types some device has; every source, so `source:wazuh` is findable). */
+export function deviceKeys(rows: DeviceRow[], now: number): TokenKey[] {
+  const types = new Map<string, number>()
+  const cats = new Map<string, number>()
+  for (const d of rows) {
+    const k = shownKind(d).kind
+    types.set(k, (types.get(k) ?? 0) + 1)
+    cats.set(categoryOf(k), (cats.get(categoryOf(k)) ?? 0) + 1)
+  }
+  const typeValues: TokenValue[] = [
+    ...DEVICE_TYPES.filter((ty) => types.has(ty.id)).map((ty) => ({ value: ty.id, label: ty.label, count: types.get(ty.id) })),
+    ...DEVICE_CATEGORIES.filter((c) => cats.has(c.id) && !types.has(c.id)).map((c) => ({ value: c.id, label: t('anyType', { category: categoryLabel(c.id) }), count: cats.get(c.id) })),
+  ]
+  const count = (key: string, value: string | null) => rows.filter((d) => tokenMatch(d, key, value, now)).length
+  return [
+    { key: 'type', label: t('key.type'), values: typeValues },
+    { key: 'source', label: t('key.source'), values: SOURCES.map((s) => ({ value: s, label: t(`source.${s}`), count: count('source', s) })) },
+    { key: 'fragile', label: t('key.fragile') },
+    { key: 'has', label: t('key.has'), values: (['findings', 'software', 'ports'] as const).map((v) => ({ value: v, label: t(`has.${v}`), count: count('has', v) })) },
+    { key: 'software', label: t('key.software'), values: [], free: true },
+    { key: 'suspicious', label: t('key.suspicious') },
+    { key: 'approved', label: t('key.approved'), values: (['24h', '7d'] as const).map((v) => ({ value: v, label: t(`approved.${v}`), count: count('approved', v) })) },
+  ]
+}
+
+/** The keys without counts, for parsing (labels are not needed there). */
+export const DEVICE_KEYS: TokenKey[] = [
+  { key: 'type', label: 'type', values: [] }, { key: 'source', label: 'source', values: [] }, { key: 'fragile', label: 'fragile' },
+  { key: 'has', label: 'has', values: [] }, { key: 'software', label: 'software', values: [], free: true }, { key: 'suspicious', label: 'suspicious' },
+  { key: 'approved', label: 'approved', values: [] },
+]
+
+/** The old Devices URLs (D-471 `?show=`, `?cat=`, the Software and Add devices tabs) as the new query (#849). */
+export function fromOldUrl(params: URLSearchParams): URLSearchParams | null {
+  const tab = params.get('tab')
+  const show = params.get('show')
+  const cat = params.get('cat')
+  if (!show && !cat && !['all', 'software', 'add'].includes(tab ?? '')) return null
+  const p = new URLSearchParams(params)
+  const words: string[] = []
+  if (show === 'recent') words.push('approved:24h')
+  else if (show === 'manual') words.push('source:manual')
+  else if (show === 'agent') words.push('source:osquery', 'source:wazuh')
+  else if (show === 'fragile') words.push('fragile')
+  if (cat) words.push(`type:${cat}`)
+  if (words.length) p.set('q', [p.get('q'), ...words].filter(Boolean).join(' '))
+  if (tab === 'add') p.set('add', p.get('add') ?? 'manual')
+  if (tab === 'all' || tab === 'software' || tab === 'add') p.delete('tab')
+  p.delete('show'); p.delete('cat')
+  return p
+}

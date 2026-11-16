@@ -9,14 +9,20 @@ import { Field, Input } from '@/components/ui/input'
 import { useAddDevice, useDeviceAction } from './api'
 import { errMsg } from './kinds'
 import { ProductPicker, productFields, type ChosenProduct } from './ProductPicker'
+import { IPV4_RE_UI } from './validate'
 
-function AddForm({ onDone, deviceId, listOpenRef }: { onDone: () => void; deviceId?: string; listOpenRef: RefObject<boolean> }) {
+/** What the form adds (#849): `device`, the Manual method of Add a device (an IP or a host name, and the product it runs; #829 item 2:
+ *  never a nameless, addressless row); `software` on a device (its page); `declared`, a product with no device (Settings › Declared software). */
+export type AddMode = 'device' | 'software' | 'declared'
+
+export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode; onDone: () => void; deviceId?: string; listOpenRef: RefObject<boolean> }) {
   const { t } = useTranslation('inventory')
   const navigate = useNavigate()
   const [product, setProduct] = useState<ChosenProduct | null>(null)
   const [version, setVersion] = useState('')
   const [name, setName] = useState('')
   const [ip, setIp] = useState('')
+  const [ipErr, setIpErr] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const addDevice = useAddDevice()
   const addSoftware = useDeviceAction(deviceId ?? '').addSoftware
@@ -26,38 +32,49 @@ function AddForm({ onDone, deviceId, listOpenRef }: { onDone: () => void; device
     e.preventDefault()
     if (!product) return
     setError(null)
-    if (deviceId) {
+    if (mode === 'software' && deviceId) {
       addSoftware.mutate({ ...productFields(product), version: version.trim() || undefined }, {
         onSuccess: (r) => { toast.success(r.kev_cves > 0 ? t('add.softwareDoneKev', { name: product.display, count: r.kev_cves }) : t('add.softwareDone', { name: product.display })); onDone() },
         onError: (er) => setError(errMsg(er)),
       })
       return
     }
-    addDevice.mutate({ ...productFields(product), version: version.trim() || undefined, name: name.trim() || undefined, ip: ip.trim() || undefined }, {
+    if (mode === 'device') {
+      const v = ip.trim()
+      const bad = !v && !name.trim() ? t('add.needAddress') : v && !IPV4_RE_UI.test(v) ? t('add.ipBad') : null
+      setIpErr(bad)
+      if (bad) return
+    }
+    const where = mode === 'device' ? { name: name.trim() || undefined, ip: ip.trim() || undefined } : {}
+    addDevice.mutate({ ...productFields(product), version: version.trim() || undefined, ...where }, {
       onSuccess: (r) => {
-        toast.success(r.kev_cves > 0 ? t('add.doneKev', { name: r.display, count: r.kev_cves }) : t('add.done', { name: r.display }), { action: { label: t('add.openDevice'), onClick: () => void navigate(`/devices/${r.id}`) } })
+        const msg = mode === 'declared'
+          ? (r.kev_cves > 0 ? t('declaredPage.doneKev', { name: r.display, count: r.kev_cves }) : t('declaredPage.done', { name: r.display }))
+          : (r.kev_cves > 0 ? t('add.doneKev', { name: r.display, count: r.kev_cves }) : t('add.done', { name: r.display }))
+        toast.success(msg, mode === 'declared' ? undefined : { action: { label: t('add.openDevice'), onClick: () => void navigate(`/devices/${r.id}`) } })
         onDone()
       },
       onError: (er) => setError(errMsg(er)),
     })
   }
 
+  const ipDescribed = ipErr ? 'add-ip-error' : 'add-ip-hint'
   return (
     <form onSubmit={submit} className="grid gap-4" noValidate>
-      <ProductPicker value={product} onChange={setProduct} label={t('add.product')} listOpenRef={listOpenRef} />
+      {mode === 'device' ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label={t('add.ip')} htmlFor="add-ip" hint={t('add.ipHint')} error={ipErr ?? undefined}>
+            <Input id="add-ip" inputMode="decimal" value={ip} onChange={(e) => { setIp(e.target.value); setIpErr(null) }} placeholder="192.168.10.25" aria-invalid={!!ipErr} aria-describedby={ipDescribed} />
+          </Field>
+          <Field label={t('add.name')} htmlFor="add-name" hint={t('add.nameHint')}>
+            <Input id="add-name" value={name} onChange={(e) => { setName(e.target.value); setIpErr(null) }} maxLength={64} aria-describedby="add-name-hint" />
+          </Field>
+        </div>
+      ) : null}
+      <ProductPicker value={product} onChange={setProduct} label={mode === 'device' ? t('add.productRuns') : t('add.product')} listOpenRef={listOpenRef} />
       <Field label={t('add.version')} htmlFor="add-version" hint={product?.version_hint || t('add.versionHint')}>
         <Input id="add-version" value={version} onChange={(e) => setVersion(e.target.value)} placeholder={t('add.versionPlaceholder')} maxLength={40} aria-describedby="add-version-hint" />
       </Field>
-      {deviceId ? null : (
-        <>
-          <Field label={t('add.name')} htmlFor="add-name" hint={t('add.nameHint')}>
-            <Input id="add-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={64} aria-describedby="add-name-hint" />
-          </Field>
-          <Field label={t('add.ip')} htmlFor="add-ip" hint={t('add.ipHint')}>
-            <Input id="add-ip" inputMode="decimal" value={ip} onChange={(e) => setIp(e.target.value)} placeholder="192.168.10.25" aria-describedby="add-ip-hint" />
-          </Field>
-        </>
-      )}
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       <DialogFooter>
         <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
@@ -67,15 +84,16 @@ function AddForm({ onDone, deviceId, listOpenRef }: { onDone: () => void; device
   )
 }
 
-/** S-INV-2: "Khai thiết bị" → chọn gợi ý → "Thêm" = 3 bấm. Dùng lại cho "Thêm phần mềm" trên trang chi tiết (có `deviceId`). */
-export function AddDeviceDialog({ open, onOpenChange, deviceId }: { open: boolean; onOpenChange: (o: boolean) => void; deviceId?: string }) {
+/** S-INV-2: pick a suggestion, Add = 3 clicks. "Add software" on a device page (`deviceId`) and Settings › Declared software
+ *  (`declared`) use it on its own; adding a device goes through the Add a device dialog (AddDialog, #849). */
+export function AddDeviceDialog({ open, onOpenChange, deviceId, declared }: { open: boolean; onOpenChange: (o: boolean) => void; deviceId?: string; declared?: boolean }) {
   const { t } = useTranslation('inventory')
   const listOpenRef = useRef(false)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={deviceId ? t('add.softwareTitle') : t('add.title')} description={deviceId ? t('add.softwareBody') : t('add.body')} info={deviceId ? undefined : t('add.bodyInfo')}
+      <DialogContent title={declared ? t('declaredPage.addTitle') : t('add.softwareTitle')} description={declared ? t('declaredPage.addBody') : t('add.softwareBody')} info={declared ? t('declaredPage.addInfo') : undefined}
         onEscapeKeyDown={(e) => { if (listOpenRef.current) e.preventDefault() }}>
-        <AddForm deviceId={deviceId} onDone={() => onOpenChange(false)} listOpenRef={listOpenRef} />
+        <AddForm mode={declared ? 'declared' : 'software'} deviceId={deviceId} onDone={() => onOpenChange(false)} listOpenRef={listOpenRef} />
       </DialogContent>
     </Dialog>
   )

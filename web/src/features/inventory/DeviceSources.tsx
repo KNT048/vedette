@@ -9,6 +9,7 @@ import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { useMe } from '@/lib/session'
 import { cn } from '@/lib/utils'
+import { AddDialog } from './AddDialog'
 import { useSnmp, useSnmpActions } from './api'
 import { errMsg } from './kinds'
 import { CredentialDialog, SnmpAnswer } from './SnmpSection'
@@ -101,6 +102,7 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
   const snmpOn = useModuleEnabled('sensor-active') === true
   const agentsOn = useModuleEnabled('agent-intake') === true
   const [reading, setReading] = useState(false)
+  const [enrol, setEnrol] = useState(false)
   const a = d.asset
   const feeds = feedsOf(d)
   const ip = a.ip && IPV4.test(a.ip) ? a.ip : ''
@@ -118,7 +120,10 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
     if (f === 'agent') {
       if (!agentsOn) return <span className="text-[13px] text-muted">{t('sources.agent.off')}</span>
       if (!admin) return <span className="text-[13px] text-muted">{t('sources.adminOnly')}</span>
-      return <Link to="/devices/setup?tab=agents" className={cn(buttonVariants({ size: 'sm' }))}>{feeds.has('agent') ? t('sources.agent.manage') : t('sources.agent.add')}</Link>
+      // #849: installing osquery opens the Add a device dialog's osquery method here; managing tokens stays on the agents page.
+      return feeds.has('agent')
+        ? <Link to="/devices/setup?tab=agents" className={cn(buttonVariants({ size: 'sm' }))}>{t('sources.agent.manage')}</Link>
+        : <Button size="sm" onClick={() => setEnrol(true)}>{t('sources.agent.add')}</Button>
     }
     return null
   }
@@ -146,6 +151,7 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
         })}
       </ul>
       <p className="mt-3 max-w-3xl text-[13px] text-muted">{t('sources.both')}</p>
+      {enrol ? <AddDialog open method="osquery" onOpenChange={(o) => { if (!o) setEnrol(false) }} /> : null}
     </Section>
   )
 }

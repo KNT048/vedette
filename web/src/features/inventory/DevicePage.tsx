@@ -1,8 +1,8 @@
-import { useState, type FormEvent } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { Notice, PageHeader, Section, Panel } from '@/components/common/PageHeader'
 import { InfoTip } from '@/components/common/InfoTip'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
@@ -11,15 +11,13 @@ import { EmptyState, ErrorState, Loading, ModuleOff, RequireModule, SampleDataNo
 import { SourceBadge } from '@/components/common/SourceBadge'
 import { Slot } from '@/components/common/Slot'
 import { Chip } from '@/components/common/StatusChip'
-import { Button, buttonVariants } from '@/components/ui/button'
-import { Field, Input, Select, Textarea, Label } from '@/components/ui/input'
-import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Select, Textarea, Label } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime, fmtRelative, rawProductLine } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import type { AssetKind, Service } from '@/lib/types'
-import { cn } from '@/lib/utils'
 import { categoryLabel, categoryOf, kindLabel, TYPES_BY_CATEGORY } from '@/lib/deviceTypes'
 import { AddDeviceDialog } from './AddDeviceDialog'
 import { useDevice, useDeviceAction } from './api'
@@ -27,6 +25,7 @@ import { useInstallKind, useModuleEnabled } from '@/lib/modules'
 import { useFindings } from '@/features/findings/api'
 import { isOpen } from '@/features/findings/basis'
 import { DeleteDialog } from './DeleteDialog'
+import { VersionDialog } from './VersionDialog'
 import { errMsg } from './kinds'
 import { declaredSoftwareOnly, nameOf } from './nameOf'
 import { DeviceSources } from './DeviceSources'
@@ -163,39 +162,6 @@ function seenVersion(sw: SoftwareView, list: SoftwareView[]) {
   if (sw.source !== 'manual') return null
   const typed = (sw.version ?? '').trim().toLowerCase()
   return list.find((o) => o.source !== 'manual' && o.version && sameProduct(o, sw) && o.version.trim().toLowerCase() !== typed) ?? null
-}
-
-/** "Change the version" of software a person declared (D-471 edit version); empty removes it. */
-function VersionDialog({ sw, assetId, onClose }: { sw: SoftwareView | null; assetId: string; onClose: () => void }) {
-  const { t } = useTranslation('inventory')
-  const act = useDeviceAction(assetId)
-  const [value, setValue] = useState(sw?.version ?? '')
-  const [error, setError] = useState<string | null>(null)
-  if (!sw) return null
-  const save = (e: FormEvent) => {
-    e.preventDefault()
-    const version = value.trim()
-    act.setVersion.mutate({ sid: sw.id, version }, {
-      onSuccess: () => { toast.success(version ? t('software.edited', { name: sw.display, version }) : t('software.editedNone', { name: sw.display })); onClose() },
-      onError: (er) => setError(errMsg(er)),
-    })
-  }
-  return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent title={t('software.editTitle', { name: sw.display })} description={t('software.editBody')} info={t('software.editBodyInfo')}>
-        <form onSubmit={save} className="grid gap-4" noValidate>
-          <Field label={t('add.version')} htmlFor="sw-version" hint={t('add.versionHint')}>
-            <Input id="sw-version" value={value} maxLength={40} placeholder={t('add.versionPlaceholder')} aria-describedby="sw-version-hint" onChange={(e) => { setValue(e.target.value); setError(null) }} />
-          </Field>
-          {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-          <DialogFooter>
-            <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-            <Button type="submit" variant="primary" disabled={act.setVersion.isPending}>{t('software.editSave')}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
 }
 
 /**
@@ -352,7 +318,12 @@ function Body() {
   const act = useDeviceAction(id)
   const [adding, setAdding] = useState(false)
   const [del, setDel] = useState(false)
-  const back = <Link to="/devices" className={cn(buttonVariants({ variant: 'link', size: 'sm' }), 'mb-3 inline-flex')}><ArrowLeft />{t('detail.back')}</Link>
+  // UI.md §3: breadcrumbs (parents only) above the title. ponytail: swap for components/common/Breadcrumbs once the shell builds it (#842).
+  const back = (
+    <nav aria-label={t('detail.breadcrumb')} className="mb-2 text-[13px] text-muted">
+      <ol className="flex items-center gap-1"><li><Link to="/devices" className="underline-offset-4 hover:text-ink hover:underline">{t('nav.devices')}</Link></li><li aria-hidden>›</li></ol>
+    </nav>
+  )
 
   if (q.isPending) return <>{back}<Loading /></>
   if (q.error) {
@@ -367,9 +338,13 @@ function Body() {
   return (
     <>
       {back}
-      <PageHeader title={<span className="[overflow-wrap:anywhere]">{t('detail.title', { name, kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span>} stories={['S-INV-1', 'S-INV-2']}
-        meta={<span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<SampleDataNote /></span>}
-        actions={<Button disabled={!can || a.is_box} title={a.is_box ? t('box.noDelete') : needRole} onClick={() => setDel(true)}><Trash2 />{t('detail.delete')}</Button>} />
+      <PageHeader title={<span className="[overflow-wrap:anywhere]">{name}</span>} stories={['S-INV-1', 'S-INV-2']}
+        meta={<span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<span>{t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
+        actions={<>
+          {/* #850: "Check this device now" plugs in here (slot device.actions, props { assetId }). */}
+          <Slot name="device.actions" props={{ assetId: a.id }} />
+          <Button disabled={!can || a.is_box} title={a.is_box ? t('box.noDelete') : needRole} onClick={() => setDel(true)}><Trash2 />{t('detail.delete')}</Button>
+        </>} />
       {a.is_box ? <BoxNotice findings={d.findings_count} /> : null}
       {!a.approved ? <Approval d={d} /> : null}
       {declaredSoftwareOnly(a) ? <Notice tone="accent" title={t('declared.title')}>{t('declared.body')}</Notice> : null}

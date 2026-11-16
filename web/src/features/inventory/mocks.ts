@@ -478,7 +478,7 @@ const SNMP_MSG: Record<Exclude<SnmpTestReason, 'ok' | 'unavailable'>, (ip: strin
   not_for_this_credential: (ip) => `${ip} is outside the scope of this credential, so it is never sent there.`,
   scanning_off: () => 'Active scanning is off under Scope and sensors, so nothing is sent.',
   scope_not_confirmed: () => 'The scan scope commitment is not ticked under Scope and sensors, so nothing is sent.',
-  declared_by_hand: () => 'This device was added by hand: Vedette never probes it.',
+  declared_by_hand: () => 'This device was added manually: Vedette never probes it.',
   box: () => 'This is the Vedette box itself (or one of its trap addresses): it is never probed.',
   regular_scan_never: () => 'This device is set to never be scanned.',
   busy: () => 'SNMP reads are running for the scan window right now. Try again in a minute.',

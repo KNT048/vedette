@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -12,7 +12,7 @@ import { useDeviceAction, useNotifyNew } from './api'
 import { DeleteDialog } from './DeleteDialog'
 import { errMsg } from './kinds'
 import { nameOf } from './nameOf'
-import type { DeviceRow, DevicesResponse } from './types'
+import type { DeviceRow } from './types'
 import { kindLabel } from '@/lib/deviceTypes'
 import { InfoTip } from '@/components/common/InfoTip'
 
@@ -51,35 +51,43 @@ function PendingItem({ d }: { d: DeviceRow }) {
   )
 }
 
-/** S-INV-3: thiết bị mới vào "chưa duyệt"; duyệt, đánh dấu lạ hoặc xoá. Công tắc "báo khi có thiết bị mới". */
-export function PendingPanel({ data }: { data: DevicesResponse }) {
+/** S-INV-3, #849 "To review": devices found by a scan or by listening and not approved yet; approve, mark unknown or remove.
+ *  The switch "notify me about new devices". `items` is the list after the search; `total` before it. */
+export function PendingPanel({ items, total, notifyNew, notifyAvailable, search, filtered, onClear }: {
+  items: DeviceRow[]; total: number; notifyNew: boolean; notifyAvailable: boolean; search?: ReactNode; filtered?: boolean; onClear?: () => void
+}) {
   const { t } = useTranslation('inventory')
   const can = useCan('operator')
   const notify = useNotifyNew()
-  const pending = data.items.filter((d) => !d.approved).sort((a, b) => b.first_seen.localeCompare(a.first_seen))
+  const pending = [...items].sort((a, b) => b.first_seen.localeCompare(a.first_seen))
   return (
-    <section aria-labelledby="pending-title" className="mb-8">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+    <section aria-labelledby="pending-title" className="mb-8 grid min-w-0 gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="grid gap-0.5">
           <div className="flex items-center gap-1">
-            <h2 id="pending-title" className="text-base font-semibold">{pending.length ? t('pending.title', { count: pending.length }) : t('pending.titleNone')}</h2>
+            <h2 id="pending-title" className="text-base font-semibold">{total ? t('pending.title', { count: total }) : t('pending.titleNone')}</h2>
             <InfoTip topic={t('tabs.review')}>{t('pending.descriptionInfo')}</InfoTip>
           </div>
           <p className="max-w-3xl text-[13px] text-muted">{t('pending.description')}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Switch id="notify-new" checked={data.notify_new} disabled={!can || notify.isPending} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
+          <Switch id="notify-new" checked={notifyNew} disabled={!can || notify.isPending} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
             onCheckedChange={(v) => notify.mutate(v, { onSuccess: () => toast.success(v ? t('pending.notifyOn') : t('pending.notifyOff')), onError: (e) => toast.error(errMsg(e)) })} />
           <label htmlFor="notify-new" className="text-sm">{t('pending.notify')}</label>
         </div>
       </div>
-      {data.notify_new && !data.notify_available ? <p className="mb-3 text-[13px] text-warn">{t('pending.notifyOff2')} <Link className="underline" to="/settings/modules">{t('pending.openModules')}</Link></p> : null}
-      {data.notify_new && data.notify_available ? <p className="mb-3 text-[13px] text-muted">{t('pending.notifyVia')} <Link className="text-accent underline-offset-4 hover:underline" to="/settings/channels">{t('pending.openChannels')}</Link></p> : null}
+      {notifyNew && !notifyAvailable ? <p className="text-[13px] text-warn">{t('pending.notifyOff2')} <Link className="underline" to="/settings/modules">{t('pending.openModules')}</Link></p> : null}
+      {notifyNew && notifyAvailable ? <p className="text-[13px] text-muted">{t('pending.notifyVia')} <Link className="text-accent underline-offset-4 hover:underline" to="/settings/channels">{t('pending.openChannels')}</Link></p> : null}
+      {total ? search : null}
       {pending.length ? (
         <Panel>
           <ul className="divide-y divide-rule" aria-label={t('pending.title', { count: pending.length })}>
             {pending.map((d) => <PendingItem key={d.id} d={d} />)}
           </ul>
+        </Panel>
+      ) : filtered ? (
+        <Panel className="px-4 py-6 text-center text-muted">
+          <span className="inline-flex flex-wrap items-center justify-center gap-x-2">{t('search.none')}{onClear ? <Button size="sm" variant="link" onClick={onClear}>{t('search.clear')}</Button> : null}</span>
         </Panel>
       ) : null}
     </section>

@@ -102,7 +102,7 @@ func (s *Service) AddRange(ctx context.Context, actor, raw string, shown []strin
 			return &Changed{API: apierr.New(http.StatusConflict, "scope_changed", "The network ranges changed since this dialog opened. Check the current list, then confirm again."), Current: prev}
 		}
 		next := prev
-		detail := "confirmed the scope (" + one[0] + " is inside it)"
+		var detail string
 		if !covered {
 			ranges, _, aerr := checkRanges(append(slices.Clone(prev.LANRanges), one[0]))
 			if aerr != nil {

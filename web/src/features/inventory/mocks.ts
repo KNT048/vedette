@@ -500,7 +500,7 @@ type StoredSnmp = SnmpCredential & { community?: string; auth_password?: string;
 export const snmpStore = collection<StoredSnmp[]>('sa_snmp', () => [{
   id: 'snmp-1', name: 'Core switches (v3)', version: 'v3', username: 'vedette-ro', auth: 'sha256', priv: 'aes128',
   auth_password: 'ro-auth-2fe8', priv_password: 'ro-priv-91c4', secret_last4: '2fe8', priv_last4: '91c4',
-  scope: ['192.168.10.0/24'], created_at: daysAgo(30), last_answer_at: daysAgo(1), answered: 3, secret_lost: false,
+  scope: ['192.168.10.0/24'], created_at: daysAgo(30), last_answer_at: daysAgo(1), answered: 3, secret_lost: false, moved_out: [],
 }], () => [])
 const SNMP_MAX = 8
 /** #868: what the backend says about a credential whose saved secret this box cannot open (restore without the key). */
@@ -516,7 +516,7 @@ const ipInt = (ip: string) => cidrRange(`${ip}/32`).base
 /** `ip` inside an address or CIDR range of `list`. */
 const inList = (ip: string, list: string[]) => list.some((x) => { const r = cidrRange(x.includes('/') ? x : `${x}/32`); const n = ipInt(ip); const base = Math.floor(r.base / r.size) * r.size; return n >= base && n < base + r.size })
 
-function checkSnmp(b: Partial<SnmpCredentialInput>, prev: StoredSnmp | null): { err: ReturnType<typeof bad> } | { err?: undefined; value: Omit<StoredSnmp, 'id' | 'created_at' | 'last_answer_at' | 'answered' | 'secret_lost'> } {
+function checkSnmp(b: Partial<SnmpCredentialInput>, prev: StoredSnmp | null): { err: ReturnType<typeof bad> } | { err?: undefined; value: Omit<StoredSnmp, 'id' | 'created_at' | 'last_answer_at' | 'answered' | 'secret_lost' | 'moved_out'> } {
   const name = typeof b.name === 'string' ? b.name.trim() : ''
   if (!LABEL_RE.test(name)) return { err: bad(400, 'bad_name', 'Name the credential, up to 64 characters, without < or >. Example "Core switches".') }
   if (snmpStore.get().some((x) => x.id !== prev?.id && x.name.toLowerCase() === name.toLowerCase())) return { err: bad(409, 'name_taken', `A credential named "${name}" already exists. Choose another name.`) }
@@ -1123,7 +1123,7 @@ export const handlers = [
     if (snmpStore.get().length >= SNMP_MAX) return fail(409, 'too_many', `At most ${SNMP_MAX} SNMP credentials: each one is tried in turn on every device. Delete one you no longer use.`)
     const v = checkSnmp(await body<SnmpCredentialInput>(request), null)
     if (v.err) return fail(v.err.status, v.err.code, v.err.message)
-    const c: StoredSnmp = { ...v.value, id: newId('snmp'), created_at: nowIso(), last_answer_at: null, answered: 0, secret_lost: false }
+    const c: StoredSnmp = { ...v.value, id: newId('snmp'), created_at: nowIso(), last_answer_at: null, answered: 0, secret_lost: false, moved_out: [] }
     snmpStore.update((l) => [...l, c])
     audit('inventory.snmp_add', c.name, `${c.version}, scope ${c.scope.join(' ')}`)
     return HttpResponse.json(publicSnmp(c), { status: 201 })
@@ -1136,8 +1136,8 @@ export const handlers = [
     if (!prev) return fail(404, 'not_found', 'No such SNMP credential. It may have been deleted.')
     const v = checkSnmp(await body<SnmpCredentialInput>(request), prev)
     if (v.err) return fail(v.err.status, v.err.code, v.err.message)
-    const c: StoredSnmp = { ...v.value, id: prev.id, created_at: prev.created_at, last_answer_at: prev.last_answer_at, answered: prev.answered, secret_lost: false }
-    snmpStore.update((l) => l.map((x) => (x.id === c.id ? c : x)))
+    const c: StoredSnmp = { ...v.value, id: prev.id, created_at: prev.created_at, last_answer_at: prev.last_answer_at, answered: prev.answered, secret_lost: false, moved_out: [] }
+    snmpStore.update((l) => l.map((x) => (x.id === c.id ? { ...c, moved_out: prev.moved_out.filter((m) => !inList(m.ip, c.scope)) } : x)))
     audit('inventory.snmp_edit', c.name, c.version)
     return HttpResponse.json(publicSnmp(c))
   }),
@@ -1200,6 +1200,8 @@ export const handlers = [
     const inScope = allAssets().filter((a) => hasIp(a) && inList(a.ip, c.scope))
     const readable = (a: Asset) => a.id !== BOX_ID && a.origin !== 'manual' && a.approved && inList(a.ip, st.lan_ranges) && !inList(a.ip, st.active.exclusions) && metaStore.get()[a.id]?.regular_scan !== 'never'
     const targets = inScope.filter(readable)
+    // #829 C4: a device that answered this credential and moved out of its scope is a skipped row that says so; nothing is sent there.
+    const moved: SnmpRead['results'] = c.moved_out.map((m) => ({ ip: m.ip, ok: false, reason: 'not_for_this_credential', message: m.message, device_id: m.device_id, answer: null }))
     const results: SnmpRead['results'] = targets.map((a) => {
       const ok = c.version === 'v3' || c.community === 'public'
       const answer = ok ? snmpAnswer(a) : null
@@ -1209,11 +1211,11 @@ export const handlers = [
     const answered = results.filter((r) => r.ok).length
     if (answered) snmpStore.update((l) => l.map((x) => (x.id === c.id ? { ...x, last_answer_at: nowIso(), answered: Math.max(x.answered, answered) } : x)))
     const run: SnmpRead = { id: newId('saj'), credential_id: c.id, by: currentUser()?.email ?? 'admin@example.com', started_at: nowIso(), finished_at: nowIso(), status: 'done', message: null,
-      total: targets.length, done: targets.length, answered, skipped: inScope.length - targets.length, results }
+      total: targets.length, done: targets.length, answered, skipped: inScope.length - targets.length + moved.length, results: [...moved, ...results] }
     snmpReads[c.id] = { ...run, status: 'running' }
     audit('inventory.snmp_read', c.name, `${targets.length} approved devices, ${run.skipped} skipped`) // every read, one with no target too
     queueMicrotask(() => { snmpReads[c.id] = run })
-    return HttpResponse.json({ ...run, status: 'running', finished_at: null, done: 0, answered: 0, results: [] } satisfies SnmpRead, { status: 202 })
+    return HttpResponse.json({ ...run, status: 'running', finished_at: null, done: 0, answered: 0, results: moved } satisfies SnmpRead, { status: 202 })
   }),
 
   http.get(`${API}/inventory/snmp/:id/read`, ({ params }) => {

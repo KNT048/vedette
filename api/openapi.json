@@ -45808,6 +45808,37 @@
                           "secret_lost": {
                             "type": "boolean",
                             "description": "A saved secret of it cannot be opened on this box (a backup restored without its decryption key, or the box key changed, #868): it is sent nowhere (Test and Read now answer 409 secret_lost, the scan window skips it) until Edit saves it with the secret typed again"
+                          },
+                          "moved_out": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "device_id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "description": "How a person knows the device: host name, else model, else vendor; empty when none"
+                                },
+                                "ip": {
+                                  "type": "string",
+                                  "description": "Its address now, outside the credential's scope"
+                                },
+                                "message": {
+                                  "type": "string",
+                                  "description": "Plain words, e.g. \"ipchg-c4 moved to 192.168.18.206, outside the scope of this credential. If it is still ipchg-c4, add the address to the scope to keep reading it. Nothing is sent there until then.\""
+                                }
+                              },
+                              "required": [
+                                "device_id",
+                                "name",
+                                "ip",
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "Devices that answered with it and moved out of its scope (#829 C4); empty on add and edit responses"
                           }
                         },
                         "required": [
@@ -45823,7 +45854,8 @@
                           "created_at",
                           "last_answer_at",
                           "answered",
-                          "secret_lost"
+                          "secret_lost",
+                          "moved_out"
                         ],
                         "additionalProperties": false
                       },
@@ -46051,6 +46083,37 @@
                     "secret_lost": {
                       "type": "boolean",
                       "description": "A saved secret of it cannot be opened on this box (a backup restored without its decryption key, or the box key changed, #868): it is sent nowhere (Test and Read now answer 409 secret_lost, the scan window skips it) until Edit saves it with the secret typed again"
+                    },
+                    "moved_out": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "device_id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "How a person knows the device: host name, else model, else vendor; empty when none"
+                          },
+                          "ip": {
+                            "type": "string",
+                            "description": "Its address now, outside the credential's scope"
+                          },
+                          "message": {
+                            "type": "string",
+                            "description": "Plain words, e.g. \"ipchg-c4 moved to 192.168.18.206, outside the scope of this credential. If it is still ipchg-c4, add the address to the scope to keep reading it. Nothing is sent there until then.\""
+                          }
+                        },
+                        "required": [
+                          "device_id",
+                          "name",
+                          "ip",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Devices that answered with it and moved out of its scope (#829 C4); empty on add and edit responses"
                     }
                   },
                   "required": [
@@ -46066,7 +46129,8 @@
                     "created_at",
                     "last_answer_at",
                     "answered",
-                    "secret_lost"
+                    "secret_lost",
+                    "moved_out"
                   ],
                   "additionalProperties": false
                 }
@@ -46321,6 +46385,37 @@
                     "secret_lost": {
                       "type": "boolean",
                       "description": "A saved secret of it cannot be opened on this box (a backup restored without its decryption key, or the box key changed, #868): it is sent nowhere (Test and Read now answer 409 secret_lost, the scan window skips it) until Edit saves it with the secret typed again"
+                    },
+                    "moved_out": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "device_id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "How a person knows the device: host name, else model, else vendor; empty when none"
+                          },
+                          "ip": {
+                            "type": "string",
+                            "description": "Its address now, outside the credential's scope"
+                          },
+                          "message": {
+                            "type": "string",
+                            "description": "Plain words, e.g. \"ipchg-c4 moved to 192.168.18.206, outside the scope of this credential. If it is still ipchg-c4, add the address to the scope to keep reading it. Nothing is sent there until then.\""
+                          }
+                        },
+                        "required": [
+                          "device_id",
+                          "name",
+                          "ip",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Devices that answered with it and moved out of its scope (#829 C4); empty on add and edit responses"
                     }
                   },
                   "required": [
@@ -46336,7 +46431,8 @@
                     "created_at",
                     "last_answer_at",
                     "answered",
-                    "secret_lost"
+                    "secret_lost",
+                    "moved_out"
                   ],
                   "additionalProperties": false
                 }
@@ -46449,7 +46545,7 @@
                           "type": "integer",
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991,
-                          "description": "Devices of the inventory in the credential's scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is sent to them, nor to an address with no device"
+                          "description": "Devices of the inventory in the credential's scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope; and devices that answered it and moved out of its scope (#829 C4). Nothing is sent to them, nor to an address with no device"
                         },
                         "results": {
                           "type": "array",
@@ -46565,7 +46661,7 @@
                             ],
                             "additionalProperties": false
                           },
-                          "description": "One row per device read so far, as Test answers it"
+                          "description": "One row per device read so far, as Test answers it; a device that answered this credential and moved out of its scope is a row with reason not_for_this_credential at its new address, counted in skipped, and is not read (#829 C4)"
                         }
                       },
                       "required": [
@@ -46694,7 +46790,7 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991,
-                      "description": "Devices of the inventory in the credential's scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is sent to them, nor to an address with no device"
+                      "description": "Devices of the inventory in the credential's scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope; and devices that answered it and moved out of its scope (#829 C4). Nothing is sent to them, nor to an address with no device"
                     },
                     "results": {
                       "type": "array",
@@ -46810,7 +46906,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "One row per device read so far, as Test answers it"
+                      "description": "One row per device read so far, as Test answers it; a device that answered this credential and moved out of its scope is a row with reason not_for_this_credential at its new address, counted in skipped, and is not read (#829 C4)"
                     }
                   },
                   "required": [

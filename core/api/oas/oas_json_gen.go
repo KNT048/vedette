@@ -173388,6 +173388,14 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) encodeFields(e *jx.Encoder)
 		s.LastAnswerAt.Encode(e, json.EncodeDateTime)
 	}
 	{
+		e.FieldStart("moved_out")
+		e.ArrStart()
+		for _, elem := range s.MovedOut {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
@@ -173425,20 +173433,21 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) encodeFields(e *jx.Encoder)
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventorySnmpOKCredentialsItem = [13]string{
+var jsonFieldsNameOfInventoryGetInventorySnmpOKCredentialsItem = [14]string{
 	0:  "answered",
 	1:  "auth",
 	2:  "created_at",
 	3:  "id",
 	4:  "last_answer_at",
-	5:  "name",
-	6:  "priv",
-	7:  "priv_last4",
-	8:  "scope",
-	9:  "secret_last4",
-	10: "secret_lost",
-	11: "username",
-	12: "version",
+	5:  "moved_out",
+	6:  "name",
+	7:  "priv",
+	8:  "priv_last4",
+	9:  "scope",
+	10: "secret_last4",
+	11: "secret_lost",
+	12: "username",
+	13: "version",
 }
 
 // Decode decodes InventoryGetInventorySnmpOKCredentialsItem from json.
@@ -173506,8 +173515,26 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"last_answer_at\"")
 			}
-		case "name":
+		case "moved_out":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				s.MovedOut = make([]InventoryGetInventorySnmpOKCredentialsItemMovedOutItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem InventoryGetInventorySnmpOKCredentialsItemMovedOutItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.MovedOut = append(s.MovedOut, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"moved_out\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -173519,7 +173546,7 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "priv":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Priv.Decode(d); err != nil {
 					return err
@@ -173529,7 +173556,7 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"priv\"")
 			}
 		case "priv_last4":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.PrivLast4 = string(v)
@@ -173541,7 +173568,7 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"priv_last4\"")
 			}
 		case "scope":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				s.Scope = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -173561,7 +173588,7 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"scope\"")
 			}
 		case "secret_last4":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.SecretLast4 = string(v)
@@ -173573,7 +173600,7 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"secret_last4\"")
 			}
 		case "secret_lost":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Bool()
 				s.SecretLost = bool(v)
@@ -173585,7 +173612,7 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"secret_lost\"")
 			}
 		case "username":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Username.Decode(d); err != nil {
 					return err
@@ -173595,7 +173622,7 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"username\"")
 			}
 		case "version":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Version.Decode(d); err != nil {
 					return err
@@ -173615,7 +173642,7 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) Decode(d *jx.Decoder) error
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -173697,6 +173724,153 @@ func (s InventoryGetInventorySnmpOKCredentialsItemAuth) MarshalJSON() ([]byte, e
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *InventoryGetInventorySnmpOKCredentialsItemAuth) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *InventoryGetInventorySnmpOKCredentialsItemMovedOutItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *InventoryGetInventorySnmpOKCredentialsItemMovedOutItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("device_id")
+		e.Str(s.DeviceID)
+	}
+	{
+		e.FieldStart("ip")
+		e.Str(s.IP)
+	}
+	{
+		e.FieldStart("message")
+		e.Str(s.Message)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+}
+
+var jsonFieldsNameOfInventoryGetInventorySnmpOKCredentialsItemMovedOutItem = [4]string{
+	0: "device_id",
+	1: "ip",
+	2: "message",
+	3: "name",
+}
+
+// Decode decodes InventoryGetInventorySnmpOKCredentialsItemMovedOutItem from json.
+func (s *InventoryGetInventorySnmpOKCredentialsItemMovedOutItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryGetInventorySnmpOKCredentialsItemMovedOutItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "device_id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.DeviceID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"device_id\"")
+			}
+		case "ip":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.IP = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ip\"")
+			}
+		case "message":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Message = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"message\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode InventoryGetInventorySnmpOKCredentialsItemMovedOutItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfInventoryGetInventorySnmpOKCredentialsItemMovedOutItem) {
+					name = jsonFieldsNameOfInventoryGetInventorySnmpOKCredentialsItemMovedOutItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *InventoryGetInventorySnmpOKCredentialsItemMovedOutItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryGetInventorySnmpOKCredentialsItemMovedOutItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -179289,6 +179463,14 @@ func (s *InventoryPostInventorySnmpCreated) encodeFields(e *jx.Encoder) {
 		s.LastAnswerAt.Encode(e, json.EncodeDateTime)
 	}
 	{
+		e.FieldStart("moved_out")
+		e.ArrStart()
+		for _, elem := range s.MovedOut {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
@@ -179326,20 +179508,21 @@ func (s *InventoryPostInventorySnmpCreated) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfInventoryPostInventorySnmpCreated = [13]string{
+var jsonFieldsNameOfInventoryPostInventorySnmpCreated = [14]string{
 	0:  "answered",
 	1:  "auth",
 	2:  "created_at",
 	3:  "id",
 	4:  "last_answer_at",
-	5:  "name",
-	6:  "priv",
-	7:  "priv_last4",
-	8:  "scope",
-	9:  "secret_last4",
-	10: "secret_lost",
-	11: "username",
-	12: "version",
+	5:  "moved_out",
+	6:  "name",
+	7:  "priv",
+	8:  "priv_last4",
+	9:  "scope",
+	10: "secret_last4",
+	11: "secret_lost",
+	12: "username",
+	13: "version",
 }
 
 // Decode decodes InventoryPostInventorySnmpCreated from json.
@@ -179407,8 +179590,26 @@ func (s *InventoryPostInventorySnmpCreated) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"last_answer_at\"")
 			}
-		case "name":
+		case "moved_out":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				s.MovedOut = make([]InventoryPostInventorySnmpCreatedMovedOutItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem InventoryPostInventorySnmpCreatedMovedOutItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.MovedOut = append(s.MovedOut, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"moved_out\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -179420,7 +179621,7 @@ func (s *InventoryPostInventorySnmpCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "priv":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Priv.Decode(d); err != nil {
 					return err
@@ -179430,7 +179631,7 @@ func (s *InventoryPostInventorySnmpCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"priv\"")
 			}
 		case "priv_last4":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.PrivLast4 = string(v)
@@ -179442,7 +179643,7 @@ func (s *InventoryPostInventorySnmpCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"priv_last4\"")
 			}
 		case "scope":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				s.Scope = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -179462,7 +179663,7 @@ func (s *InventoryPostInventorySnmpCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"scope\"")
 			}
 		case "secret_last4":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.SecretLast4 = string(v)
@@ -179474,7 +179675,7 @@ func (s *InventoryPostInventorySnmpCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"secret_last4\"")
 			}
 		case "secret_lost":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Bool()
 				s.SecretLost = bool(v)
@@ -179486,7 +179687,7 @@ func (s *InventoryPostInventorySnmpCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"secret_lost\"")
 			}
 		case "username":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Username.Decode(d); err != nil {
 					return err
@@ -179496,7 +179697,7 @@ func (s *InventoryPostInventorySnmpCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"username\"")
 			}
 		case "version":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Version.Decode(d); err != nil {
 					return err
@@ -179516,7 +179717,7 @@ func (s *InventoryPostInventorySnmpCreated) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -179598,6 +179799,153 @@ func (s InventoryPostInventorySnmpCreatedAuth) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *InventoryPostInventorySnmpCreatedAuth) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *InventoryPostInventorySnmpCreatedMovedOutItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *InventoryPostInventorySnmpCreatedMovedOutItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("device_id")
+		e.Str(s.DeviceID)
+	}
+	{
+		e.FieldStart("ip")
+		e.Str(s.IP)
+	}
+	{
+		e.FieldStart("message")
+		e.Str(s.Message)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+}
+
+var jsonFieldsNameOfInventoryPostInventorySnmpCreatedMovedOutItem = [4]string{
+	0: "device_id",
+	1: "ip",
+	2: "message",
+	3: "name",
+}
+
+// Decode decodes InventoryPostInventorySnmpCreatedMovedOutItem from json.
+func (s *InventoryPostInventorySnmpCreatedMovedOutItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPostInventorySnmpCreatedMovedOutItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "device_id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.DeviceID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"device_id\"")
+			}
+		case "ip":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.IP = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ip\"")
+			}
+		case "message":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Message = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"message\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode InventoryPostInventorySnmpCreatedMovedOutItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfInventoryPostInventorySnmpCreatedMovedOutItem) {
+					name = jsonFieldsNameOfInventoryPostInventorySnmpCreatedMovedOutItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *InventoryPostInventorySnmpCreatedMovedOutItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPostInventorySnmpCreatedMovedOutItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -183343,6 +183691,14 @@ func (s *InventoryPutInventorySnmpIDOK) encodeFields(e *jx.Encoder) {
 		s.LastAnswerAt.Encode(e, json.EncodeDateTime)
 	}
 	{
+		e.FieldStart("moved_out")
+		e.ArrStart()
+		for _, elem := range s.MovedOut {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
@@ -183380,20 +183736,21 @@ func (s *InventoryPutInventorySnmpIDOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfInventoryPutInventorySnmpIDOK = [13]string{
+var jsonFieldsNameOfInventoryPutInventorySnmpIDOK = [14]string{
 	0:  "answered",
 	1:  "auth",
 	2:  "created_at",
 	3:  "id",
 	4:  "last_answer_at",
-	5:  "name",
-	6:  "priv",
-	7:  "priv_last4",
-	8:  "scope",
-	9:  "secret_last4",
-	10: "secret_lost",
-	11: "username",
-	12: "version",
+	5:  "moved_out",
+	6:  "name",
+	7:  "priv",
+	8:  "priv_last4",
+	9:  "scope",
+	10: "secret_last4",
+	11: "secret_lost",
+	12: "username",
+	13: "version",
 }
 
 // Decode decodes InventoryPutInventorySnmpIDOK from json.
@@ -183461,8 +183818,26 @@ func (s *InventoryPutInventorySnmpIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"last_answer_at\"")
 			}
-		case "name":
+		case "moved_out":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				s.MovedOut = make([]InventoryPutInventorySnmpIDOKMovedOutItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem InventoryPutInventorySnmpIDOKMovedOutItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.MovedOut = append(s.MovedOut, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"moved_out\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -183474,7 +183849,7 @@ func (s *InventoryPutInventorySnmpIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "priv":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Priv.Decode(d); err != nil {
 					return err
@@ -183484,7 +183859,7 @@ func (s *InventoryPutInventorySnmpIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"priv\"")
 			}
 		case "priv_last4":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.PrivLast4 = string(v)
@@ -183496,7 +183871,7 @@ func (s *InventoryPutInventorySnmpIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"priv_last4\"")
 			}
 		case "scope":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				s.Scope = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -183516,7 +183891,7 @@ func (s *InventoryPutInventorySnmpIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"scope\"")
 			}
 		case "secret_last4":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.SecretLast4 = string(v)
@@ -183528,7 +183903,7 @@ func (s *InventoryPutInventorySnmpIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"secret_last4\"")
 			}
 		case "secret_lost":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Bool()
 				s.SecretLost = bool(v)
@@ -183540,7 +183915,7 @@ func (s *InventoryPutInventorySnmpIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"secret_lost\"")
 			}
 		case "username":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Username.Decode(d); err != nil {
 					return err
@@ -183550,7 +183925,7 @@ func (s *InventoryPutInventorySnmpIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"username\"")
 			}
 		case "version":
-			requiredBitSet[1] |= 1 << 4
+			requiredBitSet[1] |= 1 << 5
 			if err := func() error {
 				if err := s.Version.Decode(d); err != nil {
 					return err
@@ -183570,7 +183945,7 @@ func (s *InventoryPutInventorySnmpIDOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -183652,6 +184027,153 @@ func (s InventoryPutInventorySnmpIDOKAuth) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *InventoryPutInventorySnmpIDOKAuth) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *InventoryPutInventorySnmpIDOKMovedOutItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *InventoryPutInventorySnmpIDOKMovedOutItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("device_id")
+		e.Str(s.DeviceID)
+	}
+	{
+		e.FieldStart("ip")
+		e.Str(s.IP)
+	}
+	{
+		e.FieldStart("message")
+		e.Str(s.Message)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+}
+
+var jsonFieldsNameOfInventoryPutInventorySnmpIDOKMovedOutItem = [4]string{
+	0: "device_id",
+	1: "ip",
+	2: "message",
+	3: "name",
+}
+
+// Decode decodes InventoryPutInventorySnmpIDOKMovedOutItem from json.
+func (s *InventoryPutInventorySnmpIDOKMovedOutItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode InventoryPutInventorySnmpIDOKMovedOutItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "device_id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.DeviceID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"device_id\"")
+			}
+		case "ip":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.IP = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ip\"")
+			}
+		case "message":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Message = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"message\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode InventoryPutInventorySnmpIDOKMovedOutItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfInventoryPutInventorySnmpIDOKMovedOutItem) {
+					name = jsonFieldsNameOfInventoryPutInventorySnmpIDOKMovedOutItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *InventoryPutInventorySnmpIDOKMovedOutItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *InventoryPutInventorySnmpIDOKMovedOutItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

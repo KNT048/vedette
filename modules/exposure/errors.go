@@ -46,8 +46,9 @@ var (
 
 // The answers of a scan that the runner did not do (INV-12, D-229). Nothing is stored for them.
 var (
-	// ErrScanOff: the scan module, which owns the runner, is off.
-	ErrScanOff = apiErr(409, "module_off", "The Vulnerability scans module is off, so the box cannot scan. An admin can turn it on in Settings, Modules.")
+	// ErrScanOff: the runner found the External exposure module off when the scan began or was switched off while it ran (J6:
+	// the runner is the scan module's code behind exposure's switch, so the Vulnerability scans module may be off).
+	ErrScanOff = apiErr(409, "module_off", "The External exposure module is off, so the box cannot scan. An admin can turn it on in Settings, Modules.")
 	// ErrCTDown: the certificate-transparency search gave no answer; a snapshot without the subdomains would say they are gone.
 	ErrCTDown = apiErr(502, "unreachable", "The certificate-transparency search (crt.sh) did not answer, so the scan stopped and nothing was saved. Try again in a few minutes.")
 	// ErrDNSDown: the box's DNS resolver gave no clear answer for the domain itself (INV-27); like ErrCTDown, a snapshot without

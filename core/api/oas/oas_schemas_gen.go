@@ -44041,10 +44041,10 @@ type ExposureGetExposureScanOK struct {
 	Error      NilExposureGetExposureScanOKError `json:"error"`
 	FinishedAt NilDateTime                       `json:"finished_at"`
 	ID         string                            `json:"id"`
-	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-	// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-	// the snapshot exists. A failed or stopped run keeps the phase it reached.
+	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+	// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+	// snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposureGetExposureScanOKPhase `json:"phase"`
 	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
@@ -44207,10 +44207,10 @@ func (s *ExposureGetExposureScanOKError) SetMessage(val string) {
 	s.Message = val
 }
 
-// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-// the snapshot exists. A failed or stopped run keeps the phase it reached.
+// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+// snapshot exists. A failed or stopped run keeps the phase it reached.
 type ExposureGetExposureScanOKPhase string
 
 const (
@@ -50358,10 +50358,10 @@ type ExposurePostExposureScanStopOK struct {
 	Error      NilExposurePostExposureScanStopOKError `json:"error"`
 	FinishedAt NilDateTime                            `json:"finished_at"`
 	ID         string                                 `json:"id"`
-	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-	// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-	// the snapshot exists. A failed or stopped run keeps the phase it reached.
+	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+	// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+	// snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposurePostExposureScanStopOKPhase `json:"phase"`
 	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
@@ -50524,10 +50524,10 @@ func (s *ExposurePostExposureScanStopOKError) SetMessage(val string) {
 	s.Message = val
 }
 
-// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-// the snapshot exists. A failed or stopped run keeps the phase it reached.
+// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+// snapshot exists. A failed or stopped run keeps the phase it reached.
 type ExposurePostExposureScanStopOKPhase string
 
 const (
@@ -51911,10 +51911,10 @@ type ExposurePostExposureTargetsIDScanAccepted struct {
 	Error      NilExposurePostExposureTargetsIDScanAcceptedError `json:"error"`
 	FinishedAt NilDateTime                                       `json:"finished_at"`
 	ID         string                                            `json:"id"`
-	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-	// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-	// the snapshot exists. A failed or stopped run keeps the phase it reached.
+	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+	// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+	// snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposurePostExposureTargetsIDScanAcceptedPhase `json:"phase"`
 	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
@@ -52077,10 +52077,10 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedError) SetMessage(val string) 
 	s.Message = val
 }
 
-// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-// the snapshot exists. A failed or stopped run keeps the phase it reached.
+// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+// snapshot exists. A failed or stopped run keeps the phase it reached.
 type ExposurePostExposureTargetsIDScanAcceptedPhase string
 
 const (

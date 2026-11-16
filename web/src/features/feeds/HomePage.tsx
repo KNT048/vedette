@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Search } from 'lucide-react'
 import { PageHeader, Section } from '@/components/common/PageHeader'
-import { KpiStrip, type Kpi } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -17,12 +16,12 @@ import { useSetup } from '@/app/RequireSession'
 import { ApiError } from '@/lib/api'
 import { useAnswerWeekly, useFeedStatus, useHot, useWeekly } from './api'
 import { YouHaveCell } from './YouHaveCell'
+import { HomeDashboard } from './HomeDashboard'
+import { isFirstRun, useHome } from './homeSummary'
+import { useModuleEnabled } from '@/lib/modules'
 import { TwoStepPrompt } from '@/features/core/TwoStepPrompt'
 import { AlertChannelPrompt } from '@/features/core/AlertChannelPrompt'
 import { AiBudgetPrompt } from '@/features/ai/Budget'
-import { useFindings } from '@/features/findings/api'
-import { useDevices } from '@/features/inventory/api'
-import { useIncidents } from '@/features/notify/api'
 import type { HotRow } from './types'
 
 function SearchBox() {
@@ -51,10 +50,13 @@ function useKevNotice() {
   const link = <Link to="/settings/feeds" className="text-accent underline-offset-4 hover:underline">{t('home.kevSeeFeeds')}</Link>
   const notice = kev?.state === 'off' ? <>{t('home.kevOff')} {link}</>
     : kev?.state === 'never_loaded' && !(never && !kev.error) ? <>{t('home.kevNever', { reason: kev.error ?? t('home.kevNoAttempt') })} {link}</> : null
-  return { never, notice }
+  // What Home's dashboard says instead of "nothing exploited" (D-92): the notice, or, on a box that has never fetched (no notice, the
+  // headline says "no data yet"), that nothing was fetched yet.
+  const noClaim = notice ?? (never ? <>{t('home.kevNoData')} {link}</> : null)
+  return { never, notice, noClaim }
 }
 
-function HotBoard() {
+function HotBoard({ noDevices }: { noDevices: boolean }) {
   const { t } = useTranslation('feeds')
   const { notice } = useKevNotice()
   const navigate = useNavigate()
@@ -83,7 +85,7 @@ function HotBoard() {
     } },
     { id: 'template', header: t('hot.col.template'), accessorFn: (r) => Number(r.has_template), cell: ({ row }) => (row.original.has_template ? t('hot.yes') : <span className="text-muted">–</span>) },
     { id: 'ransomware', header: t('hot.col.ransomware'), accessorFn: (r) => Number(r.ransomware), cell: ({ row }) => (row.original.ransomware ? <span className="font-medium text-danger">{t('hot.yes')}</span> : <span className="text-muted">–</span>) },
-    { id: 'youHave', header: t('hot.col.youHave'), accessorFn: (r) => (r.you_have === 'yes' ? 2 : r.you_have === 'maybe' ? 1 : 0), cell: ({ row }) => <YouHaveCell value={row.original.you_have} /> },
+    { id: 'youHave', header: t('hot.col.youHave'), accessorFn: (r) => (r.you_have === 'yes' ? 2 : r.you_have === 'maybe' ? 1 : 0), cell: ({ row }) => <YouHaveCell value={row.original.you_have} noDevices={noDevices} /> },
   ]
   return (
     <Section id="hot" title={t('hot.title')} description={t('hot.description')} info={t('hot.descriptionInfo')} stories={['S-FEED-1']}
@@ -97,7 +99,7 @@ function HotBoard() {
               <div className="grid gap-1.5">
                 <div className="flex items-start justify-between gap-3">
                   <span className="font-medium">{r.display}</span>
-                  <YouHaveCell value={r.you_have} />
+                  <YouHaveCell value={r.you_have} noDevices={noDevices} />
                 </div>
                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-[13px]">
                   {r.cves.map((c) => <Link key={c.cve} to={`/cve/${c.cve}`} className="text-accent">{c.cve}</Link>)}
@@ -159,47 +161,33 @@ function Weekly() {
   )
 }
 
-/** S-UI-1: four numbers that Home's own queries and three light list endpoints already answer. A cell whose module is off or whose query
- *  has not answered is left out (never a 0 that is really "unknown"). */
-function HomeKpis({ exploited }: { exploited: number }) {
-  const { t } = useTranslation('feeds')
-  const findings = useFindings()
-  const devices = useDevices()
-  const incidents = useIncidents()
-  const items: Kpi[] = []
-  if (findings.data) items.push({ value: findings.data.items.filter((f) => f.status === 'confirmed').length, label: t('home.kpi.confirmed'), to: '/findings?tab=open&status=confirmed' })
-  items.push({ value: exploited, label: t('home.kpi.exploited'), to: '/#hot' })
-  if (devices.data) items.push({ value: devices.data.counts.pending, label: t('home.kpi.review'), to: '/devices?tab=review' })
-  if (incidents.data) items.push({ value: incidents.data.incidents.filter((i) => i.status !== 'resolved').length, label: t('home.kpi.incidents'), to: '/incidents?tab=open' })
-  return <KpiStrip label={t('home.kpi.label')} items={items} />
-}
-
 export default function HomePage() {
   const { t } = useTranslation('feeds')
   const status = useFeedStatus()
   const setup = useSetup()
   const hot = useHot('7d')
+  const findingsOn = useModuleEnabled('findings')
+  const summary = useHome(findingsOn === true)
   const rows = hot.data?.rows ?? []
   const cves = rows.reduce((n, r) => n + r.cves.length, 0)
   const matched = rows.filter((r) => r.you_have === 'yes').length
-  const { never, notice: kevTitle } = useKevNotice()
-  const title = !hot.data ? t('home.titleLoading') : kevTitle ? kevTitle : never ? t('home.titleNone') : status.data?.inventory_on === false ? t('home.titleNoInv', { count: cves }) : t('home.title', { count: cves, matched })
+  const { never, notice: kevTitle, noClaim } = useKevNotice()
+  const s = summary.data
+  // #825: with findings on, the headline answers "is anything I run being exploited?" from the summary; the week's new CVEs are the board below.
+  const answer = s ? (isFirstRun(s) ? t('home.titleFirstRun') : s.open.total ? t('home.titleOpen', { count: s.open.devices }) : t('home.titleClear')) : null
+  const loading = !hot.data || (findingsOn === true && summary.isPending)
+  const title = loading ? t('home.titleLoading') : kevTitle ? kevTitle : never ? t('home.titleNone') : answer ? answer : status.data?.inventory_on === false ? t('home.titleNoInv', { count: cves }) : t('home.title', { count: cves, matched })
   return (
     <>
       <PageHeader
         title={title}
-        stories={['S-FEED-1', 'S-FEED-3']}
+        stories={['S-FEED-1', 'S-FEED-3', 'S-UI-1']}
         meta={never ? t('home.metaNone') : status.data ? <>{t('home.meta', { time: fmtStamp(status.data.generated_at), sources: status.data.sources.map((s) => s.name).join(', ') })}{setup.data?.data_mode === 'sample' ? ` ${t('home.sampleInventory')}` : ''}</> : null}
         actions={<SearchBox />}
       />
-      {hot.data ? <HomeKpis exploited={cves} /> : null}
       <AiBudgetPrompt />
-      <AlertChannelPrompt />
-      <TwoStepPrompt />
-      {matched > 0 ? (
-        <p className="-mt-2 mb-6 text-sm"><Link to="/findings" className="text-accent underline-offset-4 hover:underline">{t('home.toFindings')}</Link></p>
-      ) : null}
-      <HotBoard />
+      <HomeDashboard kevNotice={noClaim} prompts={<><AlertChannelPrompt /><TwoStepPrompt /></>} />
+      <HotBoard noDevices={s ? s.devices.total <= 1 : false} />
       <Weekly />
     </>
   )

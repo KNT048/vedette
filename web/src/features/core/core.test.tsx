@@ -148,7 +148,7 @@ describe('core: cài đặt ban đầu', () => {
     expect(terms.accepted).toMatchObject({ by: 'lan@abc.vn', version: TERMS_VERSION, via: 'setup' })
   })
 
-  it('D-462: xong cài đặt mới (chưa có kênh), Home nhắc "No alert channel yet" và dẫn tới Settings → Alert channels', async () => {
+  it('D-462: xong cài đặt mới (chưa có kênh), Home nhắc bước "Get alerts" và dẫn tới Settings → Alert channels', async () => {
     const u = user()
     renderApp('/setup', { role: null, setupComplete: false })
     await acceptTerms(u)
@@ -177,9 +177,13 @@ describe('core: cài đặt ban đầu', () => {
     await u.click(await screen.findByRole('button', { name: 'Finish setup' }))
     expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
     expect(orgStore.get().setup_complete).toBe(true)
-    expect(await screen.findByText('No alert channel yet')).toBeInTheDocument()
-    await u.click(screen.getByRole('link', { name: 'Set up an alert channel' }))
-    expect(await screen.findByRole('table', { name: 'Alert channels' })).toBeInTheDocument()
+    // A new box has no device yet: Home's first-run card holds the reminder as its "Get alerts" step (#825), linked to the channel list.
+    const card = await screen.findByRole('region', { name: 'Get started' })
+    const step = (await within(card).findByText('Get alerts')).closest('li')!
+    expect(within(step).getByText('Email or Telegram, when an exploited flaw matches a device.')).toBeInTheDocument()
+    await u.click(within(step).getByRole('link', { name: 'Set up alerts' }))
+    const table = await screen.findByRole('table', { name: 'Alert channels' })
+    expect(table.closest('#channels')).not.toBeNull() // the link's #channels lands on the list (docs/UI.md §0.2)
     const inv = (await (await fetch(`${location.origin}/api/v1/inventory/settings`)).json()) as { lan_ranges: string[]; active: { enabled: boolean } }
     expect(inv.lan_ranges).toEqual(['10.0.0.0/24'])
     expect(inv.active.enabled).toBe(false) // không tick xác nhận: chỉ nghe thụ động

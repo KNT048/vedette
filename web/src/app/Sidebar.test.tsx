@@ -117,6 +117,7 @@ describe('phone drawer', () => {
     await u.click(open)
     await u.click(within(await screen.findByRole('dialog', { name: 'Main navigation' })).getByRole('link', { name: named('Findings') }))
     expect(screen.queryByRole('dialog', { name: 'Main navigation' })).toBeNull()
-    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
+    // The Findings page's own heading: Home's stays on screen while the lazy Findings route loads, so any h1 could be Home's, about to go.
+    expect(await screen.findByRole('heading', { level: 1, name: /finding/i })).toBeInTheDocument()
   })
 })

@@ -13,7 +13,8 @@ export function useAnswerWeekly() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, answer }: { id: string; answer: 'have' | 'not_relevant' }) => api.post<{ items: WeeklyItem[] }>(`/feeds/weekly/${encodeURIComponent(id)}`, { answer }),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['feeds'] }); void qc.invalidateQueries({ queryKey: ['inventory'] }) },
+    // "I have this" adds a device, so Home's summary (device count, maybe a finding) is asked again too (#825).
+    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['feeds'] }); void qc.invalidateQueries({ queryKey: ['inventory'] }); void qc.invalidateQueries({ queryKey: ['findings', 'summary'] }) },
   })
 }
 

@@ -2,9 +2,11 @@ package secrets_test
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -652,4 +654,196 @@ func TestReserveClosesAPurposeBeforeAnyHolderRestrictsIt(t *testing.T) {
 		}
 	}()
 	secrets.Reserve("Bad Purpose")
+}
+
+// resealed makes the one row of purpose with a key of OpenOrCreate, then seals it again under another master key, as a backup
+// restored without its decryption key leaves it. It returns the row's id and its ciphertext.
+func resealed(ctx context.Context, t *testing.T, s *secrets.Store, db *store.DB, purpose string) (id string, ct []byte) {
+	t.Helper()
+	k, err := s.OpenOrCreate(ctx, db, purpose, 32)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := secrets.New(bytes.Repeat([]byte{0x42}, secrets.KeySize))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Reader().QueryRowContext(ctx, "SELECT id FROM core_secret WHERE purpose = ?", purpose).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Write(ctx, func(tx *sql.Tx) error {
+		_, err := other.Replace(ctx, tx, id, purpose, k, false)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Open(ctx, db.Reader(), id, purpose); !errors.Is(err, secrets.ErrDecrypt) {
+		t.Fatalf("Open of the resealed row = %v, want ErrDecrypt", err)
+	}
+	return id, rowCiphertext(ctx, t, db, id)
+}
+
+func rowCiphertext(ctx context.Context, t *testing.T, db *store.DB, id string) []byte {
+	t.Helper()
+	var ct []byte
+	if err := db.Reader().QueryRowContext(ctx, "SELECT ciphertext FROM core_secret WHERE id = ?", id).Scan(&ct); err != nil {
+		t.Fatal(err)
+	}
+	return ct
+}
+
+// A key the box made for itself that was sealed under another master key (a backup restored without its decryption key, a
+// key file made again) is replaced in place by a new random key: one row, the same id, opened by this store, the same bytes for
+// later callers; one WARN and one audit row box-key.replace name the purpose, never the key.
+func TestOpenOrCreateReplacesAKeySealedUnderAnotherKey(t *testing.T) {
+	t.Parallel()
+	s, db := newStore(t)
+	var logs bytes.Buffer
+	s.SetLog(slog.New(slog.NewTextHandler(&logs, nil)))
+	ctx := t.Context()
+	const purpose = "core_device_cookie.key"
+	id, _ := resealed(ctx, t, s, db, purpose)
+
+	after, err := s.OpenOrCreate(ctx, db, purpose, 32)
+	if err != nil {
+		t.Fatalf("OpenOrCreate over a row sealed under another key: %v", err)
+	}
+	if len(after) != 32 || bytes.Equal(after, make([]byte, 32)) {
+		t.Fatalf("new key = %x: want 32 random bytes", after)
+	}
+	again, err := s.OpenOrCreate(ctx, db, purpose, 32)
+	if err != nil || !bytes.Equal(again, after) {
+		t.Fatalf("second call = %x, %v; want the replaced key", again, err)
+	}
+	var n int
+	var got string
+	if err := db.Reader().QueryRowContext(ctx, "SELECT count(*), max(id) FROM core_secret WHERE purpose = ?", purpose).Scan(&n, &got); err != nil || n != 1 || got != id {
+		t.Fatalf("rows = %d, id %q (was %q), %v; want the one row replaced in place", n, got, id, err)
+	}
+	var user, target, detail string
+	if err := db.Reader().QueryRowContext(ctx, "SELECT count(*), max(user), max(target), max(detail) FROM core_audit WHERE action = 'box-key.replace'").Scan(&n, &user, &target, &detail); err != nil || n != 1 || user != "system" || target != purpose {
+		t.Fatalf("audit = %d rows, %q %q %q, %v; want one row by system naming the purpose", n, user, target, detail, err)
+	}
+	if strings.Count(logs.String(), "level=WARN") != 1 || !strings.Contains(logs.String(), "purpose="+purpose) {
+		t.Fatalf("log = %q; want one WARN naming the purpose", logs.String())
+	}
+	for _, out := range []string{logs.String(), detail} {
+		if strings.Contains(out, fmt.Sprintf("%x", after)) || bytes.Contains([]byte(out), after) {
+			t.Fatal("the key is in the log or the audit row")
+		}
+	}
+}
+
+// Many callers on a resealed row at once get one new key: the same bytes, one row, the same id, one audit row.
+func TestOpenOrCreateConcurrentCallersOnAResealedKeyGetOneKey(t *testing.T) {
+	t.Parallel()
+	s, db := newStore(t)
+	s.SetLog(slog.New(slog.DiscardHandler))
+	ctx := t.Context()
+	const purpose = "core_email_code.hmac_key"
+	id, _ := resealed(ctx, t, s, db, purpose)
+	keys := make(chan []byte, 8)
+	errs := make(chan error, 8)
+	for range 8 {
+		go func() {
+			k, err := s.OpenOrCreate(ctx, db, purpose, 32)
+			keys <- k
+			errs <- err
+		}()
+	}
+	var first []byte
+	for range 8 {
+		k, err := <-keys, <-errs
+		if err != nil {
+			t.Fatal(err)
+		}
+		if first == nil {
+			first = k
+		} else if !bytes.Equal(first, k) {
+			t.Fatal("two callers got different keys")
+		}
+	}
+	var n, audits int
+	var got string
+	if err := db.Reader().QueryRowContext(ctx, "SELECT count(*), max(id) FROM core_secret WHERE purpose = ?", purpose).Scan(&n, &got); err != nil || n != 1 || got != id {
+		t.Fatalf("rows = %d, id %q (was %q), %v", n, got, id, err)
+	}
+	if err := db.Reader().QueryRowContext(ctx, "SELECT count(*) FROM core_audit WHERE action = 'box-key.replace'").Scan(&audits); err != nil || audits != 1 {
+		t.Fatalf("audit rows = %d, %v; want 1", audits, err)
+	}
+}
+
+// Only a row of this key version that the master key does not authenticate is replaced. A row of another key version (a newer
+// core's, after a rollback), a purpose handed to one holder, a cancelled context and a closed database are errors, and the row
+// is left exactly as it was.
+func TestOpenOrCreateLeavesTheKeyAloneOnOtherErrors(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	unchanged := func(t *testing.T, db *store.DB, id string, ct []byte) {
+		t.Helper()
+		if !bytes.Equal(rowCiphertext(ctx, t, db, id), ct) {
+			t.Fatal("the row was changed")
+		}
+		var n int
+		if err := db.Reader().QueryRowContext(ctx, "SELECT count(*) FROM core_audit WHERE action = 'box-key.replace'").Scan(&n); err != nil || n != 0 {
+			t.Fatalf("audit rows = %d, %v; want none", n, err)
+		}
+	}
+	t.Run("newer key version", func(t *testing.T) {
+		t.Parallel()
+		s, db := newStore(t)
+		const purpose = "core_device_cookie.key"
+		_, err := s.OpenOrCreate(ctx, db, purpose, 32)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var id string
+		if err := db.Write(ctx, func(tx *sql.Tx) error {
+			return tx.QueryRowContext(ctx, "UPDATE core_secret SET key_version = 2 WHERE purpose = ? RETURNING id", purpose).Scan(&id)
+		}); err != nil {
+			t.Fatal(err)
+		}
+		ct := rowCiphertext(ctx, t, db, id)
+		if _, err := s.OpenOrCreate(ctx, db, purpose, 32); !errors.Is(err, secrets.ErrDecrypt) {
+			t.Fatalf("OpenOrCreate of a version 2 row = %v, want ErrDecrypt", err)
+		}
+		unchanged(t, db, id, ct)
+	})
+	t.Run("restricted purpose", func(t *testing.T) {
+		t.Parallel()
+		s, db := newStore(t)
+		const purpose = "restricted.box_key"
+		id, ct := resealed(ctx, t, s, db, purpose)
+		if _, err := s.Restrict(purpose); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.OpenOrCreate(ctx, db, purpose, 32); !errors.Is(err, secrets.ErrRestricted) {
+			t.Fatalf("OpenOrCreate of a restricted purpose = %v, want ErrRestricted", err)
+		}
+		unchanged(t, db, id, ct)
+	})
+	t.Run("cancelled context", func(t *testing.T) {
+		t.Parallel()
+		s, db := newStore(t)
+		const purpose = "core_device_cookie.key"
+		id, ct := resealed(ctx, t, s, db, purpose)
+		cctx, cancel := context.WithCancel(ctx)
+		cancel()
+		if _, err := s.OpenOrCreate(cctx, db, purpose, 32); err == nil || errors.Is(err, secrets.ErrDecrypt) {
+			t.Fatalf("OpenOrCreate with a cancelled context = %v, want the context's error", err)
+		}
+		unchanged(t, db, id, ct)
+	})
+	t.Run("database error", func(t *testing.T) {
+		t.Parallel()
+		s, db := newStore(t)
+		const purpose = "core_device_cookie.key"
+		resealed(ctx, t, s, db, purpose)
+		if err := db.Close(); err != nil { // nothing can be written either, so the row stays
+			t.Fatal(err)
+		}
+		if k, err := s.OpenOrCreate(ctx, db, purpose, 32); err == nil || k != nil || errors.Is(err, secrets.ErrDecrypt) {
+			t.Fatalf("OpenOrCreate on a closed database = %x, %v; want a read error and no key", k, err)
+		}
+	})
 }

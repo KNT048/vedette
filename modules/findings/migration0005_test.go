@@ -22,7 +22,7 @@ func TestMigration0005_KeepsTheRowsThatHangOffAFinding(t *testing.T) {
 	db := storetest.New(t)
 	before := fstest.MapFS{}
 	if err := fs.WalkDir(findings.Migrations, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || strings.HasPrefix(p, "0005") {
+		if err != nil || d.IsDir() || p >= "0005" { // the migrations before 0005 (later ones, e.g. 0006 #825, come with it)
 			return err
 		}
 		b, err := fs.ReadFile(findings.Migrations, p)

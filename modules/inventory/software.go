@@ -317,6 +317,10 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 	if err != nil {
 		return err
 	}
+	from, err := checkFrom(hint)
+	if err != nil {
+		return err
+	}
 	conv := make([]SoftwareItem, len(items))
 	cat := s.cpeCatalog(ctx, items)
 	for i, it := range items {
@@ -336,8 +340,8 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 	}
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		now := s.seen(s.clock())
-		id, err := s.deviceFor(ctx, tx, o, cleanObs{ip: ip, mac: mac, agent: agent, source: string(source), seenAt: now})
-		if err != nil {
+		id, err := s.deviceFor(ctx, tx, o, cleanObs{ip: ip, mac: mac, agent: agent, from: from, source: string(source), seenAt: now})
+		if err != nil || id == "" { // "": no device may take the list (resolve)
 			return err
 		}
 		return s.replaceSoftwareTx(ctx, tx, o, id, clean, string(source), now)
@@ -358,7 +362,8 @@ func (s *Service) cpeCatalog(ctx context.Context, items []observe.Software) *Cat
 	return cat
 }
 
-// deviceFor finds the device of a sensor's list (software, services) by its MAC or IP, or creates it unapproved and announces it.
+// deviceFor finds the device of a sensor's list (software, services) by its MAC or IP, or creates it unapproved and announces it;
+// "" when no device may take it (resolve: an agent's key alone that is bound to nothing, an address no sighting confirmed lately).
 // Every call is a contact of the source (D-474), whether or not it creates a device.
 func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs) (string, error) {
 	ip, mac, source, now := c.ip, c.mac, observe.Source(c.source), c.seenAt
@@ -367,9 +372,10 @@ func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, c cleanO
 		return "", err
 	}
 	find := c
-	find.source = ""                           // a list moves no address by its source (as before D-598); the agent bound to a device does, in resolve
-	id, isNew, err := s.resolve(ctx, tx, find) // binds no agent: the observation batch of the same report does (Record)
-	if err != nil {
+	find.list = true
+	find.source = ""                              // a list moves no address by its source (as before D-598); the agent bound to a device does, in resolve
+	id, isNew, err := s.resolve(ctx, tx, o, find) // binds no agent: the observation batch of the same report does (Record)
+	if err != nil || id == "" {
 		return "", err
 	}
 	if !isNew {

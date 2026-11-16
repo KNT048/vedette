@@ -465,3 +465,51 @@ func TestContract_829_ADeviceTheSweepSkipsKeepsItsFacts(t *testing.T) {
 		}
 	}
 }
+
+// updatedFor counts the inventory.asset.updated events of one device.
+func (e *env) updatedFor(id string) int {
+	n := 0
+	for _, ev := range e.ev.named(inventory.EventAssetUpdated) {
+		if a, ok := ev.Data.(inventory.AssetEvent); ok && a.AssetID == id {
+			n++
+		}
+	}
+	return n
+}
+
+// #874 (D-512 (3)): a device that loses its address to another device, or moves to another address, is announced updated once, even
+// when nothing else of it changed, so a job holding the old address (an SNMP batch, an nmap run) stops; the newcomer is discovered.
+func TestContract_874_LosingOrChangingTheAddressIsAnnounced(t *testing.T) {
+	e := newEnv(t)
+	e.record(dhcp(burnt1, "192.168.18.205", "switch")...)
+	a := e.idOf("192.168.18.205")
+	if err := e.svc.Approve(e.ctx(), "kien", a); err != nil {
+		t.Fatal(err)
+	}
+	e.ev.reset()
+	e.tick(time.Minute)
+	e.record(dhcp(burnt2, "192.168.18.205", "")...) // a new machine took the switch's address
+	c := e.idOf("192.168.18.205")
+	if c == a || e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND ip IS NULL`, a) != 1 {
+		t.Fatalf("the switch kept the address (new holder %s, switch %s at %q)", c, a, e.device(a).IP)
+	}
+	if got := e.updatedFor(a); got != 1 {
+		t.Errorf("the device that lost its address was announced updated %d times, want 1", got)
+	}
+	if len(e.ev.named(inventory.EventAssetDiscovered)) != 1 || e.updatedFor(c) != 0 {
+		t.Errorf("the newcomer: %d discovered, %d updated; want 1 and 0", len(e.ev.named(inventory.EventAssetDiscovered)), e.updatedFor(c))
+	}
+
+	e.ev.reset()
+	e.tick(time.Minute)
+	e.record(dhcp(burnt2, "192.168.18.206", "")...) // the newcomer moves: same MAC, another address, nothing else changed
+	if e.device(c).IP != "192.168.18.206" || e.updatedFor(c) != 1 {
+		t.Errorf("the move: ip %q, %d updated; want .206 and 1", e.device(c).IP, e.updatedFor(c))
+	}
+	e.ev.reset()
+	e.tick(time.Minute)
+	e.record(dhcp(burnt2, "192.168.18.206", "")...) // seen again where it is: no news
+	if n := len(e.ev.named(inventory.EventAssetUpdated)); n != 0 {
+		t.Errorf("a sighting at the same address announced %d updates", n)
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -299,6 +300,10 @@ func (s *Service) now() string { return store.FormatTS(s.clock()) }
 // outbox collects the events of one transaction; they go out only after it commits.
 type outbox struct {
 	events []Event
+	// readdressed are the devices whose address this write took away or changed (claimIP). write announces each one that the write
+	// does not already announce updated, discovered or deleted: a job holding the old address (an SNMP batch, an nmap run) stops when
+	// its device leaves it, so a device that took the address mid-run is never sent a credential (#874, D-512 (3)).
+	readdressed []string
 	// after run once the transaction has committed, to compute events that need data from other modules
 	// (the CVEs feeds knows) which must not be read while the write transaction holds the database.
 	after []func(ctx context.Context) []Event
@@ -308,12 +313,33 @@ func (o *outbox) add(name string, data any) {
 	o.events = append(o.events, Event{Name: name, Data: data})
 }
 
+// readdress records that device id lost or changed its address in this write.
+func (o *outbox) readdress(id string) {
+	if !slices.Contains(o.readdressed, id) {
+		o.readdressed = append(o.readdressed, id)
+	}
+}
+
+// announceReaddressed adds inventory.asset.updated for each readdressed device the write announces no other way.
+func (o *outbox) announceReaddressed() {
+	for _, id := range o.readdressed {
+		told := slices.ContainsFunc(o.events, func(e Event) bool {
+			a, ok := e.Data.(AssetEvent)
+			return ok && a.AssetID == id && (e.Name == EventAssetUpdated || e.Name == EventAssetDiscovered || e.Name == EventAssetDeleted)
+		})
+		if !told {
+			o.add(EventAssetUpdated, AssetEvent{AssetID: id})
+		}
+	}
+}
+
 // write runs fn in one write transaction and announces its events after the commit.
 func (s *Service) write(ctx context.Context, fn func(tx *sql.Tx, o *outbox) error) error {
 	var o outbox
 	if err := s.db.Write(ctx, func(tx *sql.Tx) error { return fn(tx, &o) }); err != nil {
 		return err
 	}
+	o.announceReaddressed()
 	events := o.events
 	for _, f := range o.after {
 		events = append(events, f(ctx)...)

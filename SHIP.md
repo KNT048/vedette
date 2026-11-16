@@ -2,7 +2,7 @@
 
 v1 dành cho **P2, người làm IT một mình**: biết trong 1 giờ thứ mình đang dùng có bị khai thác thật không, mình có gì, phải làm gì (`docs/PRODUCT.md` §1).
 
-**v1 xong khi 7 hành trình dưới đây đạt trên hộp thật (N100 Ubuntu và máy Debian), kiểm như khách, và bản phát hành ký được.** Không phải khi mọi module xong. Trạng thái từng hành trình nằm ở `docs/v1-journeys.json`; chỉ đổi `passes` sau một lượt kiểm như khách có ghi chứng cứ.
+**v1 xong khi 7 hành trình dưới đây đạt trên hộp thật (N100 Ubuntu 26.04; D-626), kiểm như khách, và bản phát hành ký được.** Không phải khi mọi module xong. Trạng thái từng hành trình nằm ở `docs/v1-journeys.json`; chỉ đổi `passes` sau một lượt kiểm như khách có ghi chứng cứ.
 
 ## 7 hành trình
 

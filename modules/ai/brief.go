@@ -231,7 +231,7 @@ func untrustedAddrs(code string, trusted []netip.Addr) []string {
 			add(t)
 		case hasBits:
 			p, err := netip.ParsePrefix(t)
-			if err != nil || !(a.IsUnspecified() && p.Bits() == 0 || trustedPrefix(p.Masked())) {
+			if err != nil || (!a.IsUnspecified() || p.Bits() != 0) && !trustedPrefix(p.Masked()) {
 				add(t)
 			}
 		case isMask(a), a.IsUnspecified(), isTrusted(a):

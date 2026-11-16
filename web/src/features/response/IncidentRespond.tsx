@@ -52,7 +52,7 @@ export function IncidentRespond({ id }: { id: string }) {
               </ol>
             </Notice>
           ) : null}
-          {source.scope === 'lan' ? <p className="text-[13px] text-muted">{t('incident.noBlocklist', { ip: source.ip })}</p> : null}
+          {source.scope === 'lan' ? <p className="text-meta text-muted">{t('incident.noBlocklist', { ip: source.ip })}</p> : null}
         </>
       )}
     </section>
@@ -68,17 +68,17 @@ function OptionRow({ id, o, onSent }: { id: string; o: IncidentOption; onSent: (
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="grid gap-0.5">
           <p className="text-sm font-medium">{o.title}</p>
-          <p className="flex flex-wrap items-center gap-2 text-[13px] text-muted">
+          <p className="flex flex-wrap items-center gap-2 text-meta text-muted">
             <span>{o.device ? (o.connection ? t('incident.on', { connection: o.connection }) : t('incident.noConnection')) : t('action.viaBox')}</span>
             <RiskChip risk={o.risk} />
             <span>{t('incident.undo', { hours: Math.round(o.ttl_min / 60) })}</span>
           </p>
         </div>
-        {o.requested ? <Link className={`text-[13px] ${link}`} to="/response?tab=requests">{t('incident.requested')}</Link>
+        {o.requested ? <Link className={`text-meta ${link}`} to="/response?tab=requests">{t('incident.requested')}</Link>
           : <Button size="sm" disabled={!can || !o.ready || ask.isPending} title={!can ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
               onClick={() => ask.mutate({ id, action_id: o.action_id }, { onSuccess: (a) => { onSent(a.title); toast.success(t('incident.sentToast')) }, onError: (e) => toast.error(errText(e)) })}>{t('incident.ask')}</Button>}
       </div>
-      {o.why && !o.requested ? <p className="text-[13px] text-muted">{o.why}</p> : null}
+      {o.why && !o.requested ? <p className="text-meta text-muted">{o.why}</p> : null}
     </li>
   )
 }

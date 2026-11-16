@@ -13,7 +13,7 @@ import { errText, useAi, useCatalog, useEvents, useMetrics, usePropose, useResum
 import type { Stat } from './types'
 
 function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return <div className="rounded-md border border-rule bg-paper px-3 py-2"><dt className="text-[12px] text-muted">{label}</dt><dd className="text-xl font-semibold tabular-nums">{value}</dd>{hint ? <dd className="text-[12px] text-muted">{hint}</dd> : null}</div>
+  return <div className="rounded-md border border-rule bg-paper px-3 py-2"><dt className="text-caption text-muted">{label}</dt><dd className="text-xl font-semibold tabular-nums">{value}</dd>{hint ? <dd className="text-caption text-muted">{hint}</dd> : null}</div>
 }
 function StatBlock({ title, s }: { title: string; s: Stat }) {
   const { t } = useTranslation('response')
@@ -98,12 +98,12 @@ export function MetricsTab() {
             <Panel className="grid content-start gap-2 p-4">
               <h3 className="text-sm font-semibold">{t('ai.notes')}</h3>
               {s.notes.length ? <ul className="grid gap-3">{s.notes.map((n) => (
-                <li key={n.id}><AiBlock><p className="flex flex-wrap items-center gap-2 font-medium">{n.title} <Chip tone="off">{t(`ai.kind.${n.kind}`)}</Chip></p><p className="text-[13px]">{n.why}</p><p className="text-[12px] text-muted">{t('request.confidence', { n: n.confidence.toFixed(2) })} · {fmtDateTime(n.ts)}</p></AiBlock></li>
+                <li key={n.id}><AiBlock><p className="flex flex-wrap items-center gap-2 font-medium">{n.title} <Chip tone="off">{t(`ai.kind.${n.kind}`)}</Chip></p><p className="text-meta">{n.why}</p><p className="text-caption text-muted">{t('request.confidence', { n: n.confidence.toFixed(2) })} · {fmtDateTime(n.ts)}</p></AiBlock></li>
               ))}</ul> : <p className="text-sm text-muted">{t('ai.noNotes')}</p>}
             </Panel>
             <Panel className="grid content-start gap-2 p-4">
               <h3 className="text-sm font-semibold">{t('ai.hints')}</h3>
-              {s.hints.length ? <ul className="grid gap-2 text-sm">{s.hints.map((h) => <li key={h.id}><Chip tone="accent">{t(`ai.hintKind.${h.kind}`)}</Chip> {h.text} <span className="text-[12px] text-muted">{fmtDateTime(h.ts)}</span></li>)}</ul> : <p className="text-sm text-muted">{t('ai.noHints')}</p>}
+              {s.hints.length ? <ul className="grid gap-2 text-sm">{s.hints.map((h) => <li key={h.id}><Chip tone="accent">{t(`ai.hintKind.${h.kind}`)}</Chip> {h.text} <span className="text-caption text-muted">{fmtDateTime(h.ts)}</span></li>)}</ul> : <p className="text-sm text-muted">{t('ai.noHints')}</p>}
             </Panel>
           </div>
         </div>

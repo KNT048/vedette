@@ -91,9 +91,9 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
             <li key={d.id} className="grid gap-2 px-4 py-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="grid min-w-0">
-                  <span className="font-medium">{d.name} <span className="text-[13px] font-normal text-muted tabular-nums">{d.ip}</span></span>
-                  {firstSmb?.id === d.id ? <span className="text-[12px] text-muted">{t('trapIp.smbName')}</span> : null}
-                  {d.reason ? <span className={d.state === 'failed' || d.state === 'conflict' ? 'text-[12px] text-danger' : 'text-[12px] text-muted'}>{d.reason}</span> : null}
+                  <span className="font-medium">{d.name} <span className="text-meta font-normal text-muted tabular-nums">{d.ip}</span></span>
+                  {firstSmb?.id === d.id ? <span className="text-caption text-muted">{t('trapIp.smbName')}</span> : null}
+                  {d.reason ? <span className={d.state === 'failed' || d.state === 'conflict' ? 'text-caption text-danger' : 'text-caption text-muted'}>{d.reason}</span> : null}
                 </span>
                 <span className="flex items-center gap-3">
                   <TrapStateChip state={d.state} />
@@ -109,7 +109,7 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
           ))}
         </ul>
       ) : <div className="flex items-center gap-1 text-sm text-muted"><p>{t('trapIp.none')}</p><InfoTip topic={t('trapIp.title')}>{t('trapIp.noneInfo')}</InfoTip></div>}
-      {!admin ? <p className="text-[13px] text-muted">{t('needAdmin')}</p> : null}
+      {!admin ? <p className="text-meta text-muted">{t('needAdmin')}</p> : null}
 
       <Panel className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -118,8 +118,8 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
               <p className="text-sm font-medium">{t('trapIp.scan.title')}</p>
               <InfoTip topic={t('trapIp.scan.title')}>{t('trapIp.scan.bodyInfo')}</InfoTip>
             </div>
-            <p className="text-[13px] text-muted">{t('trapIp.scan.body')}</p>
-            <p className="text-[13px] text-muted">{lastScan ? t('trapIp.scan.last', { when: fmtRelative(lastScan.ts), src: lastScan.src_name ?? lastScan.src_ip, trapIps: lastScan.trap_hostname || lastScan.trap_ip }) : t('trapIp.scan.never')}</p>
+            <p className="text-meta text-muted">{t('trapIp.scan.body')}</p>
+            <p className="text-meta text-muted">{lastScan ? t('trapIp.scan.last', { when: fmtRelative(lastScan.ts), src: lastScan.src_name ?? lastScan.src_ip, trapIps: lastScan.trap_hostname || lastScan.trap_ip }) : t('trapIp.scan.never')}</p>
           </div>
           <Button size="sm" disabled={!!scanReason || scan.isPending} title={scanReason} onClick={() => scan.mutate(undefined, { onSuccess: () => toast.success(t('trapIp.scan.testToast')), onError: (e) => toast.error(errMsg(e)) })}>
             <FlaskConical />{t('trapIp.scan.test')}
@@ -215,7 +215,7 @@ function TrapIpForm({ data, editing, onDone }: { data: TrapIPsResponse; editing:
               </div>
             ))}
           </div>
-          {errors.services ? <p id="tip-services-error" className="text-[13px] text-danger">{errors.services}</p> : <p id="tip-services-hint" className="text-[13px] text-muted">{t('trapIp.form.servicesHint')}</p>}
+          {errors.services ? <p id="tip-services-error" className="text-meta text-danger">{errors.services}</p> : <p id="tip-services-hint" className="text-meta text-muted">{t('trapIp.form.servicesHint')}</p>}
         </fieldset>
         {errors.form ? <Notice tone="danger" role="alert" className="mb-0" title={errors.form} /> : null}
         <div className="flex flex-wrap gap-2">
@@ -246,7 +246,7 @@ function TrapIpDetails({ d }: { d: TrapIP }) {
   ]
   if (d.device_id) rows.push({ k: 'device', label: t('trapIp.where.device'), value: <Link className="text-accent underline-offset-4 hover:underline" to={`/devices/${d.device_id}`}>{t('trapIp.where.deviceLink', { name: d.device_name ?? d.ip })}</Link> })
   return (
-    <dl aria-label={t('trapIp.detailsLabel', { name: d.name })} className="grid gap-x-6 gap-y-1 text-[13px] sm:grid-cols-[max-content_1fr]">
+    <dl aria-label={t('trapIp.detailsLabel', { name: d.name })} className="grid gap-x-6 gap-y-1 text-meta sm:grid-cols-[max-content_1fr]">
       {rows.map((r) => (
         <div key={r.k} className="contents">
           <dt className="text-muted">{r.label}</dt>

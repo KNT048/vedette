@@ -104,7 +104,7 @@ function SourcesSection() {
             { id: 'device', header: t('sources.col.device'), accessorFn: (r) => r.name, cell: ({ row: { original: r } }) => (
               <div className="grid">
                 {r.asset_id ? <Link to={`/devices/${r.asset_id}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.name}</Link> : <span className="font-medium">{r.name}</span>}
-                <span className="text-[12px] text-muted">{CATALOG[r.kind].name}{r.asset_id ? '' : `, ${t('sources.notInInventory')}`}</span>
+                <span className="text-caption text-muted">{CATALOG[r.kind].name}{r.asset_id ? '' : `, ${t('sources.notInInventory')}`}</span>
               </div>
             ) },
             { id: 'ip', header: t('sources.col.ip'), accessorFn: (r) => r.sender_ip, cell: ({ row }) => <span className="whitespace-nowrap">{row.original.sender_ip}</span> },
@@ -132,11 +132,11 @@ function SourcesSection() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="grid">
                           {r.asset_id ? <Link to={`/devices/${r.asset_id}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.name}</Link> : <span className="font-medium">{r.name}</span>}
-                          <span className="text-[12px] text-muted">{CATALOG[r.kind].name}</span>
+                          <span className="text-caption text-muted">{CATALOG[r.kind].name}</span>
                         </div>
                         <Chip tone={STATE_TONE[r.state]}>{t(`sources.state.${r.state}`)}</Chip>
                       </div>
-                      <p className="text-[13px] text-muted">{r.sender_ip}, {protoLabel(r)} {r.port}, {r.last_received ? fmtRelative(r.last_received) : t('sources.never')}</p>
+                      <p className="text-meta text-muted">{r.sender_ip}, {protoLabel(r)} {r.port}, {r.last_received ? fmtRelative(r.last_received) : t('sources.never')}</p>
                       <div className="flex flex-wrap gap-1">
                         <Button size="sm" onClick={() => setGuide(r)} aria-label={t('sources.guideFor', { name: r.name })}>{t('sources.guide')}</Button>
                         <Button size="sm" variant="ghost" disabled={!isAdmin} title={need} onClick={() => setEditing(r)} aria-label={t('sources.editFor', { name: r.name })}>{t('sources.edit')}</Button>
@@ -146,7 +146,7 @@ function SourcesSection() {
                   )} />
               )}
               {hints.length ? (
-                <ul className="mt-3 grid gap-1 text-[13px] text-muted">
+                <ul className="mt-3 grid gap-1 text-meta text-muted">
                   {hints.map((s) => <li key={s.id}><span className="font-medium text-ink">{s.name}:</span> {s.state === 'silent' ? t('sources.silentHint', { port: s.port }) : t('sources.neverHint')}</li>)}
                 </ul>
               ) : null}
@@ -164,7 +164,7 @@ function SourcesSection() {
   )
 }
 
-const sampleLine = (s: string) => <span className="mt-0.5 block max-w-[60ch] truncate font-mono text-[12px] text-muted" title={s}>{s}</span>
+const sampleLine = (s: string) => <span className="mt-0.5 block max-w-[60ch] truncate font-mono text-caption text-muted" title={s}>{s}</span>
 
 // A link to /logs#bad (or #new, #spikes) lands on the Digest tab and scrolls to that block once the digest has loaded.
 function ScrollToHash() {
@@ -188,14 +188,14 @@ function DigestSections() {
           { id: 'device', header: t('digest.bad.col.device'), accessorFn: (r) => r.asset_name ?? r.src_ip, cell: ({ row: { original: r } }) => (
             <div className="grid">
               {r.asset_id ? <Link to={`/devices/${r.asset_id}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.asset_name}</Link> : <span className="font-medium">{r.src_ip}</span>}
-              <span className="text-[12px] text-muted">{r.asset_id ? r.src_ip : t('sources.notInInventory')}</span>
+              <span className="text-caption text-muted">{r.asset_id ? r.src_ip : t('sources.notInInventory')}</span>
             </div>
           ) },
           { id: 'dst', header: t('digest.bad.col.dst'), accessorFn: (r) => r.dest, cell: ({ row: { original: r } }) => (
-            <div className="grid gap-0.5"><span className="font-medium">{r.dest}</span>{r.listed_as ? <span className="flex items-center gap-1 text-[12px] text-muted">{t('digest.bad.listedAs', { name: r.listed_as })}<InfoTip topic={t('digest.bad.listedAs', { name: r.listed_as })}>{t('digest.bad.listedAsHint')}</InfoTip></span> : null}{r.blocked ? <span className="flex items-center gap-1"><Chip tone="warn">{t('digest.bad.blocked')}</Chip><InfoTip topic={t('digest.bad.blocked')}>{t('digest.bad.blockedHint')}</InfoTip></span> : null}<Link to={`/lookup?q=${encodeURIComponent(r.listed_as ?? r.dest)}`} className="text-[12px] text-accent underline-offset-4 hover:underline">{t('digest.bad.lookup', { dst: r.listed_as ?? r.dest })}</Link></div>
+            <div className="grid gap-0.5"><span className="font-medium">{r.dest}</span>{r.listed_as ? <span className="flex items-center gap-1 text-caption text-muted">{t('digest.bad.listedAs', { name: r.listed_as })}<InfoTip topic={t('digest.bad.listedAs', { name: r.listed_as })}>{t('digest.bad.listedAsHint')}</InfoTip></span> : null}{r.blocked ? <span className="flex items-center gap-1"><Chip tone="warn">{t('digest.bad.blocked')}</Chip><InfoTip topic={t('digest.bad.blocked')}>{t('digest.bad.blockedHint')}</InfoTip></span> : null}<Link to={`/lookup?q=${encodeURIComponent(r.listed_as ?? r.dest)}`} className="text-caption text-accent underline-offset-4 hover:underline">{t('digest.bad.lookup', { dst: r.listed_as ?? r.dest })}</Link></div>
           ) },
-          { id: 'via', header: t('digest.bad.col.via'), accessorFn: (r) => via(r.seen_via), cell: ({ row }) => <span className="text-[13px]">{via(row.original.seen_via)}</span> },
-          { id: 'feed', header: t('digest.bad.col.feed'), accessorFn: (r) => r.feeds.join(', '), cell: ({ row }) => <span className="text-[13px] text-muted">{row.original.feeds.join(', ')}</span> },
+          { id: 'via', header: t('digest.bad.col.via'), accessorFn: (r) => via(r.seen_via), cell: ({ row }) => <span className="text-meta">{via(row.original.seen_via)}</span> },
+          { id: 'feed', header: t('digest.bad.col.feed'), accessorFn: (r) => r.feeds.join(', '), cell: ({ row }) => <span className="text-meta text-muted">{row.original.feeds.join(', ')}</span> },
           { id: 'confidence', header: t('digest.bad.col.confidence'), accessorFn: (r) => r.confidence, cell: ({ row }) => <span className="tabular-nums">{Math.round(row.original.confidence * 100)}%</span> },
         ]
         const fresh: ColumnDef<NewItem>[] = [
@@ -254,7 +254,7 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
   }
   const columns: ColumnDef<LogEvent>[] = [
     { id: 'time', header: t('events.col.time'), accessorFn: (r) => r.ts, cell: ({ row }) => <span className="whitespace-nowrap">{fmtDateTime(row.original.ts)}</span> },
-    { id: 'source', header: t('events.col.source'), accessorFn: (r) => r.source_name, cell: ({ row }) => <span className="grid">{row.original.source_name}{row.original.host && row.original.host !== row.original.source_name ? <span className="text-[12px] text-muted">{row.original.host}</span> : null}</span> },
+    { id: 'source', header: t('events.col.source'), accessorFn: (r) => r.source_name, cell: ({ row }) => <span className="grid">{row.original.source_name}{row.original.host && row.original.host !== row.original.source_name ? <span className="text-caption text-muted">{row.original.host}</span> : null}</span> },
     { id: 'line', header: t('events.col.message'), accessorFn: (r) => r.message, enableSorting: false, cell: ({ row }) => <Message e={row.original} /> },
   ]
   return (
@@ -272,16 +272,16 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
           return (
           <>
             {next ? (
-              <div className="mb-2 flex flex-wrap items-center gap-3 text-[13px] text-muted">
+              <div className="mb-2 flex flex-wrap items-center gap-3 text-meta text-muted">
                 <p aria-live="polite">{t('events.partial', { count: rows.length, time: back ? fmtDateTime(back) : '' })}</p>
                 <Button disabled={extra.busy || q.isPlaceholderData} aria-busy={extra.busy} onClick={() => searchOlder(d)}>{t('events.searchOlder')}</Button>
                 {extra.failed ? <span role="alert" className="text-danger">{t('events.searchOlderFailed')}</span> : null}
               </div>
             ) : (
-              <p className="mb-2 text-[13px] text-muted">{kw.trim() ? t('events.found', { count: rows.length }) : t('events.count', { shown: d.events.length, total: d.total })} {!kw.trim() && d.total > d.events.length ? t('events.capped') : ''}</p>
+              <p className="mb-2 text-meta text-muted">{kw.trim() ? t('events.found', { count: rows.length }) : t('events.count', { shown: d.events.length, total: d.total })} {!kw.trim() && d.total > d.events.length ? t('events.capped') : ''}</p>
             )}
             <DataTable key={`${win}-${source}-${text}`} caption={t('events.caption')} data={rows} columns={columns} pageSize={25} mobileRow={(r) => (
-              <div className="grid gap-1"><p className="text-[12px] text-muted">{fmtDateTime(r.ts)}, {r.source_name}{r.host && r.host !== r.source_name ? ` (${r.host})` : ''}</p><Message e={r} /></div>
+              <div className="grid gap-1"><p className="text-caption text-muted">{fmtDateTime(r.ts)}, {r.source_name}{r.host && r.host !== r.source_name ? ` (${r.host})` : ''}</p><Message e={r} /></div>
             )} empty={!text.trim() && !source ? <span className="inline-flex items-center gap-1">{t('events.emptyNone')}<InfoTip topic={t('events.title')}>{t('events.emptyNoneInfo')}</InfoTip></span> : t('events.empty')} />
           </>
           )
@@ -293,7 +293,7 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
 
 /** The line without its syslog header (W1-22, D-485): the program, then the message; the stored line is the tooltip. */
 function Message({ e }: { e: LogEvent }) {
-  return <span className="break-all font-mono text-[12px]" title={e.line}>{e.app ? <span className="text-muted">{e.app}: </span> : null}{e.message}</span>
+  return <span className="break-all font-mono text-caption" title={e.line}>{e.app ? <span className="text-muted">{e.app}: </span> : null}{e.message}</span>
 }
 
 function RetentionSection({ days, linesPerHour }: { days: number; linesPerHour: number }) {

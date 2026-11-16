@@ -27,7 +27,7 @@ export function ReadOnlyNote({ role }: { role: Role }) {
 export function PreviewCode({ code }: { code?: string }) {
   const { t } = useTranslation('core')
   if (import.meta.env.VITE_API_MOCK === 'off' || !code) return null
-  return <p data-testid="preview-code" className="rounded-md border border-dashed border-rule bg-sunken px-3 py-2 text-[13px] text-muted">{t('preview.emailCode', { code })}</p>
+  return <p data-testid="preview-code" className="rounded-md border border-dashed border-rule bg-sunken px-3 py-2 text-meta text-muted">{t('preview.emailCode', { code })}</p>
 }
 
 /** Đầu một khối lớn của trang (Cập nhật có ba khối): số thứ tự, tên, một dòng giải thích, nút chính. Giải thích dài vào `info` (ⓘ cạnh tên, #824). */
@@ -35,12 +35,12 @@ export function Band({ n, title, desc, info, actions, id }: { n: string; title: 
   return (
     <div className="mb-4 flex flex-wrap items-end justify-between gap-3 border-b border-ink/70 pb-2">
       <div className="grid gap-0.5">
-        <span className="text-[12px] font-medium uppercase tracking-wide text-muted" aria-hidden>{n}</span>
+        <span className="text-caption font-medium uppercase tracking-wide text-muted" aria-hidden>{n}</span>
         <div className="flex items-center gap-1">
           <h2 id={id} className="text-lg font-semibold">{title}</h2>
           {info ? <InfoTip topic={title}>{info}</InfoTip> : null}
         </div>
-        {desc ? <p className="max-w-3xl text-[13px] text-muted">{desc}</p> : null}
+        {desc ? <p className="max-w-3xl text-meta text-muted">{desc}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>

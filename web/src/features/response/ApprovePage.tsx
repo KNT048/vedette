@@ -28,8 +28,8 @@ export default function ApprovePage() {
           <p className="text-sm">{t('approve.intro', { name: q.data.approver ?? '' })}</p>
           {q.data.ai_generated ? <AiBlock><h2 className="text-base font-semibold">{q.data.title}</h2></AiBlock> : <h2 className="text-base font-semibold">{q.data.title}</h2>}
           <ul className="grid gap-3">{q.data.items.map((i) => <li key={i.title} className="grid gap-2 rounded-md border border-rule bg-paper p-3"><p className="flex flex-wrap items-center gap-2 text-sm font-medium">{i.title} <RiskChip risk={i.risk} /></p><ChangeView change={i.change} /></li>)}</ul>
-          {q.data.requires_approvals && q.data.requires_approvals > 1 ? <p className="text-[13px]">{t('approve.twoNeeded', { n: q.data.approved_so_far ?? 0, of: q.data.requires_approvals })}</p> : null}
-          <p className="text-[13px] text-muted">{t('approve.until', { time: fmtDateTime(q.data.expires_at) })} {t('approve.once')}</p>
+          {q.data.requires_approvals && q.data.requires_approvals > 1 ? <p className="text-meta">{t('approve.twoNeeded', { n: q.data.approved_so_far ?? 0, of: q.data.requires_approvals })}</p> : null}
+          <p className="text-meta text-muted">{t('approve.until', { time: fmtDateTime(q.data.expires_at) })} {t('approve.once')}</p>
           {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
           <div className="flex flex-wrap gap-2">
             <Button variant="primary" disabled={decide.isPending} onClick={() => go('approve')}>{t('action.approve')}</Button>

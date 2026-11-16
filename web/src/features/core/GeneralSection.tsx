@@ -45,7 +45,7 @@ function Form({ initial }: { initial: GeneralSettings }) {
       <Field label={t('general.timezone')} hint={t('general.timezoneHint')} info={t('general.timezoneInfo')} htmlFor="org-tz" error={tzError ?? undefined}>
         <Input id="org-tz" list="org-tz-list" autoComplete="off" spellCheck={false} value={v.timezone} disabled={gate.disabled} aria-invalid={!!tzError} onChange={(e) => setV({ ...v, timezone: e.target.value })} />
         <datalist id="org-tz-list">{TIMEZONES.map((z) => <option key={z} value={z} />)}</datalist>
-        {here && here !== v.timezone && !gate.disabled ? <button type="button" className="mt-1 w-fit text-[13px] text-accent underline-offset-4 hover:underline" onClick={() => setV({ ...v, timezone: here })}>{t('general.useBrowserZone', { zone: here })}</button> : null}
+        {here && here !== v.timezone && !gate.disabled ? <button type="button" className="mt-1 w-fit text-meta text-accent underline-offset-4 hover:underline" onClick={() => setV({ ...v, timezone: here })}>{t('general.useBrowserZone', { zone: here })}</button> : null}
       </Field>
       <div><Button type="submit" variant="primary" disabled={gate.disabled || !dirty || save.isPending} title={gate.title}>{t('common:save')}</Button></div>
     </form>
@@ -66,7 +66,7 @@ function Terms({ s }: { s: TermsState }) {
       <p className="text-sm">{a
         ? t(a.by === null ? 'general.terms.at' : a.via === 'restore' ? 'general.terms.byRestore' : 'general.terms.by', { by: a.by, when: fmtDateTime(a.at), version: a.version })
         : t('general.terms.none')}</p>
-      {a && a.version !== s.version ? <p className="text-[13px] text-muted">{t('general.terms.changed', { version: s.version })}</p> : null}
+      {a && a.version !== s.version ? <p className="text-meta text-muted">{t('general.terms.changed', { version: s.version })}</p> : null}
       <div><Button size="sm" aria-expanded={open} aria-controls="terms-text" onClick={() => setOpen((x) => !x)}>{t(open ? 'general.terms.hide' : 'general.terms.read')}</Button></div>
       {open ? <TermsText id="terms-text" /> : null}
     </section>

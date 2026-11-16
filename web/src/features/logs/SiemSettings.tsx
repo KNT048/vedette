@@ -94,7 +94,7 @@ function SiemForm({ cfg }: { cfg: SiemConfig }) {
             <div key={ev} className="flex flex-wrap items-center gap-x-2">
               <Checkbox id={`siem-ev-${ev}`} checked={shown(ev) && events.includes(ev)} disabled={!shown(ev)} aria-describedby={shown(ev) ? undefined : 'siem-ev-honeypot-why'} onCheckedChange={(c) => toggleEvent(ev, c === true)} />
               <Label htmlFor={`siem-ev-${ev}`} className={shown(ev) ? 'font-normal' : 'font-normal text-muted'}>{t(`siem.event.${ev}`)}</Label>
-              {shown(ev) ? null : <span id="siem-ev-honeypot-why" className="text-[13px] text-muted">{t('siem.noHoneypot')}</span>}
+              {shown(ev) ? null : <span id="siem-ev-honeypot-why" className="text-meta text-muted">{t('siem.noHoneypot')}</span>}
             </div>
           ))}
         </div>

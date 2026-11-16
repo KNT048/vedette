@@ -245,8 +245,8 @@ function KeyAside({ disabled, title }: { disabled: boolean; title?: string }) {
   return (
     <div className="mt-4 grid max-w-3xl gap-2 rounded-md border border-rule bg-sunken p-3">
       <div className="flex items-center gap-1"><p className="text-sm font-medium">{t('data.key.title')}</p><InfoTip topic={t('data.key.title')}>{t('data.key.descInfo')}</InfoTip></div>
-      <p className="text-[13px] text-muted">{t('data.key.desc')}</p>
-      {sso ? <div className="flex items-center gap-1"><p className="text-[13px]">{t('data.key.sso')}</p><InfoTip topic={t('data.key.sso')}>{t('data.key.ssoInfo')}</InfoTip></div> : <div><Button disabled={disabled} title={title} onClick={() => { setErr(null); setPassword(''); setCode(''); setOpen(true) }}><Download />{t('data.key.button')}</Button></div>}
+      <p className="text-meta text-muted">{t('data.key.desc')}</p>
+      {sso ? <div className="flex items-center gap-1"><p className="text-meta">{t('data.key.sso')}</p><InfoTip topic={t('data.key.sso')}>{t('data.key.ssoInfo')}</InfoTip></div> : <div><Button disabled={disabled} title={title} onClick={() => { setErr(null); setPassword(''); setCode(''); setOpen(true) }}><Download />{t('data.key.button')}</Button></div>}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent title={t('data.key.ask.title')} description={t('data.key.ask.body')} info={t('data.key.ask.info')}>
           <Field label={t('data.restore.ask.password')} htmlFor="key-password">

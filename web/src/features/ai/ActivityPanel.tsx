@@ -62,7 +62,7 @@ export default function ActivityPanel() {
         <QueryState query={list}>
           {(r) => <DataTable<ActivityEntry> caption={t('activity.caption')} data={r.items} columns={cols} initialSort={[{ id: 'ts', desc: true }]} empty={t('activity.empty')} pageSize={20} />}
         </QueryState>
-        <p className="text-[13px] text-muted">{t('activity.readOnly', { days: list.data?.retention_days ?? 365 })}</p>
+        <p className="text-meta text-muted">{t('activity.readOnly', { days: list.data?.retention_days ?? 365 })}</p>
       </div>
       <Dialog open={!!open} onOpenChange={(o) => { if (!o) setOpen(null) }}>
         {open ? <Detail e={open} job={job(open.job)} /> : null}
@@ -75,7 +75,7 @@ function Detail({ e, job }: { e: ActivityEntry; job: string }) {
   const { t } = useTranslation('ai')
   const respond = useScope('response') !== 'hidden' // D-624 (#819): no link into a module this build does not offer
   const row = (k: string, v: React.ReactNode) => <div className="grid gap-0.5 sm:grid-cols-[9rem_minmax(0,1fr)]"><dt className="text-muted">{k}</dt><dd className="min-w-0 break-words">{v}</dd></div>
-  const mono = (s: string) => <code className="break-all font-mono text-[12px]">{s}</code>
+  const mono = (s: string) => <code className="break-all font-mono text-caption">{s}</code>
   return (
     <DialogContent wide title={t('activity.detail.title', { job })} description={fmtDateTime(e.ts)} info={t('activity.detail.note')}>
       <dl className="grid gap-2 text-sm">

@@ -87,7 +87,7 @@ export function ContainerUpdates() {
             <>
               <CodeBlock label={t('container.updates.label')} code={forEngine(UPDATE_CMD, engine)} />
               <div className="flex items-center gap-1">
-                <p className="text-[13px] text-muted">{t('container.updates.again')}</p>
+                <p className="text-meta text-muted">{t('container.updates.again')}</p>
                 <InfoTip topic={t('container.updates.label')}>{t('container.updates.againInfo', { files: ADDON_FILES })}</InfoTip>
               </div>
             </>
@@ -103,7 +103,7 @@ export function ContainerUpdates() {
 function Step({ info, muted, children }: { info: string; muted?: boolean; children: ReactNode }) {
   return (
     <div className="flex items-center gap-1">
-      <p className={muted ? 'text-[13px] text-muted' : undefined}>{children}</p>
+      <p className={muted ? 'text-meta text-muted' : undefined}>{children}</p>
       <InfoTip>{info}</InfoTip>
     </div>
   )
@@ -136,7 +136,7 @@ function ReleaseStatus({ s }: { s: UpdatesState }) {
   return (
     <>
       {main}
-      <p className="text-[13px] text-muted [overflow-wrap:anywhere]">{running ? t('container.updates.running', { version: running }) : t('container.updates.runningUnknown')} {read}</p>
+      <p className="text-meta text-muted [overflow-wrap:anywhere]">{running ? t('container.updates.running', { version: running }) : t('container.updates.runningUnknown')} {read}</p>
       {s.last_check_error ? <CheckFailed e={s.last_check_error} /> : null}
     </>
   )
@@ -145,7 +145,7 @@ function ReleaseStatus({ s }: { s: UpdatesState }) {
 /** "Last check failed <when>: <reason>" (S-CORE-2 D-392), on both install kinds: the reason is the box's own sentence for the failure code. */
 export function CheckFailed({ e }: { e: UpdateCheckError }) {
   const { t } = useTranslation('core')
-  return <p className="text-[13px] text-warn">{t('updates.checkFailed', { time: fmtRelative(e.at), reason: e.message })}</p>
+  return <p className="text-meta text-warn">{t('updates.checkFailed', { time: fmtRelative(e.at), reason: e.message })}</p>
 }
 
 /**

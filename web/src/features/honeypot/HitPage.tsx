@@ -21,7 +21,7 @@ export default function HitPage() {
   const respond = useScope('response') !== 'hidden' // D-624 (#819): no Respond link while the response module is hidden
   return (
     <RequireModule module="honeypot">
-      <Link to="/honeypot" className="mb-3 inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink"><ArrowLeft className="size-3.5" />{t('hit.back')}</Link>
+      <Link to="/honeypot" className="mb-3 inline-flex items-center gap-1 text-meta text-muted hover:text-ink"><ArrowLeft className="size-3.5" />{t('hit.back')}</Link>
       <QueryState query={hit}>
         {(h) => {
           const service = hitName(t, h)
@@ -44,7 +44,7 @@ export default function HitPage() {
                     { label: t('hit.trap'), value: h.kind === 'service' ? `${h.trap_hostname} (${h.trap_ip})` : `${h.trap_hostname}: ${h.trap_ip}` },
                     { label: t('hit.srcIp'), value: h.src_ip },
                     { label: t('hit.srcDevice'), value: h.asset && h.src_name
-                      ? <span className="flex flex-wrap items-center gap-2"><Link className="text-accent underline-offset-4 hover:underline" to={`/devices/${h.asset.id}`}>{h.src_name}</Link><span className="text-[13px] text-muted">{kindLabel(h.asset.kind)}</span>{h.asset.approved ? null : <Chip tone="warn">{t('hit.unapproved')}</Chip>}</span>
+                      ? <span className="flex flex-wrap items-center gap-2"><Link className="text-accent underline-offset-4 hover:underline" to={`/devices/${h.asset.id}`}>{h.src_name}</Link><span className="text-meta text-muted">{kindLabel(h.asset.kind)}</span>{h.asset.approved ? null : <Chip tone="warn">{t('hit.unapproved')}</Chip>}</span>
                       : <span className="text-muted">{h.is_test ? t('hits.deviceBox') : t('hit.noDevice')}</span> },
                   ]} />
                 </Panel>

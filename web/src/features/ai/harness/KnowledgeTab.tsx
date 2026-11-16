@@ -60,7 +60,7 @@ export default function KnowledgeTab() {
                   </Select>
                 </Field>
                 {chosen?.location === 'cloud' ? <Notice tone="warn" role="alert" title={t('harness.knowledge.cloudWarn', { host: hostOf(chosen.base_url) })} info={t('harness.knowledge.cloudWarnInfo')} /> : null}
-                {chosen?.location === 'internal' ? <p className="text-[13px] text-muted">{t('harness.knowledge.internalNote')}</p> : null}
+                {chosen?.location === 'internal' ? <p className="text-meta text-muted">{t('harness.knowledge.internalNote')}</p> : null}
                 <ActionError error={index.error} />
               </Panel>
             </Section>
@@ -78,8 +78,8 @@ export default function KnowledgeTab() {
                         <Button size="sm" onClick={() => setDel(d)} aria-label={t('harness.deleteNamed', { name: d.name })}>{t('harness.delete')}</Button>
                       </>}>
                         <p className="flex flex-wrap items-center gap-2 font-medium">{d.name} <Chip tone={d.status === 'ready' ? 'ok' : 'warn'}>{t(`harness.knowledge.status.${d.status}`)}</Chip></p>
-                        <p className="text-[13px] text-muted">{size(d.size)} · {d.chunks === null ? t('harness.knowledge.noChunks') : t('harness.knowledge.chunks', { count: d.chunks, n: fmtNumber(d.chunks) })} · {fmtRelative(d.uploaded_at)}</p>
-                        <p className="text-[13px] text-muted">{t('harness.knowledge.usedBy', { jobs: jobNames(t, d.jobs) })}</p>
+                        <p className="text-meta text-muted">{size(d.size)} · {d.chunks === null ? t('harness.knowledge.noChunks') : t('harness.knowledge.chunks', { count: d.chunks, n: fmtNumber(d.chunks) })} · {fmtRelative(d.uploaded_at)}</p>
+                        <p className="text-meta text-muted">{t('harness.knowledge.usedBy', { jobs: jobNames(t, d.jobs) })}</p>
                       </Row>
                     ))}
                   </List>

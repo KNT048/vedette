@@ -139,12 +139,12 @@ function TwoFactor({ a }: { a: Account }) {
           {isAdmin ? (
             <div className="grid gap-2">
               <div className="flex items-center gap-1">
-                <p className="text-[13px] text-muted">{t('account.twofa.lostAdmin')}</p>
+                <p className="text-meta text-muted">{t('account.twofa.lostAdmin')}</p>
                 <InfoTip topic={t('account.twofa.lostAdminCommand')}>{t('account.twofa.lostAdminInfo')}</InfoTip>
               </div>
               <CodeBlock label={t('account.twofa.lostAdminCommand')} code={`docker exec vedette-core /vedette reset-admin ${shellQuote(a.user.email)}`} wrapOnPhone />
             </div>
-          ) : <p className="text-[13px] text-muted">{t('account.twofa.lostUser')}</p>}
+          ) : <p className="text-meta text-muted">{t('account.twofa.lostUser')}</p>}
           <div><Button variant="danger" onClick={() => { setPw(''); setPwErr(null); setAskOff(true) }}>{t('account.twofa.turnOff')}</Button></div>
         </div>
       ) : setup ? (
@@ -184,14 +184,14 @@ function TwoFactor({ a }: { a: Account }) {
           <div className="grid gap-4 md:grid-cols-2">
           <div className="grid content-start gap-3 rounded-md border border-rule bg-surface p-4">
             <h3 className="text-sm font-semibold">{t('account.twofa.method.app')}</h3>
-            <p className="text-[13px] text-muted">{t('account.twofa.app.desc')}</p>
+            <p className="text-meta text-muted">{t('account.twofa.app.desc')}</p>
             <div><Button variant="primary" onClick={() => void startApp()} disabled={!startPw || m.start2fa.isPending}>{t('account.twofa.app.setup')}</Button></div>
           </div>
           <div className="grid content-start gap-3 rounded-md border border-rule bg-surface p-4">
             <h3 className="text-sm font-semibold">{t('account.twofa.method.email')}</h3>
-            <p className="text-[13px] text-muted">{t('account.twofa.email.desc', { to: email.sent_to })}</p>
+            <p className="text-meta text-muted">{t('account.twofa.email.desc', { to: email.sent_to })}</p>
             {email.available ? null : (
-              <p id="twofa-email-why" className="text-[13px]">
+              <p id="twofa-email-why" className="text-meta">
                 {reason}{' '}
                 {isAdmin
                   ? <Link className="text-accent underline-offset-4 hover:underline" to={email.reason === 'module_off' ? '/settings/modules' : '/settings/channels'}>{email.reason === 'module_off' ? t('account.twofa.email.openModules') : t('account.twofa.email.openChannels')}</Link>
@@ -230,7 +230,7 @@ function AuthenticatorGuide() {
           <p>{t('account.twofa.guide.other')}</p>
         </InfoTip>
       </div>
-      <p className="text-[13px]">{t('account.twofa.guide.install')} {store(STORE.ios, t('account.twofa.guide.appStore'))} · {store(STORE.android, t('account.twofa.guide.googlePlay'))}</p>
+      <p className="text-meta">{t('account.twofa.guide.install')} {store(STORE.ios, t('account.twofa.guide.appStore'))} · {store(STORE.android, t('account.twofa.guide.googlePlay'))}</p>
     </div>
   )
 }

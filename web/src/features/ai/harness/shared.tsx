@@ -46,7 +46,7 @@ export function JobPicker({ value, onChange, idPrefix, legend, allLabel }: { val
               <Label htmlFor={`${idPrefix}-${j}`} className="font-normal">{t(`jobs.${j}.name`)}</Label>
             </div>
           ))}
-          <p className="text-[13px] text-muted sm:col-span-2">{t('harness.atLeastOne')}</p>
+          <p className="text-meta text-muted sm:col-span-2">{t('harness.atLeastOne')}</p>
         </div>
       ) : null}
     </fieldset>

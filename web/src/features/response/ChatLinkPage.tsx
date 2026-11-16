@@ -51,15 +51,15 @@ export default function ChatLinkPage() {
               {row ? (
                 <div className="grid gap-1 rounded-md border border-rule bg-sunken px-3 py-2">
                   <p className="text-sm">{t(`chatLink.idLabel.${kind}`)} <span className="font-mono text-lg font-semibold tracking-wide">{row.address}</span></p>
-                  {row.name ? <p className="text-[13px] text-muted">{t('chatLink.namedBy', { name: row.name })}</p> : null}
+                  {row.name ? <p className="text-meta text-muted">{t('chatLink.namedBy', { name: row.name })}</p> : null}
                 </div>
               ) : null}
-              <div className="flex items-center gap-1 text-[13px] text-muted"><p>{t(`chatLink.explain.${kind}`)}</p><InfoTip topic={t('chatLink.title', { name })}>{t(`chatLink.explain.${kind}Info`)}</InfoTip></div>
+              <div className="flex items-center gap-1 text-meta text-muted"><p>{t(`chatLink.explain.${kind}`)}</p><InfoTip topic={t('chatLink.title', { name })}>{t(`chatLink.explain.${kind}Info`)}</InfoTip></div>
               {err ? <p role="alert" className="text-sm text-danger">{err}</p> : null}
               <div><Button variant="primary" disabled={confirm.isPending} onClick={() => confirm.mutate(undefined, { onSuccess: setDone })}>{t('chatLink.confirm')}</Button></div>
             </>
           )}
-        <p className="text-[13px]"><Link className="underline" to="/settings/account?tab=approvers">{t('chatLink.toAccount')}</Link></p>
+        <p className="text-meta"><Link className="underline" to="/settings/account?tab=approvers">{t('chatLink.toAccount')}</Link></p>
       </div>
     </div>
   )

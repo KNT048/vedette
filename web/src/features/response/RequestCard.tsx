@@ -66,16 +66,16 @@ function Item({ i, pick, onPick }: { i: RequestItem; pick?: boolean; onPick?: (v
         </div>
         <div className="flex flex-wrap items-center gap-2"><RiskChip risk={i.risk} /><ItemTag status={i.status} /></div>
       </div>
-      <p className="text-[13px] text-muted">
+      <p className="text-meta text-muted">
         {i.connection ? t('request.via', { connection: i.connection }) : t('action.viaBox')}
         {' · '}{undoText(i, t)}
         {i.targets > 1 ? ` · ${t('request.targets', { count: i.targets })}` : ''}
       </p>
-      {i.result ? <p className="text-[13px]"><span className="font-medium">{t('action.result')}:</span> {i.result}</p> : null}
-      {i.state_unknown ? <p className="text-[13px] text-danger" role="note">{t('request.unknown')}</p> : null}
-      {i.verified ? <p className="text-[13px]"><Chip tone={i.verified.ok ? 'ok' : 'danger'}>{i.verified.ok ? t('request.verifiedOk') : t('request.verifiedBad')}</Chip> {i.verified.detail}</p> : null}
+      {i.result ? <p className="text-meta"><span className="font-medium">{t('action.result')}:</span> {i.result}</p> : null}
+      {i.state_unknown ? <p className="text-meta text-danger" role="note">{t('request.unknown')}</p> : null}
+      {i.verified ? <p className="text-meta"><Chip tone={i.verified.ok ? 'ok' : 'danger'}>{i.verified.ok ? t('request.verifiedOk') : t('request.verifiedBad')}</Chip> {i.verified.detail}</p> : null}
       <details>
-        <summary className="cursor-pointer text-[13px] text-accent">{t('proposal.exact')}</summary>
+        <summary className="cursor-pointer text-meta text-accent">{t('proposal.exact')}</summary>
         <div className="mt-2"><ChangeView change={i.change} /></div>
       </details>
     </li>
@@ -132,13 +132,13 @@ export function RequestCard({ a }: { a: ActionRequest }) {
       {a.ai ? (
         <AiBlock model={t('request.confidence', { n: a.ai.confidence.toFixed(2) })}>
           <p>{a.ai.why}</p>
-          <ul className="ml-5 list-disc text-[13px] text-muted">{a.ai.evidence.map((e) => <li key={`${e.kind}-${e.id}`}>{t(`request.evidence.${e.kind}`)} <span className="font-mono text-[12px]">{e.id}</span>: {e.summary}</li>)}</ul>
-          {a.ai.second_check ? <p className="text-[13px]"><Chip tone={a.ai.second_check.ok ? 'ok' : 'danger'}>{t('request.secondCheck')}</Chip> {a.ai.second_check.notes}</p> : null}
-          {a.ai.in_app_only ? <div className="flex items-center gap-1"><p className="text-[13px] text-danger">{t('request.inAppOnly')}</p><InfoTip topic={t('request.code')}>{t('request.inAppOnlyInfo')}</InfoTip></div> : null}
+          <ul className="ml-5 list-disc text-meta text-muted">{a.ai.evidence.map((e) => <li key={`${e.kind}-${e.id}`}>{t(`request.evidence.${e.kind}`)} <span className="font-mono text-caption">{e.id}</span>: {e.summary}</li>)}</ul>
+          {a.ai.second_check ? <p className="text-meta"><Chip tone={a.ai.second_check.ok ? 'ok' : 'danger'}>{t('request.secondCheck')}</Chip> {a.ai.second_check.notes}</p> : null}
+          {a.ai.in_app_only ? <div className="flex items-center gap-1"><p className="text-meta text-danger">{t('request.inAppOnly')}</p><InfoTip topic={t('request.code')}>{t('request.inAppOnlyInfo')}</InfoTip></div> : null}
         </AiBlock>
       ) : null}
       {a.email_links.length ? (
-        <div className="grid gap-1 rounded-md border border-dashed border-rule bg-sunken p-3 text-[13px]">
+        <div className="grid gap-1 rounded-md border border-dashed border-rule bg-sunken p-3 text-meta">
           <div className="flex items-center gap-1"><p className="font-medium">{t('action.links')}</p><InfoTip topic={t('action.links')}>{t('action.linksHintInfo')}</InfoTip></div>
           <p className="text-muted">{t('action.linksHint')}</p>
           <ul className="grid gap-1">{a.email_links.map((l) => (
@@ -152,7 +152,7 @@ export function RequestCard({ a }: { a: ActionRequest }) {
       </ul>
       {pending ? (
         <div className="grid gap-3">
-          {first ? <p className="text-[13px]">{t('request.secondNeeded', { name: first.name })}</p> : null}
+          {first ? <p className="text-meta">{t('request.secondNeeded', { name: first.name })}</p> : null}
           {twoStep && !frozen ? (
             <Field htmlFor={`code-${a.id}`} label={t('request.code')} hint={t('request.codeHint')} info={t('request.codeInfo')} className="max-w-xs">
               <Input id={`code-${a.id}`} inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} />
@@ -170,7 +170,7 @@ export function RequestCard({ a }: { a: ActionRequest }) {
         <div className="flex flex-wrap items-center gap-3">
           <Button disabled={!can || onDevice || rollback.isPending} title={onDevice ? t('leaving.undoOnDevice') : role} aria-describedby={onDevice ? `undo-${a.id}` : undefined} onClick={() => rollback.mutate(a.id, { onSuccess: () => toast.success(t('action.rolledBackToast')), onError: (e) => toast.error(errText(e)) })}>{t('action.rollback')}</Button>
           {/* what to undo and where: the device above, each change under "Exact change and rollback" */}
-          {onDevice ? <p id={`undo-${a.id}`} className="text-[13px] text-warn">{t('leaving.undoOnDevice')}</p> : null}
+          {onDevice ? <p id={`undo-${a.id}`} className="text-meta text-warn">{t('leaving.undoOnDevice')}</p> : null}
         </div>
       ) : null}
       {rejecting ? <RejectDialog a={a} onClose={() => setRejecting(false)} /> : null}

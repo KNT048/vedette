@@ -109,7 +109,7 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
           <>
             <p role="status" className="text-sm">{t('setup.restore.running', { org: checked?.org ?? '' })}</p>
             {/* The restored box may serve a new certificate (box CA, D-351): a browser that accepted the old one then fails every poll. */}
-            {poll.isError ? <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{t('setup.restore.reconnect')}</p><InfoTip topic={t('setup.restore.reconnect')}>{t('setup.restore.reconnectInfo')}</InfoTip></div> : null}
+            {poll.isError ? <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('setup.restore.reconnect')}</p><InfoTip topic={t('setup.restore.reconnect')}>{t('setup.restore.reconnectInfo')}</InfoTip></div> : null}
           </>
         )}
       </div>
@@ -130,7 +130,7 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
         <input id="r-key" type="file" accept=".key" className={FILE_INPUT} aria-invalid={!!errors.key} onChange={(e) => { setKeyFile(e.target.files?.[0] ?? null); setErrors((x) => ({ ...x, key: '' })) }} />
       </Field>
       {!keyFile ? (
-        <div className="grid gap-1 rounded-md border border-rule bg-sunken p-3 text-[13px]" role="note">
+        <div className="grid gap-1 rounded-md border border-rule bg-sunken p-3 text-meta" role="note">
           <p className="font-medium">{t('setup.restore.noKey.title')}</p>
           <ul className="list-disc pl-5"><li>{t('setup.restore.noKey.secrets')}</li><li>{t('setup.restore.noKey.twofa')}</li></ul>
         </div>
@@ -138,15 +138,15 @@ export function SetupRestore({ install, termsAccepted, onBack }: { install?: Ins
       {checked ? (
         <div className="grid gap-2 rounded-md border border-rule p-3 text-sm" aria-label={t('setup.restore.checkedLabel')}>
           <p>{t('setup.restore.checked', { org: checked.org, when: fmtDateTime(checked.created_at), users: checked.users })}</p>
-          {keyFile ? <p className="text-[13px] text-muted">{t(checked.secrets > 0 ? 'setup.restore.withKey' : 'setup.restore.keyNotNeeded')}</p> : null}
+          {keyFile ? <p className="text-meta text-muted">{t(checked.secrets > 0 ? 'setup.restore.withKey' : 'setup.restore.keyNotNeeded')}</p> : null}
           {noKeyLoss ? (
             <>
-              <ul className="list-disc pl-5 text-[13px]">
+              <ul className="list-disc pl-5 text-meta">
                 <li>{t('setup.restore.lost.secrets', { n: checked.secrets })}</li>
                 {checked.twofa_users > 0 ? <li>{t('setup.restore.lost.twofa', { n: checked.twofa_users })}</li> : null}
               </ul>
               {checked.admins_without_key === 0 ? (
-                <div role="alert" className="flex items-center gap-1 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-[13px]">
+                <div role="alert" className="flex items-center gap-1 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-meta">
                   <p>{t('setup.restore.lost.noAdmin')}</p>
                   <InfoTip topic={t('setup.restore.key')}>{t('setup.restore.lost.noAdminInfo')}</InfoTip>
                 </div>

@@ -79,7 +79,7 @@ function TplFields({ id, legend, info, kind, value, onChange, tools, tool, onToo
       {has('body') && !isMcp(kind) && !readOnly ? <Field htmlFor={`${id}-body`} label={t('catalog.body')}><Input id={`${id}-body`} spellCheck={false} value={value.body} placeholder='{"name":"{text}"}' onChange={(e) => onChange({ ...value, body: e.target.value })} /></Field> : null}
       {expect ? <Field htmlFor={`${id}-expect`} label={t('catalog.expect')} hint={t('catalog.expectHint')} info={t('catalog.expectHintInfo')}><Input id={`${id}-expect`} spellCheck={false} maxLength={MAX_EXPECT} value={value.expect ?? ''} onChange={(e) => onChange({ ...value, expect: e.target.value })} /></Field> : null}
       {children}
-      {error ? <p id={`${id}-error`} className="text-[13px] text-danger [overflow-wrap:anywhere]">{error}</p> : null}
+      {error ? <p id={`${id}-error`} className="text-meta text-danger [overflow-wrap:anywhere]">{error}</p> : null}
     </fieldset>
   )
 }
@@ -141,15 +141,15 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
             </Field>
             <Field htmlFor="ca-risk" label={t('catalog.risk')}><Select id="ca-risk" value={f.risk} onChange={(e) => set({ risk: e.target.value as Risk })}>{(['low', 'medium', 'high'] as Risk[]).map((r) => <option key={r} value={r}>{t(`catalog.risks.${r}`)}</option>)}</Select></Field>
           </div>
-          <p className="-mt-2 text-[13px] text-muted">{t('catalog.needConnection')} <Link className="text-accent underline underline-offset-4" to="/settings/connections">{t('catalog.toConnections')}</Link></p>
+          <p className="-mt-2 text-meta text-muted">{t('catalog.needConnection')} <Link className="text-accent underline underline-offset-4" to="/settings/connections">{t('catalog.toConnections')}</Link></p>
           {kind ? (
             <>
-              <div className="flex items-center gap-1 text-[13px] text-muted"><p>{t(action && !action.device ? 'catalog.placeholdersMessage' : 'catalog.placeholders')}</p><InfoTip topic={t('catalog.placeholdersTopic')}>{t(action && !action.device ? 'catalog.placeholdersMessageInfo' : 'catalog.placeholdersInfo')}</InfoTip></div>
-              {ex.hint ? <p className="rounded-md border border-dashed border-rule px-3 py-2 text-[13px] text-muted">{ex.hint}</p> : null}
+              <div className="flex items-center gap-1 text-meta text-muted"><p>{t(action && !action.device ? 'catalog.placeholdersMessage' : 'catalog.placeholders')}</p><InfoTip topic={t('catalog.placeholdersTopic')}>{t(action && !action.device ? 'catalog.placeholdersMessageInfo' : 'catalog.placeholdersInfo')}</InfoTip></div>
+              {ex.hint ? <p className="rounded-md border border-dashed border-rule px-3 py-2 text-meta text-muted">{ex.hint}</p> : null}
               <TplFields key={`run-${f.connection_id}`} id="ca-run" legend={t('catalog.runLegend')} kind={kind} value={f.run} onChange={(run) => set({ run })} tools={conn?.write_tools ?? []} tool={f.tool} onTool={(tool) => set({ tool })} error={errs['ca-run']} />
               <TplFields key={`rb-${f.connection_id}`} id="ca-rb" legend={t('catalog.rollbackLegend')} kind={kind} value={f.rollback} onChange={(rollback) => set({ rollback })} tools={conn?.write_tools ?? []} tool={f.rollback_tool} onTool={(rollback_tool) => set({ rollback_tool })} error={errs['ca-rb']} />
               {!isMcp(kind) ? <TplFields key={`vf-${f.connection_id}`} id="ca-vf" legend={t('catalog.verifyLegend')} kind={kind} value={f.verify} onChange={(verify) => set({ verify })} tools={[]} tool={null} onTool={() => undefined} hint={t('catalog.verifyHint')} expect error={errs['ca-vf']} /> : null}
-              {isMcp(kind) ? <p className="text-[13px] text-muted">{t('catalog.precheckNoMcp')}</p> : (
+              {isMcp(kind) ? <p className="text-meta text-muted">{t('catalog.precheckNoMcp')}</p> : (
                 <TplFields key={`pc-${f.connection_id}`} id="ca-pc" legend={t('catalog.precheckLegend')} kind={kind} value={f.precheck ?? EMPTY_TPL} onChange={(precheck) => set({ precheck })} tools={[]} tool={null} onTool={() => undefined} hint={t('catalog.precheckHint')} info={t('catalog.precheckHintInfo')} readOnly error={errs['ca-pc']}>
                   <Field htmlFor="ca-pc-refuse" label={t('catalog.refuse')} hint={t('catalog.refuseHint')} info={t('catalog.refuseHintInfo', { max: MAX_REFUSE, len: MAX_REFUSE_LEN })}>
                     <RefuseText id="ca-pc-refuse" value={f.precheck_refuse ?? []} onChange={(precheck_refuse) => set({ precheck_refuse })} />
@@ -161,7 +161,7 @@ export function ActionDialog({ action, cat, onClose, onSaved }: { action: Catalo
           ) : null}
           <div className="flex items-center gap-2.5">
             <Switch id="ca-ai" checked={f.ai_may_propose} onCheckedChange={(v) => set({ ai_may_propose: v })} />
-            <label htmlFor="ca-ai" className="grid text-sm"><span className="font-medium">{t('catalog.aiMay')}</span><span className="text-[13px] text-muted">{t('catalog.aiMayHint')}</span></label>
+            <label htmlFor="ca-ai" className="grid text-sm"><span className="font-medium">{t('catalog.aiMay')}</span><span className="text-meta text-muted">{t('catalog.aiMayHint')}</span></label>
           </div>
           {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
           <DialogFooter>
@@ -188,7 +188,7 @@ export function CatalogEditor() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div><div className="flex items-center gap-1"><h3 className="text-sm font-medium">{t('catalog.title')}</h3><InfoTip topic={t('catalog.title')}>{t('catalog.hintInfo')}</InfoTip></div><p className="text-[13px] text-muted">{t('catalog.hint')}</p></div>
+        <div><div className="flex items-center gap-1"><h3 className="text-sm font-medium">{t('catalog.title')}</h3><InfoTip topic={t('catalog.title')}>{t('catalog.hintInfo')}</InfoTip></div><p className="text-meta text-muted">{t('catalog.hint')}</p></div>
         <Button onClick={() => setEdit('new')}><Plus className="size-4" aria-hidden />{t('catalog.add')}</Button>
       </div>
       {packsOf(cat.items).map((pack) => {
@@ -196,7 +196,7 @@ export function CatalogEditor() {
         if (!items.length) return null
         return (
           <section key={pack} className="grid grid-cols-[minmax(0,1fr)] gap-2" aria-label={t(`catalog.packs.${pack}`, { defaultValue: pack })}>
-            <h4 className="mt-2 text-[13px] font-medium text-muted">{t(`catalog.packs.${pack}`, { defaultValue: pack })}</h4>
+            <h4 className="mt-2 text-meta font-medium text-muted">{t(`catalog.packs.${pack}`, { defaultValue: pack })}</h4>
             {items.map((a) => (
               <Panel key={a.id} className="grid grid-cols-[minmax(0,1fr)] gap-2 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -214,11 +214,11 @@ export function CatalogEditor() {
                     </div>
                   ) : null}
                 </div>
-                <p className="text-[13px] text-muted">{a.description}</p>
-                {a.device && a.precheck_refuse.length ? <p className="text-[13px] text-muted">{t('catalog.checkedBefore', { texts: a.precheck_refuse.join(' · ') })}</p> : null}
-                {a.device && a.precheck_expect ? <p className="text-[13px] text-muted">{t('catalog.mustContain', { text: a.precheck_expect })}</p> : null}
-                {a.device && a.verify.expect ? <p className="text-[13px] text-muted">{t('catalog.readBackChecks', { text: a.verify.expect })}</p> : null}
-                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[13px]">
+                <p className="text-meta text-muted">{a.description}</p>
+                {a.device && a.precheck_refuse.length ? <p className="text-meta text-muted">{t('catalog.checkedBefore', { texts: a.precheck_refuse.join(' · ') })}</p> : null}
+                {a.device && a.precheck_expect ? <p className="text-meta text-muted">{t('catalog.mustContain', { text: a.precheck_expect })}</p> : null}
+                {a.device && a.verify.expect ? <p className="text-meta text-muted">{t('catalog.readBackChecks', { text: a.verify.expect })}</p> : null}
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-meta">
                   <div className="flex items-center gap-2">
                     <Switch id={`ai-${a.id}`} aria-label={t('catalog.aiMayFor', { name: a.name })} checked={a.ai_may_propose} disabled={save.isPending} onCheckedChange={(v) => save.mutate({ id: a.id, input: { ai_may_propose: v } }, { onError: fail })} />
                     <label htmlFor={`ai-${a.id}`} className="text-muted">{t('catalog.aiMay')}</label>

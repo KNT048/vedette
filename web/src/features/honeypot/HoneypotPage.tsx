@@ -132,13 +132,13 @@ function ServicesTab({ data }: { data: HpOverview }) {
   }
   const columns: ColumnDef<Trap>[] = [
     { id: 'service', header: t('traps.col.service'), cell: ({ row }) => (
-      <span className="grid"><span className="font-medium">{svc(row.original.service)}</span><span className="text-[12px] text-muted">{t(`serviceHint.${row.original.service}`)}</span></span>
+      <span className="grid"><span className="font-medium">{svc(row.original.service)}</span><span className="text-caption text-muted">{t(`serviceHint.${row.original.service}`)}</span></span>
     ) },
     { id: 'port', header: t('traps.col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="tabular-nums">{portLabel(row.original.service)}</span> },
-    { id: 'where', header: t('traps.col.trapIps'), enableSorting: false, cell: ({ row }) => <span className="text-[13px]">{where(row.original)}</span> },
+    { id: 'where', header: t('traps.col.trapIps'), enableSorting: false, cell: ({ row }) => <span className="text-meta">{where(row.original)}</span> },
     { id: 'state', header: t('traps.col.state'), cell: ({ row }) => stateChip(row.original) },
     { id: 'hits', header: t('traps.col.hits'), accessorFn: (r) => r.hits_7d, cell: ({ row }) => (
-      <span className="grid"><span className="tabular-nums">{row.original.hits_7d}</span>{row.original.last_hit_at ? <span className="text-[12px] text-muted">{t('traps.lastHit', { when: fmtRelative(row.original.last_hit_at) })}</span> : null}</span>
+      <span className="grid"><span className="tabular-nums">{row.original.hits_7d}</span>{row.original.last_hit_at ? <span className="text-caption text-muted">{t('traps.lastHit', { when: fmtRelative(row.original.last_hit_at) })}</span> : null}</span>
     ) },
     { id: 'test', header: t('traps.col.test'), enableSorting: false, cell: ({ row }) => testBtn(row.original) },
   ]
@@ -148,10 +148,10 @@ function ServicesTab({ data }: { data: HpOverview }) {
         <DataTable caption={t('traps.caption')} data={data.traps} columns={columns} pageSize={data.traps.length}
           mobileRow={(tr) => (
             <div className="grid gap-2">
-              <span className="grid"><span className="font-medium">{svc(tr.service)} <span className="text-[12px] text-muted tabular-nums">{portLabel(tr.service)}</span></span><span className="text-[12px] text-muted">{t(`serviceHint.${tr.service}`)}</span></span>
-              <span className="text-[13px]">{t('traps.col.trapIps')}: {where(tr)}</span>
+              <span className="grid"><span className="font-medium">{svc(tr.service)} <span className="text-caption text-muted tabular-nums">{portLabel(tr.service)}</span></span><span className="text-caption text-muted">{t(`serviceHint.${tr.service}`)}</span></span>
+              <span className="text-meta">{t('traps.col.trapIps')}: {where(tr)}</span>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="flex flex-wrap items-center gap-2">{stateChip(tr)}<span className="text-[13px] text-muted">{t('traps.col.hits')}: {tr.hits_7d}{tr.last_hit_at ? `, ${t('traps.lastHit', { when: fmtRelative(tr.last_hit_at) })}` : ''}</span></span>
+                <span className="flex flex-wrap items-center gap-2">{stateChip(tr)}<span className="text-meta text-muted">{t('traps.col.hits')}: {tr.hits_7d}{tr.last_hit_at ? `, ${t('traps.lastHit', { when: fmtRelative(tr.last_hit_at) })}` : ''}</span></span>
                 {testBtn(tr)}
               </div>
             </div>
@@ -195,11 +195,11 @@ export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn
       <Link className="whitespace-nowrap text-accent underline-offset-4 hover:underline" to={`/honeypot/hits/${row.original.id}`}>{fmtDateTime(row.original.ts)}</Link>
     ) },
     { id: 'service', header: t('hits.col.service'), accessorFn: (r) => hitName(t, r), cell: ({ row }) => (
-      <span className="flex flex-wrap items-center gap-2">{hitName(t, row.original)} {row.original.port ? <span className="text-[12px] text-muted tabular-nums">{row.original.port}</span> : null}{row.original.kind === 'scan' ? <Chip tone="danger">{t('hits.kind.scan')}</Chip> : row.original.kind === 'token' ? <Chip tone="warn">{t('hits.kind.token')}</Chip> : null}{row.original.is_test ? <Chip tone="off">{t('hits.test')}</Chip> : null}</span>
+      <span className="flex flex-wrap items-center gap-2">{hitName(t, row.original)} {row.original.port ? <span className="text-caption text-muted tabular-nums">{row.original.port}</span> : null}{row.original.kind === 'scan' ? <Chip tone="danger">{t('hits.kind.scan')}</Chip> : row.original.kind === 'token' ? <Chip tone="warn">{t('hits.kind.token')}</Chip> : null}{row.original.is_test ? <Chip tone="off">{t('hits.test')}</Chip> : null}</span>
     ) },
     // W1-13: which Trap IP was hit (a scan: the ones it touched; a token: the token).
     { id: 'trap', header: t('hits.col.trapIp'), accessorFn: (r) => `${r.trap_hostname} ${r.trap_ip}`, cell: ({ row }) => (
-      <span className="grid max-w-[16rem]"><span className="truncate" title={row.original.trap_hostname}>{row.original.trap_hostname || row.original.trap_ip}</span>{row.original.kind === 'service' && row.original.trap_hostname ? <span className="text-[12px] text-muted tabular-nums">{row.original.trap_ip}</span> : null}</span>
+      <span className="grid max-w-[16rem]"><span className="truncate" title={row.original.trap_hostname}>{row.original.trap_hostname || row.original.trap_ip}</span>{row.original.kind === 'service' && row.original.trap_hostname ? <span className="text-caption text-muted tabular-nums">{row.original.trap_ip}</span> : null}</span>
     ) },
     { id: 'src', header: t('hits.col.src'), accessorFn: (r) => r.src_ip },
     { id: 'device', header: t('hits.col.device'), accessorFn: (r) => r.src_name ?? '', cell: ({ row }) => {
@@ -207,7 +207,7 @@ export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn
       if (h.src_asset_id && h.src_name) return <Link className="text-accent underline-offset-4 hover:underline" to={`/devices/${h.src_asset_id}`}>{h.src_name}</Link>
       return <span className="text-muted">{h.is_test ? t('hits.deviceBox') : t('hits.deviceUnknown')}</span>
     } },
-    { id: 'excerpt', header: t('hits.col.excerpt'), enableSorting: false, accessorFn: (r) => r.excerpt, cell: ({ row }) => <span className="block max-w-xs truncate text-[13px] text-muted" title={row.original.excerpt}>{row.original.excerpt}</span> },
+    { id: 'excerpt', header: t('hits.col.excerpt'), enableSorting: false, accessorFn: (r) => r.excerpt, cell: ({ row }) => <span className="block max-w-xs truncate text-meta text-muted" title={row.original.excerpt}>{row.original.excerpt}</span> },
     ...(respond ? [{ id: 'respond', header: t('hits.col.respond'), enableSorting: false, cell: ({ row }) => <RespondLink h={row.original} /> } satisfies ColumnDef<Hit>] : []),
   ]
   return (
@@ -218,9 +218,9 @@ export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn
             <Link className="font-medium text-accent underline-offset-4 hover:underline" to={`/honeypot/hits/${h.id}`}>{fmtDateTime(h.ts)}</Link>
             {h.is_test ? <Chip tone="off">{t('hits.test')}</Chip> : null}
           </div>
-          <p className="text-sm">{hitName(t, h)} {h.port ? <span className="text-[12px] text-muted tabular-nums">{h.port}</span> : null}</p>
-          <p className="text-[13px]">{t('hits.col.trapIp')}: {h.trap_hostname || h.trap_ip}{h.kind === 'service' && h.trap_hostname ? <span className="text-muted tabular-nums"> {h.trap_ip}</span> : null}</p>
-          <p className="text-[13px] text-muted">{h.src_ip} · {h.src_name ?? (h.is_test ? t('hits.deviceBox') : t('hits.deviceUnknown'))}</p>
+          <p className="text-sm">{hitName(t, h)} {h.port ? <span className="text-caption text-muted tabular-nums">{h.port}</span> : null}</p>
+          <p className="text-meta">{t('hits.col.trapIp')}: {h.trap_hostname || h.trap_ip}{h.kind === 'service' && h.trap_hostname ? <span className="text-muted tabular-nums"> {h.trap_ip}</span> : null}</p>
+          <p className="text-meta text-muted">{h.src_ip} · {h.src_name ?? (h.is_test ? t('hits.deviceBox') : t('hits.deviceUnknown'))}</p>
           {respond ? <RespondLink h={h} /> : null}
         </div>
       )}

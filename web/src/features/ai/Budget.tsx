@@ -59,7 +59,7 @@ export function AiBudgetPrompt() {
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
         {me?.role === 'admin'
           ? <Button asChild size="sm" variant="primary"><Link to="/settings/ai">{t('budget.home.raise')}</Link></Button>
-          : <p className="text-[13px] text-muted">{t('budget.home.askAdmin')}</p>}
+          : <p className="text-meta text-muted">{t('budget.home.askAdmin')}</p>}
       </div>
     </div>
   )

@@ -27,7 +27,7 @@ export function BlocklistTab() {
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <p className="rounded-md border border-rule bg-surface px-4 py-3 text-sm">{t('blocklist.pull')}</p>
           <CodeBlock code={b.url} label={t('blocklist.url')} />
-          <div className="flex flex-wrap items-center gap-3 text-[13px] text-muted">
+          <div className="flex flex-wrap items-center gap-3 text-meta text-muted">
             <span>{t('blocklist.token', { last4: b.token_last4 })}</span>
             <span>{b.last_fetch ? t('blocklist.fetched', { time: fmtDateTime(b.last_fetch.at), from: b.last_fetch.from }) : t('blocklist.neverFetched')}</span>
             <Button size="sm" onClick={() => setAsk(true)}><RefreshCw className="size-4" aria-hidden />{t('blocklist.regenerate')}</Button>
@@ -36,7 +36,7 @@ export function BlocklistTab() {
             {b.entries.length ? (
               <div className="overflow-x-auto"><table className="w-full text-sm">
                 <caption className="sr-only">{t('blocklist.entries')}</caption>
-                <thead><tr className="border-b border-rule text-left text-[12px] text-muted"><th scope="col" className="px-3 py-2 font-medium">{t('blocklist.address')}</th><th scope="col" className="px-3 py-2 font-medium">{t('blocklist.source')}</th><th scope="col" className="px-3 py-2 font-medium">{t('blocklist.reason')}</th><th scope="col" className="px-3 py-2 font-medium">{t('blocklist.expires')}</th></tr></thead>
+                <thead><tr className="border-b border-rule text-left text-caption text-muted"><th scope="col" className="px-3 py-2 font-medium">{t('blocklist.address')}</th><th scope="col" className="px-3 py-2 font-medium">{t('blocklist.source')}</th><th scope="col" className="px-3 py-2 font-medium">{t('blocklist.reason')}</th><th scope="col" className="px-3 py-2 font-medium">{t('blocklist.expires')}</th></tr></thead>
                 <tbody className="divide-y divide-rule">
                   {b.entries.map((e) => (
                     <tr key={e.value} className="align-top"><th scope="row" className="px-3 py-2 text-left font-medium">{e.value}</th><td className="px-3 py-2">{e.source}</td><td className="px-3 py-2">{e.reason}</td><td className="px-3 py-2">{e.expires_at ? fmtDateTime(e.expires_at) : t('blocklist.never')}</td></tr>
@@ -51,7 +51,7 @@ export function BlocklistTab() {
               </div>
             )}
           </Panel>
-          <div className="flex items-center gap-1 text-[13px] text-muted"><p>{t('blocklist.ipOnly')}</p><InfoTip topic={t('blocklist.entries')}>{t('blocklist.ipOnlyInfo')}</InfoTip></div>
+          <div className="flex items-center gap-1 text-meta text-muted"><p>{t('blocklist.ipOnly')}</p><InfoTip topic={t('blocklist.entries')}>{t('blocklist.ipOnlyInfo')}</InfoTip></div>
         </div>
       </Section>
       <Section title={t('blocklist.setupTitle')} description={t('blocklist.setupDescription')} stories={['S-RESP-3']}>
@@ -61,7 +61,7 @@ export function BlocklistTab() {
               <summary className="cursor-pointer text-sm font-medium">{g.title}</summary>
               <ol className="ml-5 mt-3 grid grid-cols-[minmax(0,1fr)] list-decimal gap-2 text-sm">{g.steps.map((s) => <li key={s} className="[overflow-wrap:anywhere]">{s}</li>)}</ol>
               {g.code ? <div className="mt-3"><CodeBlock code={g.code.text} label={g.code.label} /></div> : null}
-              {g.note ? <p className="mt-3 text-[13px] text-muted">{g.note}</p> : null}
+              {g.note ? <p className="mt-3 text-meta text-muted">{g.note}</p> : null}
             </details>
           ))}
         </div>

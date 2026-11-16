@@ -81,9 +81,9 @@ function Ask() {
                 <Button type="submit" variant="primary" disabled={!gate.canRun || ask.isPending || q.trim().length < 3 || long} title={gate.reason}>{ask.isPending ? t('ask.asking') : t('ask.submit')}</Button>
               </div>
             </Field>
-            {q.length >= ASK_MAX * 0.8 && !long ? <p id="ai-q-count" className="-mt-2 text-[12px] text-muted">{t('ask.count', { n: q.length, max: ASK_MAX })}</p> : null}
+            {q.length >= ASK_MAX * 0.8 && !long ? <p id="ai-q-count" className="-mt-2 text-caption text-muted">{t('ask.count', { n: q.length, max: ASK_MAX })}</p> : null}
             <div role="group" aria-label={t('ask.suggested')} className="flex flex-wrap items-center gap-2">
-              <span className="text-[13px] text-muted">{t('ask.suggested')}</span>
+              <span className="text-meta text-muted">{t('ask.suggested')}</span>
               {SUGGESTED.map((k) => (
                 <Button key={k} size="sm" className="h-auto min-h-8 whitespace-normal py-1 text-left" disabled={!gate.canRun || ask.isPending} title={gate.reason} onClick={() => { setQ(t(`ask.q.${k}`)); run(t(`ask.q.${k}`)) }}>{t(`ask.q.${k}`)}</Button>
               ))}
@@ -100,7 +100,7 @@ function Ask() {
           {result && !ask.isPending && !failed ? <Answer r={result} /> : null}
           {!result && !ask.isPending && !failed ? <p className="text-sm text-muted">{t('ask.empty')}</p> : null}
           {asks.data && asks.data.items.length > 1 ? (
-            <div className="text-[13px]">
+            <div className="text-meta">
               <p className="mb-1 text-muted">{t('ask.history')}</p>
               <ul className="flex flex-wrap gap-2">
                 {asks.data.items.map((a) => <li key={a.id}><button type="button" className="rounded-md border border-rule px-2 py-1 text-left hover:bg-sunken" onClick={() => setShown(a)}>{a.question}</button></li>)}
@@ -139,28 +139,28 @@ function Answer({ r }: { r: AskResult }) {
           {r.answer.map((p, i) => <p key={i}>{p}</p>)}
         </AiBlock>
       )}
-      {r.memories_suggested > 0 ? <p className="text-[13px]">{t('logs.suggested', { count: r.memories_suggested })} {admin ? <Link to="/settings/ai?tab=memory" className="text-accent underline underline-offset-4">{t('logs.suggestedLink')}</Link> : null}</p> : null}
+      {r.memories_suggested > 0 ? <p className="text-meta">{t('logs.suggested', { count: r.memories_suggested })} {admin ? <Link to="/settings/ai?tab=memory" className="text-accent underline underline-offset-4">{t('logs.suggestedLink')}</Link> : null}</p> : null}
       {hooks.length ? (
         <div className="rounded-md border border-rule bg-surface p-3 text-sm">
           <h3 className="mb-1 text-sm font-medium">{t('ask.hooksTitle')}</h3>
           <ul aria-label={t('ask.hooksTitle')} className="grid gap-1.5">
             {hooks.map((h, i) => <li key={i} className="flex flex-wrap items-center gap-2"><Chip tone={h.action === 'block' ? 'danger' : h.action === 'mask' ? 'warn' : 'accent'}>{t(`harness.hooks.action.${h.action}`)}</Chip><span className="font-medium">{h.name}</span><span className="text-muted">{t(`ask.step.${h.step}`, { tool: h.tool ?? '' })}</span><span className="text-muted">{h.message}</span></li>)}
           </ul>
-          {blocked ? <p className="mt-2 text-[13px] text-muted">{t('ask.hooksHint')} {admin ? <Link to="/settings/ai?tab=hooks" className="text-accent underline underline-offset-4">{t('ask.hooksLink')}</Link> : null}</p> : null}
+          {blocked ? <p className="mt-2 text-meta text-muted">{t('ask.hooksHint')} {admin ? <Link to="/settings/ai?tab=hooks" className="text-accent underline underline-offset-4">{t('ask.hooksLink')}</Link> : null}</p> : null}
         </div>
       ) : null}
       {r.table ? (
         <div>
           <h3 className="mb-1 text-sm font-medium">{t('ask.tableTitle', { n: r.table.rows.length })}</h3>
-          <p className="mb-2 text-[13px] text-muted">{t('ask.tableNote')}</p>
+          <p className="mb-2 text-meta text-muted">{t('ask.tableNote')}</p>
           <DataTable caption={t('ask.tableCaption', { q: r.question })} data={r.table.rows} columns={cols} pageSize={20} />
         </div>
       ) : null}
       {refused === 'refused' ? null : <div>
         <h3 className="mb-1 text-sm font-medium">{t('ask.toolsTitle')}</h3>
-        <p className="mb-2 text-[13px] text-muted">{t('ask.toolsNote')}</p>
-        <ul className="grid gap-1 rounded-md border border-rule bg-surface p-3 text-[13px]">
-          {r.tool_calls.map((c, i) => <li key={i} className="flex flex-wrap gap-x-2"><code className="font-mono text-[12.5px]">{c.tool}({c.args})</code><span className="text-muted">{t('ask.toolResult', { result: c.result })}</span></li>)}
+        <p className="mb-2 text-meta text-muted">{t('ask.toolsNote')}</p>
+        <ul className="grid gap-1 rounded-md border border-rule bg-surface p-3 text-meta">
+          {r.tool_calls.map((c, i) => <li key={i} className="flex flex-wrap gap-x-2"><code className="font-mono text-meta">{c.tool}({c.args})</code><span className="text-muted">{t('ask.toolResult', { result: c.result })}</span></li>)}
         </ul>
       </div>}
     </div>
@@ -182,12 +182,12 @@ function Meter({ query, renews }: { query: { data: Usage | undefined; error: unk
               <Panel className="grid gap-3 p-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <p className="text-sm">{t('meter.today', { used: fmtNumber(u.month.total), cap: fmtNumber(u.monthly_budget) })}</p>
-                  <p className="text-[13px] text-muted">{t('meter.tier', { tier: t(`settings.tier.${u.tier}.name`) })}</p>
+                  <p className="text-meta text-muted">{t('meter.tier', { tier: t(`settings.tier.${u.tier}.name`) })}</p>
                 </div>
                 <div role="progressbar" aria-label={t('meter.barLabel')} aria-valuemin={0} aria-valuemax={u.monthly_budget} aria-valuenow={Math.min(u.month.total, u.monthly_budget)} aria-valuetext={t('meter.percent', { pct })} className="h-2 overflow-hidden rounded-full bg-sunken">
                   <div className={`h-full ${tone}`} style={{ width: `${pct}%` }} />
                 </div>
-                <p className="text-[13px] text-muted">{t('meter.split', { input: fmtNumber(u.today.input), output: fmtNumber(u.today.output), month: fmtNumber(u.month.total), date })}</p>
+                <p className="text-meta text-muted">{t('meter.split', { input: fmtNumber(u.today.input), output: fmtNumber(u.today.output), month: fmtNumber(u.month.total), date })}</p>
                 {pct >= 80 ? <p className={`text-sm ${u.month.total >= u.monthly_budget ? 'text-danger' : 'text-warn'}`}>{u.month.total >= u.monthly_budget ? t('meter.over', { date }) : t('meter.near')}</p> : null}
               </Panel>
               <DataTable caption={t('meter.skillCaption')} data={u.by_skill} pageSize={20}
@@ -226,7 +226,7 @@ function RunLog() {
               { id: 'ts', header: t('runs.col.time'), accessorKey: 'ts', cell: ({ getValue }: { getValue: () => unknown }) => fmtDateTime(getValue() as string) },
               { id: 'skill', header: t('runs.col.skill'), accessorFn: (x: AiRun) => t(`skill.${x.skill}`, { defaultValue: x.skill }) },
               { id: 'target', header: t('runs.col.target'), accessorFn: (x: AiRun) => x.target ?? '–' },
-              { id: 'profile', header: t('runs.col.profile'), accessorFn: (x: AiRun) => x.profile ?? '–', cell: ({ row }: { row: { original: AiRun } }) => <span className="grid"><span>{row.original.profile ?? '–'}</span>{row.original.fallback ? <span className="text-[12px] text-warn">{t('runs.fallback')}</span> : null}</span> },
+              { id: 'profile', header: t('runs.col.profile'), accessorFn: (x: AiRun) => x.profile ?? '–', cell: ({ row }: { row: { original: AiRun } }) => <span className="grid"><span>{row.original.profile ?? '–'}</span>{row.original.fallback ? <span className="text-caption text-warn">{t('runs.fallback')}</span> : null}</span> },
               { id: 'model', header: t('runs.col.model'), accessorKey: 'model', cell: ({ getValue }: { getValue: () => unknown }) => <span className="whitespace-nowrap">{String(getValue())}</span> },
               { id: 'tin', header: t('runs.col.in'), accessorKey: 'tokens_in', cell: num },
               { id: 'tout', header: t('runs.col.out'), accessorKey: 'tokens_out', cell: num },

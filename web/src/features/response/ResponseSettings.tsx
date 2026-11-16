@@ -38,7 +38,7 @@ export function EnableDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         <Notice tone="danger" className="mb-0" title={t('risk.statement')} />
         <div className="grid gap-1 text-sm">
           <p className="flex flex-wrap items-center gap-2">{t('enable.twofa')} <Chip tone={twofa ? 'ok' : 'danger'}>{twofa ? t('enable.twofaOn') : t('enable.twofaOff')}</Chip></p>
-          {!twofa ? <p className="text-[13px]"><Link to="/settings/account?tab=sign-in" className="text-accent underline underline-offset-4" onClick={() => onOpenChange(false)}>{t('enable.toAccount')}</Link></p> : null}
+          {!twofa ? <p className="text-meta"><Link to="/settings/account?tab=sign-in" className="text-accent underline underline-offset-4" onClick={() => onOpenChange(false)}>{t('enable.toAccount')}</Link></p> : null}
         </div>
         <Field htmlFor="risk-phrase" label={t('enable.phraseLabel', { phrase: RISK_PHRASE })} error={error}>
           <Input id="risk-phrase" value={phrase} autoComplete="off" spellCheck={false} onChange={(e) => { setPhrase(e.target.value); setError(undefined) }} aria-invalid={!!error} aria-describedby={error ? 'risk-phrase-error' : undefined} />
@@ -82,28 +82,28 @@ function Form({ s }: { s: SettingsView }) {
       </div>
       <fieldset className="grid gap-2">
         <legend className="flex items-center gap-1 text-sm font-medium">{t('form.channels')}<InfoTip topic={t('form.channels')}><p>{t('form.channelsHintInfo')}</p><p>{t('form.approversRule')}</p></InfoTip></legend>
-        <p className="text-[13px] text-muted">{t('form.channelsHint')}</p>
+        <p className="text-meta text-muted">{t('form.channelsHint')}</p>
         {ready.length ? ready.map((c) => (
           <div key={c.type} className="grid gap-1">
           <div className="flex items-center gap-2.5">
             <Checkbox id={`ch-${c.type}`} checked={chans.includes(c.type)} onCheckedChange={(v) => setChans(toggle(chans, c.type, v === true))} />
             <label htmlFor={`ch-${c.type}`} className="text-sm">{c.label} <span className="text-muted">({t('form.approverCount', { count: c.approvers })}, {t('form.linkedCount', { linked: c.linked, count: c.approvers })}{c.link ? `, ${t('form.byLink')}` : ''})</span></label>
           </div>
-          {c.unlinked.length ? <p className="ml-7 text-[13px] text-warn">{t('form.notLinkedYet', { names: c.unlinked.join(', ') })}</p> : null}
+          {c.unlinked.length ? <p className="ml-7 text-meta text-warn">{t('form.notLinkedYet', { names: c.unlinked.join(', ') })}</p> : null}
           </div>
         )) : <p className="text-sm text-muted">{t('form.noChannels')} <Link className="text-accent underline underline-offset-4" to="/settings/channels">{t('form.toChannels')}</Link></p>}
       </fieldset>
 
       <fieldset className="grid gap-3 rounded-md border border-rule p-4">
         <legend className="flex items-center gap-1 px-1 text-sm font-medium">{t('safety.title')}<InfoTip topic={t('safety.title')}>{t('safety.descriptionInfo')}</InfoTip></legend>
-        <p className="text-[13px] text-muted">{t('safety.description')}</p>
+        <p className="text-meta text-muted">{t('safety.description')}</p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field htmlFor="resp-breaker" label={t('safety.breaker')} hint={t('safety.breakerHint')}><Input id="resp-breaker" type="number" min={1} max={200} value={breaker} onChange={(e) => setBreaker(e.target.value)} /></Field>
           <Field htmlFor="resp-multi" label={t('safety.multi')} hint={t('safety.multiHint')}><Input id="resp-multi" type="number" min={1} max={1000} value={multi} onChange={(e) => setMulti(e.target.value)} /></Field>
         </div>
         <div className="grid gap-2">
           <p className="text-sm font-medium">{t('safety.windows')}</p>
-          <p className="text-[13px] text-muted">{t('safety.windowsHint')}</p>
+          <p className="text-meta text-muted">{t('safety.windowsHint')}</p>
           {windows.map((w, i) => (
             <div key={w.id} className="grid gap-2 sm:grid-cols-[1.2fr_1fr_1fr_auto]">
               <Input aria-label={t('safety.windowName')} value={w.name} maxLength={80} onChange={(e) => setWin(i, { name: e.target.value })} />
@@ -121,7 +121,7 @@ function Form({ s }: { s: SettingsView }) {
           <p>{t('aiGates.descriptionInfo')}</p>
           <ul className="ml-5 list-disc">{[1, 2, 3, 4, 5, 6].map((n) => <li key={n}>{t(`aiGates.fixed.${n}`)}</li>)}</ul>
         </InfoTip></legend>
-        <p className="text-[13px] text-muted">{t('aiGates.description')}</p>
+        <p className="text-meta text-muted">{t('aiGates.description')}</p>
         <div className="grid gap-2 sm:grid-cols-2">
           {(triggers.data?.items ?? []).map((tr) => (
             <div key={tr.id} className="flex items-start gap-2.5">
@@ -156,7 +156,7 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
   const s = q.data
   return (
     <>
-      {embedded ? <div className="mb-4 flex max-w-3xl items-center gap-1 text-[13px] text-muted"><p>{t('settings.description')}</p><InfoTip topic={t('settings.title')}>{t('settings.descriptionInfo')}</InfoTip></div> : <PageHeader title={t('settings.title')} meta={t('settings.description')} info={t('settings.descriptionInfo')} stories={['S-RESP-2', 'S-RESP-4']} actions={leaving ? <TurnOffResponse /> : undefined} />}
+      {embedded ? <div className="mb-4 flex max-w-3xl items-center gap-1 text-meta text-muted"><p>{t('settings.description')}</p><InfoTip topic={t('settings.title')}>{t('settings.descriptionInfo')}</InfoTip></div> : <PageHeader title={t('settings.title')} meta={t('settings.description')} info={t('settings.descriptionInfo')} stories={['S-RESP-2', 'S-RESP-4']} actions={leaving ? <TurnOffResponse /> : undefined} />}
       <FrozenCtx.Provider value={leaving}>
       <section>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
@@ -166,7 +166,7 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
               <Switch id="resp-exec" checked={s.execution} disabled={set.isPending || (leaving && !s.execution)} title={leaving && !s.execution ? t('leaving.frozen') : undefined}
                 onCheckedChange={(v) => (v ? setOpen(true) : leaving ? setAskOff(true) : off())} />
               <label htmlFor="resp-exec" className="grid text-sm"><span className="font-medium">{t('settings.switch')}</span>
-                <span className="text-[13px] text-muted">{s.execution ? t('settings.on', { who: s.accepted_by ?? '', time: fmtDateTime(s.accepted_at) }) : t('settings.off')}</span></label>
+                <span className="text-meta text-muted">{s.execution ? t('settings.on', { who: s.accepted_by ?? '', time: fmtDateTime(s.accepted_at) }) : t('settings.off')}</span></label>
             </div>
             {s.execution ? <EmergencyStop /> : null}
           </Panel>

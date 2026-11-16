@@ -165,7 +165,7 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
             </div>
           )}
           columns={[
-            { id: 'name', header: t('profiles.col.name'), accessorKey: 'name', cell: ({ row }: { row: { original: AiProfile } }) => <span className="grid"><span className="font-medium">{row.original.name}</span><span className="text-[12px] text-muted">{t(`profiles.kind.${row.original.kind}`)}</span></span> },
+            { id: 'name', header: t('profiles.col.name'), accessorKey: 'name', cell: ({ row }: { row: { original: AiProfile } }) => <span className="grid"><span className="font-medium">{row.original.name}</span><span className="text-caption text-muted">{t(`profiles.kind.${row.original.kind}`)}</span></span> },
             { id: 'location', header: t('profiles.col.location'), accessorKey: 'location', cell: ({ row }: { row: { original: AiProfile } }) => loc(row.original) },
             { id: 'model', header: t('profiles.col.model'), accessorKey: 'model', cell: ({ row }: { row: { original: AiProfile } }) => <span className="whitespace-nowrap">{row.original.model}</span> },
             { id: 'key', header: t('profiles.col.key'), accessorFn: keyText },
@@ -306,12 +306,12 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
                 {(['internal', 'cloud'] as const).map((l) => (
                   <div key={l} className="flex items-start gap-3 rounded-md border border-rule bg-surface p-3">
                     <RadioItem id={`pf-loc-${l}`} value={l} className="mt-0.5" disabled={cloudOnly && l === 'internal'} />
-                    <div className="grid gap-0.5"><Label htmlFor={`pf-loc-${l}`}>{t(`profiles.location.${l}`)}</Label><p className="text-[13px] text-muted">{t(`profiles.f.location_${l}`)}</p></div>
+                    <div className="grid gap-0.5"><Label htmlFor={`pf-loc-${l}`}>{t(`profiles.location.${l}`)}</Label><p className="text-meta text-muted">{t(`profiles.f.location_${l}`)}</p></div>
                   </div>
                 ))}
               </RadioGroup>
-              {cloudOnly ? <p className="text-[13px] text-muted">{t('profiles.f.cloudOnly')}</p> : null}
-              {notEncrypted ? <div role="note" className="flex items-center gap-1 text-[13px] text-warn"><p>{t('profiles.f.notEncrypted')}</p><InfoTip topic={t('profiles.f.baseUrl')}>{t('profiles.f.notEncryptedInfo')}</InfoTip></div> : null}
+              {cloudOnly ? <p className="text-meta text-muted">{t('profiles.f.cloudOnly')}</p> : null}
+              {notEncrypted ? <div role="note" className="flex items-center gap-1 text-meta text-warn"><p>{t('profiles.f.notEncrypted')}</p><InfoTip topic={t('profiles.f.baseUrl')}>{t('profiles.f.notEncryptedInfo')}</InfoTip></div> : null}
             </div>
             <Field label={t('profiles.f.key')} htmlFor="pf-key" error={err('key')} hint={keptKey ? t('profiles.f.keySaved', { last4: keptKey }) : location === 'internal' ? t('profiles.f.keyOptional') : t('profiles.f.keyHint')} className="sm:col-span-2">
               <Input id="pf-key" type="password" value={key} onChange={(e) => { setKey(e.target.value); upd('key'); models.reset() }} autoComplete="off" placeholder={keptKey ? `••••${keptKey}` : ''} {...aria('key', true)} />
@@ -330,7 +330,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
             <details className="grid gap-4 sm:col-span-2" open={adv} onToggle={(e) => setAdv((e.currentTarget as HTMLDetailsElement).open)}>
               <summary className="cursor-pointer text-sm font-medium">{t('profiles.f.advanced')}</summary>
               <div className="mt-3 grid gap-4">
-                <p className="text-[13px] text-muted">{t(preset === 'custom' ? 'profiles.f.advancedCustom' : 'profiles.f.advancedHint')}</p>
+                <p className="text-meta text-muted">{t(preset === 'custom' ? 'profiles.f.advancedCustom' : 'profiles.f.advancedHint')}</p>
                 {preset === 'custom' ? (
                   <Field label={t('profiles.f.style')} htmlFor="pf-style" hint={t('profiles.f.styleHint')} error={err('style')}>
                     <Select id="pf-style" value={style} onChange={(e) => setStyle(e.target.value as ApiStyle)}>{(['openai', 'anthropic', 'gemini'] as const).map((st) => <option key={st} value={st}>{t(`profiles.style.${st}`)}</option>)}</Select>
@@ -351,7 +351,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
               <Label htmlFor="pf-ack" className="font-normal">{host ? t('profiles.f.ack', { host }) : t('profiles.f.ackNoHost')}</Label>
             </div>
           ) : null}
-          {needAck && !ack ? <p id="pf-ack-why" className="text-[13px] text-muted">{t('profiles.f.ackNeeded', { button: profile ? t('common:save') : t('profiles.addConfirm') })}</p> : null}
+          {needAck && !ack ? <p id="pf-ack-why" className="text-meta text-muted">{t('profiles.f.ackNeeded', { button: profile ? t('common:save') : t('profiles.addConfirm') })}</p> : null}
           {tested ? <p role="status" className="flex flex-wrap items-center gap-2 text-sm"><Chip tone="ok">{t('profiles.testOk')}</Chip>{t('profiles.testDetail', { name: name.trim() || t('profiles.thisProfile'), ms: tested.latency_ms, input: tested.tokens_in, output: tested.tokens_out })} {t(tested.capabilities.tools ? 'profiles.capTools' : 'profiles.capNoTools')}</p> : null}
           {testErr && !serverField(testErr) ? <ActionError error={testErr} /> : null}
           {save.error && !serverField(save.error) ? <ActionError error={save.error} /> : null}
@@ -440,7 +440,7 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
               <Label htmlFor="ai-internal-only">{t('assign.rule')}</Label>
               <InfoTip topic={t('assign.rule')}>{t('assign.ruleInfo')}</InfoTip>
             </div>
-            <p className="text-[13px] text-muted">{t('assign.ruleBody')}</p>
+            <p className="text-meta text-muted">{t('assign.ruleBody')}</p>
           </div>
         </div>
         {note ? <p role="status" className="text-sm">{note}</p> : null}
@@ -448,7 +448,7 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
           <div className="overflow-x-auto rounded-md border border-rule bg-surface">
             <table className="w-full min-w-[760px] border-collapse text-sm">
               <caption className="sr-only">{t('assign.caption')}</caption>
-              <thead><tr className="border-b border-rule bg-sunken text-left text-[12px] text-muted">
+              <thead><tr className="border-b border-rule bg-sunken text-left text-caption text-muted">
                 <th scope="col" className="px-3 py-2 font-medium">{t('assign.col.job')}</th>
                 <th scope="col" className="px-3 py-2 font-medium">{t('assign.col.data')}</th>
                 <th scope="col" className="px-3 py-2 font-medium">{t('assign.col.primary')}</th>
@@ -464,7 +464,7 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
                   })
                   return (
                     <tr key={j.id} className="border-b border-rule align-top last:border-b-0">
-                      <th scope="row" className="px-3 py-2 text-left font-normal"><span className="font-medium">{t(`jobs.${j.id}.name`)}</span><span className="block text-[12px] text-muted">{t(`jobs.${j.id}.what`)}</span></th>
+                      <th scope="row" className="px-3 py-2 text-left font-normal"><span className="font-medium">{t(`jobs.${j.id}.name`)}</span><span className="block text-caption text-muted">{t(`jobs.${j.id}.what`)}</span></th>
                       <td className="px-3 py-2"><Chip tone={j.data === 'internal' ? 'warn' : 'off'}>{t(`assign.data.${j.data}`)}</Chip></td>
                       <td className="px-3 py-2">
                         <Select className="min-w-[13rem]" aria-label={t('assign.primaryFor', { job: t(`jobs.${j.id}.name`) })} value={s.primary ?? ''} onChange={(e) => setSlot(j.id, 'primary', e.target.value)} disabled={!admin} title={reason}>
@@ -523,8 +523,8 @@ function TierForm({ cfg }: { cfg: AiConfigView }) {
               <RadioItem id={`ai-tier-${k}`} value={k} className="mt-0.5" />
               <div className="grid gap-0.5">
                 <Label htmlFor={`ai-tier-${k}`}>{t(`settings.tier.${k}.name`)}</Label>
-                <p className="text-[13px] text-muted">{t(`settings.tier.${k}.sends`)}</p>
-                <p className="text-[13px] text-muted">{cfg.tier_estimates[k] ? t('settings.tier.estimate', { n: fmtNumber(cfg.tier_estimates[k]), month: fmtNumber(cfg.tier_estimates[k]! * 30) }) : t('settings.tier.estimateMax')}</p>
+                <p className="text-meta text-muted">{t(`settings.tier.${k}.sends`)}</p>
+                <p className="text-meta text-muted">{cfg.tier_estimates[k] ? t('settings.tier.estimate', { n: fmtNumber(cfg.tier_estimates[k]), month: fmtNumber(cfg.tier_estimates[k]! * 30) }) : t('settings.tier.estimateMax')}</p>
               </div>
             </div>
           ))}
@@ -532,11 +532,11 @@ function TierForm({ cfg }: { cfg: AiConfigView }) {
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label={t('settings.cap')} htmlFor="ai-cap" hint={t('settings.capHint')} info={t('settings.capInfo')} error={err || undefined}>
             <Input id="ai-cap" type="number" min={1000} max={150000000} step={1000} value={cap} onChange={(e) => { setCap(e.target.value); setCapErr('') }} disabled={!admin} aria-invalid={err ? true : undefined} aria-describedby={err ? 'ai-cap-error' : 'ai-cap-hint'} />
-            <p className="text-[13px]">{t('settings.budgetNow')}{' '}
+            <p className="text-meta">{t('settings.budgetNow')}{' '}
               <BudgetUse used={cfg.month_used} budget={cfg.monthly_budget} />{' '}<span className="text-muted">{t('settings.budgetRenews', { date: fmtDate(cfg.renews_on) })}</span>
             </p>
-            {pct >= 100 ? <p role="status" className="text-[13px] text-danger">{t('settings.budgetStop', { date: fmtDate(cfg.renews_on) })}</p>
-              : pct >= 80 ? <div role="status" className="flex items-center gap-1 text-[13px] text-warn"><p>{t('settings.budgetWarn')}</p><InfoTip topic={t('settings.cap')}>{t('settings.budgetWarnInfo')}</InfoTip></div> : null}
+            {pct >= 100 ? <p role="status" className="text-meta text-danger">{t('settings.budgetStop', { date: fmtDate(cfg.renews_on) })}</p>
+              : pct >= 80 ? <div role="status" className="flex items-center gap-1 text-meta text-warn"><p>{t('settings.budgetWarn')}</p><InfoTip topic={t('settings.cap')}>{t('settings.budgetWarnInfo')}</InfoTip></div> : null}
           </Field>
           <div className="flex items-start gap-3 pt-6">
             <Switch id="ai-redact" checked={redact} onCheckedChange={setRedact} disabled={!admin} />
@@ -545,7 +545,7 @@ function TierForm({ cfg }: { cfg: AiConfigView }) {
                 <Label htmlFor="ai-redact">{t('settings.redact')}</Label>
                 <InfoTip topic={t('settings.redact')}>{t('settings.redactInfo')}</InfoTip>
               </div>
-              <p className="text-[13px] text-muted">{t('settings.redactHint')}</p>
+              <p className="text-meta text-muted">{t('settings.redactHint')}</p>
             </div>
           </div>
         </div>

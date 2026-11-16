@@ -28,7 +28,7 @@ function Inner({ assetId }: { assetId: string }) {
             {q.data.items.map((h) => (
               <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm">
                 <Link className="text-accent underline-offset-4 hover:underline" to={`/honeypot/hits/${h.id}`}>{t('device.item', { service: hitName(t, h), time: fmtDateTime(h.ts) })}</Link>
-                {h.is_test ? <Chip tone="off">{t('hits.test')}</Chip> : <span className="text-[13px] text-muted">{h.excerpt.length > 70 ? `${h.excerpt.slice(0, 70)}…` : h.excerpt}</span>}
+                {h.is_test ? <Chip tone="off">{t('hits.test')}</Chip> : <span className="text-meta text-muted">{h.excerpt.length > 70 ? `${h.excerpt.slice(0, 70)}…` : h.excerpt}</span>}
               </li>
             ))}
           </ul>

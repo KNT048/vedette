@@ -53,13 +53,13 @@ export default function CoverageSection({ services, listeningIps }: { services: 
         <ul className="grid divide-y divide-rule" aria-label={t('coverage.listLabel')}>
           {ROWS.map((r) => (
             <li key={r.id} className="grid gap-1 py-2.5 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-4">
-              <span className="grid"><span className="text-sm font-medium">{t(`coverage.row.${r.id}.move`)}</span><span className="text-[13px] text-muted">{t(`coverage.row.${r.id}.${how(r.id)}`)}{ROW_INFO.has(how(r.id)) ? <InfoTip topic={t(`coverage.row.${r.id}.move`)}>{t(`coverage.row.${r.id}.${how(r.id)}Info`)}</InfoTip> : null}{r.id === 'outbound' ? <> <Link to="/logs" className="text-accent underline-offset-4 hover:underline">{t('coverage.openLogs')}</Link></> : null}</span></span>
+              <span className="grid"><span className="text-sm font-medium">{t(`coverage.row.${r.id}.move`)}</span><span className="text-meta text-muted">{t(`coverage.row.${r.id}.${how(r.id)}`)}{ROW_INFO.has(how(r.id)) ? <InfoTip topic={t(`coverage.row.${r.id}.move`)}>{t(`coverage.row.${r.id}.${how(r.id)}Info`)}</InfoTip> : null}{r.id === 'outbound' ? <> <Link to="/logs" className="text-accent underline-offset-4 hover:underline">{t('coverage.openLogs')}</Link></> : null}</span></span>
               <span className="sm:justify-self-end"><Chip tone={TONE[level(r.id, r.level)]}>{t(`coverage.level.${level(r.id, r.level)}`)}</Chip></span>
             </li>
           ))}
         </ul>
         {listening ? null : (
-          <div className="mt-3 flex items-center gap-1 text-[13px] text-muted">
+          <div className="mt-3 flex items-center gap-1 text-meta text-muted">
             <p>{t('coverage.notListening')}</p>
             <InfoTip topic={t('coverage.title')}>{t('coverage.notListeningInfo')}</InfoTip>
           </div>

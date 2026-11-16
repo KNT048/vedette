@@ -70,11 +70,11 @@ export function SpanCard({ d, readOnly = false }: { d: NetworkState; readOnly?: 
     <Section id="span" title={t('network.span.title')} description={t('network.span.desc')} info={t('network.span.descInfo')} stories={['S-CORE-8', 'S-INV-1', 'S-LOG-4']}>
       <div className="grid max-w-3xl gap-5">
         <Status iface={d.span.interface} />
-        <p className="-mt-3 text-[13px] text-muted">{t('network.span.statusNote')}</p>
+        <p className="-mt-3 text-meta text-muted">{t('network.span.statusNote')}</p>
         {readOnly ? (
           <div className="grid justify-items-start gap-2 rounded-md border border-rule bg-sunken px-3 py-2">
             <div className="flex items-center gap-1">
-              <p role="note" className="text-[13px]">{t('network.span.kept')}</p>
+              <p role="note" className="text-meta">{t('network.span.kept')}</p>
               <InfoTip topic={t('network.span.title')}>{t('network.span.keptInfo')}</InfoTip>
             </div>
             <Button disabled={gate.disabled || span.isPending} title={gate.title} onClick={() => {
@@ -105,26 +105,26 @@ export function SpanCard({ d, readOnly = false }: { d: NetworkState; readOnly?: 
             {EXTRACT.map((k) => (
               <div key={k} className="flex items-start gap-3">
                 <Switch id={`span-x-${k}`} checked={v.extract[k]} disabled={locked} className="mt-0.5" onCheckedChange={(on) => setV({ ...v, extract: { ...v.extract, [k]: on } })} />
-                <div className="grid gap-0.5"><Label htmlFor={`span-x-${k}`}>{t(`network.span.extract.${k}`)}</Label><span className="text-[13px] text-muted">{t(`network.span.extractHint.${k}`)}</span></div>
+                <div className="grid gap-0.5"><Label htmlFor={`span-x-${k}`}>{t(`network.span.extract.${k}`)}</Label><span className="text-meta text-muted">{t(`network.span.extractHint.${k}`)}</span></div>
               </div>
             ))}
-            <p className="text-[13px] font-medium">{t('network.span.neverStored')}</p>
-            <p className="text-[13px] text-muted" data-testid="span-reading">{chosen.length ? t('network.span.reading', { list: chosen.map((k) => t(`network.span.extract.${k}`)).join(', ') }) : t('network.span.readingNone')}</p>
+            <p className="text-meta font-medium">{t('network.span.neverStored')}</p>
+            <p className="text-meta text-muted" data-testid="span-reading">{chosen.length ? t('network.span.reading', { list: chosen.map((k) => t(`network.span.extract.${k}`)).join(', ') }) : t('network.span.readingNone')}</p>
           </fieldset>
 
           <fieldset className="grid gap-3">
             <legend className="mb-1 flex items-center gap-1 text-sm font-medium">{t('network.span.filtersTitle')}<InfoTip topic={t('network.span.filtersTitle')}>{t('network.span.filtersInfo')}</InfoTip></legend>
-            <p className="max-w-xl text-[13px] text-muted">{t('network.span.filtersDesc')}</p>
+            <p className="max-w-xl text-meta text-muted">{t('network.span.filtersDesc')}</p>
             {v.filters.length ? (
               <ul aria-label={t('network.span.filtersTitle')} className="flex flex-wrap gap-2">
                 {v.filters.map((f) => (
-                  <li key={`${f.type}:${f.value}`} className="flex items-center gap-1.5 rounded-md border border-rule bg-surface py-1 pl-2.5 pr-1 text-[13px]">
-                    <span className="text-muted">{t(`network.span.ftype.${f.type}.short`)}</span><span className="font-mono text-[12.5px]">{f.value}</span>
+                  <li key={`${f.type}:${f.value}`} className="flex items-center gap-1.5 rounded-md border border-rule bg-surface py-1 pl-2.5 pr-1 text-meta">
+                    <span className="text-muted">{t(`network.span.ftype.${f.type}.short`)}</span><span className="font-mono text-meta">{f.value}</span>
                     <Button size="sm" variant="ghost" disabled={locked} aria-label={t('network.span.filterRemove', { value: f.value })} onClick={() => setV({ ...v, filters: v.filters.filter((x) => x !== f) })}><X /></Button>
                   </li>
                 ))}
               </ul>
-            ) : <p className="text-[13px] text-muted">{t('network.span.filtersNone')}</p>}
+            ) : <p className="text-meta text-muted">{t('network.span.filtersNone')}</p>}
             <div className="grid items-start gap-3 sm:grid-cols-[170px_minmax(0,1fr)_auto]">
               <Field label={t('network.span.ftypeLabel')} htmlFor="span-ftype">
                 <Select id="span-ftype" value={ftype} disabled={locked} onChange={(e) => { setFtype(e.target.value as FilterType); setFvalue(''); setFerror(null) }}>
@@ -150,7 +150,7 @@ export function SpanCard({ d, readOnly = false }: { d: NetworkState; readOnly?: 
           {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
           {readOnly ? null : <div className="flex flex-wrap items-center gap-3">
             <Button type="submit" variant="primary" disabled={gate.disabled || !dirty || span.isPending} title={gate.title}>{t('network.span.save')}</Button>
-            {dirty ? <span className="text-[13px] text-muted">{t('network.span.unsaved')}</span> : null}
+            {dirty ? <span className="text-meta text-muted">{t('network.span.unsaved')}</span> : null}
           </div>}
         </form>
       </div>

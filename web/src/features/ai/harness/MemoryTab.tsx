@@ -32,7 +32,7 @@ export default function MemoryTab() {
           <Section title={t('harness.memory.suggestTitle')} stories={['S-AI-7']}>
             <Panel className="flex items-start gap-3 p-4">
               <Switch id="mem-suggest" checked={m.suggest_enabled} onCheckedChange={(v) => settings.mutate(v, { onError: fail })} disabled={settings.isPending} />
-              <div className="grid gap-0.5"><Label htmlFor="mem-suggest">{t('harness.memory.suggestSwitch')}</Label><p className="text-[13px] text-muted">{t('harness.memory.suggestHint')}</p></div>
+              <div className="grid gap-0.5"><Label htmlFor="mem-suggest">{t('harness.memory.suggestSwitch')}</Label><p className="text-meta text-muted">{t('harness.memory.suggestHint')}</p></div>
             </Panel>
             {m.suggestions.length > 0 ? (
               <div className="mt-4">
@@ -44,7 +44,7 @@ export default function MemoryTab() {
                       <Button size="sm" disabled={answer.isPending} onClick={() => answer.mutate({ id: s.id, accept: false }, { onError: fail })} aria-label={t('harness.memory.rejectNamed', { text: s.text.slice(0, 40) })}>{t('harness.memory.reject')}</Button>
                     </>}>
                       <p>{s.text}</p>
-                      <p className="text-[13px] text-muted">{t('harness.memory.noticed', { evidence: s.evidence, when: fmtRelative(s.created_at) })}</p>
+                      <p className="text-meta text-muted">{t('harness.memory.noticed', { evidence: s.evidence, when: fmtRelative(s.created_at) })}</p>
                     </Row>
                   ))}
                 </List>
@@ -62,7 +62,7 @@ export default function MemoryTab() {
                       <Button size="sm" onClick={() => setDel(x)} aria-label={t('harness.deleteNamed', { name: x.text.slice(0, 40) })}>{t('harness.delete')}</Button>
                     </>}>
                     <p>{x.text}</p>
-                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
+                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta text-muted">
                       <Chip tone={x.source === 'ai' ? 'accent' : 'off'}>{t(`harness.memory.source.${x.source}`)}</Chip>
                       <span>{t('harness.memory.created', { date: fmtDate(x.created_at) })}</span>
                       <span>{x.last_used_at ? t('harness.memory.used', { when: fmtRelative(x.last_used_at) }) : t('harness.memory.neverUsed')}</span>

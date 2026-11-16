@@ -109,8 +109,8 @@ function Inner({ items }: { items: Token[] }) {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="grid gap-1">
                   <p className="flex flex-wrap items-center gap-2 text-sm font-medium">{k.name} <Chip tone="accent">{t(`token.type.${k.type}`)}</Chip>{k.type === 'dns' ? <Chip tone="warn">{t('token.noAlert')}</Chip> : null}</p>
-                  <p className="text-[13px] text-muted">{t('token.plantedAt', { where: k.plant_at })}</p>
-                  <p className="text-[13px] text-muted">{k.last_triggered_at ? t('token.lastTriggered', { when: fmtRelative(k.last_triggered_at), count: k.triggers }) : t('token.never')}</p>
+                  <p className="text-meta text-muted">{t('token.plantedAt', { where: k.plant_at })}</p>
+                  <p className="text-meta text-muted">{k.last_triggered_at ? t('token.lastTriggered', { when: fmtRelative(k.last_triggered_at), count: k.triggers }) : t('token.never')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button size="sm" disabled={!operator || test.isPending} title={operator ? undefined : t('common:needRole', { role: t('common:role.operator') })} aria-label={t('token.testLabel', { name: k.name })}
@@ -123,7 +123,7 @@ function Inner({ items }: { items: Token[] }) {
                 <div className="grid content-start gap-2">
                   <CodeBlock code={k.type === 'credential' ? `user: ${k.value}\npassword: ${k.password ?? ''}` : k.value} label={t(`token.valueLabel.${k.type}`)} />
                 </div>
-                <div className="grid content-start gap-1 text-[13px]">
+                <div className="grid content-start gap-1 text-meta">
                   <div className="flex items-start gap-1">
                     <p><span className="font-medium">{t('token.triggerLabel')}</span> {t(`token.trigger.${k.type}`)}</p>
                     {k.type === 'dns' ? <InfoTip topic={t('token.triggerLabel')}>{t('token.trigger.dnsInfo')}</InfoTip> : null}

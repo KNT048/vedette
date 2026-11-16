@@ -39,18 +39,18 @@ export function SimResult({ s }: { s: Simulation }) {
   return (
     <div className="grid gap-3 rounded-md border border-dashed border-accent/50 bg-surface p-3 text-sm" role="region" aria-label={t('sim.title')}>
       <div className="flex flex-wrap items-center gap-2"><h4 className="font-semibold">{t('sim.title')}</h4><Chip tone="off">{t('sim.nothing')}</Chip><Chip tone={s.matched ? 'ok' : 'warn'}>{s.matched ? t('sim.matched') : t('sim.notMatched')}</Chip></div>
-      {s.event ? <p className="text-[13px]"><span className="text-muted">{t('sim.event')}</span> {s.event.summary}</p> : null}
-      {s.conditions.length ? <ul className="text-[13px]">{s.conditions.map((c) => <li key={c.text}>{c.ok ? '✓' : '✗'} {c.text}</li>)}</ul> : null}
+      {s.event ? <p className="text-meta"><span className="text-muted">{t('sim.event')}</span> {s.event.summary}</p> : null}
+      {s.conditions.length ? <ul className="text-meta">{s.conditions.map((c) => <li key={c.text}>{c.ok ? '✓' : '✗'} {c.text}</li>)}</ul> : null}
       <ol className="grid gap-2">
         {s.steps.map((st, i) => (
           <li key={i} className="grid gap-1.5 rounded-md border border-rule bg-paper p-3">
             <p className="flex flex-wrap items-center gap-2 font-medium">{i + 1}. {st.action} <RiskChip risk={st.risk} /></p>
-            {st.error ? <p role="alert" className="text-[13px] text-danger">{t('sim.refused')} {st.error}</p> : st.change ? <ChangeView change={st.change} /> : null}
+            {st.error ? <p role="alert" className="text-meta text-danger">{t('sim.refused')} {st.error}</p> : st.change ? <ChangeView change={st.change} /> : null}
           </li>
         ))}
       </ol>
-      <ul className="ml-5 list-disc text-[13px] text-muted">{s.notes.map((n) => <li key={n}>{n}</li>)}</ul>
-      <p className="text-[13px]">{t('sim.approvals', { count: s.approvals })}</p>
+      <ul className="ml-5 list-disc text-meta text-muted">{s.notes.map((n) => <li key={n}>{n}</li>)}</ul>
+      <p className="text-meta">{t('sim.approvals', { count: s.approvals })}</p>
     </div>
   )
 }
@@ -79,8 +79,8 @@ function ActionRow({ a, i, n, cat, trig, errs, onChange, onMove, onRemove }: { a
       </div>
       {c ? (
         <>
-          <p className="flex flex-wrap items-center gap-2 text-[13px] text-muted"><RiskChip risk={c.risk} /> {c.description}</p>
-          {!c.available ? <p className="text-[13px] text-warn">{c.unavailable_reason}</p> : null}
+          <p className="flex flex-wrap items-center gap-2 text-meta text-muted"><RiskChip risk={c.risk} /> {c.description}</p>
+          {!c.available ? <p className="text-meta text-warn">{c.unavailable_reason}</p> : null}
           <div className="grid gap-3 sm:grid-cols-2">
             {c.params.map((p) => (
               <Field key={p} htmlFor={`rp-${i}-${p}`} label={t('editor.param', { p: t(`editor.types.${p}`) })} hint={t('editor.paramHint')} info={t('editor.paramHintInfo')} error={errs[`rp-${i}-${p}`]}>
@@ -97,7 +97,7 @@ function ActionRow({ a, i, n, cat, trig, errs, onChange, onMove, onRemove }: { a
               <Input id={`rt-${i}`} {...inv(errs, `rt-${i}`)} type="number" min={5} max={43200} disabled={!c.reversible} value={a.ttl_min ?? ''} placeholder={t('editor.never')} onChange={(e) => onChange({ ...a, ttl_min: e.target.value === '' ? null : Number(e.target.value) })} />
             </Field>
           </div>
-          {c.verify.cli || c.verify.path ? <p className="text-[12px] text-muted">{t('editor.verifies')}</p> : null}
+          {c.verify.cli || c.verify.path ? <p className="text-caption text-muted">{t('editor.verifies')}</p> : null}
         </>
       ) : null}
     </li>
@@ -196,7 +196,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
                 <Select id="rule-trigger" value={r.trigger} onChange={(e) => changeTrigger(e.target.value as RuleInput['trigger'])}>{triggers.map((x) => <option key={x.id} value={x.id}>{x.name}{noHoneypot && x.id === 'honeypot' ? ` (${t('editor.notHere')})` : ''}</option>)}</Select>
               </Field>
               {r.trigger === 'schedule' ? <Field htmlFor="rule-sched" label={t('editor.scheduleMin')} hint={t('editor.scheduleHint')} error={errs['rule-sched']}><Input id="rule-sched" {...inv(errs, 'rule-sched')} type="number" min={15} max={10080} value={r.schedule_min ?? 10080} onChange={(e) => set({ schedule_min: Number(e.target.value) })} /></Field> : null}
-              <details className="text-[13px]"><summary className="cursor-pointer text-accent">{t('editor.fields')}</summary>
+              <details className="text-meta"><summary className="cursor-pointer text-accent">{t('editor.fields')}</summary>
                 <ul className="mt-2 grid gap-1">{trig?.fields.map((f) => <li key={f.key}><code className="rounded bg-sunken px-1">{`{{trigger.${f.key}}}`}</code> {f.label}, <span className="text-muted">{t('editor.fieldType', { type: f.type, example: f.example })}</span></li>)}</ul>
               </details>
             </section>
@@ -207,7 +207,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
                 <div className="flex items-center gap-2 text-sm"><label htmlFor="rule-match">{t('editor.match')}</label>
                   <Select id="rule-match" className="w-auto" disabled={r.trigger === 'log_threshold'} value={r.match} onChange={(e) => set({ match: e.target.value as 'all' | 'any' })}><option value="all">{t('editor.all')}</option><option value="any">{t('editor.any')}</option></Select></div>
               </div>
-              {!r.conditions.length ? <p className="text-[13px] text-muted">{t('editor.noConditions')}</p> : null}
+              {!r.conditions.length ? <p className="text-meta text-muted">{t('editor.noConditions')}</p> : null}
               {r.conditions.map((c, i) => (
                 <div key={i} className="grid gap-2 rounded-md border border-rule p-2 sm:grid-cols-[1fr_1fr_1.4fr_auto]">
                   {c.op === 'device_type' ? <div className="self-center text-sm text-muted">{t('editor.deviceType')}</div> : (
@@ -222,7 +222,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
                     <Input id={`rc-${i}`} {...inv(errs, `rc-${i}`)} aria-label={t('editor.value')} value={c.value} spellCheck={false} placeholder={c.op === 'device_type' ? KINDS.slice(7, 11).join(',') : c.op === 'in_cidr' ? '192.168.10.0/24' : c.op === 'in' ? 'a,b,c' : ''} onChange={(e) => cond(i, { value: e.target.value })} />
                   )}
                   <Button size="icon" variant="ghost" aria-label={t('editor.removeCondition')} onClick={() => set({ conditions: r.conditions.filter((_, j) => j !== i) })}><Trash2 className="size-4" aria-hidden /></Button>
-                  {errs[`rc-${i}`] ? <p id={`rc-${i}-error`} className="text-[13px] text-danger [overflow-wrap:anywhere] sm:col-span-4">{errs[`rc-${i}`]}</p> : null}
+                  {errs[`rc-${i}`] ? <p id={`rc-${i}-error`} className="text-meta text-danger [overflow-wrap:anywhere] sm:col-span-4">{errs[`rc-${i}`]}</p> : null}
                 </div>
               ))}
               <div><Button size="sm" onClick={() => set({ conditions: [...r.conditions, { field: trig?.fields[0]?.key ?? '', op: 'eq', value: '', n: null, window_min: null }] })}><Plus className="size-4" aria-hidden />{t('editor.addCondition')}</Button></div>
@@ -239,7 +239,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
                 <Button size="sm" onClick={() => addAction(first)}><Plus className="size-4" aria-hidden />{t('editor.addAction')}</Button>
                 {admin ? <Button size="sm" onClick={() => setCustom(true)}><Plus className="size-4" aria-hidden />{t('editor.newCustom')}</Button> : null}
               </div>
-              <div className="flex items-center gap-1 text-[13px] text-muted"><p>{t('editor.approvalDefault')}</p><InfoTip topic={t('editor.then')}>{t('editor.approvalDefaultInfo')}</InfoTip></div>
+              <div className="flex items-center gap-1 text-meta text-muted"><p>{t('editor.approvalDefault')}</p><InfoTip topic={t('editor.then')}>{t('editor.approvalDefaultInfo')}</InfoTip></div>
             </section>
 
             <section className="grid gap-3" aria-label={t('editor.limits')}>
@@ -248,12 +248,12 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
               <Panel className="grid gap-2 p-3">
                 <div className="flex items-center gap-2.5">
                   <Switch id="rule-pre" checked={r.pre_approved} disabled={!admin || (!r.pre_approved && !eligible)} onCheckedChange={(v) => set({ pre_approved: v })} />
-                  <label htmlFor="rule-pre" className="grid text-sm"><span className="font-medium">{t('editor.pre')}</span><span className="text-[13px] text-muted">{t('editor.preHint')}</span></label>
+                  <label htmlFor="rule-pre" className="grid text-sm"><span className="font-medium">{t('editor.pre')}</span><span className="text-meta text-muted">{t('editor.preHint')}</span></label>
                   <InfoTip topic={t('editor.pre')}>{t('editor.preHintInfo')}</InfoTip>
                 </div>
-                {!admin ? <p className="text-[13px] text-muted">{t('editor.preAdmin')}</p> : !eligible && !r.pre_approved ? <p className="text-[13px] text-muted">{t('editor.preNotEligible')}</p> : null}
+                {!admin ? <p className="text-meta text-muted">{t('editor.preAdmin')}</p> : !eligible && !r.pre_approved ? <p className="text-meta text-muted">{t('editor.preNotEligible')}</p> : null}
                 {r.pre_approved ? <Notice tone="danger" role="alert" className="mb-0" title={t('editor.preWarning')} info={t('editor.preWarningInfo')} /> : null}
-                {why ? <p role="alert" className="text-[13px] text-danger">{t('editor.preBad')}</p> : null}
+                {why ? <p role="alert" className="text-meta text-danger">{t('editor.preBad')}</p> : null}
               </Panel>
             </section>
 

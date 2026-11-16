@@ -22,7 +22,7 @@ export function BugReportDialog({ open, onOpenChange }: { open: boolean; onOpenC
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent wide title={t('bug.title')} description={t('bug.desc')}>
         <div className="grid gap-4">
-          <div role="note" className="flex items-center gap-1 rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">
+          <div role="note" className="flex items-center gap-1 rounded-md border border-rule bg-sunken px-3 py-2 text-meta">
             <p>{t('bug.noSend')}</p>
             <InfoTip topic={t('bug.title')}>{t('bug.noSendInfo')}</InfoTip>
           </div>
@@ -34,11 +34,11 @@ export function BugReportDialog({ open, onOpenChange }: { open: boolean; onOpenC
               <p className="text-sm font-medium">{t('bug.bundle')}</p>
               <InfoTip topic={t('bug.bundle')}>{t('bug.bundleInfo')}</InfoTip>
             </div>
-            <p className="text-[13px] text-muted">{t('bug.bundleDesc')}</p>
+            <p className="text-meta text-muted">{t('bug.bundleDesc')}</p>
             <CodeBlock label={t('bug.bundleLabel')} code={JSON.stringify(bundle, null, 2)} />
           </div>
           <div className="flex items-center gap-1">
-            <p className="text-[13px] text-muted">{t('bug.attach')}</p>
+            <p className="text-meta text-muted">{t('bug.attach')}</p>
             <InfoTip topic={t('bug.open')}>{t('bug.attachInfo')}</InfoTip>
           </div>
         </div>

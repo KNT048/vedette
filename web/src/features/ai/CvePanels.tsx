@@ -59,7 +59,7 @@ function Explain({ r }: { r: ExplainResult }) {
         {r.temp_mitigations.length ? <div><p className="font-medium">{t('cve.temp')}</p><ul className="ml-5 list-disc">{r.temp_mitigations.map((s, i) => <li key={i}>{s}</li>)}</ul></div> : null}
         {r.detection_hints.length ? <div><p className="font-medium">{t('cve.detect')}</p><ul className="ml-5 list-disc">{r.detection_hints.map((s, i) => <li key={i}>{s}</li>)}</ul></div> : null}
       </AiBlock>
-      <p className="text-[12px] text-muted">{r.cached ? t('cve.cached', { time: fmtDateTime(r.generated_at) }) : t('cve.generated', { time: fmtDateTime(r.generated_at) })}</p>
+      <p className="text-caption text-muted">{r.cached ? t('cve.cached', { time: fmtDateTime(r.generated_at) }) : t('cve.generated', { time: fmtDateTime(r.generated_at) })}</p>
     </div>
   )
 }
@@ -72,7 +72,7 @@ function SourceList({ sources }: { sources: FetchedSource[] }) {
       <ul className="grid divide-y divide-rule rounded-md border border-rule bg-surface text-sm">
         {sources.map((s) => (
           <li key={s.url} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
-            <span className="grid"><a href={s.url} target="_blank" rel="noopener noreferrer" className="text-accent underline-offset-4 hover:underline">{s.title}</a><span className="text-[12px] text-muted">{s.note}</span></span>
+            <span className="grid"><a href={s.url} target="_blank" rel="noopener noreferrer" className="text-accent underline-offset-4 hover:underline">{s.title}</a><span className="text-caption text-muted">{s.note}</span></span>
             <Chip tone={s.status === 'ok' ? 'ok' : 'warn'}>{t(`cve.source.${s.status}`)}</Chip>
           </li>
         ))}
@@ -89,7 +89,7 @@ function News({ r }: { r: NewsResult }) {
       <AiBlock model={`${r.model} (${r.profile})`} tokens={r.tokens} citations={r.citations}>
         {r.lines.map((l, i) => <p key={i}>{l}</p>)}
       </AiBlock>
-      <p className="text-[12px] text-muted">{t('cve.newsMeta', { time: fmtDateTime(r.generated_at) })}</p>
+      <p className="text-caption text-muted">{t('cve.newsMeta', { time: fmtDateTime(r.generated_at) })}</p>
     </div>
   )
 }

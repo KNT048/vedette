@@ -43,7 +43,7 @@ function Step({ n, title, done, optional, info, children, leaves, leavesInfo }: 
           <Chip tone={done ? 'ok' : done === undefined ? 'off' : 'warn'}>{done ? t('setup.done') : done === undefined ? t('setup.unknown') : optional ? t('setup.optional') : t('setup.todo')}</Chip>
         </div>
         {children}
-        <div className="flex items-center gap-1 text-[12px] text-muted"><p><span className="font-medium">{t('setup.leaves')}</span> {leaves}</p>{leavesInfo ? <InfoTip topic={t('setup.leaves')}>{leavesInfo}</InfoTip> : null}</div>
+        <div className="flex items-center gap-1 text-caption text-muted"><p><span className="font-medium">{t('setup.leaves')}</span> {leaves}</p>{leavesInfo ? <InfoTip topic={t('setup.leaves')}>{leavesInfo}</InfoTip> : null}</div>
       </div>
     </li>
   )
@@ -69,19 +69,19 @@ function ProfileStep({ done, admin, ready }: { done: boolean; admin: boolean; re
   }
   return (
     <Step n={5} title={t('setup.profile.title')} done={done} info={<><p>{t('setup.profile.body')}</p><p>{t('setup.profile.waitInfo')}</p></>} leaves={t('setup.profile.leaves')} leavesInfo={t('setup.profile.leavesInfo')}>
-      {aiOn === false ? <p className="text-[13px]">{t('setup.profile.aiOff')} {admin ? <Link className={link} to="/settings/modules">{t('setup.toModules')}</Link> : null}</p>
-        : !admin ? <p className="text-[13px] text-muted">{t('setup.adminDoes')}</p>
-        : profiles.data && !usable.length ? <p className="text-[13px]">{t('setup.profile.none')} <Link className={link} to="/settings/ai">{t('setup.profile.toAi')}</Link></p>
+      {aiOn === false ? <p className="text-meta">{t('setup.profile.aiOff')} {admin ? <Link className={link} to="/settings/modules">{t('setup.toModules')}</Link> : null}</p>
+        : !admin ? <p className="text-meta text-muted">{t('setup.adminDoes')}</p>
+        : profiles.data && !usable.length ? <p className="text-meta">{t('setup.profile.none')} <Link className={link} to="/settings/ai">{t('setup.profile.toAi')}</Link></p>
         : assign.data ? (
           <div className="flex flex-wrap items-center gap-2">
-            <label htmlFor="setup-profile" className="text-[13px] text-muted">{t('setup.profile.label')}</label>
+            <label htmlFor="setup-profile" className="text-meta text-muted">{t('setup.profile.label')}</label>
             <Select id="setup-profile" className="h-8 w-full min-w-0 sm:w-auto sm:min-w-[13rem]" value={slot?.primary ?? ''} disabled={!ready || save.isPending} aria-describedby={ready ? undefined : 'setup-profile-wait'} onChange={(e) => pick(e.target.value)}>
               <option value="">{t('setup.profile.noneChosen')}</option>
               {usable.map((p) => <option key={p.id} value={p.id} disabled={!allowed(p.location)}>{p.name} ({p.model}){allowed(p.location) ? '' : ` · ${t('setup.profile.cloudBlocked')}`}</option>)}
             </Select>
-            <Link className={`text-[13px] ${link}`} to="/settings/ai">{t('setup.profile.toAi')}</Link>
+            <Link className={`text-meta ${link}`} to="/settings/ai">{t('setup.profile.toAi')}</Link>
             {/* a plan written before steps 1, 2 and 4 is never sent (one plan per finding, D-314): the setup waits for them; the AI page still sets it */}
-            {ready ? null : <p id="setup-profile-wait" className="basis-full text-[13px] text-warn">{t('setup.profile.wait')}</p>}
+            {ready ? null : <p id="setup-profile-wait" className="basis-full text-meta text-warn">{t('setup.profile.wait')}</p>}
           </div>
         ) : null}
     </Step>
@@ -93,7 +93,7 @@ function ConnectStep({ cat, pulled, done, admin }: { cat: CatalogAction[]; pulle
   const ready = cat.filter((a) => a.device && aiOfferable(a) && a.available)
   return (
     <Step n={1} title={t('setup.connect.title')} done={done} info={<><p>{t('setup.connect.body')}</p><p>{t('setup.connect.blocklistInfo')}</p></>} leaves={t('setup.connect.leaves')} leavesInfo={t('setup.connect.leavesInfo')}>
-      <ul className="ml-5 list-disc text-[13px]">
+      <ul className="ml-5 list-disc text-meta">
         <li>{ready.length ? t('setup.connect.ready', { names: ready.map((a) => a.name).join(', ') }) : t('setup.connect.noneReady')}{' '}
           {admin ? <><Link className={link} to="/settings/connections">{t('setup.connect.toConnections')}</Link>{' · '}<Link className={link} to="/response?tab=actions">{t('setup.connect.toActions')}</Link></> : null}</li>
         <li>{pulled ? t('setup.connect.pulled', { time: fmtDateTime(pulled.at), from: pulled.from }) : t('setup.connect.blocklist')}{' '}
@@ -124,7 +124,7 @@ function ChooseStep({ cat, s, triggers, done, admin }: { cat: CatalogAction[]; s
       {offer.length ? (
         <ul className="grid gap-2">
           {offer.map((a) => (
-            <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+            <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
               <Switch id={`setup-ai-${a.id}`} aria-label={t('catalog.aiMayFor', { name: a.name })} checked={a.ai_may_propose} disabled={!admin || act.isPending}
                 onCheckedChange={(v) => act.mutate({ id: a.id, input: { ai_may_propose: v } }, { onError: (e) => toast.error(errText(e)) })} />
               <label htmlFor={`setup-ai-${a.id}`} className="font-medium">{a.name}</label>
@@ -132,8 +132,8 @@ function ChooseStep({ cat, s, triggers, done, admin }: { cat: CatalogAction[]; s
             </li>
           ))}
         </ul>
-      ) : <p className="text-[13px] text-muted">{t('setup.choose.noAction')}</p>}
-      {!admin ? <p className="text-[13px] text-muted">{t('setup.adminDoes')}</p> : null}
+      ) : <p className="text-meta text-muted">{t('setup.choose.noAction')}</p>}
+      {!admin ? <p className="text-meta text-muted">{t('setup.adminDoes')}</p> : null}
     </Step>
   )
 }
@@ -144,8 +144,8 @@ function ApproverStep({ s }: { s: SettingsView | undefined }) {
   const done = s ? chosen.some((c) => c.linked > 0) : undefined
   return (
     <Step n={3} title={t('setup.approvers.title')} done={done} optional info={t('setup.approvers.body')} leaves={t('setup.approvers.leaves')} leavesInfo={t('setup.approvers.leavesInfo')}>
-      {!s ? <p className="text-[13px] text-muted">{t('setup.adminDoes')}</p> : (
-        <p className="text-[13px]">
+      {!s ? <p className="text-meta text-muted">{t('setup.adminDoes')}</p> : (
+        <p className="text-meta">
           {chosen.length ? t('setup.approvers.chosen', { channels: chosen.map((c) => `${c.label} (${t('form.linkedCount', { linked: c.linked, count: c.approvers })})`).join(', ') }) : t('setup.approvers.none')}{' '}
           <Link className={link} to="/response?tab=settings">{t('setup.approvers.toSettings')}</Link>{' · '}<Link className={link} to="/settings/channels">{t('form.toChannels')}</Link>
         </p>
@@ -159,7 +159,7 @@ function ExecutionStep({ on, admin }: { on: boolean; admin: boolean }) {
   const [open, setOpen] = useState(false)
   return (
     <Step n={4} title={t('setup.execution.title')} done={on} info={t('setup.execution.body')} leaves={t('setup.execution.leaves')} leavesInfo={t('setup.execution.leavesInfo')}>
-      {on ? null : admin ? <div><Button variant="danger" size="sm" onClick={() => setOpen(true)}>{t('setup.execution.button')}</Button></div> : <p className="text-[13px] text-muted">{t('setup.adminDoes')}</p>}
+      {on ? null : admin ? <div><Button variant="danger" size="sm" onClick={() => setOpen(true)}>{t('setup.execution.button')}</Button></div> : <p className="text-meta text-muted">{t('setup.adminDoes')}</p>}
       {admin ? <EnableDialog open={open} onOpenChange={setOpen} /> : null}
     </Step>
   )
@@ -249,19 +249,19 @@ export function InboxWhy() {
               {p.findings.map((f) => (
                 <li key={f.finding_id} className="grid gap-0.5">
                   <p className="flex flex-wrap items-center gap-2"><Link className={link} to={`/findings/${f.finding_id}`}>{f.cve}</Link><span>{t('why.on', { device: f.asset_name })}</span><Chip tone={OUTCOME_TONE[f.outcome]}>{t(`why.outcome.${f.outcome}`)}</Chip></p>
-                  <p className="text-[13px] text-muted">{f.reason}</p>
+                  <p className="text-meta text-muted">{f.reason}</p>
                 </li>
               ))}
             </ul>
           ) : null}
-          {p.ran_at && !p.blocked && !p.considered ? <p className="text-[13px] text-muted">{t('why.noFindings')}</p> : null}
+          {p.ran_at && !p.blocked && !p.considered ? <p className="text-meta text-muted">{t('why.noFindings')}</p> : null}
         </div>
         <div className="grid gap-1">
           <div className="flex items-center gap-1"><h3 className="text-sm font-semibold">{t('why.triggers')}</h3><InfoTip topic={t('why.triggers')}>{t('why.triggersBody')}</InfoTip></div>
-          <ul className="grid gap-1 text-[13px]">
+          <ul className="grid gap-1 text-meta">
             {triggers.data.items.map((x) => <li key={x.id}><span className="font-medium">{x.name}</span>: {trig(x)}</li>)}
           </ul>
-          <p className="text-[13px] text-muted">{t('why.rules')} <Link className={link} to="/response?tab=rules">{t('why.toRules')}</Link></p>
+          <p className="text-meta text-muted">{t('why.rules')} <Link className={link} to="/response?tab=rules">{t('why.toRules')}</Link></p>
         </div>
       </Panel>
     </Section>

@@ -105,8 +105,8 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
         <div className="flex gap-2"><dt className="w-12 shrink-0 text-muted">{t('rules.then')}</dt>
           <dd><ol className="grid gap-0.5">{rule.actions.map((a, i) => <li key={i}>{i + 1}. {name(a.action_id)} <span className="text-muted">({a.ttl_min ? t('rules.undoIn', { time: mins(a.ttl_min) }) : t('rules.noUndoTime')})</span></li>)}</ol></dd></div>
       </dl>
-      <p className="text-[12px] text-muted">{t('rules.limit', { n: rule.max_per_hour })} {rule.last_fired ? t('rules.lastFired', { time: fmtDateTime(rule.last_fired) }) : t('rules.neverFired')}</p>
-      {!rule.live && rule.enabled ? <div className="flex items-center gap-1 text-[13px] text-muted"><p>{t('rules.dryNote')}</p><InfoTip topic={t('rules.dryRun')}>{t('rules.dryNoteInfo')}</InfoTip></div> : null}
+      <p className="text-caption text-muted">{t('rules.limit', { n: rule.max_per_hour })} {rule.last_fired ? t('rules.lastFired', { time: fmtDateTime(rule.last_fired) }) : t('rules.neverFired')}</p>
+      {!rule.live && rule.enabled ? <div className="flex items-center gap-1 text-meta text-muted"><p>{t('rules.dryNote')}</p><InfoTip topic={t('rules.dryRun')}>{t('rules.dryNoteInfo')}</InfoTip></div> : null}
       {rule.trigger === 'manual' && !frozen ? <ManualRun rule={rule} /> : null}
       {result ? <SimResult s={result} /> : null}
       {live ? <LiveDialog rule={rule} onClose={() => setLive(false)} /> : null}
@@ -144,8 +144,8 @@ function Templates() {
             <li key={tp.id}>
               <Panel className="grid h-full content-start gap-2 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2"><h3 className="text-sm font-semibold">{tp.name}</h3><div className="flex gap-2"><RiskChip risk={tp.risk} />{tp.approvals > 1 ? <Chip tone="warn">{t('request.twoApprovers')}</Chip> : null}</div></div>
-                <p className="text-[13px] text-muted">{tp.description}</p>
-                {gone ? <p className="text-[13px] text-warn">{t('templates.notHere')}</p> : null}
+                <p className="text-meta text-muted">{tp.description}</p>
+                {gone ? <p className="text-meta text-warn">{t('templates.notHere')}</p> : null}
                 <div><Button size="sm" disabled={!admin || gone || clone.isPending} title={!admin ? t('common:needRole', { role: t('common:role.admin') }) : gone ? t('templates.notHere') : undefined} aria-label={t('templates.cloneFor', { name: tp.name })}
                   onClick={() => clone.mutate(tp.id, { onSuccess: () => toast.success(t('templates.cloned')), onError: (e) => toast.error(errText(e)) })}><Copy className="size-4" aria-hidden />{t('templates.clone')}</Button></div>
               </Panel>
@@ -175,7 +175,7 @@ function Events() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <caption className="sr-only">{t('det.title')}</caption>
-                <thead><tr className="border-b border-rule text-left text-[12px] text-muted"><th scope="col" className="px-3 py-2 font-medium">{t('det.time')}</th><th scope="col" className="px-3 py-2 font-medium">{t('det.what')}</th><th scope="col" className="px-3 py-2 font-medium">{t('det.handled')}</th></tr></thead>
+                <thead><tr className="border-b border-rule text-left text-caption text-muted"><th scope="col" className="px-3 py-2 font-medium">{t('det.time')}</th><th scope="col" className="px-3 py-2 font-medium">{t('det.what')}</th><th scope="col" className="px-3 py-2 font-medium">{t('det.handled')}</th></tr></thead>
                 <tbody className="divide-y divide-rule">
                   {q.data.items.map((d) => (
                     <tr key={d.id} className="align-top">
@@ -188,7 +188,7 @@ function Events() {
               </table>
             </div>
           </Panel>
-          {import.meta.env.VITE_API_MOCK !== 'off' ? <div className="mt-2 flex items-center gap-1 text-[13px] text-muted"><p>{t('det.previewNote')}</p><InfoTip topic={t('det.title')}>{t('det.previewNoteInfo')}</InfoTip></div> : null}
+          {import.meta.env.VITE_API_MOCK !== 'off' ? <div className="mt-2 flex items-center gap-1 text-meta text-muted"><p>{t('det.previewNote')}</p><InfoTip topic={t('det.title')}>{t('det.previewNoteInfo')}</InfoTip></div> : null}
         </>
       ) : <p className="text-sm text-muted">{t('det.empty')}</p>}
     </Section>

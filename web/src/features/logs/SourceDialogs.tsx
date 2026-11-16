@@ -31,20 +31,20 @@ function KindPicker({ find, setFind, onPick }: { find: string; setFind: (v: stri
           onChange={(e) => setFind(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (hits.length === 1) onPick(hits[0]!.id) } }} />
       </Field>
-      <p role="status" className="text-[13px] text-muted">{hits.length ? t('form.matches', { count: hits.length }) : t('form.noMatch', { q: find })}</p>
+      <p role="status" className="text-meta text-muted">{hits.length ? t('form.matches', { count: hits.length }) : t('form.noMatch', { q: find })}</p>
       <div className="max-h-72 overflow-y-auto rounded-md border border-rule" tabIndex={-1}>
         {GROUPS.map((g) => {
           const list = hits.filter((e) => e.group === g)
           if (!list.length) return null
           return (
             <section key={g} aria-label={GROUP_LABEL[g]}>
-              <h3 className="sticky top-0 border-b border-rule bg-sunken px-3 py-1 text-[12px] font-medium uppercase tracking-wide text-muted">{GROUP_LABEL[g]}</h3>
+              <h3 className="sticky top-0 border-b border-rule bg-sunken px-3 py-1 text-caption font-medium uppercase tracking-wide text-muted">{GROUP_LABEL[g]}</h3>
               <ul>
                 {list.map((e) => (
                   <li key={e.id}>
                     <button type="button" onClick={() => onPick(e.id)} className="flex min-h-9 w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-sm hover:bg-sunken focus-visible:bg-sunken">
                       <span>{e.name}</span>
-                      <span className="shrink-0 text-[12px] text-muted">{e.reads === 'parsed' ? t('config.parsed') : e.logins ? t('config.logins') : t('config.stored')}</span>
+                      <span className="shrink-0 text-caption text-muted">{e.reads === 'parsed' ? t('config.parsed') : e.logins ? t('config.logins') : t('config.stored')}</span>
                     </button>
                   </li>
                 ))}
@@ -115,7 +115,7 @@ export function SourceFormDialog({ open, onOpenChange, source, sender, onAdded }
             <div className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-rule bg-sunken px-3 py-2">
               <div className="grid gap-0.5 text-sm">
                 <span className="font-medium">{t('form.chosen', { name: CATALOG[kind].name })}</span>
-                <span className="text-[13px] text-muted">{t('form.reads')}: {CATALOG[kind].readsNote}</span>
+                <span className="text-meta text-muted">{t('form.reads')}: {CATALOG[kind].readsNote}</span>
               </div>
               <Button size="sm" onClick={() => setKind(null)}>{t('form.change')}</Button>
             </div>
@@ -169,17 +169,17 @@ export function ConfigDialog({ source, boxIp, lan, onClose }: { source: LogSourc
             {boxIp ? null : <Notice tone="warn" role="alert" title={lan ? t('config.noIpLan', { lan, placeholder: BOX_PLACEHOLDER }) : t('config.noIp', { placeholder: BOX_PLACEHOLDER })}
               info={lan ? t('config.noIpLanInfo', { lan, placeholder: BOX_PLACEHOLDER }) : t('config.noIpInfo', { placeholder: BOX_PLACEHOLDER })} />}
             {source.proto === 'tls' ? (
-              <div className="flex items-start gap-1 rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">
+              <div className="flex items-start gap-1 rounded-md border border-rule bg-sunken px-3 py-2 text-meta">
                 <p>{t(source.client_cert_sha256 ? 'config.tlsTrustPinned' : 'config.tlsTrust')}</p>
                 <InfoTip topic={t('boxCert.title')}>{t(source.client_cert_sha256 ? 'config.tlsTrustPinnedInfo' : 'config.tlsTrustInfo')}</InfoTip>
               </div>
             ) : null}
             <p className="text-sm">{e.intro}</p>
-            <p className="rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]"><span className="font-medium">{t('config.reads')}: </span>{e.readsNote}</p>
+            <p className="rounded-md border border-rule bg-sunken px-3 py-2 text-meta"><span className="font-medium">{t('config.reads')}: </span>{e.readsNote}</p>
             <h3 className="text-sm font-medium">{t('config.steps')}</h3>
             <ol className="ml-5 grid list-decimal gap-1 text-sm">{e.steps(ctx).map((x) => <li key={x}>{x}</li>)}</ol>
             {e.snippets(ctx).map((x) => <CodeBlock key={x.label} label={x.label} code={x.code} />)}
-            {e.notes.length ? <><h3 className="text-sm font-medium">{t('config.notes')}</h3><ul className="ml-5 grid list-disc gap-1 text-[13px] text-muted">{e.notes.map((x) => <li key={x}>{x}</li>)}</ul></> : null}
+            {e.notes.length ? <><h3 className="text-sm font-medium">{t('config.notes')}</h3><ul className="ml-5 grid list-disc gap-1 text-meta text-muted">{e.notes.map((x) => <li key={x}>{x}</li>)}</ul></> : null}
             <p className="text-sm font-medium">{t('config.verify')}</p>
             <DialogFooter><Button variant="primary" onClick={onClose}>{t('common:close')}</Button></DialogFooter>
           </DialogContent>
@@ -221,10 +221,10 @@ export function BoxCertificate({ tls }: { tls: BoxTls }) {
     <div className="mt-4 grid gap-2 rounded-md border border-rule bg-sunken px-3 py-3 text-sm" aria-labelledby="box-cert-title">
       <h3 id="box-cert-title" className="font-medium">{t('boxCert.title')}</h3>
       <div className="flex items-start gap-1">
-        <p className="text-[13px] text-muted">{t(`boxCert.${tls.kind}`, { port: tls.port, issuer: tls.issuer })}</p>
+        <p className="text-meta text-muted">{t(`boxCert.${tls.kind}`, { port: tls.port, issuer: tls.issuer })}</p>
         <InfoTip topic={t('boxCert.title')}>{t(`boxCert.${tls.kind}Info`, { port: tls.port, issuer: tls.issuer })}</InfoTip>
       </div>
-      <dl className="grid gap-1 text-[13px]">
+      <dl className="grid gap-1 text-meta">
         <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t(`boxCert.fingerprint_${tls.kind}`)}</dt><dd><code className="break-all font-mono">{tls.fingerprint_sha256}</code></dd></div>
         <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t('boxCert.subject')}</dt><dd>{tls.subject}</dd></div>
         <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t('boxCert.expires')}</dt><dd>{fmtDate(tls.not_after)}</dd></div>

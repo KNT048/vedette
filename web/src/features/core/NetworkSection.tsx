@@ -62,7 +62,7 @@ function Interfaces({ d }: { d: NetworkState }) {
     { id: 'role', header: t('network.interfaces.col.role'), accessorFn: (i) => i.role, cell: ({ row }) => roleControl(row) },
     { id: 'link', header: t('network.interfaces.col.link'), accessorFn: (i) => i.link, cell: ({ row }) => row.original.link ? <Chip tone="ok">{t('network.interfaces.up')}</Chip> : <Chip tone="off">{t('network.interfaces.down')}</Chip> },
     { id: 'speed', header: t('network.interfaces.col.speed'), accessorFn: (i) => i.speed ?? '', cell: ({ row }) => row.original.speed ?? <span className="text-muted">–</span> },
-    { id: 'mac', header: t('network.interfaces.col.mac'), accessorFn: (i) => i.mac, cell: ({ row }) => <span className="font-mono text-[12.5px]">{row.original.mac}</span> },
+    { id: 'mac', header: t('network.interfaces.col.mac'), accessorFn: (i) => i.mac, cell: ({ row }) => <span className="font-mono text-meta">{row.original.mac}</span> },
     { id: 'address', header: t('network.interfaces.col.address'), accessorFn: (i) => i.address ?? '', cell: ({ row }) => row.original.address ?? <span className="text-muted">{row.original.role === 'span' ? t('network.interfaces.noIp') : '–'}</span> },
   ]
   return (
@@ -75,9 +75,9 @@ function Interfaces({ d }: { d: NetworkState }) {
               {i.link ? <Chip tone="ok">{t('network.interfaces.up')}</Chip> : <Chip tone="off">{t('network.interfaces.down')}</Chip>}
             </div>
             <div>{roleControl({ original: i })}</div>
-            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-[13px]">
+            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-meta">
               <dt className="text-muted">{t('network.interfaces.col.address')}</dt><dd className="break-all">{i.address ?? (i.role === 'span' ? t('network.interfaces.noIp') : '–')}</dd>
-              <dt className="text-muted">{t('network.interfaces.col.mac')}</dt><dd className="break-all font-mono text-[12.5px]">{i.mac}</dd>
+              <dt className="text-muted">{t('network.interfaces.col.mac')}</dt><dd className="break-all font-mono text-meta">{i.mac}</dd>
               <dt className="text-muted">{t('network.interfaces.col.speed')}</dt><dd>{i.speed ?? '–'}</dd>
             </dl>
           </div>
@@ -163,7 +163,7 @@ function ManagementForm({ d }: { d: NetworkState }) {
           </Select>
         </Field>
         {mode === 'dhcp' ? (
-          <div className="flex max-w-lg items-start gap-1 rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">
+          <div className="flex max-w-lg items-start gap-1 rounded-md border border-rule bg-sunken px-3 py-2 text-meta">
             <p className="min-w-0 flex-1">{t('network.management.dhcpNote')}{m.mode === 'dhcp' && m.address ? ` ${t('network.management.dhcpNow', { ip: `${m.address}/${m.prefix ?? '?'}`, gateway: m.gateway ?? '–', dns: m.dns.join(', ') || '–' })}` : ''}</p>
             <InfoTip topic={t('network.management.dhcp')}>{t('network.management.dhcpNoteInfo')}</InfoTip>
           </div>
@@ -179,7 +179,7 @@ function ManagementForm({ d }: { d: NetworkState }) {
         )}
         {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
         <div><Button type="submit" variant="primary" disabled={locked || management.isPending} title={gate.title}>{t('network.management.save')}</Button></div>
-        <p className="max-w-lg text-[13px] text-muted">{t('network.management.restartNote')}</p>
+        <p className="max-w-lg text-meta text-muted">{t('network.management.restartNote')}</p>
       </form>
       {ask ? (
         <Dialog open onOpenChange={(o) => { if (!o) setAsk(null) }}>
@@ -217,7 +217,7 @@ function NtpForm({ d }: { d: NetworkState }) {
       </Field>
       {mode === 'custom'
         ? <Field label={t('network.ntp.servers')} htmlFor="ntp-servers" hint={t('network.ntp.serversHint')} info={t('network.ntp.serversInfo')}><Input id="ntp-servers" autoComplete="off" value={servers} disabled={gate.disabled} placeholder="ntp.company.lan" onChange={(e) => setServers(e.target.value)} /></Field>
-        : <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{t('network.ntp.defaultNote')}</p><InfoTip topic={t('network.ntp.default')}>{t('network.ntp.defaultInfo', { pool: d.default_ntp })}</InfoTip></div>}
+        : <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('network.ntp.defaultNote')}</p><InfoTip topic={t('network.ntp.default')}>{t('network.ntp.defaultInfo', { pool: d.default_ntp })}</InfoTip></div>}
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       <div><Button type="submit" variant="primary" disabled={gate.disabled || ntp.isPending} title={gate.title}>{t('common:save')}</Button></div>
     </form>
@@ -252,12 +252,12 @@ function BoxAddressForm({ d }: { d: NetworkState }) {
         <Input id="box-address-input" autoComplete="off" spellCheck={false} value={value} disabled={gate.disabled} aria-invalid={error ? true : undefined} aria-describedby={error ? 'box-address-input-error' : 'box-address-input-hint'}
           onChange={(e) => { setValue(e.target.value); setError(null) }} />
       </Field>
-      <p className="text-[13px] text-muted">{b.default ? t('network.boxAddress.default', { address: b.default }) : t('network.boxAddress.noDefault')}</p>
-      {b.link_base ? <p className="text-[13px]">{t('network.boxAddress.links', { url: b.link_base })}</p> : <p className="text-[13px]">{t('network.boxAddress.noLinks')}</p>}
+      <p className="text-meta text-muted">{b.default ? t('network.boxAddress.default', { address: b.default }) : t('network.boxAddress.noDefault')}</p>
+      {b.link_base ? <p className="text-meta">{t('network.boxAddress.links', { url: b.link_base })}</p> : <p className="text-meta">{t('network.boxAddress.noLinks')}</p>}
       {b.previous.length ? (
         <ul aria-label={t('network.boxAddress.previousLabel')} className="grid gap-2">
           {b.previous.map((p) => (
-            <li key={p} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">
+            <li key={p} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rule bg-sunken px-3 py-2 text-meta">
               <span>{t('network.boxAddress.previous', { address: p })}</span>
               <Button type="button" size="sm" disabled={gate.disabled || forgetBoxAddress.isPending} title={gate.title}
                 onClick={() => forgetBoxAddress.mutate(p, { onSuccess: () => toast.success(t('network.boxAddress.forgotten', { address: p })), onError: (er) => toast.error(errMsg(er, t)) })}>
@@ -306,7 +306,7 @@ function Body({ d }: { d: NetworkState }) {
             {SPAN_IN_UI ? <SpanGuides spanPort={d.span.interface ?? d.interfaces.find((i) => i.role === 'span')?.name ?? 'eth1'} /> : null}
             <Section id="decoys" title={t('network.decoys.title')} description={t('network.decoys.desc')} info={t('network.decoys.info')} stories={['S-CORE-8']}>
               {d.decoy_ips.length
-                ? <ul aria-label={t('network.decoys.title')} className="flex flex-wrap gap-2">{d.decoy_ips.map((ip) => <li key={ip} className="rounded-md border border-rule bg-surface px-2.5 py-1 font-mono text-[12.5px]">{ip}</li>)}</ul>
+                ? <ul aria-label={t('network.decoys.title')} className="flex flex-wrap gap-2">{d.decoy_ips.map((ip) => <li key={ip} className="rounded-md border border-rule bg-surface px-2.5 py-1 font-mono text-meta">{ip}</li>)}</ul>
                 : <p className="text-sm text-muted">{t('network.decoys.none')}</p>}
               <p className="mt-3 text-sm"><Link to="/honeypot" className="text-accent underline-offset-4 hover:underline">{t('network.decoys.link')}</Link></p>
             </Section>
@@ -325,7 +325,7 @@ function Body({ d }: { d: NetworkState }) {
         { id: 'time', label: t('network.tabs.time'), panel: (
           <Section id="ntp" title={t('network.ntp.title')} description={t('network.ntp.desc')} stories={['S-CORE-8']}>
             <NtpForm key={JSON.stringify(d.ntp)} d={d} />
-            <div className="mt-3 flex items-center gap-1"><p className="text-[13px] text-muted">{t('network.ntp.privacyShort')} <Link to="/settings/privacy" className="text-accent underline-offset-4 hover:underline">{t('network.ntp.privacyLink')}</Link></p><InfoTip topic={t('network.ntp.title')}>{t('network.ntp.privacy')}</InfoTip></div>
+            <div className="mt-3 flex items-center gap-1"><p className="text-meta text-muted">{t('network.ntp.privacyShort')} <Link to="/settings/privacy" className="text-accent underline-offset-4 hover:underline">{t('network.ntp.privacyLink')}</Link></p><InfoTip topic={t('network.ntp.title')}>{t('network.ntp.privacy')}</InfoTip></div>
           </Section>
         ) },
       ]} />

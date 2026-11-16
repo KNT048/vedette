@@ -36,7 +36,7 @@ export function LogTab() {
         <div className="overflow-x-auto rounded-md border border-rule" tabIndex={0}>
           <table className="w-full text-sm">
             <caption className="sr-only">{t('log.title')}</caption>
-            <thead><tr className="border-b border-rule text-left text-[12px] text-muted">
+            <thead><tr className="border-b border-rule text-left text-caption text-muted">
               <th scope="col" className="px-3 py-2 font-medium">{t('log.time')}</th><th scope="col" className="px-3 py-2 font-medium">{t('log.kind')}</th><th scope="col" className="px-3 py-2 font-medium">{t('log.actor')}</th><th scope="col" className="px-3 py-2 font-medium">{t('log.detail')}</th><th scope="col" className="px-3 py-2 font-medium">{t('log.hash')}</th>
             </tr></thead>
             <tbody className="divide-y divide-rule">
@@ -46,7 +46,7 @@ export function LogTab() {
                   <td className="px-3 py-2"><Chip tone={TONE[e.kind] ?? 'off'}>{t(`log.kinds.${e.kind}`)}</Chip></td>
                   <td className="px-3 py-2">{e.actor}</td>
                   <td className="px-3 py-2">{e.detail}</td>
-                  <td className="px-3 py-2 font-mono text-[12px] text-muted" title={e.hash}>{e.hash.slice(0, 10)}</td>
+                  <td className="px-3 py-2 font-mono text-caption text-muted" title={e.hash}>{e.hash.slice(0, 10)}</td>
                 </tr>
               ))}
             </tbody>

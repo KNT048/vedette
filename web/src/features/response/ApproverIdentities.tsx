@@ -71,10 +71,10 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
     return (
       <li className="grid gap-2 rounded-md border border-rule bg-surface p-4" aria-labelledby={`${id}-title`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p id={`${id}-title`} className="text-sm"><span className="font-semibold">{r.label}</span> <span className="break-all font-mono text-[13px] text-muted">{r.address}</span></p>
+          <p id={`${id}-title`} className="text-sm"><span className="font-semibold">{r.label}</span> <span className="break-all font-mono text-meta text-muted">{r.address}</span></p>
           <Chip tone="off">{t('identity.notLinked')}</Chip>
         </div>
-        <p className="text-[13px] text-muted">{t('leaving.noNewLink')}</p>
+        <p className="text-meta text-muted">{t('leaving.noNewLink')}</p>
       </li>
     )
   }
@@ -82,13 +82,13 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
     return (
       <li className="grid gap-3 rounded-md border border-rule bg-surface p-4" aria-labelledby={`${id}-title`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p id={`${id}-title`} className="text-sm"><span className="font-semibold">{r.label}</span> <span className="break-all font-mono text-[13px] text-muted">{r.address}</span></p>
+          <p id={`${id}-title`} className="text-sm"><span className="font-semibold">{r.label}</span> <span className="break-all font-mono text-meta text-muted">{r.address}</span></p>
           <Chip tone="warn">{r.code_waiting ? t('identity.waiting') : t('identity.notLinked')}</Chip>
         </div>
         {/* D-414, D-447: status and Send again only; the link goes to this chat account and I confirm it signed in. */}
-        {r.code_waiting ? <p className="text-[13px]">{t('identity.waitingNote', { channel: r.label })}</p>
-          : <div className="flex items-center gap-1 text-[13px]"><p>{t('identity.howSend', { channel: r.label })}</p><InfoTip topic={r.label}>{t('identity.howSendInfo', { channel: r.label })}</InfoTip></div>}
-        {err ? <p className="text-[13px] text-danger" role="alert">{err}</p> : null}
+        {r.code_waiting ? <p className="text-meta">{t('identity.waitingNote', { channel: r.label })}</p>
+          : <div className="flex items-center gap-1 text-meta"><p>{t('identity.howSend', { channel: r.label })}</p><InfoTip topic={r.label}>{t('identity.howSendInfo', { channel: r.label })}</InfoTip></div>}
+        {err ? <p className="text-meta text-danger" role="alert">{err}</p> : null}
         <div><Button disabled={cooldown.left > 0 || m.send.isPending} onClick={() => void sendLink()}>{cooldown.left > 0 ? t('identity.sendAgainIn', { s: cooldown.left }) : t('identity.sendAgain')}</Button></div>
       </li>
     )
@@ -97,33 +97,33 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
     return (
       <li className="grid gap-2 rounded-md border border-rule bg-surface p-4" aria-labelledby={`${id}-title`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p id={`${id}-title`} className="text-sm"><span className="font-semibold">{r.label}</span> <span className="break-all font-mono text-[13px] text-muted">{r.address}</span></p>
+          <p id={`${id}-title`} className="text-sm"><span className="font-semibold">{r.label}</span> <span className="break-all font-mono text-meta text-muted">{r.address}</span></p>
           <Chip tone="off">{t('identity.notLinked')}</Chip>
         </div>
-        <div className="flex items-center gap-1 text-[13px] text-muted"><p>{t('identity.unavailable', { channel: r.label })}</p><InfoTip topic={r.label}>{t('identity.unavailableInfo', { channel: r.label })}</InfoTip></div>
+        <div className="flex items-center gap-1 text-meta text-muted"><p>{t('identity.unavailable', { channel: r.label })}</p><InfoTip topic={r.label}>{t('identity.unavailableInfo', { channel: r.label })}</InfoTip></div>
       </li>
     )
   }
   return (
     <li className="grid gap-3 rounded-md border border-rule bg-surface p-4" aria-labelledby={`${id}-title`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p id={`${id}-title`} className="text-sm"><span className="font-semibold">{r.label}</span> <span className="break-all font-mono text-[13px] text-muted">{r.address}</span></p>
+        <p id={`${id}-title`} className="text-sm"><span className="font-semibold">{r.label}</span> <span className="break-all font-mono text-meta text-muted">{r.address}</span></p>
         {r.linked ? <Chip tone="ok">{t('identity.linked')}</Chip> : <Chip tone="warn">{t('identity.notLinked')}</Chip>}
       </div>
       {r.linked ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-[13px] text-muted">{t('identity.linkedAt', { at: fmtDateTime(r.linked_at) })}</p>
+          <p className="text-meta text-muted">{t('identity.linkedAt', { at: fmtDateTime(r.linked_at) })}</p>
           <Button onClick={() => void unlink()} disabled={m.unlink.isPending}>{t('identity.unlink')}</Button>
         </div>
       ) : (
         <form onSubmit={(e) => void confirm(e)} className="grid gap-3" noValidate>
-          <div className="flex items-center gap-1 text-[13px]"><p>{t('identity.howEmail')}</p><InfoTip topic={r.label}>{t('identity.howEmailInfo')}</InfoTip></div>
-          {sent ? <><p className="text-[13px]" role="status">{t('identity.sent', { to: sent.sent_to })}</p><PreviewCode code={sent.preview_code} /></> : null}
+          <div className="flex items-center gap-1 text-meta"><p>{t('identity.howEmail')}</p><InfoTip topic={r.label}>{t('identity.howEmailInfo')}</InfoTip></div>
+          {sent ? <><p className="text-meta" role="status">{t('identity.sent', { to: sent.sent_to })}</p><PreviewCode code={sent.preview_code} /></> : null}
           {askCode ? (
             <Field label={t('identity.code')} htmlFor={`${id}-code`} error={err ?? undefined}>
               <Input id={`${id}-code`} inputMode="numeric" autoComplete="one-time-code" maxLength={7} value={code} aria-invalid={!!err} onChange={(e) => setCode(e.target.value)} className="max-w-40" />
             </Field>
-          ) : err ? <p className="text-[13px] text-danger" role="alert">{err}</p> : null}
+          ) : err ? <p className="text-meta text-danger" role="alert">{err}</p> : null}
           <div className="flex flex-wrap gap-2">
             {/* no red error before anything is typed (D-414): Link waits for the 6 digits */}
             {askCode ? <Button type="submit" variant="primary" disabled={m.confirm.isPending || !/^\d{6}$/.test(code.trim())}>{t('identity.confirm')}</Button> : null}

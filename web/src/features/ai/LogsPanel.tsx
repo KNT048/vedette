@@ -33,14 +33,14 @@ export default function LogsPanel() {
       {d?.empty ? <p className="text-sm text-muted">{d.summary}</p> : null}
       {d && !d.empty ? (
         <div className="grid gap-2">
-          <p className="text-[13px] text-muted">{t('logs.tier', { tier: t(`settings.tier.${d.tier}.name`), cadence: d.cadence })} <ToSettings /></p>
+          <p className="text-meta text-muted">{t('logs.tier', { tier: t(`settings.tier.${d.tier}.name`), cadence: d.cadence })} <ToSettings /></p>
           <AiBlock model={`${d.model} (${d.profile})`} tokens={d.tokens} citations={d.items.length ? [{ title: t('logs.cite') }] : []}>
             <p>{d.summary}</p>
             <ul className="grid gap-4">
               {d.items.length === 0 ? <li className="text-muted">{t('logs.noItems')}</li> : d.items.map((it, i) => (
                 <li key={i} className="grid gap-1.5">
                   <p className="flex flex-wrap items-center gap-2 font-medium"><Chip tone={SEV[it.severity] ?? 'off'}>{t(`logs.severity.${it.severity}`)}</Chip>{it.title}</p>
-                  <pre tabIndex={0} className="overflow-x-auto rounded-md bg-sunken p-2 font-mono text-[12px] leading-relaxed">{it.evidence.join('\n')}</pre>
+                  <pre tabIndex={0} className="overflow-x-auto rounded-md bg-sunken p-2 font-mono text-caption leading-relaxed">{it.evidence.join('\n')}</pre>
                   <p>{it.recommendation}{it.asset_id ? <> <Link to={`/devices/${it.asset_id}`} className="text-accent underline underline-offset-4">{t('logs.device')}</Link></> : null}</p>
                 </li>
               ))}
@@ -48,12 +48,12 @@ export default function LogsPanel() {
             {d.tool_calls.length ? (
               <div>
                 <p className="font-medium">{t('logs.tools')}</p>
-                <ul className="grid gap-1 text-[13px]">{d.tool_calls.map((c, i) => <li key={i}><code className="font-mono text-[12.5px]">{c.tool}({c.args})</code> <span className="text-muted">{t('ask.toolResult', { result: c.result })}</span></li>)}</ul>
+                <ul className="grid gap-1 text-meta">{d.tool_calls.map((c, i) => <li key={i}><code className="font-mono text-meta">{c.tool}({c.args})</code> <span className="text-muted">{t('ask.toolResult', { result: c.result })}</span></li>)}</ul>
               </div>
             ) : null}
           </AiBlock>
-          {d.memories_suggested > 0 ? <p className="text-[13px]">{t('logs.suggested', { count: d.memories_suggested })} {admin ? <Link to="/settings/ai?tab=memory" className="text-accent underline underline-offset-4">{t('logs.suggestedLink')}</Link> : null}</p> : null}
-          <p className="text-[12px] text-muted">{t('logs.meta', { time: fmtDateTime(d.generated_at) })}</p>
+          {d.memories_suggested > 0 ? <p className="text-meta">{t('logs.suggested', { count: d.memories_suggested })} {admin ? <Link to="/settings/ai?tab=memory" className="text-accent underline underline-offset-4">{t('logs.suggestedLink')}</Link> : null}</p> : null}
+          <p className="text-caption text-muted">{t('logs.meta', { time: fmtDateTime(d.generated_at) })}</p>
         </div>
       ) : null}
     </Section>

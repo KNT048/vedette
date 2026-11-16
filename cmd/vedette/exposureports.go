@@ -110,7 +110,8 @@ func openedPorts(ctx context.Context, svc *exposure.Service, targetID, date stri
 		label := fmt.Sprintf("%s:%d", r.IP, r.Port) // the label exposure's diff gives a port row (TestExposureSnapshotOpensNewPorts)
 		if k := canon(r); added[label] && !seen[k] {
 			seen[k] = true // a row listed twice is one port
-			out = append(out, response.PortOpenedEvent{TargetID: targetID, Date: date, IP: r.IP, Port: r.Port, Service: r.Service})
+			// M2-7 (review r1 L3): the person's name, "probably SIP" for a port-number guess, never nmap's "unknown"
+			out = append(out, response.PortOpenedEvent{TargetID: targetID, Date: date, IP: r.IP, Port: r.Port, Service: exposure.ServiceLabel(r)})
 		}
 	}
 	return out, nil

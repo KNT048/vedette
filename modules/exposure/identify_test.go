@@ -454,6 +454,7 @@ func TestPortIdentFromMethodAndScripts(t *testing.T) {
 		{IP: ipA, Port: 8443, Name: "tcpwrapped", Method: "probed", Conf: 8},
 		{IP: ipA, Port: 8080, Name: "http-proxy", Method: "table", Conf: 3},
 		{IP: ipA, Port: 9000, Name: "http", Product: "Go", Method: "bogus", Conf: 99},
+		{IP: ipA, Port: 2222, Name: "ssh", Product: "OpenSSH", Version: "9.6", Method: "probed", Conf: 10},
 	}, Scripts: []ScriptRow{
 		{IP: ipA, Port: 11443, ID: "ssl-cert", Output: cert},
 		{IP: ipA, Port: 10443, ID: "http-title", Output: "Sign in · GitLab\nRequested resource was /users/sign_in"},
@@ -463,14 +464,18 @@ func TestPortIdentFromMethodAndScripts(t *testing.T) {
 	}}}
 	s := e.scanIP(Content{Ports: []PortRow{
 		{IP: ipA, Port: 10443, Service: "https", Product: "nginx"}, {IP: ipA, Port: 5060, Service: "sip"},
-		{IP: ipA, Port: 8443, Service: "https"}, {IP: ipA, Port: 8080, Service: "http", Product: "Jetty"},
+		{IP: ipA, Port: 8443, Service: "https"}, {IP: ipA, Port: 8080, Service: "http", Product: "Jetty"}, {IP: ipA, Port: 2222, Service: "http"},
 	}})
 	type row struct{ service, ident, title, server, certs string }
 	got := map[int]row{}
 	for _, p := range s.Ports {
 		got[p.Port] = row{p.Service, p.Ident, p.Title, p.Server, strings.Join(p.CertNames, ",")}
+		if p.Port == 2222 && p.Product != "OpenSSH 9.6" { // review r1 L4: the product follows the service the probe named
+			t.Errorf("2222 product %q", p.Product)
+		}
 	}
 	want := map[int]row{
+		2222:  {"ssh", IdentProbed, "", "", ""},
 		10022: {"ssh", IdentProbed, "", "", ""},
 		10443: {"https", IdentProbed, "Sign in · GitLab", "", ""}, // the same service: the surface's name stays
 		5060:  {"sip", IdentPort, "", "", ""},
@@ -493,5 +498,30 @@ func TestPortIdentFromMethodAndScripts(t *testing.T) {
 	bad := sanitizePortIdent(PortRow{}, PortRow{Ident: "maybe", Title: "a\u202eb", Server: strings.Repeat("x", maxHint+1), CertNames: []string{"a", "b", "c", "d", "e", "f", "\x00"}})
 	if bad.Ident != "" || bad.Title != "" || bad.Server != "" || len(bad.CertNames) != maxCertNames {
 		t.Fatalf("sanitized = %+v", bad)
+	}
+}
+
+// M2-7 review r1 M1: a surface port only the port number named stays a guess when nmap -sV does not run (here: unavailable), so
+// the page says "Probably SIP 5060"; the "New open port" alert says the same in words (L3).
+func TestSurfaceGuessStaysAGuessWithoutServiceIdentification(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.svc.cfg.Services = &fakeServices{err: &Unavailable{Reason: "the Active scan module is off."}}
+	s := e.scanIP(Content{Ports: []PortRow{{IP: ipA, Port: 5060, Service: "sip", Ident: IdentPort}, {IP: ipA, Port: 443, Service: "https", Product: "nginx", Ident: IdentProbed}}})
+	if len(s.Ports) != 2 || s.Ports[0].Ident != IdentPort || s.Ports[1].Ident != IdentProbed {
+		t.Fatalf("ports %+v", s.Ports)
+	}
+	for _, c := range []struct {
+		p    PortRow
+		want string
+	}{
+		{PortRow{Service: "sip", Ident: IdentPort}, "probably SIP"}, {PortRow{Service: "ssl/http", Ident: IdentProbed}, "HTTPS"},
+		{PortRow{Service: "ssl/unknown", Ident: IdentNone}, "TLS, service not identified"}, {PortRow{Service: "unknown"}, "service not identified"},
+		{PortRow{Service: "cisco-sccp", Ident: IdentPort}, "probably Cisco SCCP"}, {PortRow{Service: "ssl/imap", Ident: IdentProbed}, "IMAP over TLS"},
+		{PortRow{Service: "http-alt"}, "HTTP"},
+	} {
+		if got := ServiceLabel(c.p); got != c.want {
+			t.Errorf("ServiceLabel(%+v) = %q, want %q", c.p, got, c.want)
+		}
 	}
 }

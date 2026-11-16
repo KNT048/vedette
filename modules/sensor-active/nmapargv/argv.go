@@ -210,12 +210,14 @@ const (
 	flagScript        = "--script"
 	flagScriptTimeout = "--script-timeout"
 	// flagVersionAll (--version-intensity 9) makes -sV try every probe of nmap-service-probes on a port no earlier probe matched
-	// (M2-7, J6): only the two full shapes have it. nmap stops at a port's first hard match, so an identified service costs what it
-	// did; only an unidentified one gets the 74 probes of rarity 8 and 9 too (104 TCP probes in all instead of 30, nmap 7.95). A
-	// port that accepts and never answers waits each probe's totalwaitms: about 2.6 minutes at the default intensity 7, 9 minutes
-	// with every probe. nmap reads up to 20 ports at once at the default timing, so the believable worst case (40 such ports,
-	// commonports.MaxBelievableOpen) is about 18 minutes of -sV, which with the port scan (at most 11) and the scripts (each at most
-	// fullScriptTimeout, in parallel) stays inside FullHostTimeout. The External shape keeps the default: its host timeout is 3
+	// (M2-7, J6): only the two full shapes have it. nmap stops at a port's first hard match, so a service a probe named costs what
+	// it did; a port with no match, or with only a soft match (a bare "http" of an unrecognised web app: service_scan.cc nextProbe
+	// skips other probes only below intensity 9), gets every remaining probe: 104 TCP probes in all instead of 30 (nmap-service-probes
+	// of nmap 7.95/master), 534 s of totalwaitms instead of 156 s for a port that holds every probe open without answering. nmap
+	// reads 20 ports at once at the default timing (desired_par), so the worst case (40 such ports, commonports.MaxBelievableOpen)
+	// is about 18 minutes of -sV, which with the port scan (at most 11) and the scripts (each at most fullScriptTimeout, in
+	// parallel) stays inside FullHostTimeout. A typical deep scan gets longer by its soft-matched ports: compare sa_probe's p50/p95
+	// of external_full on the N100 before and after (as D-523 did). The External shape keeps the default: its host timeout is 3
 	// minutes. https://nmap.org/book/man-version-detection.html, https://nmap.org/book/vscan-technique.html
 	flagVersionAll = "--version-all"
 )

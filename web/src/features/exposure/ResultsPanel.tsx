@@ -109,7 +109,7 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
       {target.kind === 'domain' ? (
         <Section title={t('hosts.title')} description={t('hosts.description')}><DataTable caption={t('hosts.caption')} data={s.hosts} columns={hostCols} pageSize={20} empty={t('hosts.empty')} /></Section>
       ) : null}
-      <Section title={t('ports.title')} description={t('ports.description')} info={t('ports.descriptionInfo')}><DataTable caption={t('ports.caption')} data={s.ports} columns={portCols} rowTone={(r) => (riskOf(r) ? 'warn' : undefined)} pageSize={20} empty={t('ports.empty')} filterPlaceholder={t('ports.filter')} /></Section>
+      <Section title={t('ports.title')} description={t('ports.description')} info={t('ports.descriptionInfo')}><DataTable caption={t('ports.caption')} data={s.ports} columns={portCols} rowTone={(r) => (riskOf(r) && identOf(r) !== 'port' ? 'warn' : undefined)} /* review r1 L5: a port-number guess is not tinted as a fact */ pageSize={20} empty={t('ports.empty')} filterPlaceholder={t('ports.filter')} /></Section>
       <Section title={t('admin.title')} description={t('admin.description')} info={t('admin.descriptionInfo')}>
         <DataTable caption={t('admin.caption')} data={s.admin_panels} columns={adminCols} pageSize={20} rowTone={(r) => (r.risk === 'danger' ? 'danger' : 'warn')} empty={<EmptyState title={t('admin.emptyTitle')}>{t('admin.emptyBody')}</EmptyState>} />
       </Section>

@@ -97,6 +97,9 @@ func identifyPorts(ports []PortRow, services []ServiceRow, scripts []ScriptRow, 
 			ports[i].Service = r.Name
 		case id == IdentProbed && serviceFamily(r.Name) != serviceFamily(p.Service):
 			ports[i].Service = r.Name
+			if p.Product == "" { // review r1 L4: the product follows the service the probe named, as on a row addServicePorts adds
+				ports[i].Product = strings.TrimSpace(r.Product + " " + r.Version)
+			}
 		}
 		ports[i].Ident = id
 	}
@@ -180,4 +183,40 @@ func sanitizePortIdent(row, p PortRow) PortRow {
 	}
 	row.Title, row.Server = field(p.Title, maxHint), field(p.Server, maxHint)
 	return row
+}
+
+// serviceNames are a person's names for nmap's service names that are not an acronym (the page has the full list, services.ts).
+var serviceNames = map[string]string{
+	"cisco-sccp": "Cisco SCCP", "ms-wbt-server": "RDP", "microsoft-ds": "SMB", "netbios-ssn": "NetBIOS", "msrpc": "Windows RPC",
+	"http-proxy": "HTTP proxy", "http-alt": "HTTP", "https-alt": "HTTPS", "postgresql": "PostgreSQL", "mysql": "MySQL", "ms-sql-s": "SQL Server",
+}
+
+// ServiceLabel is the port's service as a person reads it (M2-7, review r1 L3: the "New open port" alert): "SIP", "HTTPS",
+// "probably SIP" when only the port number names it, "service not identified" (or "TLS, service not identified") when nothing does.
+func ServiceLabel(p PortRow) string {
+	tls := p.Service == "ssl" || strings.HasPrefix(p.Service, "ssl/") || p.Service == "https"
+	if p.Ident == IdentNone || unnamed(p.Service) {
+		if tls {
+			return "TLS, service not identified"
+		}
+		return "service not identified"
+	}
+	base := baseService(p.Service)
+	name, ok := serviceNames[base]
+	if !ok {
+		name = base
+		if len(base) <= 6 && !strings.ContainsFunc(base, func(r rune) bool { return (r < 'a' || r > 'z') && (r < '0' || r > '9') }) {
+			name = strings.ToUpper(base)
+		}
+	}
+	switch {
+	case base != p.Service && name == "HTTP":
+		name = "HTTPS"
+	case base != p.Service:
+		name += " over TLS"
+	}
+	if p.Ident == IdentPort {
+		return "probably " + name
+	}
+	return name
 }

@@ -46,7 +46,8 @@ export function countsOf(c: Content, extraIp?: string): Counts {
 const H = (ip: string, cls: HostClass, contacted = cls !== 'private'): HostIp => ({ ip, family: 'ipv4', class: cls, ...(contacted ? { contacted } : {}) })
 
 // acme.example: latest result before today's scan. The two older snapshots are trimmed copies of it.
-const P = (ip: string, port: number, service: string, product?: string): PortRow => ({ ip, port, service, product })
+// M2-7 (review r1 M1): as the box marks a surface row: identified only when its GET read a product, else a port-number guess
+const P = (ip: string, port: number, service: string, product?: string): PortRow => ({ ip, port, service, product, ident: product ? 'probed' : 'port' })
 function acmeNow(): Content {
   const mailExp = inDays(9), vpnExp = inDays(21)
   return {

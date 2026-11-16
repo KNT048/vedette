@@ -198,10 +198,10 @@ func TestExternalServicesFromTheXML(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []ExternalService{
-		{Port: 22, Name: "ssh", Product: "OpenSSH", Version: "7.4p1 Debian 10+deb9u7", CPE: "cpe:/a:openbsd:openssh:7.4p1", Extra: "protocol 2.0"},
-		{Port: 443, Name: "ssl/http", Product: "nginx", CPE: "cpe:/a:igor_sysoev:nginx"}, // tunnel="ssl" (D-522)
-		{Port: 8443, Name: "ssl/http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49", Extra: "(Unix)"},
-		{Port: 10443, Name: "tcpwrapped"},
+		{Port: 22, Name: "ssh", Product: "OpenSSH", Version: "7.4p1 Debian 10+deb9u7", CPE: "cpe:/a:openbsd:openssh:7.4p1", Extra: "protocol 2.0", Method: "probed", Conf: 10},
+		{Port: 443, Name: "ssl/http", Product: "nginx", CPE: "cpe:/a:igor_sysoev:nginx", Method: "probed", Conf: 10}, // tunnel="ssl" (D-522)
+		{Port: 8443, Name: "ssl/http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49", Extra: "(Unix)", Method: "probed", Conf: 10},
+		{Port: 10443, Name: "tcpwrapped", Method: "probed", Conf: 8},
 	}
 	if got.Ports != 98 || !slices.Equal(got.Services, want) {
 		t.Fatalf("got %d ports %+v", got.Ports, got.Services)
@@ -216,7 +216,7 @@ func TestExternalTLSTunnelAndAnswersEverywhere(t *testing.T) {
 	ports := base[strings.Index(base, "<port ") : strings.LastIndex(base, "</port>")+len("</port>")]
 	tls := `<port protocol="tcp" portid="4443"><state state="open" reason="syn-ack" reason_ttl="52"/><service name="http" product="lighttpd" tunnel="ssl" method="probed" conf="10"/></port>`
 	got, err := readExternal([]byte(strings.Replace(base, ports, tls, 1)))
-	if err != nil || len(got.Services) != 1 || got.Services[0] != (ExternalService{Port: 4443, Name: "ssl/http", Product: "lighttpd"}) {
+	if err != nil || len(got.Services) != 1 || got.Services[0] != (ExternalService{Port: 4443, Name: "ssl/http", Product: "lighttpd", Method: "probed", Conf: 10}) {
 		t.Fatalf("tunnel: %+v %v", got.Services, err)
 	}
 	var tarpit strings.Builder

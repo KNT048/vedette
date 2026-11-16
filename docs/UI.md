@@ -7,6 +7,24 @@ top-level page in the PR, checked on the N100. A page never styles itself; it co
 `docs/FRONTEND.md` keeps the stack, voice and anti-"AI look" checklist; every visual rule lives here.
 **exists** = use as is, **fix** = change named here, **build** = new, name given.
 
+## 0. Customer ease first: every page follows these (kien 2026-11-16, on the #849 drafts)
+
+Convenience is the first rule of the UI: in 2026 no product sends its customer somewhere else, unguided, to do a second task
+before the first one can go on.
+
+1. **Do it where you are.** When a step needs something that does not exist yet (an SNMP credential, a scope or LAN range, an
+   alert channel, an agent or enrol token, an API key, a user…), the customer creates it right there: the select's last option
+   "+ New …" opens a small dialog, saves, and the new item is selected (`CreatableSelect`, §8). The same item stays editable on
+   its own page. Never "go to Settings first", never a dead end without a link. As Atlassian's creatable select
+   ([Select](https://atlassian.design/components/select/examples#creatable-select)), Linear's label picker that creates the
+   label you type ([Labels](https://linear.app/docs/labels)) and Vercel's project import that takes the environment variables
+   in the same form ([Environment variables](https://vercel.com/docs/projects/environment-variables)).
+2. **Need → place → action is obvious.** Each customer need has one clear place to start. Every dependency that cannot be
+   created inline links straight to the exact tab and field (`DependencyLink`: one short reason + a link to
+   `/settings/<section>?tab=<tab>#<field-id>`, the field gets focus on arrival), never "see Settings". As GOV.UK's error
+   summary links each problem to its field ([Error summary](https://design-system.service.gov.uk/components/error-summary/)).
+3. **Review check for every page** (§13): list each dependency the page needs; each one is created inline or deep-linked.
+
 ## 1. Tokens (`web/src/index.css`)
 
 **Colour.** The #827 brand adds no colour: the palette is the theme tokens. One accent (Vedette green), four status tones with
@@ -192,6 +210,10 @@ tabs: [tabs](https://m3.material.io/components/tabs/guidelines)). At most 6 tabs
 ## 8. Notice, form, dialog
 
 - `Notice` (exists): page or section state; tones danger, warn, accent, off; title + one line + ⓘ + actions.
+- **CreatableSelect** (**build** `components/common/CreatableSelect.tsx`, §0): a `Select` whose last option is "+ New …";
+  the caller supplies the small create dialog and its save call (`renderCreate`); on save the item is selected, focus is back on
+  the select and a status line says "… added and selected". **DependencyLink** (**build** `components/common/DependencyLink.tsx`):
+  one short reason + a link to the exact tab and `#field`; `useDeepLinkTarget` in Layout focuses that field on arrival.
 - **Field** (`Field`, `Input`, `Select`, `Textarea`: exist; **fix**: `Field` gives the control whose `id` equals `htmlFor`
   `aria-describedby` (error, else hint) and `aria-invalid` when there is an error, through context, unless the call site sets
   them; edges use `control`; `Checkbox`, `RadioGroup` keep `muted` edges, `Switch` off-track `control`, thumb `surface`): label
@@ -256,7 +278,14 @@ focus. Status is never colour alone (words, shape). axe runs in the component te
    `border-danger/40` and hand-drawn `rounded-md border border-rule bg-surface` boxes, which move to `Notice` and `Card` as
    pages migrate. (Wiz and Falcon docs are behind sign-in, so no choice here cites them.)
 
-## 13. Review r1: accepted Lows
+## 13. Review
+
+**Checklist for every page and dialog** (with docs/QA.md §3): (1) list every dependency the page needs (credential, scope,
+channel, token, key, user, module on…); (2) each is created inline (`CreatableSelect` with its small dialog, new item selected)
+or deep-linked to the exact tab and field (`DependencyLink`); (3) no text says "go to Settings" without that link; (4) the same
+item is still editable on its own page. A dependency that fails (2) is a defect, not a follow-up.
+
+### Review r1: accepted Lows
 
 L1 spacing: the doc now states the code's values. L2: targets softened to the code (§11). L3: checkboxes keep `muted`. L4, L5,
 L6, L7, L8, L9, L10, L11, L13, L14, L15, L16: done in the text above. L12: the guard names its keywords; opacity-modified

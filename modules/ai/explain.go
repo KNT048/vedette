@@ -118,14 +118,15 @@ const (
 
 var cveRE = regexp.MustCompile(`^CVE-\d{4}-\d{4,}$`)
 
-// cleanText removes control characters, turns line breaks and tabs into spaces and trims: the form in which a model's text is
+// cleanText removes control characters and invisible format characters (bidi controls, zero-width spaces: what is shown must be what
+// is read, #897 r2 M4), turns line breaks (also U+2028/U+2029) and tabs into spaces and trims: the form in which a model's text is
 // stored. The after_ai hooks look at this form, so what they check is what is kept (INV-12).
 func cleanText(s string) string {
 	s = strings.Map(func(r rune) rune {
-		if r == '\n' || r == '\t' {
+		if r == '\n' || r == '\t' || unicode.In(r, unicode.Zl, unicode.Zp) {
 			return ' '
 		}
-		if unicode.IsControl(r) {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
 			return -1
 		}
 		return r
@@ -136,10 +137,11 @@ func cleanText(s string) string {
 // cleanLine is cleanText cut to n characters.
 func cleanLine(s string, n int) string { return clipRunes(cleanText(s), n) }
 
+// cleanList cleans a list item by item, each cut at a sentence end (clipSentence, never mid-sentence), and keeps at most maxListItems.
 func cleanList(in []string) []string {
 	out := []string{}
 	for _, s := range in {
-		if s = cleanLine(s, maxItemChars); s != "" && len(out) < maxListItems {
+		if s, _ = clipSentence(cleanText(s), maxItemChars); s != "" && len(out) < maxListItems {
 			out = append(out, s)
 		}
 	}

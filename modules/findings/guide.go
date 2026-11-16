@@ -20,6 +20,9 @@ type CodeStep struct {
 	Code       string `json:"code"`
 	Note       string `json:"note,omitempty"`
 	SideEffect string `json:"side_effect,omitempty"` // stated before the person copies the command (INV-4)
+	// Check (an AI config block only, #897 r2): the addresses the block names that are not addresses the box knows for the finding;
+	// the page asks the person to check them before pasting.
+	Check []string `json:"check,omitempty"`
 }
 
 // Alternative is the second way of a firewall guide.
@@ -127,6 +130,13 @@ type AIResult struct {
 	Paragraphs []string   `json:"paragraphs"`
 	Steps      []string   `json:"steps"`
 	Citations  []Citation `json:"citations"`
+	// Configs are the ready config blocks of a mitigation-config answer (M2-2): the device's own workaround and a rule per firewall
+	// vendor, each with its side effect; absent for explain and for answers stored before them.
+	Configs []CodeStep `json:"configs,omitempty"`
+	// Shortened: a part of the answer was longer than Vedette keeps, so the page says it was shortened (never cut mid-sentence).
+	Shortened bool `json:"shortened,omitempty"`
+	// NoConfigReason: why no config or no firewall rule helps (a local flaw, no open port serves it), in the AI's words (#897 r1 H1).
+	NoConfigReason string `json:"no_config_reason,omitempty"`
 }
 
 // AIResults holds the last result per skill.

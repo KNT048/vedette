@@ -76,6 +76,7 @@ export const FindingRow = Finding.extend({
 export const CodeStep = z.object({
   title: z.string(), code: z.string(), note: z.string().optional(),
   side_effect: z.string().optional().describe('Side effect that must be stated before the user pastes the command'),
+  check: z.array(z.string()).optional().describe('#897 r2, AI config blocks only: the IP addresses the block names that are not the device\'s or a sent firewall\'s (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these addresses" above the block. Nothing is left out for an address'),
 })
 export const FirewallGuide = z.object({
   vendor: FirewallVendor, label: z.string(), detected: z.boolean().describe('The user declared a device of this vendor in the inventory'),
@@ -101,6 +102,9 @@ export const AiResult = z.object({
   tokens: z.object({ input: z.number(), output: z.number() }),
   paragraphs: z.array(z.string()), steps: z.array(z.string()),
   citations: z.array(z.object({ title: z.string(), url: z.string().optional() })),
+  configs: z.array(CodeStep).optional().describe('mitigation-config (M2-2): config blocks to paste as they are, the device\'s own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before'),
+  no_config_reason: z.string().optional().describe('#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI\'s words; the page shows it where the configuration would be'),
+  shortened: z.boolean().optional().describe('M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole'),
 })
 export const AppliedEntry = z.object({ item: z.string(), ts: iso, user: z.string() })
 

@@ -259,7 +259,13 @@
     "openSettings": "Open AI assistant settings",
     "privacy": "Sent to the AI provider you configured, with your key.",
     "privacyInfo": "The data level is set in Settings, AI assistant.",
-    "openModules": "Open Settings, Modules"
+    "openModules": "Open Settings, Modules",
+    "configsTitle": "Configuration to review before pasting",
+    "noConfigTitle": "Why there is no firewall rule",
+    "noteTitle": "Note from the AI",
+    "configCaution": "AI-generated: read every line before pasting; a wrong rule can cut access or erase settings. Save the current config first.",
+    "checkAddresses": "Check these addresses: they are not addresses Vedette knows for this device or your firewalls:",
+    "shortened": "Vedette shortened or left out part of this answer: a text longer than it keeps, or a configuration that was too long or had two commands on one line. Ask again for a new answer."
   },
   "noIp": "No IP address",
   "removedDevice": "A removed device",

@@ -277,9 +277,17 @@ function aiResult(f: Finding, skill: AiResult['skill']): AiResult {
     ? ['Patch: follow the vendor advisory in the sources below.', 'If you cannot patch yet: cut the path in from the Internet and turn off the affected component if unused.', 'Signs of exploitation: check access logs and unfamiliar processes around the time the flaw was published.']
     : harden ? harden : ['Update to the fixed version per the vendor advisory.', 'If you cannot patch yet, restrict Internet access to this device (firewall, VPN).', 'Watch the device logs for a few days after applying.']
   const citations = (k?.links ?? []).slice(0, 3).map((u) => ({ title: new URL(u).hostname.replace(/^www\./, ''), url: u }))
-  const len = paragraphs.join('').length + steps.join('').length
+  // M2-2: the config skill answers with config blocks to paste; with no firewall vendor known, a generic nftables rule for the gateway
+  const ip = r.asset?.ip && r.asset.ip !== '—' ? r.asset.ip : '<DEVICE_IP>'
+  const configs = skill === 'explain' ? undefined : [{
+    title: `Linux gateway (nftables): only the admin network reaches ${dev}`,
+    code: `nft add rule inet filter forward ip saddr != <ADMIN_NETWORK> ip daddr ${ip} tcp dport { 80, 443 } drop`,
+    note: 'Based on: general hardening',
+    side_effect: `People outside <ADMIN_NETWORK> can no longer open the web interface of ${dev}.`,
+  }]
+  const len = paragraphs.join('').length + steps.join('').length + (configs?.[0]?.code.length ?? 0)
   const prof = aiCandidates(jobOf(skill))[0]
-  return { skill, ts: nowIso(), model: prof?.model ?? '', profile: prof?.name, tokens: { input: 1200 + len, output: Math.round(len / 3.2) }, paragraphs, steps, citations }
+  return { skill, ts: nowIso(), model: prof?.model ?? '', profile: prof?.name, tokens: { input: 1200 + len, output: Math.round(len / 3.2) }, paragraphs, steps, citations, configs }
 }
 
 /** GET /findings/summary (#825), computed as the box does: open = confirmed + suspected; the trend counts, at the end of each UTC day, the

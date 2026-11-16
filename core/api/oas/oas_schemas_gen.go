@@ -63233,15 +63233,26 @@ func (s *FindingsGetFindingsIDOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsGetFindingsIDOKAiConfig struct {
-	Citations  []FindingsGetFindingsIDOKAiConfigCitationsItem `json:"citations"`
-	Model      string                                         `json:"model"`
-	Paragraphs []string                                       `json:"paragraphs"`
+	Citations []FindingsGetFindingsIDOKAiConfigCitationsItem `json:"citations"`
+	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
+	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
+	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs []FindingsGetFindingsIDOKAiConfigConfigsItem `json:"configs"`
+	Model   string                                       `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
-	Profile OptString                             `json:"profile"`
-	Skill   FindingsGetFindingsIDOKAiConfigSkill  `json:"skill"`
-	Steps   []string                              `json:"steps"`
-	Tokens  FindingsGetFindingsIDOKAiConfigTokens `json:"tokens"`
-	Ts      time.Time                             `json:"ts"`
+	Profile OptString `json:"profile"`
+	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
+	// (never in the middle of one) or a config block was left out whole.
+	Shortened OptBool                               `json:"shortened"`
+	Skill     FindingsGetFindingsIDOKAiConfigSkill  `json:"skill"`
+	Steps     []string                              `json:"steps"`
+	Tokens    FindingsGetFindingsIDOKAiConfigTokens `json:"tokens"`
+	Ts        time.Time                             `json:"ts"`
 }
 
 // GetCitations returns the value of Citations.
@@ -63249,9 +63260,19 @@ func (s *FindingsGetFindingsIDOKAiConfig) GetCitations() []FindingsGetFindingsID
 	return s.Citations
 }
 
+// GetConfigs returns the value of Configs.
+func (s *FindingsGetFindingsIDOKAiConfig) GetConfigs() []FindingsGetFindingsIDOKAiConfigConfigsItem {
+	return s.Configs
+}
+
 // GetModel returns the value of Model.
 func (s *FindingsGetFindingsIDOKAiConfig) GetModel() string {
 	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsGetFindingsIDOKAiConfig) GetNoConfigReason() OptString {
+	return s.NoConfigReason
 }
 
 // GetParagraphs returns the value of Paragraphs.
@@ -63262,6 +63283,11 @@ func (s *FindingsGetFindingsIDOKAiConfig) GetParagraphs() []string {
 // GetProfile returns the value of Profile.
 func (s *FindingsGetFindingsIDOKAiConfig) GetProfile() OptString {
 	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsGetFindingsIDOKAiConfig) GetShortened() OptBool {
+	return s.Shortened
 }
 
 // GetSkill returns the value of Skill.
@@ -63289,9 +63315,19 @@ func (s *FindingsGetFindingsIDOKAiConfig) SetCitations(val []FindingsGetFindings
 	s.Citations = val
 }
 
+// SetConfigs sets the value of Configs.
+func (s *FindingsGetFindingsIDOKAiConfig) SetConfigs(val []FindingsGetFindingsIDOKAiConfigConfigsItem) {
+	s.Configs = val
+}
+
 // SetModel sets the value of Model.
 func (s *FindingsGetFindingsIDOKAiConfig) SetModel(val string) {
 	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsGetFindingsIDOKAiConfig) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
 }
 
 // SetParagraphs sets the value of Paragraphs.
@@ -63302,6 +63338,11 @@ func (s *FindingsGetFindingsIDOKAiConfig) SetParagraphs(val []string) {
 // SetProfile sets the value of Profile.
 func (s *FindingsGetFindingsIDOKAiConfig) SetProfile(val OptString) {
 	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsGetFindingsIDOKAiConfig) SetShortened(val OptBool) {
+	s.Shortened = val
 }
 
 // SetSkill sets the value of Skill.
@@ -63347,6 +63388,68 @@ func (s *FindingsGetFindingsIDOKAiConfigCitationsItem) SetTitle(val string) {
 // SetURL sets the value of URL.
 func (s *FindingsGetFindingsIDOKAiConfigCitationsItem) SetURL(val OptString) {
 	s.URL = val
+}
+
+type FindingsGetFindingsIDOKAiConfigConfigsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) SetTitle(val string) {
+	s.Title = val
 }
 
 type FindingsGetFindingsIDOKAiConfigSkill string
@@ -63416,15 +63519,26 @@ func (s *FindingsGetFindingsIDOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsGetFindingsIDOKAiExplain struct {
-	Citations  []FindingsGetFindingsIDOKAiExplainCitationsItem `json:"citations"`
-	Model      string                                          `json:"model"`
-	Paragraphs []string                                        `json:"paragraphs"`
+	Citations []FindingsGetFindingsIDOKAiExplainCitationsItem `json:"citations"`
+	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
+	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
+	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs []FindingsGetFindingsIDOKAiExplainConfigsItem `json:"configs"`
+	Model   string                                        `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
-	Profile OptString                              `json:"profile"`
-	Skill   FindingsGetFindingsIDOKAiExplainSkill  `json:"skill"`
-	Steps   []string                               `json:"steps"`
-	Tokens  FindingsGetFindingsIDOKAiExplainTokens `json:"tokens"`
-	Ts      time.Time                              `json:"ts"`
+	Profile OptString `json:"profile"`
+	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
+	// (never in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                `json:"shortened"`
+	Skill     FindingsGetFindingsIDOKAiExplainSkill  `json:"skill"`
+	Steps     []string                               `json:"steps"`
+	Tokens    FindingsGetFindingsIDOKAiExplainTokens `json:"tokens"`
+	Ts        time.Time                              `json:"ts"`
 }
 
 // GetCitations returns the value of Citations.
@@ -63432,9 +63546,19 @@ func (s *FindingsGetFindingsIDOKAiExplain) GetCitations() []FindingsGetFindingsI
 	return s.Citations
 }
 
+// GetConfigs returns the value of Configs.
+func (s *FindingsGetFindingsIDOKAiExplain) GetConfigs() []FindingsGetFindingsIDOKAiExplainConfigsItem {
+	return s.Configs
+}
+
 // GetModel returns the value of Model.
 func (s *FindingsGetFindingsIDOKAiExplain) GetModel() string {
 	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsGetFindingsIDOKAiExplain) GetNoConfigReason() OptString {
+	return s.NoConfigReason
 }
 
 // GetParagraphs returns the value of Paragraphs.
@@ -63445,6 +63569,11 @@ func (s *FindingsGetFindingsIDOKAiExplain) GetParagraphs() []string {
 // GetProfile returns the value of Profile.
 func (s *FindingsGetFindingsIDOKAiExplain) GetProfile() OptString {
 	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsGetFindingsIDOKAiExplain) GetShortened() OptBool {
+	return s.Shortened
 }
 
 // GetSkill returns the value of Skill.
@@ -63472,9 +63601,19 @@ func (s *FindingsGetFindingsIDOKAiExplain) SetCitations(val []FindingsGetFinding
 	s.Citations = val
 }
 
+// SetConfigs sets the value of Configs.
+func (s *FindingsGetFindingsIDOKAiExplain) SetConfigs(val []FindingsGetFindingsIDOKAiExplainConfigsItem) {
+	s.Configs = val
+}
+
 // SetModel sets the value of Model.
 func (s *FindingsGetFindingsIDOKAiExplain) SetModel(val string) {
 	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsGetFindingsIDOKAiExplain) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
 }
 
 // SetParagraphs sets the value of Paragraphs.
@@ -63485,6 +63624,11 @@ func (s *FindingsGetFindingsIDOKAiExplain) SetParagraphs(val []string) {
 // SetProfile sets the value of Profile.
 func (s *FindingsGetFindingsIDOKAiExplain) SetProfile(val OptString) {
 	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsGetFindingsIDOKAiExplain) SetShortened(val OptBool) {
+	s.Shortened = val
 }
 
 // SetSkill sets the value of Skill.
@@ -63530,6 +63674,68 @@ func (s *FindingsGetFindingsIDOKAiExplainCitationsItem) SetTitle(val string) {
 // SetURL sets the value of URL.
 func (s *FindingsGetFindingsIDOKAiExplainCitationsItem) SetURL(val OptString) {
 	s.URL = val
+}
+
+type FindingsGetFindingsIDOKAiExplainConfigsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) SetTitle(val string) {
+	s.Title = val
 }
 
 type FindingsGetFindingsIDOKAiExplainSkill string
@@ -65830,11 +66036,20 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemAlternative) SetTitle(val string
 }
 
 type FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -65855,6 +66070,11 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) GetSideEff
 // GetTitle returns the value of Title.
 func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -65878,11 +66098,20 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemAlternativeStepsItem) SetTitle(v
 }
 
 type FindingsGetFindingsIDOKPackFirewallItemStepsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -65903,6 +66132,11 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) GetSideEffect() OptSt
 // GetTitle returns the value of Title.
 func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -65926,11 +66160,20 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemStepsItem) SetTitle(val string) 
 }
 
 type FindingsGetFindingsIDOKPackFirewallItemUndoItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -65951,6 +66194,11 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) GetSideEffect() OptStr
 // GetTitle returns the value of Title.
 func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsGetFindingsIDOKPackFirewallItemUndoItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -66022,11 +66270,20 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemVendor) UnmarshalText(data []byt
 }
 
 type FindingsGetFindingsIDOKPackFirewallItemVerifyItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -66047,6 +66304,11 @@ func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) GetSideEffect() OptS
 // GetTitle returns the value of Title.
 func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsGetFindingsIDOKPackFirewallItemVerifyItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -71514,15 +71776,26 @@ func (s *FindingsPostFindingsIDAiOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsPostFindingsIDAiOKAiConfig struct {
-	Citations  []FindingsPostFindingsIDAiOKAiConfigCitationsItem `json:"citations"`
-	Model      string                                            `json:"model"`
-	Paragraphs []string                                          `json:"paragraphs"`
+	Citations []FindingsPostFindingsIDAiOKAiConfigCitationsItem `json:"citations"`
+	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
+	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
+	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs []FindingsPostFindingsIDAiOKAiConfigConfigsItem `json:"configs"`
+	Model   string                                          `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
-	Profile OptString                                `json:"profile"`
-	Skill   FindingsPostFindingsIDAiOKAiConfigSkill  `json:"skill"`
-	Steps   []string                                 `json:"steps"`
-	Tokens  FindingsPostFindingsIDAiOKAiConfigTokens `json:"tokens"`
-	Ts      time.Time                                `json:"ts"`
+	Profile OptString `json:"profile"`
+	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
+	// (never in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                  `json:"shortened"`
+	Skill     FindingsPostFindingsIDAiOKAiConfigSkill  `json:"skill"`
+	Steps     []string                                 `json:"steps"`
+	Tokens    FindingsPostFindingsIDAiOKAiConfigTokens `json:"tokens"`
+	Ts        time.Time                                `json:"ts"`
 }
 
 // GetCitations returns the value of Citations.
@@ -71530,9 +71803,19 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) GetCitations() []FindingsPostFindin
 	return s.Citations
 }
 
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDAiOKAiConfig) GetConfigs() []FindingsPostFindingsIDAiOKAiConfigConfigsItem {
+	return s.Configs
+}
+
 // GetModel returns the value of Model.
 func (s *FindingsPostFindingsIDAiOKAiConfig) GetModel() string {
 	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDAiOKAiConfig) GetNoConfigReason() OptString {
+	return s.NoConfigReason
 }
 
 // GetParagraphs returns the value of Paragraphs.
@@ -71543,6 +71826,11 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) GetParagraphs() []string {
 // GetProfile returns the value of Profile.
 func (s *FindingsPostFindingsIDAiOKAiConfig) GetProfile() OptString {
 	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDAiOKAiConfig) GetShortened() OptBool {
+	return s.Shortened
 }
 
 // GetSkill returns the value of Skill.
@@ -71570,9 +71858,19 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) SetCitations(val []FindingsPostFind
 	s.Citations = val
 }
 
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDAiOKAiConfig) SetConfigs(val []FindingsPostFindingsIDAiOKAiConfigConfigsItem) {
+	s.Configs = val
+}
+
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDAiOKAiConfig) SetModel(val string) {
 	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDAiOKAiConfig) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
 }
 
 // SetParagraphs sets the value of Paragraphs.
@@ -71583,6 +71881,11 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) SetParagraphs(val []string) {
 // SetProfile sets the value of Profile.
 func (s *FindingsPostFindingsIDAiOKAiConfig) SetProfile(val OptString) {
 	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDAiOKAiConfig) SetShortened(val OptBool) {
+	s.Shortened = val
 }
 
 // SetSkill sets the value of Skill.
@@ -71628,6 +71931,68 @@ func (s *FindingsPostFindingsIDAiOKAiConfigCitationsItem) SetTitle(val string) {
 // SetURL sets the value of URL.
 func (s *FindingsPostFindingsIDAiOKAiConfigCitationsItem) SetURL(val OptString) {
 	s.URL = val
+}
+
+type FindingsPostFindingsIDAiOKAiConfigConfigsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) SetTitle(val string) {
+	s.Title = val
 }
 
 type FindingsPostFindingsIDAiOKAiConfigSkill string
@@ -71697,15 +72062,26 @@ func (s *FindingsPostFindingsIDAiOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsPostFindingsIDAiOKAiExplain struct {
-	Citations  []FindingsPostFindingsIDAiOKAiExplainCitationsItem `json:"citations"`
-	Model      string                                             `json:"model"`
-	Paragraphs []string                                           `json:"paragraphs"`
+	Citations []FindingsPostFindingsIDAiOKAiExplainCitationsItem `json:"citations"`
+	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
+	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
+	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs []FindingsPostFindingsIDAiOKAiExplainConfigsItem `json:"configs"`
+	Model   string                                           `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
-	Profile OptString                                 `json:"profile"`
-	Skill   FindingsPostFindingsIDAiOKAiExplainSkill  `json:"skill"`
-	Steps   []string                                  `json:"steps"`
-	Tokens  FindingsPostFindingsIDAiOKAiExplainTokens `json:"tokens"`
-	Ts      time.Time                                 `json:"ts"`
+	Profile OptString `json:"profile"`
+	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
+	// (never in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                   `json:"shortened"`
+	Skill     FindingsPostFindingsIDAiOKAiExplainSkill  `json:"skill"`
+	Steps     []string                                  `json:"steps"`
+	Tokens    FindingsPostFindingsIDAiOKAiExplainTokens `json:"tokens"`
+	Ts        time.Time                                 `json:"ts"`
 }
 
 // GetCitations returns the value of Citations.
@@ -71713,9 +72089,19 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) GetCitations() []FindingsPostFindi
 	return s.Citations
 }
 
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDAiOKAiExplain) GetConfigs() []FindingsPostFindingsIDAiOKAiExplainConfigsItem {
+	return s.Configs
+}
+
 // GetModel returns the value of Model.
 func (s *FindingsPostFindingsIDAiOKAiExplain) GetModel() string {
 	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDAiOKAiExplain) GetNoConfigReason() OptString {
+	return s.NoConfigReason
 }
 
 // GetParagraphs returns the value of Paragraphs.
@@ -71726,6 +72112,11 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) GetParagraphs() []string {
 // GetProfile returns the value of Profile.
 func (s *FindingsPostFindingsIDAiOKAiExplain) GetProfile() OptString {
 	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDAiOKAiExplain) GetShortened() OptBool {
+	return s.Shortened
 }
 
 // GetSkill returns the value of Skill.
@@ -71753,9 +72144,19 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) SetCitations(val []FindingsPostFin
 	s.Citations = val
 }
 
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDAiOKAiExplain) SetConfigs(val []FindingsPostFindingsIDAiOKAiExplainConfigsItem) {
+	s.Configs = val
+}
+
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDAiOKAiExplain) SetModel(val string) {
 	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDAiOKAiExplain) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
 }
 
 // SetParagraphs sets the value of Paragraphs.
@@ -71766,6 +72167,11 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) SetParagraphs(val []string) {
 // SetProfile sets the value of Profile.
 func (s *FindingsPostFindingsIDAiOKAiExplain) SetProfile(val OptString) {
 	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDAiOKAiExplain) SetShortened(val OptBool) {
+	s.Shortened = val
 }
 
 // SetSkill sets the value of Skill.
@@ -71811,6 +72217,68 @@ func (s *FindingsPostFindingsIDAiOKAiExplainCitationsItem) SetTitle(val string) 
 // SetURL sets the value of URL.
 func (s *FindingsPostFindingsIDAiOKAiExplainCitationsItem) SetURL(val OptString) {
 	s.URL = val
+}
+
+type FindingsPostFindingsIDAiOKAiExplainConfigsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) SetTitle(val string) {
+	s.Title = val
 }
 
 type FindingsPostFindingsIDAiOKAiExplainSkill string
@@ -74111,11 +74579,20 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternative) SetTitle(val str
 }
 
 type FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -74136,6 +74613,11 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) GetSide
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -74159,11 +74641,20 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemAlternativeStepsItem) SetTitl
 }
 
 type FindingsPostFindingsIDAiOKPackFirewallItemStepsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -74184,6 +74675,11 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) GetSideEffect() Op
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -74207,11 +74703,20 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemStepsItem) SetTitle(val strin
 }
 
 type FindingsPostFindingsIDAiOKPackFirewallItemUndoItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -74232,6 +74737,11 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) GetSideEffect() Opt
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemUndoItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -74303,11 +74813,20 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemVendor) UnmarshalText(data []
 }
 
 type FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -74328,6 +74847,11 @@ func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) GetSideEffect() O
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAiOKPackFirewallItemVerifyItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -75052,15 +75576,26 @@ func (s *FindingsPostFindingsIDAppliedOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsPostFindingsIDAppliedOKAiConfig struct {
-	Citations  []FindingsPostFindingsIDAppliedOKAiConfigCitationsItem `json:"citations"`
-	Model      string                                                 `json:"model"`
-	Paragraphs []string                                               `json:"paragraphs"`
+	Citations []FindingsPostFindingsIDAppliedOKAiConfigCitationsItem `json:"citations"`
+	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
+	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
+	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs []FindingsPostFindingsIDAppliedOKAiConfigConfigsItem `json:"configs"`
+	Model   string                                               `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
-	Profile OptString                                     `json:"profile"`
-	Skill   FindingsPostFindingsIDAppliedOKAiConfigSkill  `json:"skill"`
-	Steps   []string                                      `json:"steps"`
-	Tokens  FindingsPostFindingsIDAppliedOKAiConfigTokens `json:"tokens"`
-	Ts      time.Time                                     `json:"ts"`
+	Profile OptString `json:"profile"`
+	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
+	// (never in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                       `json:"shortened"`
+	Skill     FindingsPostFindingsIDAppliedOKAiConfigSkill  `json:"skill"`
+	Steps     []string                                      `json:"steps"`
+	Tokens    FindingsPostFindingsIDAppliedOKAiConfigTokens `json:"tokens"`
+	Ts        time.Time                                     `json:"ts"`
 }
 
 // GetCitations returns the value of Citations.
@@ -75068,9 +75603,19 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) GetCitations() []FindingsPostF
 	return s.Citations
 }
 
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDAppliedOKAiConfig) GetConfigs() []FindingsPostFindingsIDAppliedOKAiConfigConfigsItem {
+	return s.Configs
+}
+
 // GetModel returns the value of Model.
 func (s *FindingsPostFindingsIDAppliedOKAiConfig) GetModel() string {
 	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDAppliedOKAiConfig) GetNoConfigReason() OptString {
+	return s.NoConfigReason
 }
 
 // GetParagraphs returns the value of Paragraphs.
@@ -75081,6 +75626,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) GetParagraphs() []string {
 // GetProfile returns the value of Profile.
 func (s *FindingsPostFindingsIDAppliedOKAiConfig) GetProfile() OptString {
 	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDAppliedOKAiConfig) GetShortened() OptBool {
+	return s.Shortened
 }
 
 // GetSkill returns the value of Skill.
@@ -75108,9 +75658,19 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetCitations(val []FindingsPos
 	s.Citations = val
 }
 
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetConfigs(val []FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) {
+	s.Configs = val
+}
+
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetModel(val string) {
 	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
 }
 
 // SetParagraphs sets the value of Paragraphs.
@@ -75121,6 +75681,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetParagraphs(val []string) {
 // SetProfile sets the value of Profile.
 func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetProfile(val OptString) {
 	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetShortened(val OptBool) {
+	s.Shortened = val
 }
 
 // SetSkill sets the value of Skill.
@@ -75166,6 +75731,68 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfigCitationsItem) SetTitle(val stri
 // SetURL sets the value of URL.
 func (s *FindingsPostFindingsIDAppliedOKAiConfigCitationsItem) SetURL(val OptString) {
 	s.URL = val
+}
+
+type FindingsPostFindingsIDAppliedOKAiConfigConfigsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) SetTitle(val string) {
+	s.Title = val
 }
 
 type FindingsPostFindingsIDAppliedOKAiConfigSkill string
@@ -75235,15 +75862,26 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsPostFindingsIDAppliedOKAiExplain struct {
-	Citations  []FindingsPostFindingsIDAppliedOKAiExplainCitationsItem `json:"citations"`
-	Model      string                                                  `json:"model"`
-	Paragraphs []string                                                `json:"paragraphs"`
+	Citations []FindingsPostFindingsIDAppliedOKAiExplainCitationsItem `json:"citations"`
+	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
+	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
+	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs []FindingsPostFindingsIDAppliedOKAiExplainConfigsItem `json:"configs"`
+	Model   string                                                `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
-	Profile OptString                                      `json:"profile"`
-	Skill   FindingsPostFindingsIDAppliedOKAiExplainSkill  `json:"skill"`
-	Steps   []string                                       `json:"steps"`
-	Tokens  FindingsPostFindingsIDAppliedOKAiExplainTokens `json:"tokens"`
-	Ts      time.Time                                      `json:"ts"`
+	Profile OptString `json:"profile"`
+	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
+	// (never in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                        `json:"shortened"`
+	Skill     FindingsPostFindingsIDAppliedOKAiExplainSkill  `json:"skill"`
+	Steps     []string                                       `json:"steps"`
+	Tokens    FindingsPostFindingsIDAppliedOKAiExplainTokens `json:"tokens"`
+	Ts        time.Time                                      `json:"ts"`
 }
 
 // GetCitations returns the value of Citations.
@@ -75251,9 +75889,19 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) GetCitations() []FindingsPost
 	return s.Citations
 }
 
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDAppliedOKAiExplain) GetConfigs() []FindingsPostFindingsIDAppliedOKAiExplainConfigsItem {
+	return s.Configs
+}
+
 // GetModel returns the value of Model.
 func (s *FindingsPostFindingsIDAppliedOKAiExplain) GetModel() string {
 	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDAppliedOKAiExplain) GetNoConfigReason() OptString {
+	return s.NoConfigReason
 }
 
 // GetParagraphs returns the value of Paragraphs.
@@ -75264,6 +75912,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) GetParagraphs() []string {
 // GetProfile returns the value of Profile.
 func (s *FindingsPostFindingsIDAppliedOKAiExplain) GetProfile() OptString {
 	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDAppliedOKAiExplain) GetShortened() OptBool {
+	return s.Shortened
 }
 
 // GetSkill returns the value of Skill.
@@ -75291,9 +75944,19 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetCitations(val []FindingsPo
 	s.Citations = val
 }
 
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetConfigs(val []FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) {
+	s.Configs = val
+}
+
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetModel(val string) {
 	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
 }
 
 // SetParagraphs sets the value of Paragraphs.
@@ -75304,6 +75967,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetParagraphs(val []string) {
 // SetProfile sets the value of Profile.
 func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetProfile(val OptString) {
 	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetShortened(val OptBool) {
+	s.Shortened = val
 }
 
 // SetSkill sets the value of Skill.
@@ -75349,6 +76017,68 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplainCitationsItem) SetTitle(val str
 // SetURL sets the value of URL.
 func (s *FindingsPostFindingsIDAppliedOKAiExplainCitationsItem) SetURL(val OptString) {
 	s.URL = val
+}
+
+type FindingsPostFindingsIDAppliedOKAiExplainConfigsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) SetTitle(val string) {
+	s.Title = val
 }
 
 type FindingsPostFindingsIDAppliedOKAiExplainSkill string
@@ -77649,11 +78379,20 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternative) SetTitle(va
 }
 
 type FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -77674,6 +78413,11 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) Ge
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -77697,11 +78441,20 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemAlternativeStepsItem) Se
 }
 
 type FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -77722,6 +78475,11 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) GetSideEffect
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -77745,11 +78503,20 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemStepsItem) SetTitle(val 
 }
 
 type FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -77770,6 +78537,11 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) GetSideEffect(
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemUndoItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -77841,11 +78613,20 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVendor) UnmarshalText(da
 }
 
 type FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -77866,6 +78647,11 @@ func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) GetSideEffec
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDAppliedOKPackFirewallItemVerifyItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -78611,15 +79397,26 @@ func (s *FindingsPostFindingsIDStatusOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsPostFindingsIDStatusOKAiConfig struct {
-	Citations  []FindingsPostFindingsIDStatusOKAiConfigCitationsItem `json:"citations"`
-	Model      string                                                `json:"model"`
-	Paragraphs []string                                              `json:"paragraphs"`
+	Citations []FindingsPostFindingsIDStatusOKAiConfigCitationsItem `json:"citations"`
+	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
+	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
+	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs []FindingsPostFindingsIDStatusOKAiConfigConfigsItem `json:"configs"`
+	Model   string                                              `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
-	Profile OptString                                    `json:"profile"`
-	Skill   FindingsPostFindingsIDStatusOKAiConfigSkill  `json:"skill"`
-	Steps   []string                                     `json:"steps"`
-	Tokens  FindingsPostFindingsIDStatusOKAiConfigTokens `json:"tokens"`
-	Ts      time.Time                                    `json:"ts"`
+	Profile OptString `json:"profile"`
+	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
+	// (never in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                      `json:"shortened"`
+	Skill     FindingsPostFindingsIDStatusOKAiConfigSkill  `json:"skill"`
+	Steps     []string                                     `json:"steps"`
+	Tokens    FindingsPostFindingsIDStatusOKAiConfigTokens `json:"tokens"`
+	Ts        time.Time                                    `json:"ts"`
 }
 
 // GetCitations returns the value of Citations.
@@ -78627,9 +79424,19 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) GetCitations() []FindingsPostFi
 	return s.Citations
 }
 
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDStatusOKAiConfig) GetConfigs() []FindingsPostFindingsIDStatusOKAiConfigConfigsItem {
+	return s.Configs
+}
+
 // GetModel returns the value of Model.
 func (s *FindingsPostFindingsIDStatusOKAiConfig) GetModel() string {
 	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDStatusOKAiConfig) GetNoConfigReason() OptString {
+	return s.NoConfigReason
 }
 
 // GetParagraphs returns the value of Paragraphs.
@@ -78640,6 +79447,11 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) GetParagraphs() []string {
 // GetProfile returns the value of Profile.
 func (s *FindingsPostFindingsIDStatusOKAiConfig) GetProfile() OptString {
 	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDStatusOKAiConfig) GetShortened() OptBool {
+	return s.Shortened
 }
 
 // GetSkill returns the value of Skill.
@@ -78667,9 +79479,19 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) SetCitations(val []FindingsPost
 	s.Citations = val
 }
 
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDStatusOKAiConfig) SetConfigs(val []FindingsPostFindingsIDStatusOKAiConfigConfigsItem) {
+	s.Configs = val
+}
+
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDStatusOKAiConfig) SetModel(val string) {
 	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDStatusOKAiConfig) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
 }
 
 // SetParagraphs sets the value of Paragraphs.
@@ -78680,6 +79502,11 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) SetParagraphs(val []string) {
 // SetProfile sets the value of Profile.
 func (s *FindingsPostFindingsIDStatusOKAiConfig) SetProfile(val OptString) {
 	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDStatusOKAiConfig) SetShortened(val OptBool) {
+	s.Shortened = val
 }
 
 // SetSkill sets the value of Skill.
@@ -78725,6 +79552,68 @@ func (s *FindingsPostFindingsIDStatusOKAiConfigCitationsItem) SetTitle(val strin
 // SetURL sets the value of URL.
 func (s *FindingsPostFindingsIDStatusOKAiConfigCitationsItem) SetURL(val OptString) {
 	s.URL = val
+}
+
+type FindingsPostFindingsIDStatusOKAiConfigConfigsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) SetTitle(val string) {
+	s.Title = val
 }
 
 type FindingsPostFindingsIDStatusOKAiConfigSkill string
@@ -78794,15 +79683,26 @@ func (s *FindingsPostFindingsIDStatusOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsPostFindingsIDStatusOKAiExplain struct {
-	Citations  []FindingsPostFindingsIDStatusOKAiExplainCitationsItem `json:"citations"`
-	Model      string                                                 `json:"model"`
-	Paragraphs []string                                               `json:"paragraphs"`
+	Citations []FindingsPostFindingsIDStatusOKAiExplainCitationsItem `json:"citations"`
+	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
+	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
+	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs []FindingsPostFindingsIDStatusOKAiExplainConfigsItem `json:"configs"`
+	Model   string                                               `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
-	Profile OptString                                     `json:"profile"`
-	Skill   FindingsPostFindingsIDStatusOKAiExplainSkill  `json:"skill"`
-	Steps   []string                                      `json:"steps"`
-	Tokens  FindingsPostFindingsIDStatusOKAiExplainTokens `json:"tokens"`
-	Ts      time.Time                                     `json:"ts"`
+	Profile OptString `json:"profile"`
+	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
+	// (never in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                       `json:"shortened"`
+	Skill     FindingsPostFindingsIDStatusOKAiExplainSkill  `json:"skill"`
+	Steps     []string                                      `json:"steps"`
+	Tokens    FindingsPostFindingsIDStatusOKAiExplainTokens `json:"tokens"`
+	Ts        time.Time                                     `json:"ts"`
 }
 
 // GetCitations returns the value of Citations.
@@ -78810,9 +79710,19 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) GetCitations() []FindingsPostF
 	return s.Citations
 }
 
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDStatusOKAiExplain) GetConfigs() []FindingsPostFindingsIDStatusOKAiExplainConfigsItem {
+	return s.Configs
+}
+
 // GetModel returns the value of Model.
 func (s *FindingsPostFindingsIDStatusOKAiExplain) GetModel() string {
 	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDStatusOKAiExplain) GetNoConfigReason() OptString {
+	return s.NoConfigReason
 }
 
 // GetParagraphs returns the value of Paragraphs.
@@ -78823,6 +79733,11 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) GetParagraphs() []string {
 // GetProfile returns the value of Profile.
 func (s *FindingsPostFindingsIDStatusOKAiExplain) GetProfile() OptString {
 	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDStatusOKAiExplain) GetShortened() OptBool {
+	return s.Shortened
 }
 
 // GetSkill returns the value of Skill.
@@ -78850,9 +79765,19 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) SetCitations(val []FindingsPos
 	s.Citations = val
 }
 
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDStatusOKAiExplain) SetConfigs(val []FindingsPostFindingsIDStatusOKAiExplainConfigsItem) {
+	s.Configs = val
+}
+
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDStatusOKAiExplain) SetModel(val string) {
 	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDStatusOKAiExplain) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
 }
 
 // SetParagraphs sets the value of Paragraphs.
@@ -78863,6 +79788,11 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) SetParagraphs(val []string) {
 // SetProfile sets the value of Profile.
 func (s *FindingsPostFindingsIDStatusOKAiExplain) SetProfile(val OptString) {
 	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDStatusOKAiExplain) SetShortened(val OptBool) {
+	s.Shortened = val
 }
 
 // SetSkill sets the value of Skill.
@@ -78908,6 +79838,68 @@ func (s *FindingsPostFindingsIDStatusOKAiExplainCitationsItem) SetTitle(val stri
 // SetURL sets the value of URL.
 func (s *FindingsPostFindingsIDStatusOKAiExplainCitationsItem) SetURL(val OptString) {
 	s.URL = val
+}
+
+type FindingsPostFindingsIDStatusOKAiExplainConfigsItem struct {
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) GetCheck() []string {
+	return s.Check
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) SetCheck(val []string) {
+	s.Check = val
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) SetTitle(val string) {
+	s.Title = val
 }
 
 type FindingsPostFindingsIDStatusOKAiExplainSkill string
@@ -81208,11 +82200,20 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternative) SetTitle(val
 }
 
 type FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -81233,6 +82234,11 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem) Get
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -81256,11 +82262,20 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemAlternativeStepsItem) Set
 }
 
 type FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -81281,6 +82296,11 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem) GetSideEffect(
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -81304,11 +82324,20 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemStepsItem) SetTitle(val s
 }
 
 type FindingsPostFindingsIDStatusOKPackFirewallItemUndoItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDStatusOKPackFirewallItemUndoItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -81329,6 +82358,11 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemUndoItem) GetSideEffect()
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDStatusOKPackFirewallItemUndoItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDStatusOKPackFirewallItemUndoItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.
@@ -81400,11 +82434,20 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemVendor) UnmarshalText(dat
 }
 
 type FindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem struct {
-	Code string    `json:"code"`
-	Note OptString `json:"note"`
+	// #897 r2, AI config blocks only: the IP addresses the block names that are not the device's or a sent
+	// firewall's (netmasks, wildcards, 0.0.0.0 and :: aside), as written; the page shows "Check these
+	// addresses" above the block. Nothing is left out for an address.
+	Check []string  `json:"check"`
+	Code  string    `json:"code"`
+	Note  OptString `json:"note"`
 	// Side effect that must be stated before the user pastes the command.
 	SideEffect OptString `json:"side_effect"`
 	Title      string    `json:"title"`
+}
+
+// GetCheck returns the value of Check.
+func (s *FindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem) GetCheck() []string {
+	return s.Check
 }
 
 // GetCode returns the value of Code.
@@ -81425,6 +82468,11 @@ func (s *FindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem) GetSideEffect
 // GetTitle returns the value of Title.
 func (s *FindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem) GetTitle() string {
 	return s.Title
+}
+
+// SetCheck sets the value of Check.
+func (s *FindingsPostFindingsIDStatusOKPackFirewallItemVerifyItem) SetCheck(val []string) {
+	s.Check = val
 }
 
 // SetCode sets the value of Code.

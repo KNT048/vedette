@@ -496,14 +496,15 @@ func (c cleanObs) target() string {
 // drop a live device's facts; the passive sensor confirms every 15 minutes.
 const ipTrust = 72 * time.Hour
 
-// resolve finds the device a hint points to, or creates it (#829: the address is an attribute, never the identity). The agent bound to
-// a device wins (D-598); a hint with only an agent reaches that device or nothing. Then the MAC; then the address: a hint with no MAC
-// goes to the device holding the address when that device has no MAC (the address is all it is known by) or its address was confirmed
-// within ipTrust, else nowhere ("", logged; an agent's report makes a device instead, which agentOrphan joins to the old one when the
-// agent reports its card). A hint with a MAC nobody
-// owns binds the address's device when it has no MAC yet: a hand-added one at any age (its address is a person's word, the bootstrap
-// Lansweeper and Tenable do), a discovered one only within ipTrust; otherwise, or when the holder has another MAC, a new device is made
-// and takes the address (claimIP). A hint with only a MAC that a join left as a chassis MAC (D-515) is about the device it joined.
+// resolve finds the device a hint points to, or creates it (#829: the address is an attribute, never the identity); "" when no device
+// may take it. The agent bound to a device wins (D-598); a hint with only an agent reaches that device or nothing. Then the MAC; then
+// the address. A hint with no MAC goes to the device holding the address when that device has no MAC (the address is all it is known
+// by), when its address was confirmed within ipTrust, or when no device's was (no sensor that sees MACs runs: nothing tells a stale
+// address from a quiet one); otherwise a sensor's hint goes nowhere (logged) and an agent's makes a device of its own, which
+// agentOrphan joins to the old one when the agent reports its card. A hint with a MAC nobody owns binds the address's device when that
+// device has no MAC yet: a hand-added one at any age (its address is a person's word: the bootstrap Lansweeper and Tenable do), a
+// discovered one only within ipTrust; otherwise, or when the holder has another MAC, a new device is made and takes the address
+// (claimIP). A hint with only a MAC that a join left as a chassis MAC (D-515) is about the device it joined.
 func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id string, created bool, err error) {
 	if c.agent != "" { // the agent bound to a device finds it wherever its address went (D-598); an agent moves the address
 		if id, err := s.keyHit(ctx, tx, c); id != "" || err != nil {
@@ -535,11 +536,19 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id strin
 		case err != nil:
 			return "", false, fmt.Errorf("inventory: find device by IP: %w", err)
 		case c.mac == "":
-			fresh := confirmed.Valid && confirmed.String >= store.FormatTS(s.clock().Add(-ipTrust))
+			cutoff := store.FormatTS(s.clock().Add(-ipTrust))
 			switch {
 			case !holderMAC.Valid: // known by its address only: the address is its identity, and this is a sighting of it
 				return id, false, confirmIP(ctx, tx, id, c.ip, c.seenAt)
-			case fresh:
+			case confirmed.Valid && confirmed.String >= cutoff:
+				return id, false, nil
+			}
+			var watched bool // a sensor tied some device to its address lately: the holder's silence is news, not a sensor turned off
+			if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM inv_asset WHERE mac IS NOT NULL AND ip_confirmed_at >= ?)`, cutoff).Scan(&watched); err != nil {
+				return "", false, fmt.Errorf("inventory: check the sensors: %w", err)
+			}
+			switch {
+			case !watched:
 				return id, false, nil
 			case c.agent == "":
 				s.log.InfoContext(ctx, "inventory: a report by address only was not given to the device holding the address: no sensor tied that address to the device lately",

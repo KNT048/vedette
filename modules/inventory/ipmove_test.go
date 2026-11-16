@@ -11,7 +11,10 @@ import (
 
 // #829 (J2): the address is an attribute of a device, never its identity.
 
-const xenMAC = "00:16:3e:5a:01:01" // burned in (Xensource OUI): the N100 C1 walk
+const (
+	xenMAC = "00:16:3e:5a:01:01" // burned in (Xensource OUI): the N100 C1 walk
+	router = "3c:22:fb:00:00:fe" // another device a sensor sees, so the sensors are known to run
+)
 
 // arp is what the passive sensor sends for one ARP sighting of a new MAC, in its order: the card's maker (the OUI table, a MAC-only
 // hint) is queued before the ARP that pairs the MAC with its address (sensor-passive capture/engine.go add, queueVendor).
@@ -125,8 +128,9 @@ func TestContract_829_AReusedAddressIsANewDevice(t *testing.T) {
 }
 
 // C5 / gap 2: a report by address only (a version scan, an SNMP read, a software list) reaches the device at that address only while a
-// sighting tied the two within ipTrust (3 days); past it the report is dropped, never written onto a device that may have left. A
-// device known by its address only (a routed subnet) is still found by it. An address-only device past ipTrust does not adopt a MAC
+// sighting tied the two within ipTrust (3 days), or while no sensor saw any MAC in that time (sensors off: nothing tells a stale
+// address from a quiet one); past it the report is dropped, never written onto a device that may have left. A device known by its
+// address only (a routed subnet) is still found by it. An address-only device past ipTrust does not adopt a MAC
 // seen at its address: that MAC is a new device.
 func TestContract_829_AnAddressOnlyReportNeedsARecentSighting(t *testing.T) {
 	e := newEnv(t)
@@ -138,18 +142,24 @@ func TestContract_829_AnAddressOnlyReportNeedsARecentSighting(t *testing.T) {
 		t.Fatalf("within 3 days: name %v", d.Hostname)
 	}
 	e.tick(2 * time.Hour) // 73 h since the MAC was last seen at .20
+	e.record(byAddress("192.168.18.20", "quiet-name")...)
+	if d := e.only(); *d.Hostname != "quiet-name" {
+		t.Fatalf("no sensor saw any MAC in 3 days (sensors off): the report must still reach the device, name %v", *d.Hostname)
+	}
+	e.record(dhcp(router, "192.168.18.1", "")...) // a sensor runs: the device's silence is news
 	e.record(byAddress("192.168.18.20", "stale-name")...)
 	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20")}, observe.Nmap,
 		[]observe.Software{{Display: "OpenSSH 9.6", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.9}}); err != nil {
 		t.Fatal(err)
 	}
-	if d := e.only(); d.ID != id || *d.Hostname != "fresh-name" || len(e.device(id).Software) != 0 {
+	if d := e.device(id); *d.Hostname != "quiet-name" || len(d.Software) != 0 {
 		t.Errorf("past 3 days: name %v software %d; want the address-only reports dropped", *d.Hostname, len(e.device(id).Software))
 	}
 	// The MAC seen there again confirms the address: reports by address reach the device again.
+	e.tick(time.Minute) // a newer name than quiet-name (same source and confidence: the newer wins)
 	e.record(dhcp(burnt1, "192.168.18.20", "")...)
 	e.record(byAddress("192.168.18.20", "stale-name")...)
-	if d := e.only(); *d.Hostname != "stale-name" {
+	if d := e.device(id); *d.Hostname != "stale-name" {
 		t.Errorf("after the MAC was seen again: name %v", *d.Hostname)
 	}
 
@@ -239,14 +249,15 @@ func TestContract_829_AnAgentAtAStaleAddress(t *testing.T) {
 			t.Fatal(err)
 		}
 		e.tick(73 * time.Hour)
+		e.record(dhcp(router, "192.168.18.1", "")...) // a sensor runs
 		h := observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20"), Agent: "osquery:node-a"}
 		e.record(observe.Observation{AssetHint: h, Field: observe.Hostname, Value: "build01", Source: observe.Agent, Confidence: 0.9},
 			observe.Observation{AssetHint: h, Field: observe.MAC, Value: card, Source: observe.Agent, Confidence: 0.9})
 		holder := e.idOf("192.168.18.20")
 		switch {
-		case own && (holder != id || e.devices() != 1):
+		case own && (holder != id || e.devices() != 2): // and the router
 			t.Errorf("its own card: holder %s (want %s), %d devices", holder, id, e.devices())
-		case !own && (holder == id || e.devices() != 2 || !e.device(id).Approved || e.device(id).IP != "—"):
+		case !own && (holder == id || e.devices() != 3 || !e.device(id).Approved || e.device(id).IP != "—"):
 			t.Errorf("another card: holder %s (old %s), %d devices, old %+v", holder, id, e.devices(), e.device(id).AssetCore)
 		}
 		if e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_key = 'osquery:node-a'`, holder) != 1 {

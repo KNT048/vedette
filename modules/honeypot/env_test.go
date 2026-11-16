@@ -79,6 +79,7 @@ type fakeHost struct {
 	calls     []string
 	restarts  []bool // the restart flag of every StartContainer
 	failStart error
+	failStat  error // Status fails with it
 	failStop  error
 	failRm    error
 	specs     map[netip.Addr]honeypot.DecoySpec // the spec of the last AddDecoyIP of each address
@@ -94,6 +95,9 @@ func newHost(available bool) *fakeHost {
 func (h *fakeHost) Status(context.Context) (honeypot.HostStatus, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if h.failStat != nil {
+		return honeypot.HostStatus{}, h.failStat
+	}
 	return h.status, nil
 }
 

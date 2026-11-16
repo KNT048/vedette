@@ -73,6 +73,11 @@ type Service struct {
 	// applyMu). Memory only (INV-15: nothing in config/ is read back), so the first Apply after core starts asks for one
 	// restart. ponytail: one restart per core start, an upgrade is a hash of the file the container last read.
 	restartDue bool
+	// busySince is when the host first answered busy to what Apply is waiting on (the container start, or the first address when
+	// none is placed); zero when the last Apply did not stop on a busy host. startFailed is the reason of a start that really failed
+	// during the same wait: a busy answer after it does not read "starting" (guarded by applyMu, #889).
+	busySince   time.Time
+	startFailed string
 	// https is the certificate of the HTTPS trap in use (https.go; guarded by applyMu), nil until it is first needed.
 	https *httpsCert
 	// refusals is what the host refused per address, for the back-off (guarded by applyMu); sig is the wanted set it belongs to.
@@ -433,7 +438,7 @@ func (s *Service) overview(ctx context.Context, w *world) (Overview, error) {
 	}
 	out.HTTPPage = httpPage(http)
 	// The traps cannot listen at all (the host, the container): one reason for the page. A Trap IP's own trouble is its reason.
-	if ips, _, _ := w.desired(); len(ips) > 0 && !hv.pending && (!hv.available || !hv.running) {
+	if ips, _, _ := w.desired(); len(ips) > 0 && !hv.pending && !hv.starting && (!hv.available || !hv.running) {
 		out.Problem = ptr(reasonOrDefault(hv.reason))
 	}
 	for _, svc := range Services {

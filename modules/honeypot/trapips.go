@@ -425,7 +425,7 @@ func (w *world) withState(d trapIPRow, hv hostView) TrapIP {
 			}
 		}
 		return set(StateListening, "")
-	case hv.pending:
+	case hv.pending || hv.starting:
 		return set(StateStarting, "")
 	case hv.available && hv.running: // the container runs, but the host did not confirm this address (no answer, busy)
 		return set(StateFailed, notConfirmed)

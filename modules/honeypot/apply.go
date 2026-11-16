@@ -36,6 +36,9 @@ type hostCache struct {
 	// MACs read. links are what the host says of each address it holds: MAC, link, parent card (when the host says).
 	placed map[netip.Addr]bool
 	links  map[netip.Addr]DecoyLink
+	// busySince: the container start (or, with no address placed, the first address) waits only on a host that answered
+	// busy since then (ErrHostBusy); the next Apply asks again. Zero otherwise. Read as "starting" for startBusyFor (#889).
+	busySince time.Time
 	// openPorts: the host cannot keep each address to its own ports (an older vedette-host without decoy_ip.set_ports,
 	// host-api §13): every address answers every service that runs, and the Trap IPs say so.
 	openPorts bool
@@ -81,16 +84,45 @@ type linkReporter interface {
 	DecoyLinks(ctx context.Context) map[netip.Addr]DecoyLink
 }
 
+// startBusyFor bounds how long a start that waits only on a busy host reads "starting". An update keeps the host busy for
+// about two minutes (#889: N100, the host's install and core's restart); past this bound it is a failure the admin should see.
+const startBusyFor = 5 * time.Minute
+
+// busyReason is the reason once a start has waited on a busy host for longer than startBusyFor.
+const busyReason = "the honeypot container did not start: the host has been busy with another operation for more than 5 minutes; the box keeps trying"
+
 // hostView is the host cache with whether a change is still waiting for the host: one consistent read for the overview.
+// starting: the last Apply stopped only on a busy host, less than startBusyFor ago (#889).
 type hostView struct {
 	hostCache
-	pending bool
+	pending  bool
+	starting bool
 }
 
 func (s *Service) hostView() hostView {
+	now := s.now()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return hostView{hostCache: s.host, pending: s.kickGen > s.doneGen}
+	return hostView{hostCache: s.host, pending: s.kickGen > s.doneGen,
+		starting: !s.host.busySince.IsZero() && now.Sub(s.host.busySince) < startBusyFor}
+}
+
+// waitBusy fills h for an Apply that stopped only on a busy host: "starting" since the first busy answer of this wait, unless a
+// start really failed during it, whose reason then stands (guarded by applyMu).
+func (s *Service) waitBusy(h *hostCache) {
+	if s.startFailed != "" {
+		h.reason = s.startFailed
+		return
+	}
+	if s.busySince.IsZero() {
+		s.busySince = s.now()
+	}
+	h.busySince, h.reason = s.busySince, busyReason
+}
+
+// endStartWait: the host took the start, said something definite, or nothing is to start (guarded by applyMu).
+func (s *Service) endStartWait() {
+	s.busySince, s.startFailed = time.Time{}, ""
 }
 
 // TrapConflicts lists the Trap IP addresses the last Apply left out of the host and why (a device or the box has the
@@ -393,7 +425,10 @@ func (s *Service) Apply(ctx context.Context) error {
 	defer cancelBudget()
 	st, err := s.cfg.Host.Status(ctx)
 	if err != nil {
-		s.setHost(hostCache{reason: "the host does not answer"})
+		if !errors.Is(err, ErrHostBusy) { // a rate-limited read changes nothing on the host: what the last Apply saw stands (#889)
+			s.setHost(hostCache{reason: "the host does not answer"})
+			s.endStartWait()
+		}
 		return errors.Join(append(errs, fmt.Errorf("honeypot: host status: %w", err))...)
 	}
 	if s.cfg.ConfigDir == "" {
@@ -405,16 +440,23 @@ func (s *Service) Apply(ctx context.Context) error {
 			reason = "this machine is not an appliance"
 		}
 		s.setHost(hostCache{reason: reason, conflicts: conflicts})
+		s.endStartWait() // a definite answer: nothing waits on a busy host
 		s.cfg.Log.InfoContext(ctx, "honeypot: traps cannot listen", "reason", reason)
 		return errors.Join(errs...)
 	}
 	specs := w.specs(ips)
 	ask, backedOff := s.backOff(ips, services, specs)
 	keep := slices.Collect(maps.Keys(backedOff))
-	placed, confirmed, refused, err := s.syncIPs(ctx, ask, specs, keep, filesOK)
+	placed, confirmed, refused, ipsBusy, err := s.syncIPs(ctx, ask, specs, keep, filesOK)
 	if parent.Err() != nil { // core is stopping: what the host did not answer is not a refusal; change nothing more
 		return errors.Join(append(errs, err, parent.Err())...)
 	}
+	waiting := false // set by a case below whose start is still to come (a busy host, a failed start); anything else ends the wait (#889)
+	defer func() {
+		if !waiting {
+			s.endStartWait()
+		}
+	}()
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -467,13 +509,25 @@ func (s *Service) Apply(ctx context.Context) error {
 		case len(refused) < len(ask): // not every address asked for was refused: an answer is missing (busy, lost)
 			reason = notConfirmed
 		}
-		set(hostCache{available: true, reason: reason, conflicts: conflicts, hostFailed: hostFailed})
+		h := hostCache{available: true, reason: reason, conflicts: conflicts, hostFailed: hostFailed}
+		if filesOK && ipsBusy && len(refused) < len(ask) { // the host did not say no: it was busy; the next Apply asks again
+			waiting = true
+			s.waitBusy(&h)
+		}
+		set(h)
 		errs = append(errs, errors.New("honeypot: the host did not take any decoy address"))
 	case !filesOK:
 		set(hostCache{available: true, reason: "the trap configuration could not be written", conflicts: conflicts, hostFailed: hostFailed})
 	default:
 		if err := s.cfg.Host.StartContainer(parent, s.restartDue); err != nil { // not the budget: a restart plus its health wait can take 4 minutes, and a cut-off start would restart again next Apply
-			set(hostCache{available: true, reason: "the honeypot container did not start", conflicts: conflicts, hostFailed: hostFailed})
+			h := hostCache{available: true, reason: "the honeypot container did not start", conflicts: conflicts, hostFailed: hostFailed}
+			waiting = true
+			if errors.Is(err, ErrHostBusy) { // not a failure yet: "starting" while the host stays busy for less than startBusyFor (#889)
+				s.waitBusy(&h)
+			} else {
+				s.startFailed = h.reason // a busy answer after it does not hide it (review r1 M2)
+			}
+			set(h)
 			errs = append(errs, fmt.Errorf("honeypot: start container: %w", err))
 			break
 		}
@@ -600,10 +654,10 @@ func (s *Service) setHost(h hostCache) {
 // placed is what the host may hold of the wanted ones (it decides whether the container runs: one slow answer must not
 // stop the traps); confirmed is what it said it holds (it took it now, or confirmed it at the last Apply and has not
 // refused it since): only that is "listening" (S-HP-1, #475). err carries what went wrong besides refusals (a removal, the database).
-func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, specs map[netip.Addr]DecoySpec, keep []netip.Addr, add bool) (placed, confirmed []netip.Addr, refused map[netip.Addr]error, err error) {
+func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, specs map[netip.Addr]DecoySpec, keep []netip.Addr, add bool) (placed, confirmed []netip.Addr, refused map[netip.Addr]error, addBusy bool, err error) {
 	var prev []string
 	if err := loadJSON(ctx, s.db.Reader(), "applied", &prev); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, false, err
 	}
 	s.mu.Lock()
 	before := s.host.placed // confirmed at the last Apply; setHost always puts a new map, this one is never written again
@@ -654,6 +708,7 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, specs map[neti
 				// one asks again). Treating this as a refusal would forget an address the host may hold (SYS-5).
 				// An address the host took at an earlier Apply stays placed: one slow answer must not stop the traps.
 				unknown[ip] = !wasHeld
+				addBusy = errors.Is(err, ErrHostBusy) // only the add's answer says whether the first address waits on a busy host (review r1 L2)
 				errs = append(errs, fmt.Errorf("honeypot: decoy IP %s: %w", ip, err))
 				break
 			}
@@ -687,7 +742,7 @@ func (s *Service) syncIPs(ctx context.Context, want []netip.Addr, specs map[neti
 		}
 	}
 	save()
-	return placed, confirmed, refused, errors.Join(errs...)
+	return placed, confirmed, refused, addBusy, errors.Join(errs...)
 }
 
 // Disable is what the module does when it is switched off (SYS-5): the container stops, the decoy IPs go, nothing
@@ -718,6 +773,7 @@ func (s *Service) disable(ctx context.Context) error {
 		s.kickGen++
 		s.mu.Unlock()
 		clear(s.refusals)
+		s.endStartWait() // a later switch-on waits its own startBusyFor
 		s.sig = ""
 	}()
 	st, err := s.cfg.Host.Status(ctx)
@@ -745,7 +801,7 @@ func (s *Service) disable(ctx context.Context) error {
 			// every one is gone and the container is not running.
 			var rerr error
 			if len(applied) > 0 {
-				_, _, _, rerr = s.syncIPs(ctx, nil, nil, nil, false)
+				_, _, _, _, rerr = s.syncIPs(ctx, nil, nil, nil, false)
 			}
 			if rerr != nil || st.Running {
 				s.setHost(hostCache{reason: turningOff})
@@ -759,7 +815,7 @@ func (s *Service) disable(ctx context.Context) error {
 	if err := s.cfg.Host.StopContainer(ctx); err != nil {
 		errs = append(errs, err)
 	}
-	_, _, _, err = s.syncIPs(ctx, nil, nil, nil, false)
+	_, _, _, _, err = s.syncIPs(ctx, nil, nil, nil, false)
 	errs = append(errs, err)
 	if err := errors.Join(errs...); err != nil {
 		s.setHost(hostCache{available: true, reason: turningOff})

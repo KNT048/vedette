@@ -399,7 +399,7 @@ func TestHoneypotHostBusyIsNotSpunOn(t *testing.T) {
 		a := &honeypotHost{api: b, log: testLogger(), poll: time.Second, runFor: 30 * time.Second}
 		start := time.Now()
 		err := a.AddDecoyIP(t.Context(), ip, honeypot.DecoySpec{})
-		if !errors.Is(err, errHostBusy) || errors.Is(err, honeypot.ErrRefused) || b.calls != 1 || time.Since(start) > time.Second || len(e.decoyLinks()) != 0 {
+		if !errors.Is(err, errHostBusy) || !errors.Is(err, honeypot.ErrHostBusy) || errors.Is(err, honeypot.ErrRefused) || b.calls != 1 || time.Since(start) > time.Second || len(e.decoyLinks()) != 0 {
 			t.Fatalf("%s: %v after %d calls in %v, links %v", name, err, b.calls, time.Since(start), e.decoyLinks())
 		}
 		if err := a.AddDecoyIP(t.Context(), ip, honeypot.DecoySpec{}); err != nil || len(e.decoyLinks()) != 1 {

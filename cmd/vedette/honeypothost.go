@@ -127,6 +127,8 @@ func (h *honeypotHost) Status(ctx context.Context) (honeypot.HostStatus, error) 
 			h.log.WarnContext(ctx, "honeypot: vedette-host is not answering", "error", err)
 		}
 		return honeypot.HostStatus{Reason: "vedette-host is not answering"}, nil
+	case hostBusy(err): // reads are rate-limited too: the module keeps what it last saw (#889)
+		return honeypot.HostStatus{}, fmt.Errorf("honeypot: host state: %w", errHostBusy)
 	default:
 		return honeypot.HostStatus{}, fmt.Errorf("honeypot: host state: %w", err)
 	}
@@ -519,8 +521,14 @@ func (h *honeypotHost) outcome(ctx context.Context, command, code, hostMsg strin
 	return h.refusal(ctx, command, code, hostMsg)
 }
 
+// hostBusy: the host answered busy or rate_limited before doing anything (a write or a read); asking again later is all to do.
+func hostBusy(err error) bool {
+	var he *hostclient.Error
+	return errors.Is(err, honeypot.ErrHostBusy) || (errors.As(err, &he) && (he.Code == api.CodeBusy || he.Code == api.CodeRateLimited))
+}
+
 var (
-	errHostBusy    = errors.New("the host is busy with another operation or rate-limiting core; will try again at the next apply")
+	errHostBusy    = fmt.Errorf("%w; will try again at the next apply", honeypot.ErrHostBusy) // the module shows "starting" while it lasts (#889)
 	errHostTooLong = errors.New("the host did not finish in time; outcome unknown, will check again at the next apply")
 )
 

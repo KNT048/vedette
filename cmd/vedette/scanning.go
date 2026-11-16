@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/exposure"
+	"github.com/knt048/vedette/modules/honeypot"
 	"github.com/knt048/vedette/modules/inventory"
 	"github.com/knt048/vedette/modules/scan"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
@@ -383,6 +385,9 @@ func (e scanningEngines) active(ctx context.Context, id string) (core.EngineStat
 	switch {
 	case st.ScopeConfirmedAt == nil || len(st.LANRanges) == 0:
 		s.State, s.Reason = core.EngineNeedsSetup, "Confirm the network ranges Vedette may scan (the safety settings above)."
+		return s, nil
+	case v.Health.Status != "ok" && e.d.ScanStart.Starting(): // the box is bringing the scan container up (busy host after an update, #889)
+		s.State, s.Reason = core.EngineStarting, "The box is starting the scan container."
 		return s, nil
 	case v.Health.Status != "ok":
 		s.State, s.Reason = core.EngineUnavailable, v.Health.Message
@@ -797,15 +802,22 @@ func (e scanningEngines) honeypot(ctx context.Context) (core.EngineStatus, error
 	if !s.Enabled {
 		return s, nil
 	}
+	s.State, s.Reason = honeypotState(o)
+	return s, nil
+}
+
+// honeypotState is the state of the switched-on honeypot card from the module's overview.
+func honeypotState(o honeypot.Overview) (state, reason string) {
 	switch {
 	case o.TrapIPs.Enabled == 0:
-		s.State, s.Reason = core.EngineNeedsSetup, "Add a Trap IP (Intrusion detection › Honeypot)."
+		return core.EngineNeedsSetup, "Add a Trap IP (Intrusion detection › Honeypot)."
 	case o.Problem != nil:
-		s.State, s.Reason = core.EngineError, *o.Problem
-	default:
-		s.State = core.EngineReady
+		return core.EngineError, *o.Problem
+	case o.TrapIPs.Listening == 0 && slices.ContainsFunc(o.Traps, func(t honeypot.Trap) bool { return t.Enabled && t.State == honeypot.StateStarting }):
+		// a change or a container start the host has not confirmed yet (busy right after an update, #889): not an error
+		return core.EngineStarting, "The box is starting the honeypot container."
 	}
-	return s, nil
+	return core.EngineReady, ""
 }
 
 // ---- Scan the LAN now / Check this device now (sensor-active INV-21) ----

@@ -58,13 +58,68 @@ EOF
 `)
 	r := start(t, nm, fastProgress)
 	r.core.push(job(id1))
-	p := r.core.waitProgress(t, id1, func(sensorlink.JobProgress) bool { return true })
+	if p := r.core.waitProgress(t, id1, func(sensorlink.JobProgress) bool { return true }); p != (sensorlink.JobProgress{Phase: "discovery", Percent: -1}) {
+		t.Fatalf("first report = %+v, want the phase nmap starts with", p)
+	}
+	p := r.core.waitProgress(t, id1, func(p sensorlink.JobProgress) bool { return p.Percent >= 0 })
 	if want := (sensorlink.JobProgress{Phase: "ports", Percent: 42.5, RemainingS: 60}); p != want {
 		t.Fatalf("progress = %+v, want %+v (an unknown task and a percent over 100 are not reported)", p, want)
 	}
 	release(t, nm.dir)
 	if got := r.core.next(t); got.res.Status != "done" {
 		t.Fatalf("result = %+v", got.res)
+	}
+}
+
+// #830 FAIL 1, fix B: where nmap prints no <taskprogress> (it found no terminal), the worker still names the phase: the one its
+// command line starts with as soon as nmap starts, then the port scan once nmap's XML says discovery found the host.
+func TestNmapPhaseMovesWithoutItsProgressLines(t *testing.T) {
+	t.Parallel()
+	nm := writeNmap(t, `cat <<'EOF'
+<?xml version="1.0"?>
+<nmaprun>
+<hosthint><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="192.168.10.20" addrtype="ipv4"/>
+<hostnames>
+</hostnames>
+</hosthint>
+EOF
+`+gate+`cat <<'EOF'
+<host><status state="up"/><address addr="192.168.10.20" addrtype="ipv4"/></host></nmaprun>
+EOF
+`)
+	r := start(t, nm, fastProgress)
+	r.core.push(job(id1))
+	if p := r.core.waitProgress(t, id1, func(sensorlink.JobProgress) bool { return true }); p != (sensorlink.JobProgress{Phase: "discovery", Percent: -1}) {
+		t.Fatalf("first report = %+v, want discovery", p)
+	}
+	if p := r.core.waitProgress(t, id1, func(p sensorlink.JobProgress) bool { return p.Phase != "discovery" }); p != (sensorlink.JobProgress{Phase: "ports", Percent: -1}) {
+		t.Fatalf("next report = %+v, want ports (no percent)", p)
+	}
+	release(t, nm.dir)
+	if got := r.core.next(t); got.res.Status != "done" {
+		t.Fatalf("result = %+v", got.res)
+	}
+}
+
+// #830 FAIL 1, fix A: the worker's nmap runs on a terminal of its own (core/exec Binary.TTY), the only way nmap 7.95 prints its
+// --stats-every lines. The fake nmap records whether its stdin is a terminal.
+func TestNmapRunsOnATerminal(t *testing.T) {
+	t.Parallel()
+	if f, err := os.OpenFile("/dev/ptmx", os.O_RDWR, 0); err != nil {
+		t.Skipf("no pseudo-terminal here: %v", err)
+	} else {
+		_ = f.Close()
+	}
+	nm := writeNmap(t, `if [ -t 0 ]; then echo yes > "$DIR/tty"; else echo no > "$DIR/tty"; fi
+`+printXML)
+	r := start(t, nm)
+	r.core.push(job(id1))
+	if got := r.core.next(t); got.res.Status != "done" {
+		t.Fatalf("result = %+v", got.res)
+	}
+	if b, err := os.ReadFile(filepath.Join(nm.dir, "tty")); err != nil || string(b) != "yes\n" {
+		t.Fatalf("nmap's stdin a terminal: %q, %v; want yes", b, err)
 	}
 }
 

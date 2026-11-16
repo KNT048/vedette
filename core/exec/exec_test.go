@@ -54,6 +54,8 @@ func helper(mode string, args []string) {
 				_, _ = w.Write(chunk[:min(left, len(chunk))])
 			}
 		}
+	case "tty": // what nmap's tty_init sees (exec_tty_linux_test.go)
+		ttyHelper(args)
 	case "block":
 		blockForever()
 	case "fork": // start a blocked grandchild, print its pid, then block too

@@ -185,7 +185,8 @@ func New(c Config) (*Worker, error) {
 	}
 	w.progressEvery = cmp.Or(max(c.ProgressEvery, 0), sensorlink.ProgressEvery)
 	bins := []exec.Binary{
-		{Name: "nmap", Path: c.NmapPath, Validate: nmapargv.Validate, MaxOutput: nmapargv.MaxOutput},
+		// TTY (#830): nmap 7.95 prints its --stats-every progress only on a controlling terminal; core/exec gives it a new one
+		{Name: "nmap", Path: c.NmapPath, Validate: nmapargv.Validate, MaxOutput: nmapargv.MaxOutput, TTY: true},
 		{Name: versionBin, Path: c.NmapPath, Validate: validVersionArgs, MaxOutput: 64 << 10},
 	}
 	nb, nc, err := newNuclei(c)
@@ -484,10 +485,10 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 	return w.finish(ctx, jctx, rctx, cur, out, err, "nmap_missing", (*sensorlink.JobResult).SetXML)
 }
 
-// runNmap runs nmap with its progress reported (#830).
+// runNmap runs nmap with its progress reported (#830): the first phase of its command line as it starts, then what its XML says.
 func (w *Worker) runNmap(ctx context.Context, id string, argv []string) (exec.Result, error) {
 	rep := &reporter{}
-	return w.runReporting(ctx, id, "nmap", argv, nmapWatch(rep), rep)
+	return w.runReporting(ctx, id, "nmap", argv, nmapWatch(argv, rep), rep)
 }
 
 // finish turns the end of a run into the result to post. setOut puts the program's stdout where the kind of job keeps it (xml_b64,

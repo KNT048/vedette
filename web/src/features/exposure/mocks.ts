@@ -14,7 +14,7 @@
 // (default: the two sample IPs, i.e. a load balancer), "offline" when no public IP service answers, or "disagree" when they never agree.
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, DOMAIN_RE, fail, guard, IPV4_RE } from '@/mocks/http'
-import { auditStore, isOn } from '@/mocks/stores'
+import { auditStore } from '@/mocks/stores'
 import { canonHash, GENESIS } from '@/lib/chain'
 import { collection, newId, nowIso, type Collection } from '@/mocks/db'
 import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, boxGreenbone, DEFAULT_INTERVAL, outsideAnswer, seedOutside, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, withDeep, type Content, type StoredTarget } from './data'
@@ -581,8 +581,7 @@ export const handlers = [
       const paused = ipPaused(t)
       if (paused) return paused
     }
-    // The scan is done by the Vulnerability scans module (D-229): off, nothing is scanned and nothing is saved.
-    if (!isOn('scan')) return fail(409, 'module_off', 'The Vulnerability scans module is off, so the box cannot scan. An admin can turn it on in Settings, Modules.')
+    // The scan module's runner does the scan (D-229) behind this module's own switch (J6): the Vulnerability scans module may be off.
     // Like the box: 202 with the run at once, and the phases move on while the page polls GET /exposure/scan. The mock has no one-at-a-time or 10-minute limit
     // (its tests scan an IP several times in a row). The result is stored when the run is done.
     const at = nowIso()

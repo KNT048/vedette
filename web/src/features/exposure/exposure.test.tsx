@@ -248,13 +248,12 @@ describe('exposure: a verified and confirmed domain', () => {
     expect((await call('POST', '/exposure/scan/stop')).json.error.code).toBe('not_running')
   })
 
-  it('with the Vulnerability scans module off, "Scan now" says so and saves nothing (D-229)', async () => {
+  it('with the Vulnerability scans module off (v1 bundles), Scan now still scans: the runner follows exposure\'s switch (J6)', async () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'scan' ? { ...m, enabled: false } : m)))
-    const before = (await call('GET', '/exposure/targets/xt-1/snapshots')).json.items.length
-    renderApp('/exposure/xt-1')
-    await userEvent.click(await screen.findByRole('button', { name: 'Scan now' }))
-    expect(await screen.findByText('The Vulnerability scans module is off, so the box cannot scan. An admin can turn it on in Settings, Modules.')).toBeInTheDocument()
-    expect((await call('GET', '/exposure/targets/xt-1/snapshots')).json.items.length).toBe(before)
+    const r = await call('POST', '/exposure/targets/xt-1/scan')
+    expect(r.status).toBe(202)
+    expect(r.json).toMatchObject({ target_id: 'xt-1', status: 'running' })
+    expect((await call('POST', '/exposure/scan/stop', undefined, 'operator')).json).toMatchObject({ status: 'stopped' })
   })
 })
 

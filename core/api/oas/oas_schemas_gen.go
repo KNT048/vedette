@@ -43773,6 +43773,9 @@ type ExposureGetExposureGreenboneOK struct {
 	ChangedBy NilString `json:"changed_by"`
 	// The stored switch; the page offers Turn off whenever it is true.
 	Enabled bool `json:"enabled"`
+	// The feed OpenVAS itself has loaded (T10): there from the first feed load at enable on; null while it
+	// is off or unavailable, and until Vedette has read it since the box started.
+	Feed NilExposureGetExposureGreenboneOKFeed `json:"feed"`
 	// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
 	// below 60 GB free, audited.
 	FeedSync  ExposureGetExposureGreenboneOKFeedSync  `json:"feed_sync"`
@@ -43797,6 +43800,11 @@ func (s *ExposureGetExposureGreenboneOK) GetChangedBy() NilString {
 // GetEnabled returns the value of Enabled.
 func (s *ExposureGetExposureGreenboneOK) GetEnabled() bool {
 	return s.Enabled
+}
+
+// GetFeed returns the value of Feed.
+func (s *ExposureGetExposureGreenboneOK) GetFeed() NilExposureGetExposureGreenboneOKFeed {
+	return s.Feed
 }
 
 // GetFeedSync returns the value of FeedSync.
@@ -43834,6 +43842,11 @@ func (s *ExposureGetExposureGreenboneOK) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
+// SetFeed sets the value of Feed.
+func (s *ExposureGetExposureGreenboneOK) SetFeed(val NilExposureGetExposureGreenboneOKFeed) {
+	s.Feed = val
+}
+
 // SetFeedSync sets the value of FeedSync.
 func (s *ExposureGetExposureGreenboneOK) SetFeedSync(val ExposureGetExposureGreenboneOKFeedSync) {
 	s.FeedSync = val
@@ -43852,6 +43865,47 @@ func (s *ExposureGetExposureGreenboneOK) SetReason(val NilString) {
 // SetState sets the value of State.
 func (s *ExposureGetExposureGreenboneOK) SetState(val ExposureGetExposureGreenboneOKState) {
 	s.State = val
+}
+
+type ExposureGetExposureGreenboneOKFeed struct {
+	// When Vedette last read it from OpenVAS.
+	CheckedAt time.Time `json:"checked_at"`
+	// When that feed was built (UTC), read from its version; null when the version is not of the form
+	// YYYYMMDDhhmm.
+	NvtDate NilDateTime `json:"nvt_date"`
+	// Version of the vulnerability tests (NVT feed) OpenVAS reports in GMP get_feeds, e.g. "202611140611";
+	// null when it gave none or one Vedette does not show.
+	NvtVersion NilString `json:"nvt_version"`
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *ExposureGetExposureGreenboneOKFeed) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetNvtDate returns the value of NvtDate.
+func (s *ExposureGetExposureGreenboneOKFeed) GetNvtDate() NilDateTime {
+	return s.NvtDate
+}
+
+// GetNvtVersion returns the value of NvtVersion.
+func (s *ExposureGetExposureGreenboneOKFeed) GetNvtVersion() NilString {
+	return s.NvtVersion
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *ExposureGetExposureGreenboneOKFeed) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetNvtDate sets the value of NvtDate.
+func (s *ExposureGetExposureGreenboneOKFeed) SetNvtDate(val NilDateTime) {
+	s.NvtDate = val
+}
+
+// SetNvtVersion sets the value of NvtVersion.
+func (s *ExposureGetExposureGreenboneOKFeed) SetNvtVersion(val NilString) {
+	s.NvtVersion = val
 }
 
 // The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
@@ -53509,6 +53563,9 @@ type ExposurePutExposureGreenboneOK struct {
 	ChangedBy NilString `json:"changed_by"`
 	// The stored switch; the page offers Turn off whenever it is true.
 	Enabled bool `json:"enabled"`
+	// The feed OpenVAS itself has loaded (T10): there from the first feed load at enable on; null while it
+	// is off or unavailable, and until Vedette has read it since the box started.
+	Feed NilExposurePutExposureGreenboneOKFeed `json:"feed"`
 	// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
 	// below 60 GB free, audited.
 	FeedSync  ExposurePutExposureGreenboneOKFeedSync  `json:"feed_sync"`
@@ -53533,6 +53590,11 @@ func (s *ExposurePutExposureGreenboneOK) GetChangedBy() NilString {
 // GetEnabled returns the value of Enabled.
 func (s *ExposurePutExposureGreenboneOK) GetEnabled() bool {
 	return s.Enabled
+}
+
+// GetFeed returns the value of Feed.
+func (s *ExposurePutExposureGreenboneOK) GetFeed() NilExposurePutExposureGreenboneOKFeed {
+	return s.Feed
 }
 
 // GetFeedSync returns the value of FeedSync.
@@ -53570,6 +53632,11 @@ func (s *ExposurePutExposureGreenboneOK) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
+// SetFeed sets the value of Feed.
+func (s *ExposurePutExposureGreenboneOK) SetFeed(val NilExposurePutExposureGreenboneOKFeed) {
+	s.Feed = val
+}
+
 // SetFeedSync sets the value of FeedSync.
 func (s *ExposurePutExposureGreenboneOK) SetFeedSync(val ExposurePutExposureGreenboneOKFeedSync) {
 	s.FeedSync = val
@@ -53588,6 +53655,47 @@ func (s *ExposurePutExposureGreenboneOK) SetReason(val NilString) {
 // SetState sets the value of State.
 func (s *ExposurePutExposureGreenboneOK) SetState(val ExposurePutExposureGreenboneOKState) {
 	s.State = val
+}
+
+type ExposurePutExposureGreenboneOKFeed struct {
+	// When Vedette last read it from OpenVAS.
+	CheckedAt time.Time `json:"checked_at"`
+	// When that feed was built (UTC), read from its version; null when the version is not of the form
+	// YYYYMMDDhhmm.
+	NvtDate NilDateTime `json:"nvt_date"`
+	// Version of the vulnerability tests (NVT feed) OpenVAS reports in GMP get_feeds, e.g. "202611140611";
+	// null when it gave none or one Vedette does not show.
+	NvtVersion NilString `json:"nvt_version"`
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *ExposurePutExposureGreenboneOKFeed) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetNvtDate returns the value of NvtDate.
+func (s *ExposurePutExposureGreenboneOKFeed) GetNvtDate() NilDateTime {
+	return s.NvtDate
+}
+
+// GetNvtVersion returns the value of NvtVersion.
+func (s *ExposurePutExposureGreenboneOKFeed) GetNvtVersion() NilString {
+	return s.NvtVersion
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *ExposurePutExposureGreenboneOKFeed) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetNvtDate sets the value of NvtDate.
+func (s *ExposurePutExposureGreenboneOKFeed) SetNvtDate(val NilDateTime) {
+	s.NvtDate = val
+}
+
+// SetNvtVersion sets the value of NvtVersion.
+func (s *ExposurePutExposureGreenboneOKFeed) SetNvtVersion(val NilString) {
+	s.NvtVersion = val
 }
 
 // The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
@@ -108896,6 +109004,51 @@ func (o NilExposureDeleteExposureTargetsIDTermsOKValidity) Or(d ExposureDeleteEx
 	return d
 }
 
+// NewNilExposureGetExposureGreenboneOKFeed returns new NilExposureGetExposureGreenboneOKFeed with value set to v.
+func NewNilExposureGetExposureGreenboneOKFeed(v ExposureGetExposureGreenboneOKFeed) NilExposureGetExposureGreenboneOKFeed {
+	return NilExposureGetExposureGreenboneOKFeed{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureGreenboneOKFeed is nullable ExposureGetExposureGreenboneOKFeed.
+type NilExposureGetExposureGreenboneOKFeed struct {
+	Value ExposureGetExposureGreenboneOKFeed
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureGreenboneOKFeed) SetTo(v ExposureGetExposureGreenboneOKFeed) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureGreenboneOKFeed) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureGreenboneOKFeed) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureGreenboneOKFeed
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureGreenboneOKFeed) Get() (v ExposureGetExposureGreenboneOKFeed, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureGreenboneOKFeed) Or(d ExposureGetExposureGreenboneOKFeed) ExposureGetExposureGreenboneOKFeed {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureScanOK returns new NilExposureGetExposureScanOK with value set to v.
 func NewNilExposureGetExposureScanOK(v ExposureGetExposureScanOK) NilExposureGetExposureScanOK {
 	return NilExposureGetExposureScanOK{
@@ -111320,6 +111473,51 @@ func (o NilExposurePutExposureBoxIPSettingsOKLastRun) Get() (v ExposurePutExposu
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePutExposureBoxIPSettingsOKLastRun) Or(d ExposurePutExposureBoxIPSettingsOKLastRun) ExposurePutExposureBoxIPSettingsOKLastRun {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePutExposureGreenboneOKFeed returns new NilExposurePutExposureGreenboneOKFeed with value set to v.
+func NewNilExposurePutExposureGreenboneOKFeed(v ExposurePutExposureGreenboneOKFeed) NilExposurePutExposureGreenboneOKFeed {
+	return NilExposurePutExposureGreenboneOKFeed{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureGreenboneOKFeed is nullable ExposurePutExposureGreenboneOKFeed.
+type NilExposurePutExposureGreenboneOKFeed struct {
+	Value ExposurePutExposureGreenboneOKFeed
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureGreenboneOKFeed) SetTo(v ExposurePutExposureGreenboneOKFeed) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureGreenboneOKFeed) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureGreenboneOKFeed) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureGreenboneOKFeed
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureGreenboneOKFeed) Get() (v ExposurePutExposureGreenboneOKFeed, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureGreenboneOKFeed) Or(d ExposurePutExposureGreenboneOKFeed) ExposurePutExposureGreenboneOKFeed {
 	if v, ok := o.Get(); ok {
 		return v
 	}

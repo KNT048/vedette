@@ -235,6 +235,11 @@ export const Greenbone = z.object({
     note: z.string().nullable().describe('What happened, e.g. "Not updated: this box has 41.3 GB of free disk space; OpenVAS needs at least 60.0 GB free."'),
     next_at: z.iso.datetime().nullable().describe('When the next one is due: a week after the last that worked (or after enabling), a day after one that did not; null while Greenbone is off or unavailable'),
   }).describe('The weekly update of Greenbone\'s feed while it is enabled (D-564): never during a scan, refused below 60 GB free, audited'),
+  feed: z.object({
+    nvt_version: z.string().nullable().describe('Version of the vulnerability tests (NVT feed) OpenVAS reports in GMP get_feeds, e.g. "202611140611"; null when it gave none or one Vedette does not show'),
+    nvt_date: z.iso.datetime().nullable().describe('When that feed was built (UTC), read from its version; null when the version is not of the form YYYYMMDDhhmm'),
+    checked_at: z.iso.datetime().describe('When Vedette last read it from OpenVAS'),
+  }).nullable().describe('The feed OpenVAS itself has loaded (T10): there from the first feed load at enable on; null while it is off or unavailable, and until Vedette has read it since the box started'),
   enabled: z.boolean().describe('The stored switch; the page offers Turn off whenever it is true'),
 })
 

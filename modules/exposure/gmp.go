@@ -277,8 +277,35 @@ func (g *gmpConn) authenticate(ctx context.Context, l GMPLogin) error {
 type gmpFeeds struct {
 	Feeds []struct {
 		Type    string    `xml:"type"`
+		Version string    `xml:"version"`
 		Syncing *struct{} `xml:"currently_syncing"`
 	} `xml:"feed"`
+}
+
+// gmpFeedVersion is the shape of a feed version Vedette shows; anything else gvmd sends is not shown (untrusted input, fail closed).
+var gmpFeedVersion = regexp.MustCompile(`^[0-9A-Za-z._:-]{1,40}$`)
+
+// nvtFeed is the version of the vulnerability tests (the NVT feed) gvmd reports in get_feeds, and the date it encodes: Greenbone's
+// feed versions are the UTC time the feed was built, "YYYYMMDDhhmm" (plugin_feed_info.inc PLUGIN_SET, read by gvmd from the scanner).
+// No NVT feed, a version of another shape or a date that is not one: nil, never a guess.
+func (f gmpFeeds) nvtFeed() (version *string, date *time.Time) {
+	for _, x := range f.Feeds {
+		if strings.TrimSpace(x.Type) != "NVT" {
+			continue
+		}
+		v := strings.TrimSpace(x.Version)
+		if !gmpFeedVersion.MatchString(v) {
+			return nil, nil
+		}
+		version = &v
+		if len(v) == 12 {
+			if t, err := time.Parse("200601021504", v); err == nil && t.Year() >= 2000 && t.Year() < 2100 {
+				date = &t
+			}
+		}
+		return version, date
+	}
+	return nil, nil
 }
 
 type gmpConfig struct {
@@ -302,28 +329,29 @@ type gmpConfigs struct {
 }
 
 // readiness says whether Greenbone can scan: its feeds are not syncing and the "Full and fast" config is there (the feed's data
-// objects are loaded). loading is true while the first feed load (about 2 hours) or a feed update runs.
-func (g *gmpConn) readiness(ctx context.Context) (loading bool, err error) {
+// objects are loaded). loading is true while the first feed load (about 2 hours) or a feed update runs. feeds is gvmd's get_feeds
+// answer (its NVT feed version is what the setting shows), also when loading.
+func (g *gmpConn) readiness(ctx context.Context) (loading bool, feeds gmpFeeds, err error) {
 	var f gmpFeeds
 	if _, err := g.do(ctx, "get_feeds", "<get_feeds/>", gmpMaxAnswer, &f); err != nil {
-		return false, err
+		return false, gmpFeeds{}, err
 	}
 	if len(f.Feeds) == 0 {
-		return true, nil
+		return true, f, nil
 	}
 	for _, x := range f.Feeds {
 		if x.Syncing != nil {
-			return true, nil
+			return true, f, nil
 		}
 	}
 	var c gmpConfigs
 	switch _, err := g.do(ctx, "get_configs", `<get_configs config_id="`+gmpFullAndFast+`"/>`, gmpMaxAnswer, &c); {
 	case errors.Is(err, errGMPNotFound):
-		return true, nil
+		return true, f, nil
 	case err != nil:
-		return false, err
+		return false, f, err
 	}
-	return !slices.ContainsFunc(c.Configs, func(x gmpConfig) bool { return x.ID == gmpFullAndFast }), nil
+	return !slices.ContainsFunc(c.Configs, func(x gmpConfig) bool { return x.ID == gmpFullAndFast }), f, nil
 }
 
 // levelConfig returns the id of Vedette's config of one level, creating it once as a copy of "Full and fast" (reused by name only

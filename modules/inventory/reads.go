@@ -324,7 +324,12 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 		}
 		views = append(views, SoftwareView{ID: sw.ID, Display: sw.Display, Vendor: sw.Vendor, Product: sw.Product, Version: sw.Version, KevCVEs: cves, Source: sw.Source, Confidence: sw.Confidence})
 	}
+	same, err := s.PossibleSameAs(ctx, id)
+	if err != nil {
+		return Detail{}, err
+	}
 	return Detail{
+		PossibleSame:  same,
 		Asset:         DetailAsset{AssetCore: d.AssetCore, Software: views},
 		Suspicious:    d.Suspicious,
 		FindingsCount: d.FindingsCount,

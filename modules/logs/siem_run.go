@@ -147,7 +147,7 @@ func (s *Service) Subscribe(bus SiemBus) (unsubscribe func()) {
 			}
 			gen := s.siemQ.generation() // before the configuration: a save in between makes the push refuse
 			cfg := s.siemCache.Load()
-			if cfg == nil || !cfg.Enabled || !slices.Contains(cfg.Events, class) {
+			if cfg == nil || !cfg.Enabled || cfg.stopped() || !slices.Contains(cfg.Events, class) { // stopped: nothing could be sent (#847)
 				return nil
 			}
 			raw, err := json.Marshal(e.Data)
@@ -266,6 +266,11 @@ func (s *Service) runSiem(ctx context.Context) error {
 			if !fresh {
 				continue
 			}
+			if cfg.Enabled && cfg.stopped() {
+				// #847: the webhook's signing key is sealed under another master key. One warning per configuration read (a read happens at
+				// the start and after each Save): nothing is queued or sent, and the job waits for a Save instead of retrying.
+				s.cfg.Log.WarnContext(ctx, "logs: the saved SIEM signing key cannot be opened with this box's master key (restored without the decryption key, or the key file was made again); forwarding is stopped until the key is entered again and saved")
+			}
 			backoff = 0
 			select { // a reload signal that arrived before this read is spent; one that arrives later finds the cache nil
 			case <-s.siemReload:
@@ -279,7 +284,7 @@ func (s *Service) runSiem(ctx context.Context) error {
 		if cfg == nil { // a save came in since the check above: read again, do not sleep
 			continue
 		}
-		if cfg.Enabled {
+		if cfg.Enabled && !cfg.stopped() {
 			recs, upTo = s.siemQ.peek(siemBatch)
 		}
 		if len(recs) == 0 {

@@ -4829,6 +4829,10 @@
                               "null"
                             ]
                           },
+                          "key_lost": {
+                            "type": "boolean",
+                            "description": "A key is saved but this box cannot open it (a backup restored without its decryption key, or the box key changed, #847). The profile is not usable and is never called; Test and Edit without a new key answer 409 secret_lost. Enter the key again in Edit, or delete the profile"
+                          },
                           "location": {
                             "type": "string",
                             "enum": [
@@ -4892,6 +4896,7 @@
                           "base_url",
                           "model",
                           "key_last4",
+                          "key_lost",
                           "location",
                           "monthly_budget",
                           "usable",
@@ -5050,6 +5055,10 @@
                         "null"
                       ]
                     },
+                    "key_lost": {
+                      "type": "boolean",
+                      "description": "A key is saved but this box cannot open it (a backup restored without its decryption key, or the box key changed, #847). The profile is not usable and is never called; Test and Edit without a new key answer 409 secret_lost. Enter the key again in Edit, or delete the profile"
+                    },
                     "location": {
                       "type": "string",
                       "enum": [
@@ -5113,6 +5122,7 @@
                     "base_url",
                     "model",
                     "key_last4",
+                    "key_lost",
                     "location",
                     "monthly_budget",
                     "usable",
@@ -5343,6 +5353,10 @@
                         "null"
                       ]
                     },
+                    "key_lost": {
+                      "type": "boolean",
+                      "description": "A key is saved but this box cannot open it (a backup restored without its decryption key, or the box key changed, #847). The profile is not usable and is never called; Test and Edit without a new key answer 409 secret_lost. Enter the key again in Edit, or delete the profile"
+                    },
                     "location": {
                       "type": "string",
                       "enum": [
@@ -5406,6 +5420,7 @@
                     "base_url",
                     "model",
                     "key_last4",
+                    "key_lost",
                     "location",
                     "monthly_budget",
                     "usable",
@@ -47210,6 +47225,10 @@
                         "null"
                       ]
                     },
+                    "secret_lost": {
+                      "type": "boolean",
+                      "description": "A signing key is saved but this box cannot open it (a backup restored without its decryption key, or the box key changed, #847). Only the JSON webhook signs with it: while the format is json, Test and Save without a new key answer 409 secret_lost and nothing is forwarded until the key is entered again"
+                    },
                     "events": {
                       "type": "array",
                       "items": {
@@ -47260,6 +47279,7 @@
                     "proto",
                     "url",
                     "secret_last4",
+                    "secret_lost",
                     "events",
                     "last_test"
                   ],
@@ -47405,6 +47425,10 @@
                         "null"
                       ]
                     },
+                    "secret_lost": {
+                      "type": "boolean",
+                      "description": "A signing key is saved but this box cannot open it (a backup restored without its decryption key, or the box key changed, #847). Only the JSON webhook signs with it: while the format is json, Test and Save without a new key answer 409 secret_lost and nothing is forwarded until the key is entered again"
+                    },
                     "events": {
                       "type": "array",
                       "items": {
@@ -47455,6 +47479,7 @@
                     "proto",
                     "url",
                     "secret_last4",
+                    "secret_lost",
                     "events",
                     "last_test"
                   ],

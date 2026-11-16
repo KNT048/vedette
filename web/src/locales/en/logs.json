@@ -275,6 +275,9 @@
     "secretHint": "At least 16 characters.",
     "secretHintInfo": "Each request then carries X-Vedette-Timestamp (Unix seconds) and X-Vedette-Signature (sha256=<hex>): HMAC-SHA256 with this key over the timestamp, a dot and the raw body.",
     "secretSaved": "Saved, ending in {{last4}}. Leave empty to keep it.",
+    "secretLost": "The saved key was not restored with the backup. Enter it again (or press Generate random and put the new key in your SIEM), then save.",
+    "lostTitle": "Forwarding is stopped: the saved signing key was not restored",
+    "lostBody": "The backup was restored without its decryption key, or the box key changed. Nothing is sent to the SIEM until you enter the signing key again below and save.",
     "generate": "Generate random",
     "events": "Events to forward",
     "event": {

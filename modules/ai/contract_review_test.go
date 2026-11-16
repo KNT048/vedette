@@ -317,6 +317,8 @@ func TestContract_L2_ABadSavedStateDoesNotStopTheBox(t *testing.T) {
 		}
 	})
 	t.Run("a key that cannot be opened", func(t *testing.T) {
+		// #847: a key sealed under another master key (a restore without the key) is not a bad state: the profile loads with key_lost,
+		// unusable, and can be edited or deleted (restore_nokey_test.go). The module is not degraded, and no job runs on it.
 		a := newAPI(t)
 		a.addProfile(cloudBody("Claude", keyA))
 		other, err := secrets.New([]byte("ffffffffffffffffffffffffffffffff"))
@@ -327,8 +329,8 @@ func TestContract_L2_ABadSavedStateDoesNotStopTheBox(t *testing.T) {
 		if err != nil {
 			t.Fatalf("the box must start: %v", err)
 		}
-		if deg(svc) == "" || svc.Config().JobsReady["explain-finding"] {
-			t.Fatal("not degraded")
+		if deg(svc) != "" || svc.Config().JobsReady["explain-finding"] {
+			t.Fatalf("degraded %q, or a job is ready on a lost key", deg(svc))
 		}
 	})
 	t.Run("a sound state is not degraded", func(t *testing.T) {

@@ -51,6 +51,9 @@ func keyFor(old stored, in ProfileInput, baseURL string) (key provider.Secret, e
 	if in.APIKey != "" {
 		return provider.NewSecret(in.APIKey), nil
 	}
+	if old.KeyLost { // #847: there is no saved key to keep or to test with
+		return provider.Secret{}, profileKeyLost(old.Name)
+	}
 	if !old.APIKey.IsSet() {
 		return provider.Secret{}, nil
 	}

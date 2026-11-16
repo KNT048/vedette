@@ -201,6 +201,9 @@ func (s *Service) SetIndexProfile(ctx context.Context, who string, id *string) (
 		case !ok:
 			s.mu.Unlock()
 			return KnowledgeView{}, badInput("unknown_profile", "This AI profile no longer exists. Pick another.")
+		case p.KeyLost:
+			s.mu.Unlock()
+			return KnowledgeView{}, profileKeyLost(p.Name)
 		case !p.Usable():
 			s.mu.Unlock()
 			return KnowledgeView{}, badInput("profile_unusable", "%q has no API key yet, so it cannot build the index. Edit the profile and add the key.", p.Name)

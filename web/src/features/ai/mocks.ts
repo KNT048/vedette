@@ -96,7 +96,7 @@ const draftTests = collection<Record<string, { p: StoredProfile; test: LastTest;
 const me = () => currentUser()?.id ?? ''
 const draftTestOf = (p: StoredProfile) => { const d = draftTests.get()[me()]; return d && Date.now() - d.at <= 15 * 60_000 && sameConnection(d.p, p) ? d.test : null }
 const endDraftTest = () => draftTests.update((m) => { const n = { ...m }; delete n[me()]; return n })
-const profileView = (p: StoredProfile): AiProfile => ({ ...p, usable: aiProfileUsable(p), used_month: profileUsed(p), last_test: lastTests.get()[p.id] ?? null })
+const profileView = (p: StoredProfile): AiProfile => ({ ...p, key_lost: false, usable: aiProfileUsable(p), used_month: profileUsed(p), last_test: lastTests.get()[p.id] ?? null })
 const jobsReady = () => Object.fromEntries(AI_JOBS.map((j) => [j.id, aiCandidates(j.id).length > 0])) as Record<AiJob, boolean>
 const view = (): AiConfigView => { const c = aiConfigStore.get(); return { configured: c.configured, tier: c.tier, monthly_budget: c.monthly_budget, month_used: monthTokens(), renews_on: isoDate(renewsOn()), redact_pii: c.redact_pii, tier_estimates: ESTIMATES, jobs_ready: jobsReady() } }
 

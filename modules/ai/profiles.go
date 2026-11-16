@@ -36,6 +36,7 @@ type ProfileView struct {
 	BaseURL       string    `json:"base_url"`
 	Model         string    `json:"model"`
 	KeyLast4      *string   `json:"key_last4"`
+	KeyLost       bool      `json:"key_lost"` // the saved key cannot be opened on this box (#847): enter it again in Edit
 	Location      string    `json:"location"`
 	MonthlyBudget int       `json:"monthly_budget"`
 	Usable        bool      `json:"usable"`
@@ -74,8 +75,24 @@ func (s *Service) view(p stored) ProfileView {
 		l := p.APIKey.Last4()
 		v.KeyLast4 = &l
 	}
+	if p.KeyLost {
+		v.KeyLost = true
+		if p.lostLast4 != "" {
+			l := p.lostLast4
+			v.KeyLast4 = &l
+		}
+	}
 	return v
 }
+
+// profileKeyLost is the answer of Test, Edit and the model list of a saved profile whose key this box cannot open (#847) when no new key
+// was typed: the key cannot be used or kept, so nothing is sent and nothing is saved.
+func profileKeyLost(name string) error {
+	return apierr.New(http.StatusConflict, codeSecretLost, fmt.Sprintf("The saved API key of the AI profile %q was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter the key again and save, then test it. Nothing was sent.", name))
+}
+
+// codeSecretLost is the error code of a saved secret this box cannot open (docs/API_CONVENTIONS.md, the code of core/conn, #847).
+const codeSecretLost = "secret_lost"
 
 // Profiles lists the profiles in the order they were added.
 func (s *Service) Profiles() []ProfileView {

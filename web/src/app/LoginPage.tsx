@@ -6,6 +6,7 @@ import { api, ApiError } from '@/lib/api'
 import { useSetup } from './RequireSession'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
+import { Logo } from '@/components/brand/Logo'
 import { useAuthOptions } from '@/features/core/api'
 import { PreviewCode } from '@/features/core/parts'
 import { useCountdown } from '@/features/core/useCountdown'
@@ -96,8 +97,11 @@ export default function LoginPage() {
   return (
     <main className="grid min-h-dvh place-items-center bg-paper px-4">
       <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-semibold tracking-[-0.01em]">Vedette</h1>
-        <p className="mt-1 text-sm text-muted">{t('login.subtitle')}</p>
+        {/* The stacked logo (the brand sheet's splash variant) is the page's one h1; its name is the visually hidden text. */}
+        <header className="grid justify-items-center text-center">
+          <h1><span className="sr-only">Vedette</span><Logo variant="stacked" decorative className="h-20" /></h1>
+          <p className="mt-5 text-sm text-muted">{t('login.subtitle')}</p>
+        </header>
         <form onSubmit={(e) => void submit(e)} className="mt-6 grid gap-4 rounded-md border border-rule bg-surface p-5" noValidate>
           <Field label={t('login.email')} htmlFor="email">
             <Input id="email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!error} />

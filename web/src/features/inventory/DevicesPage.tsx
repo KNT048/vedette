@@ -22,11 +22,12 @@ import { useCan } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { categoryLabel, categoryOf, kindLabel } from '@/lib/deviceTypes'
 import { AddDialog, METHODS, type Method } from './AddDialog'
-import { useDevices, useSettings } from './api'
-import { deviceKeys, feedsOfRow, filterDevices, fromOldUrl, matchSoftware, softwareValues } from './deviceQuery'
+import { usePossibleSame, useDevices, useSettings } from './api'
+import { deviceKeys, feedsOfRow, filterDevices, fromOldUrl, matchSoftware, softwareValues, type SameIds } from './deviceQuery'
 import { errMsg, kindIcon, shownKind } from './kinds'
 import { declaredSoftwareOnly, nameOf } from './nameOf'
 import { PendingPanel } from './PendingPanel'
+import { SameChip } from './SameDevice'
 import type { DeviceRow } from './types'
 
 /** Where the scan feature (#850) plugs "Scan selected" / "Scan the LAN now" into the Devices list: a component registered as
@@ -137,9 +138,9 @@ function useDeviceQuery() {
 type Query = ReturnType<typeof useDeviceQuery>
 
 /** The search box of both lists. */
-function DeviceSearch({ rows, now, query }: { rows: DeviceRow[]; now: number; query: Query }) {
+function DeviceSearch({ rows, now, query, same }: { rows: DeviceRow[]; now: number; query: Query; same: SameIds }) {
   const { t } = useTranslation('inventory')
-  const keys = useMemo(() => deviceKeys(rows, now), [rows, now])
+  const keys = useMemo(() => deviceKeys(rows, now, same), [rows, now, same])
   const count = (key: string, value: string) => keys.find((x) => x.key === key)?.values?.find((v) => v.value === value)?.count
   const chips: TokenChip[] = [
     { token: 'fragile', label: t('search.chip.fragile'), count: rows.filter((d) => d.fragile).length },
@@ -147,6 +148,7 @@ function DeviceSearch({ rows, now, query }: { rows: DeviceRow[]; now: number; qu
     { token: 'source:osquery', label: t('search.chip.osquery'), count: count('source', 'osquery') },
     { token: 'source:manual', label: t('search.chip.manual'), count: count('source', 'manual') },
     { token: 'has:findings', label: t('search.chip.findings'), count: count('has', 'findings') },
+    { token: 'possible:same', label: t('search.chip.same'), count: count('possible', 'same') }, // D-599: rows to merge or keep separate
   ]
   // A chip that would show 0 is left out (To review would read "SNMP 0, osquery 0, Manual 0"), unless it is on (#849 review L11).
   const shownChips = chips.filter((c) => c.count !== 0 || hasToken(query.q, c.token))
@@ -166,12 +168,12 @@ function MatchLine({ q, shown, total, onClear }: { q: string; shown: number; tot
 }
 
 /** Devices: the approved list (#849). */
-function DevicesList({ rows, now, query }: { rows: DeviceRow[]; now: number; query: Query }) {
+function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: number; query: Query; same: SamePairsBy }) {
   const { t, i18n } = useTranslation('inventory')
   const navigate = useNavigate()
   const { q, clear } = query
   const deferred = useDeferredValue(q)
-  const shown = useMemo(() => filterDevices(rows, deferred, now), [rows, deferred, now])
+  const shown = useMemo(() => filterDevices(rows, deferred, now, same.ids), [rows, deferred, now, same.ids])
   const swWanted = useMemo(() => softwareValues(deferred), [deferred])
   const selecting = slotComponents(DEVICES_ACTIONS_SLOT).length > 0
   const [sel, ops] = useRowSelection()
@@ -185,7 +187,7 @@ function DevicesList({ rows, now, query }: { rows: DeviceRow[]; now: number; que
       cell: ({ row }) => <span onClick={(e) => e.stopPropagation()}><Checkbox aria-label={t('select.one', { name: nameOf(row.original, kindLabel(row.original.kind)) })} checked={sel.has(row.original.id)} onCheckedChange={(v) => ops.toggle(row.original.id, v === true)} /></span>,
     } satisfies ColumnDef<DeviceRow>] : []),
     { id: 'name', header: t('col.name'), accessorFn: (d) => nameOf(d, kindLabel(d.kind)), cell: ({ row }) => (
-      <div className="flex items-center gap-x-2 whitespace-nowrap">{nameLink(row.original, 'whitespace-nowrap')}<NameChips d={row.original} dense /></div>
+      <div className="flex items-center gap-x-2 whitespace-nowrap">{nameLink(row.original, 'whitespace-nowrap')}<NameChips d={row.original} dense /><SameChip id={row.original.id} others={same.others.get(row.original.id) ?? []} /></div>
     ) },
     { id: 'ip', header: t('col.ip'), accessorFn: (d) => d.ip, cell: ({ row }) => <span className="whitespace-nowrap tabular-nums">{row.original.ip}</span> },
     { id: 'kind', header: t('col.kind'), accessorFn: (d) => { const k = shownKind(d).kind; return `${kindLabel(k)} ${categoryLabel(categoryOf(k))}` }, cell: ({ row }) => <TypeCell d={row.original} dense /> },
@@ -225,7 +227,7 @@ function DevicesList({ rows, now, query }: { rows: DeviceRow[]; now: number; que
   ]
   return (
     <section aria-label={t('tabs.devices')} className="grid min-w-0 gap-3">
-      <DeviceSearch rows={rows} now={now} query={query} />
+      <DeviceSearch rows={rows} now={now} query={query} same={same.ids} />
       <MatchLine q={q} shown={shown.length} total={rows.length} onClear={clear} />
       {selecting ? <div className="flex flex-wrap items-center gap-2"><Slot name={DEVICES_ACTIONS_SLOT} props={{ selectedIds: [...sel], clearSelection: ops.clear }} /></div> : null}
       <DataTable caption={t('table.caption')} data={shown} columns={columns} initialSort={[{ id: 'seen', desc: true }]}
@@ -262,16 +264,30 @@ function DevicesList({ rows, now, query }: { rows: DeviceRow[]; now: number; que
 }
 
 /** To review: found by a scan or by listening, not approved yet (S-INV-3). Same search box. */
-function ReviewList({ rows, now, notifyNew, notifyAvailable, query }: { rows: DeviceRow[]; now: number; notifyNew: boolean; notifyAvailable: boolean; query: Query }) {
+function ReviewList({ rows, now, notifyNew, notifyAvailable, query, same }: { rows: DeviceRow[]; now: number; notifyNew: boolean; notifyAvailable: boolean; query: Query; same: SamePairsBy }) {
   const { q, clear } = query
   const deferred = useDeferredValue(q)
-  const shown = useMemo(() => filterDevices(rows, deferred, now), [rows, deferred, now])
+  const shown = useMemo(() => filterDevices(rows, deferred, now, same.ids), [rows, deferred, now, same.ids])
   return (
     <section className="grid min-w-0 gap-3">
-      <PendingPanel items={shown} total={rows.length} notifyNew={notifyNew} notifyAvailable={notifyAvailable}
-        search={<><DeviceSearch rows={rows} now={now} query={query} /><MatchLine q={q} shown={shown.length} total={rows.length} onClear={clear} /></>} filtered={!!q} onClear={clear} />
+      <PendingPanel items={shown} total={rows.length} notifyNew={notifyNew} notifyAvailable={notifyAvailable} sameAs={same.others}
+        search={<><DeviceSearch rows={rows} now={now} query={query} same={same.ids} /><MatchLine q={q} shown={shown.length} total={rows.length} onClear={clear} /></>} filtered={!!q} onClear={clear} />
     </section>
   )
+}
+
+/** D-599 (#829): the pairs of GET /inventory/possible-same by device: the names of the others, and every id in a pair. One cached read. */
+type SamePairsBy = { ids: SameIds; others: ReadonlyMap<string, string[]> }
+function usePairsByDevice(): SamePairsBy {
+  const q = usePossibleSame()
+  return useMemo(() => {
+    const others = new Map<string, string[]>()
+    for (const p of q.data?.items ?? []) {
+      others.set(p.a.id, [...(others.get(p.a.id) ?? []), p.b.name])
+      others.set(p.b.id, [...(others.get(p.b.id) ?? []), p.a.name])
+    }
+    return { ids: new Set(others.keys()), others }
+  }, [q.data])
 }
 
 /** The empty state. When a range is saved it says Vedette is watching it instead of asking for one again (S-INV-1); the settings are read only here, and only by an admin. */
@@ -291,6 +307,7 @@ function Body() {
   const [params, setParams] = useSearchParams()
   const q = useDevices()
   const query = useDeviceQuery()
+  const same = usePairsByDevice()
   const canOp = useCan('operator')
   const canAdmin = useCan('admin')
   const needRole = canOp ? undefined : t('common:needRole', { role: t('common:role.operator') })
@@ -336,8 +353,8 @@ function Body() {
                 <div className="mb-6"><NoDevices boxOnly canOp={canOp} canAdmin={canAdmin} needRole={needRole} onAdd={setAdd} /></div>
               ) : null}
               <PageTabs label={t('tabs.label')} tabs={[
-                { id: 'devices', label: t('tabs.devices'), panel: <DevicesList rows={lists.approved} now={now} query={query} /> },
-                { id: 'review', label: t('tabs.review'), panel: <ReviewList rows={lists.pending} now={now} notifyNew={d.notify_new} notifyAvailable={d.notify_available} query={query} />, badge: { count: pending, label: t('tabs.reviewBadge') } },
+                { id: 'devices', label: t('tabs.devices'), panel: <DevicesList rows={lists.approved} now={now} query={query} same={same} /> },
+                { id: 'review', label: t('tabs.review'), panel: <ReviewList rows={lists.pending} now={now} notifyNew={d.notify_new} notifyAvailable={d.notify_available} query={query} same={same} />, badge: { count: pending, label: t('tabs.reviewBadge') } },
               ]} />
               {declaredLine}
             </>

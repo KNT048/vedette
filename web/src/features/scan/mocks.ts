@@ -14,7 +14,8 @@ import type { CredTarget, IdentReason, ProbeEntry, RescanEvent, RunIdentRow, Run
 
 
 /** Tests đặt nhỏ lại; trình duyệt dùng giá trị thật. */
-export const timing = { stepMs: 2000, stopMs: 1000, engineMs: 3000 }
+// #830: in the browser a device takes 15 s, so the page (read every 5 s) shows its steps move; tests keep 2 s.
+export const timing = { stepMs: import.meta.env.MODE === 'test' ? 2000 : 15_000, stopMs: 1000, engineMs: 3000 }
 export const RETENTION_DAYS = 90
 // Thiết bị mẫu phản hồi chậm: dùng để minh hoạ "tự dừng khi thiết bị không phản hồi" (S-SCAN-4).
 const SLOW = new Set(['a-cam03'])

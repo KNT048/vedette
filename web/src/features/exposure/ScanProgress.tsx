@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
+import { InfoTip } from '@/components/common/InfoTip'
+import { JobProgress } from '@/components/progress/JobProgress'
 import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
 import { useScanRun, useStopScan } from './api'
@@ -36,11 +38,18 @@ export function ScanProgress() {
   }, [run, status, phase, qc, t])
   if (!run) return null
   if (run.status === 'running') {
+    // #830: the step's own progress under the row. Only the row is a status region: the step bar announces its step changes itself, never its ticking time.
     return (
-      <div role="status" className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-rule bg-surface px-4 py-3 text-sm">
-        <span className="font-medium">{t('progress.running', { value: run.target_value })}</span>
-        <span className="text-muted">{t(`progress.phase.${run.phase}`)}</span>
-        {operator ? <Button variant="secondary" size="sm" className="ml-auto" disabled={stop.isPending} onClick={() => stop.mutate(undefined, { onError: (e) => toast.error(e instanceof Error ? e.message : String(e)) })}>{t('progress.stop')}</Button> : null}
+      <div className="mb-6 grid gap-3 rounded-md border border-rule bg-surface px-4 py-3 text-sm">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <p role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="font-medium">{t('progress.running', { value: run.target_value })}</span>
+            {run.progress && run.phase !== 'greenbone' ? null : <span className="text-muted">{t(`progress.phase.${run.phase}`)}</span>}
+          </p>
+          {run.phase === 'greenbone' ? <InfoTip topic={t('progress.greenboneTopic')}>{t('progress.greenboneInfo')}</InfoTip> : null}
+          {operator ? <Button variant="secondary" size="sm" className="ml-auto" disabled={stop.isPending} onClick={() => stop.mutate(undefined, { onError: (e) => toast.error(e instanceof Error ? e.message : String(e)) })}>{t('progress.stop')}</Button> : null}
+        </div>
+        {run.progress ? <JobProgress progress={run.progress} /> : null}
       </div>
     )
   }

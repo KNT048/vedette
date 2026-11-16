@@ -1,0 +1,33 @@
+{
+  "phase": {
+    "discovery": "Finding the device",
+    "ports": "Checking open ports",
+    "services": "Identifying services",
+    "scripts": "Reading service details",
+    "vulns": "Checking for known vulnerabilities",
+    "web": "Checking the web pages",
+    "openvas": "OpenVAS deep scan",
+    "saving": "Saving the results"
+  },
+  "starting": "Starting",
+  "percent": "{{percent}}%",
+  "count": {
+    "checks_one": "{{done}} of {{total}} check",
+    "checks_other": "{{done}} of {{total}} checks",
+    "hosts_one": "{{done}} of {{total}} address",
+    "hosts_other": "{{done}} of {{total}} addresses",
+    "plain": "{{done}} of {{total}}"
+  },
+  "elapsed": "{{time}} elapsed",
+  "left": "about {{time}} left in this step",
+  "leftSoon": "less than a minute left in this step",
+  "quiet": "Last report {{time}} ago",
+  "quietTopic": "quiet scanner",
+  "quietHelp": "The scanner reports at most every 5 seconds, and some checks report nothing until they finish. A quiet scanner is still working; Stop ends it at any time.",
+  "time": {
+    "s": "{{s}} s",
+    "ms": "{{m}} min {{s}} s",
+    "m": "{{m}} min",
+    "hm": "{{h}} h {{m}} min"
+  }
+}

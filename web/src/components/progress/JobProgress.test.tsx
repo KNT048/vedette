@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { JobProgress as Progress } from '@/lib/progress'
 import { expectNoA11yViolations } from '@/test/render'
 import { JobProgress } from './JobProgress'
-import { PROGRESS_STRINGS_EN, sayDuration } from './strings'
+import i18n from '@/lib/i18n'
+import { sayDuration } from './duration'
 
 const NOW = Date.parse('2026-11-16T10:00:00Z')
 const ago = (ms: number) => new Date(NOW - ms).toISOString()
@@ -91,23 +92,23 @@ describe('JobProgress (#830)', () => {
     expect(screen.queryByText(/Last report/)).toBeNull()
     rerender(<JobProgress progress={job({ updated_at: ago(45_000) })} />)
     expect(screen.getByText(/Last report 45 s ago/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'About quiet scanner' })).toHaveAccessibleDescription(PROGRESS_STRINGS_EN.quietHelp)
+    expect(screen.getByRole('button', { name: 'About quiet scanner' })).toHaveAccessibleDescription(/^The scanner reports at most every 5 seconds/)
   })
 
-  it('out-of-range percents are clamped; every phase has words; the strings can be replaced', () => {
+  it('out-of-range percents are clamped; every phase has words', () => {
     freeze()
     const { rerender } = render(<JobProgress progress={job({ percent: 140 })} />)
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100')
     for (const phase of ['discovery', 'ports', 'services', 'scripts', 'vulns', 'web', 'openvas', 'saving'] as const) {
       rerender(<JobProgress progress={job({ phase })} />)
-      expect(screen.getByRole('progressbar').getAttribute('aria-label')).toBe(PROGRESS_STRINGS_EN[`phase.${phase}`])
+      const name = screen.getByRole('progressbar').getAttribute('aria-label')
+      expect(name).toBe(i18n.t(`phase.${phase}`, { ns: 'progress' }))
+      expect(name).not.toMatch(/^phase\./)
     }
-    rerender(<JobProgress progress={job({ phase: 'openvas' })} strings={{ 'phase.openvas': 'OpenVAS is scanning' }} />)
-    expect(screen.getByRole('progressbar', { name: 'OpenVAS is scanning' })).toBeInTheDocument()
   })
 
   it('durations read as people say them', () => {
-    const s = PROGRESS_STRINGS_EN
+    const s = i18n.getFixedT('en', 'progress')
     expect(sayDuration(s, -5)).toBe('0 s')
     expect(sayDuration(s, 45_400)).toBe('45 s')
     expect(sayDuration(s, 120_000)).toBe('2 min')

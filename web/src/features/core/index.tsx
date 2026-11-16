@@ -32,7 +32,7 @@ export const feature: Feature = {
     { id: 'updates', label: 'core:settings.updates', module: 'core', minRole: 'viewer', order: 80, element: section(() => import('./UpdatesSection')) },
     { id: 'network', label: 'core:settings.network', module: 'core', minRole: 'viewer', order: 75, element: section(() => import('./NetworkSection')) },
     { id: 'privacy', label: 'core:settings.privacy', module: 'core', minRole: 'viewer', order: 90, element: section(() => import('./PrivacySection')) },
-    { id: 'mcp', label: 'core:settings.mcp', module: 'core', minRole: 'admin', order: 100, element: section(() => import('./McpSection')) },
+    { id: 'mcp', label: 'core:settings.mcp', module: 'core', switchOf: 'mcp-server', minRole: 'admin', order: 100, element: section(() => import('./McpSection')) },
     { id: 'data', label: 'core:settings.data', module: 'core', minRole: 'admin', order: 110, element: section(() => import('./DataSection')) },
     { id: 'account', label: 'core:settings.myAccount', module: 'core', minRole: 'viewer', order: 1000, element: section(() => import('./AccountPage')) }, // last, where the My account link was (S-CORE-3)
   ],

@@ -2,8 +2,11 @@
 import type { ModuleId } from '@/lib/modules'
 import type { BundleId } from './types'
 
-const SMB: ModuleId[] = ['core', 'feeds', 'inventory', 'notify', 'sensor-passive', 'findings', 'mitigation', 'honeypot', 'reports']
-const MID: ModuleId[] = [...SMB, 'sensor-active', 'scan', 'exposure', 'logs', 'ai']
+// v1 modules only (supervisor 2026-11-16, SHIP.md, D-624): a bundle never turns on a preview module (scan, honeypot, logs, ai,
+// reports; the customer turns each on from its own row) and never offers a post-v1 one. modules/core/handlers_setup.go has the
+// same lists (TestBundlesMatchTheWebList).
+const SMB: ModuleId[] = ['core', 'feeds', 'inventory', 'notify', 'sensor-passive', 'findings', 'mitigation']
+const MID: ModuleId[] = [...SMB, 'sensor-active', 'exposure']
 
 export const BUNDLES: Record<Exclude<BundleId, 'custom'>, ModuleId[]> = { smb: SMB, mid: MID }
 

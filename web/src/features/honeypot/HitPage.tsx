@@ -10,6 +10,7 @@ import { fmtDateTime } from '@/lib/format'
 import { useHit } from './api'
 import { hitName } from './hitName'
 import { RespondLink } from './hitParts'
+import { useScope } from '@/lib/v1'
 import type { HitEvent } from './types'
 import { kindLabel } from '@/lib/deviceTypes'
 
@@ -17,6 +18,7 @@ export default function HitPage() {
   const { t, i18n } = useTranslation('honeypot')
   const { id = '' } = useParams()
   const hit = useHit(id)
+  const respond = useScope('response') !== 'hidden' // D-624 (#819): no Respond link while the response module is hidden
   return (
     <RequireModule module="honeypot">
       <Link to="/honeypot" className="mb-3 inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink"><ArrowLeft className="size-3.5" />{t('hit.back')}</Link>
@@ -34,7 +36,7 @@ export default function HitPage() {
               <PageHeader stories={['S-HP-1', 'S-HP-2']}
                 title={h.is_test ? t('hit.titleTest', { service, time: fmtDateTime(h.ts) }) : t(`hit.title_${h.kind}`, { service, time: fmtDateTime(h.ts), src })}
                 meta={h.is_test ? <Chip tone="off">{t('hits.test')}</Chip> : t(`hit.meta_${h.kind}`, { ip: h.trap_ip })}
-                actions={h.is_test ? undefined : <RespondLink h={h} />} />
+                actions={h.is_test || !respond ? undefined : <RespondLink h={h} />} />
               <Section id="facts" title={t('hit.facts')}>
                 <Panel className="p-4">
                   <KeyValue items={[

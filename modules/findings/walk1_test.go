@@ -116,11 +116,11 @@ func TestSetStatusMany_OneRowEachAllOrNothing(t *testing.T) {
 func TestRow_DeviceWithoutIPIsNamedNotByItsID(t *testing.T) {
 	t.Parallel()
 	r := Record{ID: "f-1", AssetID: "a-vft3", CVE: "CVE-2023-36845", Finding: Finding{Evidence: &Evidence{Summary: "a-vft3 runs Juniper Junos 15.1R7.9."}}}
-	row := newRow(r, &AssetView{ID: "a-vft3", Name: "a-vft3", IP: NoIP, Kind: "switch", Display: "Juniper Junos"}, nil)
+	row := newRow(r, &AssetView{ID: "a-vft3", Name: "a-vft3", IP: NoIP, Kind: "switch", Display: "Juniper Junos"}, nil, nil)
 	if row.Asset.Name != "Juniper Junos" || row.Evidence.Summary != "Juniper Junos runs Juniper Junos 15.1R7.9." || row.Asset.HasIP() {
 		t.Fatalf("asset = %+v, evidence = %q", row.Asset, row.Evidence.Summary)
 	}
-	row = newRow(r, &AssetView{ID: "a-vft3", Name: "Juniper Networks EX4200-48T", IP: NoIP, Kind: "switch"}, nil)
+	row = newRow(r, &AssetView{ID: "a-vft3", Name: "Juniper Networks EX4200-48T", IP: NoIP, Kind: "switch"}, nil, nil)
 	if row.Asset.Name != "Juniper Networks EX4200-48T" || row.Evidence.Summary != "Juniper Networks EX4200-48T runs Juniper Junos 15.1R7.9." {
 		t.Fatalf("asset = %+v, evidence = %q", row.Asset, row.Evidence.Summary)
 	}

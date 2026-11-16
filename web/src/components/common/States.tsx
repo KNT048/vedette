@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { useModuleEnabled, useModules, type ModuleId } from '@/lib/modules'
+import { notOffered } from '@/lib/v1'
 import { ApiError, api } from '@/lib/api'
 import { InfoTip } from './InfoTip'
 import { useQuery } from '@tanstack/react-query'
@@ -77,6 +78,15 @@ export function ModuleOff({ module, children }: { module: ModuleId; children?: R
           <InfoTip topic={t(`modules.${module}.name`)}>{t('moduleOff.notHereInfo')}</InfoTip>
         </div>
         <p className="mt-1 text-muted">{t('moduleOff.notHereBody')}</p>
+      </div>
+    )
+  }
+  // D-624, #819: a module this build does not offer cannot be turned on from Settings → Modules, so no link there.
+  if (notOffered(module)) {
+    return (
+      <div className="rounded-md border border-rule bg-off-soft px-4 py-3 text-sm">
+        <p className="font-medium">{t('moduleOff.notOfferedTitle', { name: t(`modules.${module}.name`) })}</p>
+        <p className="mt-1 text-muted">{t('moduleOff.notOfferedBody')}</p>
       </div>
     )
   }

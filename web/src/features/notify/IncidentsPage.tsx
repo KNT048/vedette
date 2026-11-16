@@ -15,6 +15,7 @@ import { Segmented } from '@/components/ui/segmented'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useModules } from '@/lib/modules'
+import { useScope } from '@/lib/v1'
 import { useCan } from '@/lib/session'
 import { useBulkIncidents, useChannels, useIncidents } from './api'
 import { MAX_BULK_INCIDENTS } from './contract'
@@ -93,6 +94,7 @@ function Content() {
   const admin = useCan('admin')
   const channels = useChannels({ retry: false, enabled: admin }) // not asked of a role that would get 403
   const noChannel = channels.data !== undefined && !channels.data.channels.some((c) => c.enabled)
+  const responseScope = useScope('response')
   const [params, setParams] = useSearchParams()
   const tab: Tab = params.get('tab') === 'resolved' ? 'resolved' : 'open'
   const onlyUrgent = params.get('severity') === 'urgent'
@@ -133,6 +135,7 @@ function Content() {
     </span>
   )
   const open = (s: BulkStatus) => (e: MouseEvent<HTMLButtonElement>) => { opener.current = e.currentTarget; setBulk(s) }
+  const respond = responseScope !== 'hidden' // D-624 (#819): Respond opens the response module, not offered in v1
   const columns: ColumnDef<Incident>[] = [
     ...(can && tab === 'open' ? [{ id: 'select', enableSorting: false, header: ({ table }) => {
       const page = table.getRowModel().rows.map((r) => r.original.id)
@@ -154,7 +157,7 @@ function Content() {
     { id: 'seen', header: t('incidents.col.seen'), accessorFn: (r) => r.last_seen, cell: ({ row }) => <Seen i={row.original} /> },
     { id: 'count', header: t('incidents.col.count'), accessorFn: (r) => r.count, cell: ({ row }) => t('incidents.times', { count: row.original.count }) },
     { id: 'sent', header: t('incidents.col.sent'), enableSorting: false, cell: ({ row }) => <DeliveryBadges sends={row.original.sends} notSent={row.original.not_sent} admin={admin} noChannelShown={noChannel} /> },
-    { id: 'respond', header: t('incidents.col.respond'), enableSorting: false, cell: ({ row }) => <RespondLink i={row.original} /> },
+    ...(respond ? [{ id: 'respond', header: t('incidents.col.respond'), enableSorting: false, cell: ({ row }) => <RespondLink i={row.original} /> } satisfies ColumnDef<Incident>] : []),
   ]
   const panel = (
     <QueryState query={q}>
@@ -198,7 +201,7 @@ function Content() {
                     </div>
                     <p className="text-[13px] text-muted">{t(kindKey(r))}, {r.devices.map((x) => x.name).join(', ')}, {t('incidents.times', { count: r.count })}</p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]"><Handled i={r} /><DeliveryBadges sends={r.sends} notSent={r.not_sent} admin={admin} noChannelShown={noChannel} /><Seen i={r} /></div>
-                    <div><RespondLink i={r} /></div>
+                    {respond ? <div><RespondLink i={r} /></div> : null}
                   </div>
                 </div>
               )} />

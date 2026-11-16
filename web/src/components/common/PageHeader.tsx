@@ -1,12 +1,15 @@
-import type { ReactNode, Ref } from 'react'
+import { useContext, type ReactNode, type Ref } from 'react'
 import { cn } from '@/lib/utils'
 import { InfoTip } from './InfoTip'
 import { StoryTag } from './StoryTag'
+import { ModuleBadge, ModuleLine } from './V1Scope'
+import { PageModule } from '@/lib/v1'
 
 /** Dòng đầu mỗi trang trả lời câu hỏi của persona (FRONTEND §3 "thứ bậc thông tin").
  *  Khung trang D-464: tiêu đề ~20 px và mô tả ngắn chung một dòng (mô tả xuống dòng khi không đủ chỗ); sau đó KpiStrip, PageTabs (`PageFrame.tsx`). */
 /*  `meta` là một dòng ngắn (≈ 12 từ); giải thích dài hơn vào `info` (ⓘ cạnh tiêu đề, #824). */
 export function PageHeader({ title, meta, info, actions, stories }: { title: ReactNode; meta?: ReactNode; info?: ReactNode; actions?: ReactNode; stories?: string[] }) {
+  const mod = useContext(PageModule) // D-624: a preview or leaving module's page says so under its title (#818, #819)
   return (
     <header className="mb-5 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
       <div className="grid min-w-0 max-w-4xl gap-1">
@@ -14,9 +17,11 @@ export function PageHeader({ title, meta, info, actions, stories }: { title: Rea
           <div className="flex items-center gap-1">
             <h1 className="text-xl font-semibold leading-tight tracking-[-0.01em]">{title}</h1>
             {info ? <InfoTip topic={typeof title === 'string' ? title : undefined}>{info}</InfoTip> : null}
+            {mod ? <ModuleBadge id={mod} className="ml-1.5 self-center" /> : null}
           </div>
           {meta ? <div className="text-[13px] text-muted">{meta}</div> : null}
         </div>
+        {mod ? <ModuleLine id={mod} turnOff /> : null}
         {stories ? <StoryTag ids={stories} /> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}

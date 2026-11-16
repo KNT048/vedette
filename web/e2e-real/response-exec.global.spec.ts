@@ -12,8 +12,11 @@ import { api, authFile, box, createUser, deviceSeen, device, httpState, login, p
 import { expectAccessible, h1, noErrors, noVietnamese } from './ui'
 import { totp } from './twofa'
 import { collectErrors, shot } from '../e2e/helpers'
+import { POST_V1_IN_UI } from '../src/lib/postV1'
 
 test.describe.configure({ mode: 'serial' })
+// D-624 (#819): AI response is read-only in the v1 GUI (a box that has it on can only turn it off), and this walk acts on its screens.
+test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819)')
 test.use({ actionTimeout: 10_000 })
 
 interface Item { id: string; status: string; result: string | null; verified: { ok: boolean; detail: string } | null; connection: string | null; state_unknown: boolean; change: { rest: { method: string; url: string; body: string | null } | null } }

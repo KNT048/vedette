@@ -1,6 +1,6 @@
 id: scan
 name: { en: "Vulnerability scans" }
-summary: { en: "Confirms exploited vulnerabilities with safe Nuclei templates on approved internal devices and verified external targets, inside your time window, speed and exclusions, with a Stop now button." }
+summary: { en: "Confirms exploited vulnerabilities with safe Nuclei templates on approved internal devices, inside your time window, speed and exclusions, with a Stop now button." }
 tier: optional
 default: false
 depends: [core, inventory, feeds]    # exposure là phụ thuộc tuỳ chọn (mục tiêu ngoài)

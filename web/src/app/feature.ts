@@ -22,6 +22,9 @@ export interface SettingsSection {
   id: string // đường dẫn /settings/<id>
   label: string // khoá i18n "ns:key"
   module: ModuleId
+  /** The module whose own switch this section holds while the section stays under `module` (MCP under core, D-230): the
+   *  section is hidden with that module when the GUI does not offer it (D-624). */
+  switchOf?: ModuleId
   minRole: Role
   order: number
   element: ReactNode

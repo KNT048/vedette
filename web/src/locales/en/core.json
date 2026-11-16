@@ -79,6 +79,9 @@
       "affected": "These modules are on and depend on it, so they will be missing data:",
       "none": "No module that is on depends on this one.",
       "reenable": "Turn it back on any time from Settings → Modules; its data is still there.",
+      "notOffered": "This build does not offer it: once off, it is hidden and cannot be turned on again here. Its data is kept.",
+      "ssoUsers_one": "{{count}} person signs in only through SSO. Once it is off they need a password reset under Users.",
+      "ssoUsers_other": "{{count}} people sign in only through SSO. Once it is off they need a password reset under Users.",
       "confirm": "Turn off",
       "emailCodes_one": "{{count}} user signs in with email codes and will be locked out.",
       "emailCodes_other": "{{count}} users sign in with email codes and will be locked out.",
@@ -221,7 +224,10 @@
       "body": "The Sign in with SSO button goes away.",
       "bodyUsers_one": "{{count}} person signs in only through SSO and cannot sign in until SSO is on again.",
       "bodyUsers_other": "{{count}} people sign in only through SSO and cannot sign in until SSO is on again.",
-      "keptInfo": "Password accounts keep working and the settings are kept."
+      "keptInfo": "Password accounts keep working and the settings are kept.",
+      "bodyHidden": "The Sign in with SSO button goes away, and this build cannot turn SSO on again.",
+      "bodyUsersHidden_one": "{{count}} person signs in only through SSO and needs a password reset under Users once it is off: this build cannot turn SSO on again.",
+      "bodyUsersHidden_other": "{{count}} people sign in only through SSO and need a password reset under Users once it is off: this build cannot turn SSO on again."
     },
     "redirectHint": "People must open Vedette at this address to sign in with SSO.",
     "redirectInfo": "It is set from the address you use now when you save."
@@ -1591,17 +1597,16 @@
     "modules": {
       "title": "Choose a module bundle",
       "desc": "Pick the closest bundle; change it later in Settings, Modules.",
-      "descInfo": "Modules are separate pieces of work you switch on and off.",
+      "descInfo": "Modules are separate pieces of work you switch on and off. A bundle turns on only what v1 promises; turn Preview modules (scans, internal traps, logs, AI assistant, reports) on one by one later from their row in Settings, Modules, or pick them under Custom.",
       "smb": {
         "name": "Small business",
-        "desc": "Your devices and the exploited vulnerabilities that match them. Light upkeep.",
-        "descInfo": "Know your devices, see exploited vulnerabilities that match them, alert through a channel, internal traps, weekly report. Light, little upkeep.",
-        "descNoTrapsInfo": "Know your devices, see exploited vulnerabilities that match them, alert through a channel, weekly report. Light, little upkeep."
+        "desc": "Your devices, the exploited vulnerabilities that match them, alerts and fixes.",
+        "descInfo": "Know your devices (passive discovery), see exploited vulnerabilities that match them, get alerts through a channel, and get patch steps and mitigations. Light, little upkeep."
       },
       "mid": {
         "name": "Mid-size business",
-        "desc": "The small bundle plus scans, external surface, logs and AI.",
-        "descInfo": "The small bundle plus confirming scans, external surface, firewall logs and the AI assistant (with your own key)."
+        "desc": "The small bundle plus active discovery and your exposure on the Internet.",
+        "descInfo": "The small bundle plus the active sensor (light nmap scans inside the allowed window) and external exposure (open ports and service versions on your public IP)."
       },
       "custom": {
         "name": "Custom",

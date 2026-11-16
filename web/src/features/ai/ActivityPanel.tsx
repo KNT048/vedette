@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Field, Select, Input } from '@/components/ui/input'
 import { fmtDateTime, fmtNumber } from '@/lib/format'
+import { useScope } from '@/lib/v1'
 import { useActivity, useVerifyChain, type ActivityFilter } from './api'
 import type { ActivityEntry, ActivityResult } from './types'
 
@@ -72,6 +73,7 @@ export default function ActivityPanel() {
 
 function Detail({ e, job }: { e: ActivityEntry; job: string }) {
   const { t } = useTranslation('ai')
+  const respond = useScope('response') !== 'hidden' // D-624 (#819): no link into a module this build does not offer
   const row = (k: string, v: React.ReactNode) => <div className="grid gap-0.5 sm:grid-cols-[9rem_minmax(0,1fr)]"><dt className="text-muted">{k}</dt><dd className="min-w-0 break-words">{v}</dd></div>
   const mono = (s: string) => <code className="break-all font-mono text-[12px]">{s}</code>
   return (
@@ -84,7 +86,7 @@ function Detail({ e, job }: { e: ActivityEntry; job: string }) {
         {row(t('activity.detail.tokens'), t('activity.detail.tokensBody', { in: fmtNumber(e.tokens_in), out: fmtNumber(e.tokens_out) }))}
         {row(t('activity.detail.hooks'), e.hooks.length ? e.hooks.join(', ') : t('activity.detail.none'))}
         {row(t('activity.detail.tools'), e.tools.length ? <ul className="grid gap-1">{e.tools.map((x, i) => <li key={i}><Chip tone={x.access === 'write' ? 'warn' : 'off'}>{t(`activity.access.${x.access}`)}</Chip> {mono(`${x.name}(${x.args})`)}</li>)}</ul> : t('activity.detail.none'))}
-        {row(t('activity.detail.links'), e.links?.length ? <ul className="grid gap-1">{e.links.map((l) => <li key={l.id}><Link className="text-accent underline underline-offset-4" to={LINK_TO[l.kind] ?? '/response'}>{t(`activity.link.${l.kind}`)} {l.id}</Link></li>)}</ul> : t('activity.detail.none'))}
+        {row(t('activity.detail.links'), e.links?.length ? <ul className="grid gap-1">{e.links.map((l) => <li key={l.id}>{respond ? <Link className="text-accent underline underline-offset-4" to={LINK_TO[l.kind] ?? '/response'}>{t(`activity.link.${l.kind}`)} {l.id}</Link> : <>{t(`activity.link.${l.kind}`)} {l.id}</>}</li>)}</ul> : t('activity.detail.none'))}
         {row(t('activity.detail.inHash'), mono(e.input_hash))}
         {row(t('activity.detail.outHash'), mono(e.output_hash))}
         {row(t('activity.detail.prev'), mono(e.prev_hash))}

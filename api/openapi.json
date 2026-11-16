@@ -37236,6 +37236,36 @@
                         "additionalProperties": false
                       }
                     },
+                    "counts": {
+                      "type": "object",
+                      "properties": {
+                        "likely": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "Items the tier=likely answer lists"
+                        },
+                        "recent": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "Items the tier=recent answer lists"
+                        },
+                        "all": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991,
+                          "description": "Items the tier=all answer lists"
+                        }
+                      },
+                      "required": [
+                        "likely",
+                        "recent",
+                        "all"
+                      ],
+                      "additionalProperties": false,
+                      "description": "M2-9: the number of items each tier filter lists, for the same device filter, whatever tier was asked: one answer gives every tab its count"
+                    },
                     "compared": {
                       "type": "boolean",
                       "description": "false = no comparison of tier 2 and 3 CVEs with the devices has run since the box started (D-617: the plan job runs within minutes); the page says so instead of \"no update to plan\""
@@ -37319,6 +37349,7 @@
                   },
                   "required": [
                     "items",
+                    "counts",
                     "compared",
                     "compared_devices",
                     "unchecked_devices",

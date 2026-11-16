@@ -453,29 +453,32 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 	cut := h.svc.now().Add(-AgeLimit).UTC().Format(time.DateOnly)
 	items, ids, old := []any{}, []string{}, 0
 	type shown struct {
-		it   PlanItem
-		cves []PlanCVE
+		it     PlanItem
+		cves   []PlanCVE // the CVEs of the asked tier
+		likely bool      // some CVE of the item is likely (any tier asked)
+		recent bool
 	}
 	var keep []shown
 	for _, it := range view.Items {
 		if !feedsOn || asset != "" && it.AssetID != asset {
 			continue
 		}
-		var cves []PlanCVE
+		k := shown{it: it}
 		for _, c := range it.CVEs {
 			// a CVE that crossed the 12-month line since the pass is not listed (review r1 #2 of #804): only a scan may list an older
 			// one, and no scan basis exists yet (D-617 (2))
 			if c.Published < cut && c.Basis != "scan" {
 				continue
 			}
+			k.likely, k.recent = k.likely || c.Tier == "likely", k.recent || c.Tier == "recent"
 			if tier == "all" || c.Tier == tier {
-				cves = append(cves, c)
+				k.cves = append(k.cves, c)
 			}
 		}
-		if len(cves) == 0 {
+		if !k.likely && !k.recent {
 			continue
 		}
-		keep = append(keep, shown{it, cves})
+		keep = append(keep, k)
 		if !slices.Contains(ids, it.AssetID) {
 			ids = append(ids, it.AssetID)
 		}
@@ -484,10 +487,21 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 	if err != nil {
 		return nil, fmt.Errorf("findings: reading the devices of the plan: %w", err)
 	}
+	counts := map[string]int{"likely": 0, "recent": 0, "all": 0} // M2-9: every tab's number from one answer
 	for _, k := range keep {
 		a, ok := names[k.it.AssetID]
 		if !ok {
 			continue // deleted since the last pass
+		}
+		counts["all"]++
+		if k.likely {
+			counts["likely"]++
+		}
+		if k.recent {
+			counts["recent"]++
+		}
+		if len(k.cves) == 0 {
+			continue // not of the asked tier
 		}
 		likely := 0
 		for _, c := range k.cves {
@@ -502,7 +516,7 @@ func (h *FindingHandlers) FindingsGetFindingsPlan(ctx context.Context, params oa
 			"version": k.it.Version, "fixed": k.it.Fixed, "kind": k.it.Kind, "pro": k.it.Pro, "cves": k.cves, "likely": likely, "recent": len(k.cves) - likely})
 	}
 	return Into[oas.FindingsGetFindingsPlanOK](map[string]any{
-		"items": items, "compared": view.Ran, "compared_devices": view.Compared, "unchecked_devices": view.Unchecked, "old_evidence": old,
+		"items": items, "counts": counts, "compared": view.Ran, "compared_devices": view.Compared, "unchecked_devices": view.Unchecked, "old_evidence": old,
 		"data": map[string]any{"epss": state(st.EPSS), "recent": state(st.Recent), "epss_date": day(st.EPSSDate), "recent_since": day(st.RecentSince)},
 	})
 }

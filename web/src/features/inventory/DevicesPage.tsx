@@ -164,7 +164,7 @@ function DevicesList({ rows, now, query }: { rows: DeviceRow[]; now: number; que
       {selecting ? <div className="flex flex-wrap items-center gap-2"><Slot name={DEVICES_ACTIONS_SLOT} props={{ selectedIds: [...sel], clearSelection: ops.clear }} /></div> : null}
       <DataTable caption={t('table.caption')} data={shown} columns={columns} initialSort={[{ id: 'seen', desc: true }]}
         onRowClick={(d) => void navigate(`/devices/${d.id}`)}
-        empty={q ? <span className="inline-flex flex-wrap items-center justify-center gap-x-2">{t('search.none')}<Button size="sm" variant="link" onClick={clear}>{t('search.clear')}</Button></span> : t('table.emptyApproved')}
+        empty={t('table.emptyApproved')} filtered={!!q} onClearFilters={clear}
         mobileRow={(d) => {
           const hw = [d.vendor?.value, d.model?.value].filter(Boolean).join(' ')
           return (

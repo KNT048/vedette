@@ -258,7 +258,7 @@ func (s *Service) linkRecord(ctx context.Context, token string) (rec tokenRow, o
 		// The key that signed the link is sealed under another master key (a backup restored without its decryption key, or the box
 		// key changed, #847): no link it signed can ever be checked again, so the link is not valid, never a 500. The next approval
 		// request makes a new key (secrets.OpenOrCreate) and its links work.
-		if errors.Is(err, secrets.ErrDecrypt) {
+		if secrets.IsWrongKey(err) {
 			s.cfg.Log.WarnContext(ctx, "response: an approval link was signed with a key this box cannot open (restored without the decryption key, or the box key changed); it is answered as not valid")
 			return rec, false, nil
 		}

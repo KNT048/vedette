@@ -85,7 +85,7 @@ func (s *Service) Test(ctx context.Context, actor, id string, guard func(ctx con
 	if cur.secretID != nil {
 		secret, err = s.vault.Open(ctx, s.cfg.DB.Reader(), *cur.secretID)
 		switch {
-		case errors.Is(err, secrets.ErrDecrypt):
+		case secrets.IsWrongKey(err):
 			// Sealed under another master key (#847): nothing is sent, and the failure is saved like any other, so the card says so.
 			failure = credentialLost()
 		case err != nil:

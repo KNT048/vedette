@@ -18,6 +18,12 @@ func (r *wzRig) resealWazuhPassword() {
 	if err != nil {
 		r.t.Fatal(err)
 	}
+	r.sealWazuhPasswordWith(other)
+}
+
+// sealWazuhPasswordWith seals the saved Wazuh password with store: another master key, or the box's own (the key file put back).
+func (r *wzRig) sealWazuhPasswordWith(other *secrets.Store) {
+	r.t.Helper()
 	ctx := r.t.Context()
 	if err := r.db.Write(ctx, func(tx *sql.Tx) error {
 		var id string
@@ -93,5 +99,26 @@ func TestWazuh_RestoreWithoutKeyPullStopsAndSaysSo(t *testing.T) {
 	r.pull()
 	if status, errText, agents, _ := r.state(); status != "connected" || errText != "" || agents == 0 {
 		t.Fatalf("card after the pull: %s %q %d agents", status, errText, agents)
+	}
+}
+
+// #847 review F3: the original key file is put back after the pull stopped. The next tick notices on its own (no Save): the password
+// opens, the pull runs and the card is clean.
+func TestWazuh_RestoreWithoutKeyPullStartsAgainWhenTheKeyComesBack(t *testing.T) {
+	r := newWzRig(t)
+	r.save()
+	r.resealWazuhPassword()
+	r.pull()
+	if status, errText, _, _ := r.state(); status != "error" || !strings.Contains(errText, wzLost) {
+		t.Fatalf("card after the pull: %s %q", status, errText)
+	}
+	r.sealWazuhPasswordWith(r.cfg.Secrets) // the box's own key again
+	r.clock.Advance(time.Minute)
+	r.pull()
+	if status, errText, agents, _ := r.state(); status != "connected" || errText != "" || agents == 0 {
+		t.Fatalf("card after the key came back: %s %q %d agents", status, errText, agents)
+	}
+	if r.fake.logins != 2 { // the Save, then this pull
+		t.Fatalf("%d logins, want 2", r.fake.logins)
 	}
 }

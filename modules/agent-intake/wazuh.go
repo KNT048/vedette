@@ -41,7 +41,8 @@ const (
 // under this box's key and the pull starts again.
 const wazuhLostMsg = "The saved Wazuh password was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter the password again and press Save. Nothing is pulled until then."
 
-// wazuhNever is the next_pull of a connection whose password cannot be opened: no tick is due until a Save sets it to now.
+// wazuhNever is the next_pull of a connection whose password cannot be opened: no tick pulls until a Save sets it to now, or until a
+// tick finds that the password opens again (the original key file was put back).
 var wazuhNever = time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
 
 // WazuhIntervals are the pull intervals of the GUI, in minutes.
@@ -201,7 +202,7 @@ func (s *Service) checkWazuh(ctx context.Context, in WazuhInput) (checked, error
 	}
 	if !c.typed {
 		raw, err := s.cfg.Secrets.Open(ctx, tx, prev.secretID, wazuhPurpose)
-		if errors.Is(err, secrets.ErrDecrypt) {
+		if secrets.IsWrongKey(err) {
 			return checked{}, apierr.New(409, conn.CodeSecretLost, wazuhLostMsg)
 		}
 		if err != nil {
@@ -401,15 +402,24 @@ func (s *Service) WazuhPull(ctx context.Context) error {
 	// row whose address and pin the pull uses, even when a Save commits a moment later (round 1, MEDIUM-2).
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
 		var err error
-		if w, err = s.loadWazuh(ctx, tx); err != nil || w == nil || now.Before(w.nextPull) {
+		if w, err = s.loadWazuh(ctx, tx); err != nil || w == nil {
 			return err
+		}
+		// A pull stopped on a password it could not open (below) only checks, locally, whether the password opens again (the original
+		// key file was put back): nothing is sent, written or logged until it does, and then this tick pulls.
+		stopped := !w.nextPull.Before(wazuhNever)
+		if !stopped && now.Before(w.nextPull) {
+			return nil
+		}
+		raw, err = s.cfg.Secrets.Open(ctx, tx, w.secretID, wazuhPurpose)
+		if stopped && secrets.IsWrongKey(err) {
+			return nil
 		}
 		next := now.Add(time.Duration(w.IntervalMinutes) * time.Minute)
 		if _, err := tx.ExecContext(ctx, `UPDATE intake_wazuh SET next_pull = ? WHERE id = 1`, store.FormatTS(next)); err != nil {
 			return fmt.Errorf("agentintake: wazuh next pull: %w", err)
 		}
-		raw, err = s.cfg.Secrets.Open(ctx, tx, w.secretID, wazuhPurpose)
-		if errors.Is(err, secrets.ErrDecrypt) {
+		if secrets.IsWrongKey(err) {
 			// Sealed under another master key (#847): no pull can ever sign in with it. The card says so and the pull waits for the
 			// password to be typed again (Save sets next_pull to now), instead of failing at every tick.
 			lost = true

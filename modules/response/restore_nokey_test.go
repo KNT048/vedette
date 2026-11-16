@@ -3,10 +3,13 @@ package response_test
 import (
 	"bytes"
 	"database/sql"
+	"log/slog"
 	"strings"
 	"testing"
 
+	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/secrets"
+	"github.com/knt048/vedette/modules/response"
 )
 
 // resealUnderOtherKey seals every core_secret row of purpose again under another master key, as a backup restored without its
@@ -44,49 +47,74 @@ func (e *env) resealUnderOtherKey(purpose string) {
 	}))
 }
 
-// #847: the block list token is a box key (the box made it, nobody typed it). Sealed under another master key it is replaced, like
-// every box key (#846): GET /response/blocklist answers a new address instead of a 500, the old address stops working, the new one
-// works, and one audit row box-key.replace and one log line tell the administrator to paste the new address into the firewall. The
-// next read keeps the new token: nothing is replaced again.
-func TestRestoreWithoutKeyBlocklistTokenIsReplaced(t *testing.T) {
+// #847: a block list token sealed under another master key is never replaced on a read. GET /response/blocklist is 409 secret_lost
+// with a sentence that says the firewall keeps its address and Regenerate makes a new one; the firewall's pull of the old address keeps
+// working (only the token's hash is checked). Regenerate, the administrator's own act, replaces it: the old address stops, the new one
+// works, with one WARN and one audit row box-key.replace by that administrator.
+func TestRestoreWithoutKeyBlocklistTokenIsKeptUntilRegenerate(t *testing.T) {
 	t.Parallel()
-	e := newEnv(t)
+	var logs bytes.Buffer
+	e := newEnv(t, func(c *response.Config) { c.Log = slog.New(slog.NewTextHandler(&logs, nil)) })
 	v, err := e.svc.Blocklist(e.ctx())
 	e.must(err)
 	old := tokenOf(v.URL)
 	e.resealUnderOtherKey("response.blocklist.token")
 
-	v, err = e.svc.Blocklist(e.ctx())
-	if err != nil {
-		t.Fatalf("GET /response/blocklist with a token the box cannot open: %v", err)
+	for range 2 {
+		_, err = e.svc.Blocklist(e.ctx())
+		ae := wantErr(t, err, 409, "secret_lost")
+		for _, w := range []string{"could not be read on this box", "restored without the decryption key, or the box key changed", "Your firewall keeps using its current address", "Press Regenerate"} {
+			if !strings.Contains(ae.Message, w) {
+				t.Errorf("message %q does not say %q", ae.Message, w)
+			}
+		}
 	}
+	if _, err := e.svc.FetchBlocklist(e.ctx(), old, "203.0.113.1"); err != nil {
+		t.Fatalf("the firewall's pull of the old address stopped working: %v", err)
+	}
+	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'box-key.replace'`); n != 0 || strings.Contains(logs.String(), "level=WARN") {
+		t.Fatalf("a read replaced the token: %d audit rows, log %s", n, logs.String())
+	}
+
+	v, err = e.svc.RegenerateToken(e.ctx(), admin)
+	e.must(err)
 	tok := tokenOf(v.URL)
 	if len(tok) != 32 || tok == old || v.TokenLast4 != tok[28:] {
-		t.Fatalf("view after the restore: %+v (old token %s)", v, old)
+		t.Fatalf("view after Regenerate: %+v (old token %s)", v, old)
 	}
-	if _, err := e.svc.FetchBlocklist(e.ctx(), old, "203.0.113.1"); err == nil {
-		t.Fatal("the old address still works")
+	if _, err := e.svc.FetchBlocklist(e.ctx(), old, "203.0.113.2"); err == nil {
+		t.Fatal("the old address still works after Regenerate")
 	}
-	if _, err := e.svc.FetchBlocklist(e.ctx(), tok, "203.0.113.2"); err != nil {
+	if _, err := e.svc.FetchBlocklist(e.ctx(), tok, "203.0.113.3"); err != nil {
 		t.Fatalf("the new address: %v", err)
 	}
-	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'box-key.replace' AND target = 'response.blocklist.token' AND user = 'system'`); n != 1 {
-		t.Fatalf("audit rows box-key.replace: %d, want 1", n)
+	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'box-key.replace' AND target = 'response.blocklist.token' AND user = ?`, admin.Email); n != 1 {
+		t.Fatalf("audit rows box-key.replace by the administrator: %d, want 1", n)
 	}
-	if !e.logHas("blocklist_token", "Paste the new address into your firewall") {
-		t.Fatal("no log line tells the administrator to paste the new address")
+	if strings.Count(logs.String(), "level=WARN") != 1 {
+		t.Fatalf("want one WARN, log:\n%s", logs.String())
 	}
 	if n := e.count(`SELECT count(*) FROM core_secret WHERE purpose = 'response.blocklist.token'`); n != 1 {
 		t.Fatalf("%d token secrets, want the one new one (the unreadable one deleted)", n)
 	}
-	again, err := e.svc.Blocklist(e.ctx())
+	// A plain Regenerate of a token the box can open is not a box key replacement.
+	_, err = e.svc.RegenerateToken(e.ctx(), admin)
 	e.must(err)
-	if again.URL != v.URL || e.count(`SELECT count(*) FROM core_audit WHERE action = 'box-key.replace'`) != 1 {
-		t.Fatalf("a second read replaced the token again: %s, was %s", again.URL, v.URL)
+	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'box-key.replace'`); n != 1 {
+		t.Fatalf("a normal Regenerate wrote box-key.replace: %d rows", n)
 	}
-	if strings.Contains(e.dumpAudit(), tok) {
-		t.Fatal("the new token is in the audit log")
+	if strings.Contains(e.dumpAudit(), tok) || strings.Contains(logs.String(), tok) {
+		t.Fatal("the token is in the audit log or the log")
 	}
+}
+
+func wantErr(t *testing.T, err error, status int, code string) *apierr.Error {
+	t.Helper()
+	ae, ok := apierr.As(err)
+	if !ok || ae.Status != status || ae.Code != code {
+		t.Fatalf("error = %v, want %d %s", err, status, code)
+	}
+	return ae
 }
 
 func (e *env) dumpAudit() string {

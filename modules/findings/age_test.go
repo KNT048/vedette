@@ -412,3 +412,30 @@ func TestContract_D615_AgentRowWinsTheTieInBothOrders(t *testing.T) {
 		t.Fatalf("an agent-evidence finding closed for its age: %+v", r.Finding)
 	}
 }
+
+// #904: a finding stored with the agent row's evidence (as N100's WINLAB01 has CVE-2015-1671 and CVE-2021-43890) closes for its age
+// when the agent row's own match now says NVD's list names only other products: the closeAged guard keeps only real agent evidence.
+func TestContract_904_AgentRowOthersOnlyAgesOut(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	srv := winlab01()
+	srv.ID = "a-1"
+	v := Vuln{CVE: "CVE-2021-43890", Vendor: "Microsoft", Product: "Windows", Published: t0.AddDate(0, -1, 0), DateAdded: t0.AddDate(0, -1, 0),
+		Affected: []Affected{{CPE: "cpe:2.3:a:microsoft:app_installer:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "1.16"}}}}
+	if _, err := e.svc.UpsertFromMatch(t.Context(), srv, []Vuln{v}); err != nil {
+		t.Fatal(err)
+	}
+	r, err := loadByPair(t.Context(), e.db.Reader(), "a-1", v.CVE)
+	if err != nil || r.Status != StatusSuspected || r.Evidence == nil || !r.Evidence.AgentRow {
+		t.Fatalf("recent: %+v %v", r.Finding, err)
+	}
+	v.Published, v.DateAdded = t0.AddDate(-5, 0, 0), t0.AddDate(-5, 0, 0) // the same entry, past 12 months
+	e.advance(time.Minute)
+	if _, err := e.svc.UpsertFromMatch(t.Context(), srv, []Vuln{v}); err != nil {
+		t.Fatal(err)
+	}
+	r, _ = loadByPair(t.Context(), e.db.Reader(), "a-1", v.CVE)
+	if r.Status != StatusNotRelevant || !strings.Contains(r.ResolutionNote, "NVD lists it for app installer, not Windows Server 2025") {
+		t.Fatalf("not aged out: %+v", r.Finding)
+	}
+}

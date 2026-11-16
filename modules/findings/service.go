@@ -457,8 +457,10 @@ func (s *Service) closeAged(ctx context.Context, tx *sql.Tx, assetID string, age
 		}
 		// product findings only (review r1 #2 of #803): a version or agent finding whose match fell back to product-only (NVD's
 		// ranges gone in one pull, a version that became unreadable) stays for the next match, never flip-flops; a person's reopen stands
-		// nor one on a row the device's agent reported (AgentRow, D-612: agent evidence; N100 n54)
-		if r.Basis != BasisProduct || r.Evidence != nil && (r.Evidence.Agent || r.Evidence.AgentRow) || slices.ContainsFunc(r.History, func(h HistoryEntry) bool { return h.User != SystemUser && h.Action == "reopened" }) {
+		// nor one on a row the device's agent reported (AgentRow, D-612: agent evidence; N100 n54), unless the match that ages it is on an
+		// agent row and NVD's list names only other products (#904: the agent's version was compared with nothing)
+		agentRow := r.Evidence != nil && r.Evidence.AgentRow && (!p.Evidence.AgentRow || p.others == "")
+		if r.Basis != BasisProduct || r.Evidence != nil && r.Evidence.Agent || agentRow || slices.ContainsFunc(r.History, func(h HistoryEntry) bool { return h.User != SystemUser && h.Action == "reopened" }) {
 			continue
 		}
 		was := r.Status

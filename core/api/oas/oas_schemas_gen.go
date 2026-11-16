@@ -88376,10 +88376,11 @@ type InventoryGetInventoryDevicesIDOK struct {
 	FindingsCount int                                                `json:"findings_count"`
 	Kinds         []InventoryGetInventoryDevicesIDOKKindsItem        `json:"kinds"`
 	Observations  []InventoryGetInventoryDevicesIDOKObservationsItem `json:"observations"`
-	// Devices that may be this same machine (D-599), the one seen last first; empty for the box and when
-	// none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a
-	// private Wi-Fi address; never when a person kept them separate, two agents or two different burned-in
-	// MACs say two machines, they state another name, model or OS, or they were online at the same time.
+	// Devices that may be this same machine (D-599), the 5 seen last, the one seen last first; empty for
+	// the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model
+	// while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two
+	// different burned-in MACs say two machines, they state another name, model or OS, or one was seen
+	// while the other was.
 	PossibleSame []InventoryGetInventoryDevicesIDOKPossibleSameItem `json:"possible_same"`
 	Suspicious   bool                                               `json:"suspicious"`
 }

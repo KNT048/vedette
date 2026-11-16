@@ -311,20 +311,29 @@ function samePairs(): { a: Asset; b: Asset; why: string }[] {
   const list = allAssets().filter((a) => a.id !== BOX_ID && label(a.hostname).length >= 3)
   const out: { a: Asset; b: Asset; why: string }[] = []
   list.forEach((x, i) => list.slice(i + 1).forEach((y) => {
-    if (label(x.hostname) !== label(y.hostname) || (x.approved && y.approved) || separateStore.get().includes(pairKey(x.id, y.id))) return
-    const [a, b] = y.approved ? [y, x] : [x, y]
+    if (label(x.hostname) !== label(y.hostname) || twoMachines(x, y) || separateStore.get().includes(pairKey(x.id, y.id))) return
+    const [a, b] = (y.approved && !x.approved) || (x.approved === y.approved && y.first_seen < x.first_seen) ? [y, x] : [x, y]
     out.push({ a, b, why: `Same name "${(a.hostname ?? '').split('.')[0]}", never online at the same time, and a private Wi-Fi address (phones and laptops change it).` })
   }))
-  return out
+  const latest = (p: { a: Asset; b: Asset }) => (p.a.last_seen > p.b.last_seen ? p.a.last_seen : p.b.last_seen)
+  return out.sort((p, q) => latest(q).localeCompare(latest(p)))
 }
 const sameRef = (a: Asset) => ({ id: a.id, name: nameOf(a, a.kind), approved: a.approved, last_seen: a.last_seen })
 function possibleSameAs(id: string): PossibleSame[] {
   return samePairs().filter((p) => p.a.id === id || p.b.id === id).map((p) => ({ ...sameRef(p.a.id === id ? p.b : p.a), why: p.why }))
+    .sort((p, q) => q.last_seen.localeCompare(p.last_seen)).slice(0, 5)
 }
 function pairRefusal(x: Asset | undefined, y: Asset | undefined, request: Request, what: string) {
   if (!x || !y) return notFound(request)
   if (x.id === BOX_ID || y.id === BOX_ID) return fail(409, 'box_device', `This is the Vedette box itself, so it cannot be ${what}. It is always its own device.`)
   return null
+}
+// A MAC with the locally administered bit clear was burned in by its maker: two different ones are two machines (backend strongConflict).
+const burnedIn = (mac: string | null) => !!mac && (parseInt(mac.slice(0, 2), 16) & 2) === 0
+function twoMachines(x: Asset, y: Asset) {
+  return burnedIn(x.mac) && burnedIn(y.mac) && x.mac !== y.mac
+    ? `These are two machines: each has its own hardware MAC address (${x.mac} and ${y.mac}). Keep them separate; delete a device only when its machine is gone.`
+    : null
 }
 const notFound = (_request?: Request) => fail(404, 'not_found', 'No such device. It may have been removed; go back to the list to see the remaining devices.')
 
@@ -657,11 +666,13 @@ export const handlers = [
     const into = find(String(params.id)); const from = find(String(b.from ?? ''))
     const refused = pairRefusal(into, from, request, 'merged with another device'); if (refused) return refused
     const a = into!; const f = from!
+    const two = twoMachines(a, f); if (two) return fail(409, 'not_same_device', two)
     const notes = [a.notes, f.notes].filter((n) => n?.trim()).filter((n, i, l) => l.indexOf(n) === i).join('\n\n').slice(0, 2000) || undefined
-    assetsStore.update((l) => l.filter((x) => x.id !== f.id).map((x) => (x.id === a.id ? { ...x, approved: a.approved || f.approved, notes, software: [...x.software, ...f.software.filter((s) => !x.software.some((t) => t.product === s.product && t.vendor === s.vendor))] } : x)))
+    assetsStore.update((l) => l.filter((x) => x.id !== f.id).map((x) => (x.id === a.id ? { ...x, approved: a.approved || f.approved, notes, ...(a.origin === 'discovered' && f.last_seen > a.last_seen ? { ip: f.ip, mac: f.mac } : {}), software: [...x.software, ...f.software.filter((s) => !x.software.some((t) => t.product === s.product && t.vendor === s.vendor))] } : x)))
     obsStore.update((m) => { const { [f.id]: moved = [], ...rest } = m; return { ...rest, [a.id]: [...(rest[a.id] ?? []), ...moved] } })
-    metaStore.update((m) => { const { [f.id]: gone, ...rest } = m; return a.approved || !f.approved ? rest : { ...rest, [a.id]: { ...rest[a.id], approved_at: gone?.approved_at } } })
+    metaStore.update((m) => { const { [f.id]: gone, ...rest } = m; return a.approved || !f.approved ? rest : { ...rest, [a.id]: { ...rest[a.id], approved_at: gone?.approved_at, suspicious: false } } })
     findingsStore.update((l) => l.map((x) => (x.asset_id === f.id ? { ...x, asset_id: a.id } : x)))
+    separateStore.update((l) => l.filter((k) => !k.split('|').includes(f.id)))
     audit('inventory.merge', nameOf(a, a.kind), `${nameOf(f, f.kind)} is the same device: a person merged them`)
     return HttpResponse.json({ id: a.id })
   }),

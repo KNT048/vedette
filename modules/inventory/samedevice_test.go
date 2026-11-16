@@ -1,6 +1,7 @@
 package inventory_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -115,8 +116,9 @@ func TestContract_D599_PossibleSameIsOfferedAndMerged(t *testing.T) {
 	}
 }
 
-// D-599: a person decides, so unlike the join rules the approval moves when the kept row had none (approved_at kept), both notes stay
-// (the kept row's first), and inventory.asset.approved names the person.
+// D-599: a person decides, so unlike the join rules the approval moves when the kept row had none (approved_at kept, the suspicious
+// mark cleared as Approve does; review r1 of #871 M2), both notes stay (the kept row's first), and inventory.asset.approved names the
+// person.
 func TestContract_D599_MergeIntoAPendingRowKeepsTheApprovalAndBothNotes(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -125,12 +127,18 @@ func TestContract_D599_MergeIntoAPendingRowKeepsTheApprovalAndBothNotes(t *testi
 	if err := e.svc.PatchDevice(e.ctx(), "kien", newer, inventory.Patch{Notes: &notes}); err != nil {
 		t.Fatal(err)
 	}
+	if err := e.svc.SetSuspicious(e.ctx(), "kien", newer, true); err != nil {
+		t.Fatal(err)
+	}
 	approvedAt := *e.detail(old).Asset.ApprovedAt
 	e.ev.reset()
 	if err := e.svc.Merge(e.ctx(), admin, newer, old); err != nil {
 		t.Fatal(err)
 	}
 	k := e.only()
+	if k.Suspicious {
+		t.Errorf("the kept device gained the approval and is still marked suspicious (Approve clears the mark)")
+	}
 	if k.ID != newer || !k.Approved || k.ApprovedAt == nil || *k.ApprovedAt != approvedAt || k.Notes == nil || *k.Notes != "seen at the front desk\n\nKien's phone" {
 		t.Errorf("kept device: id %s approved %v at %v notes %q", k.ID, k.Approved, k.ApprovedAt, deref(k.Notes))
 	}
@@ -293,5 +301,74 @@ func TestHandlers_D599_MergeAndKeepSeparateAreForAdmins(t *testing.T) {
 	}
 	if d := a.want("GET", "/inventory/devices/"+old, "viewer", "", 200, ""); len(d["possible_same"].([]any)) != 0 {
 		t.Fatalf("possible_same after the merge: %v", d["possible_same"])
+	}
+}
+
+// Review r1 of #871 H1: Keep separate binds the join rules too. Two rows of a non-generic name with private addresses, the second seen
+// while the first had answered minutes before (no join yet), are offered; Keep separate; the next sighting of either does not join them.
+func TestContract_D599_KeepSeparateStopsTheJoinRules(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.record(dhcp(privMac1, "192.168.18.10", "kiens-macbook-air")...)
+	a := e.idOf("192.168.18.10")
+	e.tick(10 * time.Minute)
+	e.record(dhcp(privMac2, "192.168.18.11", "kiens-macbook-air")...)
+	b := e.idOf("192.168.18.11")
+	e.tick(30 * time.Minute)
+	if got := e.sameAs(b); len(got) != 1 || got[0].ID != a {
+		t.Fatalf("offered: %+v", got)
+	}
+	if err := e.svc.KeepSeparate(e.ctx(), admin, b, a); err != nil {
+		t.Fatal(err)
+	}
+	e.tick(time.Hour)
+	e.record(dhcp(privMac2, "192.168.18.11", "kiens-macbook-air")...)
+	e.tick(time.Hour)
+	e.record(dhcp(privMac1, "192.168.18.12", "kiens-macbook-air")...)
+	if n := e.devices(); n != 2 {
+		t.Errorf("%d devices after Keep separate and new sightings, want 2", n)
+	}
+}
+
+// Review r1 of #871 H2: a phone of the same generic name seen once while the approved one was online is not "never online at the same
+// time": not offered, however short its visit.
+func TestContract_D599_AVisitorSeenWhileTheDeviceWasOnlineIsNotOffered(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.record(dhcp(privMac1, "192.168.18.10", "iPhone")...)
+	old := e.idOf("192.168.18.10")
+	if err := e.svc.Approve(e.ctx(), "kien", old); err != nil {
+		t.Fatal(err)
+	}
+	for i := range 4 {
+		e.tick(15 * time.Minute)
+		e.record(dhcp(privMac1, "192.168.18.10", "iPhone")...)
+		if i == 1 {
+			e.record(dhcp(privMac2, "192.168.18.11", "iPhone")...)
+		}
+	}
+	e.tick(25 * time.Minute)
+	if got := e.sameAs(e.idOf("192.168.18.11")); len(got) != 0 {
+		t.Errorf("the visitor is offered as the approved phone: %+v", got)
+	}
+}
+
+// Review r1 of #871 M1: rows of past months do not count against the group cap: after nine old rotations of "iPhone", a new one is still
+// offered, with the maxOffered (5) seen last.
+func TestContract_D599_OldRowsDoNotSilenceTheOffer(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	var olds []string
+	for i := range 9 {
+		ip := fmt.Sprintf("192.168.18.%d", 20+i)
+		e.record(dhcp(fmt.Sprintf("b2:f0:09:00:00:%02x", i), ip, "iPhone")...)
+		olds = append(olds, e.idOf(ip))
+		e.tick(24 * time.Hour)
+	}
+	e.tick(40 * 24 * time.Hour)
+	e.record(dhcp(privMac1, "192.168.18.60", "iPhone")...)
+	got := e.sameAs(e.idOf("192.168.18.60"))
+	if len(got) != 5 || got[0].ID != olds[8] || got[4].ID != olds[4] {
+		t.Errorf("offered: %+v; want the five old rows seen last", got)
 	}
 }

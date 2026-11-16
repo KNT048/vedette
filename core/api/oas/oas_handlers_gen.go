@@ -29285,10 +29285,12 @@ func (s *Server) handleInventoryPostInventoryDevicesIDKeepSeparateRequest(args [
 // handleInventoryPostInventoryDevicesIDMergeRequest handles inventory_post_inventory_devices_id_merge operation.
 //
 // The same machine: device `from` joins this device and is gone (D-599). This device keeps its id,
-// approval (it becomes approved when `from` was), notes (both kept), findings and settings; the MACs,
-// address, sources, software and open ports of `from` move to it. 400 invalid: the same device twice.
-// 404 not_found: either device. 409 box_device: either is the Vedette box. 409 not_same_device: two
-// agents, or two different burned-in MACs, say two machines.
+// approval (it becomes approved when `from` was, and loses a suspicious mark as on Approve), notes
+// (both kept), findings and settings; the MACs, sources, software and open ports of `from` move to it,
+// and its address when it was seen later and this device was found by a sensor (a device added by hand
+// keeps the address typed). 400 invalid: the same device twice. 404 not_found: either device. 409
+// box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in
+// MACs, say two machines.
 //
 // POST /inventory/devices/{id}/merge
 func (s *Server) handleInventoryPostInventoryDevicesIDMergeRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29382,7 +29384,7 @@ func (s *Server) handleInventoryPostInventoryDevicesIDMergeRequest(args [1]strin
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPostInventoryDevicesIDMergeOperation,
-			OperationSummary: "The same machine: device `from` joins this device and is gone (D-599). This device keeps its id, approval (it becomes approved when `from` was), notes (both kept), findings and settings; the MACs, address, sources, software and open ports of `from` move to it. 400 invalid: the same device twice. 404 not_found: either device. 409 box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in MACs, say two machines",
+			OperationSummary: "The same machine: device `from` joins this device and is gone (D-599). This device keeps its id, approval (it becomes approved when `from` was, and loses a suspicious mark as on Approve), notes (both kept), findings and settings; the MACs, sources, software and open ports of `from` move to it, and its address when it was seen later and this device was found by a sensor (a device added by hand keeps the address typed). 400 invalid: the same device twice. 404 not_found: either device. 409 box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in MACs, say two machines",
 			OperationID:      "inventory_post_inventory_devices_id_merge",
 			Body:             request,
 			RawBody:          rawBody,

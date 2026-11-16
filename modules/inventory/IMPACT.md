@@ -17,6 +17,7 @@
 - **web** (`features/inventory`): the device page shows `possible_same` with Merge / Keep separate (UI by Mlee); `why` is shown as is, so its words are the product's. Changing a field or an error code (`not_same_device`, `box_device`) changes `contract.ts`, the mock (`mocks.ts` `samePairs`), `api/openapi.json` and the UI together.
 - **Loosening the offer** (burned-in-only rows by name, dropping `onlineTogether`, larger groups) offers an intruder or a second phone as "the same device"; an admin who merges it hands the approved row's identity to that machine (D-598 review #831 H1). **Tightening `strongConflict`** lets a merge join two machines an agent or a burned-in MAC tells apart.
 - **findings** (`OnAssetMerged`) and **notify** (D-554) react to the person's merge exactly as to a join: keep publishing `merged` before `deleted`, then `updated` with `match: true`; `approved` after them when the kept row gained the approval (notify closes the kept row's own incident naming the person, INV-28 (2)).
+- **The join rules honour `inv_separate`** (`keptApart` in `sameAs` and `sameMachine`, review r1 of #871 H1): a new join rule must call it too, or a person's Keep separate is overridden on the next sighting without a word.
 - **`joinInto` / `joinAs`**: Merge reuses the D-598 machine join; a change there changes what a person's merge moves (address rule, agent binding, notes coalesce before Merge appends).
 - **`modules/core/export_policy.go`** lists `inv_separate`; **audit labels** `inventory.keep_separate` in `web/src/locales/en/core.json`.
 

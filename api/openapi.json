@@ -43636,7 +43636,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "Devices that may be this same machine (D-599), the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or they were online at the same time"
+                      "description": "Devices that may be this same machine (D-599), the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was"
                     }
                   },
                   "required": [
@@ -43977,7 +43977,7 @@
     "/inventory/devices/{id}/merge": {
       "post": {
         "operationId": "inventory_post_inventory_devices_id_merge",
-        "summary": "The same machine: device `from` joins this device and is gone (D-599). This device keeps its id, approval (it becomes approved when `from` was), notes (both kept), findings and settings; the MACs, address, sources, software and open ports of `from` move to it. 400 invalid: the same device twice. 404 not_found: either device. 409 box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in MACs, say two machines",
+        "summary": "The same machine: device `from` joins this device and is gone (D-599). This device keeps its id, approval (it becomes approved when `from` was, and loses a suspicious mark as on Approve), notes (both kept), findings and settings; the MACs, sources, software and open ports of `from` move to it, and its address when it was seen later and this device was found by a sensor (a device added by hand keeps the address typed). 400 invalid: the same device twice. 404 not_found: either device. 409 box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in MACs, say two machines",
         "tags": [
           "inventory"
         ],

@@ -338,20 +338,35 @@ func (s *Service) joinSame(ctx context.Context, tx *sql.Tx, o *outbox, touched [
 	return gone, joined, nil
 }
 
-// sameAs finds the pair of rows a touched row is part of: from goes into into. "" when none fits.
+// sameAs finds the pair of rows a touched row is part of: from goes into into. "" when none fits. A pair a person kept separate
+// (D-599, inv_separate) is never joined by any rule.
 func sameAs(ctx context.Context, tx *sql.Tx, id string, now time.Time) (from, into, why string, mode joinMode, err error) {
-	if into, why, err = sameDevice(ctx, tx, id); into != "" || err != nil {
-		return id, into, why, joinChassis, err
+	if into, why, err = sameDevice(ctx, tx, id); err != nil {
+		return "", "", "", 0, err
+	}
+	if into != "" {
+		if apart, err := keptApart(ctx, tx, id, into); err != nil || !apart {
+			return id, into, why, joinChassis, err
+		}
 	}
 	var orphan string
 	if orphan, why, err = agentOrphan(ctx, tx, id); err != nil {
 		return "", "", "", 0, err
 	} else if orphan != "" {
-		from, into, err = keptOrder(ctx, tx, orphan, id) // an approval the enrolment gave the orphan stays (review #831 L5)
-		return from, into, why, joinMachine, err
+		if apart, err := keptApart(ctx, tx, orphan, id); err != nil {
+			return "", "", "", 0, err
+		} else if !apart {
+			from, into, err = keptOrder(ctx, tx, orphan, id) // an approval the enrolment gave the orphan stays (review #831 L5)
+			return from, into, why, joinMachine, err
+		}
 	}
-	if from, into, why, err = sameMAC(ctx, tx, id, now); from != "" || err != nil {
-		return from, into, why, joinMachine, err
+	if from, into, why, err = sameMAC(ctx, tx, id, now); err != nil {
+		return "", "", "", 0, err
+	}
+	if from != "" {
+		if apart, err := keptApart(ctx, tx, from, into); err != nil || !apart {
+			return from, into, why, joinMachine, err
+		}
 	}
 	from, into, why, err = sameMachine(ctx, tx, id, now)
 	return from, into, why, joinMachine, err
@@ -447,6 +462,11 @@ func sameMachine(ctx context.Context, tx *sql.Tx, id string, now time.Time) (fro
 			return "", "", "", err
 		}
 		if machineName(theirs["hostname"]) != name || differ(own, theirs) {
+			continue
+		}
+		if apart, err := keptApart(ctx, tx, id, other); err != nil {
+			return "", "", "", err
+		} else if apart { // a person said two machines (D-599)
 			continue
 		}
 		b, p, err := macKinds(ctx, tx, other)

@@ -11,15 +11,20 @@ import (
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/store"
 )
 
 // D-599 (issue #829, J2): when the join rules (join.go, D-515, D-598) cannot be sure two rows are one machine, a person decides.
 // The device page says "Possibly the same device as X" with Merge and Keep separate; Merge joins the rows with the join rules' own
 // primitive (joinAs), Keep separate stores the pair so it is never offered again (inv_separate).
 
-// maxSameGroup is how many rows may share a name, a model or a MAC before it says nothing about one machine (an office full of
-// "iPhone"): no pair of a larger group is offered.
+// maxSameGroup is how many rows seen within macMemory may share a name, a model or a MAC before it says nothing about one machine (an
+// office full of "iPhone"): no pair of a larger group is offered. Older rows do not count (review r1 of #871 M1): rotations and
+// visitors of past months must not silence the offer for good.
 const maxSameGroup = 8
+
+// maxOffered is how many devices one device page offers, the ones seen last.
+const maxOffered = 5
 
 // PossibleSame is another device that may be the same machine as the one read (D-599): GET /inventory/devices/{id} possible_same.
 type PossibleSame struct {
@@ -54,8 +59,8 @@ type SamePairs struct {
 // burned-in and private (locally administered) ones.
 type sameRow struct {
 	id, origin, host, model, first, last, agent string
-	approved                                    bool
-	burned, private                             []string
+	approved, box                               bool
+	burned, private                             []string // sorted
 }
 
 func (r *sameRow) ref(ctx context.Context, q querier) SameRef {
@@ -66,16 +71,17 @@ func (r *sameRow) ref(ctx context.Context, q querier) SameRef {
 // private address that carries its name is another machine (D-598 review #831 H1: an intruder naming itself after a server).
 func (r *sameRow) burnedOnly() bool { return len(r.burned) > 0 && len(r.private) == 0 }
 
-// loadSameRows reads the rows of ids (every device but the box when ids is nil).
+// loadSameRows reads the rows of ids (every device but the box when ids is nil), with their MACs.
 func loadSameRows(ctx context.Context, q querier, ids []string) (map[string]*sameRow, error) {
-	where, args := "WHERE is_box = 0", []any{}
+	where, macWhere, args := "WHERE is_box = 0", "", []any{}
 	if ids != nil {
-		where = "WHERE id IN (" + strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",") + ")"
+		in := "(" + strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",") + ")"
+		where, macWhere = "WHERE id IN "+in, " AND asset_id IN "+in
 		for _, id := range ids {
 			args = append(args, id)
 		}
 	}
-	rows, err := q.QueryContext(ctx, `SELECT id, origin, approved, coalesce(hostname, ''), coalesce(model, ''), first_seen, last_seen, coalesce(agent_key, '')
+	rows, err := q.QueryContext(ctx, `SELECT id, origin, approved, is_box, coalesce(hostname, ''), coalesce(model, ''), first_seen, last_seen, coalesce(agent_key, '')
 		FROM inv_asset `+where, args...)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read devices: %w", err)
@@ -83,7 +89,7 @@ func loadSameRows(ctx context.Context, q querier, ids []string) (map[string]*sam
 	out := map[string]*sameRow{}
 	for rows.Next() {
 		r := &sameRow{}
-		if err := rows.Scan(&r.id, &r.origin, &r.approved, &r.host, &r.model, &r.first, &r.last, &r.agent); err != nil {
+		if err := rows.Scan(&r.id, &r.origin, &r.approved, &r.box, &r.host, &r.model, &r.first, &r.last, &r.agent); err != nil {
 			_ = rows.Close()
 			return nil, fmt.Errorf("inventory: read devices: %w", err)
 		}
@@ -92,8 +98,9 @@ func loadSameRows(ctx context.Context, q querier, ids []string) (map[string]*sam
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, fmt.Errorf("inventory: read devices: %w", err)
 	}
-	macs, err := q.QueryContext(ctx, `SELECT asset_id, value FROM inv_observation WHERE field = 'mac' AND evidence IS NOT ?
-		UNION SELECT id, mac FROM inv_asset WHERE mac IS NOT NULL`, chassisEvidence)
+	macArgs := append([]any{chassisEvidence}, args...)
+	macs, err := q.QueryContext(ctx, `SELECT asset_id, value FROM inv_observation WHERE field = 'mac' AND evidence IS NOT ?`+macWhere+`
+		UNION SELECT id, mac FROM inv_asset `+where+` AND mac IS NOT NULL`, append(macArgs, args...)...)
 	if err != nil {
 		return nil, fmt.Errorf("inventory: read the MACs: %w", err)
 	}
@@ -112,7 +119,49 @@ func loadSameRows(ctx context.Context, q querier, ids []string) (map[string]*sam
 			r.burned = append(r.burned, mac)
 		}
 	}
+	for _, r := range out {
+		slices.Sort(r.burned)
+		slices.Sort(r.private)
+	}
 	return out, macs.Err()
+}
+
+// sameCandidates is device only and the rows that share its name label, its model or one of its MACs: the only rows a pair of it
+// can hold (samePairs), read through the indexes instead of the whole inventory (review r1 of #871 M3). nil when only is unknown.
+func sameCandidates(ctx context.Context, q *sql.Tx, only string) ([]string, error) {
+	self, err := loadSameRows(ctx, q, []string{only})
+	if err != nil || self[only] == nil || self[only].box {
+		return nil, err
+	}
+	r := self[only]
+	cond, args := []string{"id = ?"}, []any{only}
+	if l := sameLabel(r.host); l != "" {
+		cond = append(cond, "lower(hostname) = ? OR (lower(hostname) >= ? AND lower(hostname) < ?)")
+		args = append(args, l, l+".", l+"/")
+	}
+	if m := strings.ToLower(strings.TrimSpace(r.model)); m != "" {
+		cond = append(cond, "lower(trim(model)) = ?")
+		args = append(args, m)
+	}
+	if all := append(slices.Clone(r.burned), r.private...); len(all) > 0 {
+		in := "(" + strings.TrimSuffix(strings.Repeat("?,", len(all)), ",") + ")"
+		cond = append(cond, "mac IN "+in, "id IN (SELECT asset_id FROM inv_observation WHERE field = 'mac' AND value IN "+in+")")
+		for range 2 {
+			for _, m := range all {
+				args = append(args, m)
+			}
+		}
+	}
+	return candidates(ctx, q, `SELECT id FROM inv_asset WHERE is_box = 0 AND (`+strings.Join(cond, " OR ")+`)`, args...)
+}
+
+// keptApart reports a pair a person kept separate (D-599): no join rule and no offer takes it.
+func keptApart(ctx context.Context, tx *sql.Tx, x, y string) (bool, error) {
+	var n int
+	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM inv_separate WHERE a = ? AND b = ?`, min(x, y), max(x, y)).Scan(&n); err != nil {
+		return false, fmt.Errorf("inventory: read separate devices: %w", err)
+	}
+	return n > 0, nil
 }
 
 // strongConflict says, in plain words, why two rows are two machines whatever else they share (D-599, the research's identity order):
@@ -161,12 +210,18 @@ func (s *Service) samePairs(ctx context.Context, only string) ([]samePair, error
 		return nil, fmt.Errorf("inventory: read devices: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	rows, err := loadSameRows(ctx, tx, nil)
+	var rows map[string]*sameRow
+	if only == "" {
+		rows, err = loadSameRows(ctx, tx, nil)
+	} else {
+		var ids []string
+		if ids, err = sameCandidates(ctx, tx, only); err != nil || len(ids) == 0 {
+			return nil, err
+		}
+		rows, err = loadSameRows(ctx, tx, ids)
+	}
 	if err != nil {
 		return nil, err
-	}
-	if only != "" && rows[only] == nil {
-		return nil, nil
 	}
 	separate := map[[2]string]bool{}
 	sep, err := candidatePairs(ctx, tx, `SELECT a, b FROM inv_separate`)
@@ -197,6 +252,8 @@ func (s *Service) samePairs(ctx context.Context, only string) ([]samePair, error
 		}
 	}
 	now := s.clock()
+	recentCut := store.FormatTS(now.Add(-macMemory))
+	recent := func(r *sameRow) bool { return r.last >= recentCut }
 	tried := map[[2]string]bool{}
 	var out []samePair
 	for sig, g := range groups {
@@ -207,13 +264,13 @@ func (s *Service) samePairs(ctx context.Context, only string) ([]samePair, error
 		slices.Sort(keys)
 		for _, k := range keys {
 			members := g[k]
-			if len(members) < 2 || len(members) > maxSameGroup {
+			if len(members) < 2 || len(slices.DeleteFunc(slices.Clone(members), func(r *sameRow) bool { return !recent(r) })) > maxSameGroup {
 				continue
 			}
 			for i, x := range members {
 				for _, y := range members[i+1:] {
 					key := [2]string{min(x.id, y.id), max(x.id, y.id)}
-					if tried[key] || separate[key] || only != "" && x.id != only && y.id != only {
+					if tried[key] || separate[key] || only != "" && x.id != only && y.id != only || !recent(x) && !recent(y) {
 						continue
 					}
 					tried[key] = true
@@ -279,6 +336,12 @@ func pairWhy(ctx context.Context, tx *sql.Tx, x, y *sameRow, sig signal, value s
 	if sig == byModel && (fx["model"] == "" || !strings.EqualFold(fx["model"], fy["model"])) {
 		return "", nil
 	}
+	// "Never online at the same time" must be true for a person (review r1 of #871 H2): one row was last seen before the other was
+	// first seen. The join's own test (onlineTogether) forgives a short overlap; a visitor's phone seen while the approved one was
+	// online must not be offered as it.
+	if !(x.last < y.first || y.last < x.first) {
+		return "", nil
+	}
 	if together, err := onlineTogether(ctx, tx, x.id, y.id, now); together || err != nil {
 		return "", err
 	}
@@ -315,6 +378,9 @@ func (s *Service) PossibleSameAs(ctx context.Context, id string) ([]PossibleSame
 		}
 		return strings.Compare(a.ID, b.ID)
 	})
+	if len(out) > maxOffered {
+		out = out[:maxOffered]
+	}
 	return out, nil
 }
 
@@ -345,7 +411,8 @@ func (s *Service) PossibleSamePairs(ctx context.Context) (SamePairs, error) {
 // Merge is a person's answer "the same device" (D-599, POST /inventory/devices/{into}/merge): device from joins device into with the
 // join rules' own primitive (joinAs, a machine join): into keeps its id, its approval, its notes and its findings; from's MACs, address
 // (when from was seen later and into is not declared), sources, software, open ports, agent binding and findings move to it; from is
-// gone. A person decides, so unlike the join rules: into is approved when from was (approved_at from from), and both notes are kept.
+// gone. A person decides, so unlike the join rules: into is approved when from was (approved_at from from, the suspicious mark cleared
+// as Approve does), both notes are kept, and an approved into keeps its own suspicious mark only (from's mark is answered by the merge).
 // Refused: the same device twice (400 invalid), an unknown device (404), the box (409 box_device), two rows strongConflict says are two
 // machines (409 not_same_device). Any pair may be merged, offered or not. One audit row inventory.merge by the person; events as a
 // join: merged, from deleted, into updated (matched again), into approved when it was not.
@@ -369,6 +436,10 @@ func (s *Service) Merge(ctx context.Context, actor, into, from string) error {
 			Scan(&intoNotes, &fromNotes, &fromApprovedAt); err != nil {
 			return fmt.Errorf("inventory: read devices: %w", err)
 		}
+		var intoSuspicious bool
+		if err := tx.QueryRowContext(ctx, `SELECT suspicious FROM inv_asset WHERE id = ?`, into).Scan(&intoSuspicious); err != nil {
+			return fmt.Errorf("inventory: read device: %w", err)
+		}
 		gains := rows[from].approved && !rows[into].approved
 		if err := s.joinAs(ctx, tx, from, into, "a person merged them", joinMachine, actor); err != nil {
 			return err
@@ -383,8 +454,12 @@ func (s *Service) Merge(ctx context.Context, actor, into, from string) error {
 			if at == "" {
 				at = s.now()
 			}
-			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET approved = 1, approved_at = ? WHERE id = ?`, at, into); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET approved = 1, approved_at = ?, suspicious = 0 WHERE id = ?`, at, into); err != nil {
 				return fmt.Errorf("inventory: merge the approval: %w", err)
+			}
+		} else if rows[into].approved { // the person says the other row is this known device: its mark is answered, this one's own stays
+			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET suspicious = ? WHERE id = ?`, intoSuspicious, into); err != nil {
+				return fmt.Errorf("inventory: merge the mark: %w", err)
 			}
 		}
 		if _, err := s.RecomputeAsset(ctx, tx, into); err != nil {

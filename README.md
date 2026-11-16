@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/readme-hero-dark.svg">
+  <img src="docs/brand/readme-hero.svg" alt="Vedette: know early, know exactly, know what to do" width="830">
+</picture>
+
 # Vedette
 
 **Know early. Know exactly. Know what to do.**

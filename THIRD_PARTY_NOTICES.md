@@ -16,11 +16,11 @@ The whole dependency tree that runs in the browser is MIT, ISC, Apache-2.0, 0BSD
 | lucide-react | ISC | icons |
 | class-variance-authority | Apache-2.0 | button variants |
 | clsx, tailwind-merge, sonner | MIT | CSS classes, notifications |
-| @fontsource/be-vietnam-pro, @fontsource/jetbrains-mono | OFL-1.1 | self-hosted fonts (no CDN) |
+| @fontsource/be-vietnam-pro, @fontsource/jetbrains-mono | OFL-1.1 | self-hosted fonts (no CDN); the logo wordmark and the README/social taglines are Be Vietnam Pro glyphs converted to outlines (`docs/brand/`, OFL-1.1 permits this; no font file is copied) |
 | uqr | MIT | draws the two-step sign-in QR code locally in the SPA (bundled; no external QR service) |
 | msw (+ `public/mockServiceWorker.js`) | MIT | mock API in the current build; removed when built with `VITE_API_MOCK=off` |
 
-Build and test tools (not shipped): Vite, TypeScript, Tailwind CSS, vitest, Testing Library, axe-core (MPL-2.0, tests only), jsdom, oxlint, Playwright (Apache-2.0).
+Build and test tools (not shipped): Vite, TypeScript, Tailwind CSS, vitest, Testing Library, axe-core (MPL-2.0, tests only), jsdom, oxlint, Playwright (Apache-2.0; also renders the brand icons, `scripts/brand/render.mjs`). Brand authoring only, in a throwaway Python venv, run by hand when the logo changes (`scripts/brand/outline.py`): fontTools (MIT), uharfbuzz (Apache-2.0, bundles HarfBuzz, MIT), Brotli (MIT).
 
 ## Go libraries linked into the Vedette binary (backend)
 

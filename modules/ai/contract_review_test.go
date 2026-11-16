@@ -317,6 +317,8 @@ func TestContract_L2_ABadSavedStateDoesNotStopTheBox(t *testing.T) {
 		}
 	})
 	t.Run("a key that cannot be opened", func(t *testing.T) {
+		// #847: a key sealed under another master key (a restore without the key) is not a bad state: the profile loads with key_lost,
+		// unusable, and can be edited or deleted (restore_nokey_test.go). The module is not degraded, and no job runs on it.
 		a := newAPI(t)
 		a.addProfile(cloudBody("Claude", keyA))
 		other, err := secrets.New([]byte("ffffffffffffffffffffffffffffffff"))
@@ -324,6 +326,21 @@ func TestContract_L2_ABadSavedStateDoesNotStopTheBox(t *testing.T) {
 			t.Fatal(err)
 		}
 		svc, err := a.newServiceWith(other)
+		if err != nil {
+			t.Fatalf("the box must start: %v", err)
+		}
+		if deg(svc) != "" || svc.Config().JobsReady["explain-finding"] {
+			t.Fatalf("degraded %q, or a job is ready on a lost key", deg(svc))
+		}
+	})
+	t.Run("a key that fails to open for another reason", func(t *testing.T) {
+		// only the wrong-key answer is a lost key (INV-1a): a row of another key version is still a bad state, as before
+		a := newAPI(t)
+		a.addProfile(cloudBody("Claude", keyA))
+		if err := a.exec(`UPDATE core_secret SET key_version = 2 WHERE purpose = 'ai_profile.api_key'`); err != nil {
+			t.Fatal(err)
+		}
+		svc, err := a.newServiceWith(a.sec)
 		if err != nil {
 			t.Fatalf("the box must start: %v", err)
 		}

@@ -24,6 +24,9 @@ var errProfileCapSkip = errors.New("monthly budget reached")
 // (ErrProfileHeld): not used up, busy for a moment.
 var errProfileHeldSkip = errors.New("the rest of its monthly budget is held by AI calls in flight")
 
+// keyLostReason is why a profile whose saved key this box cannot open is skipped (#847); Service.unavailable turns it into secret_lost.
+const keyLostReason = "its saved API key was not restored (the backup was restored without its decryption key, or the box key changed)"
+
 // ErrCapped means this month's shared token budget is used up (D-531).
 var ErrCapped = errors.New("ai: this month's AI token budget is used up")
 
@@ -171,6 +174,8 @@ func candidates(st *routerState, job Job, carriesInternal bool) (cs []candidate,
 		switch {
 		case !ok:
 			reasons = append(reasons, "profile no longer exists")
+		case p.KeyLost:
+			reasons = append(reasons, p.Name+": "+keyLostReason)
 		case !p.Usable():
 			reasons = append(reasons, p.Name+": no API key")
 		case !st.assign.AllowedFor(carriesInternal, p):

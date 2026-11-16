@@ -2194,7 +2194,8 @@ func (UnimplementedHandler) InventoryPostInventorySnmp(ctx context.Context, req 
 // Read now every approved device in this credential's scope (read-only GETs from the scan container,
 // logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the
 // window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent;
-// 409 stopped when active discovery was turned off while the read started.
+// 409 secret_lost when its saved secret cannot be opened on this box (Edit and type it again); 409
+// stopped when active discovery was turned off while the read started.
 //
 // POST /inventory/snmp/{id}/read
 func (UnimplementedHandler) InventoryPostInventorySnmpIDRead(ctx context.Context, params InventoryPostInventorySnmpIDReadParams) (r *InventoryPostInventorySnmpIDReadAccepted, _ error) {
@@ -2204,7 +2205,9 @@ func (UnimplementedHandler) InventoryPostInventorySnmpIDRead(ctx context.Context
 // InventoryPostInventorySnmpIDTest implements inventory_post_inventory_snmp_id_test operation.
 //
 // Read one device with this credential now (read-only GETs from the scan container, logged in the
-// probe log) and say what it answered, or why not; an answer is recorded in the inventory.
+// probe log) and say what it answered, or why not; an answer is recorded in the inventory. 409
+// secret_lost when its saved secret cannot be opened on this box (nothing is sent; Edit and type it
+// again).
 //
 // POST /inventory/snmp/{id}/test
 func (UnimplementedHandler) InventoryPostInventorySnmpIDTest(ctx context.Context, req *InventoryPostInventorySnmpIDTestReq, params InventoryPostInventorySnmpIDTestParams) (r *InventoryPostInventorySnmpIDTestOK, _ error) {
@@ -2241,7 +2244,8 @@ func (UnimplementedHandler) InventoryPutInventorySettings(ctx context.Context, r
 
 // InventoryPutInventorySnmpID implements inventory_put_inventory_snmp_id operation.
 //
-// Edit an SNMP credential; a blank secret keeps the saved one.
+// Edit an SNMP credential; a blank secret keeps the saved one. 409 secret_lost when a blank secret
+// would keep one this box cannot open (type it again).
 //
 // PUT /inventory/snmp/{id}
 func (UnimplementedHandler) InventoryPutInventorySnmpID(ctx context.Context, req *InventoryPutInventorySnmpIDReq, params InventoryPutInventorySnmpIDParams) (r *InventoryPutInventorySnmpIDOK, _ error) {

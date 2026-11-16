@@ -64,6 +64,7 @@
 - **sensor-passive/capture**: `ParseSysDesc` (mẫu sysDescr dùng chung với LLDP); đổi mẫu đổi cả hai nguồn.
 - **core/secrets** (`sa_snmp.secret`, `sa_snmp.priv`), **core/audit** (`inventory.snmp_add|_edit|_delete|_test`, nhãn ở `web/src/locales/en/core.json`, `TestEveryAuditActionHasALabel`), **modules/core** export policy (`sa_snmp`: id bí mật `skip`), **core/server** (`/inventory/snmp` → `sensor-active`, `api/route-modules.json`, `web/src/lib/apiModules.ts`).
 - **GUI**: `web/src/features/inventory/{SnmpSection.tsx,contract.ts,mocks.ts}`; lý do Test (`SnmpTestReason`) và câu `snmpMessage` phải giống câu của mock.
+- **Secret not restored** (#868, INV-10 (h)): `snmpLost`/`secretLost` use `secrets.IsWrongKey` like core/conn, agent-intake and response (`secret_lost`, #847); `SnmpCredential.secret_lost` is read by `SnmpSection.tsx` (row notice; the Edit dialog keeps no secret) and by the `snmp` card in `cmd/vedette/scanning.go`; the mock answers the same 409s.
 - **Read now** (#849, INV-10 (g), `snmp_read.go`): the Add dialog of Devices (Mlee) reads `SnmpRead` (`total`, `done`, `answered`, `skipped`, `results`, `message`); the mock's `POST/GET /inventory/snmp/:id/read` follows the same rules. A read reuses `snmpBatch` with `picked=true`: a change to the batch's checks changes Read now too. Audit label `inventory.snmp_read` in `web/src/locales/en/core.json`.
 
 ## Modifying: `ScanExternal`, mẫu `external`, rào own-IP (D-514, INV-16)

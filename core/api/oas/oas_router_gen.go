@@ -15724,7 +15724,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										return r, true
 									case "PUT":
 										r.name = InventoryPutInventorySnmpIDOperation
-										r.summary = "Edit an SNMP credential; a blank secret keeps the saved one"
+										r.summary = "Edit an SNMP credential; a blank secret keeps the saved one. 409 secret_lost when a blank secret would keep one this box cannot open (type it again)"
 										r.operationID = "inventory_put_inventory_snmp_id"
 										r.operationGroup = ""
 										r.pathPattern = "/inventory/snmp/{id}"
@@ -15770,7 +15770,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 												return r, true
 											case "POST":
 												r.name = InventoryPostInventorySnmpIDReadOperation
-												r.summary = "Read now every approved device in this credential's scope (read-only GETs from the scan container, logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent; 409 stopped when active discovery was turned off while the read started"
+												r.summary = "Read now every approved device in this credential's scope (read-only GETs from the scan container, logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent; 409 secret_lost when its saved secret cannot be opened on this box (Edit and type it again); 409 stopped when active discovery was turned off while the read started"
 												r.operationID = "inventory_post_inventory_snmp_id_read"
 												r.operationGroup = ""
 												r.pathPattern = "/inventory/snmp/{id}/read"
@@ -15795,7 +15795,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 											switch method {
 											case "POST":
 												r.name = InventoryPostInventorySnmpIDTestOperation
-												r.summary = "Read one device with this credential now (read-only GETs from the scan container, logged in the probe log) and say what it answered, or why not; an answer is recorded in the inventory"
+												r.summary = "Read one device with this credential now (read-only GETs from the scan container, logged in the probe log) and say what it answered, or why not; an answer is recorded in the inventory. 409 secret_lost when its saved secret cannot be opened on this box (nothing is sent; Edit and type it again)"
 												r.operationID = "inventory_post_inventory_snmp_id_test"
 												r.operationGroup = ""
 												r.pathPattern = "/inventory/snmp/{id}/test"

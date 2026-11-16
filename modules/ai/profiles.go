@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/conn/read"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/ai/provider"
 )
@@ -36,6 +37,7 @@ type ProfileView struct {
 	BaseURL       string    `json:"base_url"`
 	Model         string    `json:"model"`
 	KeyLast4      *string   `json:"key_last4"`
+	KeyLost       bool      `json:"key_lost"` // the saved key cannot be opened on this box (#847): enter it again in Edit
 	Location      string    `json:"location"`
 	MonthlyBudget int       `json:"monthly_budget"`
 	Usable        bool      `json:"usable"`
@@ -74,7 +76,26 @@ func (s *Service) view(p stored) ProfileView {
 		l := p.APIKey.Last4()
 		v.KeyLast4 = &l
 	}
+	if p.KeyLost {
+		v.KeyLost = true
+		if p.lostLast4 != "" {
+			l := p.lostLast4
+			v.KeyLast4 = &l
+		}
+	}
 	return v
+}
+
+// profileKeyLost is the answer of Test, Edit and the model list of a saved profile whose key this box cannot open (#847) when no new key
+// was typed: the key cannot be used or kept, so nothing is sent and nothing is saved.
+func profileKeyLost(name string) error {
+	return apierr.New(http.StatusConflict, read.CodeSecretLost, fmt.Sprintf("The saved API key of the AI profile %q was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter the key again and save, then test it. Nothing was sent.", name))
+}
+
+// profileKeyLostFor is the refusal to give a profile whose key is lost something new to do (what: "Explain a finding", "the knowledge
+// index"): it could not do it. Nothing is saved.
+func profileKeyLostFor(name, what string) error {
+	return apierr.New(http.StatusConflict, read.CodeSecretLost, fmt.Sprintf("The saved API key of the AI profile %q was not restored (the backup was restored without its decryption key, or the box key changed), so it cannot take %s. Open Edit on the profile and enter the key again first. Nothing was saved.", name, what))
 }
 
 // Profiles lists the profiles in the order they were added.

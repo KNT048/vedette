@@ -793,6 +793,9 @@ func (h *OSHandlers) CoreGetCoreDataBackup(ctx context.Context) (oas.CoreGetCore
 	if h.busy(ctx) {
 		return oas.CoreGetCoreDataBackupOK{}, apierr.New(409, codeBusy, "An update run is in progress. Wait for it to finish, then download the backup.")
 	}
+	if h.restoreRunning(ctx) { // the restore stops core: nothing to wait for
+		return oas.CoreGetCoreDataBackupOK{}, apierr.New(409, codeBusy, "A backup is being restored. Wait for it to finish.")
+	}
 	if !h.dlMu.TryLock() {
 		return oas.CoreGetCoreDataBackupOK{}, apierr.New(409, codeBusy, "A backup is already being made. Wait for it to finish.")
 	}
@@ -814,13 +817,10 @@ func (h *OSHandlers) CoreGetCoreDataBackup(ctx context.Context) (oas.CoreGetCore
 				snap.remove()
 			}
 		}()
-		run, err := h.host.BackupCreate(ctx, api.BackupCreateArgs{Kind: "manual", IncludeSecrets: false, Label: backupLabel, Snapshot: snap.ID}, id, actor)
+		run, keep, err := h.startBackup(ctx, api.BackupCreateArgs{Kind: "manual", IncludeSecrets: false, Label: backupLabel, Snapshot: snap.ID}, id, actor)
 		if err != nil {
-			var found, known bool
-			if run, found, known = h.recoverRun(ctx, err, api.CmdBackupCreate, id); !found {
-				keepSnap = !known // the host may be reading it: the start-up sweep removes it later
-				return notTaken(ctx, h.log, err, run)
-			}
+			keepSnap = keep // the host may be reading it: the start-up sweep removes it later
+			return err
 		}
 		run, err = waitRun(ctx, h.log, h.host, run, 16*time.Minute)
 		if err != nil {
@@ -864,6 +864,64 @@ func (h *OSHandlers) CoreGetCoreDataBackup(ctx context.Context) (oas.CoreGetCore
 		hd.Set("Content-Length", strconv.FormatInt(size, 10))
 	}
 	return oas.CoreGetCoreDataBackupOK{Data: body}, nil // the encoder closes body when the copy ends
+}
+
+// hostBusyWait is how long a backup the user asked for waits while vedette-host finishes another write command, and
+// hostBusyPause the least time between two tries that had no new command to follow (#866).
+const (
+	hostBusyWait  = 2 * time.Minute
+	hostBusyPause = 2 * time.Second
+)
+
+// startBackup sends backup.create and answers the run the host took. vedette-host runs one write command at a time, so a
+// backup asked for just after a short change (a module's container starting, a network change) is refused busy (#866):
+// startBackup then follows the command the host names to its end and asks again under a new request id, for up to
+// hostBusyWait, after which the answer is the busy refusal. While an update, an OS install or a restore of this core runs it
+// refuses at once. A lost answer is looked up under the request id of the last try (recoverRun); keep is true when the host could
+// not be asked, so it may be reading the snapshot.
+func (h *OSHandlers) startBackup(ctx context.Context, args api.BackupCreateArgs, id, actor string) (run api.Run, keep bool, err error) {
+	deadline := h.now().Add(hostBusyWait)
+	followed := ""
+	for {
+		run, err = h.host.BackupCreate(ctx, args, id, actor)
+		if err == nil {
+			return run, false, nil
+		}
+		var he *client.Error
+		if !errors.As(err, &he) || he.Code != api.CodeBusy {
+			var found, known bool
+			if run, found, known = h.recoverRun(ctx, err, api.CmdBackupCreate, id); !found {
+				return run, !known, notTaken(ctx, h.log, err, run)
+			}
+			return run, false, nil
+		}
+		if h.busy(ctx) {
+			return api.Run{}, false, apierr.New(409, codeBusy, "An update run is in progress. Wait for it to finish, then try again.")
+		}
+		if h.restoreRunning(ctx) {
+			return api.Run{}, false, apierr.New(409, codeBusy, "A backup is being restored. Wait for it to finish.")
+		}
+		left := deadline.Sub(h.now())
+		if left <= 0 {
+			return api.Run{}, false, hostErr(ctx, h.log, err)
+		}
+		if he.RunID != "" && he.RunID != followed {
+			followed = he.RunID
+			// How that command ends is not this call's business; only the time it takes.
+			_, _ = waitRun(ctx, h.log, h.host, api.Run{RunID: he.RunID, Status: api.StatusRunning}, left)
+		} else { // nothing new to follow (the same command again, or none named): not at once again
+			select {
+			case <-ctx.Done():
+			case <-time.After(min(left, hostBusyPause)):
+			}
+		}
+		if ctx.Err() != nil {
+			return api.Run{}, false, ctx.Err()
+		}
+		if id, err = newRequestID(); err != nil {
+			return api.Run{}, false, err
+		}
+	}
 }
 
 // recoverRun is for a write command whose answer may have been lost (the call went out and nothing came back:

@@ -23,6 +23,8 @@ const EMAIL: Record<Role, string> = { admin: 'admin@qa.test', operator: 'op@qa.t
 /** Mock: sample data, then switch the mock session to this role. */
 async function asMockRole(page: Page, role: Role) {
   await startWithSample(page)
+  // Switch on a static file of the same origin: the app is gone, so a late mock write (Home's reads seed tables) cannot put the old session back.
+  await page.goto('/manifest.webmanifest')
   await page.evaluate((u) => {
     const k = 'vedette-mock-db-v4'
     const raw = localStorage.getItem(k)
@@ -56,7 +58,8 @@ test.describe('feeds: home, lookup, CVE (S-FEED-1, 2, 3)', () => {
     test.skip(EMPTY, 'needs data')
     const errors = collectErrors(page)
     await start(page, 'operator')
-    await expect(h1(page)).toContainText(/^Today: \d+ vulnerabilit/)
+    // #825: with findings on, the headline answers "is anything I run exploited?"; the week's count is the board below.
+    await expect(h1(page)).toContainText(/^Today: /)
     await expect(page.getByText(/Data updated .*Sources: CISA KEV/)).toBeVisible()
     await expect(page.getByText(/1970/)).toHaveCount(0)
     await expect(page.locator('#hot a[href^="/cve/"]:visible').first()).toBeVisible()

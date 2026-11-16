@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -311,5 +312,171 @@ func TestContract_INV32_LongListsAndTheStoredSwitch(t *testing.T) {
 	safety.Exclusions = long[:5]
 	if saved, err := e.svc.SaveSafety(e.ctx(), "admin@acme.example", safety); err != nil || !saved.Active.Enabled {
 		t.Fatalf("the stored switch: %v, enabled %v", err, saved.Active.Enabled)
+	}
+}
+
+// INV-32 (#842): POST /scanning/safety/ranges adds one range in one transaction with the rules of a PUT, needs the attestation and
+// records it as a PUT does, changes nothing for a range already covered, and is audited and announced like the PUT.
+func TestContract_INV32_AddRange(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.confirmScope("192.168.18.0/24")
+	for _, c := range []struct{ raw, code string }{
+		{"192.168.20.7", "no_prefix"},
+		{"bogus", "bad_cidr"},
+		{"", "bad_cidr"},
+		{"8.8.8.0/24", "public_range"},
+		{"192.168.0.0/16", "overlap_range"}, // it contains the stored one
+	} {
+		_, err := e.svc.AddRange(e.ctx(), "admin@acme.example", c.raw, true)
+		wantAPIError(t, err, 400, c.code)
+	}
+	_, err := e.svc.AddRange(e.ctx(), "admin@acme.example", "192.168.20.0/24", false)
+	wantAPIError(t, err, 400, "scope_not_confirmed")
+	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.settings' AND detail LIKE 'added range%'`); n != 0 {
+		t.Fatalf("a refused add was audited: %d", n)
+	}
+
+	e.now = e.now.Add(time.Hour)
+	e.ev.reset()
+	saved, err := e.svc.AddRange(e.ctx(), "it@acme.example", " 192.168.20.9/24 ", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(saved.LANRanges, []string{"192.168.18.0/24", "192.168.20.0/24"}) || len(saved.Adjusted) != 1 || saved.Adjusted[0].To != "192.168.20.0/24" {
+		t.Fatalf("saved = %+v", saved)
+	}
+	if saved.ScopeConfirmedBy == nil || *saved.ScopeConfirmedBy != "it@acme.example" || *saved.ScopeConfirmedAt != "2026-11-09T11:00:00.000Z" || !saved.Active.Enabled {
+		t.Fatalf("attestation = %v %v", saved.ScopeConfirmedAt, saved.ScopeConfirmedBy)
+	}
+	st, _ := e.svc.Settings(e.ctx())
+	if !slices.Equal(st.LANRanges, saved.LANRanges) || st.ScopeConfirmedAt == nil || *st.ScopeConfirmedAt != *saved.ScopeConfirmedAt {
+		t.Fatalf("stored = %+v", st)
+	}
+	if len(e.ev.named(inventory.EventSettingsChanged)) != 1 ||
+		e.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.settings' AND user = 'it@acme.example' AND target = 'scan scope' AND detail = 'added range 192.168.20.0/24: 2 ranges, active scanning on'`) != 1 {
+		t.Fatal("no event or audit row naming the range")
+	}
+
+	// covered: nothing changes, nothing is audited or announced
+	e.ev.reset()
+	rows := e.count(`SELECT count(*) FROM core_audit`)
+	for _, raw := range []string{"192.168.20.0/24", "192.168.20.128/25", "192.168.18.64/26"} {
+		again, err := e.svc.AddRange(e.ctx(), "admin@acme.example", raw, true)
+		if err != nil || !slices.Equal(again.LANRanges, saved.LANRanges) || *again.ScopeConfirmedBy != "it@acme.example" {
+			t.Fatalf("%s again: %+v, %v", raw, again, err)
+		}
+	}
+	if len(e.ev.named(inventory.EventSettingsChanged)) != 0 || e.count(`SELECT count(*) FROM core_audit`) != rows {
+		t.Fatal("an add that changed nothing was announced or audited")
+	}
+
+	// covered while the scope is not confirmed: the attestation is recorded for the stored ranges, as a PUT of them would
+	if err := e.svc.SetDiscovery(e.ctx(), "admin@acme.example", false); err != nil {
+		t.Fatal(err)
+	}
+	in := okSafety()
+	in.LANRanges, in.Confirmed = saved.LANRanges, false
+	if _, err := e.svc.SaveSafety(e.ctx(), "admin@acme.example", in); err != nil {
+		t.Fatal(err)
+	}
+	again, err := e.svc.AddRange(e.ctx(), "admin@acme.example", "192.168.20.0/24", true)
+	if err != nil || again.ScopeConfirmedAt == nil || !slices.Equal(again.LANRanges, saved.LANRanges) {
+		t.Fatalf("covered, unconfirmed: %+v, %v", again, err)
+	}
+
+	// at most 16 ranges
+	for i := 21; len(again.LANRanges) < 16; i++ {
+		if again, err = e.svc.AddRange(e.ctx(), "admin@acme.example", "192.168."+strconv.Itoa(i)+".0/24", true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err = e.svc.AddRange(e.ctx(), "admin@acme.example", "10.9.0.0/16", true)
+	wantAPIError(t, err, 400, "too_many_ranges")
+}
+
+// INV-32 (#842): POST /scanning/safety/exclusions adds one exclusion in one transaction with the rule of a PUT, changes nothing for
+// an entry already covered, refuses growing past 200 with 409, keeps the attestation, and is audited and announced like the PUT.
+func TestContract_INV32_AddExclusion(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.confirmScope("192.168.18.0/24")
+	for _, raw := range []string{"192.168.18.5/28", "bogus", "", "fe80::1"} {
+		_, err := e.svc.AddExclusion(e.ctx(), "admin@acme.example", raw)
+		wantAPIError(t, err, 400, "bad_exclusion")
+	}
+	before, _ := e.svc.Settings(e.ctx())
+	e.ev.reset()
+	saved, err := e.svc.AddExclusion(e.ctx(), "admin@acme.example", " 192.168.18.64/28 ")
+	if err != nil || !slices.Equal(saved.Active.Exclusions, []string{"192.168.18.64/28"}) || !saved.Active.Enabled {
+		t.Fatalf("saved = %+v, %v", saved, err)
+	}
+	if saved.ScopeConfirmedAt == nil || *saved.ScopeConfirmedAt != *before.ScopeConfirmedAt {
+		t.Fatalf("the attestation moved: %v", saved.ScopeConfirmedAt)
+	}
+	if len(e.ev.named(inventory.EventSettingsChanged)) != 1 ||
+		e.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.settings' AND detail = 'added exclusion 192.168.18.64/28: 1 exclusions'`) != 1 {
+		t.Fatal("no event or audit row naming the exclusion")
+	}
+	e.ev.reset()
+	rows := e.count(`SELECT count(*) FROM core_audit`)
+	for _, raw := range []string{"192.168.18.64/28", "192.168.18.70", "192.168.18.72/29"} {
+		again, err := e.svc.AddExclusion(e.ctx(), "admin@acme.example", raw)
+		if err != nil || !slices.Equal(again.Active.Exclusions, saved.Active.Exclusions) {
+			t.Fatalf("%s again: %+v, %v", raw, again.Active.Exclusions, err)
+		}
+	}
+	if len(e.ev.named(inventory.EventSettingsChanged)) != 0 || e.count(`SELECT count(*) FROM core_audit`) != rows {
+		t.Fatal("an add that changed nothing was announced or audited")
+	}
+	st, _ := e.svc.Settings(e.ctx())
+	if a := st.Active; a.CheckRate != before.Active.CheckRate || a.From != before.Active.From || a.Rate != before.Active.Rate {
+		t.Fatalf("other settings moved: %+v", a)
+	}
+
+	// the 200th lands, the 201st is 409; one already covered is still 200
+	for i := len(st.Active.Exclusions); i < inventory.MaxExclusions; i++ {
+		if _, err := e.svc.AddExclusion(e.ctx(), "admin@acme.example", "10.1."+strconv.Itoa(i/250)+"."+strconv.Itoa(i%250)); err != nil {
+			t.Fatalf("exclusion %d: %v", i+1, err)
+		}
+	}
+	_, err = e.svc.AddExclusion(e.ctx(), "admin@acme.example", "192.168.18.9")
+	wantAPIError(t, err, 409, "too_many_exclusions")
+	if _, err := e.svc.AddExclusion(e.ctx(), "admin@acme.example", "192.168.18.65"); err != nil {
+		t.Fatalf("a covered entry at the limit: %v", err)
+	}
+}
+
+// INV-32 (#842): two adds at once both land: each reads, appends and stores in one transaction, so neither overwrites the other.
+func TestContract_INV32_ConcurrentAddsKeepBoth(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.confirmScope("192.168.18.0/24")
+	const n = 8
+	var wg sync.WaitGroup
+	errs := make(chan error, 2*n)
+	for i := range n {
+		wg.Go(func() {
+			_, err := e.svc.AddRange(e.ctx(), "admin@acme.example", "10."+strconv.Itoa(i)+".0.0/16", true)
+			errs <- err
+		})
+		wg.Go(func() {
+			_, err := e.svc.AddExclusion(e.ctx(), "admin@acme.example", "192.168.18."+strconv.Itoa(i+1))
+			errs <- err
+		})
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	st, _ := e.svc.Settings(e.ctx())
+	if len(st.LANRanges) != n+1 || len(st.Active.Exclusions) != n {
+		t.Fatalf("lost an add: ranges %v, exclusions %v", st.LANRanges, st.Active.Exclusions)
+	}
+	if got := e.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.settings' AND (detail LIKE 'added range%' OR detail LIKE 'added exclusion%')`); got != 2*n {
+		t.Fatalf("audit rows = %d", got)
 	}
 }

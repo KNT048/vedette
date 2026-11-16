@@ -117,6 +117,36 @@ func (s scanningSafety) SaveSafety(ctx context.Context, actor string, in core.Sa
 	return v, adj, nil
 }
 
+func (s scanningSafety) AddRange(ctx context.Context, actor, rng string, confirmed bool) (core.Safety, []core.Adjustment, error) {
+	if s.inv == nil {
+		return core.Safety{}, nil, errors.New("vedette: scanning: the inventory is not wired")
+	}
+	saved, err := s.inv.AddRange(ctx, actor, rng, confirmed)
+	if err != nil {
+		return core.Safety{}, nil, err
+	}
+	v, err := s.view(ctx, saved.Settings)
+	if err != nil {
+		return core.Safety{}, nil, err
+	}
+	adj := make([]core.Adjustment, 0, len(saved.Adjusted))
+	for _, a := range saved.Adjusted {
+		adj = append(adj, core.Adjustment{From: a.From, To: a.To})
+	}
+	return v, adj, nil
+}
+
+func (s scanningSafety) AddExclusion(ctx context.Context, actor, entry string) (core.Safety, error) {
+	if s.inv == nil {
+		return core.Safety{}, errors.New("vedette: scanning: the inventory is not wired")
+	}
+	saved, err := s.inv.AddExclusion(ctx, actor, entry)
+	if err != nil {
+		return core.Safety{}, err
+	}
+	return s.view(ctx, saved.Settings)
+}
+
 // ---- the scan module reads the shared window, check rate and exclusions from the inventory (scan INV-16) ----
 
 // scanChecksInv is the inventory's writer of the shared checks (inventory.Service).

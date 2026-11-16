@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/knt048/vedette/core/events"
@@ -416,5 +418,76 @@ func TestScanningRunNow(t *testing.T) {
 	}
 	if s.count(`SELECT count(*) FROM sa_job WHERE kind = 'sweep' AND status = 'done'`) != 1 {
 		t.Fatal("no sweep ran")
+	}
+}
+
+// "+ New range" and "+ New exclusion" (#842) over the real wiring: the inventory adds one entry in one transaction, the audit row
+// names it, the bus announces it, the scan module reads the new exclusion, and two adds sent at once both land.
+func TestScanningInlineAdds(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	s.module("scan", true)
+	s.saveScope(t)
+	var changed atomic.Int32
+	s.d.Bus.Subscribe(inventory.EventSettingsChanged, func(context.Context, events.Event) error { changed.Add(1); return nil })
+
+	if code, out := s.do("POST", "/scanning/safety/ranges", "operator", `{"range":"192.168.20.0/24","confirm":true}`); code != http.StatusForbidden {
+		t.Fatalf("an operator added a range: %d %v", code, out)
+	}
+	if code, out := s.do("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.0/24","confirm":false}`); code != http.StatusBadRequest || errCodeOf(out) != "scope_not_confirmed" {
+		t.Fatalf("without the attestation: %d %v", code, out)
+	}
+	code, out := s.do("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.9/24","confirm":true}`)
+	if code != http.StatusOK || len(out["scope"].(map[string]any)["lan_ranges"].([]any)) != 2 || len(out["adjusted"].([]any)) != 1 {
+		t.Fatalf("add range = %d %v", code, out)
+	}
+	if s.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.settings' AND detail LIKE 'added range 192.168.20.0/24:%'`) != 1 {
+		t.Fatal("no audit row naming the range")
+	}
+	code, out = s.do("POST", "/scanning/safety/exclusions", "admin", `{"entry":"192.168.20.77"}`)
+	if code != http.StatusOK || !slices.Contains(out["exclusions"].([]any), any("192.168.20.77")) {
+		t.Fatalf("add exclusion = %d %v", code, out)
+	}
+	if s.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.settings' AND detail LIKE 'added exclusion 192.168.20.77:%'`) != 1 {
+		t.Fatal("no audit row naming the exclusion")
+	}
+	if n := changed.Load(); n != 2 {
+		t.Fatalf("inventory.settings.changed = %d, want one per add", n)
+	}
+	if _, cfg := s.do("GET", "/scans/config", "admin", ""); !slices.Contains(cfg["config"].(map[string]any)["exclusions"].([]any), any("192.168.20.77")) {
+		t.Fatalf("the vulnerability checks do not skip it: %v", cfg)
+	}
+	if code, again := s.do("POST", "/scanning/safety/exclusions", "admin", `{"entry":"192.168.20.77"}`); code != http.StatusOK || len(again["exclusions"].([]any)) != len(out["exclusions"].([]any)) || changed.Load() != 2 {
+		t.Fatalf("the same exclusion again: %d %v", code, again)
+	}
+
+	// people add at once, two ranges and two exclusions: every one lands
+	var wg sync.WaitGroup
+	codes := make([]int, 4)
+	for i, c := range []struct{ path, body string }{
+		{"/scanning/safety/ranges", `{"range":"10.20.0.0/16","confirm":true}`},
+		{"/scanning/safety/ranges", `{"range":"10.21.0.0/16","confirm":true}`},
+		{"/scanning/safety/exclusions", `{"entry":"192.168.10.200"}`},
+		{"/scanning/safety/exclusions", `{"entry":"192.168.10.201"}`},
+	} {
+		wg.Go(func() { codes[i], _ = s.do("POST", c.path, "admin", c.body) })
+	}
+	wg.Wait()
+	if !slices.Equal(codes, []int{200, 200, 200, 200}) {
+		t.Fatalf("concurrent adds: %v", codes)
+	}
+	st, err := s.d.Inventory.Settings(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range []string{"192.168.10.0/24", "192.168.20.0/24", "10.20.0.0/16", "10.21.0.0/16"} {
+		if !slices.Contains(st.LANRanges, r) {
+			t.Fatalf("range %s was lost: %v", r, st.LANRanges)
+		}
+	}
+	for _, x := range []string{"192.168.10.99", "192.168.20.77", "192.168.10.200", "192.168.10.201"} {
+		if !slices.Contains(st.Active.Exclusions, x) {
+			t.Fatalf("exclusion %s was lost: %v", x, st.Active.Exclusions)
+		}
 	}
 }

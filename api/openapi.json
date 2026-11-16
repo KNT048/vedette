@@ -72956,6 +72956,494 @@
         }
       }
     },
+    "/scanning/safety/exclusions": {
+      "post": {
+        "operationId": "scanning_post_scanning_safety_exclusions",
+        "summary": "Add one exclusion where the person is (\"+ New exclusion\" in a dialog, #842), without sending the whole block: read, append and save in one transaction. 400 bad_exclusion as PUT /scanning/safety; 409 too_many_exclusions when the list would grow past 200. An entry an exclusion already covers is 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the entry) and publishes inventory.settings.changed: a run that may no longer touch it stops. Returns the whole safety block",
+        "tags": [
+          "scanning"
+        ],
+        "x-stories": [
+          "S-SCAN-4",
+          "S-INV-1"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "entry": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "One IPv4 address or IPv4 CIDR without host bits that no engine on the LAN may touch, e.g. 192.168.18.9 or 192.168.18.64/28"
+                  }
+                },
+                "required": [
+                  "entry"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "scope": {
+                      "type": "object",
+                      "properties": {
+                        "lan_ranges": {
+                          "maxItems": 16,
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges"
+                        },
+                        "confirmed_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "confirmed_by": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "lan_ranges",
+                        "confirmed_at",
+                        "confirmed_by"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "window": {
+                      "type": "object",
+                      "properties": {
+                        "days": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 7,
+                            "description": "1 = Monday … 7 = Sunday (D-57 (9))"
+                          },
+                          "description": "Empty only on a box whose discovery was saved off without a day; a save needs one"
+                        },
+                        "from": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                          "description": "HH:MM"
+                        },
+                        "to": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                          "description": "Earlier than from: crosses midnight"
+                        },
+                        "time_zone": {
+                          "type": "string",
+                          "description": "IANA zone the window is read in (the organization time zone); read-only"
+                        }
+                      },
+                      "required": [
+                        "days",
+                        "from",
+                        "to",
+                        "time_zone"
+                      ],
+                      "additionalProperties": false,
+                      "description": "One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now, Check this device now and external scans are not bound by it"
+                    },
+                    "speed": {
+                      "type": "object",
+                      "properties": {
+                        "packets_per_s": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 1000,
+                          "description": "nmap and SNMP (inventory active.rate)"
+                        },
+                        "requests_per_s": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 20,
+                          "description": "nuclei on LAN devices (was scan config rate)"
+                        }
+                      },
+                      "required": [
+                        "packets_per_s",
+                        "requests_per_s"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "exclusions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the 200 a save accepts)"
+                    },
+                    "fragile": {
+                      "type": "object",
+                      "properties": {
+                        "kinds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "firewall",
+                              "router",
+                              "switch",
+                              "ap",
+                              "nas",
+                              "server",
+                              "pc",
+                              "printer",
+                              "camera",
+                              "nvr",
+                              "iot",
+                              "web",
+                              "unknown"
+                            ]
+                          },
+                          "description": "Types scanned once, gently, when first seen; passive-only after that (D-45, D-511)"
+                        },
+                        "regular_scan_kinds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "firewall",
+                              "router",
+                              "switch",
+                              "ap",
+                              "nas",
+                              "server",
+                              "pc",
+                              "printer",
+                              "camera",
+                              "nvr",
+                              "iot",
+                              "web",
+                              "unknown"
+                            ]
+                          },
+                          "description": "Subset of kinds that may still get regular scans"
+                        },
+                        "devices": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter; read-only"
+                        }
+                      },
+                      "required": [
+                        "kinds",
+                        "regular_scan_kinds",
+                        "devices"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "scope",
+                    "window",
+                    "speed",
+                    "exclusions",
+                    "fragile"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scanning/safety/ranges": {
+      "post": {
+        "operationId": "scanning_post_scanning_safety_ranges",
+        "summary": "Add one LAN range to the scope where the person is (\"+ New range\" in a dialog, #842), without sending the whole block: read, append and save in one transaction, so it never overwrites another edit. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range, too_many_ranges (16), and scope_not_confirmed when confirm is not true. A range the scope already covers is 200 with the block unchanged (no audit row) while the scope is confirmed; while it is not, the confirmation is recorded for the stored ranges. Audited as the PUT (inventory.settings, naming the range) and publishes inventory.settings.changed. Returns the whole safety block, with adjusted when the range was normalized",
+        "tags": [
+          "scanning"
+        ],
+        "x-stories": [
+          "S-SCAN-4",
+          "S-INV-1"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "range": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "One internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461) to add to the scope, e.g. 192.168.20.0/24; host bits are dropped and reported in adjusted"
+                  },
+                  "confirm": {
+                    "type": "boolean",
+                    "description": "The attestation of PUT /scanning/safety (scope.confirmed): the ranges, this one included, belong to the company and scanning them is permitted. Must be true (400 scope_not_confirmed); recorded as confirmed_at/confirmed_by"
+                  }
+                },
+                "required": [
+                  "range",
+                  "confirm"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "scope": {
+                      "type": "object",
+                      "properties": {
+                        "lan_ranges": {
+                          "maxItems": 16,
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges"
+                        },
+                        "confirmed_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "confirmed_by": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "lan_ranges",
+                        "confirmed_at",
+                        "confirmed_by"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "window": {
+                      "type": "object",
+                      "properties": {
+                        "days": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 7,
+                            "description": "1 = Monday … 7 = Sunday (D-57 (9))"
+                          },
+                          "description": "Empty only on a box whose discovery was saved off without a day; a save needs one"
+                        },
+                        "from": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                          "description": "HH:MM"
+                        },
+                        "to": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                          "description": "Earlier than from: crosses midnight"
+                        },
+                        "time_zone": {
+                          "type": "string",
+                          "description": "IANA zone the window is read in (the organization time zone); read-only"
+                        }
+                      },
+                      "required": [
+                        "days",
+                        "from",
+                        "to",
+                        "time_zone"
+                      ],
+                      "additionalProperties": false,
+                      "description": "One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now, Check this device now and external scans are not bound by it"
+                    },
+                    "speed": {
+                      "type": "object",
+                      "properties": {
+                        "packets_per_s": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 1000,
+                          "description": "nmap and SNMP (inventory active.rate)"
+                        },
+                        "requests_per_s": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 20,
+                          "description": "nuclei on LAN devices (was scan config rate)"
+                        }
+                      },
+                      "required": [
+                        "packets_per_s",
+                        "requests_per_s"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "exclusions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the 200 a save accepts)"
+                    },
+                    "fragile": {
+                      "type": "object",
+                      "properties": {
+                        "kinds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "firewall",
+                              "router",
+                              "switch",
+                              "ap",
+                              "nas",
+                              "server",
+                              "pc",
+                              "printer",
+                              "camera",
+                              "nvr",
+                              "iot",
+                              "web",
+                              "unknown"
+                            ]
+                          },
+                          "description": "Types scanned once, gently, when first seen; passive-only after that (D-45, D-511)"
+                        },
+                        "regular_scan_kinds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "firewall",
+                              "router",
+                              "switch",
+                              "ap",
+                              "nas",
+                              "server",
+                              "pc",
+                              "printer",
+                              "camera",
+                              "nvr",
+                              "iot",
+                              "web",
+                              "unknown"
+                            ]
+                          },
+                          "description": "Subset of kinds that may still get regular scans"
+                        },
+                        "devices": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter; read-only"
+                        }
+                      },
+                      "required": [
+                        "kinds",
+                        "regular_scan_kinds",
+                        "devices"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "adjusted": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "from": {
+                            "type": "string"
+                          },
+                          "to": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "from",
+                          "to"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Ranges and exclusions normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24"
+                    }
+                  },
+                  "required": [
+                    "scope",
+                    "window",
+                    "speed",
+                    "exclusions",
+                    "fragile",
+                    "adjusted"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/scans/config": {
       "get": {
         "operationId": "scan_get_scans_config",

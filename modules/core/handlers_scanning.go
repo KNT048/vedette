@@ -55,6 +55,11 @@ type SafetyStore interface {
 	Safety(ctx context.Context) (Safety, error)
 	// SaveSafety validates and stores in; an error that is an *apierr.Error reaches the person as it is.
 	SaveSafety(ctx context.Context, actor string, in SafetyInput) (Safety, []Adjustment, error)
+	// AddRange adds one range to the scope in one transaction (read, append, store) with the attestation confirmed; a range the scope
+	// covers changes nothing. Its errors as SaveSafety's.
+	AddRange(ctx context.Context, actor, rng string, confirmed bool) (Safety, []Adjustment, error)
+	// AddExclusion adds one exclusion in one transaction; one an exclusion covers changes nothing. Its errors as SaveSafety's.
+	AddExclusion(ctx context.Context, actor, entry string) (Safety, error)
 }
 
 // Safety is the shared block as stored.
@@ -189,7 +194,7 @@ type ScanningConfig struct {
 	MemoryMB  func() (int, bool)               // MemTotal of the box; nil or false: unknown
 }
 
-// ScanningHandlers implements GET /scanning, PUT /scanning/safety, PATCH /scanning/engines/{id} and POST
+// ScanningHandlers implements GET /scanning, PUT /scanning/safety, POST /scanning/safety/ranges and /exclusions, PATCH /scanning/engines/{id} and POST
 // /scanning/engines/nmap-discovery/run. Embed it in the composite handler.
 type ScanningHandlers struct{ cfg ScanningConfig }
 
@@ -408,15 +413,49 @@ func (h *ScanningHandlers) ScanningPutScanningSafety(ctx context.Context, req *o
 	if err != nil {
 		return nil, err
 	}
-	type saved struct {
-		safetyView
-		Adjusted []map[string]string `json:"adjusted"`
-	}
-	out := saved{safetyView: h.safetyView(ctx, st), Adjusted: []map[string]string{}}
+	return encode[oas.ScanningPutScanningSafetyOK](h.savedView(ctx, st, adjusted))
+}
+
+// adjustedView is the adjusted list of an answer that saved ranges.
+type adjustedView struct {
+	safetyView
+	Adjusted []map[string]string `json:"adjusted"`
+}
+
+func (h *ScanningHandlers) savedView(ctx context.Context, st Safety, adjusted []Adjustment) adjustedView {
+	out := adjustedView{safetyView: h.safetyView(ctx, st), Adjusted: []map[string]string{}}
 	for _, a := range adjusted {
 		out.Adjusted = append(out.Adjusted, map[string]string{"from": a.From, "to": a.To})
 	}
-	return encode[oas.ScanningPutScanningSafetyOK](out)
+	return out
+}
+
+// ScanningPostScanningSafetyRanges implements POST /scanning/safety/ranges (admin): "+ New range" where the person is (#842). The
+// inventory adds the range in one transaction with the same rules, attestation, audit row (inventory.settings) and event as the PUT.
+func (h *ScanningHandlers) ScanningPostScanningSafetyRanges(ctx context.Context, req *oas.ScanningPostScanningSafetyRangesReq) (*oas.ScanningPostScanningSafetyRangesOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	st, adjusted, err := h.cfg.Safety.AddRange(ctx, p.Email, req.Range, req.Confirm)
+	if err != nil {
+		return nil, err
+	}
+	return encode[oas.ScanningPostScanningSafetyRangesOK](h.savedView(ctx, st, adjusted))
+}
+
+// ScanningPostScanningSafetyExclusions implements POST /scanning/safety/exclusions (admin): "+ New exclusion" where the person is
+// (#842), added in one transaction by the inventory (audited inventory.settings, inventory.settings.changed).
+func (h *ScanningHandlers) ScanningPostScanningSafetyExclusions(ctx context.Context, req *oas.ScanningPostScanningSafetyExclusionsReq) (*oas.ScanningPostScanningSafetyExclusionsOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	st, err := h.cfg.Safety.AddExclusion(ctx, p.Email, req.Entry)
+	if err != nil {
+		return nil, err
+	}
+	return encode[oas.ScanningPostScanningSafetyExclusionsOK](h.safetyView(ctx, st))
 }
 
 // ScanningPatchScanningEnginesID implements PATCH /scanning/engines/{id} (admin): the switch the engine maps to, audited by that

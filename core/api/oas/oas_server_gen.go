@@ -2248,6 +2248,30 @@ type Handler interface {
 	//
 	// POST /scanning/engines/nmap-discovery/run
 	ScanningPostScanningEnginesNmapDiscoveryRun(ctx context.Context, req *ScanningPostScanningEnginesNmapDiscoveryRunReq) (*ScanningPostScanningEnginesNmapDiscoveryRunAccepted, error)
+	// ScanningPostScanningSafetyExclusions implements scanning_post_scanning_safety_exclusions operation.
+	//
+	// Add one exclusion where the person is ("+ New exclusion" in a dialog, #842), without sending the
+	// whole block: read, append and save in one transaction. 400 bad_exclusion as PUT /scanning/safety;
+	// 409 too_many_exclusions when the list would grow past 200. An entry an exclusion already covers is
+	// 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the
+	// entry) and publishes inventory.settings.changed: a run that may no longer touch it stops. Returns
+	// the whole safety block.
+	//
+	// POST /scanning/safety/exclusions
+	ScanningPostScanningSafetyExclusions(ctx context.Context, req *ScanningPostScanningSafetyExclusionsReq) (*ScanningPostScanningSafetyExclusionsOK, error)
+	// ScanningPostScanningSafetyRanges implements scanning_post_scanning_safety_ranges operation.
+	//
+	// Add one LAN range to the scope where the person is ("+ New range" in a dialog, #842), without
+	// sending the whole block: read, append and save in one transaction, so it never overwrites another
+	// edit. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range,
+	// too_many_ranges (16), and scope_not_confirmed when confirm is not true. A range the scope already
+	// covers is 200 with the block unchanged (no audit row) while the scope is confirmed; while it is not,
+	// the confirmation is recorded for the stored ranges. Audited as the PUT (inventory.settings, naming
+	// the range) and publishes inventory.settings.changed. Returns the whole safety block, with adjusted
+	// when the range was normalized.
+	//
+	// POST /scanning/safety/ranges
+	ScanningPostScanningSafetyRanges(ctx context.Context, req *ScanningPostScanningSafetyRangesReq) (*ScanningPostScanningSafetyRangesOK, error)
 	// ScanningPutScanningSafety implements scanning_put_scanning_safety operation.
 	//
 	// Save the shared safety settings every LAN engine obeys (one writer; GET/PUT /inventory/settings and

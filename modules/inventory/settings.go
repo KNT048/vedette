@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/knt048/vedette/content/devicetypes"
+	"github.com/knt048/vedette/core/apierr"
 )
 
 // ActiveWindow is when and how fast the box may scan actively (INV-7). Since #850 it is the one store of the safety settings every
@@ -193,15 +194,9 @@ func checkSettings(in SettingsInput) (SettingsInput, []Adjustment, error) {
 	}
 	var excl []string
 	for _, raw := range act.Exclusions {
-		x := strings.TrimSpace(raw)
-		ok := false
-		if _, isIP := ipv4(x); isIP {
-			ok = true
-		} else if p, err := netip.ParsePrefix(x); err == nil && p.Addr().Is4() && p.Masked() == p {
-			ok = true
-		}
-		if !ok {
-			return in, nil, badRequest("bad_exclusion", `Exclusion "`+clip(x, 30)+`" is not valid. Enter an IP (192.168.10.10) or a valid range (192.168.10.0/28).`)
+		x, aerr := checkExclusion(raw)
+		if aerr != nil {
+			return in, nil, aerr
 		}
 		if !slices.Contains(excl, x) {
 			excl = append(excl, x)
@@ -240,6 +235,19 @@ func checkSettings(in SettingsInput) (SettingsInput, []Adjustment, error) {
 		ChecksMergedFrom: act.ChecksMergedFrom}
 	out.FragileKinds, out.RegularScanKinds = fragile, regular
 	return out, adjusted, nil
+}
+
+// checkExclusion is one exclusion as PUT /inventory/settings and PUT /scanning/safety accept it: an IPv4 address or an IPv4 range
+// without host bits (strict: 192.168.10.5/28 is refused, not reduced).
+func checkExclusion(raw string) (string, *apierr.Error) {
+	x := strings.TrimSpace(raw)
+	if _, isIP := ipv4(x); isIP {
+		return x, nil
+	}
+	if p, err := netip.ParsePrefix(x); err == nil && p.Addr().Is4() && p.Masked() == p {
+		return x, nil
+	}
+	return "", badRequest("bad_exclusion", `Exclusion "`+clip(x, 30)+`" is not valid. Enter an IP (192.168.10.10) or a valid range (192.168.10.0/28).`)
 }
 
 func dedupe(in []string) []string {

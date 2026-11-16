@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,9 +25,11 @@ import (
 // the same routes over the real modules.
 
 type fakeSafety struct {
-	st    core.Safety
-	saved []core.SafetyInput
-	err   error
+	st     core.Safety
+	saved  []core.SafetyInput
+	ranges []rangeAdd
+	excl   []string
+	err    error
 }
 
 func (f *fakeSafety) Safety(context.Context) (core.Safety, error) { return f.st, nil }
@@ -39,6 +42,37 @@ func (f *fakeSafety) SaveSafety(_ context.Context, _ string, in core.SafetyInput
 	f.st.LANRanges, f.st.Days, f.st.From, f.st.To = in.LANRanges, in.Days, in.From, in.To
 	f.st.PacketsPerS, f.st.RequestsPerS, f.st.Exclusions = in.PacketsPerS, in.RequestsPerS, in.Exclusions
 	return f.st, []core.Adjustment{{From: "192.168.18.5/24", To: "192.168.18.0/24"}}, nil
+}
+
+type rangeAdd struct {
+	actor, rng string
+	confirmed  bool
+}
+
+// AddRange appends as the inventory does: refused without the attestation, nothing for a range already listed.
+func (f *fakeSafety) AddRange(_ context.Context, actor, rng string, confirmed bool) (core.Safety, []core.Adjustment, error) {
+	if f.err != nil {
+		return core.Safety{}, nil, f.err
+	}
+	f.ranges = append(f.ranges, rangeAdd{actor, rng, confirmed})
+	if !confirmed {
+		return core.Safety{}, nil, apierr.New(http.StatusBadRequest, "scope_not_confirmed", "Tick the confirmation.")
+	}
+	if !slices.Contains(f.st.LANRanges, "192.168.20.0/24") {
+		f.st.LANRanges = append(slices.Clone(f.st.LANRanges), "192.168.20.0/24")
+	}
+	return f.st, []core.Adjustment{{From: rng, To: "192.168.20.0/24"}}, nil
+}
+
+func (f *fakeSafety) AddExclusion(_ context.Context, actor, entry string) (core.Safety, error) {
+	if f.err != nil {
+		return core.Safety{}, f.err
+	}
+	f.excl = append(f.excl, actor+" "+entry)
+	if !slices.Contains(f.st.Exclusions, entry) {
+		f.st.Exclusions = append(slices.Clone(f.st.Exclusions), entry)
+	}
+	return f.st, nil
 }
 
 type fakeRunner struct {
@@ -433,5 +467,63 @@ func TestContract_INV40_RunNow(t *testing.T) {
 	}
 	if code, _ := s.call("POST", "/scanning/engines/nmap-discovery/run", "admin", `{}`); code != http.StatusInternalServerError || s.runner.started != 2 {
 		t.Fatalf("an unwritable audit row: %d, %d started", code, s.runner.started)
+	}
+}
+
+// INV-40 (#842): POST /scanning/safety/ranges and /exclusions are the admin's inline adds: they reach the inventory's store with the
+// person and the attestation, answer the whole safety block (the range's with adjusted), and the store's refusals pass through.
+func TestContract_INV40_SafetyInlineAdds(t *testing.T) {
+	t.Parallel()
+	s := newScanningStack(t)
+	for _, who := range []string{"viewer", "operator"} {
+		if code, _ := s.call("POST", "/scanning/safety/ranges", who, `{"range":"192.168.20.5/24","confirm":true}`); code != http.StatusForbidden {
+			t.Fatalf("%s added a range: %d", who, code)
+		}
+		if code, _ := s.call("POST", "/scanning/safety/exclusions", who, `{"entry":"192.168.18.20"}`); code != http.StatusForbidden {
+			t.Fatalf("%s added an exclusion: %d", who, code)
+		}
+	}
+	if len(s.safety.ranges) != 0 || len(s.safety.excl) != 0 {
+		t.Fatal("a refused caller reached the store")
+	}
+	if code, body := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.5/24"}`); code != http.StatusBadRequest {
+		t.Fatalf("no confirm field: %d %v", code, body)
+	}
+	if code, body := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.5/24","confirm":false}`); code != http.StatusBadRequest || errCode(body) != "scope_not_confirmed" {
+		t.Fatalf("confirm false: %d %v", code, body)
+	}
+	code, out := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.5/24","confirm":true}`)
+	if code != http.StatusOK || s.safety.ranges[1] != (rangeAdd{"admin@acme.example", "192.168.20.5/24", true}) {
+		t.Fatalf("add range = %d %v, store got %+v", code, out, s.safety.ranges)
+	}
+	if r := out["scope"].(map[string]any)["lan_ranges"].([]any); len(r) != 2 || r[1] != "192.168.20.0/24" {
+		t.Fatalf("lan_ranges = %v", r)
+	}
+	if adj := out["adjusted"].([]any); len(adj) != 1 || adj[0].(map[string]any)["to"] != "192.168.20.0/24" {
+		t.Fatalf("adjusted = %v", out["adjusted"])
+	}
+	if out["window"].(map[string]any)["time_zone"] != "Asia/Ho_Chi_Minh" || out["fragile"].(map[string]any)["devices"] != 3.0 {
+		t.Fatalf("not the whole block: %v", out)
+	}
+	code, out = s.call("POST", "/scanning/safety/exclusions", "admin", `{"entry":"192.168.18.20"}`)
+	if code != http.StatusOK || !slices.Equal(s.safety.excl, []string{"admin@acme.example 192.168.18.20"}) {
+		t.Fatalf("add exclusion = %d %v", code, out)
+	}
+	if x := out["exclusions"].([]any); len(x) != 2 || x[1] != "192.168.18.20" {
+		t.Fatalf("exclusions = %v", x)
+	}
+	if _, has := out["adjusted"]; has || out["speed"] == nil {
+		t.Fatalf("exclusion answer = %v", out)
+	}
+	if code, _ := s.call("POST", "/scanning/safety/exclusions", "admin", `{"entry":"`+strings.Repeat("1", 65)+`"}`); code != http.StatusBadRequest {
+		t.Fatalf("a 65-character entry: %d", code)
+	}
+	s.safety.err = apierr.New(http.StatusConflict, "too_many_exclusions", "The exclusion list can have at most 200 lines.")
+	if code, body := s.call("POST", "/scanning/safety/exclusions", "admin", `{"entry":"192.168.18.21"}`); code != http.StatusConflict || errCode(body) != "too_many_exclusions" {
+		t.Fatalf("a refusal of the store: %d %v", code, body)
+	}
+	s.safety.err = apierr.New(http.StatusBadRequest, "overlap_range", "Range 192.168.0.0/16 overlaps 192.168.18.0/24.")
+	if code, body := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.0.0/16","confirm":true}`); code != http.StatusBadRequest || errCode(body) != "overlap_range" {
+		t.Fatalf("a refusal of the store: %d %v", code, body)
 	}
 }

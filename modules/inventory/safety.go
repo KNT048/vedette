@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -48,6 +49,130 @@ func (s *Service) SaveSafety(ctx context.Context, actor string, in SafetyInput) 
 		},
 		ScopeConfirmed: in.Confirmed,
 	}, saveOpts{keepEnabled: true, capExclusions: true})
+}
+
+// AddRange adds one LAN range to the scope (POST /scanning/safety/ranges: "+ New range" where the person is, #842/#850, INV-32). It
+// reads, appends and stores in one write transaction, so two adds at once both land and no other edit is overwritten. The range
+// passes the rules of a PUT (INV-6: an internal IPv4 range, host bits dropped and reported in Adjusted, at most 16, no overlap);
+// confirmed is the attestation of D-26 as a PUT's (400 scope_not_confirmed without it), recorded the same way: the ranges changed,
+// so the scope is confirmed by actor now. A range a stored one already covers changes nothing (no audit row, no event) while the
+// scope is confirmed; while it is not, the attestation is recorded for the stored ranges, as a PUT of the same ranges would. One
+// audit row inventory.settings naming the range, then inventory.settings.changed.
+func (s *Service) AddRange(ctx context.Context, actor, raw string, confirmed bool) (SavedSettings, error) {
+	one, adjusted, aerr := checkRanges([]string{raw})
+	if aerr != nil {
+		return SavedSettings{}, aerr
+	}
+	if len(one) != 1 {
+		return SavedSettings{}, badRequest("bad_cidr", "Enter a network range such as 192.168.10.0/24.")
+	}
+	if !confirmed {
+		return SavedSettings{}, badRequest("scope_not_confirmed", "Tick the confirmation that these network ranges belong to your company and you are allowed to scan them. Vedette only scans within the confirmed scope.")
+	}
+	add := netip.MustParsePrefix(one[0]) // checkRanges returned it parsed and masked
+	var saved Settings
+	err := s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+		prev, err := loadSettings(ctx, tx)
+		if err != nil {
+			return err
+		}
+		covered := slices.ContainsFunc(prev.LANRanges, func(r string) bool {
+			p, err := netip.ParsePrefix(r)
+			return err == nil && p.Bits() <= add.Bits() && p.Contains(add.Addr())
+		})
+		if covered && prev.ScopeConfirmedAt != nil {
+			saved = prev
+			return nil
+		}
+		next := prev
+		detail := "confirmed the scope (" + one[0] + " is inside it)"
+		if !covered {
+			ranges, _, aerr := checkRanges(append(slices.Clone(prev.LANRanges), one[0]))
+			if aerr != nil {
+				return aerr
+			}
+			next.LANRanges = ranges
+			detail = "added range " + one[0]
+		}
+		now := s.now()
+		at := now
+		next.ScopeConfirmedAt, next.ScopeConfirmedBy = &at, nil
+		if actor != "" {
+			next.ScopeConfirmedBy = &actor
+		}
+		if err := putSetting(ctx, tx, "lan_ranges", next.LANRanges, now, actorOrSystem(actor)); err != nil {
+			return err
+		}
+		if err := putSetting(ctx, tx, "scope", scopeValue{ConfirmedAt: next.ScopeConfirmedAt, ConfirmedBy: next.ScopeConfirmedBy}, now, actorOrSystem(actor)); err != nil {
+			return err
+		}
+		if err := s.auditTx(ctx, tx, actor, "inventory.settings", "scan scope", detail+": "+strconv.Itoa(len(next.LANRanges))+" ranges, active scanning "+onOff(next.Active.Enabled)); err != nil {
+			return err
+		}
+		o.add(EventSettingsChanged, SettingsEvent{Scope: "scan"})
+		saved = next
+		return nil
+	})
+	return SavedSettings{Settings: saved, Adjusted: adjusted}, err
+}
+
+// AddExclusion adds one exclusion to the shared list (POST /scanning/safety/exclusions, #842/#850, INV-32) in one write transaction.
+// The entry passes the rule of a PUT (an IPv4 address or an IPv4 range without host bits: 400 bad_exclusion); one an exclusion
+// already stored covers changes nothing (no audit row, no event); growing the list past MaxExclusions is 409 too_many_exclusions.
+// One audit row inventory.settings naming the entry, then inventory.settings.changed. It only narrows what is scanned, so it needs
+// no attestation and keeps the scope's.
+func (s *Service) AddExclusion(ctx context.Context, actor, raw string) (SavedSettings, error) {
+	x, aerr := checkExclusion(raw)
+	if aerr != nil {
+		return SavedSettings{}, aerr
+	}
+	add := asPrefix(x)
+	var saved Settings
+	err := s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+		prev, err := loadSettings(ctx, tx)
+		if err != nil {
+			return err
+		}
+		if slices.ContainsFunc(prev.Active.Exclusions, func(e string) bool {
+			p := asPrefix(e)
+			return p.IsValid() && p.Bits() <= add.Bits() && p.Contains(add.Addr())
+		}) {
+			saved = prev
+			return nil
+		}
+		if len(prev.Active.Exclusions) >= MaxExclusions {
+			return conflict("too_many_exclusions", "The exclusion list can have at most 200 lines. Remove one in Settings, Scanning, or exclude a range that covers several.")
+		}
+		next := prev
+		next.Active.Exclusions = append(slices.Clone(prev.Active.Exclusions), x)
+		now := s.now()
+		if err := putSetting(ctx, tx, "active", next.Active, now, actorOrSystem(actor)); err != nil {
+			return err
+		}
+		if err := s.auditTx(ctx, tx, actor, "inventory.settings", "scan scope", "added exclusion "+x+": "+strconv.Itoa(len(next.Active.Exclusions))+" exclusions"); err != nil {
+			return err
+		}
+		o.add(EventSettingsChanged, SettingsEvent{Scope: "scan"})
+		saved = next
+		return nil
+	})
+	return SavedSettings{Settings: saved, Adjusted: []Adjustment{}}, err
+}
+
+// asPrefix is an exclusion as the addresses it covers: an address is its /32. The zero Prefix when it is neither.
+func asPrefix(x string) netip.Prefix {
+	if a, err := netip.ParseAddr(x); err == nil {
+		return netip.PrefixFrom(a, a.BitLen())
+	}
+	p, _ := netip.ParsePrefix(x)
+	return p.Masked()
+}
+
+func onOff(on bool) string {
+	if on {
+		return "on"
+	}
+	return "off"
 }
 
 // SetDiscovery turns active discovery (active.enabled, the nmap-discovery engine of Settings › Scanning) on or off; the other

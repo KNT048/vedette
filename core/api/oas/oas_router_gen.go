@@ -396,8 +396,14 @@ var (
 	rn415AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
 	}
-	rn418AllowedHeaders = map[string]string{
+	rn421AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
+	}
+	rn418AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn420AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
 	}
 	rn400AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
@@ -9143,20 +9149,85 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								}
 
 								if len(elem) == 0 {
-									// Leaf node.
 									switch r.Method {
 									case "PUT":
 										s.handleScanningPutScanningSafetyRequest([0]string{}, elemIsEscaped, w, r)
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "PUT",
-											allowedHeaders: rn418AllowedHeaders,
+											allowedHeaders: rn421AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "",
 										})
 									}
 
 									return
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'e': // Prefix: "exclusions"
+
+										if l := len("exclusions"); len(elem) >= l && elem[0:l] == "exclusions" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handleScanningPostScanningSafetyExclusionsRequest([0]string{}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "POST",
+													allowedHeaders: rn418AllowedHeaders,
+													acceptPost:     "application/json",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
+									case 'r': // Prefix: "ranges"
+
+										if l := len("ranges"); len(elem) >= l && elem[0:l] == "ranges" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handleScanningPostScanningSafetyRangesRequest([0]string{}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "POST",
+													allowedHeaders: rn420AllowedHeaders,
+													acceptPost:     "application/json",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
+									}
+
 								}
 
 							}
@@ -18498,7 +18569,6 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								}
 
 								if len(elem) == 0 {
-									// Leaf node.
 									switch method {
 									case "PUT":
 										r.name = ScanningPutScanningSafetyOperation
@@ -18512,6 +18582,72 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									default:
 										return
 									}
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'e': // Prefix: "exclusions"
+
+										if l := len("exclusions"); len(elem) >= l && elem[0:l] == "exclusions" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = ScanningPostScanningSafetyExclusionsOperation
+												r.summary = "Add one exclusion where the person is (\"+ New exclusion\" in a dialog, #842), without sending the whole block: read, append and save in one transaction. 400 bad_exclusion as PUT /scanning/safety; 409 too_many_exclusions when the list would grow past 200. An entry an exclusion already covers is 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the entry) and publishes inventory.settings.changed: a run that may no longer touch it stops. Returns the whole safety block"
+												r.operationID = "scanning_post_scanning_safety_exclusions"
+												r.operationGroup = ""
+												r.pathPattern = "/scanning/safety/exclusions"
+												r.args = args
+												r.count = 0
+												return r, true
+											default:
+												return
+											}
+										}
+
+									case 'r': // Prefix: "ranges"
+
+										if l := len("ranges"); len(elem) >= l && elem[0:l] == "ranges" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = ScanningPostScanningSafetyRangesOperation
+												r.summary = "Add one LAN range to the scope where the person is (\"+ New range\" in a dialog, #842), without sending the whole block: read, append and save in one transaction, so it never overwrites another edit. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range, too_many_ranges (16), and scope_not_confirmed when confirm is not true. A range the scope already covers is 200 with the block unchanged (no audit row) while the scope is confirmed; while it is not, the confirmation is recorded for the stored ranges. Audited as the PUT (inventory.settings, naming the range) and publishes inventory.settings.changed. Returns the whole safety block, with adjusted when the range was normalized"
+												r.operationID = "scanning_post_scanning_safety_ranges"
+												r.operationGroup = ""
+												r.pathPattern = "/scanning/safety/ranges"
+												r.args = args
+												r.count = 0
+												return r, true
+											default:
+												return
+											}
+										}
+
+									}
+
 								}
 
 							}

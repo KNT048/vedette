@@ -281,7 +281,7 @@ func newRow(r Record, a *AssetView, k *KevInfo, c *CVSS) Row {
 }
 
 // shownAsset is a device as every findings answer shows it (GET /findings, GET /findings/{id}, GET /findings/summary): a kind outside
-// the inventory's device types is "unknown", and the name is never the internal id (D-484): the software it runs, else the kind.
+// the inventory's device types is "unknown", and the name is never the internal id (D-484): its Display (the OS, else the kind, #905), else the kind.
 func shownAsset(a AssetView) AssetView {
 	if !validKind(a.Kind) {
 		a.Kind = "unknown"

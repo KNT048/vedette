@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
-import { AddToScopeDialog } from './AddToScopeDialog'
-import { useDeviceAction } from './api'
+import { AddToScopeDialog, asRange, inRanges } from './AddToScopeDialog'
+import { useDeviceAction, useSettings } from './api'
+import { isPrivateCidr } from './validate'
 import { DependencyLink } from '@/components/common/DependencyLink'
 import { errMsg } from './kinds'
 import type { SnmpCredential, SnmpTestResult } from './types'
@@ -17,6 +18,7 @@ export function SnmpNext({ r, ip, cred, onWiden, onEdit, onRetry }: {
   const { t } = useTranslation('inventory')
   const approve = useDeviceAction(r.device_id ?? '').approve
   const admin = useCan('admin')
+  const lan = useSettings(admin).data?.lan_ranges
   const [toScope, setToScope] = useState<string | null | false>(false)
   const scope = '/devices/setup?tab=scope#range-input' // the range field of Scope (useDeepLinkTarget focuses it)
   const active = '/devices/setup?tab=scope#active-enabled' // the active scanning switch
@@ -37,6 +39,9 @@ export function SnmpNext({ r, ip, cred, onWiden, onEdit, onRetry }: {
       ) : null
     case 'out_of_scope': case 'scope_not_confirmed': {
       const entry = r.reason === 'out_of_scope' ? ip : null
+      // Decide before offering "Add to scope" (r2 L4): a public address can never be in scope; one inside a saved range is excluded.
+      if (entry && !isPrivateCidr(asRange(entry))) return <p className="text-meta text-muted">{t('snmpNext.publicWhy', { ip })}</p>
+      if (entry && lan && inRanges(entry, lan)) return <DependencyLink reason={t('snmpNext.excludedWhy', { ip })} to="/devices/setup?tab=scope#excl-input" label={t('snmpNext.excluded')} />
       if (!admin) return <DependencyLink reason={t('snmpNext.scopeWhy')} to={scope} label={t('snmpNext.scope')} />
       return (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">

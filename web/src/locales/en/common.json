@@ -41,9 +41,9 @@
     "prev": "Previous",
     "next": "Next",
     "emptyFiltered": "No rows match these filters.",
+    "clearFilters": "Clear filters",
     "sortBy": "Sort by",
-    "sortOption": "Sort by {{column}}",
-    "clearFilters": "Clear filters"
+    "sortOption": "Sort by {{column}}"
   },
   "status": {
     "confirmed": "Confirmed",

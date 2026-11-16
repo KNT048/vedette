@@ -18,7 +18,8 @@ export function TurnOnModule({ id, reason }: { id: ModuleId; reason: string }) {
   // What turns on with it, said before the click as Settings › Modules does (#849 review L8).
   const mods = useModules().data?.modules ?? []
   const deps = (mods.find((m) => m.id === id)?.depends ?? []).filter((d) => mods.find((m) => m.id === d)?.enabled === false)
-  if (!admin) return <DependencyLink reason={reason} to="/settings/modules" label={t('inline.modulesPage')} />
+  // ponytail: Settings › Modules has no per-module id yet (asked of the core owner); the anchor lands once it does.
+  if (!admin) return <DependencyLink reason={reason} to={`/settings/modules#module-${id}`} label={t('inline.modulesPage')} />
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <p className="text-meta text-muted">{reason}{deps.length ? ` ${t('inline.alsoOn', { list: deps.map((d) => t(`common:modules.${d}.name`)).join(', ') })}` : ''}</p>

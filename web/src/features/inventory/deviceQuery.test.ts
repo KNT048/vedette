@@ -10,14 +10,14 @@ function row(p: Partial<DeviceRow> & { id: string }): DeviceRow {
   return {
     site: 's', ip: '192.168.1.1', mac: null, hostname: null, kind: 'unknown', kind_source: null, guess: null, vendor: null, model: null, os: null,
     software: [], services: [], first_seen: '2026-11-01T00:00:00Z', last_seen: '2026-11-16T09:00:00Z', approved: true, fragile: false, origin: 'discovered',
-    is_box: false, first_scan_at: null, regular_scan: 'follow', approved_at: null, suspicious: false, findings_count: 0, summary: null, ...p,
+    is_box: false, first_scan_at: null, regular_scan: 'follow', approved_at: null, suspicious: false, findings_count: 0, summary: null, sources: [], ...p,
   } as DeviceRow
 }
-const SW = row({ id: 'sw', hostname: 'SW-CORE', ip: '192.168.1.3', mac: 'F8:7B:20:30:33:03', kind: 'switch', kind_source: 'snmp', vendor: obs('Cisco', 'snmp'), model: obs('CBS350-24P', 'snmp') })
+const SW = row({ id: 'sw', hostname: 'SW-CORE', ip: '192.168.1.3', mac: 'F8:7B:20:30:33:03', kind: 'switch', kind_source: 'snmp', vendor: obs('Cisco', 'snmp'), model: obs('CBS350-24P', 'snmp'), sources: ['passive', 'snmp'] })
 const SRV = row({ id: 'srv', hostname: 'SRV-AD', ip: '192.168.1.10', kind: 'server', vendor: obs('Dell', 'passive'), os: obs('Windows Server 2016', 'agent'),
-  software: [{ id: 's1', display: 'Microsoft Office', vendor: 'Microsoft', product: 'Office', version: '2019', kev: [], source: 'agent', confidence: 1 }], findings_count: 2 })
-const CAM = row({ id: 'cam', hostname: 'CAM-GATE', ip: '192.168.2.11', kind: 'camera', fragile: true, vendor: obs('Hikvision', 'passive'), approved_at: '2026-11-16T08:00:00Z' })
-const MAN = row({ id: 'man', hostname: 'branch-fw', ip: '192.168.3.1', origin: 'manual', kind: 'firewall', kind_source: 'manual' })
+  software: [{ id: 's1', display: 'Microsoft Office', vendor: 'Microsoft', product: 'Office', version: '2019', kev: [], source: 'agent', confidence: 1 }], findings_count: 2, sources: ['passive', 'osquery'] })
+const CAM = row({ id: 'cam', hostname: 'CAM-GATE', ip: '192.168.2.11', kind: 'camera', fragile: true, vendor: obs('Hikvision', 'passive'), approved_at: '2026-11-16T08:00:00Z', sources: ['passive'] })
+const MAN = row({ id: 'man', hostname: 'branch-fw', ip: '192.168.3.1', origin: 'manual', kind: 'firewall', kind_source: 'manual', sources: ['manual'] })
 const ALL = [SW, SRV, CAM, MAN]
 const ids = (q: string) => filterDevices(ALL, q, NOW).map((d) => d.id)
 
@@ -46,8 +46,9 @@ describe('Devices search (#849)', () => {
     expect(ids('software:office')).toEqual(['srv'])
     expect(ids('approved:24h')).toEqual(['cam'])
   })
-  it('feedsOfRow: osquery and Wazuh both stand for an agent until the API says which', () => {
-    expect([...feedsOfRow(SRV)].sort()).toEqual(['osquery', 'passive', 'wazuh'])
+  it('feedsOfRow is the box\'s own list (#855): osquery and Wazuh are told apart', () => {
+    expect([...feedsOfRow(SRV)].sort()).toEqual(['osquery', 'passive'])
+    expect(ids('source:wazuh')).toEqual([])
   })
 })
 

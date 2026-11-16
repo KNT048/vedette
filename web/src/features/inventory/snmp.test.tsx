@@ -3,6 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderSnmp } from './snmpHarness'
+import { renderApp } from '@/test/render'
 import { server } from '@/test/server'
 import { assetsStore, auditStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { ensureBox, snmpStore } from './mocks'
@@ -193,7 +194,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     const run = await call('POST', '/snmp/snmp-1/read')
     expect(run.status).toBe(202)
     expect(run.json).toMatchObject({ total: 0, skipped: 1, results: [{ ip: '192.168.10.21', ok: false, reason: 'not_for_this_credential', device_id: 'a-nas02', message }] })
-    const { unmount } = renderApp('/devices/setup?tab=snmp')
+    const { unmount } = renderSnmp() // #850: the SNMP list lives on the SNMP card of Settings › Scanning
     const li = await row('Core switches (v3)')
     expect(within(li).getByRole('status')).toHaveTextContent('nas02 moved to 192.168.10.21, outside this credential\'s scope')
     expect(within(li).getByRole('status')).toHaveTextContent(message)

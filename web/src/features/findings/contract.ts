@@ -168,6 +168,11 @@ export const PlanItem = z.object({
 export const PlanFeed = z.enum(['module_off', 'off', 'loading', 'ready']).describe('module_off = the feeds module is off (SYS-5: its data is not read); off = an admin has not turned the feed on; loading = on, first fill not finished; ready = loaded')
 export const Plan = z.object({
   items: z.array(PlanItem),
+  counts: z.object({
+    likely: z.number().int().min(0).describe('Items the tier=likely answer lists'),
+    recent: z.number().int().min(0).describe('Items the tier=recent answer lists'),
+    all: z.number().int().min(0).describe('Items the tier=all answer lists'),
+  }).describe('M2-9: the number of items each tier filter lists, for the same device filter, whatever tier was asked: one answer gives every tab its count'),
   compared: z.boolean().describe('false = no comparison of tier 2 and 3 CVEs with the devices has run since the box started (D-617: the plan job runs within minutes); the page says so instead of "no update to plan"'),
   compared_devices: z.number().int().min(0).describe('Devices with at least one version Vedette can compare'),
   unchecked_devices: z.number().int().min(0).describe('Devices with no version Vedette can read: not checked'),

@@ -1,14 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { ApplyItem, BulkAction, FindingDetail, FindingRow, HomeSummary, Plan, PlanFilter, StatusAction, VersionNeeded } from './types'
+import type { ApplyItem, BulkAction, FindingDetail, FindingRow, Plan, PlanFilter, StatusAction, VersionNeeded } from './types'
 
 export const useFindings = (asset?: string) =>
   useQuery({ queryKey: ['findings', 'list', asset ?? null], queryFn: () => api.get<{ items: FindingRow[]; version_needed: VersionNeeded[] }>(asset ? `/findings?asset=${encodeURIComponent(asset)}` : '/findings') })
-
-/** Home's one read (#825). The box keeps it up to 60 s, so asking more often gains nothing; no refetch while the tab is hidden; any finding
- *  change on this page refreshes it (useWrite, useBulkStatus). */
-export const useHomeSummary = (enabled = true) =>
-  useQuery({ queryKey: ['findings', 'summary'], queryFn: () => api.get<HomeSummary>('/findings/summary'), enabled, refetchInterval: 60_000, refetchIntervalInBackground: false })
 
 /** Updates to plan (D-613): tier 2 and 3 CVEs grouped by update; all devices or one. */
 export const usePlan = (tier: PlanFilter = 'all', asset?: string, enabled = true) => {

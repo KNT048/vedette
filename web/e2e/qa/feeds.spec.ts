@@ -59,7 +59,8 @@ test.describe('feeds: home, lookup, CVE (S-FEED-1, 2, 3)', () => {
     test.skip(EMPTY, 'needs data')
     const errors = collectErrors(page)
     await start(page, 'operator')
-    await expect(h1(page)).toContainText(/^Today: \d+ vulnerabilit/)
+    // #825: with findings on, the headline answers "is anything I run exploited?"; the week's count is the board below.
+    await expect(h1(page)).toContainText(/^Today: /)
     await expect(page.getByText(/Data updated .*Sources: CISA KEV/)).toBeVisible()
     await expect(page.getByText(/1970/)).toHaveCount(0)
     await expect(page.locator('#hot a[href^="/cve/"]:visible').first()).toBeVisible()

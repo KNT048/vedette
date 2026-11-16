@@ -75,6 +75,7 @@ type SummaryItem struct {
 	Severity   Severity   `json:"severity"`
 	Asset      *AssetView `json:"asset"`
 	Product    string     `json:"product"`
+	Software   string     `json:"software"` // n73: the device's software row the KEV entry is keyed to (matchedOn), "" when unknown
 	Ransomware bool       `json:"ransomware"`
 	Source     *string    `json:"source"`
 	CVSS       *CVSS      `json:"cvss"`
@@ -189,6 +190,31 @@ func (h *FindingHandlers) computeSummary(ctx context.Context, src HomeSources, n
 			return nil, fmt.Errorf("findings: summary: reading devices: %w", err)
 		}
 	}
+	// n73: Fix first names the software, not only the KEV group ("Windows PCs and servers" on all five rows): the device's row the
+	// entry is keyed to, as the finding's page names it (matchedOn). At most SummaryTop devices are read; a failed read only leaves
+	// the name out. The stored entries are read once, and only when a top item is a "Multiple Products" entry.
+	var vulns []Vuln
+	vulnsRead := false
+	softwareOf := func(r summaryRow, k KevInfo) string {
+		a, ok, err := h.inv.MatchInput(ctx, r.assetID)
+		if err != nil || !ok {
+			return ""
+		}
+		var v *Vuln
+		if isMultiProduct(k.Product) {
+			if !vulnsRead {
+				vulnsRead = true
+				vulns, _ = h.feed.Vulns(ctx)
+			}
+			for i := range vulns {
+				if vulns[i].CVE == r.cve {
+					v = &vulns[i]
+					break
+				}
+			}
+		}
+		return matchedOn(a, k, v)
+	}
 	for _, r := range top {
 		it := SummaryItem{ID: r.id, CVE: r.cve, Status: r.status, Severity: r.severity, FirstSeen: store.FormatTS(r.firstSeen)}
 		if a, ok := assets[r.assetID]; ok {
@@ -197,6 +223,9 @@ func (h *FindingHandlers) computeSummary(ctx context.Context, src HomeSources, n
 		}
 		if k, ok := kev[r.cve]; ok {
 			it.Product, it.Ransomware = productOf(k), k.Ransomware
+			if it.Asset != nil {
+				it.Software = softwareOf(r, k)
+			}
 			list := cmp.Or(k.Source, "cisa-kev")
 			it.Source = &list
 		}

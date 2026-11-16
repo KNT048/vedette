@@ -61,8 +61,9 @@ function Tiles({ s, noClaim }: { s: HomeSummary; noClaim: boolean }) {
           <div className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:gap-4">
             <Sparkline values={trend} tone={last ? 'danger' : noClaim ? 'accent' : 'ok'} label={t('dash.trendLabel', { days, first, last })}
               point={(i) => t('dash.trendDay', { day: dayOf(i), count: trend[i] })} start={dayOf(0)} end={dayOf(days - 1)} />
-            <p className={cn('text-meta sm:pb-5', delta > 0 ? 'text-danger' : delta < 0 ? 'text-ok' : 'text-muted')}>
-              {delta === 0 ? t('dash.trendSame', { days }) : t(delta > 0 ? 'dash.trendUp' : 'dash.trendDown', { count: Math.abs(delta), days })}
+            {/* n73: "49 more than 30 days ago" in red read like an alarm about old findings; it is the change since the first day */}
+            <p className="text-meta text-muted sm:pb-5">
+              {delta === 0 ? t('dash.trendSame', { since: dayOf(0) }) : t(delta > 0 ? 'dash.trendUp' : 'dash.trendDown', { count: Math.abs(delta), since: dayOf(0), first })}
             </p>
           </div>
         )} />
@@ -91,13 +92,16 @@ function Tiles({ s, noClaim }: { s: HomeSummary; noClaim: boolean }) {
 /** One "Fix first" row: product (link to the finding), CVE, device, age; certainty, the exploited list, ransomware; CVSS under them. */
 function FixRow({ f, rank }: { f: SummaryItem; rank: number }) {
   const { t } = useTranslation('feeds')
-  const name = f.product || f.cve
+  // n73: lead with the software the device runs ("Windows Server 2025"); the exploited list's product group is context after it
+  const name = f.software || f.product || f.cve
+  const group = f.software && f.product && f.product !== f.software ? f.product : ''
   return (
     <RankedRow rank={rank}
       title={<Link to={`/findings/${encodeURIComponent(f.id)}`} className="underline-offset-4 hover:underline">{name}</Link>}
       meta={(
         <>
-          {f.product ? <span className="whitespace-nowrap">{f.cve}</span> : null}
+          {group ? <span>{group}</span> : null}
+          {name !== f.cve ? <span className="whitespace-nowrap">{f.cve}</span> : null}
           {f.asset
             ? <Link to={`/devices/${encodeURIComponent(f.asset.id)}`} className="text-ink underline-offset-4 hover:underline [overflow-wrap:anywhere]">{f.asset.name}</Link>
             : <span>{t('dash.removedDevice')}</span>}

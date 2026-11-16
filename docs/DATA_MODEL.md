@@ -171,6 +171,7 @@ UQ `(type, value)`. IX `(type, value)` phục vụ khớp log, `(expires_at)`. G
 | `fragile` | bool | không | tính từ `kind` ∈ `inv_setting.fragile_kinds` lúc tạo; sửa tay qua `PATCH` (cờ `fragile_manual`) |
 | `fragile_manual` | bool | không | 0; 1 = người dùng đã ghi đè theo chính sách loại |
 | `agent_key` | text | có | the agent bound to the device (`osquery:<node id>`, D-598, migration 0008, unique); its reports find the device before its address; NULL = no agent bound |
+| `agent_ip` | text | có | the address the bound agent last reported from (D-598, migration 0008); a sensor seeing the device's burned-in MAC elsewhere after that report drops the binding |
 | `regular_scan` | enum(follow\|allow\|never) | không | `follow` (D-45) |
 | `first_scan_at` | ts | có | thời điểm quét nhẹ lần đầu (D-45); NULL = chưa quét hoặc khai tay |
 | `suspicious` | bool | không | 0 (`POST …/suspicious`) |

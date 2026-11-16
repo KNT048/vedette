@@ -1,12 +1,51 @@
 package agentintake_test
 
 import (
+	"context"
 	"net/netip"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/knt048/vedette/core/observe"
+	agentintake "github.com/knt048/vedette/modules/agent-intake"
 )
+
+// releases wraps the inventory's Approver and keeps the agents agent-intake released (and passes them on).
+type releases struct {
+	observe.Approver
+	mu  sync.Mutex
+	got []string
+}
+
+func (r *releases) ReleaseAgents(ctx context.Context, agents []string) error {
+	r.mu.Lock()
+	r.got = append(r.got, agents...)
+	r.mu.Unlock()
+	return r.Approver.(observe.AgentReleaser).ReleaseAgents(ctx, agents)
+}
+
+func (r *releases) has(agent string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Contains(r.got, agent)
+}
+
+// withReleases puts a releases recorder in front of the world's inventory.
+func withReleases(r *releases) func(*agentintake.Config) {
+	return func(c *agentintake.Config) { r.Approver = c.Approver; c.Approver = r }
+}
+
+// nodeID is the id of the only node.
+func (w *world) nodeID() string {
+	w.t.Helper()
+	var id string
+	if err := w.db.Reader().QueryRowContext(w.t.Context(), `SELECT id FROM intake_osquery_nodes`).Scan(&id); err != nil {
+		w.t.Fatal(err)
+	}
+	return id
+}
 
 // D-598 (issue #829): osquery installed on a machine a scan found reports onto that device, and when DHCP gives the machine a new
 // address before any sensor sees the move, its next report still lands on that device (found by the node the box enrolled, INV-12),
@@ -58,5 +97,30 @@ func TestContract_D598_ReEnrolmentRebindsTheDevice(t *testing.T) {
 	w.post("/intake/osquery/log", peerB, report(second, peerB))
 	if moved, ok := w.device(peerB); !ok || moved.ID != d.ID || w.deviceCount() != 1 {
 		t.Errorf("after the move: at %s %v id %s (want %s), %d devices", peerB, ok, moved.ID, d.ID, w.deviceCount())
+	}
+}
+
+// D-598, review #831 round 2: revoking a token releases its nodes' bindings in the inventory, and so does pruning a silent node.
+func TestContract_D598_RevokeAndPruneReleaseTheNodes(t *testing.T) {
+	r := &releases{}
+	w := newWorld(t, withReleases(r))
+	id, secret := w.token("srv", 7)
+	w.enroll(secret, "srv-1", peerA)
+	node := w.nodeID()
+	if err := w.svc.RevokeToken(t.Context(), "admin@acme.example", id); err != nil {
+		t.Fatal(err)
+	}
+	if !r.has("osquery:" + node) {
+		t.Errorf("revoke released %v, want osquery:%s", r.got, node)
+	}
+
+	p := &releases{}
+	w = newWorld(t, withReleases(p))
+	_, secret = w.token("srv", 0)
+	w.enroll(secret, "srv-1", peerA)
+	node = w.nodeID()
+	w.pruneFor(agentintake.NodeSilentDays*24*time.Hour + 4*time.Hour)
+	if w.count(`SELECT count(*) FROM intake_osquery_nodes`) != 0 || !p.has("osquery:"+node) {
+		t.Errorf("prune released %v, want osquery:%s", p.got, node)
 	}
 }

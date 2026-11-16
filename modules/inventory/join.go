@@ -207,14 +207,14 @@ func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why stri
 			return err
 		}
 	}
-	var fromIP, fromSeen, fromAgent sql.NullString
+	var fromIP, fromSeen, fromAgent, fromAgentIP sql.NullString
 	var newer bool // from was seen after into (before the join folds their times)
-	if err := tx.QueryRowContext(ctx, `SELECT f.ip, f.last_seen, f.agent_key, f.last_seen >= i.last_seen FROM inv_asset f, inv_asset i WHERE f.id = ? AND i.id = ?`,
-		from, into).Scan(&fromIP, &fromSeen, &fromAgent, &newer); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT f.ip, f.last_seen, f.agent_key, f.agent_ip, f.last_seen >= i.last_seen FROM inv_asset f, inv_asset i WHERE f.id = ? AND i.id = ?`,
+		from, into).Scan(&fromIP, &fromSeen, &fromAgent, &fromAgentIP, &newer); err != nil {
 		return fmt.Errorf("inventory: read device: %w", err)
 	}
 	for _, q := range []string{
-		`UPDATE inv_asset SET agent_key = NULL WHERE id = ?2`, // the key is unique: free it before into takes it
+		`UPDATE inv_asset SET agent_key = NULL, agent_ip = NULL WHERE id = ?2`, // the key is unique: free it before into takes it
 		`UPDATE OR IGNORE inv_software SET asset_id = ?1 WHERE asset_id = ?2`,
 		`UPDATE OR IGNORE inv_service SET asset_id = ?1 WHERE asset_id = ?2`,
 		`UPDATE inv_asset SET
@@ -233,7 +233,7 @@ func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why stri
 		}
 	}
 	if fromAgent.Valid {
-		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET agent_key = ? WHERE id = ? AND agent_key IS NULL`, fromAgent.String, into); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET agent_key = ?, agent_ip = ? WHERE id = ? AND agent_key IS NULL`, fromAgent.String, fromAgentIP, into); err != nil {
 			return fmt.Errorf("inventory: move the agent: %w", err)
 		}
 	}
@@ -393,16 +393,18 @@ func macKinds(ctx context.Context, tx *sql.Tx, id string) (burned, private bool,
 }
 
 // rotationQuiet is how long the row a private address left must have been silent before another row of its name joins it (D-598,
-// review #831 M2): a rotation never shows the old and the new address at once, two machines of one name do.
-const rotationQuiet = 5 * time.Minute
+// review #831 M2): a rotation never shows the old and the new address at once, two machines of one name do. It is longer than the
+// passive sensor's 15 minutes between two sends of the same observation (sensor-passive repeatAfter), so a phone that is online but
+// says nothing new is not taken for gone.
+const rotationQuiet = 20 * time.Minute
 
 // sameMachine finds the other row of a machine whose Wi-Fi address is private (D-598): macOS, iOS, Android and Windows pick a locally
 // administered MAC per network or per day, DHCP then gives a new address, and every new MAC made a new row. Two rows are one machine
 // when **both** carry a private MAC and neither a burned-in one (a row known only by address, a declared row without a MAC, a server:
 // never; review #831 H1), they carry the same host name (machineName: first label, any case; not generic or system-made) and state
-// no other model or OS (facts, differ), exactly one other row carries that name, and they were not online at once: when both hold
-// different addresses, the row last seen earlier must have gone silent before the other row first appeared and for rotationQuiet
-// (two phones of one name, cloned VMs; review #831 M2). Never the box, never two rows a person declared. The row that stays: keptOrder.
+// no other model or OS (facts, differ), exactly one other row carries that name, and they were not online at once (onlineTogether,
+// on times alone: two phones of one name, cloned VMs; review #831 M2, N1, N5). Never the box, never two rows a person declared. The
+// row that stays: keptOrder.
 func sameMachine(ctx context.Context, tx *sql.Tx, id string, now time.Time) (from, into, why string, err error) {
 	var isBox bool
 	if err := tx.QueryRowContext(ctx, `SELECT is_box FROM inv_asset WHERE id = ?`, id).Scan(&isBox); err != nil {
@@ -459,30 +461,41 @@ func sameMachine(ctx context.Context, tx *sql.Tx, id string, now time.Time) (fro
 	return from, into, "the same host name " + name + " and a private Wi-Fi address", nil
 }
 
-// onlineTogether reports whether two rows holding different addresses may be two machines online at the same time: the one last seen
-// earlier was seen after the other first appeared, or less than rotationQuiet ago (it may still answer). Rows without an address, or
-// with the same one, are not both online.
+// onlineTogether reports whether two rows of one name may be two machines online at the same time, on their times alone, whatever
+// their addresses (review #831 N1: a lease that moved to a printer, or an intruder taking the address of a phone seen seconds ago, says
+// nothing): either one of them was seen less than rotationQuiet ago while the other was seen since (it may still answer), or they
+// were both seen over a stretch of at least rotationQuiet (lifetimes that overlap that long are two machines). A single late sighting
+// of the old row just after the new one appeared (a queued scan result) overlaps for less than rotationQuiet and is not enough
+// (review #831 N5). A rotation to the same address joins once the old row has been quiet for rotationQuiet.
 func onlineTogether(ctx context.Context, tx *sql.Tx, a, b string, now time.Time) (bool, error) {
-	var ipA, ipB sql.NullString
 	var firstA, lastA, firstB, lastB string
-	if err := tx.QueryRowContext(ctx, `SELECT x.ip, x.first_seen, x.last_seen, y.ip, y.first_seen, y.last_seen FROM inv_asset x, inv_asset y WHERE x.id = ? AND y.id = ?`,
-		a, b).Scan(&ipA, &firstA, &lastA, &ipB, &firstB, &lastB); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT x.first_seen, x.last_seen, y.first_seen, y.last_seen FROM inv_asset x, inv_asset y WHERE x.id = ? AND y.id = ?`,
+		a, b).Scan(&firstA, &lastA, &firstB, &lastB); err != nil {
 		return false, fmt.Errorf("inventory: read devices: %w", err)
 	}
-	if !ipA.Valid || !ipB.Valid || ipA.String == ipB.String {
-		return false, nil
+	ts := func(v string) (time.Time, bool) {
+		t, err := time.Parse(time.RFC3339Nano, v)
+		return t, err == nil
 	}
-	if lastB < lastA { // a is the row last seen earlier
-		firstB, lastA = firstA, lastB
-	}
-	if lastA >= firstB {
-		return true, nil
-	}
-	t, err := time.Parse(time.RFC3339Nano, lastA)
-	if err != nil {
+	fa, ok1 := ts(firstA)
+	la, ok2 := ts(lastA)
+	fb, ok3 := ts(firstB)
+	lb, ok4 := ts(lastB)
+	if !ok1 || !ok2 || !ok3 || !ok4 {
 		return true, nil // an unreadable time: do not join
 	}
-	return now.Sub(t) < rotationQuiet, nil
+	earlier := la
+	if lb.Before(la) {
+		earlier = lb
+	}
+	if now.Sub(earlier) < rotationQuiet {
+		return true, nil
+	}
+	start := fa
+	if fb.After(fa) {
+		start = fb
+	}
+	return earlier.Sub(start) >= rotationQuiet, nil
 }
 
 // keptOrder orders two rows of one machine (D-598): the row that stays is one a person declared, else an approved one, else the older
@@ -534,7 +547,8 @@ func keptOrder(ctx context.Context, tx *sql.Tx, x, y string) (from, into string,
 // interfaces); M could not become the row's MAC because this device owns it; and a sensor that saw a known MAC at the address took
 // the address away (claimIP: a sensor's MAC outranks an address-only row). Such a row has no address and no MAC, only the agent's
 // mac observation M, and joins the device that owns M. A row that still has its address is left alone: an agent's MAC claim on its
-// own never moves a report (INV-12, D-265 (4)). Exactly one such row; never the box.
+// own never moves a report (INV-12, D-265 (4)). Exactly one such row; never the box. Also the other way round: a row with no address
+// whose MAC is the card this device's bound agent reports now (see below).
 func agentOrphan(ctx context.Context, tx *sql.Tx, id string) (string, string, error) {
 	var mac sql.NullString
 	var isBox bool
@@ -544,13 +558,33 @@ func agentOrphan(ctx context.Context, tx *sql.Tx, id string) (string, string, er
 		}
 		return "", "", fmt.Errorf("inventory: read device: %w", err)
 	}
-	if !mac.Valid || isBox {
+	if isBox {
 		return "", "", nil
 	}
-	ids, err := candidates(ctx, tx, `SELECT a.id FROM inv_asset a WHERE a.id <> ? AND a.ip IS NULL AND a.mac IS NULL AND a.is_box = 0 AND a.origin = 'discovered'
+	if mac.Valid {
+		ids, err := candidates(ctx, tx, `SELECT a.id FROM inv_asset a WHERE a.id <> ? AND a.ip IS NULL AND a.mac IS NULL AND a.is_box = 0 AND a.origin = 'discovered'
 		AND EXISTS (SELECT 1 FROM inv_observation o WHERE o.asset_id = a.id AND o.field = 'mac' AND o.source = 'agent' AND o.value = ?)`, id, mac.String)
+		if err != nil {
+			return "", "", err
+		}
+		if len(ids) == 1 {
+			return ids[0], "its agent reported the MAC " + mac.String + " of this device and its address went to this device", nil
+		}
+	}
+	// The other way round (review #831 N3): this device's bound agent now reports a card a sensor found first (a laptop off its dock,
+	// on Wi-Fi). The sensor's row for that card lost its address to this device when the node reported from it (keyHit, claimIP), so it
+	// has a MAC and no address: it is this machine's card.
+	var card sql.NullString
+	err := tx.QueryRowContext(ctx, `SELECT o.value FROM inv_observation o JOIN inv_asset d ON d.id = o.asset_id
+		WHERE o.asset_id = ? AND o.field = 'mac' AND o.source = 'agent' AND d.agent_key IS NOT NULL ORDER BY o.seen_at DESC, o.id DESC LIMIT 1`, id).Scan(&card)
+	if errors.Is(err, sql.ErrNoRows) || err == nil && (!card.Valid || card.String == mac.String) {
+		return "", "", nil
+	} else if err != nil {
+		return "", "", fmt.Errorf("inventory: read the agent's card: %w", err)
+	}
+	ids, err := candidates(ctx, tx, `SELECT id FROM inv_asset WHERE id <> ? AND ip IS NULL AND mac = ? AND is_box = 0 AND origin = 'discovered' AND agent_key IS NULL`, id, card.String)
 	if err != nil || len(ids) != 1 {
 		return "", "", err
 	}
-	return ids[0], "its agent reported the MAC " + mac.String + " of this device and its address went to this device", nil
+	return ids[0], "the agent bound to this device reports the card " + card.String + " and its address went to this device", nil
 }

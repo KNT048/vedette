@@ -70,10 +70,8 @@ type cleanObs struct {
 	ip    netip.Addr
 	mac   string // hint, normalised, may be ""
 	agent string // hint: the agent that reports (agent source only, D-598), may be ""
-	// agentMACs are the MACs the agent reports in this batch (its mac observations), and macsKnown says the batch is an observation
-	// batch that could carry them (Record), not a software or service list. A key hit is checked against them (keyHit).
+	// agentMACs are the MACs the agent reports in this batch (its mac observations); bindAgent checks the device against them.
 	agentMACs []string
-	macsKnown bool
 	field     string
 	value     string
 	source    string
@@ -212,7 +210,7 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 	}
 	for i := range clean {
 		if clean[i].agent != "" {
-			clean[i].agentMACs, clean[i].macsKnown = reported[clean[i].agent], true
+			clean[i].agentMACs = reported[clean[i].agent]
 		}
 	}
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
@@ -508,28 +506,52 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id strin
 }
 
 // keyHit is the device the agent of c is bound to (D-598), moved to c's address, or "" (then the caller goes on by MAC and address).
-// A binding that a MAC spoof made (review #831 M3: an agent that took a machine's MAC and address once, then reports from its own) is
-// dropped: when the bound device's MAC is one its maker burned in and the agent's observation batch does not report it, the binding
-// is cleared, logged, and the report is found by address like any other. A software or service list carries no MACs: the observation
-// batch of the same report (agent-intake records the card's MAC before every list) has checked the binding already.
+// The binding follows the node through any change of its own address or card (a laptop off its dock reports from Wi-Fi; review #831
+// N3), and is dropped only on evidence from the wire, never on what the agent declares (N2): the device's MAC is one its maker burned
+// in, a sensor saw that MAC after the agent's last report on the device, and saw it at another address than the one that report came
+// from (the device's address moved away from agentIP: claimIP by MAC). Then the machine is elsewhere while the node reports from here:
+// a binding a spoof made (the node once took the machine's MAC and address). The binding is cleared, logged, and the report goes by
+// address like any other. A rotating private MAC is no such evidence (it is never burned in).
 func (s *Service) keyHit(ctx context.Context, tx *sql.Tx, c cleanObs) (string, error) {
 	var id string
-	var mac sql.NullString
-	switch err := tx.QueryRowContext(ctx, `SELECT id, mac FROM inv_asset WHERE agent_key = ?`, c.agent).Scan(&id, &mac); {
+	var mac, ip, agentIP sql.NullString
+	switch err := tx.QueryRowContext(ctx, `SELECT id, mac, ip, agent_ip FROM inv_asset WHERE agent_key = ?`, c.agent).Scan(&id, &mac, &ip, &agentIP); {
 	case errors.Is(err, sql.ErrNoRows):
 		return "", nil
 	case err != nil:
 		return "", fmt.Errorf("inventory: find device by agent: %w", err)
 	}
-	if c.macsKnown && mac.Valid && !localMAC(mac.String) && !slices.Contains(c.agentMACs, mac.String) {
-		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET agent_key = NULL WHERE id = ?`, id); err != nil {
-			return "", fmt.Errorf("inventory: drop the agent's binding: %w", err)
+	if mac.Valid && !localMAC(mac.String) && ip.Valid && agentIP.Valid && ip.String != agentIP.String {
+		var wire int
+		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM inv_observation WHERE asset_id = ?1 AND field = 'mac' AND value = ?2 AND source <> 'agent'
+			AND evidence IS NOT ?3 AND seen_at > coalesce((SELECT max(seen_at) FROM inv_observation WHERE asset_id = ?1 AND source = 'agent'), '')`,
+			id, mac.String, chassisEvidence).Scan(&wire); err != nil {
+			return "", fmt.Errorf("inventory: check the agent's device on the wire: %w", err)
 		}
-		s.log.WarnContext(ctx, "inventory: an agent reported without the burned-in MAC of the device it was bound to; the binding is dropped and the report goes by address",
-			"device", id, "agent", c.agent, "device_mac", mac.String, "agent_macs", c.agentMACs)
-		return "", nil
+		if wire > 0 {
+			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET agent_key = NULL, agent_ip = NULL WHERE id = ?`, id); err != nil {
+				return "", fmt.Errorf("inventory: drop the agent's binding: %w", err)
+			}
+			s.log.WarnContext(ctx, "inventory: a sensor saw the burned-in MAC of the device an agent is bound to at another address after the agent's last report; the binding is dropped and the report goes by address",
+				"device", id, "agent", c.agent, "device_mac", mac.String, "device_ip", ip.String, "agent_last_ip", agentIP.String, "report_ip", c.ip)
+			return "", nil
+		}
 	}
-	return id, s.claimIP(ctx, tx, id, c.ip, string(observe.Agent))
+	if err := s.claimIP(ctx, tx, id, c.ip, string(observe.Agent)); err != nil {
+		return "", err
+	}
+	return id, setAgentIP(ctx, tx, id, c.ip)
+}
+
+// setAgentIP records the address the bound agent last reported from (keyHit's evidence).
+func setAgentIP(ctx context.Context, tx *sql.Tx, id string, ip netip.Addr) error {
+	if !ip.IsValid() {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET agent_ip = ? WHERE id = ?`, ip.String(), id); err != nil {
+		return fmt.Errorf("inventory: record the agent's address: %w", err)
+	}
+	return nil
 }
 
 // bindAgent binds an agent to the device its report reached by address (D-598), so its later reports find the device when the address
@@ -554,7 +576,7 @@ func bindAgent(ctx context.Context, tx *sql.Tx, id, agent string, macs []string)
 			return nil
 		}
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET agent_key = ? WHERE id = ?`, agent, id); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET agent_key = ?, agent_ip = ip WHERE id = ?`, agent, id); err != nil {
 		return fmt.Errorf("inventory: bind the agent: %w", err)
 	}
 	return nil
@@ -568,7 +590,7 @@ func (s *Service) ReleaseAgents(ctx context.Context, agents []string) error {
 	}
 	return s.write(ctx, func(tx *sql.Tx, _ *outbox) error {
 		for _, a := range agents {
-			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET agent_key = NULL WHERE agent_key = ?`, a); err != nil {
+			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET agent_key = NULL, agent_ip = NULL WHERE agent_key = ?`, a); err != nil {
 				return fmt.Errorf("inventory: release an agent: %w", err)
 			}
 		}

@@ -183,7 +183,8 @@ func TestContract_D598_ADeclaredDeviceIsNotTakenOver(t *testing.T) {
 }
 
 // D-598 (1), review #831 M2: two machines of one name online at the same time (two "Johns-iPhone", cloned VMs) stay two, however
-// long they stay; a rotation whose old address answered a minute ago waits rotationQuiet, then joins when the old row stayed silent.
+// long they stay, and whatever their addresses do later (one loses its lease to a printer; review #831 N1); a rotation whose old
+// address answered a minute ago waits rotationQuiet (20 minutes), then joins when the old row stayed silent.
 func TestContract_D598_TwoMachinesOfOneNameOnlineAtOnce(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(privMac1, "192.168.18.10", "Johns-iPhone")...)
@@ -197,6 +198,13 @@ func TestContract_D598_TwoMachinesOfOneNameOnlineAtOnce(t *testing.T) {
 	if n := e.devices(); n != 2 {
 		t.Fatalf("%d devices, want the two phones", n)
 	}
+	// Phone 1 leaves; a printer gets its lease (the row loses its address); phone 2 is seen an hour later: still two phones.
+	e.tick(time.Hour)
+	e.record(dhcp(burnt1, "192.168.18.10", "printer-2f")...)
+	e.record(dhcp(privMac2, "192.168.18.11", "Johns-iPhone")...)
+	if n := e.count(`SELECT count(*) FROM inv_asset WHERE lower(hostname) = 'johns-iphone'`); n != 2 {
+		t.Fatalf("%d Johns-iPhone rows after phone 1 lost its address, want 2", n)
+	}
 
 	r := newEnv(t)
 	r.record(dhcp(privMac1, "192.168.18.20", "kiens-ipad")...)
@@ -205,7 +213,7 @@ func TestContract_D598_TwoMachinesOfOneNameOnlineAtOnce(t *testing.T) {
 	if n := r.devices(); n != 2 {
 		t.Fatalf("a minute after the old address: %d devices, want 2 until the old one is quiet", n)
 	}
-	r.tick(10 * time.Minute)
+	r.tick(25 * time.Minute)
 	r.record(dhcp(privMac2, "192.168.18.21", "kiens-ipad")...)
 	if d := r.only(); d.IP != "192.168.18.21" || d.MAC == nil || *d.MAC != privMac2 {
 		t.Errorf("after the quiet time: %+v", d.AssetCore)
@@ -318,27 +326,89 @@ func TestContract_D598_ABindingIsNeverStolen(t *testing.T) {
 	}
 }
 
-// D-598 (2), review #831 M3: a node that once reported with a machine's burned-in MAC and address (a spoof) is bound to that machine;
-// when it then reports from its own address without that MAC, the binding is dropped: the machine stays where it is and the report
-// goes by address (a device of its own).
+// D-598 (2), review #831 M3, N2: a node bound by a spoof (it once took a machine's burned-in MAC and address) keeps declaring that MAC
+// from its own address. The binding is kept until the wire says otherwise: once a sensor sees the machine's MAC at its own address after
+// the node's last report, the node's next report drops the binding and goes by address. The machine ends where it is, the node's
+// report on a device of its own.
 func TestContract_D598_ASpoofedBindingIsDropped(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(burnt2, "192.168.18.20", "")...)
 	victim := e.idOf("192.168.18.20")
-	spoof := []observe.Observation{{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20"), Agent: "osquery:node-x"}, Field: observe.MAC, Value: burnt2, Source: observe.Agent, Confidence: 0.9}}
-	e.record(spoof...)
+	from := func(ip string) []observe.Observation {
+		h := observe.AssetHint{IP: netip.MustParseAddr(ip), Agent: "osquery:node-x"}
+		return []observe.Observation{{AssetHint: h, Field: observe.MAC, Value: burnt2, Source: observe.Agent, Confidence: 0.9},
+			{AssetHint: h, Field: observe.Hostname, Value: "evil", Source: observe.Agent, Confidence: 0.9}}
+	}
+	e.record(from("192.168.18.20")...)
 	if e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_key = 'osquery:node-x'`, victim) != 1 {
 		t.Fatal("setup: the spoof did not bind")
 	}
 	e.tick(time.Minute)
-	e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.18.77"), Agent: "osquery:node-x"}, Field: observe.MAC, Value: burnt1, Source: observe.Agent, Confidence: 0.9},
-		observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.18.77"), Agent: "osquery:node-x"}, Field: observe.Hostname, Value: "evil", Source: observe.Agent, Confidence: 0.9})
+	e.record(from("192.168.18.77")...) // no evidence yet: the node is followed
+	e.tick(time.Minute)
+	e.record(dhcp(burnt2, "192.168.18.20", "")...) // the wire: the machine is at .20
+	e.tick(time.Minute)
+	e.record(from("192.168.18.77")...)
 	d, err := e.svc.Device(e.ctx(), victim)
-	if err != nil || d.IP != "192.168.18.20" || d.Hostname != nil {
-		t.Errorf("the victim moved or was written on: %+v %v", d.AssetCore, err)
+	if err != nil || d.IP != "192.168.18.20" {
+		t.Errorf("the machine moved: %+v %v", d.AssetCore, err)
 	}
 	if e.devices() != 2 || e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_key IS NOT NULL`, victim) != 0 {
-		t.Errorf("%d devices; the victim's binding stayed", e.devices())
+		t.Errorf("%d devices; the spoofed binding stayed", e.devices())
+	}
+}
+
+// D-598 (2), review #831 N3: a laptop bound through its dock's wired card (burned in) reports from Wi-Fi after undocking; the passive
+// sensor saw the Wi-Fi card first. The node is followed (the wired card is off the wire, no evidence against it) and the Wi-Fi card's
+// row, which lost its address to the laptop, is the laptop's card: one device, at the Wi-Fi address, still bound.
+func TestContract_D598_ANodeFollowsANICChange(t *testing.T) {
+	e := newEnv(t)
+	const wifi = "a4:83:e7:00:00:09" // burned in too
+	e.record(dhcp(burnt1, "192.168.18.20", "")...)
+	id := e.idOf("192.168.18.20")
+	e.record(osq("192.168.18.20")...)
+	e.tick(2 * time.Minute)
+	e.record(dhcp(burnt1, "192.168.18.20", "")...) // still docked: a sensor sees the wired card after the report, at the same address
+	e.tick(time.Hour)
+	e.record(dhcp(wifi, "192.168.18.31", "")...)
+	h := observe.AssetHint{IP: netip.MustParseAddr("192.168.18.31"), Agent: "osquery:node-a"}
+	e.record(observe.Observation{AssetHint: h, Field: observe.MAC, Value: wifi, Source: observe.Agent, Confidence: 0.9},
+		observe.Observation{AssetHint: h, Field: observe.Hostname, Value: "build01", Source: observe.Agent, Confidence: 0.9})
+	d := e.only()
+	if d.ID != id || d.IP != "192.168.18.31" || e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_key = 'osquery:node-a'`, id) != 1 {
+		t.Errorf("device: id %s ip %s (want %s at .31, bound)", d.ID, d.IP, id)
+	}
+}
+
+// D-598 (2), review #831 N4: a batch that names no MAC (agent-intake sends the enrolment's host name alone) keeps the binding.
+func TestContract_D598_AHostNameOnlyBatchKeepsTheBinding(t *testing.T) {
+	e := newEnv(t)
+	e.record(dhcp(burnt1, "192.168.18.20", "")...)
+	id := e.idOf("192.168.18.20")
+	e.record(osq("192.168.18.20")...)
+	e.tick(time.Minute)
+	e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20"), Agent: "osquery:node-a"}, Field: observe.Hostname, Value: "build01", Source: observe.Agent, Confidence: 0.9})
+	if e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_key = 'osquery:node-a'`, id) != 1 || e.devices() != 1 {
+		t.Error("a host-name-only batch dropped the binding")
+	}
+}
+
+// D-598, review #831 N5: a queued scan result for the old row just after the new row appeared (a late sighting) does not keep a
+// rotation apart for ever: once the old row is quiet for rotationQuiet, the next sighting of the new row joins them.
+func TestContract_D598_ALateSightingDoesNotBlockARotation(t *testing.T) {
+	e := newEnv(t)
+	e.record(dhcp(privMac1, "192.168.18.20", "kiens-ipad")...)
+	e.tick(2 * time.Minute)
+	e.record(dhcp(privMac2, "192.168.18.21", "kiens-ipad")...) // too soon after the old address: not joined yet
+	e.tick(time.Minute)
+	e.record(dhcp(privMac1, "192.168.18.20", "kiens-ipad")...) // a late sighting of the old row, after the new one appeared
+	if e.devices() != 2 {
+		t.Fatalf("setup: %d devices", e.devices())
+	}
+	e.tick(30 * time.Minute)
+	e.record(dhcp(privMac2, "192.168.18.21", "kiens-ipad")...)
+	if d := e.only(); d.IP != "192.168.18.21" {
+		t.Errorf("device at %s", d.IP)
 	}
 }
 

@@ -492,8 +492,7 @@ func (c cleanObs) target() string {
 // device's MAC at that address, its bound agent reporting from it, a person declaring it, or, for a discovered device known by address
 // only, anything seen there (ip_confirmed_at). Past it, while the discovery sweep runs (sweepRan), a hint with only an address (a
 // version scan, an SNMP read, a Wazuh or software list) is not given to the device, an address-only device no longer adopts a MAC seen
-// there, and a hand-added device nobody saw binds no MAC and gives its address to the machine there: DHCP may have given the address to
-// another machine. Three days, as runZero (an address not confirmed by a scan for three days is not trusted on its own): the slowest
+// there, and a hand-added device nobody saw binds no MAC: DHCP may have given the address to another machine. Three days, as runZero (an address not confirmed by a scan for three days is not trusted on its own): the slowest
 // source that confirms one is the daily discovery sweep (sensor-active, once per scan window, an ARP ping every live host on the segment
 // answers), so a day with no sweep does not drop a live device's facts; the passive sensor confirms every 15 minutes.
 const ipTrust = 72 * time.Hour
@@ -503,8 +502,8 @@ const ipTrust = 72 * time.Hour
 // the address.
 //
 // A hint with no MAC goes to the device holding the address when that device has no MAC (the address is all it is known by), when its
-// address was confirmed within ipTrust, or when the discovery sweep has not run in that time (no sweep: nothing tells a stale address
-// from a quiet one). Otherwise a sensor's hint or a list goes nowhere (logged), and an agent's observation makes a device of its own,
+// address was confirmed within ipTrust, or when the discovery sweep could not have confirmed it (sweptAway: the sweep did not run, or
+// does not probe that device). Otherwise a sensor's hint or a list goes nowhere (logged), and an agent's observation makes a device of its own,
 // which agentOrphan joins to the old one when the agent reports its card.
 //
 // A hint with a MAC nobody owns binds the address's device when that device has no MAC yet: a hand-added one when the MAC is burned in
@@ -528,7 +527,10 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id strin
 		switch err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE mac = ?`, c.mac).Scan(&id); {
 		case err == nil:
 			if hand, err := handHolder(ctx, tx, c, id, cutoff); hand != "" || err != nil {
-				return hand, false, err
+				if err != nil {
+					return "", false, err
+				}
+				return hand, false, confirmIP(ctx, tx, hand, c.ip, c.seenAt)
 			}
 			return id, false, s.claimIP(ctx, tx, id, c.ip, c.source, c.seenAt)
 		case !errors.Is(err, sql.ErrNoRows):
@@ -559,12 +561,12 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id strin
 			case fresh:
 				return id, false, nil
 			}
-			swept, err := sweepRan(ctx, tx, cutoff)
+			judged, err := sweptAway(ctx, tx, id, cutoff)
 			if err != nil {
 				return "", false, err
 			}
 			switch {
-			case !swept:
+			case !judged:
 				return id, false, nil
 			case c.agent == "" || c.list:
 				s.staleLog(ctx, id, c, confirmed.String)
@@ -596,7 +598,8 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id strin
 
 // handHolder is the hand-added device at c's address that a sighting of c's burned-in MAC, which device other already owns, is about
 // (review r1 M1 of #872): it has no MAC and no agent, a person declared its address within ipTrust (cutoff), and other is a discovered
-// device nobody approved (the duplicate an earlier batch made of it: a MAC-only hint before the ARP, an LLDP frame). "" otherwise.
+// device nobody approved that never had an address (the duplicate an earlier batch made of it: a MAC-only hint before the ARP, an LLDP
+// frame; a machine already announced at another address is not folded, review r2 L-new-1). "" otherwise.
 // The hint then goes to the hand-added device, and joinSame folds other into it (handBound).
 func handHolder(ctx context.Context, tx *sql.Tx, c cleanObs, other, cutoff string) (string, error) {
 	if !c.ip.IsValid() || localMAC(c.mac) {
@@ -604,7 +607,8 @@ func handHolder(ctx context.Context, tx *sql.Tx, c cleanObs, other, cutoff strin
 	}
 	var id string
 	err := tx.QueryRowContext(ctx, `SELECT h.id FROM inv_asset h, inv_asset o WHERE h.ip = ? AND h.origin = 'manual' AND h.mac IS NULL AND h.agent_key IS NULL
-		AND h.is_box = 0 AND h.ip_confirmed_at >= ? AND o.id = ? AND o.id <> h.id AND o.origin = 'discovered' AND o.approved = 0 AND o.is_box = 0`,
+		AND h.is_box = 0 AND h.ip_confirmed_at >= ? AND o.id = ? AND o.id <> h.id AND o.origin = 'discovered' AND o.approved = 0 AND o.is_box = 0
+		AND o.ip IS NULL`,
 		c.ip.String(), cutoff, other).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
@@ -627,7 +631,7 @@ func handBound(ctx context.Context, tx *sql.Tx, id string) (from, why string, er
 	if err != nil || len(macs) != 1 || localMAC(macs[0]) {
 		return "", "", err
 	}
-	err = tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE mac = ? AND id <> ? AND origin = 'discovered' AND approved = 0 AND is_box = 0`, macs[0], id).Scan(&from)
+	err = tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE mac = ? AND id <> ? AND origin = 'discovered' AND approved = 0 AND is_box = 0 AND ip IS NULL`, macs[0], id).Scan(&from)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", "", nil
 	} else if err != nil {
@@ -636,14 +640,28 @@ func handBound(ctx context.Context, tx *sql.Tx, id string) (from, why string, er
 	return from, "a sensor saw its network card " + macs[0] + " at the address it was added with", nil
 }
 
-// sweepRan says whether the discovery sweep (sensor-active's nmap MAC sightings) ran since cutoff: then a device it did not confirm at its
-// address was not there (an ARP ping is answered by every live host on the segment), and its silence is news (review r1 M2 of #872).
-func sweepRan(ctx context.Context, tx *sql.Tx, cutoff string) (bool, error) {
+// sweptAway says whether the discovery sweep could have confirmed device id at its address since cutoff and did not (review r1 M2 and
+// r2 H-new-1 of #872): the sweep ran since cutoff (sensor-active's nmap mac observations; an ARP ping is answered by every live host on
+// the segment), the address is in the confirmed scope, and the sweep probes the device (not sweepSkips: a device added by hand, the box,
+// one set to "never", a fragile or unclassified one after its first scan are never probed). Only then is its silence news; the passive
+// sensor hears broadcasts only, so a quiet server it never hears is not stale.
+func sweptAway(ctx context.Context, tx *sql.Tx, id, cutoff string) (bool, error) {
 	var ran bool
 	if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM inv_observation WHERE field = 'mac' AND source = 'nmap' AND seen_at >= ?)`, cutoff).Scan(&ran); err != nil {
 		return false, fmt.Errorf("inventory: check the discovery sweep: %w", err)
 	}
-	return ran, nil
+	if !ran {
+		return false, nil
+	}
+	var f scanFacts
+	if err := f.scan(tx.QueryRowContext(ctx, `SELECT `+scanCols+` FROM inv_asset WHERE id = ?`, id)); err != nil {
+		return false, fmt.Errorf("inventory: read device: %w", err)
+	}
+	st, err := loadSettings(ctx, tx)
+	if err != nil {
+		return false, err
+	}
+	return st.ScopeConfirmedAt != nil && f.addr.IsValid() && st.InScope(f.addr) && !sweepSkips(st, f), nil
 }
 
 // staleLog logs, at most once an hour per device, that a report by address only was not given to the device at the address.
@@ -770,9 +788,10 @@ func (s *Service) ReleaseAgents(ctx context.Context, agents []string) error {
 
 // claimIP gives ip to the device and records the sighting that confirmed it (ip_confirmed_at, ipTrust). The address is taken from
 // a device that holds it when that device is a discovered one or is bound to a MAC or an agent (#829: a hand-added device bound to its
-// MAC is one machine like any other, and DHCP gives its address away like any other's), or is a hand-added one known by its address
-// only that a person declared more than ipTrust ago (a machine nobody saw there since; review r1 H2 of #872); a hand-added device
-// declared within ipTrust keeps it, and the update is then a no-op. The box, and a hand-added device known by its address only, keep their own address against
+// MAC is one machine like any other, and DHCP gives its address away like any other's); a hand-added device known by its address only
+// keeps it at any age (review r2 M-new-1 of #872: the person's row stays where they put it, and a machine first seen there long after,
+// which binds nothing, is a new announced device without an address until the person merges or deletes the row), and the update is
+// then a no-op. The box, and a hand-added device known by its address only, keep their own address against
 // anything but an agent (L10 of the SP-4 review); a hand-added device bound to a MAC moves with that MAC (#829, C1).
 func (s *Service) claimIP(ctx context.Context, tx *sql.Tx, id string, ip netip.Addr, source, seenAt string) error {
 	if !ip.IsValid() {
@@ -790,7 +809,7 @@ func (s *Service) claimIP(ctx context.Context, tx *sql.Tx, id string, ip netip.A
 		return confirmIP(ctx, tx, id, ip, seenAt)
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = NULL, ip_confirmed_at = NULL WHERE ip = ? AND id <> ? AND is_box = 0
-		AND (origin = 'discovered' OR mac IS NOT NULL OR agent_key IS NOT NULL OR coalesce(ip_confirmed_at, '') < ?)`, ip.String(), id, store.FormatTS(s.clock().Add(-ipTrust))); err != nil {
+		AND (origin = 'discovered' OR mac IS NOT NULL OR agent_key IS NOT NULL)`, ip.String(), id); err != nil {
 		return fmt.Errorf("inventory: free IP: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = ?, ip_confirmed_at = ? WHERE id = ? AND NOT EXISTS (SELECT 1 FROM inv_asset WHERE ip = ?)`,

@@ -57,7 +57,9 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 			hint.From = a
 		}
 	}
-	kernel, win := n.kernel, n.win // a key-only report stores nothing on the node (review r1 H1 of #872): a copied key must not set its kernel
+	// A key-only report stores nothing on the node (review r1 H1 of #872: a copied key must not set its kernel); its own kernel_info goes
+	// with its own list only (r2 L-new-2: a machine that rebooted and moved), and the inventory takes that list only from the device's address.
+	kernel, win := reqKernel(n, in), n.win
 	if ip.IsValid() {
 		var err error
 		if kernel, err = s.nodeKernel(ctx, n, in); err != nil {
@@ -137,17 +139,23 @@ func enrolNames(n nodeRow) []string {
 // enrolHostConfidence is the rank of the enrolment's host name among the agent's observations: below system_info's.
 const enrolHostConfidence = 0.9
 
+// reqKernel is the running kernel release this request reports (kernel_info), or the node's stored one when it reports none or one
+// that is not a kernel release.
+func reqKernel(n nodeRow, in logIn) string {
+	rows := in.snaps["kernel_info"]
+	if len(rows) == 0 {
+		return n.kernel
+	}
+	if k := strings.ToLower(rows[0]["version"]); kernelReleaseRE.MatchString(k) {
+		return k
+	}
+	return n.kernel
+}
+
 // nodeKernel is the running kernel release of the node (D-516): the one this request's kernel_info snapshot gives, stored on the node
 // when it changed, else the one stored. "" when the node never gave a usable one.
 func (s *Service) nodeKernel(ctx context.Context, n nodeRow, in logIn) (string, error) {
-	rows := in.snaps["kernel_info"]
-	if len(rows) == 0 {
-		return n.kernel, nil
-	}
-	k := strings.ToLower(rows[0]["version"])
-	if !kernelReleaseRE.MatchString(k) {
-		return n.kernel, nil
-	}
+	k := reqKernel(n, in)
 	if k == n.kernel {
 		return k, nil
 	}

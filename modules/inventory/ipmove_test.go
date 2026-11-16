@@ -16,10 +16,11 @@ const (
 	router = "3c:22:fb:00:00:fe" // another device the discovery sweep finds, so the sweep is known to run
 )
 
-// sweep is what sensor-active's discovery sweep sends for one host it found on the segment (results.go sweepObservations).
-func sweep(mac, ip string) []observe.Observation {
-	h := observe.AssetHint{MAC: mac, IP: netip.MustParseAddr(ip)}
-	return []observe.Observation{{AssetHint: h, Field: observe.MAC, Value: mac, Source: observe.Nmap, Confidence: 0.9}}
+// sweepSawRouter is what sensor-active's discovery sweep sends for the router it found on the segment (results.go sweepObservations):
+// the sweep runs.
+func sweepSawRouter() []observe.Observation {
+	h := observe.AssetHint{MAC: router, IP: netip.MustParseAddr("192.168.18.1")}
+	return []observe.Observation{{AssetHint: h, Field: observe.MAC, Value: router, Source: observe.Nmap, Confidence: 0.9}}
 }
 
 // arp is what the passive sensor sends for one ARP sighting of a new MAC, in its order: the card's maker (the OUI table, a MAC-only
@@ -140,6 +141,7 @@ func TestContract_829_AReusedAddressIsANewDevice(t *testing.T) {
 // seen at its address: that MAC is a new device.
 func TestContract_829_AnAddressOnlyReportNeedsARecentSighting(t *testing.T) {
 	e := newEnv(t)
+	e.confirmScope("192.168.18.0/24")
 	e.record(dhcp(burnt1, "192.168.18.20", "")...)
 	id := e.idOf("192.168.18.20")
 	e.tick(71 * time.Hour)
@@ -153,7 +155,7 @@ func TestContract_829_AnAddressOnlyReportNeedsARecentSighting(t *testing.T) {
 	if d := e.device(id); *d.Hostname != "quiet-name" {
 		t.Fatalf("no discovery sweep in 3 days: the report must still reach the device, name %v", *d.Hostname)
 	}
-	e.record(sweep(router, "192.168.18.1")...) // the sweep runs and did not find the device at .20: its silence is news
+	e.record(sweepSawRouter()...) // the sweep runs and did not find the device at .20: its silence is news
 	e.record(byAddress("192.168.18.20", "stale-name")...)
 	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20")}, observe.Nmap,
 		[]observe.Software{{Display: "OpenSSH 9.6", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.9}}); err != nil {
@@ -246,6 +248,7 @@ func TestContract_829_AnAgentFollowsADHCPMoveASensorSawFirst(t *testing.T) {
 func TestContract_829_AnAgentAtAStaleAddress(t *testing.T) {
 	for _, own := range []bool{true, false} {
 		e := newEnv(t)
+		e.confirmScope("192.168.18.0/24")
 		card := burnt1
 		if !own {
 			card = burnt2
@@ -256,7 +259,7 @@ func TestContract_829_AnAgentAtAStaleAddress(t *testing.T) {
 			t.Fatal(err)
 		}
 		e.tick(73 * time.Hour)
-		e.record(sweep(router, "192.168.18.1")...) // the sweep runs
+		e.record(sweepSawRouter()...) // the sweep runs
 		h := observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20"), Agent: "osquery:node-a"}
 		e.record(observe.Observation{AssetHint: h, Field: observe.Hostname, Value: "build01", Source: observe.Agent, Confidence: 0.9},
 			observe.Observation{AssetHint: h, Field: observe.MAC, Value: card, Source: observe.Agent, Confidence: 0.9})
@@ -296,7 +299,7 @@ func TestContract_829_FromOnlyWithAnAgent(t *testing.T) {
 
 // Review r1 H2 of #872: a hand-added device binds a MAC by its address alone only when the MAC is burned in and a person declared the
 // address within 3 days. A private MAC (a guest phone given that lease) and any MAC at an address declared longer ago are a new,
-// announced device; the old declaration gives the address to it, a recent one keeps it.
+// announced device; the hand-added device keeps its address (review r2 M-new-1: the person's row stays where they put it).
 func TestContract_829_AHandAddedDeviceBindsOnlyABurnedInMACSoon(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -307,7 +310,7 @@ func TestContract_829_AHandAddedDeviceBindsOnlyABurnedInMACSoon(t *testing.T) {
 	}{
 		{"burned-in MAC within 3 days", xenMAC, time.Hour, true, false},
 		{"private MAC (a guest phone)", privMac1, time.Hour, true, true},
-		{"burned-in MAC a month later", xenMAC, 30 * 24 * time.Hour, false, true},
+		{"burned-in MAC a month later", xenMAC, 30 * 24 * time.Hour, true, true},
 	}
 	for _, tc := range cases {
 		e := newEnv(t)
@@ -368,6 +371,18 @@ func TestContract_829_AWaitingDuplicateJoinsTheHandAddedDevice(t *testing.T) {
 			t.Errorf("kept separate: %d devices, or the sighting went to the hand-added device", e.devices())
 		}
 	}
+	// A machine already announced at another address is not folded by one ARP at the hand-added address (review r2 L-new-1).
+	{
+		e := newEnv(t)
+		hand := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201"})
+		e.record(dhcp(xenMAC, "192.168.18.150", "kali")...)
+		e.tick(time.Hour)
+		e.record(dhcp(xenMAC, "192.168.18.201", "")...)
+		if e.devices() != 2 || e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND mac IS NULL`, hand) != 1 ||
+			e.count(`SELECT count(*) FROM inv_observation WHERE asset_id = ? AND field = 'mac'`, hand) != 0 {
+			t.Errorf("an announced machine was folded into the hand-added device, or its sighting went there: %d devices", e.devices())
+		}
+	}
 	// A private MAC, or an approved device, is never folded by an address alone.
 	for _, approved := range []bool{false, true} {
 		e := newEnv(t)
@@ -393,9 +408,10 @@ func TestContract_829_AWaitingDuplicateJoinsTheHandAddedDevice(t *testing.T) {
 // even an agent's: an announced duplicate would go out before the agent's next observation batch.
 func TestContract_829_AListAtAStaleAddressMakesNoDevice(t *testing.T) {
 	e := newEnv(t)
+	e.confirmScope("192.168.18.0/24")
 	e.record(dhcp(burnt1, "192.168.18.20", "")...)
 	e.tick(73 * time.Hour)
-	e.record(sweep(router, "192.168.18.1")...)
+	e.record(sweepSawRouter()...)
 	e.ev.reset()
 	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20"), Agent: "osquery:node-a"}, observe.Agent,
 		[]observe.Software{{Display: "OpenSSH 9.6", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.95}}); err != nil {
@@ -403,5 +419,49 @@ func TestContract_829_AListAtAStaleAddressMakesNoDevice(t *testing.T) {
 	}
 	if e.devices() != 2 || len(e.ev.named(inventory.EventAssetDiscovered)) != 0 {
 		t.Errorf("%d devices, %d announced; want 2 and none", e.devices(), len(e.ev.named(inventory.EventAssetDiscovered)))
+	}
+}
+
+// Review r2 H-new-1 of #872: the sweep's silence says nothing about a device it never probes (a device added by hand, a fragile or
+// unclassified one after its first scan, one set to "never", one outside the confirmed scope): a quiet one keeps its Wazuh facts
+// however long since a MAC sighting, while the sweep runs.
+func TestContract_829_ADeviceTheSweepSkipsKeepsItsFacts(t *testing.T) {
+	wazuh := func(e *env, ip, os string) {
+		e.t.Helper()
+		e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr(ip)}, Field: observe.OS, Value: os, Source: observe.Agent, Confidence: 0.9})
+	}
+	cases := map[string]func(e *env) (id, ip string){
+		"hand-added and bound": func(e *env) (string, string) {
+			id := e.addDevice(inventory.AddInput{Vendor: "Canonical", Product: "Ubuntu", IP: "192.168.18.20", Name: "srv"})
+			e.record(arp(xenMAC, "192.168.18.20")...)
+			return id, "192.168.18.20"
+		},
+		"fragile after its first scan": func(e *env) (string, string) {
+			e.record(dhcp(burnt1, "192.168.18.21", "")...)
+			id := e.idOf("192.168.18.21")
+			kind := "printer"
+			if err := e.svc.PatchDevice(e.ctx(), "kien", id, inventory.Patch{Kind: &kind}); err != nil {
+				e.t.Fatal(err)
+			}
+			if err := e.svc.MarkFirstScan(e.ctx(), id); err != nil {
+				e.t.Fatal(err)
+			}
+			return id, "192.168.18.21"
+		},
+		"outside the scope": func(e *env) (string, string) {
+			e.record(dhcp(burnt1, "10.9.0.5", "")...)
+			return e.idOf("10.9.0.5"), "10.9.0.5"
+		},
+	}
+	for name, setup := range cases {
+		e := newEnv(t)
+		e.confirmScope("192.168.18.0/24")
+		id, ip := setup(e)
+		e.tick(73 * time.Hour)
+		e.record(sweepSawRouter()...)
+		wazuh(e, ip, "Ubuntu 26.04")
+		if d := e.device(id); d.OS == nil || d.OS.Value != "Ubuntu 26.04" {
+			t.Errorf("%s: the report by address was dropped (os %v)", name, d.OS)
+		}
 	}
 }

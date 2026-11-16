@@ -23,6 +23,7 @@ import { basisKey, deviceName, hasIp, isOpen, unverified } from './basis'
 import { errMsg } from './errors'
 import { AskAi, NoPack, PackView } from './Recommendation'
 import { RiskChip } from './Risk'
+import { CvssScore } from './Cvss'
 import type { FindingDetail, StatusAction } from './types'
 import { IUpdatedFinding } from './Updated'
 
@@ -221,7 +222,7 @@ function Detail({ f }: { f: FindingDetail }) {
         stories={['S-MIT-1', 'S-MIT-3', 'S-SCAN-3', 'S-AI-2']}
         meta={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-            <FindingStatusChip f={f} /><RiskChip f={f} />
+            <FindingStatusChip f={f} /><RiskChip f={f} /><CvssScore cvss={f.cvss} prefix />
             {unverified(f) ? <span className="inline-flex items-center gap-1 text-muted">{t('risk.unverifiedLine')}<InfoTip topic={t('risk.unverifiedLine')}>{t('risk.unverifiedLineInfo')}</InfoTip></span> : null}
             {f.kev?.ransomware ? <Chip tone="danger">{t('meta.ransomware')}</Chip> : null}
             <span>{t('meta.seen', { first: fmtDate(f.first_seen), last: fmtDateTime(f.last_seen) })}</span>

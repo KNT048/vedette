@@ -39,7 +39,9 @@
     "empty": "No rows.",
     "page": "Page {{page}} of {{pages}}",
     "prev": "Previous",
-    "next": "Next"
+    "next": "Next",
+    "sortBy": "Sort by",
+    "sortOption": "Sort by {{column}}"
   },
   "status": {
     "confirmed": "Confirmed",

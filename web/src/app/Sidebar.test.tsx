@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
+import axe from 'axe-core'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { API } from '@/mocks/http'
@@ -62,8 +63,11 @@ describe('badges from one summary read', () => {
     server.use(http.get(`${API}/findings/summary`, () => HttpResponse.json({ open: { total: 9, confirmed: 3, devices: 2, ransomware: 0 }, top: [], trend: [], devices: { total: 30, pending: 15 }, incidents: { open: 4, urgent: 2 }, alerts: null, generated_at: '2026-11-16T00:00:00Z' })))
     renderApp('/')
     const nav = within(await mainNav())
-    expect(await nav.findByRole('button', { name: 'Assets: Devices 15 to review' }, { timeout: 3000 })).toHaveAttribute('aria-expanded', 'false')
+    expect(await nav.findByRole('button', { name: 'Assets 15 waiting: Devices 15 to review' }, { timeout: 3000 })).toHaveAttribute('aria-expanded', 'false')
     expect(nav.getByRole('link', { name: /^Findings/ })).toHaveAccessibleName('Findings 3 confirmed to handle')
+    // WCAG 2.5.3: every name starts with its visible text (axe's label-content-name-mismatch, off by default, is turned on here).
+    const r = await axe.run(await mainNav(), { runOnly: ['label-content-name-mismatch'] })
+    expect(r.violations.map((v) => v.nodes.map((n) => n.target.join(' ')).join(', '))).toEqual([])
     expect(nav.getByRole('link', { name: /^Incidents/ })).toHaveAccessibleName('Incidents 2 high or critical open')
   })
 })

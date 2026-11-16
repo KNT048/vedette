@@ -524,13 +524,10 @@ func (h *OSHandlers) CorePostCoreSetupRestore(ctx context.Context, req *oas.Core
 	detail += ", terms of use " + accepted.Version + " accepted"
 	err = h.act(ctx, c, false, "data.restore_import", "backup", detail, func(id, actor string) error {
 		label := "Uploaded backup of " + up.meta.CreatedAt.Format("2006-01-02 15:04") // labelRE of the host: letters, digits, space, : and -
-		run, err := h.host.BackupCreate(ctx, api.BackupCreateArgs{Kind: "manual", IncludeSecrets: key != nil, Label: label, Snapshot: up.ID}, id, actor)
+		run, kept, err := h.startBackup(ctx, api.BackupCreateArgs{Kind: "manual", IncludeSecrets: key != nil, Label: label, Snapshot: up.ID}, id, actor)
 		if err != nil {
-			var found, known bool
-			if run, found, known = h.recoverRun(ctx, err, api.CmdBackupCreate, id); !found {
-				keep = !known // the host may be reading it: the start-up sweep removes it later
-				return notTaken(ctx, h.log, err, run)
-			}
+			keep = kept // the host may be reading it: the start-up sweep removes it later
+			return err
 		}
 		if run, err = waitRun(ctx, h.log, h.host, run, 16*time.Minute); err != nil {
 			return err

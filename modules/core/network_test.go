@@ -66,15 +66,20 @@ func (t *nwTimers) after(d time.Duration, f func()) func() bool {
 }
 
 // fireLast runs the newest timer that is still live, except the hourly sweep: the revert timer of the change that waits.
-func (t *nwTimers) fireLast() {
-	t.mu.Lock()
+// It waits until such a timer is armed: it can be armed after the request has answered (none yet panicked on CI, PR #871 go-test 3).
+func (t *nwTimers) fireLast(tb *testing.T) {
+	tb.Helper()
 	var f func()
-	for _, tm := range t.ts {
-		if !tm.stopped && tm.d != time.Hour {
-			f = tm.f
+	eventuallyOS(tb, "a live revert timer", func() bool {
+		t.mu.Lock()
+		defer t.mu.Unlock()
+		for _, tm := range t.ts {
+			if !tm.stopped && tm.d != time.Hour {
+				f = tm.f
+			}
 		}
-	}
-	t.mu.Unlock()
+		return f != nil
+	})
 	f()
 }
 
@@ -588,7 +593,7 @@ func TestNetworkRevertAndTheTimerGoBackToTheOldSettings(t *testing.T) {
 	wantStatus(t, e.admin.post("/core/network/management/revert", nil), 409, "nothing_pending")
 	// Nobody confirms: the host's timer fires. The page shows the old address, and the audit log says so once.
 	wantOK(t, e.admin.put("/core/network/management", change), 200)
-	e.timers.fireLast()
+	e.timers.fireLast(t)
 	eventuallyOS(t, "the host to go back", func() bool {
 		e.clock.Advance(7 * time.Second) // the page reads the host at most every 6 seconds
 		return jval(e.admin.get("/core/network"), "pending") == nil
@@ -605,7 +610,7 @@ func TestNetworkRevertAndTheTimerGoBackToTheOldSettings(t *testing.T) {
 	}
 	// Too late to confirm: the sentence says the time ran out.
 	wantOK(t, e.admin.put("/core/network/management", change), 200)
-	e.timers.fireLast()
+	e.timers.fireLast(t)
 	eventuallyOS(t, "the host to go back", func() bool { return e.hostPendingGone() })
 	r = e.admin.post("/core/network/management/confirm", nil)
 	wantStatus(t, r, 409, "nothing_pending")
@@ -1122,7 +1127,7 @@ func TestNetworkARevertThatCannotBeAppliedShowsTheRestart(t *testing.T) {
 	e.configured()
 	wantOK(t, e.admin.put("/core/network/management", nwBody(map[string]any{"address": "192.168.1.70", "confirm": true})), 200)
 	e.m.Rule("netplan", "apply", "", 1, "", "") // from now on the operating system refuses to apply anything
-	e.timers.fireLast()
+	e.timers.fireLast(t)
 	eventuallyOS(t, "the host to schedule its restart", func() bool {
 		st, err := e.hh.Client.StateNet(t.Context())
 		return err == nil && st.Pending != nil && st.Pending.RebootAt != nil
@@ -1202,7 +1207,7 @@ func TestNetworkAFailedConfirmKeepsTheRecordUntilTheRunEnds(t *testing.T) {
 				t.Fatalf("the record was dropped: %v", r.JSON["pending"])
 			}
 			e.fault.confirmErr.Store(errBox{})
-			e.timers.fireLast()
+			e.timers.fireLast(t)
 			eventuallyOS(t, "the host to go back", func() bool { return e.hostPendingGone() })
 			e.clock.Advance(7 * time.Second)
 			wantOK(t, e.admin.get("/core/network"), 200)
@@ -1241,7 +1246,7 @@ func TestNetworkSettleWaitsForTheRunToEnd(t *testing.T) {
 	if r := read(); jstr(r, "pending", "previous_address") != "192.168.1.50" {
 		t.Fatalf("record lost: %v", r.JSON["pending"])
 	}
-	e.timers.fireLast()
+	e.timers.fireLast(t)
 	eventuallyOS(t, "the host to go back", func() bool { return e.hostPendingGone() })
 	read()
 	read()
@@ -1370,7 +1375,7 @@ func TestNetworkLooksAgainAfterTheWindow(t *testing.T) {
 	if d < 304*time.Second || d > 306*time.Second {
 		t.Fatalf("the look is scheduled in %v, want the window plus 5 s", d)
 	}
-	e.timers.fireLast()
+	e.timers.fireLast(t)
 	eventuallyOS(t, "the host to go back", func() bool { return e.hostPendingGone() })
 	before := e.changed.Load()
 	look()

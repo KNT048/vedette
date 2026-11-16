@@ -102,12 +102,13 @@ var exportPolicy = map[string]tablePolicy{
 	"hp_ignored_day":         {export: "day count"},
 	"hp_tokens":              {export: "id type name value plant_at created_at", skip: "secret_id"},
 	"hp_trap_ips":            {export: "id name ip preset vendor enabled mac created_at enabled_at", json: "services"},
-	"inv_asset":              {export: "id ip mac hostname kind vendor model os vendor_obs_id model_obs_id os_obs_id kind_obs_id hostname_obs_id mac_obs_id origin approved approved_at fragile fragile_manual regular_scan first_scan_at suspicious is_box notes first_seen last_seen agent_key agent_ip"},
+	"inv_asset":              {export: "id ip mac hostname kind vendor model os vendor_obs_id model_obs_id os_obs_id kind_obs_id hostname_obs_id mac_obs_id origin approved approved_at fragile fragile_manual regular_scan first_scan_at suspicious is_box notes first_seen last_seen agent_key agent_ip ip_confirmed_at"},
 	"inv_observation":        {export: "id asset_id field value source confidence seen_at evidence"},
 	"inv_service":            {export: "id asset_id port proto name product version detail source confidence seen_at"},
 	"inv_setting":            {export: "key updated_at updated_by", json: "value"},
 	"inv_software":           {export: "id asset_id display vendor product version cpe source confidence seen_at packaged pkg_version pkg_source"},
 	"inv_source":             {export: "source first_seen"},
+	"inv_separate":           {export: "a b decided_by decided_at"}, // D-599: pairs a person kept separate
 	"inv_software_kev":       {export: "software_id kev_key"},
 	"mit_ai_output":          {export: "finding_id skill model profile created_at activity_id", json: "payload"},
 	"mit_applied":            {export: "finding_id item ts user"},
@@ -166,6 +167,7 @@ var exportPolicy = map[string]tablePolicy{
 	"sa_queue":               {export: "asset_id queued_at reason attempts"},
 	"sa_sweep":               {export: "id cursor updated_at"},
 	"sa_first_pass":          {export: "id started_at"},
+	"sa_snmp_answer":         {export: "credential_id asset_id ip answered_at"},                                                                                                            // #829 C4: which device answered which credential last
 	"sa_snmp":                {export: "id name version username auth priv secret_last4 priv_last4 scope created_at updated_at last_answer_at answered", skip: "secret_id priv_secret_id"}, // the community and v3 passwords stay in core_secret (D-512)
 	"scan_event":             {export: "id ts cve product latency_min run_id result", json: "devices"},
 	"scan_probe":             {export: "id ts run_id ip label template request result"},

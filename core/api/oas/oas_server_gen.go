@@ -1362,6 +1362,12 @@ type Handler interface {
 	//
 	// GET /inventory/import-template.csv
 	InventoryGetInventoryImportTemplateCsv(ctx context.Context) (InventoryGetInventoryImportTemplateCsvOK, error)
+	// InventoryGetInventoryPossibleSame implements inventory_get_inventory_possible_same operation.
+	//
+	// Every pair of devices that may be the same machine, for a person to merge or keep separate (D-599).
+	//
+	// GET /inventory/possible-same
+	InventoryGetInventoryPossibleSame(ctx context.Context) (*InventoryGetInventoryPossibleSameOK, error)
 	// InventoryGetInventorySensors implements inventory_get_inventory_sensors operation.
 	//
 	// Sensors of this box only (multiple sites not supported yet).
@@ -1474,6 +1480,26 @@ type Handler interface {
 	//
 	// POST /inventory/devices/{id}/approve
 	InventoryPostInventoryDevicesIDApprove(ctx context.Context, params InventoryPostInventoryDevicesIDApproveParams) (*InventoryPostInventoryDevicesIDApproveOK, error)
+	// InventoryPostInventoryDevicesIDKeepSeparate implements inventory_post_inventory_devices_id_keep_separate operation.
+	//
+	// Two machines: the pair is never offered as possibly the same device again, until either is deleted
+	// or merged (D-599). Saying it again changes nothing. 400 invalid, 404 not_found, 409 box_device as
+	// for merge.
+	//
+	// POST /inventory/devices/{id}/keep-separate
+	InventoryPostInventoryDevicesIDKeepSeparate(ctx context.Context, req *InventoryPostInventoryDevicesIDKeepSeparateReq, params InventoryPostInventoryDevicesIDKeepSeparateParams) (*InventoryPostInventoryDevicesIDKeepSeparateOK, error)
+	// InventoryPostInventoryDevicesIDMerge implements inventory_post_inventory_devices_id_merge operation.
+	//
+	// The same machine: device `from` joins this device and is gone (D-599). This device keeps its id,
+	// approval (it becomes approved when `from` was, and loses a suspicious mark as on Approve), notes
+	// (both kept), findings and settings; the MACs, sources, software and open ports of `from` move to it,
+	// and its address when it was seen later and this device was found by a sensor (a device added by hand
+	// keeps the address typed). 400 invalid: the same device twice. 404 not_found: either device. 409
+	// box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in
+	// MACs, say two machines.
+	//
+	// POST /inventory/devices/{id}/merge
+	InventoryPostInventoryDevicesIDMerge(ctx context.Context, req *InventoryPostInventoryDevicesIDMergeReq, params InventoryPostInventoryDevicesIDMergeParams) (*InventoryPostInventoryDevicesIDMergeOK, error)
 	// InventoryPostInventoryDevicesIDSoftware implements inventory_post_inventory_devices_id_software operation.
 	//
 	// Declare additional software running on a device.

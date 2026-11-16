@@ -89791,7 +89791,13 @@ type InventoryGetInventoryDevicesIDOK struct {
 	FindingsCount int                                                `json:"findings_count"`
 	Kinds         []InventoryGetInventoryDevicesIDOKKindsItem        `json:"kinds"`
 	Observations  []InventoryGetInventoryDevicesIDOKObservationsItem `json:"observations"`
-	Suspicious    bool                                               `json:"suspicious"`
+	// Devices that may be this same machine (D-599), the 5 seen last, the one seen last first; empty for
+	// the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model
+	// while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two
+	// different burned-in MACs say two machines, they state another name, model or OS, or one was seen
+	// while the other was.
+	PossibleSame []InventoryGetInventoryDevicesIDOKPossibleSameItem `json:"possible_same"`
+	Suspicious   bool                                               `json:"suspicious"`
 }
 
 // GetAsset returns the value of Asset.
@@ -89812,6 +89818,11 @@ func (s *InventoryGetInventoryDevicesIDOK) GetKinds() []InventoryGetInventoryDev
 // GetObservations returns the value of Observations.
 func (s *InventoryGetInventoryDevicesIDOK) GetObservations() []InventoryGetInventoryDevicesIDOKObservationsItem {
 	return s.Observations
+}
+
+// GetPossibleSame returns the value of PossibleSame.
+func (s *InventoryGetInventoryDevicesIDOK) GetPossibleSame() []InventoryGetInventoryDevicesIDOKPossibleSameItem {
+	return s.PossibleSame
 }
 
 // GetSuspicious returns the value of Suspicious.
@@ -89837,6 +89848,11 @@ func (s *InventoryGetInventoryDevicesIDOK) SetKinds(val []InventoryGetInventoryD
 // SetObservations sets the value of Observations.
 func (s *InventoryGetInventoryDevicesIDOK) SetObservations(val []InventoryGetInventoryDevicesIDOKObservationsItem) {
 	s.Observations = val
+}
+
+// SetPossibleSame sets the value of PossibleSame.
+func (s *InventoryGetInventoryDevicesIDOK) SetPossibleSame(val []InventoryGetInventoryDevicesIDOKPossibleSameItem) {
+	s.PossibleSame = val
 }
 
 // SetSuspicious sets the value of Suspicious.
@@ -93869,6 +93885,67 @@ func (s *InventoryGetInventoryDevicesIDOKObservationsItemSource) UnmarshalText(d
 	}
 }
 
+type InventoryGetInventoryDevicesIDOKPossibleSameItem struct {
+	Approved bool      `json:"approved"`
+	ID       string    `json:"id"`
+	LastSeen time.Time `json:"last_seen"`
+	// The other device, named as every page names it (D-471).
+	Name string `json:"name"`
+	// What the two share, in plain words to show as is, e.g. Same name "iPhone", never online at the same
+	// time, and a private Wi-Fi address (phones and laptops change it).
+	Why string `json:"why"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetApproved() bool {
+	return s.Approved
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetID() string {
+	return s.ID
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetName() string {
+	return s.Name
+}
+
+// GetWhy returns the value of Why.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) GetWhy() string {
+	return s.Why
+}
+
+// SetApproved sets the value of Approved.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetApproved(val bool) {
+	s.Approved = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetName(val string) {
+	s.Name = val
+}
+
+// SetWhy sets the value of Why.
+func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetWhy(val string) {
+	s.Why = val
+}
+
 type InventoryGetInventoryDevicesOK struct {
 	Counts InventoryGetInventoryDevicesOKCounts      `json:"counts"`
 	Items  []InventoryGetInventoryDevicesOKItemsItem `json:"items"`
@@ -97486,6 +97563,157 @@ func (s InventoryGetInventoryImportTemplateCsvOK) Read(p []byte) (n int, err err
 	return s.Data.Read(p)
 }
 
+type InventoryGetInventoryPossibleSameOK struct {
+	// Every pair of devices that may be one machine (D-599), the pair seen last first.
+	Items []InventoryGetInventoryPossibleSameOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *InventoryGetInventoryPossibleSameOK) GetItems() []InventoryGetInventoryPossibleSameOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *InventoryGetInventoryPossibleSameOK) SetItems(val []InventoryGetInventoryPossibleSameOKItemsItem) {
+	s.Items = val
+}
+
+type InventoryGetInventoryPossibleSameOKItemsItem struct {
+	// The approved device when one is, else the one seen first: the one a merge most likely keeps.
+	A InventoryGetInventoryPossibleSameOKItemsItemA `json:"a"`
+	B InventoryGetInventoryPossibleSameOKItemsItemB `json:"b"`
+	// What the two share, in plain words to show as is, e.g. Same name "iPhone", never online at the same
+	// time, and a private Wi-Fi address (phones and laptops change it).
+	Why string `json:"why"`
+}
+
+// GetA returns the value of A.
+func (s *InventoryGetInventoryPossibleSameOKItemsItem) GetA() InventoryGetInventoryPossibleSameOKItemsItemA {
+	return s.A
+}
+
+// GetB returns the value of B.
+func (s *InventoryGetInventoryPossibleSameOKItemsItem) GetB() InventoryGetInventoryPossibleSameOKItemsItemB {
+	return s.B
+}
+
+// GetWhy returns the value of Why.
+func (s *InventoryGetInventoryPossibleSameOKItemsItem) GetWhy() string {
+	return s.Why
+}
+
+// SetA sets the value of A.
+func (s *InventoryGetInventoryPossibleSameOKItemsItem) SetA(val InventoryGetInventoryPossibleSameOKItemsItemA) {
+	s.A = val
+}
+
+// SetB sets the value of B.
+func (s *InventoryGetInventoryPossibleSameOKItemsItem) SetB(val InventoryGetInventoryPossibleSameOKItemsItemB) {
+	s.B = val
+}
+
+// SetWhy sets the value of Why.
+func (s *InventoryGetInventoryPossibleSameOKItemsItem) SetWhy(val string) {
+	s.Why = val
+}
+
+// The approved device when one is, else the one seen first: the one a merge most likely keeps.
+type InventoryGetInventoryPossibleSameOKItemsItemA struct {
+	Approved bool      `json:"approved"`
+	ID       string    `json:"id"`
+	LastSeen time.Time `json:"last_seen"`
+	// The other device, named as every page names it (D-471).
+	Name string `json:"name"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) GetApproved() bool {
+	return s.Approved
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) GetID() string {
+	return s.ID
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) GetName() string {
+	return s.Name
+}
+
+// SetApproved sets the value of Approved.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) SetApproved(val bool) {
+	s.Approved = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) SetID(val string) {
+	s.ID = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemA) SetName(val string) {
+	s.Name = val
+}
+
+type InventoryGetInventoryPossibleSameOKItemsItemB struct {
+	Approved bool      `json:"approved"`
+	ID       string    `json:"id"`
+	LastSeen time.Time `json:"last_seen"`
+	// The other device, named as every page names it (D-471).
+	Name string `json:"name"`
+}
+
+// GetApproved returns the value of Approved.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) GetApproved() bool {
+	return s.Approved
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) GetID() string {
+	return s.ID
+}
+
+// GetLastSeen returns the value of LastSeen.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) GetLastSeen() time.Time {
+	return s.LastSeen
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) GetName() string {
+	return s.Name
+}
+
+// SetApproved sets the value of Approved.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) SetApproved(val bool) {
+	s.Approved = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) SetID(val string) {
+	s.ID = val
+}
+
+// SetLastSeen sets the value of LastSeen.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) SetLastSeen(val time.Time) {
+	s.LastSeen = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventoryPossibleSameOKItemsItemB) SetName(val string) {
+	s.Name = val
+}
+
 type InventoryGetInventorySensorsOK struct {
 	Sensors []InventoryGetInventorySensorsOKSensorsItem `json:"sensors"`
 }
@@ -98271,11 +98499,14 @@ type InventoryGetInventorySnmpIDReadOK struct {
 	ID           string      `json:"id"`
 	// Why the read stopped or failed, in plain words; null while running and when done.
 	Message NilString `json:"message"`
-	// One row per device read so far, as Test answers it.
+	// One row per device read so far, as Test answers it; a device that answered this credential and moved
+	// out of its scope is a row with reason not_for_this_credential at its new address, counted in
+	// skipped, and is not read (#829 C4).
 	Results []InventoryGetInventorySnmpIDReadOKResultsItem `json:"results"`
 	// Devices of the inventory in the credential's scope that are not read: not approved yet (approve them
-	// under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is
-	// sent to them, nor to an address with no device.
+	// under To review first), added manually, set to never, the box, or outside the scan scope; and
+	// devices that answered it and moved out of its scope (#829 C4). Nothing is sent to them, nor to an
+	// address with no device.
 	Skipped   int                                     `json:"skipped"`
 	StartedAt time.Time                               `json:"started_at"`
 	Status    InventoryGetInventorySnmpIDReadOKStatus `json:"status"`
@@ -98835,7 +99066,9 @@ type InventoryGetInventorySnmpOKCredentialsItem struct {
 	ID        string                                            `json:"id"`
 	// When a device last answered with it (a round in the scan window, or a Test).
 	LastAnswerAt NilDateTime `json:"last_answer_at"`
-	Name         string      `json:"name"`
+	// Devices that answered with it and moved out of its scope (#829 C4); empty on add and edit responses.
+	MovedOut []InventoryGetInventorySnmpOKCredentialsItemMovedOutItem `json:"moved_out"`
+	Name     string                                                   `json:"name"`
 	// Null for v2c.
 	Priv NilInventoryGetInventorySnmpOKCredentialsItemPriv `json:"priv"`
 	// Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8
@@ -98880,6 +99113,11 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) GetID() string {
 // GetLastAnswerAt returns the value of LastAnswerAt.
 func (s *InventoryGetInventorySnmpOKCredentialsItem) GetLastAnswerAt() NilDateTime {
 	return s.LastAnswerAt
+}
+
+// GetMovedOut returns the value of MovedOut.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) GetMovedOut() []InventoryGetInventorySnmpOKCredentialsItemMovedOutItem {
+	return s.MovedOut
 }
 
 // GetName returns the value of Name.
@@ -98945,6 +99183,11 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) SetID(val string) {
 // SetLastAnswerAt sets the value of LastAnswerAt.
 func (s *InventoryGetInventorySnmpOKCredentialsItem) SetLastAnswerAt(val NilDateTime) {
 	s.LastAnswerAt = val
+}
+
+// SetMovedOut sets the value of MovedOut.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) SetMovedOut(val []InventoryGetInventorySnmpOKCredentialsItemMovedOutItem) {
+	s.MovedOut = val
 }
 
 // SetName sets the value of Name.
@@ -99027,6 +99270,57 @@ func (s *InventoryGetInventorySnmpOKCredentialsItemAuth) UnmarshalText(data []by
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type InventoryGetInventorySnmpOKCredentialsItemMovedOutItem struct {
+	DeviceID string `json:"device_id"`
+	// Its address now, outside the credential's scope.
+	IP string `json:"ip"`
+	// Plain words, e.g. "ipchg-c4 moved to 192.168.18.206, outside the scope of this credential. If it is
+	// still ipchg-c4, add the address to the scope to keep reading it. Nothing is sent there until then.".
+	Message string `json:"message"`
+	// How a person knows the device: host name, else model, else vendor; empty when none.
+	Name string `json:"name"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *InventoryGetInventorySnmpOKCredentialsItemMovedOutItem) GetDeviceID() string {
+	return s.DeviceID
+}
+
+// GetIP returns the value of IP.
+func (s *InventoryGetInventorySnmpOKCredentialsItemMovedOutItem) GetIP() string {
+	return s.IP
+}
+
+// GetMessage returns the value of Message.
+func (s *InventoryGetInventorySnmpOKCredentialsItemMovedOutItem) GetMessage() string {
+	return s.Message
+}
+
+// GetName returns the value of Name.
+func (s *InventoryGetInventorySnmpOKCredentialsItemMovedOutItem) GetName() string {
+	return s.Name
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *InventoryGetInventorySnmpOKCredentialsItemMovedOutItem) SetDeviceID(val string) {
+	s.DeviceID = val
+}
+
+// SetIP sets the value of IP.
+func (s *InventoryGetInventorySnmpOKCredentialsItemMovedOutItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InventoryGetInventorySnmpOKCredentialsItemMovedOutItem) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryGetInventorySnmpOKCredentialsItemMovedOutItem) SetName(val string) {
+	s.Name = val
 }
 
 // V3 privacy: AES-128 (authPriv) or none (authNoPriv); no DES.
@@ -101107,6 +101401,64 @@ func (s *InventoryPostInventoryDevicesIDApproveOK) SetOk(val bool) {
 	s.Ok = val
 }
 
+type InventoryPostInventoryDevicesIDKeepSeparateOK struct {
+	Ok bool `json:"ok"`
+}
+
+// GetOk returns the value of Ok.
+func (s *InventoryPostInventoryDevicesIDKeepSeparateOK) GetOk() bool {
+	return s.Ok
+}
+
+// SetOk sets the value of Ok.
+func (s *InventoryPostInventoryDevicesIDKeepSeparateOK) SetOk(val bool) {
+	s.Ok = val
+}
+
+type InventoryPostInventoryDevicesIDKeepSeparateReq struct {
+	// The other device of the pair.
+	Other string `json:"other"`
+}
+
+// GetOther returns the value of Other.
+func (s *InventoryPostInventoryDevicesIDKeepSeparateReq) GetOther() string {
+	return s.Other
+}
+
+// SetOther sets the value of Other.
+func (s *InventoryPostInventoryDevicesIDKeepSeparateReq) SetOther(val string) {
+	s.Other = val
+}
+
+type InventoryPostInventoryDevicesIDMergeOK struct {
+	ID string `json:"id"`
+}
+
+// GetID returns the value of ID.
+func (s *InventoryPostInventoryDevicesIDMergeOK) GetID() string {
+	return s.ID
+}
+
+// SetID sets the value of ID.
+func (s *InventoryPostInventoryDevicesIDMergeOK) SetID(val string) {
+	s.ID = val
+}
+
+type InventoryPostInventoryDevicesIDMergeReq struct {
+	// The device that goes into the device of the path.
+	From string `json:"from"`
+}
+
+// GetFrom returns the value of From.
+func (s *InventoryPostInventoryDevicesIDMergeReq) GetFrom() string {
+	return s.From
+}
+
+// SetFrom sets the value of From.
+func (s *InventoryPostInventoryDevicesIDMergeReq) SetFrom(val string) {
+	s.From = val
+}
+
 type InventoryPostInventoryDevicesIDSoftwareCreated struct {
 	KevCves int `json:"kev_cves"`
 }
@@ -101429,7 +101781,9 @@ type InventoryPostInventorySnmpCreated struct {
 	ID        string                                   `json:"id"`
 	// When a device last answered with it (a round in the scan window, or a Test).
 	LastAnswerAt NilDateTime `json:"last_answer_at"`
-	Name         string      `json:"name"`
+	// Devices that answered with it and moved out of its scope (#829 C4); empty on add and edit responses.
+	MovedOut []InventoryPostInventorySnmpCreatedMovedOutItem `json:"moved_out"`
+	Name     string                                          `json:"name"`
 	// Null for v2c.
 	Priv NilInventoryPostInventorySnmpCreatedPriv `json:"priv"`
 	// Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8
@@ -101474,6 +101828,11 @@ func (s *InventoryPostInventorySnmpCreated) GetID() string {
 // GetLastAnswerAt returns the value of LastAnswerAt.
 func (s *InventoryPostInventorySnmpCreated) GetLastAnswerAt() NilDateTime {
 	return s.LastAnswerAt
+}
+
+// GetMovedOut returns the value of MovedOut.
+func (s *InventoryPostInventorySnmpCreated) GetMovedOut() []InventoryPostInventorySnmpCreatedMovedOutItem {
+	return s.MovedOut
 }
 
 // GetName returns the value of Name.
@@ -101539,6 +101898,11 @@ func (s *InventoryPostInventorySnmpCreated) SetID(val string) {
 // SetLastAnswerAt sets the value of LastAnswerAt.
 func (s *InventoryPostInventorySnmpCreated) SetLastAnswerAt(val NilDateTime) {
 	s.LastAnswerAt = val
+}
+
+// SetMovedOut sets the value of MovedOut.
+func (s *InventoryPostInventorySnmpCreated) SetMovedOut(val []InventoryPostInventorySnmpCreatedMovedOutItem) {
+	s.MovedOut = val
 }
 
 // SetName sets the value of Name.
@@ -101621,6 +101985,57 @@ func (s *InventoryPostInventorySnmpCreatedAuth) UnmarshalText(data []byte) error
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type InventoryPostInventorySnmpCreatedMovedOutItem struct {
+	DeviceID string `json:"device_id"`
+	// Its address now, outside the credential's scope.
+	IP string `json:"ip"`
+	// Plain words, e.g. "ipchg-c4 moved to 192.168.18.206, outside the scope of this credential. If it is
+	// still ipchg-c4, add the address to the scope to keep reading it. Nothing is sent there until then.".
+	Message string `json:"message"`
+	// How a person knows the device: host name, else model, else vendor; empty when none.
+	Name string `json:"name"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *InventoryPostInventorySnmpCreatedMovedOutItem) GetDeviceID() string {
+	return s.DeviceID
+}
+
+// GetIP returns the value of IP.
+func (s *InventoryPostInventorySnmpCreatedMovedOutItem) GetIP() string {
+	return s.IP
+}
+
+// GetMessage returns the value of Message.
+func (s *InventoryPostInventorySnmpCreatedMovedOutItem) GetMessage() string {
+	return s.Message
+}
+
+// GetName returns the value of Name.
+func (s *InventoryPostInventorySnmpCreatedMovedOutItem) GetName() string {
+	return s.Name
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *InventoryPostInventorySnmpCreatedMovedOutItem) SetDeviceID(val string) {
+	s.DeviceID = val
+}
+
+// SetIP sets the value of IP.
+func (s *InventoryPostInventorySnmpCreatedMovedOutItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InventoryPostInventorySnmpCreatedMovedOutItem) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryPostInventorySnmpCreatedMovedOutItem) SetName(val string) {
+	s.Name = val
 }
 
 // V3 privacy: AES-128 (authPriv) or none (authNoPriv); no DES.
@@ -101716,11 +102131,14 @@ type InventoryPostInventorySnmpIDReadAccepted struct {
 	ID           string      `json:"id"`
 	// Why the read stopped or failed, in plain words; null while running and when done.
 	Message NilString `json:"message"`
-	// One row per device read so far, as Test answers it.
+	// One row per device read so far, as Test answers it; a device that answered this credential and moved
+	// out of its scope is a row with reason not_for_this_credential at its new address, counted in
+	// skipped, and is not read (#829 C4).
 	Results []InventoryPostInventorySnmpIDReadAcceptedResultsItem `json:"results"`
 	// Devices of the inventory in the credential's scope that are not read: not approved yet (approve them
-	// under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is
-	// sent to them, nor to an address with no device.
+	// under To review first), added manually, set to never, the box, or outside the scan scope; and
+	// devices that answered it and moved out of its scope (#829 C4). Nothing is sent to them, nor to an
+	// address with no device.
 	Skipped   int                                            `json:"skipped"`
 	StartedAt time.Time                                      `json:"started_at"`
 	Status    InventoryPostInventorySnmpIDReadAcceptedStatus `json:"status"`
@@ -103882,7 +104300,9 @@ type InventoryPutInventorySnmpIDOK struct {
 	ID        string                               `json:"id"`
 	// When a device last answered with it (a round in the scan window, or a Test).
 	LastAnswerAt NilDateTime `json:"last_answer_at"`
-	Name         string      `json:"name"`
+	// Devices that answered with it and moved out of its scope (#829 C4); empty on add and edit responses.
+	MovedOut []InventoryPutInventorySnmpIDOKMovedOutItem `json:"moved_out"`
+	Name     string                                      `json:"name"`
 	// Null for v2c.
 	Priv NilInventoryPutInventorySnmpIDOKPriv `json:"priv"`
 	// Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8
@@ -103927,6 +104347,11 @@ func (s *InventoryPutInventorySnmpIDOK) GetID() string {
 // GetLastAnswerAt returns the value of LastAnswerAt.
 func (s *InventoryPutInventorySnmpIDOK) GetLastAnswerAt() NilDateTime {
 	return s.LastAnswerAt
+}
+
+// GetMovedOut returns the value of MovedOut.
+func (s *InventoryPutInventorySnmpIDOK) GetMovedOut() []InventoryPutInventorySnmpIDOKMovedOutItem {
+	return s.MovedOut
 }
 
 // GetName returns the value of Name.
@@ -103992,6 +104417,11 @@ func (s *InventoryPutInventorySnmpIDOK) SetID(val string) {
 // SetLastAnswerAt sets the value of LastAnswerAt.
 func (s *InventoryPutInventorySnmpIDOK) SetLastAnswerAt(val NilDateTime) {
 	s.LastAnswerAt = val
+}
+
+// SetMovedOut sets the value of MovedOut.
+func (s *InventoryPutInventorySnmpIDOK) SetMovedOut(val []InventoryPutInventorySnmpIDOKMovedOutItem) {
+	s.MovedOut = val
 }
 
 // SetName sets the value of Name.
@@ -104074,6 +104504,57 @@ func (s *InventoryPutInventorySnmpIDOKAuth) UnmarshalText(data []byte) error {
 	default:
 		return errors.Errorf("invalid value: %q", data)
 	}
+}
+
+type InventoryPutInventorySnmpIDOKMovedOutItem struct {
+	DeviceID string `json:"device_id"`
+	// Its address now, outside the credential's scope.
+	IP string `json:"ip"`
+	// Plain words, e.g. "ipchg-c4 moved to 192.168.18.206, outside the scope of this credential. If it is
+	// still ipchg-c4, add the address to the scope to keep reading it. Nothing is sent there until then.".
+	Message string `json:"message"`
+	// How a person knows the device: host name, else model, else vendor; empty when none.
+	Name string `json:"name"`
+}
+
+// GetDeviceID returns the value of DeviceID.
+func (s *InventoryPutInventorySnmpIDOKMovedOutItem) GetDeviceID() string {
+	return s.DeviceID
+}
+
+// GetIP returns the value of IP.
+func (s *InventoryPutInventorySnmpIDOKMovedOutItem) GetIP() string {
+	return s.IP
+}
+
+// GetMessage returns the value of Message.
+func (s *InventoryPutInventorySnmpIDOKMovedOutItem) GetMessage() string {
+	return s.Message
+}
+
+// GetName returns the value of Name.
+func (s *InventoryPutInventorySnmpIDOKMovedOutItem) GetName() string {
+	return s.Name
+}
+
+// SetDeviceID sets the value of DeviceID.
+func (s *InventoryPutInventorySnmpIDOKMovedOutItem) SetDeviceID(val string) {
+	s.DeviceID = val
+}
+
+// SetIP sets the value of IP.
+func (s *InventoryPutInventorySnmpIDOKMovedOutItem) SetIP(val string) {
+	s.IP = val
+}
+
+// SetMessage sets the value of Message.
+func (s *InventoryPutInventorySnmpIDOKMovedOutItem) SetMessage(val string) {
+	s.Message = val
+}
+
+// SetName sets the value of Name.
+func (s *InventoryPutInventorySnmpIDOKMovedOutItem) SetName(val string) {
+	s.Name = val
 }
 
 // V3 privacy: AES-128 (authPriv) or none (authNoPriv); no DES.

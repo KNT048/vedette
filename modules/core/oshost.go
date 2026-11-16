@@ -111,8 +111,10 @@ func hostErr(ctx context.Context, log *slog.Logger, err error) error {
 // and the error of a finished run go through it.
 func mapHostCode(ctx context.Context, log *slog.Logger, code, hostMsg string, retryAfter int) *apierr.Error {
 	switch code {
-	case api.CodeBusy, api.CodeInstallInProgress:
-		return apierr.New(409, codeBusy, "An update run is in progress. Wait for it to finish, then try again.")
+	case api.CodeBusy: // the host runs one write command at a time; most are short (a module starting, a network change), core refuses at once while its own update runs (OSHandlers.busy)
+		return apierr.New(409, codeBusy, "The box is busy with another task, for example starting a module. Wait a minute, then try again.")
+	case api.CodeInstallInProgress:
+		return apierr.New(409, codeBusy, "An operating system update is being installed. Wait for it to finish, then try again.")
 	case api.CodePendingConfirm, api.CodeNetPendingConfirm:
 		return apierr.New(409, codePendingConfirm, "A network change is waiting for confirmation. Confirm or cancel it in Settings, Box network, then try again.")
 	case api.CodeNotAppliance:

@@ -118,12 +118,14 @@
 /* Print pages (reports/PrintPage.tsx, docs/UI.md §12): only .print-doc is printed, black on white; the sidebar, toolbars and toasts
    are hidden. Scoped to a page that has a .print-doc, so printing any other page prints it as it is. */
 @media print {
-  body:has(.print-doc) * { visibility: hidden !important; }
+  /* :where() keeps this rule at zero weight, so the .print-doc rule below wins (review r1 H1 of #893: with :has(.print-doc) the
+     hide rule outweighed it and the report printed blank) */
+  :where(body:has(.print-doc)) * { visibility: hidden !important; }
   .print-doc, .print-doc * { visibility: visible !important; }
-  .print-doc { position: absolute; left: 0; top: 0; width: 100%; background: white; color: black; padding: 0 !important; border: 0 !important; }
+  .print-doc { page: report; position: absolute; left: 0; top: 0; width: 100%; background: white; color: black; padding: 0 !important; border: 0 !important; }
   .print-doc * { color: black !important; border-color: silver !important; background-color: transparent !important; }
   .no-print { display: none !important; }
-  @page { size: A4; margin: 16mm; }
+  @page report { size: A4; margin: 16mm; } /* the report's named page only: other pages print with the browser's settings */
 }
 
 @media (prefers-reduced-motion: reduce) {

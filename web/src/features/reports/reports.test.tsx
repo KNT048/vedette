@@ -267,7 +267,7 @@ describe('reports: print pages (print / save as PDF)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Weekly report, print view' })).toBeInTheDocument()
     const doc = await screen.findByRole('article', { name: 'Weekly security report' })
     expect(doc.closest('.print-doc')).not.toBeNull()
-    expect(readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')).toMatch(/@media print \{\s*body:has\(\.print-doc\) \* \{ visibility: hidden/) // the print rules live in index.css (docs/UI.md §12)
+    expect(readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')).toMatch(/:where\(body:has\(\.print-doc\)\) \* \{ visibility: hidden/) // the print rules live in index.css (docs/UI.md §12)
     await userEvent.click(screen.getByRole('button', { name: 'Print / Save PDF' }))
     expect(print).toHaveBeenCalledTimes(1)
     await expectNoA11yViolations()

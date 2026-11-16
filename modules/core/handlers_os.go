@@ -793,6 +793,9 @@ func (h *OSHandlers) CoreGetCoreDataBackup(ctx context.Context) (oas.CoreGetCore
 	if h.busy(ctx) {
 		return oas.CoreGetCoreDataBackupOK{}, apierr.New(409, codeBusy, "An update run is in progress. Wait for it to finish, then download the backup.")
 	}
+	if h.restoreRunning(ctx) { // the restore stops core: nothing to wait for
+		return oas.CoreGetCoreDataBackupOK{}, apierr.New(409, codeBusy, "A backup is being restored. Wait for it to finish.")
+	}
 	if !h.dlMu.TryLock() {
 		return oas.CoreGetCoreDataBackupOK{}, apierr.New(409, codeBusy, "A backup is already being made. Wait for it to finish.")
 	}
@@ -873,8 +876,8 @@ const (
 // startBackup sends backup.create and answers the run the host took. vedette-host runs one write command at a time, so a
 // backup asked for just after a short change (a module's container starting, a network change) is refused busy (#866):
 // startBackup then follows the command the host names to its end and asks again under a new request id, for up to
-// hostBusyWait, after which the answer is the busy refusal. While an update or OS install of this core runs it refuses at
-// once. A lost answer is looked up under the request id of the last try (recoverRun); keep is true when the host could
+// hostBusyWait, after which the answer is the busy refusal. While an update, an OS install or a restore of this core runs it
+// refuses at once. A lost answer is looked up under the request id of the last try (recoverRun); keep is true when the host could
 // not be asked, so it may be reading the snapshot.
 func (h *OSHandlers) startBackup(ctx context.Context, args api.BackupCreateArgs, id, actor string) (run api.Run, keep bool, err error) {
 	deadline := h.now().Add(hostBusyWait)
@@ -894,6 +897,9 @@ func (h *OSHandlers) startBackup(ctx context.Context, args api.BackupCreateArgs,
 		}
 		if h.busy(ctx) {
 			return api.Run{}, false, apierr.New(409, codeBusy, "An update run is in progress. Wait for it to finish, then try again.")
+		}
+		if h.restoreRunning(ctx) {
+			return api.Run{}, false, apierr.New(409, codeBusy, "A backup is being restored. Wait for it to finish.")
 		}
 		left := deadline.Sub(h.now())
 		if left <= 0 {

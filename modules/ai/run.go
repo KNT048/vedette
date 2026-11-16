@@ -12,7 +12,7 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/chain/chainhead"
-	"github.com/knt048/vedette/core/conn"
+	"github.com/knt048/vedette/core/conn/read"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/ai/provider"
 )
@@ -87,7 +87,7 @@ func (s *Service) unavailable(job Job, reasons []string) error {
 	}
 	if len(lost) > 0 {
 		// #847: the profile meant for the job cannot be called with the key it was saved with; never a silent switch, never a send.
-		return apierr.New(http.StatusConflict, conn.CodeSecretLost, fmt.Sprintf("The saved API key of the AI profile %s was not restored (the backup was restored without its decryption key, or the box key changed), so %s did not run and nothing was sent. An administrator opens Settings, AI assistant, presses Edit on the profile and enters the key again.", strings.Join(lost, " and "), job.Name()))
+		return apierr.New(http.StatusConflict, read.CodeSecretLost, fmt.Sprintf("The saved API key of the AI profile %s was not restored (the backup was restored without its decryption key, or the box key changed), so %s did not run and nothing was sent. An administrator opens Settings, AI assistant, presses Edit on the profile and enters the key again.", strings.Join(lost, " and "), job.Name()))
 	}
 	sn := s.snap.Load()
 	usable := false

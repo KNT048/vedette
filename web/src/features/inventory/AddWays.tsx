@@ -8,12 +8,13 @@ import { download } from '@/lib/api'
 import { useModuleEnabled } from '@/lib/modules'
 import { cn } from '@/lib/utils'
 import { errMsg } from './kinds'
+import { InfoTip } from '@/components/common/InfoTip'
 
-function Way({ icon, title, when, children }: { icon: ReactNode; title: string; when: string; children: ReactNode }) {
+function Way({ icon, title, when, info, children }: { icon: ReactNode; title: string; when: string; info: string; children: ReactNode }) {
   const { t } = useTranslation('inventory')
   return (
     <li className="grid content-start gap-2 rounded-md border border-rule bg-surface p-4">
-      <h2 className="flex items-center gap-2 text-sm font-semibold">{icon}{title}</h2>
+      <div className="flex items-center gap-1"><h2 className="flex items-center gap-2 text-sm font-semibold">{icon}{title}</h2><InfoTip topic={title}>{info}</InfoTip></div>
       <p className="text-[13px] text-muted"><span className="sr-only">{t('ways.when')}: </span>{when}</p>
       <div className="mt-1 flex flex-wrap items-center gap-2">{children}</div>
     </li>
@@ -32,22 +33,22 @@ export function AddWays({ canOp, canAdmin, needRole, onAdd, onImport }: { canOp:
   const agent = (label: string) => (agentsOn === false ? <p className="text-[13px] text-muted">{t('ways.agentsOff')}</p> : setup('/devices/setup?tab=agents', label))
   return (
     <section aria-label={t('tabs.add')} className="grid gap-3">
-      <p className="max-w-3xl text-[13px] text-muted">{t('ways.intro')}</p>
+      <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{t('ways.intro')}</p><InfoTip topic={t('tabs.add')}>{t('ways.introInfo')}</InfoTip></div>
       <ul className="grid gap-3 md:grid-cols-2">
-        <Way icon={<Radar className={icon} aria-hidden />} title={t('ways.discovery.title')} when={t('ways.discovery.when')}>
+        <Way icon={<Radar className={icon} aria-hidden />} title={t('ways.discovery.title')} when={t('ways.discovery.when')} info={t('ways.discovery.info')}>
           {setup('/devices/setup', t('ways.discovery.action'))}
         </Way>
-        <Way icon={<PenLine className={icon} aria-hidden />} title={t('ways.manual.title')} when={t('ways.manual.when')}>
+        <Way icon={<PenLine className={icon} aria-hidden />} title={t('ways.manual.title')} when={t('ways.manual.when')} info={t('ways.manual.info')}>
           <Button size="sm" variant="primary" disabled={!canOp} title={needRole} onClick={onAdd}>{t('add.open')}</Button>
         </Way>
-        <Way icon={<FileSpreadsheet className={icon} aria-hidden />} title={t('ways.csv.title')} when={t('ways.csv.when')}>
+        <Way icon={<FileSpreadsheet className={icon} aria-hidden />} title={t('ways.csv.title')} when={t('ways.csv.when')} info={t('ways.csv.info')}>
           <Button size="sm" disabled={!canOp} title={needRole} onClick={onImport}>{t('import.open')}</Button>
           <Button size="sm" variant="ghost" onClick={() => void download('/inventory/import-template.csv', 'vedette-devices-template.csv').catch((e: unknown) => toast.error(errMsg(e)))}>{t('import.template')}</Button>
         </Way>
-        <Way icon={<ServerCog className={icon} aria-hidden />} title={t('ways.osquery.title')} when={t('ways.osquery.when')}>
+        <Way icon={<ServerCog className={icon} aria-hidden />} title={t('ways.osquery.title')} when={t('ways.osquery.when')} info={t('ways.osquery.info')}>
           {agent(t('ways.osquery.action'))}
         </Way>
-        <Way icon={<Cable className={icon} aria-hidden />} title={t('ways.wazuh.title')} when={t('ways.wazuh.when')}>
+        <Way icon={<Cable className={icon} aria-hidden />} title={t('ways.wazuh.title')} when={t('ways.wazuh.when')} info={t('ways.wazuh.info')}>
           {agent(t('ways.wazuh.action'))}
         </Way>
       </ul>

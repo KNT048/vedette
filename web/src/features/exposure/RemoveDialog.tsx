@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/input'
+import { InfoTip } from '@/components/common/InfoTip'
 import { useDeleteTarget } from './api'
 import type { Target } from './types'
 
@@ -29,7 +30,10 @@ export function RemoveDialog({ target, onClose, onDone }: { target: Target | nul
           <div className="flex items-start gap-3">
             <Checkbox id="box-ignore" checked={ignore} onCheckedChange={(v) => setIgnore(v === true)} className="mt-0.5" aria-describedby="box-ignore-hint" />
             <div className="grid gap-1">
-              <Label htmlFor="box-ignore" className="font-normal">{t('boxIp.remove.ignoreLabel')}</Label>
+              <div className="flex items-center gap-1">
+                <Label htmlFor="box-ignore" className="font-normal">{t('boxIp.remove.ignoreLabel')}</Label>
+                <InfoTip topic={t('boxIp.remove.ignoreLabel')}>{ignore ? t('boxIp.remove.ignoreOnInfo') : t('boxIp.remove.ignoreOffInfo')}</InfoTip>
+              </div>
               <p id="box-ignore-hint" className="text-[13px] text-muted">{ignore ? t('boxIp.remove.ignoreOn') : t('boxIp.remove.ignoreOff')}</p>
             </div>
           </div>

@@ -7,6 +7,7 @@ import { PageHeader, Section, KeyValue, Panel, Notice } from '@/components/commo
 import { QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { SourceBadge } from '@/components/common/SourceBadge'
+import { InfoTip } from '@/components/common/InfoTip'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { Slot } from '@/components/common/Slot'
 import { Button } from '@/components/ui/button'
@@ -53,7 +54,7 @@ function StatusDialog({ f, open, onOpenChange, opener }: { f: FindingDetail; ope
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={t('status.title')} description={t('status.description', { cve: f.cve })} onCloseAutoFocus={(e) => { e.preventDefault(); opener.current?.focus() }}>
+      <DialogContent title={t('status.title')} description={t('status.description', { cve: f.cve })} info={t('status.descriptionInfo')} onCloseAutoFocus={(e) => { e.preventDefault(); opener.current?.focus() }}>
         <RadioGroup value={action} onValueChange={(v) => { setAction(v as StatusAction); setError(undefined); setUntilError(undefined) }} aria-label={t('status.title')}>
           {RESOLVE.map((a) => (
             <div key={a} className="flex items-start gap-2.5">
@@ -101,7 +102,10 @@ function Evidence({ f }: { f: FindingDetail }) {
           {f.asset && hasIp(f.asset) ? (
             <Button asChild className="w-fit"><Link to={`/scans?target=${f.asset.id}`}><ScanSearch />{t('evidence.rescan')}</Link></Button>
           ) : f.asset ? (
-            <p className="text-[13px] text-muted">{t('evidence.noIpScan')} <Link to={`/devices/${f.asset.id}`} className="text-accent underline underline-offset-4">{t('evidence.openDevice')}</Link></p>
+            <div className="flex flex-wrap items-center gap-x-1 text-[13px] text-muted">
+              <span className="inline-flex items-center gap-1">{t('evidence.noIpScan')}<InfoTip topic={t('evidence.recheck')}>{t('evidence.noIpScanInfo')}</InfoTip></span>
+              <Link to={`/devices/${f.asset.id}`} className="text-accent underline underline-offset-4">{t('evidence.openDevice')}</Link>
+            </div>
           ) : null}
         </div>
       </Panel>
@@ -132,7 +136,10 @@ function Compromise({ f }: { f: FindingDetail }) {
           </div>
         </Panel>
       ) : (
-        <p className="max-w-3xl rounded-md border border-dashed border-rule bg-surface px-4 py-3 text-sm text-muted">{t('compromise.none')}</p>
+        <div className="flex max-w-3xl items-center gap-1 rounded-md border border-dashed border-rule bg-surface px-4 py-3 text-sm text-muted">
+          <p>{t('compromise.none')}</p>
+          <InfoTip topic={t('compromise.title')}>{t('compromise.noneInfo')}</InfoTip>
+        </div>
       )}
     </Section>
   )
@@ -201,7 +208,7 @@ function Detail({ f }: { f: FindingDetail }) {
   const body = (
     <>
       <Evidence f={f} />
-      <Section id="mitigation" title={t('rec.title')} description={t('rec.description')} stories={['S-MIT-1']}>
+      <Section id="mitigation" title={t('rec.title')} description={t('rec.description')} info={t('rec.descriptionInfo')} stories={['S-MIT-1']}>
         <RequireModule module="mitigation">{f.pack ? <PackView finding={f} /> : <NoPack finding={f} />}</RequireModule>
       </Section>
       <Compromise f={f} />
@@ -215,7 +222,7 @@ function Detail({ f }: { f: FindingDetail }) {
         meta={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
             <FindingStatusChip f={f} /><RiskChip f={f} />
-            {unverified(f) ? <span className="text-muted">{t('risk.unverifiedLine')}</span> : null}
+            {unverified(f) ? <span className="inline-flex items-center gap-1 text-muted">{t('risk.unverifiedLine')}<InfoTip topic={t('risk.unverifiedLine')}>{t('risk.unverifiedLineInfo')}</InfoTip></span> : null}
             {f.kev?.ransomware ? <Chip tone="danger">{t('meta.ransomware')}</Chip> : null}
             <span>{t('meta.seen', { first: fmtDate(f.first_seen), last: fmtDateTime(f.last_seen) })}</span>
             {f.kev?.due_date && isOpen(f.status) ? <span>{t('meta.due', { date: fmtDate(f.kev.due_date) })}</span> : null}

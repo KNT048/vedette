@@ -8,6 +8,7 @@ import { PageTabs } from '@/components/common/PageFrame'
 import { QueryState, RequireModule } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
+import { InfoTip } from '@/components/common/InfoTip'
 import { dateTimeText } from './dates'
 import { useCan } from '@/lib/session'
 import { useDeleteTarget, useScan, useScanRun, useTarget } from './api'
@@ -21,6 +22,7 @@ import { OutsidePanel } from './OutsidePanel'
 import { ResultsPanel } from './ResultsPanel'
 import { SurfacePanel } from './SurfacePanel'
 import { VerifyPanel } from './VerifyPanel'
+import { InfoLine } from './InfoLine'
 import type { Target } from './types'
 import { blockedKey } from './types'
 
@@ -68,9 +70,10 @@ function TargetView({ target }: { target: Target }) {
   const needsOwnership = target.status === 'unverified' || target.validity === 'expired' || target.blocked_reason === 'txt_missing'
 
   // A paused or blocked ownership is a page-level state: it shows above the tabs whatever tab is open.
-  const stateNotice = target.kind === 'domain' ? (target.status !== 'unverified' && target.blocked_reason === 'txt_missing' ? t('verify.txtMissing') : null)
-    : target.blocked_reason === 'ip_not_current' ? t('verify.paused', { time: dateTimeText(target.verified_at) })
-    : target.validity === 'expired' ? t('verify.ipExpired') : null
+  const stateKey = target.kind === 'domain' ? (target.status !== 'unverified' && target.blocked_reason === 'txt_missing' ? 'verify.txtMissing' : null)
+    : target.blocked_reason === 'ip_not_current' ? 'verify.paused'
+    : target.validity === 'expired' ? 'verify.ipExpired' : null
+  const stateNotice = stateKey ? t(stateKey, { time: dateTimeText(target.verified_at) }) : null
 
   function run() {
     scan.mutate({ id: target.id, noticeVersion: notice?.version }, {
@@ -81,7 +84,10 @@ function TargetView({ target }: { target: Target }) {
   }
   // N100 finding (D-571): the line under Scan now says what the next scan really does: the deep scan once the testing terms are accepted
   // (with or without the disruptive checks), else the Scan now scope
-  const scopeText = !target.full_scan ? t('scan.safe') : t(`scan.deep${target.kind === 'domain' ? 'Domain' : 'Ip'}`) + ' ' + t(target.terms?.disruptive ? 'scan.deepDisruptive' : 'scan.deepNotDisruptive')
+  // #824: the line stays one short sentence; what the deep scan sends is behind ⓘ
+  const deepKey = `scan.deep${target.kind === 'domain' ? 'Domain' : 'Ip'}`
+  const scopeText = !target.full_scan ? t('scan.safe') : t(deepKey) + ' ' + t(target.terms?.disruptive ? 'scan.deepDisruptive' : 'scan.deepNotDisruptive')
+  const scopeInfo = !target.full_scan ? null : <><p>{t(`${deepKey}Info`)}</p>{target.terms?.disruptive ? <p>{t('scan.deepDisruptiveInfo')}</p> : null}</>
   return (
     <>
       <PageHeader title={title} stories={['S-EXP-1']}
@@ -94,17 +100,20 @@ function TargetView({ target }: { target: Target }) {
         </>} />
       <ScanProgress />
       {needTwoStep ? <p role="alert" className="-mt-3 mb-6 max-w-3xl text-sm text-warn">{t('scan.needTwoStep', { value: target.value })} <Link to="/account#two-step" className="underline">{t('scan.needTwoStepLink')}</Link></p> : null}
-      {blocked ? <p id="scan-reason" className="-mt-3 mb-6 max-w-3xl text-sm text-warn">{blocked}</p> : <p className="-mt-3 mb-6 max-w-3xl text-[13px] text-muted">{scopeText}</p>}
+      {blocked ? <p id="scan-reason" className="-mt-3 mb-6 max-w-3xl text-sm text-warn">{blocked}</p> : (scopeInfo ? <InfoLine className="-mt-3 mb-6 max-w-3xl text-[13px] text-muted" topic={t('scan.scopeTopic')} info={scopeInfo}>{scopeText}</InfoLine>
+        : <p className="-mt-3 mb-6 max-w-3xl text-[13px] text-muted">{scopeText}</p>)}
       {notice ? (
         <div id="scan-notice" role="note" aria-label={t('scan.noticeTitle')} className="-mt-3 mb-6 max-w-3xl rounded-md border border-line p-3 text-sm">
-          <p className="mb-1 font-medium">{t('scan.noticeTitle')}</p>
+          <div className="mb-1 flex items-center gap-1">
+            <p className="font-medium">{t('scan.noticeTitle')}</p>
+            <InfoTip topic={t('scan.noticeTitle')}>{target.commitment ? <p>{t('scan.noticeChangedInfo')}</p> : null}<p>{t('scan.noticeWho')}</p></InfoTip>
+          </div>
           {target.commitment ? <p className="mb-1 text-[13px] text-muted">{t('scan.noticeChanged')}</p> : null}
           <p>{notice.text}</p>
-          <p className="mt-1 text-[13px] text-muted">{t('scan.noticeWho')}</p>
         </div>
       ) : null}
-      {!operator ? <p className="-mt-3 mb-6 max-w-3xl text-[13px] text-muted">{t('target.viewOnly')}</p> : null}
-      {stateNotice ? <Notice tone={target.validity === 'expired' && target.kind === 'ip' ? 'danger' : 'warn'} role="alert" title={stateNotice}
+      {!operator ? <InfoLine className="-mt-3 mb-6 max-w-3xl text-[13px] text-muted" topic={t('target.accessTopic')} info={t('target.viewOnlyInfo')}>{t('target.viewOnly')}</InfoLine> : null}
+      {stateNotice ? <Notice tone={target.validity === 'expired' && target.kind === 'ip' ? 'danger' : 'warn'} role="alert" title={stateNotice} info={t(`${stateKey}Info`)}
         actions={<Button onClick={() => { const p = new URLSearchParams(params); p.set('tab', 'ownership'); setParams(p, { replace: true }) }}>{t('verify.goOwnership')}</Button>} /> : null}
       <AnchorRedirect map={target.kind === 'ip' ? ANCHOR_TAB : { ...ANCHOR_TAB, outside: 'results' }} />
       <ScrollToHash />
@@ -112,15 +121,17 @@ function TargetView({ target }: { target: Target }) {
         { id: 'results', label: t('tabs.results'), panel: <ResultsPanel target={target} blockedText={blocked} /> },
         ...(target.kind === 'domain' ? [{ id: 'surface', label: t('tabs.surface'), panel: <SurfacePanel target={target} blockedText={blocked} /> }] : []),
         { id: 'ownership', label: t('tabs.ownership'), badge: needsOwnership ? { count: 1, label: t('tabs.needsYou') } : undefined, panel: <>
-          <Section id="step-verify" title={t('step.verify')} description={target.kind === 'domain' ? t('step.verifyHintDomain') : t('step.verifyHintIp')}>
+          <Section id="step-verify" title={t('step.verify')} description={target.kind === 'domain' ? t('step.verifyHintDomain') : t('step.verifyHintIp')}
+            info={target.kind === 'domain' ? <><p>{t('step.verifyHintDomainInfo')}</p><p>{t('verify.doneDomainInfo')}</p></> : t('step.verifyHintIpInfo')}>
             <VerifyPanel target={target} />
           </Section>
           {target.commitment ? (
-            <Section id="step-commit" title={t('step.commit')} description={t('step.commitHint')}>
+            <Section id="step-commit" title={t('step.commit')} description={t('step.commitHint')} info={t('step.commitHintInfo')}>
               <CommitmentPanel target={target} />
             </Section>
           ) : null}
-          <Section id="step-terms" title={t('terms.title')} description={t('terms.description')}>
+          <Section id="step-terms" title={t('terms.title')} description={t('terms.description')}
+            info={<><p>{t('terms.descriptionInfo')}</p><p>{t('terms.who')}</p><p>{t('terms.stops')}</p></>}>
             <TermsPanel target={target} />
           </Section>
         </> },
@@ -142,7 +153,7 @@ function DeleteTarget({ target }: { target: Target }) {
       {/* A public IP uses the same dialog as the list (with "Don't add it again if detected" ticked); a domain has nothing to ignore. */}
       {target.kind === 'ip' ? <RemoveDialog target={open ? target : null} onClose={() => setOpen(false)} onDone={() => void nav('/exposure')} /> : (
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent title={t('delete.title', { value: target.value })} description={t('delete.body')}>
+        <DialogContent title={t('delete.title', { value: target.value })} description={t('delete.body')} info={t('delete.bodyInfo')}>
           <DialogFooter>
             <Button onClick={() => setOpen(false)}>{t('common:cancel')}</Button>
             <Button variant="danger" disabled={del.isPending} onClick={() => { del.mutateAsync({ id: target.id }).then(() => { toast.success(t('delete.toast', { value: target.value })); void nav('/exposure') }, (e: unknown) => toast.error(errMsg(e))) }}>{t('delete.confirm')}</Button>

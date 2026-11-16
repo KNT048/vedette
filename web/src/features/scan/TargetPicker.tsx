@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { ChevronDown, ChevronRight } from 'lucide-react'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Pager, groupState, pageOf } from '@/components/common/Selection'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -104,7 +105,7 @@ function TargetRow({ t: target, checked, onChange }: { t: ScanTarget; checked: b
       </label>
       {extra ? <span className="text-[12px] text-muted">{extra}</span> : null}
       {target.findings > 0 ? <Chip tone="warn">{t('start.findings', { count: target.findings })}</Chip> : null}
-      {target.fragile && target.selectable ? <Chip tone="off" title={t('start.fragileHint')}>{t('start.fragile')}</Chip> : null}
+      {target.fragile && target.selectable ? <span className="inline-flex items-center gap-1"><Chip tone="off">{t('start.fragile')}</Chip><InfoTip topic={t('start.fragile')}>{t('start.fragileHint')}</InfoTip></span> : null}
       {target.pick_only ? <span className="text-[13px] text-muted">{t(target.box ? 'start.pickBox' : target.device_kind === 'unknown' ? 'start.pickUnknown' : target.fragile ? 'start.pickFragile' : 'start.pickManual')}</span> : null}
       {target.reason ? <span className="text-[13px] text-muted">{t(`reason.${target.reason}`)}</span> : null}
       {target.reason && target.kind === 'internal' ? (
@@ -264,7 +265,11 @@ export function TargetPicker({ targets, sel, onToggle, onAdd, onRemove, onReplac
         {external.length === 0 ? <p className="px-3 py-3 text-sm text-muted">{t('start.noExternal')}</p>
           : shownExt.length === 0 ? <p className="px-3 py-3 text-sm text-muted">{t('start.noExternalMatch')}</p>
             : <ul className="divide-y divide-rule">{shownExt.map((x) => <TargetRow key={x.id} t={x} checked={sel.has(x.id)} onChange={(v) => onToggle(x.id, v)} />)}</ul>}
-        <p className="border-t border-rule px-3 py-2 text-[13px] text-muted">{t('start.externalHint')} <Link to="/exposure" className="text-accent underline underline-offset-4">{t('start.openExposure')}</Link></p>
+        <div className="flex flex-wrap items-center gap-x-1 border-t border-rule px-3 py-2 text-[13px] text-muted">
+          <span>{t('start.externalHint')}</span>
+          <InfoTip topic={t('start.external')}>{t('start.externalHintInfo')}</InfoTip>
+          <Link to="/exposure" className="text-accent underline underline-offset-4">{t('start.openExposure')}</Link>
+        </div>
       </fieldset>
     </div>
   )

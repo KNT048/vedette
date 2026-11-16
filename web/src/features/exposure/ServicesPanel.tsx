@@ -5,7 +5,9 @@ import { Chip, SeverityChip } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { dateText, dateTimeText } from './dates'
 import { PortMark } from './PortMark'
+import { InfoLine } from './InfoLine'
 import type { ServiceRow, Snapshot, TemplateRow, VulnRow } from './types'
+import { InfoTip } from '@/components/common/InfoTip'
 
 const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4, unknown: 5 } as const
 
@@ -25,7 +27,7 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
   const serviceCols: ColumnDef<ServiceRow>[] = [
     ...ipCol<ServiceRow>(),
     { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="grid gap-1"><span className="tabular-nums">{row.original.port}</span>{mark(row.original.ip, row.original.port)}</span> },
-    { id: 'service', header: t('col.service'), accessorFn: (r) => r.name, cell: ({ row }) => row.original.name === 'tcpwrapped' ? <span title={t('vulns.tcpwrapped')}>{t('vulns.tcpwrappedShort')}</span> : row.original.name },
+    { id: 'service', header: t('col.service'), accessorFn: (r) => r.name, cell: ({ row }) => row.original.name === 'tcpwrapped' ? <span className="inline-flex items-center gap-1">{t('vulns.tcpwrappedShort')}<InfoTip topic={t('vulns.tcpwrappedShort')}>{t('vulns.tcpwrapped')}</InfoTip></span> : row.original.name },
     { id: 'product', header: t('col.product'), accessorFn: (r) => r.product, cell: ({ row }) => row.original.product || <span className="text-muted">{t('vulns.noProduct')}</span> },
     { id: 'version', header: t('col.version'), accessorFn: (r) => r.version, cell: ({ row }) => row.original.version || <span className="text-muted">{t('vulns.noVersion')}</span> },
     { id: 'cves', header: t('col.exploited'), accessorFn: count, cell: ({ row }) => {
@@ -58,8 +60,9 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
   const why = s.not_checked.find((n) => n.kind === 'services' || n.kind === 'cve')
   // D-522 (TUNE-1a review M1): identification did not complete, so the title must not read as "nothing is there"
   const unidentified = why?.kind === 'services'
+  const desc = domain ? (s.services.length > 0 ? 'vulns.descriptionDomainDeep' : 'vulns.descriptionDomain') : 'vulns.description'
   return (
-    <Section id="vulns" title={t('vulns.title')} description={t(domain ? (s.services.length > 0 ? 'vulns.descriptionDomainDeep' : 'vulns.descriptionDomain') : 'vulns.description')}>
+    <Section id="vulns" title={t('vulns.title')} description={t(desc)} info={t(`${desc}Info`)}>
       {s.services.length === 0 && s.vulns.length === 0 ? (
         <EmptyState title={t(unidentified ? 'vulns.notIdentifiedTitle' : 'vulns.noneIdentifiedTitle')}>{why?.text ?? t('vulns.noneIdentifiedBody')}</EmptyState>
       ) : (
@@ -70,7 +73,7 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
             <p role="status" className="text-sm text-warn">{s.not_checked.find((n) => n.kind === 'cve')!.text}</p>
           ) : (
             // review r1 L4: not an all-clear when the deep scan's table below has rows
-            <EmptyState title={t(deep.length > 0 ? 'vulns.noneTitleDeep' : 'vulns.noneTitle')}>{t(deep.length > 0 ? 'vulns.noneBodyDeep' : 'vulns.noneBody')}</EmptyState>
+            <EmptyState title={t(deep.length > 0 ? 'vulns.noneTitleDeep' : 'vulns.noneTitle')}><InfoLine topic={t(deep.length > 0 ? 'vulns.noneTitleDeep' : 'vulns.noneTitle')} info={t('vulns.noneBodyInfo')}>{t(deep.length > 0 ? 'vulns.noneBodyDeep' : 'vulns.noneBody')}</InfoLine></EmptyState>
           )}
           {s.version_gaps.length > 0 ? (
             <ul aria-label={t('vulns.gapsLabel')} className="grid gap-1 text-sm">
@@ -80,7 +83,7 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
           {deep.length > 0 ? (
             <div className="grid gap-2">
               <DataTable caption={t('vulns.deepCaption')} data={deep} columns={deepCols} pageSize={20} />
-              <p className="text-[13px] text-muted">{t('vulns.deepNote')}</p>
+              <InfoLine className="text-[13px] text-muted" topic={t('vulns.deepCaption')} info={t('vulns.deepNoteInfo')}>{t('vulns.deepNote')}</InfoLine>
             </div>
           ) : null}
           {s.services.length > 0 ? <DataTable caption={t('vulns.servicesCaption')} data={s.services} columns={serviceCols} pageSize={20} empty={t('vulns.noneIdentifiedBody')} /> : null}
@@ -94,7 +97,7 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
 export function ChecksSection({ s }: { s: Snapshot }) {
   const { t } = useTranslation('exposure')
   return (
-    <Section id="checked" title={t('checked.title')} description={t('checked.description')}>
+    <Section id="checked" title={t('checked.title')} description={t('checked.description')} info={t('checked.descriptionInfo')}>
       {s.checks.length === 0 && s.not_checked.length === 0 ? <p className="text-sm text-muted">{t('checked.older')}</p> : (
         <Panel className="grid gap-4 p-4 sm:grid-cols-2">
           <div>

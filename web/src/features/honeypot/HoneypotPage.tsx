@@ -31,8 +31,8 @@ export default function HoneypotPage() {
   if (hp?.available === false) return (
     <>
       <PageHeader title={t('notHere.page')} stories={['S-HP-1', 'S-CORE-9']} />
-      <EmptyState title={t('notHere.title')}>
-        <p>{t('notHere.body')}</p>
+      <EmptyState title={t('notHere.title')} info={t('notHere.bodyInfo')}>
+        {t('notHere.body')}
         {hp.enabled ? <p className="mt-2"><Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules">{t('notHere.modules')}</Link></p> : null}
       </EmptyState>
     </>
@@ -56,7 +56,7 @@ function HoneypotBody() {
     : t('title.quiet')
   return (
     <>
-      <PageHeader title={title} stories={['S-HP-1', 'S-HP-2']}
+      <PageHeader title={title} stories={['S-HP-1', 'S-HP-2']} info={t('metaInfo')}
         meta={<span className="flex flex-wrap items-center gap-2"><SampleDataNote />{o ? t('meta', { time: fmtDateTime(o.updated_at) }) : null}</span>} />
       <QueryState query={overview}>
         {(data) => {
@@ -79,7 +79,7 @@ function HoneypotBody() {
                 { id: 'services', label: t('tabs.services'), panel: <ServicesTab data={data} /> },
                 { id: 'tokens', label: t('tabs.tokens'), panel: <TokensSection /> },
                 { id: 'hits', label: t('tabs.hits'), panel: (
-                  <Section id="hits" title={t('hits.title')} description={t('hits.description')}>
+                  <Section id="hits" title={t('hits.title')} description={t('hits.description')} info={t('hits.descriptionInfo')}>
                     <QueryState query={hits}>{(h) => <HitsTable items={h.items} anyTrapOn={data.trap_ips.enabled > 0} />}</QueryState>
                   </Section>
                 ) },
@@ -97,7 +97,7 @@ function OverviewTab({ data, lan }: { data: HpOverview; lan: string }) {
   return (
     <>
       {data.trap_ips.total === 0 ? (
-        <EmptyState title={t('start.title')}>
+        <EmptyState title={t('start.title')} info={t('start.info', { lan })}>
           <ol className="mt-1 grid list-decimal gap-1 pl-5">
             <li>{t('start.step1', { lan })}</li>
             <li>{t('start.step2')}</li>
@@ -143,7 +143,7 @@ function ServicesTab({ data }: { data: HpOverview }) {
   ]
   return (
     <>
-      <Section id="services" title={t('traps.title')} description={t('traps.description')}>
+      <Section id="services" title={t('traps.title')} description={t('traps.description')} info={<><p>{t('traps.descriptionInfo')}</p><p>{t('traps.testNote')}</p></>}>
         <DataTable caption={t('traps.caption')} data={data.traps} columns={columns} pageSize={data.traps.length}
           mobileRow={(tr) => (
             <div className="grid gap-2">
@@ -155,9 +155,12 @@ function ServicesTab({ data }: { data: HpOverview }) {
               </div>
             </div>
           )} />
-        <p className="mt-2 text-[13px] text-muted">{t('traps.testNote')}</p>
       </Section>
-      <Section id="limits" title={t('traps.limitsTitle')}>
+      <Section id="limits" title={t('traps.limitsTitle')} info={<>
+        {data.smb_name ? <p>{t('traps.smbNameInfo')}</p> : null}
+        {data.http_page ? <p>{t('traps.httpPageInfo')}</p> : null}
+        <p>{t('traps.bannersInfo')}</p>
+      </>}>
         <Panel className="grid gap-1.5 p-4 text-sm">
           <p>{data.smb_name ? t('traps.smbName', { name: data.smb_name }) : t('traps.smbNone')}</p>
           <p>{data.http_page ? t('traps.httpPage', { page: t(`traps.page.${data.http_page}`) }) : t('traps.httpNone')}</p>
@@ -171,7 +174,7 @@ function ServicesTab({ data }: { data: HpOverview }) {
 function ExclusionSection({ data }: { data: HpOverview }) {
   const { t } = useTranslation('honeypot')
   return (
-    <Section id="exclusion" title={t('exclusion.title')} description={t('exclusion.description')}>
+    <Section id="exclusion" title={t('exclusion.title')} description={t('exclusion.description')} info={t('exclusion.descriptionInfo')}>
       <Panel className="p-4">
         <KeyValue items={[
           { label: t('exclusion.who'), value: <span className="flex flex-wrap items-center gap-2">{data.box.name}{data.box.ip ? ` (${data.box.ip})` : ''} <Chip tone="off">{t('exclusion.locked')}</Chip></span> },
@@ -220,6 +223,6 @@ export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn
         </div>
       )}
       filterPlaceholder={t('hits.filter')} initialSort={[{ id: 'ts', desc: true }]}
-      empty={<EmptyState title={t('hits.emptyTitle')}>{anyTrapOn ? t('hits.emptyBody') : t('hits.emptyBodyOff')}</EmptyState>} />
+      empty={<EmptyState title={t('hits.emptyTitle')} info={anyTrapOn ? t('hits.emptyBodyInfo') : t('hits.emptyBodyOffInfo')}>{anyTrapOn ? t('hits.emptyBody') : t('hits.emptyBodyOff')}</EmptyState>} />
   )
 }

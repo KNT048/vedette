@@ -316,7 +316,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     renderApp('/devices/a-nas02')
     await user.click(await screen.findByRole('button', { name: 'Remove from list' }, T))
     const dialog = await screen.findByRole('dialog', undefined, T)
-    expect(dialog).toHaveTextContent(n === 1 ? 'This device has 1 finding.' : `This device has ${n} findings.`)
+    expect(dialog).toHaveTextContent(n === 1 ? 'This device has 1 finding; removing the device removes it too.' : `This device has ${n} findings; removing the device removes them too.`)
     await user.click(within(dialog).getByRole('button', { name: 'Remove from list' }))
     await waitFor(() => expect(find('a-nas02' as string)).toBeUndefined(), T)
     expect(findingsStore.get().filter((f) => f.asset_id === 'a-nas02')).toHaveLength(0)
@@ -369,7 +369,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(screen.getByText('No other devices yet')).toBeInTheDocument()
     expect(screen.queryByText('No devices yet')).toBeNull()
     expect(screen.getAllByRole('button', { name: 'Add a device' }).length).toBeGreaterThan(1)
-    expect(await screen.findByText(/Vedette is watching the network ranges you saved/, undefined, T)).toBeInTheDocument() // the mock has ranges saved
+    expect(await screen.findByText(/Vedette is watching your saved ranges/, undefined, T)).toBeInTheDocument() // the mock has ranges saved
     expect(screen.queryByRole('link', { name: "Set the box's network ranges" })).not.toBeInTheDocument()
   })
 
@@ -1203,7 +1203,8 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     sensorsStore.update((l) => l.map((x) => ({ ...x, status: 'never_connected' as const })))
     renderApp('/devices/setup?tab=sensor')
     await waitFor(() => expect(sec()).toHaveTextContent('Not connected yet'), T)
-    expect(sec()).toHaveTextContent('The box could not get the sensor running. Turn Passive sensor off and on in Settings → Modules')
+    expect(sec()).toHaveTextContent('The box could not get the sensor running.')
+    expect(sec()).toHaveTextContent('Turn Passive sensor off and on in Settings → Modules') // behind the ⓘ next to it (#824)
     expect(sec().textContent).not.toContain('compose.sensors.yaml') // that hint is the container-only one
   })
 
@@ -1341,7 +1342,7 @@ describe('inventory: agents (S-INV-4)', () => {
     const real = (await call('GET', '/agents')).json!
     server.use(http.get('*/api/v1/inventory/agents', () => HttpResponse.json({ ...real, install: { ...real.install, packages: [] } })))
     renderApp('/devices/setup?tab=agents')
-    expect(await screen.findByText(/This box has no copy of the osquery packages, so there is nothing to download here/, undefined, T)).toBeInTheDocument()
+    expect(await screen.findByText(/This box has no copy of the osquery packages\./, undefined, T)).toBeInTheDocument()
     expect(screen.queryByRole('table', { name: 'osquery packages this box serves' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create agent token' })).toBeInTheDocument()
   })
@@ -1948,7 +1949,8 @@ describe('inventory: the box is the first device (S-INV-5, D-53)', () => {
     expect(r.json!.counts.all).toBe(1)
     expect(r.json!.items[0]).toMatchObject({ id: BOX_ID, is_box: true, hostname: 'vedette', ip: '—' })
     renderApp('/devices')
-    expect(await screen.findByText(/Only the Vedette box is on the list so far/, undefined, T)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Only the Vedette box so far' }, T)).toBeInTheDocument()
+    expect(screen.getByText('No other devices yet')).toBeInTheDocument() // the empty state with the next actions
     expect(within(await deviceTable()).getByText('This box')).toBeInTheDocument()
     setDataMode('sample')
   })

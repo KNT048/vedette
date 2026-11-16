@@ -15,7 +15,7 @@ export function FixGroupList({ groups, showDevice }: { groups: FixGroup[]; showD
   if (groups.length === 0) return null
   return (
     <section aria-labelledby="fix-groups-title">
-      <Notice tone="warn" title={<span id="fix-groups-title">{t('fix.title', { count: groups.length })}</span>}>
+      <Notice tone="warn" title={<span id="fix-groups-title">{t('fix.title', { count: groups.length })}</span>} info={t('fix.helpInfo')}>
         <p>{t('fix.help')}</p>
         <ul aria-label={t('fix.listLabel')} className="mt-2 grid gap-3">
           {groups.map((g) => {

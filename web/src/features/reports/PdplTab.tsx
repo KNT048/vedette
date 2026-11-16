@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { FileText, Printer, Sparkles } from 'lucide-react'
 import { Notice, Panel, Section } from '@/components/common/PageHeader'
 import { EmptyState, QueryState } from '@/components/common/States'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Field, Input, Label, Select } from '@/components/ui/input'
@@ -25,7 +26,7 @@ export default function PdplTab() {
   const pdpl = usePdpl()
   return (
     <>
-      <Notice tone="warn" role="note" className="mb-6" title={t('doc.pdpl.disclaimerTitle')}>{t('doc.pdpl.disclaimerBody')}</Notice>
+      <Notice tone="warn" role="note" className="mb-6" title={t('doc.pdpl.disclaimerTitle')} info={t('doc.pdpl.disclaimerBody')} />
       <QueryState query={pdpl}>{(s) => <><OrgSection s={s} /><ReportSection s={s} /></>}</QueryState>
     </>
   )
@@ -75,14 +76,17 @@ function OrgSection({ s }: { s: PdplState }) {
       <Input id={`pd-${k}`} type={extra?.type} value={f[k]} onChange={(e) => set(k, e.target.value)} disabled={!operator} placeholder={extra?.placeholder} autoComplete="off" aria-invalid={err(k) ? true : undefined} aria-describedby={err(k) ? `pd-${k}-error` : extra?.hint ? `pd-${k}-hint` : undefined} />
     </Field>
   )
-  const flag = (k: 'sensitive' | 'cross_border' | 'processors' | 'processing_service', label: string, hint: string) => (
+  const flag = (k: 'sensitive' | 'cross_border' | 'processors' | 'processing_service', label: string, hint: string, info?: string) => (
     <div className="flex items-start gap-3">
       <Checkbox id={`pd-${k}`} checked={f[k]} onCheckedChange={(v) => set(k, v === true)} disabled={!operator} className="mt-0.5" />
-      <div className="grid gap-0.5"><Label htmlFor={`pd-${k}`} className="font-normal">{label}</Label><p className="text-[13px] text-muted">{hint}</p></div>
+      <div className="grid gap-0.5">
+        <div className="flex items-center gap-1"><Label htmlFor={`pd-${k}`} className="font-normal">{label}</Label>{info ? <InfoTip topic={label}>{info}</InfoTip> : null}</div>
+        <p className="text-[13px] text-muted">{hint}</p>
+      </div>
     </div>
   )
-  const sel = (k: 'sector' | 'size' | 'data_volume' | 'level', label: string, options: [string, string][], hint?: string, span?: boolean) => (
-    <Field label={label} htmlFor={`pd-${k}`} hint={hint} error={err(k)} className={span ? 'sm:col-span-2' : undefined}>
+  const sel = (k: 'sector' | 'size' | 'data_volume' | 'level', label: string, options: [string, string][], hint?: string, span?: boolean, info?: string) => (
+    <Field label={label} htmlFor={`pd-${k}`} hint={hint} info={info} error={err(k)} className={span ? 'sm:col-span-2' : undefined}>
       <Select id={`pd-${k}`} value={f[k]} onChange={(e) => set(k, e.target.value as never)} disabled={!operator} aria-invalid={err(k) ? true : undefined} aria-describedby={err(k) ? `pd-${k}-error` : hint ? `pd-${k}-hint` : undefined}>
         {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </Select>
@@ -99,17 +103,17 @@ function OrgSection({ s }: { s: PdplState }) {
           <Field label={t('pdpl.org.employees')} htmlFor="pd-employees" error={err('employees')}>
             <Input id="pd-employees" type="number" min={0} max={1000000} value={f.employees} onChange={(e) => set('employees', e.target.value)} disabled={!operator} aria-invalid={err('employees') ? true : undefined} aria-describedby={err('employees') ? 'pd-employees-error' : undefined} />
           </Field>
-          {sel('size', t('pdpl.org.size'), [['', t('pdpl.org.sizePick')], ...SIZES.map((k): [string, string] => [k, t(`pdpl.size.${k}`)])], t('pdpl.org.sizeHint'), true)}
-          {sel('data_volume', t('pdpl.org.volume'), VOLUMES.map((v): [string, string] => [v, t(`pdpl.volume.${v}`)]), t('pdpl.org.volumeHint'), true)}
+          {sel('size', t('pdpl.org.size'), [['', t('pdpl.org.sizePick')], ...SIZES.map((k): [string, string] => [k, t(`pdpl.size.${k}`)])], t('pdpl.org.sizeHint'), true, t('pdpl.org.sizeHintInfo'))}
+          {sel('data_volume', t('pdpl.org.volume'), VOLUMES.map((v): [string, string] => [v, t(`pdpl.volume.${v}`)]), t('pdpl.org.volumeHint'), true, t('pdpl.org.volumeHintInfo'))}
           {text('contact_name', t('pdpl.org.contactName'), { hint: t('pdpl.org.contactHint') })}
           {text('contact_email', t('pdpl.org.contactEmail'), { type: 'email' })}
           {text('contact_phone', t('pdpl.org.contactPhone'), { type: 'tel', placeholder: '0901234567' })}
-          {sel('level', t('pdpl.org.level'), [['', t('pdpl.org.levelNone')], ...(['1', '2', '3', '4', '5'] as const).map((l): [string, string] => [l, t('pdpl.org.levelOption', { level: l })])], t('pdpl.org.levelHint'), true)}
+          {sel('level', t('pdpl.org.level'), [['', t('pdpl.org.levelNone')], ...(['1', '2', '3', '4', '5'] as const).map((l): [string, string] => [l, t('pdpl.org.levelOption', { level: l })])], t('pdpl.org.levelHint'), true, t('pdpl.org.levelHintInfo'))}
         </div>
         <div className="grid gap-3">
-          {flag('processing_service', t('pdpl.processingService'), t('pdpl.processingServiceHint'))}
-          {flag('sensitive', t('pdpl.sensitive'), t('pdpl.sensitiveHint'))}
-          {flag('cross_border', t('pdpl.crossBorder'), t('pdpl.crossBorderHint'))}
+          {flag('processing_service', t('pdpl.processingService'), t('pdpl.processingServiceHint'), t('pdpl.processingServiceHintInfo'))}
+          {flag('sensitive', t('pdpl.sensitive'), t('pdpl.sensitiveHint'), t('pdpl.sensitiveHintInfo'))}
+          {flag('cross_border', t('pdpl.crossBorder'), t('pdpl.crossBorderHint'), t('pdpl.crossBorderHintInfo'))}
           {flag('processors', t('pdpl.processors'), t('pdpl.processorsHint'))}
         </div>
         {save.error && !serverKey ? <ActionError error={save.error} /> : null}
@@ -128,7 +132,7 @@ function ReportSection({ s }: { s: PdplState }) {
   const needOrg = !s.org
   const reason = !operator ? t('common:needRole', { role: t('common:role.operator') }) : needOrg ? t('pdpl.report.needOrg') : undefined
   return (
-    <Section title={t('pdpl.report.title')} description={t('pdpl.report.description')} stories={['S-REP-2']}
+    <Section title={t('pdpl.report.title')} description={t('pdpl.report.description')} info={t('pdpl.report.descriptionInfo')} stories={['S-REP-2']}
       actions={
         <>
           <Button variant={r ? 'secondary' : 'primary'} onClick={() => gen.mutate(undefined, { onSuccess: () => toast.success(t('pdpl.report.generated')) })} disabled={!operator || needOrg || gen.isPending} title={reason}><FileText aria-hidden />{gen.isPending ? t('pdpl.report.generating') : r ? t('pdpl.report.regenerate') : t('pdpl.report.generate')}</Button>

@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CircleCheck } from 'lucide-react'
+import { InfoTip } from '@/components/common/InfoTip'
 import { PageHeader } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { api, ApiError } from '@/lib/api'
@@ -51,7 +52,7 @@ export default function ChatLinkPage() {
                   {row.name ? <p className="text-[13px] text-muted">{t('chatLink.namedBy', { name: row.name })}</p> : null}
                 </div>
               ) : null}
-              <p className="text-[13px] text-muted">{t(`chatLink.explain.${kind}`)}</p>
+              <div className="flex items-center gap-1 text-[13px] text-muted"><p>{t(`chatLink.explain.${kind}`)}</p><InfoTip topic={t('chatLink.title', { name })}>{t(`chatLink.explain.${kind}Info`)}</InfoTip></div>
               {err ? <p role="alert" className="text-sm text-danger">{err}</p> : null}
               <div><Button variant="primary" disabled={confirm.isPending} onClick={() => confirm.mutate(undefined, { onSuccess: setDone })}>{t('chatLink.confirm')}</Button></div>
             </>

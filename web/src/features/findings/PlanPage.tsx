@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Notice, PageHeader } from '@/components/common/PageHeader'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Segmented } from '@/components/ui/segmented'
 import { fmtDay } from '@/features/feeds/dates'
 import { usePlan } from './api'
@@ -32,12 +33,13 @@ function Page() {
         title={!p || !p.compared || p.items.length === 0 ? t('plan.title') : t('plan.titleCount', { count: p.items.length })}
         stories={['S-TIER-1', 'S-TIER-2']}
         meta={dataLine}
+        info={<><p>{t('plan.intro')}</p><p>{t('plan.introInfo')}</p></>}
         actions={<SampleDataNote />}
       />
-      <p className="mb-4 max-w-3xl text-sm text-muted">{t('plan.intro')} <Link to="/findings" className="text-accent underline underline-offset-4">{t('plan.toFindings')}</Link></p>
-      <div className="mb-4 max-w-full overflow-x-auto">
+      <p className="mb-4 text-sm">{t('plan.introLine')} <Link to="/findings" className="text-accent underline underline-offset-4">{t('plan.toFindings')}</Link></p>
+      <div className="mb-4 flex max-w-full items-center gap-1 overflow-x-auto">
         <Segmented<PlanFilter> label={t('plan.filterLabel')} value={tier} onChange={setTier} options={FILTERS.map((v) => ({ value: v, label: t(`plan.filter.${v}`) }))} />
-        <p className="mt-1.5 text-[13px] text-muted">{t(`plan.filterHint.${tier}`)}</p>
+        <InfoTip topic={t('plan.filterLabel')}>{FILTERS.map((v) => <p key={v}><span className="font-medium">{t(`plan.filter.${v}`)}</span>{': '}{t(`plan.filterHint.${v}`)}</p>)}</InfoTip>
       </div>
       <QueryState query={q}>
         {(d) => (
@@ -46,13 +48,13 @@ function Page() {
             {d.compared && d.old_evidence > 0 ? <p className="mb-3 text-[13px] text-muted">{t('plan.oldEvidence', { count: d.old_evidence })}</p> : null}
             {d.compared && d.items.length > 0 ? <PlanItems items={d.items} showDevice likelyOnly={tier === 'likely'} /> : null}
             {d.compared && d.items.length === 0 && (d.data.epss === 'ready' || d.data.recent === 'ready') && d.data.epss !== 'module_off' ? (
-              <EmptyState title={tier === 'all' ? t('plan.empty') : t(`plan.emptyFilter.${tier}`)}>
+              <EmptyState title={tier === 'all' ? t('plan.empty') : t(`plan.emptyFilter.${tier}`)} info={t('plan.emptyBodyInfo')}>
                 {t('plan.emptyBody', { compared: d.compared_devices, count: d.unchecked_devices })}{' '}
                 {d.unchecked_devices > 0 ? <Link to="/devices" className="text-accent underline underline-offset-4">{t('plan.emptyDevices')}</Link> : null}
               </EmptyState>
             ) : null}
             {d.compared && d.items.length > 0 && d.unchecked_devices > 0 ? (
-              <Notice tone="off" className="mt-4" title={t('plan.unchecked', { count: d.unchecked_devices })}>
+              <Notice tone="off" className="mt-4" title={t('plan.unchecked', { count: d.unchecked_devices })} info={t('plan.uncheckedBodyInfo')}>
                 <p>{t('plan.uncheckedBody')} <Link to="/devices" className="text-accent underline underline-offset-4">{t('plan.emptyDevices')}</Link></p>
               </Notice>
             ) : null}

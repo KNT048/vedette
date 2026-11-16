@@ -11,6 +11,7 @@ import { fmtPercent } from '@/lib/format'
 import { fmtDay } from '@/features/feeds/dates'
 import { usePlanAction } from './fix'
 import type { Plan, PlanCve, PlanItem } from './types'
+import { InfoTip } from '@/components/common/InfoTip'
 
 function Severity({ c }: { c: PlanCve }) {
   const { t } = useTranslation('findings')
@@ -21,12 +22,13 @@ function Severity({ c }: { c: PlanCve }) {
 /** The evidence chip of D-615: how Vedette knows the device has the flaw. */
 export function EvidenceChip({ basis }: { basis: PlanCve['basis'] }) {
   const { t } = useTranslation('findings')
-  return <Chip tone={basis === 'version' ? 'off' : 'accent'} title={t(`plan.evidence.${basis}Hint`)}>{t(`plan.evidence.${basis}`)}</Chip>
+  // #824: the explanation is behind an ⓘ, not a hover-only title.
+  return <span className="inline-flex items-center gap-1"><Chip tone={basis === 'version' ? 'off' : 'accent'}>{t(`plan.evidence.${basis}`)}</Chip><InfoTip topic={t(`plan.evidence.${basis}`)}>{t(`plan.evidence.${basis}Hint`)}</InfoTip></span>
 }
 
 export function TierChip({ tier }: { tier: PlanCve['tier'] }) {
   const { t } = useTranslation('findings')
-  return <Chip tone={tier === 'likely' ? 'warn' : 'off'} title={t(`plan.tier.${tier}Hint`)}>{t(`plan.tier.${tier}`)}</Chip>
+  return <span className="inline-flex items-center gap-1"><Chip tone={tier === 'likely' ? 'warn' : 'off'}>{t(`plan.tier.${tier}`)}</Chip><InfoTip topic={t(`plan.tier.${tier}`)}>{t(`plan.tier.${tier}Hint`)}</InfoTip></span>
 }
 
 function yearAgo() {
@@ -148,7 +150,7 @@ export function PlanDataState({ plan, compact = false }: { plan: Plan; compact?:
   const { t } = useTranslation('findings')
   if (!plan.compared) {
     return compact ? <p className="text-sm text-muted">{t('plan.state.notCompared')}</p> : (
-      <Notice tone="accent" title={t('plan.state.notComparedTitle')}><p>{t('plan.state.notCompared')}</p></Notice>
+      <Notice tone="accent" title={t('plan.state.notComparedTitle')} info={t('plan.state.notComparedInfo')}><p>{t('plan.state.notCompared')}</p></Notice>
     )
   }
   const { epss, recent } = plan.data
@@ -164,7 +166,7 @@ export function PlanDataState({ plan, compact = false }: { plan: Plan; compact?:
   const feedsLink = <Link to="/settings/feeds" className="text-accent underline underline-offset-4" />
   if (epss === 'off' && recent === 'off') {
     return compact ? <p className="text-sm text-muted"><Trans t={t} i18nKey="plan.state.offShort" components={{ a: feedsLink }} /></p> : (
-      <Notice tone="off" title={t('plan.state.offTitle')} actions={<Link to="/settings/feeds" className="text-sm text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link>}>
+      <Notice tone="off" title={t('plan.state.offTitle')} info={t('plan.state.offBodyInfo')} actions={<Link to="/settings/feeds" className="text-sm text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link>}>
         <p>{t('plan.state.offBody')}</p>
       </Notice>
     )
@@ -174,7 +176,7 @@ export function PlanDataState({ plan, compact = false }: { plan: Plan; compact?:
   if (loading.length) parts.push(t('plan.state.loading', { feeds: loading.map(name).join(t('plan.and')) }))
   if (!parts.length) return null
   return compact ? <p className="text-sm text-muted">{parts.join(' ')} <Link to="/settings/feeds" className="text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link></p> : (
-    <Notice tone="off" title={t('plan.state.partialTitle')} actions={<Link to="/settings/feeds" className="text-sm text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link>}>
+    <Notice tone="off" title={t('plan.state.partialTitle')} info={loading.length ? t('plan.state.loadingInfo') : undefined} actions={<Link to="/settings/feeds" className="text-sm text-accent underline underline-offset-4">{t('plan.state.openFeeds')}</Link>}>
       <p>{parts.join(' ')}</p>
     </Notice>
   )

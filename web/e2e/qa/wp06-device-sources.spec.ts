@@ -54,7 +54,10 @@ for (const theme of THEMES) {
     // the page's own explanation of the rule must match the priority rule
     await page.goto('/devices/a-fw01?tab=observations')
     await expect(page.getByRole('heading', { name: 'All observations' })).toBeVisible()
-    const intro = await page.locator('main').innerText()
+    // #824: the explanation is behind the section's ⓘ; read it from the ⓘ's description, one line per paragraph
+    const why = page.getByRole('button', { name: 'About All observations', exact: true })
+    const behind = await why.evaluate((b) => Array.from(document.getElementById(b.getAttribute('aria-describedby') ?? '')?.querySelectorAll('p') ?? []).map((x) => x.textContent ?? '').join('\n'))
+    const intro = `${await page.locator('main').innerText()}\n${behind}`
     const line = intro.split('\n').find((l) => /kept for comparison/i.test(l) && /Vedette uses/i.test(l)) ?? ''
     console.log('EXPLANATION', line)
     expect.soft(line, 'the explanation says "highest confidence"; the rule is source priority (manual > agent > SNMP > scan > passive)').not.toMatch(/highest confidence/i)

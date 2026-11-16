@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Copy, FlaskConical, Pencil, Play, Plus, Trash2 } from 'lucide-react'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, Panel, Section } from '@/components/common/PageHeader'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
@@ -32,7 +33,7 @@ function LiveDialog({ rule, onClose }: { rule: Rule; onClose: () => void }) {
     <Dialog open onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent title={toLive ? t('rules.liveTitle') : t('rules.dryTitle')} description={rule.name}>
         <p className="text-sm">{toLive ? t('rules.liveBody') : t('rules.dryBody')}</p>
-        {toLive && rule.pre_approved ? <Notice tone="danger" role="alert" className="mb-0" title={t('editor.preWarning')} /> : null}
+        {toLive && rule.pre_approved ? <Notice tone="danger" role="alert" className="mb-0" title={t('editor.preWarning')} info={t('editor.preWarningInfo')} /> : null}
         <DialogFooter>
           <Button onClick={onClose}>{t('common:cancel')}</Button>
           <Button variant={toLive ? 'danger' : 'primary'} disabled={save.isPending} onClick={() => save.mutate({ id: rule.id, rule: { ...toInput(rule), live: toLive } }, { onSuccess: () => { toast.success(toLive ? t('rules.nowLive') : t('rules.nowDry')); onClose() }, onError: (e) => toast.error(errText(e)) })}>{toLive ? t('rules.goLive') : t('rules.backToDry')}</Button>
@@ -103,13 +104,13 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
           <dd><ol className="grid gap-0.5">{rule.actions.map((a, i) => <li key={i}>{i + 1}. {name(a.action_id)} <span className="text-muted">({a.ttl_min ? t('rules.undoIn', { time: mins(a.ttl_min) }) : t('rules.noUndoTime')})</span></li>)}</ol></dd></div>
       </dl>
       <p className="text-[12px] text-muted">{t('rules.limit', { n: rule.max_per_hour })} {rule.last_fired ? t('rules.lastFired', { time: fmtDateTime(rule.last_fired) }) : t('rules.neverFired')}</p>
-      {!rule.live && rule.enabled ? <p className="text-[13px] text-muted">{t('rules.dryNote')}</p> : null}
+      {!rule.live && rule.enabled ? <div className="flex items-center gap-1 text-[13px] text-muted"><p>{t('rules.dryNote')}</p><InfoTip topic={t('rules.dryRun')}>{t('rules.dryNoteInfo')}</InfoTip></div> : null}
       {rule.trigger === 'manual' ? <ManualRun rule={rule} /> : null}
       {result ? <SimResult s={result} /> : null}
       {live ? <LiveDialog rule={rule} onClose={() => setLive(false)} /> : null}
       {confirmDel ? (
         <Dialog open onOpenChange={(o) => { if (!o) setConfirmDel(false) }}>
-          <DialogContent title={t('rules.deleteTitle', { name: rule.name })} description={t('rules.deleteBody')}>
+          <DialogContent title={t('rules.deleteTitle', { name: rule.name })} description={t('rules.deleteBody')} info={t('rules.deleteBodyInfo')}>
             {del.error ? <Notice tone="danger" role="alert" className="mb-0" title={errText(del.error)} /> : null}
             <DialogFooter>
               <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
@@ -131,7 +132,7 @@ function Templates() {
   const noHoneypot = useModuleAvailable('honeypot') === false
   const unavailable = (trigger: string) => trigger === 'honeypot' && noHoneypot
   return (
-    <Section id="templates" title={t('templates.title')} description={t('templates.description')} stories={['S-RESP-3']}>
+    <Section id="templates" title={t('templates.title')} description={t('templates.description')} info={t('templates.descriptionInfo')} stories={['S-RESP-3']}>
       {q.isPending ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : (
         <ul className="grid gap-3 md:grid-cols-2">
           {q.data.items.map((tp) => {
@@ -161,7 +162,7 @@ function Events() {
   const run = useRunRules()
   const noHoneypot = useModuleAvailable('honeypot') === false // D-390: the text does not promise honeypot touches where there are none
   return (
-    <Section title={t('det.title')} description={t(noHoneypot ? 'det.descriptionNoTraps' : 'det.description')} stories={['S-RESP-3']}
+    <Section title={t('det.title')} description={t('det.description')} info={t(noHoneypot ? 'det.descriptionNoTrapsInfo' : 'det.descriptionInfo')} stories={['S-RESP-3']}
       actions={import.meta.env.VITE_API_MOCK !== 'off' ? <Button disabled={!operator || run.isPending} title={!operator ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
         onClick={() => run.mutate(undefined, { onSuccess: (r) => toast.success(t('det.ran', r)), onError: (e) => toast.error(errText(e)) })}>{t('det.run')}</Button> : undefined}>
       {q.isPending ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : q.data.items.length ? (
@@ -183,7 +184,7 @@ function Events() {
               </table>
             </div>
           </Panel>
-          {import.meta.env.VITE_API_MOCK !== 'off' ? <p className="mt-2 text-[13px] text-muted">{t('det.previewNote')}</p> : null}
+          {import.meta.env.VITE_API_MOCK !== 'off' ? <div className="mt-2 flex items-center gap-1 text-[13px] text-muted"><p>{t('det.previewNote')}</p><InfoTip topic={t('det.title')}>{t('det.previewNoteInfo')}</InfoTip></div> : null}
         </>
       ) : <p className="text-sm text-muted">{t('det.empty')}</p>}
     </Section>
@@ -199,7 +200,7 @@ export function RulesTab() {
   if (rules.error) return <ErrorState error={rules.error} onRetry={() => void rules.refetch()} />
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
-      <Section title={t('rules.title')} description={t('rules.description')} stories={['S-RESP-3']}
+      <Section title={t('rules.title')} description={t('rules.description')} info={t('rules.descriptionInfo')} stories={['S-RESP-3']}
         actions={admin ? <Button variant="primary" onClick={() => setEdit('new')}><Plus className="size-4" aria-hidden />{t('rules.add')}</Button> : undefined}>
         <div className="grid gap-4">
           <p className="rounded-md border border-rule bg-surface px-4 py-3 text-sm">{t('rules.safetyNote')} {admin ? <Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link> : null}</p>

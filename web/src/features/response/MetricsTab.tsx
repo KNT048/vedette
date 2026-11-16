@@ -44,7 +44,7 @@ function TryProposal() {
   const type = chosen?.params[0] ?? 'ip'
   const preset = (p: 'good' | 'low' | 'fake') => { setOut(null); setF({ ...f, action: 'blocklist_add', value: ioc?.fields.dest_ip ?? '203.0.113.5', confidence: p === 'low' ? '0.6' : '0.9', kind: 'ioc_hit', evidence: p === 'fake' ? 'hit-does-not-exist' : ioc?.id ?? '' }) }
   return (
-    <Section title={t('try.title')} description={t('try.description')} stories={['S-RESP-2']}>
+    <Section title={t('try.title')} description={t('try.description')} info={t('try.descriptionInfo')} stories={['S-RESP-2']}>
       <Panel className="grid gap-4 p-4">
         <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => preset('good')}>{t('try.good')}</Button><Button size="sm" onClick={() => preset('low')}>{t('try.low')}</Button><Button size="sm" onClick={() => preset('fake')}>{t('try.fake')}</Button></div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -80,7 +80,7 @@ export function MetricsTab() {
       <Section title={t('metrics.title')} description={t('metrics.description')} stories={['S-RESP-2', 'S-AI-8']}>
         <div className="grid gap-4 lg:grid-cols-2"><StatBlock title={t('metrics.aiTitle')} s={m.data.ai} /><StatBlock title={t('metrics.rulesTitle')} s={m.data.rules} /></div>
       </Section>
-      <Section title={t('ai.title')} description={t('ai.description', { conf: s.min_confidence, days: s.repeat_days })} stories={['S-RESP-2']}>
+      <Section title={t('ai.title')} description={t('ai.description', { conf: s.min_confidence })} info={t('ai.descriptionInfo', { days: s.repeat_days })} stories={['S-RESP-2']}>
         <div className="grid gap-4">
           {s.quality.paused || s.gates.paused_at ? (
             <Notice tone="danger" role="alert" className="mb-0" title={t('ai.paused')}

@@ -60,7 +60,7 @@ export function DeepSection({ s }: { s: Snapshot }) {
     } },
   ]
   return (
-    <Section id="deep" title={t('deep.title')} description={t('deep.description')}>
+    <Section id="deep" title={t('deep.title')} description={t('deep.description')} info={t('deep.descriptionInfo')}>
       <DataTable caption={t('deep.caption')} data={rows} columns={cols} pageSize={20} rowTone={(r) => (r.vulns > 0 ? 'warn' : undefined)} />
     </Section>
   )

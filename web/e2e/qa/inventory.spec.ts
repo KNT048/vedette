@@ -511,11 +511,11 @@ test.describe('Admin: scan scope, sensor, agents', () => {
   test('Wazuh: read-only user steps, test connection errors, connect, sample sync, disconnect; nothing installed on agents', async ({ page }) => {
     await enableModule(page, 'agent-intake')
     await page.goto('/devices/setup?tab=agents')
-    await expect(page.getByText(/Nothing is installed on your agent machines/).first()).toBeVisible()
+    await expect(page.getByRole('button', { name: 'About Wazuh', exact: true })).toHaveAccessibleDescription(/Nothing is installed on your agent machines/) // #824: behind the section's ⓘ
     await page.getByRole('button', { name: 'Connect Wazuh' }).click()
     const dlg = page.getByRole('dialog')
-    await expect(dlg.getByText('agent:read', { exact: false }).first()).toBeVisible()
-    await expect(dlg.getByText('syscollector:read', { exact: false }).first()).toBeVisible()
+    await expect(dlg.getByText('agent:read', { exact: false }).locator('visible=true').first()).toBeVisible()
+    await expect(dlg.getByText('syscollector:read', { exact: false }).locator('visible=true').first()).toBeVisible() // #824: the sentence naming the rights is behind the steps' ⓘ; the policy command shows them
     await shot(page, 'inventory', 'wazuh-connect')
     await dlg.getByLabel('Wazuh server API address', { exact: true }).fill('http://wazuh-manager:55000')
     await dlg.getByLabel('API password', { exact: true }).fill('s3cret-pass')

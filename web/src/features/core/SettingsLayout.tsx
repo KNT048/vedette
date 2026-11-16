@@ -1,21 +1,26 @@
 import { useEffect, useRef } from 'react'
 import { Link, Navigate, NavLink, Outlet, useLocation, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { settingsSections } from '@/app/feature'
+import { settingsSections, type SettingsSection } from '@/app/feature'
 import { EmptyState, Loading, ModuleOff } from '@/components/common/States'
 import { useModules } from '@/lib/modules'
+import { PageModule, scopeOf } from '@/lib/v1'
 import { useMe, type Role } from '@/lib/session'
 import { cn } from '@/lib/utils'
 
 const RANK: Record<Role, number> = { viewer: 0, operator: 1, admin: 2 }
 
-/** Mục cài đặt người này được xem: đủ vai và module của mục đang bật. */
+/** The module a section belongs to for D-624: the one whose switch it holds (switchOf), else its own. */
+const ownerOf = (s: SettingsSection) => s.switchOf ?? s.module
+
+/** Mục cài đặt người này được xem: đủ vai, module của mục đang bật, và không thuộc module bản này không đưa ra (D-624, #819). */
 function useAllowed() {
   const me = useMe()
   const mods = useModules()
   if (!me.data || !mods.data) return { ready: false as const, list: [] }
   const on = new Set(mods.data.modules.filter((m) => m.enabled).map((m) => m.id))
-  return { ready: true as const, role: me.data.role, list: settingsSections.filter((s) => RANK[me.data!.role] >= RANK[s.minRole] && on.has(s.module)), on }
+  const hidden = (s: SettingsSection) => scopeOf(ownerOf(s), on.has(ownerOf(s))) === 'hidden'
+  return { ready: true as const, role: me.data.role, list: settingsSections.filter((s) => RANK[me.data!.role] >= RANK[s.minRole] && on.has(s.module) && !hidden(s)), on, hidden }
 }
 
 export function SettingsLayout() {
@@ -79,7 +84,8 @@ export function SettingsRoute() {
     return <EmptyState title={t('settings.needRole.title', { name: t(s.label) })}>{t('settings.needRole.body', { role: t(`common:role.${s.minRole}`) })}</EmptyState>
   }
   if (!a.on.has(s.module)) return <ModuleOff module={s.module} />
-  return <>{s.element}</>
+  if (a.hidden(s)) return <ModuleOff module={ownerOf(s)} />
+  return <PageModule.Provider value={ownerOf(s)}>{s.element}</PageModule.Provider>
 }
 
 /** W1-26, D-540: My account is a Settings section; the old /account (links, bookmarks, SSO `next`) lands there with its ?query and #anchor. */

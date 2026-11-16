@@ -4,11 +4,13 @@ import { Section } from '@/components/common/PageHeader'
 import { useModuleEnabled } from '@/lib/modules'
 import { usePlans } from './api'
 import { PlanView } from './parts'
+import { FrozenCtx, useLeaving } from './frozen'
 
 /** Slot `finding.panels` (S-RESP-1): the AI response plan for this finding, when it is an open critical one. */
 export default function FindingPanel({ findingId }: Record<string, unknown>) {
   const { t } = useTranslation('response')
   const on = useModuleEnabled('response')
+  const leaving = useLeaving() // D-624 (#819): no new request from a plan on a box that had it on before v1
   const id = String(findingId ?? '')
   const q = usePlans(id, on === true) // a module that is off is not called (W10-1): no request, no 404 in the console
   const plan = q.data?.items[0]
@@ -16,7 +18,7 @@ export default function FindingPanel({ findingId }: Record<string, unknown>) {
   return (
     <Section id="response" title={t('panel.title')} description={t('panel.description')} stories={['S-RESP-1']}
       actions={<Link to="/response" className="text-[13px] text-accent underline-offset-4 hover:underline">{t('panel.open')}</Link>}>
-      <PlanView plan={plan} />
+      <FrozenCtx.Provider value={leaving}><PlanView plan={plan} /></FrozenCtx.Provider>
     </Section>
   )
 }

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Plus, Trash2 } from 'lucide-react'
-import { PageHeader, Section } from '@/components/common/PageHeader'
+import { KeyValue, PageHeader, Section } from '@/components/common/PageHeader'
+import { ScopeLine } from '@/components/common/V1Scope'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { InfoTip } from '@/components/common/InfoTip'
@@ -13,6 +14,7 @@ import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select } from '@/components/ui/input'
 import { fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
+import { useScope } from '@/lib/v1'
 import { ApiError } from '@/lib/api'
 import { useMe, type Role } from '@/lib/session'
 import { useOidc, useOidcMutations, useToggleModule, useUserMutations, useUsers } from './api'
@@ -64,7 +66,7 @@ function AddDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenCha
   )
 }
 
-function OidcPanel() {
+function OidcPanel({ leaving }: { leaving: boolean }) {
   const { t } = useTranslation('core')
   const on = useModuleEnabled('auth-oidc')
   const toggle = useToggleModule()
@@ -90,14 +92,28 @@ function OidcPanel() {
   const n = q.data.sso_users
   return (
     <>
-      <OidcForm cfg={q.data} onDisable={() => setAskOff(true)} />
+      {leaving ? <OidcLocked cfg={q.data} onDisable={() => setAskOff(true)} busy={toggle.isPending} /> : <OidcForm cfg={q.data} onDisable={() => setAskOff(true)} />}
       {/* D-196 (5): turning SSO off locks out the people who only sign in through it, so say how many first. */}
       <Dialog open={askOff} onOpenChange={setAskOff}>
-        <DialogContent title={t('oidc.offAsk.title')} description={n > 0 ? t('oidc.offAsk.bodyUsers', { count: n }) : t('oidc.offAsk.body')} info={t('oidc.offAsk.keptInfo')}>
+        <DialogContent title={t('oidc.offAsk.title')} info={t('oidc.offAsk.keptInfo')}
+          description={leaving ? (n > 0 ? t('oidc.offAsk.bodyUsersHidden', { count: n }) : t('oidc.offAsk.bodyHidden')) : n > 0 ? t('oidc.offAsk.bodyUsers', { count: n }) : t('oidc.offAsk.body')}>
           <DialogFooter><Button onClick={() => setAskOff(false)}>{t('common:cancel')}</Button><Button variant="danger" disabled={toggle.isPending} onClick={() => void enable(false)}>{t('oidc.disable')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+/** D-624 (#819): SSO is left out of v1. A box that has it on keeps signing people in through it; the settings are shown, not
+ *  edited, and the one action left is turning it off (with the same lock-out warning). */
+function OidcLocked({ cfg, onDisable, busy }: { cfg: OidcConfig; onDisable: () => void; busy: boolean }) {
+  const { t } = useTranslation('core')
+  return (
+    <div className="grid max-w-xl gap-3">
+      <ScopeLine scope="leaving" />
+      <KeyValue items={[{ label: t('oidc.issuer'), value: <span className="break-all font-mono text-[12.5px]">{cfg.issuer || '–'}</span> }, { label: t('oidc.clientId'), value: <span className="break-all font-mono text-[12.5px]">{cfg.client_id || '–'}</span> }]} />
+      <div><Button variant="danger" onClick={onDisable} disabled={busy}>{t('oidc.disable')}</Button></div>
+    </div>
   )
 }
 
@@ -193,6 +209,7 @@ export default function UsersSection() {
   const me = useMe().data
   const q = useUsers()
   const m = useUserMutations()
+  const oidcScope = useScope('auth-oidc')
   const [adding, setAdding] = useState(false)
   const [temp, setTemp] = useState<{ email: string; password: string; kind: 'create' | 'reset' } | null>(null)
   const [askReset, setAskReset] = useState<AdminUser | null>(null)
@@ -256,7 +273,7 @@ export default function UsersSection() {
       </QueryState>
 
       <div className="mt-8">
-        <Section title={t('oidc.title')} description={t('oidc.desc')} info={t('oidc.descInfo')} stories={['S-CORE-3']}><OidcPanel /></Section>
+        {oidcScope === 'hidden' ? null : <Section title={t('oidc.title')} description={t('oidc.desc')} info={t('oidc.descInfo')} stories={['S-CORE-3']}><OidcPanel leaving={oidcScope === 'leaving'} /></Section>}
       </div>
 
       <AddDialog open={adding} onOpenChange={setAdding} onCreated={(u, p) => setTemp({ email: u.email, password: p, kind: 'create' })} />

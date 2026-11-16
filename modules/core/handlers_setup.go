@@ -26,10 +26,12 @@ import (
 )
 
 // Module bundles of the first-run setup (spec A6 step 3). Keep them equal to web/src/features/core/bundles.ts:
-// TestBundlesMatchTheWebList fails when they drift.
+// TestBundlesMatchTheWebList fails when they drift. A bundle turns on v1 modules only (supervisor 2026-11-16, SHIP.md, D-624):
+// the preview modules (scan, honeypot, logs, ai, reports) are turned on one by one by the customer, and the post-v1 ones are
+// never offered.
 var (
-	bundleSMB = []string{"core", "feeds", "inventory", "notify", "sensor-passive", "findings", "mitigation", "honeypot", "reports"}
-	bundleMid = append(slices.Clone(bundleSMB), "sensor-active", "scan", "exposure", "logs", "ai")
+	bundleSMB = []string{"core", "feeds", "inventory", "notify", "sensor-passive", "findings", "mitigation"}
+	bundleMid = append(slices.Clone(bundleSMB), "sensor-active", "exposure")
 )
 
 // Error codes of the setup operations, besides those of core/auth and modreg.

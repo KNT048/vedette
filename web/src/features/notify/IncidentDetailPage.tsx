@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
+import { useScope } from '@/lib/v1'
 import { useIncident, useSetStatus } from './api'
 import { IncidentStatusChip, MessagePreview, NotSentFix, kindKey } from './shared'
 import type { IncidentDetail, IncidentStatus, SendRecord } from './types'
@@ -57,6 +58,7 @@ function Content() {
   const { id = '' } = useParams()
   const q = useIncident(id)
   const admin = useCan('admin') // the fix links open Settings, Alert channels: an admin's page
+  const respond = useScope('response') !== 'hidden' // D-624 (#819): the response module is not offered in v1
   return (
     <QueryState query={q}>
       {(d) => {
@@ -73,7 +75,7 @@ function Content() {
           <>
             <p className="mb-3 text-sm"><Link to="/incidents" className={link}>{t('detail.back')}</Link></p>
             <PageHeader title={a.title} meta={t('detail.meta', { time: fmtDateTime(a.first_seen) })} stories={['S-ALERT-3']}
-              actions={<Link to={`/response?incident=${encodeURIComponent(a.id)}`} className="inline-flex h-9 items-center rounded-md border border-rule px-3 text-sm font-medium text-accent hover:bg-sunken">{t('detail.respond')}</Link>} />
+              actions={respond ? <Link to={`/response?incident=${encodeURIComponent(a.id)}`} className="inline-flex h-9 items-center rounded-md border border-rule px-3 text-sm font-medium text-accent hover:bg-sunken">{t('detail.respond')}</Link> : undefined} />
             <Section id="summary" title={t('detail.summary')}>
               <KeyValue items={[
                 { label: t('detail.kind'), value: t(kindKey(a)) },

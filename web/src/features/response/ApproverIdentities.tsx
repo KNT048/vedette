@@ -18,6 +18,7 @@ import { Field, Input } from '@/components/ui/input'
 import { PreviewCode } from '@/features/core/parts'
 import { useCountdown } from '@/features/core/useCountdown'
 import { errText } from './api'
+import { useLeaving } from './frozen'
 import type { CodeSent, Identity, IdentityList } from './types'
 
 const enc = encodeURIComponent
@@ -41,6 +42,7 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
   const [err, setErr] = useState<string | null>(null)
   const [sent, setSent] = useState<CodeSent | null>(null)
   const cooldown = useCountdown()
+  const frozen = useLeaving()
   const id = `ident-${r.channel}`
   async function send() {
     setErr(null)
@@ -64,6 +66,18 @@ function Row({ r, m }: { r: Identity; m: ReturnType<typeof useIdentities> }) {
     } catch (e) { setErr(errText(e)) }
   }
   const askCode = sent || r.code_waiting
+  // D-624 (M2): while AI response is on but not offered, a link can be removed and none added: an unlinked row shows its state only
+  if (frozen && !r.linked) {
+    return (
+      <li className="grid gap-2 rounded-md border border-rule bg-surface p-4" aria-labelledby={`${id}-title`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p id={`${id}-title`} className="text-sm"><span className="font-semibold">{r.label}</span> <span className="break-all font-mono text-[13px] text-muted">{r.address}</span></p>
+          <Chip tone="off">{t('identity.notLinked')}</Chip>
+        </div>
+        <p className="text-[13px] text-muted">{t('leaving.noNewLink')}</p>
+      </li>
+    )
+  }
   if (r.method === 'send_code' && !r.linked) {
     return (
       <li className="grid gap-3 rounded-md border border-rule bg-surface p-4" aria-labelledby={`${id}-title`}>

@@ -7,6 +7,7 @@ import { Loading } from '@/components/common/States'
 // D-40, D-41, D-44, D-46, D-47, D-48. Public route approve/:token is the page behind an emailed approval link.
 const ResponseSettings = lazy(() => import('./ResponseSettings'))
 const FindingPanel = lazy(() => import('./FindingPanel'))
+const ModulesDisableNote = lazy(() => import('./Leaving').then((m) => ({ default: m.ModulesDisableNote })))
 const wrap = (C: ComponentType<Record<string, unknown>>): ComponentType<Record<string, unknown>> =>
   function Wrapped(props) { return <Suspense fallback={<Loading />}><C {...props} /></Suspense> }
 
@@ -21,5 +22,6 @@ export const feature: Feature = {
   ],
   nav: [{ to: '/response', label: 'response:nav.response', icon: Siren, module: 'response', group: 'detect', order: 30 }],
   settings: [{ id: 'response', label: 'response:settings.nav', module: 'response', minRole: 'admin', order: 45, element: <Suspense fallback={<Loading />}><ResponseSettings /></Suspense> }],
-  slots: { 'finding.panels': wrap(FindingPanel) },
+  // modules.disable: what stays in force, in the Settings → Modules turn-off dialog (CONTRACT "Khi tắt module", D-624)
+  slots: { 'finding.panels': wrap(FindingPanel), 'modules.disable': wrap(ModulesDisableNote) },
 }

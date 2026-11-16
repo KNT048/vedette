@@ -14,6 +14,7 @@ import { useModules } from '@/lib/modules'
 import { useHits, useOverview, useTestHit } from './api'
 import { hitName } from './hitName'
 import { RespondLink } from './hitParts'
+import { useScope } from '@/lib/v1'
 import TrapIpsTab from './TrapIps'
 import TokensSection from './Tokens'
 import CoverageSection from './Coverage'
@@ -188,6 +189,7 @@ function ExclusionSection({ data }: { data: HpOverview }) {
 
 export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn?: boolean }) {
   const { t } = useTranslation('honeypot')
+  const respond = useScope('response') !== 'hidden' // D-624 (#819): no Respond link while the response module is hidden
   const columns: ColumnDef<Hit>[] = [
     { id: 'ts', header: t('hits.col.time'), accessorFn: (r) => r.ts, cell: ({ row }) => (
       <Link className="whitespace-nowrap text-accent underline-offset-4 hover:underline" to={`/honeypot/hits/${row.original.id}`}>{fmtDateTime(row.original.ts)}</Link>
@@ -206,7 +208,7 @@ export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn
       return <span className="text-muted">{h.is_test ? t('hits.deviceBox') : t('hits.deviceUnknown')}</span>
     } },
     { id: 'excerpt', header: t('hits.col.excerpt'), enableSorting: false, accessorFn: (r) => r.excerpt, cell: ({ row }) => <span className="block max-w-xs truncate text-[13px] text-muted" title={row.original.excerpt}>{row.original.excerpt}</span> },
-    { id: 'respond', header: t('hits.col.respond'), enableSorting: false, cell: ({ row }) => <RespondLink h={row.original} /> },
+    ...(respond ? [{ id: 'respond', header: t('hits.col.respond'), enableSorting: false, cell: ({ row }) => <RespondLink h={row.original} /> } satisfies ColumnDef<Hit>] : []),
   ]
   return (
     <DataTable caption={t('hits.caption')} data={items} columns={columns}
@@ -219,7 +221,7 @@ export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn
           <p className="text-sm">{hitName(t, h)} {h.port ? <span className="text-[12px] text-muted tabular-nums">{h.port}</span> : null}</p>
           <p className="text-[13px]">{t('hits.col.trapIp')}: {h.trap_hostname || h.trap_ip}{h.kind === 'service' && h.trap_hostname ? <span className="text-muted tabular-nums"> {h.trap_ip}</span> : null}</p>
           <p className="text-[13px] text-muted">{h.src_ip} · {h.src_name ?? (h.is_test ? t('hits.deviceBox') : t('hits.deviceUnknown'))}</p>
-          <RespondLink h={h} />
+          {respond ? <RespondLink h={h} /> : null}
         </div>
       )}
       filterPlaceholder={t('hits.filter')} initialSort={[{ id: 'ts', desc: true }]}

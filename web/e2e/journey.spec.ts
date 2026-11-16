@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { collectErrors } from './helpers'
+import { collectErrors, PREVIEW_NAMES, turnOnModules } from './helpers'
 
 // Real-user journey across modules on a clean install (no sample data). Desktop only; the module specs cover phones.
 test.skip(({ isMobile }) => isMobile, 'desktop journey')
@@ -27,6 +27,7 @@ async function cleanInstall(page: Page, lan: string) {
   // The setup page has its own heading: wait until the app lands on Home, after the scope is saved
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
+  await turnOnModules(page, PREVIEW_NAMES) // D-624: a bundle turns on v1 modules only
 }
 
 test('clean install, then manage subnets', async ({ page }) => {

@@ -20,6 +20,8 @@ import { CatalogEditor } from './CatalogEditor'
 import { EmergencyStop } from './parts'
 import { NeverTouch } from './NeverTouch'
 import type { SettingsView, Window } from './types'
+import { ConfirmExecutionOff, Frozen, TurnOffResponse } from './Leaving'
+import { FrozenCtx, useLeaving } from './frozen'
 
 /** The only way to turn execution on (D-41): admin, two-step sign-in, the exact phrase. Also opened by the guided setup of the inbox (D-513). */
 export function EnableDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
@@ -146,19 +148,23 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
   const set = useSetExecution()
   const reset = useResetBreaker()
   const [open, setOpen] = useState(false)
+  const leaving = useLeaving() // D-624 (#819): no new action; execution can be turned off, Emergency stop stays (frozen.ts)
+  const [askOff, setAskOff] = useState(false) // N-H1: on a frozen box turning execution off is one-way for device changes
+  const off = () => set.mutate({ enabled: false }, { onSuccess: () => { setAskOff(false); toast.success(t('enable.off')) }, onError: (e) => { setAskOff(false); toast.error(errText(e)) } })
   if (q.isPending) return <Loading />
   if (q.error) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
   const s = q.data
   return (
     <>
-      {embedded ? <div className="mb-4 flex max-w-3xl items-center gap-1 text-[13px] text-muted"><p>{t('settings.description')}</p><InfoTip topic={t('settings.title')}>{t('settings.descriptionInfo')}</InfoTip></div> : <PageHeader title={t('settings.title')} meta={t('settings.description')} info={t('settings.descriptionInfo')} stories={['S-RESP-2', 'S-RESP-4']} />}
+      {embedded ? <div className="mb-4 flex max-w-3xl items-center gap-1 text-[13px] text-muted"><p>{t('settings.description')}</p><InfoTip topic={t('settings.title')}>{t('settings.descriptionInfo')}</InfoTip></div> : <PageHeader title={t('settings.title')} meta={t('settings.description')} info={t('settings.descriptionInfo')} stories={['S-RESP-2', 'S-RESP-4']} actions={leaving ? <TurnOffResponse /> : undefined} />}
+      <FrozenCtx.Provider value={leaving}>
       <section>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <Notice tone="danger" className="mb-0" title={t('risk.banner')} info={t('risk.bannerInfo')} />
           <Panel className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div className="flex items-center gap-3">
-              <Switch id="resp-exec" checked={s.execution} disabled={set.isPending}
-                onCheckedChange={(v) => (v ? setOpen(true) : set.mutate({ enabled: false }, { onSuccess: () => toast.success(t('enable.off')), onError: (e) => toast.error(errText(e)) }))} />
+              <Switch id="resp-exec" checked={s.execution} disabled={set.isPending || (leaving && !s.execution)} title={leaving && !s.execution ? t('leaving.frozen') : undefined}
+                onCheckedChange={(v) => (v ? setOpen(true) : leaving ? setAskOff(true) : off())} />
               <label htmlFor="resp-exec" className="grid text-sm"><span className="font-medium">{t('settings.switch')}</span>
                 <span className="text-[13px] text-muted">{s.execution ? t('settings.on', { who: s.accepted_by ?? '', time: fmtDateTime(s.accepted_at) }) : t('settings.off')}</span></label>
             </div>
@@ -166,15 +172,19 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
           </Panel>
           {s.breaker_tripped_at || s.stopped_at ? (
             <Notice tone="danger" role="alert" className="mb-0" title={t('safety.tripped')}
-              actions={<Button disabled={reset.isPending} onClick={() => reset.mutate(undefined, { onSuccess: () => toast.success(t('safety.resumed')), onError: (e) => toast.error(errText(e)) })}>{t('safety.resume')}</Button>}>
+              actions={leaving ? undefined : <Button disabled={reset.isPending} onClick={() => reset.mutate(undefined, { onSuccess: () => toast.success(t('safety.resumed')), onError: (e) => toast.error(errText(e)) })}>{t('safety.resume')}</Button>}>
               {s.stopped_at ? t('safety.stoppedBody', { time: fmtDateTime(s.stopped_at) }) : t('safety.trippedBody', { max: s.breaker_max_per_hour, time: fmtDateTime(s.breaker_tripped_at), who: s.breaker_notified.join(', ') })}
             </Notice>
           ) : null}
-          <Form key={JSON.stringify([s.max_per_hour, s.expiry_min, s.approval_channels, s.channels.map((c) => [c.type, c.ready]), s.breaker_max_per_hour, s.multi_target_max, s.maintenance, s.ai])} s={s} />
-          {embedded ? null : <><NeverTouch /><CatalogEditor /></>}
+          <Frozen on={leaving}>
+            <Form key={JSON.stringify([s.max_per_hour, s.expiry_min, s.approval_channels, s.channels.map((c) => [c.type, c.ready]), s.breaker_max_per_hour, s.multi_target_max, s.maintenance, s.ai])} s={s} />
+            {embedded ? null : <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-4"><NeverTouch /><CatalogEditor /></div>}
+          </Frozen>
         </div>
       </section>
+      </FrozenCtx.Provider>
       <EnableDialog open={open} onOpenChange={setOpen} />
+      {leaving ? <ConfirmExecutionOff open={askOff} onOpenChange={setAskOff} title={t('leaving.execOffTitle')} confirmLabel={t('leaving.execOffConfirm')} busy={set.isPending} onConfirm={off} /> : null}
     </>
   )
 }

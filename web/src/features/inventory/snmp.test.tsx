@@ -5,7 +5,7 @@ import { http, HttpResponse } from 'msw'
 import { renderApp } from '@/test/render'
 import { server } from '@/test/server'
 import { assetsStore, auditStore, modulesStore, sessionStore } from '@/mocks/stores'
-import { ensureBox } from './mocks'
+import { ensureBox, snmpStore } from './mocks'
 
 // S-INV-1, D-512: SNMP credentials on Devices → Scope and sensors (/devices/setup?tab=snmp; the old #snmp opens that tab, D-519).
 vi.setConfig({ testTimeout: 30_000 })
@@ -154,6 +154,33 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     const r = await call('POST', `/snmp/${id}/test`, { ip: '192.168.10.203' })
     expect(r.json).toMatchObject({ ok: false, reason: 'not_approved', device_id: 'a-prn03', answer: null })
     expect(r.json!.message).toContain('is not approved yet')
+  })
+
+  it('#868: a credential whose secret was not restored says so, Test and Read now answer 409 secret_lost, and Edit with the passwords typed again fixes it', async () => {
+    snmpStore.update((l) => l.map((x) => (x.id === 'snmp-1' ? { ...x, secret_lost: true } : x)))
+    expect((await call('GET', '/snmp')).json!.credentials[0]).toMatchObject({ id: 'snmp-1', secret_lost: true })
+    for (const [path, body] of [['/snmp/snmp-1/test', { ip: '192.168.10.3' }], ['/snmp/snmp-1/read', undefined]] as const) {
+      const r = await call('POST', path, body)
+      expect(r.status).toBe(409)
+      expect(r.json).toMatchObject({ error: { code: 'secret_lost' } })
+    }
+    const kept = await call('PUT', '/snmp/snmp-1', { name: 'Core switches (v3)', version: 'v3', username: 'vedette-ro', auth: 'sha256', priv: 'aes128', scope: ['192.168.10.0/24'] })
+    expect(kept.status).toBe(409)
+    const user = userEvent.setup()
+    renderApp('/devices/setup?tab=snmp')
+    const li = await row('Core switches (v3)')
+    expect(within(li).getByRole('alert')).toHaveTextContent('The saved community or password was not restored')
+    await clickUntil(user, () => within(li).getByRole('button', { name: 'Edit Core switches (v3)' }), () => screen.getByRole('dialog'))
+    const dialog = await screen.findByRole('dialog', T)
+    expect(dialog).not.toHaveTextContent('Leave blank to keep the saved one.') // nothing that cannot be opened is kept
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    expect(within(dialog).getAllByText('Enter the password, 8 characters or more.')).toHaveLength(2)
+    await user.type(within(dialog).getByLabelText('Authentication password'), 'new-auth-pass')
+    await user.type(within(dialog).getByLabelText('Privacy password'), 'new-priv-pass')
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), T)
+    await waitFor(async () => expect(within(await row('Core switches (v3)')).queryByRole('alert')).toBeNull(), T)
+    expect((await call('GET', '/snmp')).json!.credentials[0]).toMatchObject({ id: 'snmp-1', secret_lost: false, secret_last4: 'pass' })
   })
 
   it('says why SNMP reads are not available, and adding still works', async () => {

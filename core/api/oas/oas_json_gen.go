@@ -172644,6 +172644,10 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) encodeFields(e *jx.Encoder)
 		e.Str(s.SecretLast4)
 	}
 	{
+		e.FieldStart("secret_lost")
+		e.Bool(s.SecretLost)
+	}
+	{
 		e.FieldStart("username")
 		s.Username.Encode(e)
 	}
@@ -172653,7 +172657,7 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) encodeFields(e *jx.Encoder)
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventorySnmpOKCredentialsItem = [12]string{
+var jsonFieldsNameOfInventoryGetInventorySnmpOKCredentialsItem = [13]string{
 	0:  "answered",
 	1:  "auth",
 	2:  "created_at",
@@ -172664,8 +172668,9 @@ var jsonFieldsNameOfInventoryGetInventorySnmpOKCredentialsItem = [12]string{
 	7:  "priv_last4",
 	8:  "scope",
 	9:  "secret_last4",
-	10: "username",
-	11: "version",
+	10: "secret_lost",
+	11: "username",
+	12: "version",
 }
 
 // Decode decodes InventoryGetInventorySnmpOKCredentialsItem from json.
@@ -172799,8 +172804,20 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"secret_last4\"")
 			}
-		case "username":
+		case "secret_lost":
 			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.SecretLost = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"secret_lost\"")
+			}
+		case "username":
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Username.Decode(d); err != nil {
 					return err
@@ -172810,7 +172827,7 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) Decode(d *jx.Decoder) error
 				return errors.Wrap(err, "decode field \"username\"")
 			}
 		case "version":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Version.Decode(d); err != nil {
 					return err
@@ -172830,7 +172847,7 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) Decode(d *jx.Decoder) error
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -178144,6 +178161,10 @@ func (s *InventoryPostInventorySnmpCreated) encodeFields(e *jx.Encoder) {
 		e.Str(s.SecretLast4)
 	}
 	{
+		e.FieldStart("secret_lost")
+		e.Bool(s.SecretLost)
+	}
+	{
 		e.FieldStart("username")
 		s.Username.Encode(e)
 	}
@@ -178153,7 +178174,7 @@ func (s *InventoryPostInventorySnmpCreated) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfInventoryPostInventorySnmpCreated = [12]string{
+var jsonFieldsNameOfInventoryPostInventorySnmpCreated = [13]string{
 	0:  "answered",
 	1:  "auth",
 	2:  "created_at",
@@ -178164,8 +178185,9 @@ var jsonFieldsNameOfInventoryPostInventorySnmpCreated = [12]string{
 	7:  "priv_last4",
 	8:  "scope",
 	9:  "secret_last4",
-	10: "username",
-	11: "version",
+	10: "secret_lost",
+	11: "username",
+	12: "version",
 }
 
 // Decode decodes InventoryPostInventorySnmpCreated from json.
@@ -178299,8 +178321,20 @@ func (s *InventoryPostInventorySnmpCreated) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"secret_last4\"")
 			}
-		case "username":
+		case "secret_lost":
 			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.SecretLost = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"secret_lost\"")
+			}
+		case "username":
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Username.Decode(d); err != nil {
 					return err
@@ -178310,7 +178344,7 @@ func (s *InventoryPostInventorySnmpCreated) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"username\"")
 			}
 		case "version":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Version.Decode(d); err != nil {
 					return err
@@ -178330,7 +178364,7 @@ func (s *InventoryPostInventorySnmpCreated) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -182181,6 +182215,10 @@ func (s *InventoryPutInventorySnmpIDOK) encodeFields(e *jx.Encoder) {
 		e.Str(s.SecretLast4)
 	}
 	{
+		e.FieldStart("secret_lost")
+		e.Bool(s.SecretLost)
+	}
+	{
 		e.FieldStart("username")
 		s.Username.Encode(e)
 	}
@@ -182190,7 +182228,7 @@ func (s *InventoryPutInventorySnmpIDOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfInventoryPutInventorySnmpIDOK = [12]string{
+var jsonFieldsNameOfInventoryPutInventorySnmpIDOK = [13]string{
 	0:  "answered",
 	1:  "auth",
 	2:  "created_at",
@@ -182201,8 +182239,9 @@ var jsonFieldsNameOfInventoryPutInventorySnmpIDOK = [12]string{
 	7:  "priv_last4",
 	8:  "scope",
 	9:  "secret_last4",
-	10: "username",
-	11: "version",
+	10: "secret_lost",
+	11: "username",
+	12: "version",
 }
 
 // Decode decodes InventoryPutInventorySnmpIDOK from json.
@@ -182336,8 +182375,20 @@ func (s *InventoryPutInventorySnmpIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"secret_last4\"")
 			}
-		case "username":
+		case "secret_lost":
 			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				v, err := d.Bool()
+				s.SecretLost = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"secret_lost\"")
+			}
+		case "username":
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				if err := s.Username.Decode(d); err != nil {
 					return err
@@ -182347,7 +182398,7 @@ func (s *InventoryPutInventorySnmpIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"username\"")
 			}
 		case "version":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				if err := s.Version.Decode(d); err != nil {
 					return err
@@ -182367,7 +182418,7 @@ func (s *InventoryPutInventorySnmpIDOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

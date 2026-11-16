@@ -58,7 +58,8 @@ func (r *SNMPRead) clone() SNMPRead {
 }
 
 // ReadSNMP starts a Read now of credential id (POST /inventory/snmp/{id}/read) and answers at once with the run. 409 when nothing can
-// be sent (scanning off, the scope not confirmed, SNMP unavailable) or another SNMP job runs (busy).
+// be sent (scanning off, the scope not confirmed, SNMP unavailable, a saved secret this box cannot open: secret_lost, #868) or another
+// SNMP job runs (busy).
 func (s *Service) ReadSNMP(ctx context.Context, actor, id string) (SNMPRead, error) {
 	// The module's stop generation before anything else, and the sticky off flag: a module turned off before or while the read is
 	// prepared answers 409 stopped, and one turned off later stops the next batch (snmpBatch checks off once registered; #855 r1 M2,
@@ -73,6 +74,11 @@ func (s *Service) ReadSNMP(ctx context.Context, actor, id string) (SNMPRead, err
 	cred, err := s.snmpRow(ctx, s.db.Reader(), id)
 	if err != nil {
 		return SNMPRead{}, err
+	}
+	if lost, err := s.snmpLost(ctx, s.db.Reader(), *cred); err != nil {
+		return SNMPRead{}, err
+	} else if lost {
+		return SNMPRead{}, snmpSecretLost()
 	}
 	st, err := s.inv.Settings(ctx)
 	if err != nil {
@@ -248,6 +254,8 @@ func (s *Service) runSNMPRead(ctx context.Context, run *SNMPRead, cred snmpRow, 
 		run.Status = StatusDone
 	case errors.Is(err, ErrStopped):
 		run.Status, run.Message = StatusStopped, "The read was stopped: the scan settings, a device or the credential changed, or the module was turned off."
+	case errors.Is(err, errSNMPSecretLost):
+		run.Status, run.Message = StatusFailed, snmpLostText+" Nothing more was sent."
 	case errors.Is(err, ErrSNMPUnavailable), errors.Is(err, ErrWorkerLost), errors.Is(err, context.DeadlineExceeded):
 		_, msg := s.SNMPStatus()
 		run.Status, run.Message = StatusFailed, "SNMP reads cannot run now: "+cmpOr(msg, "the scan worker did not finish the read in time")+"."

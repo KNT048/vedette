@@ -1395,8 +1395,8 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
     expect(await within(s).findByText('Starting')).toBeInTheDocument()
     expect(within(s).getByRole('button', { name: 'Turn off OpenVAS' })).toBeInTheDocument()
     expect(auditStore.get().some((a) => a.action === 'exposure.greenbone' && a.detail === 'enabled (memory 16.0 GB, free disk 180.0 GB)')).toBe(true)
-    // D-564 G6: the weekly feed update shows when it last ran and when the next one is due
-    expect(within(s).getByText('Not yet: the first one is a week after it is turned on')).toBeInTheDocument()
+    // D-564 G6: the weekly feed update shows when the next one is due; T10: the tests' line shows once OpenVAS was read (review L2)
+    expect(within(s).queryByText('Vulnerability tests')).toBeNull()
     expect(within(s).getByText('Next feed update')).toBeInTheDocument()
   })
 
@@ -1445,7 +1445,7 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
 
   it('loading its feed is a visible phase; only an administrator can change it', async () => {
     server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'loading', reason: 'OpenVAS is loading its feed (first time takes about 2 hours)', changed_by: 'admin@acme.example', changed_at: new Date().toISOString(),
-      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: null }, enabled: true })))
+      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: null }, feed: null, enabled: true })))
     renderApp('/exposure', { role: 'viewer' })
     const s = await section()
     expect(await within(s).findByText('OpenVAS is loading its feed (first time takes about 2 hours)')).toBeInTheDocument()
@@ -1454,16 +1454,31 @@ describe('exposure: optional deep scan with Greenbone (S-EXP-2, INV-25, D-563)',
 
   it('ready before its first weekly update: the first full feed load is done, never "not yet" (N45-4)', async () => {
     server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'ready', reason: null, changed_by: 'admin@acme.example', changed_at: '2026-11-14T13:00:00Z',
-      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: '2026-11-21T13:00:00Z' }, enabled: true })))
+      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: '2026-11-21T13:00:00Z' }, feed: null, enabled: true })))
     renderApp('/exposure')
     const s = await section()
     expect(await within(s).findByText(/^First full feed load done \(OpenVAS turned on .+\); the weekly update has not run yet$/)).toBeInTheDocument()
     expect(within(s).queryByText(/^Not yet: the first one/)).toBeNull()
   })
 
+  it('T10: shows the date of the tests OpenVAS loaded and the next update, never "not yet" for a working feed; the version is behind ⓘ', async () => {
+    server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'ready', reason: null, changed_by: 'admin@acme.example', changed_at: '2026-11-14T12:31:49Z',
+      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: '2026-11-21T12:31:49Z' },
+      feed: { nvt_version: '202611141200', nvt_date: '2026-11-14T12:00:00.000Z', checked_at: '2026-11-16T09:00:00.000Z' }, enabled: true })))
+    renderApp('/exposure')
+    const s = await section()
+    const tests = (await within(s).findByText('Vulnerability tests')).nextElementSibling as HTMLElement
+    expect(tests).toHaveTextContent(/^14 Nov 2026/)
+    const next = within(s).getByText('Next feed update').nextElementSibling as HTMLElement
+    expect(next).toHaveTextContent(/^21 Nov 2026, \d\d:\d\d$/)
+    expect(within(s).queryByText('Last feed update')).toBeNull()
+    expect(s).not.toHaveTextContent(/Not yet|not run yet|Not read/)
+    expect(within(tests).getByRole('button', { name: 'About Vulnerability tests' })).toHaveAccessibleDescription(/\(version 202611141200\)\..*once a week/)
+  })
+
   it('not available on this box: says so and offers nothing', async () => {
     server.use(http.get('*/api/v1/exposure/greenbone', () => HttpResponse.json({ state: 'unavailable', reason: 'OpenVAS is not available on this box.', changed_by: null, changed_at: null,
-      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: null }, enabled: false })))
+      preflight: { memory_bytes: 16e9, disk_free_bytes: 120e9, ok: true, reason: null }, feed_sync: { last_at: null, ok: null, note: null, next_at: null }, feed: null, enabled: false })))
     renderApp('/exposure')
     const s = await section()
     expect(await within(s).findByText('OpenVAS is not available on this box.')).toBeInTheDocument()

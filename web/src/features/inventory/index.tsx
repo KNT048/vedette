@@ -1,7 +1,12 @@
+import { lazy, Suspense } from 'react'
 import { Laptop } from 'lucide-react'
 import type { Feature } from '@/app/feature'
+import { Loading } from '@/components/common/States'
 
-// Module inventory (S-INV-1..4): danh sách thiết bị, chi tiết, khai tay, chưa duyệt, phạm vi và cảm biến, agent.
+const DeclaredSoftware = lazy(() => import('./DeclaredSoftwareSection'))
+
+// Module inventory (S-INV-1..4): danh sách thiết bị (Devices, To review), chi tiết, Add a device, phạm vi và cảm biến, agent;
+// Settings › Declared software (#849): sản phẩm khai mà không có thiết bị.
 export const feature: Feature = {
   id: 'inventory',
   routes: [
@@ -10,4 +15,5 @@ export const feature: Feature = {
     { path: 'devices/:id', lazy: () => import('./DevicePage').then((m) => ({ Component: m.default })) },
   ],
   nav: [{ to: '/devices', label: 'inventory:nav.devices', icon: Laptop, module: 'inventory', group: 'assets', order: 10 }],
+  settings: [{ id: 'declared-software', label: 'inventory:declaredPage.nav', module: 'inventory', minRole: 'viewer', order: 27, element: <Suspense fallback={<Loading />}><DeclaredSoftware /></Suspense> }],
 }

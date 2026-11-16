@@ -13,7 +13,7 @@ import type { ImportResult } from './types'
 
 const MAX_BYTES = 200_000
 
-function ImportForm({ onClose }: { onClose: () => void }) {
+export function ImportForm({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation('inventory')
   const input = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)

@@ -57,38 +57,64 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await expectNoA11yViolations()
   })
 
-  it('filters Approved in the last 24 h / Added by hand / Fragile (D-471, the filter lives in ?show=)', async () => {
+  it('#849: one search box with tokens and chips, kept in ?q=; the old ?show= links open the same filter', async () => {
     const user = userEvent.setup()
-    renderApp('/devices')
-    await deviceTable()
-    await user.click(screen.getByRole('button', { name: /^Approved in the last 24 h \(0\)$/ }))
-    let table = screen.getByRole('table', { name: DEVICE_TABLE })
-    expect(within(table).getByText(/No device was approved in the last 24 hours/)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /^Added by hand \(0\)$/ }))
+    renderApp('/devices?tab=all&show=recent') // the D-471 KPI link
+    let table = await deviceTable()
+    const box = screen.getByRole('combobox', { name: 'Search devices' })
+    await waitFor(() => expect(box).toHaveValue('approved:24h'), T)
+    expect(within(table).getByText('No rows match these filters.')).toBeInTheDocument()
+    await user.click(within(table).getByRole('button', { name: 'Clear filters' }))
+    await waitFor(() => expect(box).toHaveValue(''), T)
+    expect(screen.queryByRole('button', { name: /^Manual 0$/ })).toBeNull() // a chip that would show 0 is left out
+    await user.type(box, 'source:manual ')
     table = screen.getByRole('table', { name: DEVICE_TABLE })
-    expect(within(table).getByText(/No device added by hand yet/)).toBeInTheDocument()
-    const fragile = assetsStore.get().filter((a) => a.fragile).length
-    await user.click(screen.getByRole('button', { name: new RegExp(`^Fragile \\(${fragile}\\)$`) }))
+    expect(within(table).getByText('No rows match these filters.')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /^Manual 0/, pressed: true })) // shown while it is on, so it can be turned off
+    const fragile = assetsStore.get().filter((a) => a.fragile && a.approved).length
+    await user.click(screen.getByRole('button', { name: new RegExp(`^Fragile ${fragile}$`) }))
     table = screen.getByRole('table', { name: DEVICE_TABLE })
     expect(within(table).getAllByRole('row')).toHaveLength(fragile + 1)
+    expect(screen.getByRole('status')).toHaveTextContent(`${fragile} of `)
+    // a token typed by hand, offered by the list: type: then a value
+    await user.clear(box)
+    await user.type(box, 'type:')
+    const opts = await screen.findAllByRole('option', undefined, T)
+    expect(opts.map((o) => o.textContent)).toEqual(expect.arrayContaining([expect.stringMatching(/^type:switch/)]))
+    await user.click(screen.getAllByRole('option', { name: /^type:switch/ })[0]!)
+    await waitFor(() => expect(box).toHaveValue('type:switch '), T)
+    table = screen.getByRole('table', { name: DEVICE_TABLE })
+    expect(within(table).getByRole('link', { name: 'SW-CORE' })).toBeInTheDocument()
+    expect(within(table).queryByRole('link', { name: 'FW-HQ' })).toBeNull()
+    await expectNoA11yViolations()
+  })
+
+  it('#849: the two lists: Devices holds the approved, To review the rest; no Software or Add devices tab', async () => {
+    renderApp('/devices')
+    const table = await deviceTable()
+    expect(screen.getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Devices', 'To review 2 waiting for your approval'])
+    expect(within(table).queryByRole('link', { name: 'BROTHER-STORE' })).toBeNull() // not approved
+    expect(screen.queryByRole('list', { name: 'Devices at a glance' })).toBeNull() // no KPI links
   })
 
   it('the search box filters by maker', async () => {
     const user = userEvent.setup()
     renderApp('/devices')
     await deviceTable()
-    await user.type(screen.getByRole('textbox', { name: /Search by name, IP/ }), 'hikvision')
+    await user.type(screen.getByRole('combobox', { name: 'Search devices' }), 'hikvision')
     const table = screen.getByRole('table', { name: DEVICE_TABLE })
-    expect(within(table).getAllByRole('row')).toHaveLength(5) // 3 cameras + NVR + header
+    await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(5), T) // 3 cameras + NVR + header
   })
 
-  it('S-INV-2: declaring by hand: Add a device, type a few letters, pick a suggestion, Add', async () => {
+  it('S-INV-2: adding manually: Add a device (Manual is chosen), the address, a few letters, pick a suggestion, Add', async () => {
     const user = userEvent.setup()
     const before = assetsStore.get().length
     renderApp('/devices')
     await deviceTable()
     await user.click(screen.getByRole('button', { name: 'Add a device' })) // click 1
-    await user.type(await screen.findByRole('combobox', { name: 'Product' }), 'fortigate') // the list only appears once the user types
+    expect(await screen.findByRole('radio', { name: /^Manual/, checked: true }, T)).toBeInTheDocument()
+    await user.type(screen.getByLabelText('IP address'), '192.168.30.9')
+    await user.type(await screen.findByRole('combobox', { name: 'Product it runs' }), 'fortigate') // the list only appears once the user types
     const option = (await screen.findAllByRole('option', { name: /FortiGate/ }, T))[0]!
     await expectNoA11yViolations() // combobox is open
     await user.click(option) // click 2
@@ -98,7 +124,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const a = assetsStore.get()[0]!
     expect(a.origin).toBe('manual')
     expect(a.approved).toBe(true)
-    expect(a.ip).toBe('—')
+    expect(a.ip).toBe('192.168.30.9')
     expect(a.software[0]).toMatchObject({ vendor: 'Fortinet', source: 'manual', confidence: 1 })
     expect(a.software[0]!.kev).toContain('fortinet|fortios')
     expect(auditStore.get().some((e) => e.action === 'inventory.add_manual')).toBe(true)
@@ -109,13 +135,13 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     renderApp('/devices')
     await deviceTable()
     await user.click(screen.getByRole('button', { name: 'Add a device' }))
-    const box = await screen.findByRole('combobox', { name: 'Product' })
+    const box = await screen.findByRole('combobox', { name: 'Product it runs' })
     await user.type(box, 'tuong lua')
     expect((await screen.findAllByRole('option', { name: /FortiGate/ }, T)).length).toBeGreaterThan(0)
     await user.keyboard('{ArrowDown}{Enter}') // pick with the keyboard
-    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Product' })).toHaveAttribute('readonly'))
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Product it runs' })).toHaveAttribute('readonly'))
     await user.type(screen.getByLabelText(/Version/), '7.2.5')
-    await user.type(screen.getByLabelText(/^Name/), 'Branch firewall')
+    await user.type(screen.getByLabelText('Host name'), 'Branch firewall')
     await user.type(screen.getByLabelText(/IP address/), '192.168.30.1')
     await user.click(screen.getByRole('button', { name: 'Add' }))
     await waitFor(() => expect(assetsStore.get().find((x) => x.ip === '192.168.30.1')).toBeDefined(), T)
@@ -124,17 +150,20 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(a.software[0]!.version).toBe('7.2.5')
   })
 
-  it('manual add: a bad IP and a duplicate IP show an English error and nothing is added', async () => {
+  it('manual add: no address, a bad IP and a duplicate IP show an English error on the field and nothing is added (#829 item 2)', async () => {
     const user = userEvent.setup()
     const before = assetsStore.get().length
     renderApp('/devices')
     await deviceTable()
     await user.click(screen.getByRole('button', { name: 'Add a device' }))
-    await user.type(await screen.findByRole('combobox', { name: 'Product' }), 'mikrotik')
+    await user.type(await screen.findByRole('combobox', { name: 'Product it runs' }), 'mikrotik')
     await user.click((await screen.findAllByRole('option', { name: /MikroTik/ }, T))[0]!)
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    expect(await screen.findByText('Enter an IP address or a host name, so Vedette knows which device this is.', undefined, T)).toBeInTheDocument()
+    expect(screen.getByLabelText(/IP address/)).toHaveAttribute('aria-invalid', 'true')
     await user.type(screen.getByLabelText(/IP address/), '999.1.1.1')
     await user.click(screen.getByRole('button', { name: 'Add' }))
-    expect(await screen.findByRole('alert', undefined, T)).toHaveTextContent('That IP address is not valid')
+    expect(await screen.findByText(/^That IP address is not valid/, undefined, T)).toBeInTheDocument()
     await user.clear(screen.getByLabelText(/IP address/))
     await user.type(screen.getByLabelText(/IP address/), '192.168.10.1')
     await user.click(screen.getByRole('button', { name: 'Add' }))
@@ -149,7 +178,8 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await deviceTable()
     await user.click(screen.getByRole('button', { name: 'Add a device' }))
     await user.click(await screen.findByRole('button', { name: "Can't find it? Enter the maker and product yourself" }, T))
-    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(within(screen.getByRole('dialog')).queryByRole('combobox')).not.toBeInTheDocument()
+    await user.type(screen.getByLabelText('Host name'), 'branch-fw')
     await user.type(screen.getByLabelText('Maker'), 'Fortinet')
     expect(screen.getByRole('button', { name: 'Add' })).toBeDisabled() // product is still empty
     await user.type(screen.getByLabelText('Product'), 'FortiGate')
@@ -169,7 +199,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await user.click(screen.getByRole('button', { name: 'Add a device' }))
     await user.click(await screen.findByRole('button', { name: /Can't find it/ }, T))
     await user.click(screen.getByRole('button', { name: 'Back to the list' }))
-    expect(await screen.findByRole('combobox', { name: 'Product' }, T)).toBeInTheDocument()
+    expect(await screen.findByRole('combobox', { name: 'Product it runs' }, T)).toBeInTheDocument()
   })
 
   it('the Add dialog is titled "Add a device"; the first Escape closes only the suggestion list, the second closes the dialog', async () => {
@@ -179,7 +209,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await user.click(screen.getByRole('button', { name: 'Add a device' }))
     const dialog = await screen.findByRole('dialog', undefined, T)
     expect(within(dialog).getByRole('heading', { name: 'Add a device' })).toBeInTheDocument()
-    const box = within(dialog).getByRole('combobox', { name: 'Product' })
+    const box = within(dialog).getByRole('combobox', { name: 'Product it runs' })
     await user.click(box)
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument() // empty query: no list, only the hint
     expect(within(dialog).getByText(/Type a product, maker or model, for example fortigate 60f or synology\./)).toBeInTheDocument()
@@ -203,27 +233,129 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(screen.getByRole('switch', { name: 'Notify me about new devices' })).toBeDisabled()
   })
 
-  it('D-471: "Add devices" lists the five ways that exist, each with when to use it; setup links are for an admin', async () => {
+  it('#849: Add a device offers every method in one dialog; each method shows only its own form (form matrix)', async () => {
+    const user = userEvent.setup()
     enableModule('agent-intake', true)
-    renderApp('/devices?tab=add', { role: 'viewer' })
-    const ways = await screen.findByRole('region', { name: 'Add devices' }, T)
-    for (const title of ['Found on the network (automatic)', 'Add by hand', 'Import a CSV file', 'osquery agent on servers', 'Connect Wazuh']) {
-      expect(within(ways).getByRole('heading', { level: 2, name: title })).toBeInTheDocument()
+    renderApp('/devices?tab=add') // the old Add devices tab opens the dialog
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    const methods = within(dlg).getByRole('radiogroup', { name: 'How to add it' })
+    expect(within(methods).getAllByRole('radio').map((r) => r.closest('label')?.querySelector('.font-medium')?.textContent)).toEqual(['Manual', 'SNMP', 'osquery', 'Wazuh', 'CSV import'])
+    expect(within(dlg).queryByText(/by hand|SSH|API key/)).not.toBeInTheDocument()
+    const own: Record<string, RegExp> = { Manual: /^IP address$/, SNMP: /^IP address or range$/, osquery: /^Token name|^Name/, Wazuh: /Wazuh API address|Server API|^Address/, 'CSV import': /^Choose a CSV file$/ }
+    for (const [m, field] of Object.entries(own)) {
+      await user.click(within(methods).getByRole('radio', { name: new RegExp(`^${m}`) }))
+      expect(await within(dlg).findByRole('region', { name: m }, T)).toBeInTheDocument()
+      if (m !== 'osquery' && m !== 'Wazuh') expect(within(dlg).getByLabelText(field)).toBeInTheDocument()
+      for (const [other, f] of Object.entries(own)) if (other !== m && other !== 'osquery' && other !== 'Wazuh') expect(within(dlg).queryByLabelText(f)).toBeNull()
     }
-    expect(within(ways).queryByText(/SSH|API key/)).not.toBeInTheDocument()
-    expect(within(ways).getByRole('button', { name: 'Import CSV' })).toBeDisabled()
-    expect(within(ways).queryByRole('link')).not.toBeInTheDocument()
-    expect(within(ways).getAllByText(/An administrator sets this up/).length).toBe(3)
+    await expectNoA11yViolations()
   })
 
-  it('D-471: an admin\'s "Add devices" links osquery and Wazuh to the agents section of the setup page', async () => {
+  it('#849: SNMP, osquery and Wazuh are admin only and say so', async () => {
+    renderApp('/devices?add=manual', { role: 'operator' })
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    for (const m of ['SNMP', 'osquery', 'Wazuh']) expect(within(dlg).getByRole('radio', { name: new RegExp(`^${m}`) })).toBeDisabled()
+    expect(within(dlg).getAllByText('Admin only').length).toBe(3)
+    expect(within(dlg).getByRole('radio', { name: /^CSV import/ })).toBeEnabled()
+  })
+
+  it('#849, kien 2026-11-16: a module the method needs is off: the admin turns it on right in the dialog, and the method opens', async () => {
+    const user = userEvent.setup()
+    enableModule('agent-intake', false)
+    renderApp('/devices?add=osquery')
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    expect(within(dlg).getByRole('radio', { name: /^osquery/, checked: true })).toBeEnabled()
+    await user.click(within(dlg).getByRole('button', { name: 'Turn on Agent intake' }))
+    expect(await within(dlg).findByLabelText(/^Token name/, undefined, T)).toBeInTheDocument()
+    expect(modulesStore.get().find((m) => m.id === 'agent-intake')?.enabled).toBe(true)
+  })
+
+  // #849 review H3: the credential dialog is portalled but React events bubble; saving it must not submit the Add dialog's form behind it.
+  const snmpTests = () => {
+    const ids: string[] = []
+    server.events.on('request:start', ({ request }) => { const m = /\/inventory\/snmp\/([^/]+)\/test$/.exec(new URL(request.url).pathname); if (m && request.method === 'POST') ids.push(m[1]!) })
+    return ids
+  }
+  it('#849, kien 2026-11-16: "+ New credential" makes one in a small dialog, selects it and reads the typed address once, with the new credential', async () => {
+    const user = userEvent.setup()
+    const tests = snmpTests()
+    renderApp('/devices?add=snmp')
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    await user.type(await within(dlg).findByLabelText('IP address or range', undefined, T), '192.168.10.3')
+    await user.selectOptions(within(dlg).getByLabelText('Credential'), '+ New credential')
+    const form = await screen.findByRole('dialog', { name: 'Add SNMP credential' }, T)
+    expect(within(form).getByLabelText('Send only to')).toHaveValue('192.168.10.3') // the address typed is the scope
+    await user.type(within(form).getByLabelText('Name'), 'Switch room')
+    await user.type(within(form).getByLabelText('Community'), 'public')
+    await user.click(within(form).getByRole('button', { name: 'Add credential' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add SNMP credential' })).toBeNull(), T)
+    await waitFor(() => expect((within(dlg).getByLabelText('Credential') as HTMLSelectElement).selectedOptions[0]?.textContent).toBe('Switch room (v2c)'), T)
+    expect(await within(dlg).findByText('192.168.10.3 answered.', undefined, T)).toBeInTheDocument() // read at once
+    const made = (await (await fetch(`${BASE}/snmp`)).json() as { credentials: { id: string; name: string }[] }).credentials.find((c) => c.name === 'Switch room')!
+    expect(tests).toEqual([made.id]) // once, never with the credential selected before
+    expect(screen.getAllByRole('dialog')).toHaveLength(1) // no scope or widen dialog opened behind
+    server.events.removeAllListeners()
+  })
+
+  it('#849 review H3: a new credential saved with nothing typed reads nothing and raises no error behind the dialog', async () => {
+    const user = userEvent.setup()
+    const tests = snmpTests()
+    renderApp('/devices?add=snmp')
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    await user.selectOptions(await within(dlg).findByLabelText('Credential', undefined, T), '+ New credential')
+    const form = await screen.findByRole('dialog', { name: 'Add SNMP credential' }, T)
+    await user.type(within(form).getByLabelText('Name'), 'Lab')
+    await user.type(within(form).getByLabelText('Community'), 'public')
+    await user.type(within(form).getByLabelText('Send only to'), '192.168.10.0/24')
+    await user.click(within(form).getByRole('button', { name: 'Add credential' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add SNMP credential' })).toBeNull(), T)
+    expect(tests).toEqual([])
+    expect(within(dlg).queryByText(/Enter one IP address/)).toBeNull()
+    server.events.removeAllListeners()
+  })
+
+  it('#849 review M1: a viewer\'s old ?tab=add link lands on the list, not on a form that ends in 403', async () => {
+    renderApp('/devices?tab=add', { role: 'viewer' })
+    await deviceTable()
+    expect(screen.queryByRole('dialog', { name: 'Add a device' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Add a device' })).toBeDisabled()
+  })
+
+  it('#849 review M2: with software: the list shows the matched software and its version (the old Software tab)', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices?tab=software') // the old tab opens has:software
+    const table = await deviceTable()
+    const box = screen.getByRole('combobox', { name: 'Search devices' })
+    await waitFor(() => expect(box).toHaveValue('has:software'), T)
+    await user.clear(box)
+    await user.type(box, 'software:photo ')
+    await waitFor(() => expect(within(table).getByRole('columnheader', { name: /Matched software/ })).toBeInTheDocument(), T)
+    const row = within(table).getByRole('link', { name: 'NAS-PHOTOS' }).closest('tr')!
+    expect(row).toHaveTextContent('QNAP Photo Station')
+  })
+
+
+  it('#849: SNMP from the dialog lists each saved credential with its version once (a name that says "(v3)" gets no second one)', async () => {
+    renderApp('/devices?add=snmp')
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    const select = await within(dlg).findByLabelText('Credential', undefined, T)
+    const names = within(select).getAllByRole('option').map((o) => o.textContent)
+    expect(names).toContain('Core switches (v3)')
+    expect(names.some((n) => /\((v2c|v3)\) \((v2c|v3)\)$/.test(n ?? ''))).toBe(false)
+  })
+
+  it('#849: osquery from the dialog: a token, then the one-line install for the server', async () => {
+    const user = userEvent.setup()
     enableModule('agent-intake', true)
-    renderApp('/devices?tab=add')
-    const ways = await screen.findByRole('region', { name: 'Add devices' }, T)
-    expect(within(ways).getByRole('link', { name: 'Download osquery and create a token' })).toHaveAttribute('href', '/devices/setup?tab=agents')
-    expect(within(ways).getByRole('link', { name: 'Connect Wazuh' })).toHaveAttribute('href', '/devices/setup?tab=agents')
-    expect(within(ways).getByRole('link', { name: 'Set network ranges and sensors' })).toHaveAttribute('href', '/devices/setup')
-    await expectNoA11yViolations()
+    renderApp('/devices?add=osquery')
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    expect(within(dlg).getByRole('radio', { name: /^osquery/, checked: true })).toBeInTheDocument()
+    expect(within(dlg).getByText(/macOS is not supported/)).toBeInTheDocument()
+    await user.type(await within(dlg).findByLabelText(/^Token name/, undefined, T), 'srv-files')
+    await user.click(within(dlg).getByRole('button', { name: /Create/ }))
+    expect(await within(dlg).findByText(/^vdt_osquery_/, undefined, T)).toBeInTheDocument()
+    expect(within(dlg).queryByRole('radiogroup', { name: 'How to add it' })).toBeNull() // the only copy of the secret stays on screen
+    expect(within(dlg).getByRole('button', { name: 'Windows Server' })).toBeInTheDocument()
   })
 
   it('the operator role gets the add button enabled and the setup link hidden (admin only)', async () => {
@@ -237,17 +369,17 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const { unmount } = renderApp('/devices/setup#agents')
     expect(await screen.findByRole('tab', { name: 'Agents', selected: true }, T)).toBeInTheDocument()
     unmount()
-    renderApp('/devices/setup#snmp')
+    renderApp('/devices/setup#snmp') // #849 keeps the SNMP credentials here until #850 moves them to Settings › Scanning
     expect(await screen.findByRole('tab', { name: 'SNMP', selected: true }, T)).toBeInTheDocument()
     expect(await screen.findByRole('heading', { level: 2, name: 'SNMP credentials' }, T)).toBeInTheDocument()
   })
 
-  it('the admin gets a link to the setup page (agents included) right after "Add a device" (item 26b)', async () => {
+  it('the admin gets a link to the setup page (agents included) next to "Add a device" (item 26b)', async () => {
     renderApp('/devices')
     await deviceTable()
     const link = screen.getByRole('link', { name: 'Scope, sensors and agents' })
     expect(link).toHaveAttribute('href', '/devices/setup')
-    expect(screen.getByRole('button', { name: 'Add a device' }).nextElementSibling).toBe(link)
+    expect(link.nextElementSibling).toBe(screen.getByRole('button', { name: 'Add a device' }))
   })
 
   it('the viewer role is refused writes by the API (403), and anonymous gets 401', async () => {
@@ -272,18 +404,17 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(assetsStore.get().filter((a) => !a.approved)).toHaveLength(1)
     expect(await screen.findByRole('heading', { level: 1, name: /1 not yet approved/ }, T)).toBeInTheDocument()
     // D-471: the toast says where to find it again and opens the device
-    expect(within(toast).getByText(/Find it later under All devices → Approved in the last 24 h/)).toBeInTheDocument()
+    expect(within(toast).getByText('Find it later in Devices.')).toBeInTheDocument()
     const approved = pending.find((id) => find(id).approved)!
     fireEvent.click(within(toast).getByRole('button', { name: 'Open device' })) // no pointer events: sonner's swipe handler needs setPointerCapture, which jsdom lacks
-    expect(await screen.findByRole('link', { name: 'Device list' }, T)).toHaveAttribute('href', '/devices')
-    // ...and it is found again under All devices → Approved in the last 24 h (the KPI cell links there)
+    const crumbs = await screen.findByRole('navigation', { name: 'Breadcrumb' }, T)
+    expect(within(crumbs).getByRole('link', { name: 'Devices' })).toHaveAttribute('href', '/devices')
+    // ...and it is found again with approved:24h (the old "Approved in the last 24 h" link opens that search)
     renderApp('/devices?tab=all&show=recent')
     const table = await deviceTable()
-    const rows = within(table).getAllByRole('row')
-    expect(rows).toHaveLength(2) // header + the device just approved
-    expect(within(rows[1]!).getByRole('link')).toHaveAttribute('href', `/devices/${approved}`)
-    expect(screen.getByRole('link', { name: /1 approved in the last 24 h/ })).toHaveAttribute('href', '/devices?tab=all&show=recent')
-    expect(screen.getByRole('button', { name: 'Approved in the last 24 h (1)', pressed: true })).toBeInTheDocument()
+    await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(2), T) // header + the device just approved
+    expect(within(within(table).getAllByRole('row')[1]!).getByRole('link')).toHaveAttribute('href', `/devices/${approved}`)
+    expect(screen.getByRole('combobox', { name: 'Search devices' })).toHaveValue('approved:24h')
   })
 
   it('S-INV-3: mark unknown, then remove the mark', async () => {
@@ -378,7 +509,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     assetsStore.set([])
     server.use(http.get('*/api/v1/inventory/settings', () => HttpResponse.json({ ...inventorySettingsStore.get(), lan_ranges: [] })))
     renderApp('/devices')
-    expect(await screen.findByRole('link', { name: "Set the box's network ranges" }, T)).toHaveAttribute('href', '/devices/setup')
+    expect(await screen.findByRole('link', { name: "Set the box's network ranges" }, T)).toHaveAttribute('href', '/devices/setup?tab=scope#range-input') // straight to the range field (#842 deep link)
   })
 
   it('the setup page does not ask for agents while agent-intake is off', async () => {
@@ -391,21 +522,21 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
 })
 
 describe('inventory: device types in two levels (D-511)', () => {
-  it('the list shows category and type, a guess as "likely" with its evidence, and filters by category in ?cat=', async () => {
+  it('the list shows category and type, a guess as "likely" with its evidence, and filters by category with type:', async () => {
     const user = userEvent.setup()
     renderApp('/devices')
     const table = await deviceTable()
     const row = within(table).getByRole('link', { name: /192\.168\.10\.251|Fortinet/ }).closest('tr')!
     expect(within(row).getByText('Firewall')).toBeInTheDocument()
     expect(within(row).getByText('likely')).toBeInTheDocument()
-    expect(within(row).getByText('Security')).toBeInTheDocument()
+    expect(within(row).getByTitle(/Security$/)).toBeInTheDocument() // #849: one line per desktop row, the category on hover (the phone list and the device page show it)
     expect(within(row).getByTitle(/Fortinet network card and port 22/)).toBeInTheDocument()
     const nas = within(table).getByRole('link', { name: 'NAS-PHOTOS' }).closest('tr')!
-    expect(within(nas).getByText('Storage')).toBeInTheDocument()
+    expect(within(nas).getByTitle('Storage')).toBeInTheDocument()
     expect(within(nas).queryByText('likely')).toBeNull()
 
-    const category = screen.getByRole('combobox', { name: 'Category' })
-    await user.selectOptions(category, 'security')
+    // #849: the category is a type: token (the old ?cat= opens it)
+    await user.type(screen.getByRole('combobox', { name: 'Search devices' }), 'type:security')
     await waitFor(() => expect(within(table).queryByRole('link', { name: 'NAS-PHOTOS' })).toBeNull(), T)
     expect(within(table).getByRole('link', { name: /192\.168\.10\.251|Fortinet/ })).toBeInTheDocument()
   })
@@ -459,9 +590,8 @@ describe('inventory: CSV (S-INV-2)', () => {
   })
 
   async function importFile(user: ReturnType<typeof userEvent.setup>, content: string, name = 'devices.csv') {
-    renderApp('/devices?tab=add')
-    await screen.findByRole('region', { name: 'Add devices' }, T)
-    await user.click(screen.getByRole('button', { name: 'Import CSV' }))
+    renderApp('/devices?add=csv')
+    await screen.findByRole('dialog', { name: 'Add a device' }, T)
     const input = await screen.findByLabelText('Choose a CSV file', undefined, T)
     await user.upload(input, new File([content], name, { type: 'text/csv' }))
   }
@@ -579,7 +709,8 @@ describe('inventory: device detail (S-INV-1)', () => {
   it('shows every observation with source and confidence, services, and software matched to CVEs; no a11y violations', async () => {
     const user = userEvent.setup()
     renderApp('/devices/a-nas02')
-    expect(await screen.findByRole('heading', { level: 1, name: /^NAS-PHOTOS: NAS, last seen/ }, T)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'NAS-PHOTOS' }, T)).toBeInTheDocument()
+    expect(screen.getByText(/^NAS, last seen/)).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'Fragile device' })).toBeChecked()
     // D-543: the page frame: numbers that link to the detail, then one tab per area of the device
     const kpis = screen.getByRole('list', { name: 'This device at a glance' })
@@ -642,7 +773,7 @@ describe('inventory: device detail (S-INV-1)', () => {
     const obs = await screen.findByRole('table', { name: 'Observations for this device' }, T)
     await waitFor(() => expect(within(obs).getByText('Server')).toBeInTheDocument(), T)
     expect(within(obs).getByText('NAS')).toBeInTheDocument() // old value still there
-    expect(within(obs).getByText('Added by hand')).toBeInTheDocument()
+    expect(within(obs).getByText('Manual')).toBeInTheDocument()
     expect(within(obs).getAllByText('In use').length).toBeGreaterThanOrEqual(1)
   })
 
@@ -700,7 +831,7 @@ describe('inventory: device detail (S-INV-1)', () => {
   it('a device that does not exist: says so and offers a way back', async () => {
     renderApp('/devices/a-missing')
     expect(await screen.findByText('This device does not exist', undefined, T)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Device list' })).toHaveAttribute('href', '/devices')
+    expect(within(screen.getByRole('navigation', { name: 'Breadcrumb' })).getByRole('link', { name: 'Devices' })).toHaveAttribute('href', '/devices')
   })
 
   it('the viewer role: every write control is locked', async () => {
@@ -1859,12 +1990,14 @@ describe('inventory: English only', () => {
       ['/devices/setup', () => screen.findByRole('heading', { level: 2, name: 'LAN ranges' }, T)],
       ['/devices/setup?tab=sensor', () => screen.findByRole('heading', { level: 2, name: 'Sensor on this box' }, T)],
       ['/devices/setup?tab=snmp', () => screen.findByRole('heading', { level: 2, name: 'SNMP credentials' }, T)],
+      ['/devices?add=snmp', () => screen.findByRole('dialog', { name: 'Add a device' }, T)],
+      ['/settings/declared-software', () => screen.findByRole('heading', { level: 2, name: 'Declared software' }, T)],
       ['/devices/setup?tab=agents', () => screen.findByRole('table', { name: 'Enrollment tokens' }, T)],
     ]
     for (const [path, ready] of checks) {
       const { unmount } = renderApp(path)
       await ready()
-      await screen.findAllByText('Sample data', undefined, T)
+      if (!path.startsWith('/settings')) await screen.findAllByText('Sample data', undefined, T) // Settings pages carry no sample note
       const text = document.body.textContent ?? ''
       const hit = text.match(new RegExp(`.{0,30}${VI.source}.{0,30}`, 'i'))
       expect(hit?.[0] ?? null, `${path} has Vietnamese text`).toBeNull()
@@ -2068,17 +2201,44 @@ describe('inventory: D-471 naming, versions, Software tab (S-INV-2)', () => {
     return r.json!.id as string
   }
 
-  it('a product added by hand with no name and no IP reads "<product> (no device)" on Devices and in the Software tab', async () => {
+  it('#849: a product declared with no name and no IP is not a device: it reads "<product> (no device)" in Settings › Declared software, not in Devices', async () => {
     const user = userEvent.setup()
     await addOffice()
-    renderApp('/devices')
+    const first = renderApp('/devices')
     const table = await deviceTable()
-    await user.type(screen.getByRole('textbox', { name: /Search by name, IP/ }), 'office')
-    expect(within(table).getByRole('link', { name: 'Microsoft Office (no device)' })).toBeInTheDocument()
-    renderApp('/devices?tab=software')
-    const sw = await screen.findByRole('table', { name: 'Software on all devices' }, T)
-    await user.type(screen.getByRole('textbox', { name: /Search by software, version or device/ }), 'office')
-    expect(within(sw).getByRole('link', { name: 'Microsoft Office (no device)' })).toBeInTheDocument()
+    await user.type(screen.getByRole('combobox', { name: 'Search devices' }), 'office')
+    await waitFor(() => expect(within(table).queryByRole('link', { name: 'Microsoft Office (no device)' })).toBeNull(), T)
+    expect(screen.getByRole('link', { name: 'Settings, Declared software' })).toHaveAttribute('href', '/settings/declared-software')
+    first.unmount()
+    renderApp('/settings/declared-software')
+    const list = await screen.findByRole('table', { name: 'Declared software' }, T)
+    expect(within(list).getByRole('link', { name: 'Microsoft Office' })).toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+
+  it('#849: Settings › Declared software adds a product with no device (it still feeds Findings), changes its version, removes it', async () => {
+    const user = userEvent.setup()
+    asAdmin()
+    renderApp('/settings/declared-software')
+    await screen.findByRole('heading', { level: 2, name: 'Declared software' }, T)
+    await user.click(screen.getAllByRole('button', { name: 'Add software' })[0]!)
+    const dlg = await screen.findByRole('dialog', { name: 'Add declared software' }, T)
+    expect(within(dlg).queryByLabelText('IP address')).toBeNull()
+    await user.type(within(dlg).getByRole('combobox', { name: 'Product' }), 'fortigate')
+    await user.click((await screen.findAllByRole('option', { name: /FortiGate/ }, T))[0]!)
+    await user.click(within(dlg).getByRole('button', { name: 'Add' }))
+    const list = await screen.findByRole('table', { name: 'Declared software' }, T)
+    const a = await waitFor(() => { const x = assetsStore.get().find((d) => d.origin === 'manual' && d.ip === '—' && d.software[0]?.vendor === 'Fortinet'); expect(x).toBeDefined(); return x! }, T)
+    expect(a.software[0]!.kev).toContain('fortinet|fortios') // matched against exploited CVEs by its product
+    const name = a.software[0]!.display
+    await user.click(within(list).getByRole('button', { name: `Change the version of ${name}` }))
+    const v = await screen.findByRole('dialog', { name: new RegExp(name) }, T)
+    await user.type(within(v).getByLabelText(/Version/), '7.0.1')
+    await user.click(within(v).getByRole('button', { name: /Save/ }))
+    await waitFor(() => expect(find(a.id).software[0]!.version).toBe('7.0.1'), T)
+    await user.click(within(list).getByRole('button', { name: `Remove ${name}` }))
+    await user.click(within(await screen.findByRole('dialog', undefined, T)).getByRole('button', { name: 'Remove from list' }))
+    await waitFor(() => expect(assetsStore.get().find((d) => d.id === a.id)).toBeUndefined(), T)
   })
 
   it('a typed version that differs from the agent\'s shows the hint, and Use sets it (edit version)', async () => {

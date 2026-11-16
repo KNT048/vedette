@@ -61,7 +61,7 @@
     "info": "Info"
   },
   "source": {
-    "manual": "Added by hand",
+    "manual": "Manual",
     "agent": "Agent",
     "snmp": "SNMP",
     "nmap": "Active scan",
@@ -242,6 +242,11 @@
     "leavingLine": "Not part of v1: you can turn it off; once off it is hidden.",
     "leavingInfo": "This box turned it on before v1 left it out. It keeps working as set and its data is kept. This build does not offer it, so once it is off it cannot be turned on again here; it comes back in a later release.",
     "turnOff": "Turn off in Settings, Modules"
+  },
+  "tokenSearch": {
+    "clear": "Clear search",
+    "suggestions": "Filters",
+    "chips": "Common filters"
   },
   "creatable": {
     "added": "{{label}} added and selected."

@@ -40,3 +40,6 @@ export function rangeProblem(v: string, others: string[]): 'noPrefix' | 'format'
   if (!isPrivateCidr(v)) return 'notPrivate'
   return overlapping(v, others) ? 'overlap' : null
 }
+
+/** At most 8 SNMP credentials (409 too_many on the server, D-512). */
+export const SNMP_MAX = 8

@@ -35,7 +35,7 @@ const unknownSenders = collection<UnknownSender[]>('logs_unknown_senders', () =>
   { ip: '192.168.10.3', proto: 'udp', count: 418, last_seen: new Date(Date.now() - 45e3).toISOString() },
 ], () => [])
 const retention = collection<{ days: number }>('logs_retention', () => ({ days: 30 }))
-const siem = collection<Omit<SiemConfig, 'secret_last4'> & { secret: string }>('logs_siem', () => ({
+const siem = collection<Omit<SiemConfig, 'secret_last4' | 'secret_lost'> & { secret: string }>('logs_siem', () => ({
   enabled: false, format: 'syslog', host: '', port: 514, proto: 'udp', url: '', secret: '', events: ['findings', 'alerts'], last_test: null,
 }))
 
@@ -187,7 +187,7 @@ function validateSiem(b: Partial<SiemInput>, saved: { secret: string }) {
   if (b.format === 'json' && !b.secret && !saved.secret) return fail(400, 'secret_required', 'Enter the webhook signing key.')
   return null
 }
-const publicSiem = (c: ReturnType<typeof siem.get>): SiemConfig => { const { secret, ...rest } = c; return { ...rest, secret_last4: secret ? secret.slice(-4) : null } }
+const publicSiem = (c: ReturnType<typeof siem.get>): SiemConfig => { const { secret, ...rest } = c; return { ...rest, secret_last4: secret ? secret.slice(-4) : null, secret_lost: false } }
 
 export const handlers = [
   http.get(`${API}/logs/sources`, () => {

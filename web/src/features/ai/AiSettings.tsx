@@ -135,7 +135,11 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
     setResult(null)
     test.mutate({ id: p.id, name: p.name, kind: p.kind, api_style: p.api_style, base_url: p.base_url, model: p.model, location: p.location }, {
       onSuccess: (r) => setResult({ name: p.name, ok: r }),
-      onError: (e) => setResult({ name: p.name, error: e instanceof Error ? e.message : String(e) }),
+      onError: (e) => {
+        setResult({ name: p.name, error: e instanceof Error ? e.message : String(e) })
+        // #847: the saved key was not restored; the key is entered again right here, in Edit, which opens on the key field
+        if (e instanceof ApiError && e.code === 'secret_lost') setEdit(p)
+      },
     })
   }
   const Actions = (p: AiProfile) => (
@@ -145,7 +149,8 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
       <Button size="sm" onClick={() => setDel(p)} disabled={!admin} title={reason} aria-label={t('profiles.removeNamed', { name: p.name })}>{t('profiles.remove')}</Button>
     </span>
   )
-  const keyText = (p: AiProfile) => p.key_last4 ? t('profiles.keyEnds', { last4: p.key_last4 }) : p.location === 'internal' ? t('profiles.noKeyNeeded') : t('profiles.keyMissing')
+  const keyText = (p: AiProfile) => p.key_lost ? t('profiles.keyLost') : p.key_last4 ? t('profiles.keyEnds', { last4: p.key_last4 }) : p.location === 'internal' ? t('profiles.noKeyNeeded') : t('profiles.keyMissing')
+  const lost = profiles.filter((p) => p.key_lost)
   const loc = (p: AiProfile) => <Chip tone={p.location === 'internal' ? 'ok' : 'off'}>{t(`profiles.location.${p.location}`)}</Chip>
   const lastTest = (p: AiProfile) => !p.last_test ? <span className="text-muted">{t('profiles.lastNever')}</span>
     : p.last_test.ok ? <span className="text-ok">{t('profiles.lastOk', { time: fmtDateTime(p.last_test.at) })}</span>
@@ -153,6 +158,13 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
   return (
     <Section id="ai-profiles" title={t('profiles.title')} description={t('profiles.description')} info={t('profiles.descriptionInfo')} stories={['S-AI-1']}
       actions={<Button variant="primary" onClick={() => setEdit('new')} disabled={!admin} title={reason}>{t('profiles.add')}</Button>}>
+      {/* #847: a key that was not restored with the backup. Nothing is sent to the profile until the key is entered again, right here. */}
+      {lost.map((p) => (
+        <Notice key={p.id} tone="danger" role="status" title={t('profiles.lostTitle', { name: p.name })}
+          actions={<Button size="sm" onClick={() => setEdit(p)} disabled={!admin} title={reason}>{t('profiles.lostAction')}</Button>}>
+          {t('profiles.lostBody')}
+        </Notice>
+      ))}
       {profiles.length === 0 ? (
         <EmptyState title={t('profiles.empty')} info={t('profiles.emptyBodyInfo')} action={<Button variant="primary" onClick={() => setEdit('new')} disabled={!admin} title={reason}>{t('profiles.add')}</Button>}>{t('profiles.emptyBody')}</EmptyState>
       ) : (
@@ -182,19 +194,21 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
           </p>
         ) : <Notice tone="danger" role="alert" title={`${result.name}: ${result.error}`} className="mt-3 mb-0" />
       ) : null}
-      {edit ? <ProfileDialog key={typeof edit === 'string' ? 'new' : edit.id} profile={edit === 'new' ? null : edit} existing={profiles} onClose={() => setEdit(null)} /> : null}
+      {edit ? <ProfileDialog key={typeof edit === 'string' ? 'new' : edit.id} profile={edit === 'new' ? null : edit} existing={profiles} onClose={() => setEdit(null)}
+        onSaved={() => { if (typeof edit !== 'string') setResult((r) => (r?.error && r.name === edit.name ? null : r)) }} /> : null}
       {del ? <RemoveDialog profile={del} assign={assign} onClose={() => setDel(null)} /> : null}
     </Section>
   )
 }
 
-const FIELD_OF: Record<string, 'name' | 'base_url' | 'model' | 'key' | 'cap' | 'style' | 'location'> = { invalid_name: 'name', duplicate_name: 'name', invalid_base_url: 'base_url', invalid_model: 'model', invalid_key: 'key', key_required: 'key', invalid_cap: 'cap', invalid_style: 'style', invalid_location: 'location' }
+const FIELD_OF: Record<string, 'name' | 'base_url' | 'model' | 'key' | 'cap' | 'style' | 'location'> = { invalid_name: 'name', duplicate_name: 'name', invalid_base_url: 'base_url', invalid_model: 'model', invalid_key: 'key', key_required: 'key', secret_lost: 'key', invalid_cap: 'cap', invalid_style: 'style', invalid_location: 'location' }
 type Errs = Partial<Record<'name' | 'base_url' | 'model' | 'key' | 'cap' | 'style' | 'location', string>>
 
 const sameOrigin = (a: string, b: string) => { try { return new URL(a).origin === new URL(b.trim()).origin } catch { return false } }
 
 /** Add or edit an AI profile. Also opened where a profile is missing (docs/UI.md §0): "+ New AI profile" of the routing table, the
- *  Assistant and the AI panels of other pages; `onSaved` gets the saved profile so the caller can select it. */
+ *  Assistant and the AI panels of other pages; `onSaved` gets the saved profile so the caller can select it; after an edit a failed Test shown
+ *  for it is out of date (review r1 L5). */
 export function ProfileDialog({ profile, existing, onClose, onSaved }: { profile: AiProfile | null; existing: AiProfile[]; onClose: () => void; onSaved?: (p: AiProfile) => void }) {
   const { t } = useTranslation('ai')
   const save = useSaveProfile()
@@ -221,7 +235,9 @@ export function ProfileDialog({ profile, existing, onClose, onSaved }: { profile
   const err = (k: keyof Errs) => errs[k] ?? (serverField(save.error) === k ? (save.error as Error).message : serverField(testErr) === k ? (testErr as Error).message : serverField(models.error) === k ? (models.error as Error).message : undefined)
   const upd = (k: keyof Errs) => setErrs((x) => ({ ...x, [k]: undefined }))
   // The stored key is offered only for the provider and address it was saved for; another provider or origin needs the key again (validate, server).
-  const keptKey = profile?.key_last4 && profile.kind === kind && sameOrigin(profile.base_url, baseUrl) ? profile.key_last4 : null
+  // #847: a key that was not restored is not kept: it has to be entered again (the dialog opens on the field).
+  const lostKey = !!profile?.key_lost
+  const keptKey = !lostKey && profile?.key_last4 && profile.kind === kind && sameOrigin(profile.base_url, baseUrl) ? profile.key_last4 : null
   // D-422: host.containers.internal is known only on the appliance (rootful Podman); a container-only install may be Docker, which does not
   // resolve it, so the address of a local model starts empty there and the hint says to use the machine's LAN IP.
   const container = useInstallKind() === 'container'
@@ -259,7 +275,8 @@ export function ProfileDialog({ profile, existing, onClose, onSaved }: { profile
     const hadKey = !!profile?.key_last4 && profile.kind === kind
     // The stored key follows only its own address: another origin needs the key again (the server enforces it too).
     const moved = hadKey && (() => { try { return new URL(profile!.base_url).origin !== new URL(baseUrl.trim()).origin } catch { return false } })()
-    if (key === '' && location === 'cloud' && moved) n.key = t('profiles.err.keyMoved')
+    if (key === '' && lostKey) n.key = t('profiles.err.keyLost')
+    else if (key === '' && location === 'cloud' && moved) n.key = t('profiles.err.keyMoved')
     else if (key === '' && location === 'cloud' && !hadKey) n.key = t('profiles.err.keyRequired')
     else if (key !== '' && (key.length < 8 || /\s/.test(key))) n.key = t('profiles.err.keyShape')
     if (!forTest) { const c = Number(cap); if (!Number.isInteger(c) || c < 1000 || c > 150_000_000) n.cap = t('profiles.err.cap') }
@@ -316,8 +333,8 @@ export function ProfileDialog({ profile, existing, onClose, onSaved }: { profile
               {cloudOnly ? <p className="text-meta text-muted">{t('profiles.f.cloudOnly')}</p> : null}
               {notEncrypted ? <div role="note" className="flex items-center gap-1 text-meta text-warn"><p>{t('profiles.f.notEncrypted')}</p><InfoTip topic={t('profiles.f.baseUrl')}>{t('profiles.f.notEncryptedInfo')}</InfoTip></div> : null}
             </div>
-            <Field label={t('profiles.f.key')} htmlFor="pf-key" error={err('key')} hint={keptKey ? t('profiles.f.keySaved', { last4: keptKey }) : location === 'internal' ? t('profiles.f.keyOptional') : t('profiles.f.keyHint')} className="sm:col-span-2">
-              <Input id="pf-key" type="password" value={key} onChange={(e) => { setKey(e.target.value); upd('key'); models.reset() }} autoComplete="off" placeholder={keptKey ? `••••${keptKey}` : ''} {...aria('key', true)} />
+            <Field label={t('profiles.f.key')} htmlFor="pf-key" error={err('key')} hint={lostKey ? t('profiles.f.keyLost') : keptKey ? t('profiles.f.keySaved', { last4: keptKey }) : location === 'internal' ? t('profiles.f.keyOptional') : t('profiles.f.keyHint')} className="sm:col-span-2">
+              <Input id="pf-key" type="password" value={key} onChange={(e) => { setKey(e.target.value); upd('key'); models.reset() }} autoComplete="off" autoFocus={lostKey} placeholder={keptKey ? `••••${keptKey}` : ''} {...aria('key', true)} />
             </Field>
             <Field label={t('profiles.f.model')} htmlFor="pf-model" hint={models.data ? t('profiles.f.modelsFound', { count: models.data.models.length }) : t('profiles.f.modelHint')} info={t('profiles.f.modelInfo')} error={err('model')} className="sm:col-span-2">
               <div className="flex gap-2">
@@ -431,12 +448,14 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
       setNote(JSON.stringify(s) === JSON.stringify(assign) ? t('assign.suggestedSame') : t('assign.suggested'))
     } catch (e) { toast.error(e instanceof Error ? e.message : String(e)) }
   }
-  const noProfiles = profiles.filter(usable).length === 0
+  // #847: every profile's key was not restored. The table stays (its jobs keep their profiles) with its own line, not "add a profile".
+  const allLost = profiles.filter(usable).length === 0 && profiles.some((p) => p.key_lost)
+  const noProfiles = profiles.filter(usable).length === 0 && !allLost
   const [adding, setAdding] = useState(false)
   const newProfile = ({ open, onOpenChange, onCreated }: CreateDialogProps) => (open ? <ProfileDialog profile={null} existing={profiles} onClose={() => onOpenChange(false)} onSaved={(p) => onCreated({ value: p.id, label: p.name })} /> : null)
   return (
     <Section id="ai-routing" title={t('assign.title')} description={t('assign.description')} info={<><p>{t('assign.descriptionInfo')}</p><p>{t('assign.fallbackNote')}</p></>} stories={['S-AI-4']}
-      actions={<Button onClick={() => void suggest()} disabled={!admin || noProfiles} title={reason ?? (noProfiles ? t('assign.needProfile') : undefined)}>{t('assign.suggest')}</Button>}>
+      actions={<Button onClick={() => void suggest()} disabled={!admin || noProfiles || allLost} title={reason ?? (noProfiles || allLost ? t('assign.needProfile') : undefined)}>{t('assign.suggest')}</Button>}>
       <div className="grid gap-4">
         <Card className="flex items-start gap-3">
           <Switch id="ai-internal-only" checked={draft.internal_only} onCheckedChange={toggleRule} disabled={!admin} title={reason} className="mt-0.5" />
@@ -449,6 +468,7 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
           </div>
         </Card>
         {note ? <p role="status" className="text-sm">{note}</p> : null}
+        {allLost ? <p role="status" className="text-sm text-danger">{t('assign.allLost')}</p> : null}
         {noProfiles ? <EmptyState title={t('assign.noProfiles')} info={t('assign.noProfilesInfo')} action={<Button variant="primary" onClick={() => setAdding(true)} disabled={!admin} title={reason}>{t('profiles.add')}</Button>}>{t('assign.noProfilesBody')}</EmptyState> : (
           <div className="overflow-x-auto rounded-md border border-rule bg-surface">
             <table className="w-full min-w-[640px] border-collapse text-sm">
@@ -464,7 +484,7 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
                   const s = draft.jobs[j.id]
                   const opts = (slot: 'primary' | 'fallback'): SelectOption[] => [{ value: '', label: t('assign.none') }, ...profiles.map((p) => {
                     const off = !p.usable || blocked(p, j.data) || (slot === 'fallback' && s.primary === p.id)
-                    const why = !p.usable ? t('assign.optNoKey') : blocked(p, j.data) ? t('assign.optCloud') : ''
+                    const why = p.key_lost ? t('assign.optKeyLost') : !p.usable ? t('assign.optNoKey') : blocked(p, j.data) ? t('assign.optCloud') : ''
                     return { value: p.id, label: `${p.name}${why ? ` (${why})` : ''}`, disabled: off }
                   })]
                   return (

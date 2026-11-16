@@ -5,6 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/netip"
+	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -36,6 +39,9 @@ type BriefAnswer struct {
 	Steps      []string
 	// Configs are the ready configuration blocks of a mitigation-config answer (none for explain-finding).
 	Configs []BriefConfig
+	// NoConfigReason is why no network rule (or no config at all) applies, in the model's words: a local or user-interaction flaw, or
+	// no open port of the device serves the vulnerable part (r1 H1 of #897). An answer may have no config only when it says why.
+	NoConfigReason string
 	// Shortened is set when a part of the answer was longer than the box keeps: a text was cut at a sentence end (never mid-sentence)
 	// or a config block was left out whole (a cut config could be pasted half), so the page can say so (M2-2).
 	Shortened  bool
@@ -54,6 +60,7 @@ type briefBody struct {
 	Paragraphs []string        `json:"paragraphs"`
 	Steps      []string        `json:"steps"`
 	Configs    []briefConfigIn `json:"configs"`
+	NoConfig   string          `json:"no_config_reason"`
 }
 
 type briefConfigIn struct {
@@ -67,11 +74,11 @@ const briefSchema = `{"type":"object","properties":{"paragraphs":{"type":"array"
 
 // briefConfigSchema is the mitigation-config answer: the explanation and the order of work, plus the config blocks themselves. Each
 // line of a block is its own string, so every line goes through the after_ai hooks in the form that is kept (INV-12).
-const briefConfigSchema = `{"type":"object","properties":{"paragraphs":{"type":"array","items":{"type":"string"}},"steps":{"type":"array","items":{"type":"string"}},"configs":{"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"lines":{"type":"array","items":{"type":"string"}},"side_effect":{"type":"string"},"based_on":{"type":"string"}},"required":["title","lines","side_effect","based_on"],"additionalProperties":false}}},"required":["paragraphs","steps","configs"],"additionalProperties":false}`
+const briefConfigSchema = `{"type":"object","properties":{"paragraphs":{"type":"array","items":{"type":"string"}},"steps":{"type":"array","items":{"type":"string"}},"configs":{"type":"array","items":{"type":"object","properties":{"title":{"type":"string"},"lines":{"type":"array","items":{"type":"string"}},"side_effect":{"type":"string"},"based_on":{"type":"string"}},"required":["title","lines","side_effect","based_on"],"additionalProperties":false}},"no_config_reason":{"type":"string"}},"required":["paragraphs","steps","configs","no_config_reason"],"additionalProperties":false}`
 
 const (
 	briefExplainTask = `Explain one finding for this company's network: a device the box matched to an exploited vulnerability. Use only the facts in the data blocks. In "paragraphs" write at most 4 short paragraphs of plain English: what the vulnerability is, whether it touches this device and why, and what an attacker could do. In "steps" write the steps a person should take, in order. Do not invent version numbers, product names or links that are not in the data. Reply with one JSON object only.`
-	briefConfigTask  = `Write ready-to-paste configuration that reduces the risk of one exploited vulnerability on this device until it is patched. Use only the facts in the data blocks: the device block gives the device, its installed software and version, the affected range and the fixed releases, and its open ports; the network block lists the firewalls and routers in the company's inventory. In "paragraphs" write at most 3 short paragraphs of plain English: whether the installed version is inside the affected range and which release fixes it (say so from the data, do not ask the person to look it up when the data has it), what the configuration below does, and what it can break. In "configs" give the configuration blocks, each a "title" naming the target (vendor and model), its "lines" exactly as a person pastes them into that product's command line, one command per line, its "side_effect" (what stops working, and how not to lock yourself out), and "based_on" (which source in the data the change follows, or "general hardening" when none names it). First one block for the device itself in its own configuration language: the vendor's known workaround for this vulnerability, such as turning off or restricting the vulnerable service. Then one block for each firewall or router vendor in the network block, in that vendor's own syntax, that blocks or limits access from other networks to the vulnerable service of this device (its IP address and ports from the data). When the network block lists no firewall or router, or none whose vendor is known, give one block for a Linux gateway with nftables. Use the values in the data; write a named placeholder such as <ADMIN_NETWORK> only for what the data cannot know. In "steps" write at most 8 short steps: back up the current configuration, apply, verify, and how to undo. Do not invent version numbers, product names or links that are not in the data. Reply with one JSON object only.`
+	briefConfigTask  = `Write ready-to-paste configuration that reduces the risk of one exploited vulnerability on this device until it is patched, when configuration can do that. Use only the facts in the data blocks: the device block gives the device, its installed software and version, the affected range and the fixed releases, the CVSS attack vector and its open ports; the network block lists the firewalls and routers in the company's inventory. In "paragraphs" write at most 3 short paragraphs of plain English: whether the installed version is inside the affected range and which release fixes it (say so from the data, do not ask the person to look it up when the data has it), what the configuration below does, and what it can break. In "configs" give the configuration blocks, each a "title" naming the target (vendor and model), its "lines" exactly as a person pastes them into that product's command line, one command per string and never a line break inside a string, its "side_effect" (what stops working, and how not to lock yourself out), and "based_on" (which source in the data the change follows, or "general hardening" when none names it). First one block for the device itself in its own configuration language: the vendor's known workaround for this vulnerability, such as turning off or restricting the vulnerable service, a policy or a registry setting. Then, only when the vulnerability is reached over the network (attack vector network or adjacent) and an open port of this device serves the vulnerable component, one block for each firewall or router vendor in the network block, in that vendor's own syntax, that blocks or limits access from other networks to that port of this device (its IP address from the data); when the network block lists no firewall or router, or none whose vendor is known, one block for a Linux gateway with nftables instead. Never write a firewall rule for ports unrelated to the vulnerable service. Use only IP addresses that are in the data; write a named placeholder such as <ADMIN_NETWORK> for what the data cannot know. In "no_config_reason" say in one or two sentences why a firewall rule, or any configuration, does not help when you give none (for example: the attack is local or needs a user to open a file, or no open port serves the vulnerable part), else an empty string. In "steps" write at most 8 short steps: back up the current configuration, apply, verify, and how to undo; when no configuration helps, the steps to patch or turn the component off. Do not invent version numbers, product names or links that are not in the data. Reply with one JSON object only.`
 )
 
 // briefMaxTokens is the output limit of an explanation. The answer itself (4 paragraphs and a list of steps, as JSON) runs to about
@@ -116,8 +123,8 @@ func parseBrief(text string, job Job) (briefBody, error) {
 	if len(cleanList(b.Paragraphs)) == 0 {
 		return briefBody{}, ErrBadOutput
 	}
-	if job == JobMitigationConfig { // the job is the config: an answer without one is not what was asked (M2-2)
-		found := false
+	if job == JobMitigationConfig { // the job is the config: an answer without one must say why none helps (M2-2, r1 H1)
+		found := strings.TrimSpace(b.NoConfig) != ""
 		for _, c := range b.Configs {
 			for _, l := range c.Lines {
 				found = found || strings.TrimSpace(l) != ""
@@ -127,28 +134,38 @@ func parseBrief(text string, job Job) (briefBody, error) {
 			return briefBody{}, ErrBadOutput
 		}
 	} else {
-		b.Configs = nil
+		b.Configs, b.NoConfig = nil, ""
 	}
 	return b, nil
 }
 
-// keptBrief is the answer as it is kept: texts within their limits, cut at a sentence end, and the config blocks that fit whole.
-func keptBrief(b briefBody) (a BriefAnswer) {
+// keptBrief is the answer as it is kept: texts within their limits, cut at a sentence end, and the config blocks that fit whole and
+// name only addresses of the data (data: the blocks sent with the question).
+func keptBrief(b briefBody, data []DataBlock) (a BriefAnswer) {
 	a.Paragraphs, a.Shortened = sentenceList(b.Paragraphs, briefMaxParagraphs, briefParagraphRune)
 	var cut bool
 	a.Steps, cut = sentenceList(b.Steps, briefMaxSteps, briefStepRunes)
 	a.Shortened = a.Shortened || cut
+	var known addrSet
+	for _, d := range data {
+		known.add(d.Text)
+	}
 	for _, c := range b.Configs {
 		code, ok := codeBlock(c.Lines)
-		if code == "" {
+		if code == "" && ok {
 			continue
 		}
-		if !ok || len(a.Configs) == briefMaxConfigs {
+		// a block over the limits, with a line break inside a line (r1 M2: a masked answer would have joined its two commands into one)
+		// or naming an address that is not in the data (r1 M1: what a banner or a name steered the model to) is left out whole
+		if !ok || !known.allows(code) || len(a.Configs) == briefMaxConfigs {
 			a.Shortened = true
 			continue
 		}
 		title, c1 := clipSentence(cleanText(c.Title), briefTitleRunes)
 		side, c2 := clipSentence(cleanText(c.SideEffect), briefSideRunes)
+		if w := riskyConfig(code); w != "" { // r1 M1: say it before the person copies it
+			side = strings.TrimSpace(w + " " + side)
+		}
 		basis, c3 := clipSentence(cleanText(c.BasedOn), briefTitleRunes)
 		a.Shortened = a.Shortened || c1 || c2 || c3
 		if title == "" {
@@ -156,7 +173,79 @@ func keptBrief(b briefBody) (a BriefAnswer) {
 		}
 		a.Configs = append(a.Configs, BriefConfig{Title: title, Code: code, SideEffect: side, BasedOn: basis})
 	}
+	var c4 bool
+	a.NoConfigReason, c4 = clipSentence(cleanText(b.NoConfig), briefSideRunes)
+	a.Shortened = a.Shortened || c4
 	return a
+}
+
+// addrSet is the IP addresses named in the data sent with a question.
+type addrSet map[netip.Addr]bool
+
+func (k *addrSet) add(text string) {
+	for _, p := range addrsIn(text) {
+		if *k == nil {
+			*k = addrSet{}
+		}
+		(*k)[p.Addr()] = true
+	}
+}
+
+// allows reports whether every IP address or network a config names is one of the data, a network that holds one of them (the
+// device's /24), any address (0.0.0.0/0, ::/0) or loopback: a config only ever names what the box told the model about. Placeholders
+// (<ADMIN_NETWORK>) are not addresses and pass.
+func (k addrSet) allows(code string) bool {
+	for _, p := range addrsIn(code) {
+		a := p.Addr()
+		if k[a] || a.IsUnspecified() || a.IsLoopback() {
+			continue
+		}
+		ok := false
+		if p.Bits() < a.BitLen() {
+			for b := range k {
+				ok = ok || p.Contains(b)
+			}
+		}
+		if !ok {
+			return false
+		}
+	}
+	return true
+}
+
+var ipToken = regexp.MustCompile(`[0-9A-Fa-f:.]*[.:][0-9A-Fa-f:.]*(?:/[0-9]{1,3})?`)
+
+// addrsIn finds the IPv4 and IPv6 literals (with an optional /prefix) in a text. A version number such as 15.1R7.9 or 10.0.19045.6456
+// is not one: it does not parse as an address.
+func addrsIn(text string) []netip.Prefix {
+	var out []netip.Prefix
+	for _, t := range ipToken.FindAllString(text, -1) {
+		t = strings.Trim(t, ".:")
+		if p, err := netip.ParsePrefix(t); err == nil {
+			out = append(out, p)
+		} else if a, err := netip.ParseAddr(t); err == nil && !a.Is4In6() && a.Zone() == "" {
+			out = append(out, netip.PrefixFrom(a, a.BitLen()))
+		}
+	}
+	return out
+}
+
+// Commands that erase, reload or change accounts and passwords: a config block that has one says so first (r1 M1).
+var (
+	riskyErase   = regexp.MustCompile(`(?i)\b(?:flush\s+ruleset|write\s+erase|erase\s+startup|zeroize|factory-?reset|factoryreset|formatlogdisk|reload|reboot|restart)\b`)
+	riskyAccount = regexp.MustCompile(`(?i)\b(?:username|useradd|adduser|passwd|password|secret|config\s+system\s+admin|system\s+login\s+user)\b`)
+)
+
+func riskyConfig(code string) string {
+	switch {
+	case riskyErase.MatchString(code) && riskyAccount.MatchString(code):
+		return "Check first: it erases or reloads something and changes accounts or passwords."
+	case riskyErase.MatchString(code):
+		return "Check first: it erases or reloads something."
+	case riskyAccount.MatchString(code):
+		return "Check first: it changes accounts or passwords."
+	}
+	return ""
 }
 
 // sentenceList cleans a list of texts, drops empty ones and keeps at most n, each cut at a sentence end within runes characters.
@@ -176,27 +265,21 @@ func sentenceList(in []string, n, runes int) ([]string, bool) {
 	return out, cut
 }
 
-// codeBlock joins the lines of a config block. A line may itself hold line breaks (the model put two commands in one string): it is
-// split. Control characters go, a tab becomes two spaces, the indentation stays, and blank lines at the ends go. ok is false when the
-// block is longer than the limits: it is then left out whole, because half a config can be pasted and do harm.
+// codeBlock joins the lines of a config block with line breaks. A line that holds a line break itself is refused (ok false): the
+// schema asks for one command per string, and a masked answer is written out with line breaks as spaces, which would join two commands
+// into one (r1 M2). ok is also false when the block is longer than the limits: it is then left out whole, because half a config can be
+// pasted and do harm. The after_ai hooks see the block in this same joined form (afterHooks, the "lines" array).
 func codeBlock(lines []string) (string, bool) {
-	var out []string
+	out := make([]string, 0, len(lines))
 	for _, l := range lines {
-		for _, part := range strings.Split(strings.ReplaceAll(l, "\r\n", "\n"), "\n") {
-			part = strings.TrimRight(strings.Map(func(r rune) rune {
-				switch {
-				case r == '\t':
-					return ' '
-				case unicode.IsControl(r):
-					return -1
-				}
-				return r
-			}, strings.ToValidUTF8(part, "\uFFFD")), " ")
-			if utf8.RuneCountInString(part) > briefLineRunes {
-				return "", false
-			}
-			out = append(out, part)
+		if strings.ContainsAny(l, "\r\n") {
+			return "", false
 		}
+		l = codeLine(l)
+		if utf8.RuneCountInString(l) > briefLineRunes {
+			return "", false
+		}
+		out = append(out, l)
 	}
 	for len(out) > 0 && strings.TrimSpace(out[0]) == "" {
 		out = out[1:]
@@ -210,8 +293,23 @@ func codeBlock(lines []string) (string, bool) {
 	return strings.Join(out, "\n"), true
 }
 
-// clipSentence cuts s to at most n characters at the end of a sentence (". ", "! ", "? " or the end), so a kept text never stops in
-// the middle of one; when no sentence ends in the last two thirds it cuts at a word and ends with "…". cut reports whether it cut.
+// codeLine is one config line as it is kept: control characters go, a tab becomes a space, the indentation stays, the end is trimmed.
+func codeLine(l string) string {
+	return strings.TrimRight(strings.Map(func(r rune) rune {
+		switch {
+		case r == '\t':
+			return ' '
+		case unicode.IsControl(r):
+			return -1
+		}
+		return r
+	}, strings.ToValidUTF8(l, "\uFFFD")), " ")
+}
+
+// clipSentence cuts s to at most n characters at the end of a sentence (a stop, possibly followed by a closing bracket or quote, then a
+// space or the end; never after a short abbreviation such as "e.g."), so a kept text never stops in the middle of one; when no
+// sentence ends in the last two thirds it cuts at a word, else between characters (never before a combining mark), and ends with "…".
+// cut reports whether it cut.
 func clipSentence(s string, n int) (string, bool) {
 	r := []rune(s)
 	if len(r) <= n {
@@ -219,8 +317,15 @@ func clipSentence(s string, n int) (string, bool) {
 	}
 	r = r[:n]
 	for i := len(r) - 1; i >= n/3; i-- {
-		if (r[i] == '.' || r[i] == '!' || r[i] == '?') && (i+1 == len(r) || r[i+1] == ' ') {
-			return string(r[:i+1]), true
+		if r[i] != '.' && r[i] != '!' && r[i] != '?' {
+			continue
+		}
+		end := i + 1
+		for end < len(r) && strings.ContainsRune(`)"'”’`, r[end]) {
+			end++
+		}
+		if (end == len(r) || r[end] == ' ') && !abbrevAt(r, i) {
+			return string(r[:end]), true
 		}
 	}
 	for i := len(r) - 1; i >= n/3; i-- {
@@ -228,7 +333,26 @@ func clipSentence(s string, n int) (string, bool) {
 			return strings.TrimRight(string(r[:i]), " ,;:") + "…", true
 		}
 	}
-	return string(r[:n-1]) + "…", true
+	i := n - 1
+	for i > 0 && unicode.Is(unicode.Mn, r[i]) { // keep a letter with its accent (an NFD "ă" is two runes)
+		i--
+	}
+	return string(r[:i]) + "…", true
+}
+
+var abbrevs = []string{"e.g.", "i.e.", "etc.", "vs.", "approx.", "no.", "cf.", "incl."}
+
+// abbrevAt reports whether the stop at r[i] ends a short abbreviation ("e.g."), which is not a sentence end.
+func abbrevAt(r []rune, i int) bool {
+	if r[i] != '.' {
+		return false
+	}
+	w := i
+	for w > 0 && r[w-1] != ' ' && r[w-1] != '(' {
+		w--
+	}
+	word := strings.ToLower(string(r[w : i+1]))
+	return slices.Contains(abbrevs, word)
 }
 
 // Available reports whether the ai module is on and a profile is assigned and allowed for the job.
@@ -266,7 +390,7 @@ func (s *Service) Brief(ctx context.Context, r BriefRequest) (BriefAnswer, error
 	if err != nil {
 		return BriefAnswer{}, err
 	}
-	a := keptBrief(body)
+	a := keptBrief(body, r.Data)
 	a.Model, a.Profile, a.TokensIn, a.TokensOut, a.ActivityID = res.Model, res.Profile, res.TokensIn, res.TokensOut, res.ActivityID
 	return a, nil
 }

@@ -132,6 +132,8 @@ type AIResult struct {
 	Configs []CodeStep `json:"configs,omitempty"`
 	// Shortened: a part of the answer was longer than Vedette keeps, so the page says it was shortened (never cut mid-sentence).
 	Shortened bool `json:"shortened,omitempty"`
+	// NoConfigReason: why no config or no firewall rule helps (a local flaw, no open port serves it), in the AI's words (#897 r1 H1).
+	NoConfigReason string `json:"no_config_reason,omitempty"`
 }
 
 // AIResults holds the last result per skill.

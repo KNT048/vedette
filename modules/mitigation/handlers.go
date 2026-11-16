@@ -191,6 +191,7 @@ func sanitizeAI(skill Skill, ts time.Time, o AIOutput) findings.AIResult {
 		Skill: string(skill), TS: ts, Model: clip(o.Model, 200), Profile: clip(o.Profile, 200),
 		Tokens:     findings.Tokens{Input: max(o.InputTok, 0), Output: max(o.OutputTok, 0)},
 		Paragraphs: []string{}, Steps: []string{}, Citations: []findings.Citation{}, Shortened: o.Shortened,
+		NoConfigReason: clip(o.NoConfigReason, maxAIText),
 	}
 	for _, c := range o.Configs {
 		code := strings.ToValidUTF8(strings.ReplaceAll(c.Code, "\x00", ""), "\uFFFD")

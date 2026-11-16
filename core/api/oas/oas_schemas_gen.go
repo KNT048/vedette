@@ -62325,9 +62325,13 @@ type FindingsGetFindingsIDOKAiConfig struct {
 	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
 	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
 	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
-	Configs    []FindingsGetFindingsIDOKAiConfigConfigsItem `json:"configs"`
-	Model      string                                       `json:"model"`
-	Paragraphs []string                                     `json:"paragraphs"`
+	Configs []FindingsGetFindingsIDOKAiConfigConfigsItem `json:"configs"`
+	Model   string                                       `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
 	Profile OptString `json:"profile"`
 	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
@@ -62352,6 +62356,11 @@ func (s *FindingsGetFindingsIDOKAiConfig) GetConfigs() []FindingsGetFindingsIDOK
 // GetModel returns the value of Model.
 func (s *FindingsGetFindingsIDOKAiConfig) GetModel() string {
 	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsGetFindingsIDOKAiConfig) GetNoConfigReason() OptString {
+	return s.NoConfigReason
 }
 
 // GetParagraphs returns the value of Paragraphs.
@@ -62402,6 +62411,11 @@ func (s *FindingsGetFindingsIDOKAiConfig) SetConfigs(val []FindingsGetFindingsID
 // SetModel sets the value of Model.
 func (s *FindingsGetFindingsIDOKAiConfig) SetModel(val string) {
 	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsGetFindingsIDOKAiConfig) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
 }
 
 // SetParagraphs sets the value of Paragraphs.
@@ -62583,9 +62597,13 @@ type FindingsGetFindingsIDOKAiExplain struct {
 	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
 	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
 	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
-	Configs    []FindingsGetFindingsIDOKAiExplainConfigsItem `json:"configs"`
-	Model      string                                        `json:"model"`
-	Paragraphs []string                                      `json:"paragraphs"`
+	Configs []FindingsGetFindingsIDOKAiExplainConfigsItem `json:"configs"`
+	Model   string                                        `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
 	Profile OptString `json:"profile"`
 	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
@@ -62610,6 +62628,11 @@ func (s *FindingsGetFindingsIDOKAiExplain) GetConfigs() []FindingsGetFindingsIDO
 // GetModel returns the value of Model.
 func (s *FindingsGetFindingsIDOKAiExplain) GetModel() string {
 	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsGetFindingsIDOKAiExplain) GetNoConfigReason() OptString {
+	return s.NoConfigReason
 }
 
 // GetParagraphs returns the value of Paragraphs.
@@ -62660,6 +62683,11 @@ func (s *FindingsGetFindingsIDOKAiExplain) SetConfigs(val []FindingsGetFindingsI
 // SetModel sets the value of Model.
 func (s *FindingsGetFindingsIDOKAiExplain) SetModel(val string) {
 	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsGetFindingsIDOKAiExplain) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
 }
 
 // SetParagraphs sets the value of Paragraphs.
@@ -70574,9 +70602,13 @@ type FindingsPostFindingsIDAiOKAiConfig struct {
 	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
 	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
 	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
-	Configs    []FindingsPostFindingsIDAiOKAiConfigConfigsItem `json:"configs"`
-	Model      string                                          `json:"model"`
-	Paragraphs []string                                        `json:"paragraphs"`
+	Configs []FindingsPostFindingsIDAiOKAiConfigConfigsItem `json:"configs"`
+	Model   string                                          `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
 	Profile OptString `json:"profile"`
 	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
@@ -70601,6 +70633,11 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) GetConfigs() []FindingsPostFindings
 // GetModel returns the value of Model.
 func (s *FindingsPostFindingsIDAiOKAiConfig) GetModel() string {
 	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDAiOKAiConfig) GetNoConfigReason() OptString {
+	return s.NoConfigReason
 }
 
 // GetParagraphs returns the value of Paragraphs.
@@ -70651,6 +70688,11 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) SetConfigs(val []FindingsPostFindin
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDAiOKAiConfig) SetModel(val string) {
 	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDAiOKAiConfig) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
 }
 
 // SetParagraphs sets the value of Paragraphs.
@@ -70832,9 +70874,13 @@ type FindingsPostFindingsIDAiOKAiExplain struct {
 	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
 	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
 	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
-	Configs    []FindingsPostFindingsIDAiOKAiExplainConfigsItem `json:"configs"`
-	Model      string                                           `json:"model"`
-	Paragraphs []string                                         `json:"paragraphs"`
+	Configs []FindingsPostFindingsIDAiOKAiExplainConfigsItem `json:"configs"`
+	Model   string                                           `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
 	Profile OptString `json:"profile"`
 	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
@@ -70859,6 +70905,11 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) GetConfigs() []FindingsPostFinding
 // GetModel returns the value of Model.
 func (s *FindingsPostFindingsIDAiOKAiExplain) GetModel() string {
 	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDAiOKAiExplain) GetNoConfigReason() OptString {
+	return s.NoConfigReason
 }
 
 // GetParagraphs returns the value of Paragraphs.
@@ -70909,6 +70960,11 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) SetConfigs(val []FindingsPostFindi
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDAiOKAiExplain) SetModel(val string) {
 	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDAiOKAiExplain) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
 }
 
 // SetParagraphs sets the value of Paragraphs.
@@ -74134,9 +74190,13 @@ type FindingsPostFindingsIDAppliedOKAiConfig struct {
 	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
 	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
 	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
-	Configs    []FindingsPostFindingsIDAppliedOKAiConfigConfigsItem `json:"configs"`
-	Model      string                                               `json:"model"`
-	Paragraphs []string                                             `json:"paragraphs"`
+	Configs []FindingsPostFindingsIDAppliedOKAiConfigConfigsItem `json:"configs"`
+	Model   string                                               `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
 	Profile OptString `json:"profile"`
 	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
@@ -74161,6 +74221,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) GetConfigs() []FindingsPostFin
 // GetModel returns the value of Model.
 func (s *FindingsPostFindingsIDAppliedOKAiConfig) GetModel() string {
 	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDAppliedOKAiConfig) GetNoConfigReason() OptString {
+	return s.NoConfigReason
 }
 
 // GetParagraphs returns the value of Paragraphs.
@@ -74211,6 +74276,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetConfigs(val []FindingsPostF
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetModel(val string) {
 	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
 }
 
 // SetParagraphs sets the value of Paragraphs.
@@ -74392,9 +74462,13 @@ type FindingsPostFindingsIDAppliedOKAiExplain struct {
 	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
 	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
 	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
-	Configs    []FindingsPostFindingsIDAppliedOKAiExplainConfigsItem `json:"configs"`
-	Model      string                                                `json:"model"`
-	Paragraphs []string                                              `json:"paragraphs"`
+	Configs []FindingsPostFindingsIDAppliedOKAiExplainConfigsItem `json:"configs"`
+	Model   string                                                `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
 	Profile OptString `json:"profile"`
 	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
@@ -74419,6 +74493,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) GetConfigs() []FindingsPostFi
 // GetModel returns the value of Model.
 func (s *FindingsPostFindingsIDAppliedOKAiExplain) GetModel() string {
 	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDAppliedOKAiExplain) GetNoConfigReason() OptString {
+	return s.NoConfigReason
 }
 
 // GetParagraphs returns the value of Paragraphs.
@@ -74469,6 +74548,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetConfigs(val []FindingsPost
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetModel(val string) {
 	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
 }
 
 // SetParagraphs sets the value of Paragraphs.
@@ -77715,9 +77799,13 @@ type FindingsPostFindingsIDStatusOKAiConfig struct {
 	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
 	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
 	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
-	Configs    []FindingsPostFindingsIDStatusOKAiConfigConfigsItem `json:"configs"`
-	Model      string                                              `json:"model"`
-	Paragraphs []string                                            `json:"paragraphs"`
+	Configs []FindingsPostFindingsIDStatusOKAiConfigConfigsItem `json:"configs"`
+	Model   string                                              `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
 	Profile OptString `json:"profile"`
 	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
@@ -77742,6 +77830,11 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) GetConfigs() []FindingsPostFind
 // GetModel returns the value of Model.
 func (s *FindingsPostFindingsIDStatusOKAiConfig) GetModel() string {
 	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDStatusOKAiConfig) GetNoConfigReason() OptString {
+	return s.NoConfigReason
 }
 
 // GetParagraphs returns the value of Paragraphs.
@@ -77792,6 +77885,11 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) SetConfigs(val []FindingsPostFi
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDStatusOKAiConfig) SetModel(val string) {
 	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDStatusOKAiConfig) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
 }
 
 // SetParagraphs sets the value of Paragraphs.
@@ -77973,9 +78071,13 @@ type FindingsPostFindingsIDStatusOKAiExplain struct {
 	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
 	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
 	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
-	Configs    []FindingsPostFindingsIDStatusOKAiExplainConfigsItem `json:"configs"`
-	Model      string                                               `json:"model"`
-	Paragraphs []string                                             `json:"paragraphs"`
+	Configs []FindingsPostFindingsIDStatusOKAiExplainConfigsItem `json:"configs"`
+	Model   string                                               `json:"model"`
+	// #897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding
+	// (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's
+	// words; the page shows it where the configuration would be.
+	NoConfigReason OptString `json:"no_config_reason"`
+	Paragraphs     []string  `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
 	Profile OptString `json:"profile"`
 	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
@@ -78000,6 +78102,11 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) GetConfigs() []FindingsPostFin
 // GetModel returns the value of Model.
 func (s *FindingsPostFindingsIDStatusOKAiExplain) GetModel() string {
 	return s.Model
+}
+
+// GetNoConfigReason returns the value of NoConfigReason.
+func (s *FindingsPostFindingsIDStatusOKAiExplain) GetNoConfigReason() OptString {
+	return s.NoConfigReason
 }
 
 // GetParagraphs returns the value of Paragraphs.
@@ -78050,6 +78157,11 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) SetConfigs(val []FindingsPostF
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDStatusOKAiExplain) SetModel(val string) {
 	s.Model = val
+}
+
+// SetNoConfigReason sets the value of NoConfigReason.
+func (s *FindingsPostFindingsIDStatusOKAiExplain) SetNoConfigReason(val OptString) {
+	s.NoConfigReason = val
 }
 
 // SetParagraphs sets the value of Paragraphs.

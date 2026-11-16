@@ -43,6 +43,8 @@ type AIOutput struct {
 	// Configs are the ready config blocks of the mitigation-config skill (Code is the lines to paste, Note what the change is based
 	// on, SideEffect what it can break); none for explain.
 	Configs []findings.CodeStep
+	// NoConfigReason says why no config (or no firewall rule) helps for this finding, when the AI gave none (#897 r1 H1).
+	NoConfigReason string
 	// Shortened: a part of the answer was longer than the AI module keeps (cut at a sentence end, or a config block left out whole).
 	Shortened  bool
 	Citations  []findings.Citation

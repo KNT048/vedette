@@ -32748,6 +32748,10 @@
                                     "additionalProperties": false
                                   }
                                 },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
+                                },
                                 "shortened": {
                                   "description": "M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
                                   "type": "boolean"
@@ -32865,6 +32869,10 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
                                 },
                                 "shortened": {
                                   "description": "M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
@@ -34114,6 +34122,10 @@
                                     "additionalProperties": false
                                   }
                                 },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
+                                },
                                 "shortened": {
                                   "description": "M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
                                   "type": "boolean"
@@ -34231,6 +34243,10 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
                                 },
                                 "shortened": {
                                   "description": "M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
@@ -35482,6 +35498,10 @@
                                     "additionalProperties": false
                                   }
                                 },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
+                                },
                                 "shortened": {
                                   "description": "M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
                                   "type": "boolean"
@@ -35599,6 +35619,10 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
                                 },
                                 "shortened": {
                                   "description": "M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
@@ -36862,6 +36886,10 @@
                                     "additionalProperties": false
                                   }
                                 },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
+                                },
                                 "shortened": {
                                   "description": "M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",
                                   "type": "boolean"
@@ -36979,6 +37007,10 @@
                                     ],
                                     "additionalProperties": false
                                   }
+                                },
+                                "no_config_reason": {
+                                  "description": "#897 r1 H1, mitigation-config: why no configuration, or no firewall rule, helps for this finding (the attack is local or needs a user, or no open port serves the vulnerable part), in the AI's words; the page shows it where the configuration would be",
+                                  "type": "string"
                                 },
                                 "shortened": {
                                   "description": "M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole",

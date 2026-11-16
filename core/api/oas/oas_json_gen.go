@@ -123661,6 +123661,12 @@ func (s *FindingsGetFindingsIDOKAiConfig) encodeFields(e *jx.Encoder) {
 		e.Str(s.Model)
 	}
 	{
+		if s.NoConfigReason.Set {
+			e.FieldStart("no_config_reason")
+			s.NoConfigReason.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("paragraphs")
 		e.ArrStart()
 		for _, elem := range s.Paragraphs {
@@ -123702,17 +123708,18 @@ func (s *FindingsGetFindingsIDOKAiConfig) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKAiConfig = [10]string{
-	0: "citations",
-	1: "configs",
-	2: "model",
-	3: "paragraphs",
-	4: "profile",
-	5: "shortened",
-	6: "skill",
-	7: "steps",
-	8: "tokens",
-	9: "ts",
+var jsonFieldsNameOfFindingsGetFindingsIDOKAiConfig = [11]string{
+	0:  "citations",
+	1:  "configs",
+	2:  "model",
+	3:  "no_config_reason",
+	4:  "paragraphs",
+	5:  "profile",
+	6:  "shortened",
+	7:  "skill",
+	8:  "steps",
+	9:  "tokens",
+	10: "ts",
 }
 
 // Decode decodes FindingsGetFindingsIDOKAiConfig from json.
@@ -123771,8 +123778,18 @@ func (s *FindingsGetFindingsIDOKAiConfig) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
+		case "no_config_reason":
+			if err := func() error {
+				s.NoConfigReason.Reset()
+				if err := s.NoConfigReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"no_config_reason\"")
+			}
 		case "paragraphs":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Paragraphs = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -123812,7 +123829,7 @@ func (s *FindingsGetFindingsIDOKAiConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"shortened\"")
 			}
 		case "skill":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Skill.Decode(d); err != nil {
 					return err
@@ -123822,7 +123839,7 @@ func (s *FindingsGetFindingsIDOKAiConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"skill\"")
 			}
 		case "steps":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Steps = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -123842,7 +123859,7 @@ func (s *FindingsGetFindingsIDOKAiConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"steps\"")
 			}
 		case "tokens":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Tokens.Decode(d); err != nil {
 					return err
@@ -123852,7 +123869,7 @@ func (s *FindingsGetFindingsIDOKAiConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tokens\"")
 			}
 		case "ts":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Ts = v
@@ -123873,8 +123890,8 @@ func (s *FindingsGetFindingsIDOKAiConfig) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11001101,
-		0b00000011,
+		0b10010101,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -124365,6 +124382,12 @@ func (s *FindingsGetFindingsIDOKAiExplain) encodeFields(e *jx.Encoder) {
 		e.Str(s.Model)
 	}
 	{
+		if s.NoConfigReason.Set {
+			e.FieldStart("no_config_reason")
+			s.NoConfigReason.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("paragraphs")
 		e.ArrStart()
 		for _, elem := range s.Paragraphs {
@@ -124406,17 +124429,18 @@ func (s *FindingsGetFindingsIDOKAiExplain) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKAiExplain = [10]string{
-	0: "citations",
-	1: "configs",
-	2: "model",
-	3: "paragraphs",
-	4: "profile",
-	5: "shortened",
-	6: "skill",
-	7: "steps",
-	8: "tokens",
-	9: "ts",
+var jsonFieldsNameOfFindingsGetFindingsIDOKAiExplain = [11]string{
+	0:  "citations",
+	1:  "configs",
+	2:  "model",
+	3:  "no_config_reason",
+	4:  "paragraphs",
+	5:  "profile",
+	6:  "shortened",
+	7:  "skill",
+	8:  "steps",
+	9:  "tokens",
+	10: "ts",
 }
 
 // Decode decodes FindingsGetFindingsIDOKAiExplain from json.
@@ -124475,8 +124499,18 @@ func (s *FindingsGetFindingsIDOKAiExplain) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
+		case "no_config_reason":
+			if err := func() error {
+				s.NoConfigReason.Reset()
+				if err := s.NoConfigReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"no_config_reason\"")
+			}
 		case "paragraphs":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Paragraphs = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -124516,7 +124550,7 @@ func (s *FindingsGetFindingsIDOKAiExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"shortened\"")
 			}
 		case "skill":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Skill.Decode(d); err != nil {
 					return err
@@ -124526,7 +124560,7 @@ func (s *FindingsGetFindingsIDOKAiExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"skill\"")
 			}
 		case "steps":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Steps = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -124546,7 +124580,7 @@ func (s *FindingsGetFindingsIDOKAiExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"steps\"")
 			}
 		case "tokens":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Tokens.Decode(d); err != nil {
 					return err
@@ -124556,7 +124590,7 @@ func (s *FindingsGetFindingsIDOKAiExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tokens\"")
 			}
 		case "ts":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Ts = v
@@ -124577,8 +124611,8 @@ func (s *FindingsGetFindingsIDOKAiExplain) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11001101,
-		0b00000011,
+		0b10010101,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -136074,6 +136108,12 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) encodeFields(e *jx.Encoder) {
 		e.Str(s.Model)
 	}
 	{
+		if s.NoConfigReason.Set {
+			e.FieldStart("no_config_reason")
+			s.NoConfigReason.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("paragraphs")
 		e.ArrStart()
 		for _, elem := range s.Paragraphs {
@@ -136115,17 +136155,18 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKAiConfig = [10]string{
-	0: "citations",
-	1: "configs",
-	2: "model",
-	3: "paragraphs",
-	4: "profile",
-	5: "shortened",
-	6: "skill",
-	7: "steps",
-	8: "tokens",
-	9: "ts",
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKAiConfig = [11]string{
+	0:  "citations",
+	1:  "configs",
+	2:  "model",
+	3:  "no_config_reason",
+	4:  "paragraphs",
+	5:  "profile",
+	6:  "shortened",
+	7:  "skill",
+	8:  "steps",
+	9:  "tokens",
+	10: "ts",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKAiConfig from json.
@@ -136184,8 +136225,18 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
+		case "no_config_reason":
+			if err := func() error {
+				s.NoConfigReason.Reset()
+				if err := s.NoConfigReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"no_config_reason\"")
+			}
 		case "paragraphs":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Paragraphs = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -136225,7 +136276,7 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"shortened\"")
 			}
 		case "skill":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Skill.Decode(d); err != nil {
 					return err
@@ -136235,7 +136286,7 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"skill\"")
 			}
 		case "steps":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Steps = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -136255,7 +136306,7 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"steps\"")
 			}
 		case "tokens":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Tokens.Decode(d); err != nil {
 					return err
@@ -136265,7 +136316,7 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tokens\"")
 			}
 		case "ts":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Ts = v
@@ -136286,8 +136337,8 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11001101,
-		0b00000011,
+		0b10010101,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -136778,6 +136829,12 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) encodeFields(e *jx.Encoder) {
 		e.Str(s.Model)
 	}
 	{
+		if s.NoConfigReason.Set {
+			e.FieldStart("no_config_reason")
+			s.NoConfigReason.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("paragraphs")
 		e.ArrStart()
 		for _, elem := range s.Paragraphs {
@@ -136819,17 +136876,18 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKAiExplain = [10]string{
-	0: "citations",
-	1: "configs",
-	2: "model",
-	3: "paragraphs",
-	4: "profile",
-	5: "shortened",
-	6: "skill",
-	7: "steps",
-	8: "tokens",
-	9: "ts",
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKAiExplain = [11]string{
+	0:  "citations",
+	1:  "configs",
+	2:  "model",
+	3:  "no_config_reason",
+	4:  "paragraphs",
+	5:  "profile",
+	6:  "shortened",
+	7:  "skill",
+	8:  "steps",
+	9:  "tokens",
+	10: "ts",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKAiExplain from json.
@@ -136888,8 +136946,18 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
+		case "no_config_reason":
+			if err := func() error {
+				s.NoConfigReason.Reset()
+				if err := s.NoConfigReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"no_config_reason\"")
+			}
 		case "paragraphs":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Paragraphs = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -136929,7 +136997,7 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"shortened\"")
 			}
 		case "skill":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Skill.Decode(d); err != nil {
 					return err
@@ -136939,7 +137007,7 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"skill\"")
 			}
 		case "steps":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Steps = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -136959,7 +137027,7 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"steps\"")
 			}
 		case "tokens":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Tokens.Decode(d); err != nil {
 					return err
@@ -136969,7 +137037,7 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tokens\"")
 			}
 		case "ts":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Ts = v
@@ -136990,8 +137058,8 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11001101,
-		0b00000011,
+		0b10010101,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -142945,6 +143013,12 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) encodeFields(e *jx.Encoder) {
 		e.Str(s.Model)
 	}
 	{
+		if s.NoConfigReason.Set {
+			e.FieldStart("no_config_reason")
+			s.NoConfigReason.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("paragraphs")
 		e.ArrStart()
 		for _, elem := range s.Paragraphs {
@@ -142986,17 +143060,18 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKAiConfig = [10]string{
-	0: "citations",
-	1: "configs",
-	2: "model",
-	3: "paragraphs",
-	4: "profile",
-	5: "shortened",
-	6: "skill",
-	7: "steps",
-	8: "tokens",
-	9: "ts",
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKAiConfig = [11]string{
+	0:  "citations",
+	1:  "configs",
+	2:  "model",
+	3:  "no_config_reason",
+	4:  "paragraphs",
+	5:  "profile",
+	6:  "shortened",
+	7:  "skill",
+	8:  "steps",
+	9:  "tokens",
+	10: "ts",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKAiConfig from json.
@@ -143055,8 +143130,18 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
+		case "no_config_reason":
+			if err := func() error {
+				s.NoConfigReason.Reset()
+				if err := s.NoConfigReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"no_config_reason\"")
+			}
 		case "paragraphs":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Paragraphs = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -143096,7 +143181,7 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"shortened\"")
 			}
 		case "skill":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Skill.Decode(d); err != nil {
 					return err
@@ -143106,7 +143191,7 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"skill\"")
 			}
 		case "steps":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Steps = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -143126,7 +143211,7 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"steps\"")
 			}
 		case "tokens":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Tokens.Decode(d); err != nil {
 					return err
@@ -143136,7 +143221,7 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tokens\"")
 			}
 		case "ts":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Ts = v
@@ -143157,8 +143242,8 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11001101,
-		0b00000011,
+		0b10010101,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -143649,6 +143734,12 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) encodeFields(e *jx.Encoder) {
 		e.Str(s.Model)
 	}
 	{
+		if s.NoConfigReason.Set {
+			e.FieldStart("no_config_reason")
+			s.NoConfigReason.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("paragraphs")
 		e.ArrStart()
 		for _, elem := range s.Paragraphs {
@@ -143690,17 +143781,18 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKAiExplain = [10]string{
-	0: "citations",
-	1: "configs",
-	2: "model",
-	3: "paragraphs",
-	4: "profile",
-	5: "shortened",
-	6: "skill",
-	7: "steps",
-	8: "tokens",
-	9: "ts",
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKAiExplain = [11]string{
+	0:  "citations",
+	1:  "configs",
+	2:  "model",
+	3:  "no_config_reason",
+	4:  "paragraphs",
+	5:  "profile",
+	6:  "shortened",
+	7:  "skill",
+	8:  "steps",
+	9:  "tokens",
+	10: "ts",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKAiExplain from json.
@@ -143759,8 +143851,18 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
+		case "no_config_reason":
+			if err := func() error {
+				s.NoConfigReason.Reset()
+				if err := s.NoConfigReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"no_config_reason\"")
+			}
 		case "paragraphs":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Paragraphs = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -143800,7 +143902,7 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"shortened\"")
 			}
 		case "skill":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Skill.Decode(d); err != nil {
 					return err
@@ -143810,7 +143912,7 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"skill\"")
 			}
 		case "steps":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Steps = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -143830,7 +143932,7 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"steps\"")
 			}
 		case "tokens":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Tokens.Decode(d); err != nil {
 					return err
@@ -143840,7 +143942,7 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tokens\"")
 			}
 		case "ts":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Ts = v
@@ -143861,8 +143963,8 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11001101,
-		0b00000011,
+		0b10010101,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -149822,6 +149924,12 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) encodeFields(e *jx.Encoder) {
 		e.Str(s.Model)
 	}
 	{
+		if s.NoConfigReason.Set {
+			e.FieldStart("no_config_reason")
+			s.NoConfigReason.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("paragraphs")
 		e.ArrStart()
 		for _, elem := range s.Paragraphs {
@@ -149863,17 +149971,18 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOKAiConfig = [10]string{
-	0: "citations",
-	1: "configs",
-	2: "model",
-	3: "paragraphs",
-	4: "profile",
-	5: "shortened",
-	6: "skill",
-	7: "steps",
-	8: "tokens",
-	9: "ts",
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOKAiConfig = [11]string{
+	0:  "citations",
+	1:  "configs",
+	2:  "model",
+	3:  "no_config_reason",
+	4:  "paragraphs",
+	5:  "profile",
+	6:  "shortened",
+	7:  "skill",
+	8:  "steps",
+	9:  "tokens",
+	10: "ts",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOKAiConfig from json.
@@ -149932,8 +150041,18 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
+		case "no_config_reason":
+			if err := func() error {
+				s.NoConfigReason.Reset()
+				if err := s.NoConfigReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"no_config_reason\"")
+			}
 		case "paragraphs":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Paragraphs = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -149973,7 +150092,7 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"shortened\"")
 			}
 		case "skill":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Skill.Decode(d); err != nil {
 					return err
@@ -149983,7 +150102,7 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"skill\"")
 			}
 		case "steps":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Steps = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -150003,7 +150122,7 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"steps\"")
 			}
 		case "tokens":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Tokens.Decode(d); err != nil {
 					return err
@@ -150013,7 +150132,7 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tokens\"")
 			}
 		case "ts":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Ts = v
@@ -150034,8 +150153,8 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11001101,
-		0b00000011,
+		0b10010101,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -150526,6 +150645,12 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) encodeFields(e *jx.Encoder) {
 		e.Str(s.Model)
 	}
 	{
+		if s.NoConfigReason.Set {
+			e.FieldStart("no_config_reason")
+			s.NoConfigReason.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("paragraphs")
 		e.ArrStart()
 		for _, elem := range s.Paragraphs {
@@ -150567,17 +150692,18 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOKAiExplain = [10]string{
-	0: "citations",
-	1: "configs",
-	2: "model",
-	3: "paragraphs",
-	4: "profile",
-	5: "shortened",
-	6: "skill",
-	7: "steps",
-	8: "tokens",
-	9: "ts",
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOKAiExplain = [11]string{
+	0:  "citations",
+	1:  "configs",
+	2:  "model",
+	3:  "no_config_reason",
+	4:  "paragraphs",
+	5:  "profile",
+	6:  "shortened",
+	7:  "skill",
+	8:  "steps",
+	9:  "tokens",
+	10: "ts",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOKAiExplain from json.
@@ -150636,8 +150762,18 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
+		case "no_config_reason":
+			if err := func() error {
+				s.NoConfigReason.Reset()
+				if err := s.NoConfigReason.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"no_config_reason\"")
+			}
 		case "paragraphs":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Paragraphs = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -150677,7 +150813,7 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"shortened\"")
 			}
 		case "skill":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Skill.Decode(d); err != nil {
 					return err
@@ -150687,7 +150823,7 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"skill\"")
 			}
 		case "steps":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				s.Steps = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -150707,7 +150843,7 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"steps\"")
 			}
 		case "tokens":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Tokens.Decode(d); err != nil {
 					return err
@@ -150717,7 +150853,7 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"tokens\"")
 			}
 		case "ts":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.Ts = v
@@ -150738,8 +150874,8 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
-		0b11001101,
-		0b00000011,
+		0b10010101,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

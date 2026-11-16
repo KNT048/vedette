@@ -243,8 +243,9 @@
     "privacy": "Sent to the AI provider you configured, with your key.",
     "privacyInfo": "The data level is set in Settings, AI assistant.",
     "openModules": "Open Settings, Modules",
-    "configsTitle": "Configuration to paste",
-    "shortened": "Part of this answer was longer than Vedette keeps, so it was shortened. Ask again for the full text."
+    "configsTitle": "Configuration to review before pasting",
+    "noConfigTitle": "Why there is no firewall rule",
+    "shortened": "Vedette shortened or left out part of this answer: a text longer than it keeps, or a configuration that was too long, had two commands on one line, or named an address that is not in your data. Ask again for a new answer."
   },
   "noIp": "No IP address",
   "removedDevice": "A removed device",

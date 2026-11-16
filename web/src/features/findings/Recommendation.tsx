@@ -27,8 +27,9 @@ function SideEffect({ text }: { text: string }) {
 function Steps({ steps }: { steps: CodeStep[] }) {
   return (
     <div className="grid gap-3">
-      {steps.map((s) => (
-        <div key={s.title} className="grid gap-1.5">
+      {steps.map((s, i) => (
+        // the index too: an AI's titles can repeat (#897 r1 L4)
+        <div key={`${i}:${s.title}`} className="grid gap-1.5">
           {s.code ? <CodeBlock code={s.code} label={s.title} wrapOnPhone /> : <p className="text-meta font-medium">{s.title}</p>}
           {s.note ? <p className="text-meta text-muted">{s.note}</p> : null}
           {s.side_effect ? <SideEffect text={s.side_effect} /> : null}
@@ -210,6 +211,8 @@ export function AiOutput({ r }: { r: AiResult }) {
       <ol className="grid list-decimal gap-1 pl-5">{r.steps.map((s) => <li key={s}>{s}</li>)}</ol>
       {/* M2-2: the config blocks to paste, each copyable, with what it is based on and its side effect */}
       {r.configs?.length ? <div className="grid gap-2"><p className="text-sm font-medium">{t('ai.configsTitle')}</p><Steps steps={r.configs} /></div> : null}
+      {/* #897 r1 H1: when no configuration helps (a local flaw, no open port serves it), the AI says why instead of inventing rules */}
+      {r.no_config_reason ? <div className="grid gap-1"><p className="text-sm font-medium">{t('ai.noConfigTitle')}</p><p>{r.no_config_reason}</p></div> : null}
       {r.shortened ? <p className="text-meta text-muted">{t('ai.shortened')}</p> : null}
     </AiBlock>
   )

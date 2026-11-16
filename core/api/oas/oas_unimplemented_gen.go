@@ -2196,7 +2196,8 @@ func (UnimplementedHandler) InventoryPutInventoryNotifyNew(ctx context.Context, 
 
 // InventoryPutInventorySettings implements inventory_put_inventory_settings operation.
 //
-// Save the scan scope; enabling active scanning requires scope attestation.
+// Save the scan scope; enabling active scanning requires scope attestation. 409 safety_changed when
+// the version sent is not the stored one.
 //
 // PUT /inventory/settings
 func (UnimplementedHandler) InventoryPutInventorySettings(ctx context.Context, req *InventoryPutInventorySettingsReq) (r *InventoryPutInventorySettingsOK, _ error) {
@@ -3202,7 +3203,8 @@ func (UnimplementedHandler) ScanPostScansRunsIDStop(ctx context.Context, params 
 
 // ScanPutScansConfig implements scan_put_scans_config operation.
 //
-// Save scan settings (partial update); dangerous checks are always rejected.
+// Save scan settings (partial update); dangerous checks are always rejected. 409 safety_changed when
+// the version sent is not the stored one.
 //
 // PUT /scans/config
 func (UnimplementedHandler) ScanPutScansConfig(ctx context.Context, req *ScanPutScansConfigReq) (r *ScanPutScansConfigOK, _ error) {
@@ -3255,11 +3257,11 @@ func (UnimplementedHandler) ScanningPostScanningEnginesNmapDiscoveryRun(ctx cont
 // ScanningPostScanningSafetyExclusions implements scanning_post_scanning_safety_exclusions operation.
 //
 // Add one exclusion where the person is ("+ New exclusion" in a dialog, #842), without sending the
-// whole block: read, append and save in one transaction. 400 bad_exclusion as PUT /scanning/safety;
-// 409 too_many_exclusions when the list would grow past 200. An entry an exclusion already covers is
+// whole block: read, append and save in one transaction. 400 bad_exclusion as PUT /scanning/safety,
+// and too_many_exclusions when the list would grow past 200. An entry an exclusion already covers is
 // 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the
 // entry) and publishes inventory.settings.changed: a run that may no longer touch it stops. Returns
-// the whole safety block.
+// the whole safety block with its new version.
 //
 // POST /scanning/safety/exclusions
 func (UnimplementedHandler) ScanningPostScanningSafetyExclusions(ctx context.Context, req *ScanningPostScanningSafetyExclusionsReq) (r *ScanningPostScanningSafetyExclusionsOK, _ error) {
@@ -3270,12 +3272,15 @@ func (UnimplementedHandler) ScanningPostScanningSafetyExclusions(ctx context.Con
 //
 // Add one LAN range to the scope where the person is ("+ New range" in a dialog, #842), without
 // sending the whole block: read, append and save in one transaction, so it never overwrites another
-// edit. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range,
-// too_many_ranges (16), and scope_not_confirmed when confirm is not true. A range the scope already
-// covers is 200 with the block unchanged (no audit row) while the scope is confirmed; while it is not,
-// the confirmation is recorded for the stored ranges. Audited as the PUT (inventory.settings, naming
-// the range) and publishes inventory.settings.changed. Returns the whole safety block, with adjusted
-// when the range was normalized.
+// edit. The dialog lists the current ranges with the confirmation tick and sends them back in
+// shown_ranges: the tick confirms those and the new range only. 400 as PUT /scanning/safety for a
+// range: no_prefix, bad_cidr, public_range, overlap_range, too_many_ranges (16), and
+// scope_not_confirmed when confirm is not true; 409 scope_changed (with error.safety, the current
+// block) when the stored ranges are not shown_ranges. A range the confirmed scope already covers is
+// 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the
+// range, and saying when the add confirmed a scope that was not confirmed) and publishes
+// inventory.settings.changed. Returns the whole safety block with its new version, and adjusted when
+// the range was normalized.
 //
 // POST /scanning/safety/ranges
 func (UnimplementedHandler) ScanningPostScanningSafetyRanges(ctx context.Context, req *ScanningPostScanningSafetyRangesReq) (r *ScanningPostScanningSafetyRangesOK, _ error) {
@@ -3288,8 +3293,10 @@ func (UnimplementedHandler) ScanningPostScanningSafetyRanges(ctx context.Context
 // the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT
 // /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days,
 // no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20),
-// bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on).
-// Publishes inventory.settings.changed: a run that the new values no longer allow stops.
+// bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on); 409
+// safety_changed (with error.safety, the current block) when version is not the stored one: re-read,
+// merge, save again. Publishes inventory.settings.changed: a run that the new values no longer allow
+// stops.
 //
 // PUT /scanning/safety
 func (UnimplementedHandler) ScanningPutScanningSafety(ctx context.Context, req *ScanningPutScanningSafetyReq) (r *ScanningPutScanningSafetyOK, _ error) {

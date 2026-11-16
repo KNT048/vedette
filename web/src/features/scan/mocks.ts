@@ -6,7 +6,7 @@ import { API, audit, body, CIDR_RE, currentUser, fail, guard, IPV4_RE } from '@/
 import { collection, daysAgo, dataMode, newId, nowIso, peek } from '@/mocks/db'
 import { assetsStore, findingsStore, isOn } from '@/mocks/stores'
 import type { Asset, Finding } from '@/lib/types'
-import { BOX_ID, inventorySettingsStore } from '@/features/inventory/mocks'
+import { BOX_ID, hashOf, inventorySettingsStore, SAFETY_CHANGED } from '@/features/inventory/mocks'
 import { displayName } from '@/features/inventory/nameOf'
 import { exposureSnapshotsStore, exposureTargetsStore } from '@/features/exposure/mocks'
 import { mockDeviceProgress } from '@/lib/progress'
@@ -385,7 +385,7 @@ function configResponse(): ScanConfigResponse {
   const block = !sc.commitment ? 'The scan scope commitment is not ticked yet. Do it under Devices, Scope and sensors.' : !up ? SCANNER_DOWN : null
   const zoneDown = !zoneStore.get().readable
   const sched = zoneDown && c.schedule.enabled ? ZONE_DOWN : null
-  return { config: c, next_run: zoneDown ? null : nextRun(c, new Date(), !runs.get().some((r) => r.trigger === 'schedule')), scope: sc, can_scan: block === null, block_reason: block, dangerous_checks: false, schedule_blocked_reason: sched }
+  return { config: c, next_run: zoneDown ? null : nextRun(c, new Date(), !runs.get().some((r) => r.trigger === 'schedule')), scope: sc, can_scan: block === null, block_reason: block, dangerous_checks: false, schedule_blocked_reason: sched, version: hashOf(JSON.stringify([c.window, c.rate, c.exclusions])) }
 }
 
 // ---- khoá SSH (S-SCAN-5) ----
@@ -408,7 +408,8 @@ export const handlers = [
   // Cấu hình phạm vi/an toàn = admin (spec §4). Nhận một phần, gộp rồi kiểm tra toàn bộ.
   http.put(`${API}/scans/config`, async ({ request }) => {
     const d = guard('admin'); if (d) return d
-    const b = await body<Partial<ScanConfig> & { dangerous_checks: boolean }>(request)
+    const { version, ...b } = await body<Partial<ScanConfig> & { dangerous_checks: boolean; version?: string }>(request)
+    if (version && version !== configResponse().version) return fail(409, 'safety_changed', SAFETY_CHANGED)
     if (b.dangerous_checks === true) return fail(400, 'dangerous_locked', 'Vedette has no dangerous checks: no exploitation, no denial of service. It cannot be turned on.')
     const cur = config.get()
     const next: ScanConfig = {

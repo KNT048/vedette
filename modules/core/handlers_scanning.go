@@ -55,9 +55,10 @@ type SafetyStore interface {
 	Safety(ctx context.Context) (Safety, error)
 	// SaveSafety validates and stores in; an error that is an *apierr.Error reaches the person as it is.
 	SaveSafety(ctx context.Context, actor string, in SafetyInput) (Safety, []Adjustment, error)
-	// AddRange adds one range to the scope in one transaction (read, append, store) with the attestation confirmed; a range the scope
-	// covers changes nothing. Its errors as SaveSafety's.
-	AddRange(ctx context.Context, actor, rng string, confirmed bool) (Safety, []Adjustment, error)
+	// AddRange adds one range to the scope in one transaction (read, append, store); the attestation covers shown (the ranges the
+	// dialog showed) and the new range, and a stored list other than shown is a *SafetyChanged (scope_changed); a range the confirmed
+	// scope covers changes nothing. Its other errors as SaveSafety's.
+	AddRange(ctx context.Context, actor, rng string, shown []string, confirmed bool) (Safety, []Adjustment, error)
 	// AddExclusion adds one exclusion in one transaction; one an exclusion covers changes nothing. Its errors as SaveSafety's.
 	AddExclusion(ctx context.Context, actor, entry string) (Safety, error)
 }
@@ -74,6 +75,7 @@ type Safety struct {
 	FragileKinds             []string
 	RegularScanKinds         []string
 	FragileDevices           int
+	Version                  string // names the stored values (inventory SafetyVersion); a full save must name the one it read
 }
 
 // SafetyInput is PUT /scanning/safety.
@@ -85,7 +87,17 @@ type SafetyInput struct {
 	PacketsPerS, RequestsPerS      int
 	Exclusions                     []string
 	FragileKinds, RegularScanKinds []string
+	Version                        string // the version the page read: another one is a *SafetyChanged (safety_changed)
 }
+
+// SafetyChanged refuses a write built on a block that changed since the person read it (409 Code: safety_changed, scope_changed;
+// review #860 H1/M1). Nothing was stored; Current is the block now, which the answer carries (error.safety) for the page to show.
+type SafetyChanged struct {
+	Code, Message string
+	Current       Safety
+}
+
+func (e *SafetyChanged) Error() string { return "core: scanning: " + e.Code }
 
 // Adjustment is a range or exclusion normalized on save.
 type Adjustment struct{ From, To string }
@@ -233,6 +245,7 @@ type safetyView struct {
 		RegularScanKinds []string `json:"regular_scan_kinds"`
 		Devices          int      `json:"devices"`
 	} `json:"fragile"`
+	Version string `json:"version"`
 }
 
 type lastRunView struct {
@@ -322,7 +335,17 @@ func (h *ScanningHandlers) safetyView(ctx context.Context, st Safety) safetyView
 	v.Speed.PacketsPerS, v.Speed.RequestsPerS = st.PacketsPerS, st.RequestsPerS
 	v.Exclusions = listOf(st.Exclusions)
 	v.Fragile.Kinds, v.Fragile.RegularScanKinds, v.Fragile.Devices = listOf(st.FragileKinds), listOf(st.RegularScanKinds), st.FragileDevices
+	v.Version = st.Version
 	return v
+}
+
+// safetyErr turns a *SafetyChanged into its 409 with the current block; other errors pass as they are.
+func (h *ScanningHandlers) safetyErr(ctx context.Context, err error) error {
+	var ch *SafetyChanged
+	if errors.As(err, &ch) {
+		return apierr.New(http.StatusConflict, ch.Code, ch.Message).With("safety", h.safetyView(ctx, ch.Current))
+	}
+	return err
 }
 
 // view reads the whole page. A card whose port fails shows state error; the page still answers (the other cards are fine).
@@ -401,7 +424,7 @@ func (h *ScanningHandlers) ScanningPutScanningSafety(ctx context.Context, req *o
 	}
 	in := SafetyInput{
 		LANRanges: req.Scope.LanRanges, Confirmed: req.Scope.Confirmed, Days: req.Window.Days, From: req.Window.From, To: req.Window.To,
-		PacketsPerS: req.Speed.PacketsPerS, RequestsPerS: req.Speed.RequestsPerS, Exclusions: req.Exclusions,
+		PacketsPerS: req.Speed.PacketsPerS, RequestsPerS: req.Speed.RequestsPerS, Exclusions: req.Exclusions, Version: req.Version,
 	}
 	for _, k := range req.Fragile.Kinds {
 		in.FragileKinds = append(in.FragileKinds, string(k))
@@ -411,7 +434,7 @@ func (h *ScanningHandlers) ScanningPutScanningSafety(ctx context.Context, req *o
 	}
 	st, adjusted, err := h.cfg.Safety.SaveSafety(ctx, p.Email, in)
 	if err != nil {
-		return nil, err
+		return nil, h.safetyErr(ctx, err)
 	}
 	return encode[oas.ScanningPutScanningSafetyOK](h.savedView(ctx, st, adjusted))
 }
@@ -437,9 +460,9 @@ func (h *ScanningHandlers) ScanningPostScanningSafetyRanges(ctx context.Context,
 	if !ok {
 		return nil, apierr.Unauthenticated()
 	}
-	st, adjusted, err := h.cfg.Safety.AddRange(ctx, p.Email, req.Range, req.Confirm)
+	st, adjusted, err := h.cfg.Safety.AddRange(ctx, p.Email, req.Range, req.ShownRanges, req.Confirm)
 	if err != nil {
-		return nil, err
+		return nil, h.safetyErr(ctx, err)
 	}
 	return encode[oas.ScanningPostScanningSafetyRangesOK](h.savedView(ctx, st, adjusted))
 }
@@ -453,7 +476,7 @@ func (h *ScanningHandlers) ScanningPostScanningSafetyExclusions(ctx context.Cont
 	}
 	st, err := h.cfg.Safety.AddExclusion(ctx, p.Email, req.Entry)
 	if err != nil {
-		return nil, err
+		return nil, h.safetyErr(ctx, err)
 	}
 	return encode[oas.ScanningPostScanningSafetyExclusionsOK](h.safetyView(ctx, st))
 }

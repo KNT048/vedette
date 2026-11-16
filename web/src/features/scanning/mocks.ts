@@ -8,7 +8,7 @@ import { collection, newId, nowIso } from '@/mocks/db'
 import { assetsStore, installStore, isOn, modulesStore } from '@/mocks/stores'
 import type { ModuleId } from '@/lib/modules'
 import { mockDeviceProgress } from '@/lib/progress'
-import { inventorySettingsStore } from '@/features/inventory/mocks'
+import { inventorySettingsStore, SAFETY_CHANGED, safetyVersion } from '@/features/inventory/mocks'
 import { cidrRange, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from '@/features/inventory/validate'
 import type { DiscoveryRunInput, Engine, EngineId, EnginePatch, ExclusionAdd, RangeAdd, RunningJob, Scanning, SafetyInput } from './contract'
 
@@ -90,6 +90,7 @@ export function scanningView(): z.infer<typeof Scanning> {
       speed: { packets_per_s: st.active.rate, requests_per_s: checkRate.get().requests_per_s },
       exclusions: st.active.exclusions,
       fragile: { kinds: st.fragile_kinds, regular_scan_kinds: st.regular_scan_kinds, devices: assetsStore.get().filter((a) => a.fragile).length },
+      version: safetyVersion(),
     },
     engines, running, box: { memory_mb: 7680, reserved_mb: reserved },
   }
@@ -116,6 +117,7 @@ export const handlers = [
   http.put(`${API}/scanning/safety`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
     const b = await body<z.infer<typeof SafetyInput>>(request)
+    if (b.version !== safetyVersion()) return fail(409, 'safety_changed', SAFETY_CHANGED, { safety: scanningView().safety })
     const st = inventorySettingsStore.get()
     const ranges = b.scope?.lan_ranges ?? []
     if (ranges.length > 16) return fail(400, 'too_many_ranges', 'At most 16 network ranges.')
@@ -165,12 +167,17 @@ export const handlers = [
     const st = inventorySettingsStore.get()
     const covered = coveredBy(r, st.lan_ranges)
     if (covered && st.scope_confirmed_at) return HttpResponse.json({ ...scanningView().safety, adjusted })
+    // review #860 H1: the tick covers the ranges the dialog showed, and only those
+    const shown = [...new Set((b.shown_ranges ?? []).map((x) => String(x).trim()))].sort()
+    if (shown.join() !== [...st.lan_ranges].sort().join()) return fail(409, 'scope_changed', 'The network ranges changed since this dialog opened. Check the current list, then confirm again.', { safety: scanningView().safety })
     const ranges = covered ? st.lan_ranges : [...st.lan_ranges, r]
     if (ranges.length > 16) return fail(400, 'too_many_ranges', 'At most 16 network ranges.')
     const clash = overlapping(r, st.lan_ranges)
     if (!covered && clash) return fail(400, 'overlap_range', `Range ${r} overlaps ${clash}. Keep the larger range and drop the smaller one.`)
     inventorySettingsStore.set({ ...st, lan_ranges: ranges, scope_confirmed_at: nowIso(), scope_confirmed_by: currentUser()?.email ?? null })
-    audit('inventory.settings', 'scan scope', `${covered ? `confirmed the scope (${r} is inside it)` : `added range ${r}`}: ${ranges.length} ranges, active scanning ${st.active.enabled ? 'on' : 'off'}`)
+    const was = st.scope_confirmed_at ? '' : `${st.lan_ranges.join(', ')} were shown`
+    const what = covered ? `confirmed the scope, which was not confirmed (${was}; ${r} is inside it)` : `added range ${r}${was && st.lan_ranges.length ? ` and confirmed the scope, which was not confirmed (${was})` : ''}`
+    audit('inventory.settings', 'scan scope', `${what}: ${ranges.length} ranges, active scanning ${st.active.enabled ? 'on' : 'off'}`)
     return HttpResponse.json({ ...scanningView().safety, adjusted })
   }),
 
@@ -182,7 +189,7 @@ export const handlers = [
     if (!IPV4_RE.test(x) && !(CIDR_RE.test(x) && masked(x) === x)) return fail(400, 'bad_exclusion', `Exclusion "${x.slice(0, 30)}" is not valid. Enter an IP (192.168.10.10) or a valid range (192.168.10.0/28).`)
     const st = inventorySettingsStore.get()
     if (coveredBy(x, st.active.exclusions)) return HttpResponse.json(scanningView().safety)
-    if (st.active.exclusions.length >= 200) return fail(409, 'too_many_exclusions', 'The exclusion list can have at most 200 lines. Remove one in Settings, Scanning, or exclude a range that covers several.')
+    if (st.active.exclusions.length >= 200) return fail(400, 'too_many_exclusions', 'The exclusion list can have at most 200 lines. Remove one in Settings, Scanning, or exclude a range that covers several.')
     const exclusions = [...st.active.exclusions, x]
     inventorySettingsStore.set({ ...st, active: { ...st.active, exclusions } })
     audit('inventory.settings', 'scan scope', `added exclusion ${x}: ${exclusions.length} exclusions`)

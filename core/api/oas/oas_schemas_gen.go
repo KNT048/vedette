@@ -96462,6 +96462,10 @@ type InventoryGetInventorySettingsOK struct {
 	RegularScanKinds []InventoryGetInventorySettingsOKRegularScanKindsItem `json:"regular_scan_kinds"`
 	ScopeConfirmedAt NilDateTime                                           `json:"scope_confirmed_at"`
 	ScopeConfirmedBy NilString                                             `json:"scope_confirmed_by"`
+	// Version of the shared safety block (the same as GET /scanning safety.version, inventory INV-32):
+	// send it back on PUT to be refused with 409 safety_changed instead of replacing a change made since
+	// the page loaded.
+	Version string `json:"version"`
 }
 
 // GetActive returns the value of Active.
@@ -96494,6 +96498,11 @@ func (s *InventoryGetInventorySettingsOK) GetScopeConfirmedBy() NilString {
 	return s.ScopeConfirmedBy
 }
 
+// GetVersion returns the value of Version.
+func (s *InventoryGetInventorySettingsOK) GetVersion() string {
+	return s.Version
+}
+
 // SetActive sets the value of Active.
 func (s *InventoryGetInventorySettingsOK) SetActive(val InventoryGetInventorySettingsOKActive) {
 	s.Active = val
@@ -96522,6 +96531,11 @@ func (s *InventoryGetInventorySettingsOK) SetScopeConfirmedAt(val NilDateTime) {
 // SetScopeConfirmedBy sets the value of ScopeConfirmedBy.
 func (s *InventoryGetInventorySettingsOK) SetScopeConfirmedBy(val NilString) {
 	s.ScopeConfirmedBy = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryGetInventorySettingsOK) SetVersion(val string) {
+	s.Version = val
 }
 
 type InventoryGetInventorySettingsOKActive struct {
@@ -101587,6 +101601,10 @@ type InventoryPutInventorySettingsOK struct {
 	RegularScanKinds []InventoryPutInventorySettingsOKRegularScanKindsItem `json:"regular_scan_kinds"`
 	ScopeConfirmedAt NilDateTime                                           `json:"scope_confirmed_at"`
 	ScopeConfirmedBy NilString                                             `json:"scope_confirmed_by"`
+	// Version of the shared safety block (the same as GET /scanning safety.version, inventory INV-32):
+	// send it back on PUT to be refused with 409 safety_changed instead of replacing a change made since
+	// the page loaded.
+	Version string `json:"version"`
 }
 
 // GetActive returns the value of Active.
@@ -101624,6 +101642,11 @@ func (s *InventoryPutInventorySettingsOK) GetScopeConfirmedBy() NilString {
 	return s.ScopeConfirmedBy
 }
 
+// GetVersion returns the value of Version.
+func (s *InventoryPutInventorySettingsOK) GetVersion() string {
+	return s.Version
+}
+
 // SetActive sets the value of Active.
 func (s *InventoryPutInventorySettingsOK) SetActive(val InventoryPutInventorySettingsOKActive) {
 	s.Active = val
@@ -101657,6 +101680,11 @@ func (s *InventoryPutInventorySettingsOK) SetScopeConfirmedAt(val NilDateTime) {
 // SetScopeConfirmedBy sets the value of ScopeConfirmedBy.
 func (s *InventoryPutInventorySettingsOK) SetScopeConfirmedBy(val NilString) {
 	s.ScopeConfirmedBy = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryPutInventorySettingsOK) SetVersion(val string) {
+	s.Version = val
 }
 
 type InventoryPutInventorySettingsOKActive struct {
@@ -102006,6 +102034,10 @@ type InventoryPutInventorySettingsReq struct {
 	ScopeConfirmed   bool        `json:"scope_confirmed"`
 	ScopeConfirmedAt NilDateTime `json:"scope_confirmed_at"`
 	ScopeConfirmedBy NilString   `json:"scope_confirmed_by"`
+	// The version this page read. Given and not the stored one: 409 safety_changed, nothing stored (review
+	// #860 M1). Left out: no check, so a range or exclusion added since the page loaded is replaced; this
+	// page is being replaced by Settings › Scanning (#850).
+	Version OptString `json:"version"`
 }
 
 // GetActive returns the value of Active.
@@ -102043,6 +102075,11 @@ func (s *InventoryPutInventorySettingsReq) GetScopeConfirmedBy() NilString {
 	return s.ScopeConfirmedBy
 }
 
+// GetVersion returns the value of Version.
+func (s *InventoryPutInventorySettingsReq) GetVersion() OptString {
+	return s.Version
+}
+
 // SetActive sets the value of Active.
 func (s *InventoryPutInventorySettingsReq) SetActive(val InventoryPutInventorySettingsReqActive) {
 	s.Active = val
@@ -102076,6 +102113,11 @@ func (s *InventoryPutInventorySettingsReq) SetScopeConfirmedAt(val NilDateTime) 
 // SetScopeConfirmedBy sets the value of ScopeConfirmedBy.
 func (s *InventoryPutInventorySettingsReq) SetScopeConfirmedBy(val NilString) {
 	s.ScopeConfirmedBy = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryPutInventorySettingsReq) SetVersion(val OptString) {
+	s.Version = val
 }
 
 type InventoryPutInventorySettingsReqActive struct {
@@ -176260,6 +176302,9 @@ type ScanGetScansConfigOK struct {
 	// cannot be read; next_run is null then (D-261 (3)).
 	ScheduleBlockedReason NilString                 `json:"schedule_blocked_reason"`
 	Scope                 ScanGetScansConfigOKScope `json:"scope"`
+	// Version of the shared safety block (window, rate, exclusions live in inventory INV-32; the same as
+	// GET /scanning safety.version); "" when this module keeps its own copy.
+	Version string `json:"version"`
 }
 
 // GetBlockReason returns the value of BlockReason.
@@ -176297,6 +176342,11 @@ func (s *ScanGetScansConfigOK) GetScope() ScanGetScansConfigOKScope {
 	return s.Scope
 }
 
+// GetVersion returns the value of Version.
+func (s *ScanGetScansConfigOK) GetVersion() string {
+	return s.Version
+}
+
 // SetBlockReason sets the value of BlockReason.
 func (s *ScanGetScansConfigOK) SetBlockReason(val NilString) {
 	s.BlockReason = val
@@ -176330,6 +176380,11 @@ func (s *ScanGetScansConfigOK) SetScheduleBlockedReason(val NilString) {
 // SetScope sets the value of Scope.
 func (s *ScanGetScansConfigOK) SetScope(val ScanGetScansConfigOKScope) {
 	s.Scope = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanGetScansConfigOK) SetVersion(val string) {
+	s.Version = val
 }
 
 type ScanGetScansConfigOKConfig struct {
@@ -181428,6 +181483,9 @@ type ScanPutScansConfigOK struct {
 	// cannot be read; next_run is null then (D-261 (3)).
 	ScheduleBlockedReason NilString                 `json:"schedule_blocked_reason"`
 	Scope                 ScanPutScansConfigOKScope `json:"scope"`
+	// Version of the shared safety block (window, rate, exclusions live in inventory INV-32; the same as
+	// GET /scanning safety.version); "" when this module keeps its own copy.
+	Version string `json:"version"`
 }
 
 // GetBlockReason returns the value of BlockReason.
@@ -181465,6 +181523,11 @@ func (s *ScanPutScansConfigOK) GetScope() ScanPutScansConfigOKScope {
 	return s.Scope
 }
 
+// GetVersion returns the value of Version.
+func (s *ScanPutScansConfigOK) GetVersion() string {
+	return s.Version
+}
+
 // SetBlockReason sets the value of BlockReason.
 func (s *ScanPutScansConfigOK) SetBlockReason(val NilString) {
 	s.BlockReason = val
@@ -181498,6 +181561,11 @@ func (s *ScanPutScansConfigOK) SetScheduleBlockedReason(val NilString) {
 // SetScope sets the value of Scope.
 func (s *ScanPutScansConfigOK) SetScope(val ScanPutScansConfigOKScope) {
 	s.Scope = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanPutScansConfigOK) SetVersion(val string) {
+	s.Version = val
 }
 
 type ScanPutScansConfigOKConfig struct {
@@ -181772,7 +181840,12 @@ type ScanPutScansConfigReq struct {
 	Schedule           OptScanPutScansConfigReqSchedule `json:"schedule"`
 	StopOnUnresponsive OptBool                          `json:"stop_on_unresponsive"`
 	UnresponsiveAfter  OptInt                           `json:"unresponsive_after"`
-	Window             OptScanPutScansConfigReqWindow   `json:"window"`
+	// The version of the shared safety block this page read (version of GET /scans/config). Given and not
+	// the stored one: 409 safety_changed, nothing stored (review #860 M1). Left out: no check, so an
+	// exclusion added since the page loaded is replaced when exclusions are sent; this page is being
+	// replaced by Settings › Scanning (#850).
+	Version OptString                      `json:"version"`
+	Window  OptScanPutScansConfigReqWindow `json:"window"`
 }
 
 // GetAutoRescan returns the value of AutoRescan.
@@ -181808,6 +181881,11 @@ func (s *ScanPutScansConfigReq) GetStopOnUnresponsive() OptBool {
 // GetUnresponsiveAfter returns the value of UnresponsiveAfter.
 func (s *ScanPutScansConfigReq) GetUnresponsiveAfter() OptInt {
 	return s.UnresponsiveAfter
+}
+
+// GetVersion returns the value of Version.
+func (s *ScanPutScansConfigReq) GetVersion() OptString {
+	return s.Version
 }
 
 // GetWindow returns the value of Window.
@@ -181848,6 +181926,11 @@ func (s *ScanPutScansConfigReq) SetStopOnUnresponsive(val OptBool) {
 // SetUnresponsiveAfter sets the value of UnresponsiveAfter.
 func (s *ScanPutScansConfigReq) SetUnresponsiveAfter(val OptInt) {
 	s.UnresponsiveAfter = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanPutScansConfigReq) SetVersion(val OptString) {
+	s.Version = val
 }
 
 // SetWindow sets the value of Window.
@@ -183340,6 +183423,11 @@ type ScanningGetScanningOKSafety struct {
 	Fragile    ScanningGetScanningOKSafetyFragile `json:"fragile"`
 	Scope      ScanningGetScanningOKSafetyScope   `json:"scope"`
 	Speed      ScanningGetScanningOKSafetySpeed   `json:"speed"`
+	// Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the
+	// version it was built on (409 safety_changed otherwise), so a page opened before an inline add never
+	// drops it. Every answer that changed the block carries the new one. The same values give the same
+	// version.
+	Version string `json:"version"`
 	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
 	// Check this device now and external scans are not bound by it.
 	Window ScanningGetScanningOKSafetyWindow `json:"window"`
@@ -183365,6 +183453,11 @@ func (s *ScanningGetScanningOKSafety) GetSpeed() ScanningGetScanningOKSafetySpee
 	return s.Speed
 }
 
+// GetVersion returns the value of Version.
+func (s *ScanningGetScanningOKSafety) GetVersion() string {
+	return s.Version
+}
+
 // GetWindow returns the value of Window.
 func (s *ScanningGetScanningOKSafety) GetWindow() ScanningGetScanningOKSafetyWindow {
 	return s.Window
@@ -183388,6 +183481,11 @@ func (s *ScanningGetScanningOKSafety) SetScope(val ScanningGetScanningOKSafetySc
 // SetSpeed sets the value of Speed.
 func (s *ScanningGetScanningOKSafety) SetSpeed(val ScanningGetScanningOKSafetySpeed) {
 	s.Speed = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanningGetScanningOKSafety) SetVersion(val string) {
+	s.Version = val
 }
 
 // SetWindow sets the value of Window.
@@ -185242,6 +185340,11 @@ type ScanningPatchScanningEnginesIDOKSafety struct {
 	Fragile    ScanningPatchScanningEnginesIDOKSafetyFragile `json:"fragile"`
 	Scope      ScanningPatchScanningEnginesIDOKSafetyScope   `json:"scope"`
 	Speed      ScanningPatchScanningEnginesIDOKSafetySpeed   `json:"speed"`
+	// Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the
+	// version it was built on (409 safety_changed otherwise), so a page opened before an inline add never
+	// drops it. Every answer that changed the block carries the new one. The same values give the same
+	// version.
+	Version string `json:"version"`
 	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
 	// Check this device now and external scans are not bound by it.
 	Window ScanningPatchScanningEnginesIDOKSafetyWindow `json:"window"`
@@ -185267,6 +185370,11 @@ func (s *ScanningPatchScanningEnginesIDOKSafety) GetSpeed() ScanningPatchScannin
 	return s.Speed
 }
 
+// GetVersion returns the value of Version.
+func (s *ScanningPatchScanningEnginesIDOKSafety) GetVersion() string {
+	return s.Version
+}
+
 // GetWindow returns the value of Window.
 func (s *ScanningPatchScanningEnginesIDOKSafety) GetWindow() ScanningPatchScanningEnginesIDOKSafetyWindow {
 	return s.Window
@@ -185290,6 +185398,11 @@ func (s *ScanningPatchScanningEnginesIDOKSafety) SetScope(val ScanningPatchScann
 // SetSpeed sets the value of Speed.
 func (s *ScanningPatchScanningEnginesIDOKSafety) SetSpeed(val ScanningPatchScanningEnginesIDOKSafetySpeed) {
 	s.Speed = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanningPatchScanningEnginesIDOKSafety) SetVersion(val string) {
+	s.Version = val
 }
 
 // SetWindow sets the value of Window.
@@ -186172,6 +186285,11 @@ type ScanningPostScanningSafetyExclusionsOK struct {
 	Fragile    ScanningPostScanningSafetyExclusionsOKFragile `json:"fragile"`
 	Scope      ScanningPostScanningSafetyExclusionsOKScope   `json:"scope"`
 	Speed      ScanningPostScanningSafetyExclusionsOKSpeed   `json:"speed"`
+	// Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the
+	// version it was built on (409 safety_changed otherwise), so a page opened before an inline add never
+	// drops it. Every answer that changed the block carries the new one. The same values give the same
+	// version.
+	Version string `json:"version"`
 	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
 	// Check this device now and external scans are not bound by it.
 	Window ScanningPostScanningSafetyExclusionsOKWindow `json:"window"`
@@ -186197,6 +186315,11 @@ func (s *ScanningPostScanningSafetyExclusionsOK) GetSpeed() ScanningPostScanning
 	return s.Speed
 }
 
+// GetVersion returns the value of Version.
+func (s *ScanningPostScanningSafetyExclusionsOK) GetVersion() string {
+	return s.Version
+}
+
 // GetWindow returns the value of Window.
 func (s *ScanningPostScanningSafetyExclusionsOK) GetWindow() ScanningPostScanningSafetyExclusionsOKWindow {
 	return s.Window
@@ -186220,6 +186343,11 @@ func (s *ScanningPostScanningSafetyExclusionsOK) SetScope(val ScanningPostScanni
 // SetSpeed sets the value of Speed.
 func (s *ScanningPostScanningSafetyExclusionsOK) SetSpeed(val ScanningPostScanningSafetyExclusionsOKSpeed) {
 	s.Speed = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanningPostScanningSafetyExclusionsOK) SetVersion(val string) {
+	s.Version = val
 }
 
 // SetWindow sets the value of Window.
@@ -186645,6 +186773,11 @@ type ScanningPostScanningSafetyRangesOK struct {
 	Fragile    ScanningPostScanningSafetyRangesOKFragile `json:"fragile"`
 	Scope      ScanningPostScanningSafetyRangesOKScope   `json:"scope"`
 	Speed      ScanningPostScanningSafetyRangesOKSpeed   `json:"speed"`
+	// Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the
+	// version it was built on (409 safety_changed otherwise), so a page opened before an inline add never
+	// drops it. Every answer that changed the block carries the new one. The same values give the same
+	// version.
+	Version string `json:"version"`
 	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
 	// Check this device now and external scans are not bound by it.
 	Window ScanningPostScanningSafetyRangesOKWindow `json:"window"`
@@ -186675,6 +186808,11 @@ func (s *ScanningPostScanningSafetyRangesOK) GetSpeed() ScanningPostScanningSafe
 	return s.Speed
 }
 
+// GetVersion returns the value of Version.
+func (s *ScanningPostScanningSafetyRangesOK) GetVersion() string {
+	return s.Version
+}
+
 // GetWindow returns the value of Window.
 func (s *ScanningPostScanningSafetyRangesOK) GetWindow() ScanningPostScanningSafetyRangesOKWindow {
 	return s.Window
@@ -186703,6 +186841,11 @@ func (s *ScanningPostScanningSafetyRangesOK) SetScope(val ScanningPostScanningSa
 // SetSpeed sets the value of Speed.
 func (s *ScanningPostScanningSafetyRangesOK) SetSpeed(val ScanningPostScanningSafetyRangesOKSpeed) {
 	s.Speed = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanningPostScanningSafetyRangesOK) SetVersion(val string) {
+	s.Version = val
 }
 
 // SetWindow sets the value of Window.
@@ -187129,13 +187272,18 @@ func (s *ScanningPostScanningSafetyRangesOKWindow) SetTo(val string) {
 }
 
 type ScanningPostScanningSafetyRangesReq struct {
-	// The attestation of PUT /scanning/safety (scope.confirmed): the ranges, this one included, belong to
+	// The attestation of PUT /scanning/safety (scope.confirmed): the ranges shown, and this one, belong to
 	// the company and scanning them is permitted. Must be true (400 scope_not_confirmed); recorded as
 	// confirmed_at/confirmed_by.
 	Confirm bool `json:"confirm"`
 	// One internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461) to add to the scope, e.g. 192.168.20.0/24;
 	// host bits are dropped and reported in adjusted.
 	Range string `json:"range"`
+	// The ranges the dialog showed next to the tick (safety.scope.lan_ranges as read; order does not
+	// matter). The tick confirms exactly these and the new range: when the stored list is another one (an
+	// admin changed or unconfirmed the scope since), 409 scope_changed with the current block
+	// (error.safety) and nothing stored (review #860 H1).
+	ShownRanges []string `json:"shown_ranges"`
 }
 
 // GetConfirm returns the value of Confirm.
@@ -187148,6 +187296,11 @@ func (s *ScanningPostScanningSafetyRangesReq) GetRange() string {
 	return s.Range
 }
 
+// GetShownRanges returns the value of ShownRanges.
+func (s *ScanningPostScanningSafetyRangesReq) GetShownRanges() []string {
+	return s.ShownRanges
+}
+
 // SetConfirm sets the value of Confirm.
 func (s *ScanningPostScanningSafetyRangesReq) SetConfirm(val bool) {
 	s.Confirm = val
@@ -187156,6 +187309,11 @@ func (s *ScanningPostScanningSafetyRangesReq) SetConfirm(val bool) {
 // SetRange sets the value of Range.
 func (s *ScanningPostScanningSafetyRangesReq) SetRange(val string) {
 	s.Range = val
+}
+
+// SetShownRanges sets the value of ShownRanges.
+func (s *ScanningPostScanningSafetyRangesReq) SetShownRanges(val []string) {
+	s.ShownRanges = val
 }
 
 type ScanningPutScanningSafetyOK struct {
@@ -187167,6 +187325,11 @@ type ScanningPutScanningSafetyOK struct {
 	Fragile    ScanningPutScanningSafetyOKFragile `json:"fragile"`
 	Scope      ScanningPutScanningSafetyOKScope   `json:"scope"`
 	Speed      ScanningPutScanningSafetyOKSpeed   `json:"speed"`
+	// Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the
+	// version it was built on (409 safety_changed otherwise), so a page opened before an inline add never
+	// drops it. Every answer that changed the block carries the new one. The same values give the same
+	// version.
+	Version string `json:"version"`
 	// One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now,
 	// Check this device now and external scans are not bound by it.
 	Window ScanningPutScanningSafetyOKWindow `json:"window"`
@@ -187197,6 +187360,11 @@ func (s *ScanningPutScanningSafetyOK) GetSpeed() ScanningPutScanningSafetyOKSpee
 	return s.Speed
 }
 
+// GetVersion returns the value of Version.
+func (s *ScanningPutScanningSafetyOK) GetVersion() string {
+	return s.Version
+}
+
 // GetWindow returns the value of Window.
 func (s *ScanningPutScanningSafetyOK) GetWindow() ScanningPutScanningSafetyOKWindow {
 	return s.Window
@@ -187225,6 +187393,11 @@ func (s *ScanningPutScanningSafetyOK) SetScope(val ScanningPutScanningSafetyOKSc
 // SetSpeed sets the value of Speed.
 func (s *ScanningPutScanningSafetyOK) SetSpeed(val ScanningPutScanningSafetyOKSpeed) {
 	s.Speed = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanningPutScanningSafetyOK) SetVersion(val string) {
+	s.Version = val
 }
 
 // SetWindow sets the value of Window.
@@ -187656,7 +187829,10 @@ type ScanningPutScanningSafetyReq struct {
 	Fragile    ScanningPutScanningSafetyReqFragile `json:"fragile"`
 	Scope      ScanningPutScanningSafetyReqScope   `json:"scope"`
 	Speed      ScanningPutScanningSafetyReqSpeed   `json:"speed"`
-	Window     ScanningPutScanningSafetyReqWindow  `json:"window"`
+	// The version of GET /scanning (safety.version) this page was built on. Not the stored one: 409
+	// safety_changed with the current block (error.safety), nothing stored.
+	Version string                             `json:"version"`
+	Window  ScanningPutScanningSafetyReqWindow `json:"window"`
 }
 
 // GetExclusions returns the value of Exclusions.
@@ -187677,6 +187853,11 @@ func (s *ScanningPutScanningSafetyReq) GetScope() ScanningPutScanningSafetyReqSc
 // GetSpeed returns the value of Speed.
 func (s *ScanningPutScanningSafetyReq) GetSpeed() ScanningPutScanningSafetyReqSpeed {
 	return s.Speed
+}
+
+// GetVersion returns the value of Version.
+func (s *ScanningPutScanningSafetyReq) GetVersion() string {
+	return s.Version
 }
 
 // GetWindow returns the value of Window.
@@ -187702,6 +187883,11 @@ func (s *ScanningPutScanningSafetyReq) SetScope(val ScanningPutScanningSafetyReq
 // SetSpeed sets the value of Speed.
 func (s *ScanningPutScanningSafetyReq) SetSpeed(val ScanningPutScanningSafetyReqSpeed) {
 	s.Speed = val
+}
+
+// SetVersion sets the value of Version.
+func (s *ScanningPutScanningSafetyReq) SetVersion(val string) {
+	s.Version = val
 }
 
 // SetWindow sets the value of Window.

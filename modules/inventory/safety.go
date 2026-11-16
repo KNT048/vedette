@@ -5,10 +5,13 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/knt048/vedette/core/apierr"
 )
 
 // The shared safety settings of Settings › Scanning (#850, INV-32). The inventory's `active` setting is their one store: the window,
@@ -28,10 +31,12 @@ type SafetyInput struct {
 	Exclusions       []string
 	FragileKinds     []string
 	RegularScanKinds []string
+	Version          string // the version the page read (SafetyVersion): another one is 409 safety_changed (review #860 M1)
 }
 
 // SaveSafety stores the shared block (PRE-5 and INV-6/7 as SaveSettings; at least one day, the check rate 1..20, and more than
-// MaxExclusions exclusions only when the list does not grow). The switch of active discovery keeps the value stored when the
+// MaxExclusions exclusions only when the list does not grow), and only over the version the page read: 409 safety_changed with the
+// current block otherwise (*Changed, review #860 M1), so a page opened before an inline add never drops it. The switch of active discovery keeps the value stored when the
 // transaction reads it (review #857 L8); scope_not_confirmed when it is on and the attestation is not ticked.
 func (s *Service) SaveSafety(ctx context.Context, actor string, in SafetyInput) (SavedSettings, error) {
 	if len(in.Days) == 0 {
@@ -45,20 +50,23 @@ func (s *Service) SaveSafety(ctx context.Context, actor string, in SafetyInput) 
 			LANRanges: in.LANRanges,
 			Active: ActiveWindow{Days: in.Days, From: in.From, To: in.To, Rate: in.PacketsPerS,
 				Exclusions: in.Exclusions, CheckRate: in.RequestsPerS},
-			FragileKinds: in.FragileKinds, RegularScanKinds: in.RegularScanKinds,
+			FragileKinds: in.FragileKinds, RegularScanKinds: in.RegularScanKinds, Version: in.Version,
 		},
 		ScopeConfirmed: in.Confirmed,
-	}, saveOpts{keepEnabled: true, capExclusions: true})
+	}, saveOpts{keepEnabled: true, capExclusions: true, requireVersion: true})
 }
 
 // AddRange adds one LAN range to the scope (POST /scanning/safety/ranges: "+ New range" where the person is, #842/#850, INV-32). It
 // reads, appends and stores in one write transaction, so two adds at once both land and no other edit is overwritten. The range
-// passes the rules of a PUT (INV-6: an internal IPv4 range, host bits dropped and reported in Adjusted, at most 16, no overlap);
-// confirmed is the attestation of D-26 as a PUT's (400 scope_not_confirmed without it), recorded the same way: the ranges changed,
-// so the scope is confirmed by actor now. A range a stored one already covers changes nothing (no audit row, no event) while the
-// scope is confirmed; while it is not, the attestation is recorded for the stored ranges, as a PUT of the same ranges would. One
-// audit row inventory.settings naming the range, then inventory.settings.changed.
-func (s *Service) AddRange(ctx context.Context, actor, raw string, confirmed bool) (SavedSettings, error) {
+// passes the rules of a PUT (INV-6: an internal IPv4 range, host bits dropped and reported in Adjusted, at most 16, no overlap).
+// confirmed is the attestation of D-26 (400 scope_not_confirmed without it), and like a PUT's it covers only what the person saw:
+// shown is the list of ranges the dialog showed next to the tick, and when the stored list is not that list the add is refused
+// with 409 scope_changed and the current block (*Changed), nothing stored (review #860 H1: a tick never confirms a range the person
+// did not see, nor a scope another admin left unconfirmed since). Then the scope, shown plus the new range, is confirmed by actor
+// now. A range a stored one already covers changes nothing (no audit row, no event) while the scope is confirmed. One audit row
+// inventory.settings naming the range, and saying so when the add confirmed a scope that was not confirmed; then
+// inventory.settings.changed.
+func (s *Service) AddRange(ctx context.Context, actor, raw string, shown []string, confirmed bool) (SavedSettings, error) {
 	one, adjusted, aerr := checkRanges([]string{raw})
 	if aerr != nil {
 		return SavedSettings{}, aerr
@@ -68,6 +76,12 @@ func (s *Service) AddRange(ctx context.Context, actor, raw string, confirmed boo
 	}
 	if !confirmed {
 		return SavedSettings{}, badRequest("scope_not_confirmed", "Tick the confirmation that these network ranges belong to your company and you are allowed to scan them. Vedette only scans within the confirmed scope.")
+	}
+	seen := make([]string, 0, len(shown))
+	for _, r := range shown {
+		if r = strings.TrimSpace(r); !slices.Contains(seen, r) {
+			seen = append(seen, r)
+		}
 	}
 	add := netip.MustParsePrefix(one[0]) // checkRanges returned it parsed and masked
 	var saved Settings
@@ -84,6 +98,9 @@ func (s *Service) AddRange(ctx context.Context, actor, raw string, confirmed boo
 			saved = prev
 			return nil
 		}
+		if !slices.Equal(sortedCopy(seen), sortedCopy(prev.LANRanges)) {
+			return &Changed{API: apierr.New(http.StatusConflict, "scope_changed", "The network ranges changed since this dialog opened. Check the current list, then confirm again."), Current: prev}
+		}
 		next := prev
 		detail := "confirmed the scope (" + one[0] + " is inside it)"
 		if !covered {
@@ -93,32 +110,38 @@ func (s *Service) AddRange(ctx context.Context, actor, raw string, confirmed boo
 			}
 			next.LANRanges = ranges
 			detail = "added range " + one[0]
+			if prev.ScopeConfirmedAt == nil && len(prev.LANRanges) > 0 {
+				detail += " and confirmed the scope, which was not confirmed (" + strings.Join(prev.LANRanges, ", ") + " were shown)"
+			}
+		} else {
+			detail = "confirmed the scope, which was not confirmed (" + strings.Join(prev.LANRanges, ", ") + " were shown; " + one[0] + " is inside it)"
 		}
 		now := s.now()
 		at := now
-		next.ScopeConfirmedAt, next.ScopeConfirmedBy = &at, nil
+		sc := scopeValue{ConfirmedAt: &at}
 		if actor != "" {
-			next.ScopeConfirmedBy = &actor
+			sc.ConfirmedBy = &actor
 		}
 		if err := putSetting(ctx, tx, "lan_ranges", next.LANRanges, now, actorOrSystem(actor)); err != nil {
 			return err
 		}
-		if err := putSetting(ctx, tx, "scope", scopeValue{ConfirmedAt: next.ScopeConfirmedAt, ConfirmedBy: next.ScopeConfirmedBy}, now, actorOrSystem(actor)); err != nil {
+		if err := putSetting(ctx, tx, "scope", sc, now, actorOrSystem(actor)); err != nil {
 			return err
 		}
 		if err := s.auditTx(ctx, tx, actor, "inventory.settings", "scan scope", detail+": "+strconv.Itoa(len(next.LANRanges))+" ranges, active scanning "+onOff(next.Active.Enabled)); err != nil {
 			return err
 		}
 		o.add(EventSettingsChanged, SettingsEvent{Scope: "scan"})
-		saved = next
-		return nil
+		saved, err = loadSettings(ctx, tx) // as stored, with its new version
+		return err
 	})
 	return SavedSettings{Settings: saved, Adjusted: adjusted}, err
 }
 
 // AddExclusion adds one exclusion to the shared list (POST /scanning/safety/exclusions, #842/#850, INV-32) in one write transaction.
 // The entry passes the rule of a PUT (an IPv4 address or an IPv4 range without host bits: 400 bad_exclusion); one an exclusion
-// already stored covers changes nothing (no audit row, no event); growing the list past MaxExclusions is 409 too_many_exclusions.
+// already stored covers changes nothing (no audit row, no event); growing the list past MaxExclusions is 400 too_many_exclusions,
+// as on the PUT.
 // One audit row inventory.settings naming the entry, then inventory.settings.changed. It only narrows what is scanned, so it needs
 // no attestation and keeps the scope's.
 func (s *Service) AddExclusion(ctx context.Context, actor, raw string) (SavedSettings, error) {
@@ -141,7 +164,7 @@ func (s *Service) AddExclusion(ctx context.Context, actor, raw string) (SavedSet
 			return nil
 		}
 		if len(prev.Active.Exclusions) >= MaxExclusions {
-			return conflict("too_many_exclusions", "The exclusion list can have at most 200 lines. Remove one in Settings, Scanning, or exclude a range that covers several.")
+			return badRequest("too_many_exclusions", "The exclusion list can have at most 200 lines. Remove one in Settings, Scanning, or exclude a range that covers several.")
 		}
 		next := prev
 		next.Active.Exclusions = append(slices.Clone(prev.Active.Exclusions), x)
@@ -153,8 +176,8 @@ func (s *Service) AddExclusion(ctx context.Context, actor, raw string) (SavedSet
 			return err
 		}
 		o.add(EventSettingsChanged, SettingsEvent{Scope: "scan"})
-		saved = next
-		return nil
+		saved, err = loadSettings(ctx, tx) // as stored, with its new version
+		return err
 	})
 	return SavedSettings{Settings: saved, Adjusted: []Adjustment{}}, err
 }
@@ -219,6 +242,9 @@ type ChecksInput struct {
 	Exclusions []string // IPv4 or CIDR; host bits are dropped (the scan module accepted them)
 	// CopySavedAt is the updated_at the caller wrote on its own copy (scan_setting) in the same transaction: the copy is taken in.
 	CopySavedAt string
+	// Version is the version of the safety block the page read (GET /scans/config version); "" = none given, no check (the page
+	// of #850 replaces this one). Another one is 409 safety_changed (review #860 M1).
+	Version string
 }
 
 // SaveChecks writes the window, the check rate and the exclusions inside the caller's write transaction tx: the scan module's PUT
@@ -249,10 +275,14 @@ func (s *Service) SaveChecks(ctx context.Context, tx *sql.Tx, actor string, in C
 			excl = append(excl, x)
 		}
 	}
-	var act ActiveWindow
-	if err := loadSetting(ctx, tx, "active", &act); err != nil {
+	cur, err := loadSettings(ctx, tx)
+	if err != nil {
 		return err
 	}
+	if in.Version != "" && in.Version != cur.Version {
+		return safetyChanged(cur)
+	}
+	act := cur.Active
 	if len(excl) > MaxExclusions && len(excl) > len(act.Exclusions) { // over the limit only when it does not grow (L7)
 		return badRequest("too_many_exclusions", "The exclusion list can have at most 200 lines.")
 	}

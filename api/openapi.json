@@ -44999,6 +44999,10 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "version": {
+                      "type": "string",
+                      "description": "Version of the shared safety block (the same as GET /scanning safety.version, inventory INV-32): send it back on PUT to be refused with 409 safety_changed instead of replacing a change made since the page loaded"
                     }
                   },
                   "required": [
@@ -45007,7 +45011,8 @@
                     "fragile_kinds",
                     "regular_scan_kinds",
                     "scope_confirmed_at",
-                    "scope_confirmed_by"
+                    "scope_confirmed_by",
+                    "version"
                   ],
                   "additionalProperties": false
                 }
@@ -45028,7 +45033,7 @@
       },
       "put": {
         "operationId": "inventory_put_inventory_settings",
-        "summary": "Save the scan scope; enabling active scanning requires scope attestation",
+        "summary": "Save the scan scope; enabling active scanning requires scope attestation. 409 safety_changed when the version sent is not the stored one",
         "tags": [
           "inventory"
         ],
@@ -45160,6 +45165,11 @@
                       "string",
                       "null"
                     ]
+                  },
+                  "version": {
+                    "description": "The version this page read. Given and not the stored one: 409 safety_changed, nothing stored (review #860 M1). Left out: no check, so a range or exclusion added since the page loaded is replaced; this page is being replaced by Settings › Scanning (#850)",
+                    "type": "string",
+                    "maxLength": 64
                   },
                   "scope_confirmed": {
                     "type": "boolean",
@@ -45306,6 +45316,10 @@
                         "null"
                       ]
                     },
+                    "version": {
+                      "type": "string",
+                      "description": "Version of the shared safety block (the same as GET /scanning safety.version, inventory INV-32): send it back on PUT to be refused with 409 safety_changed instead of replacing a change made since the page loaded"
+                    },
                     "adjusted": {
                       "type": "array",
                       "items": {
@@ -45334,6 +45348,7 @@
                     "regular_scan_kinds",
                     "scope_confirmed_at",
                     "scope_confirmed_by",
+                    "version",
                     "adjusted"
                   ],
                   "additionalProperties": false
@@ -71142,6 +71157,10 @@
                             "devices"
                           ],
                           "additionalProperties": false
+                        },
+                        "version": {
+                          "type": "string",
+                          "description": "Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the version it was built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every answer that changed the block carries the new one. The same values give the same version"
                         }
                       },
                       "required": [
@@ -71149,7 +71168,8 @@
                         "window",
                         "speed",
                         "exclusions",
-                        "fragile"
+                        "fragile",
+                        "version"
                       ],
                       "additionalProperties": false
                     },
@@ -71850,6 +71870,10 @@
                             "devices"
                           ],
                           "additionalProperties": false
+                        },
+                        "version": {
+                          "type": "string",
+                          "description": "Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the version it was built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every answer that changed the block carries the new one. The same values give the same version"
                         }
                       },
                       "required": [
@@ -71857,7 +71881,8 @@
                         "window",
                         "speed",
                         "exclusions",
-                        "fragile"
+                        "fragile",
+                        "version"
                       ],
                       "additionalProperties": false
                     },
@@ -72571,7 +72596,7 @@
     "/scanning/safety": {
       "put": {
         "operationId": "scanning_put_scanning_safety",
-        "summary": "Save the shared safety settings every LAN engine obeys (one writer; GET/PUT /inventory/settings and the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days, no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20), bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on). Publishes inventory.settings.changed: a run that the new values no longer allow stops",
+        "summary": "Save the shared safety settings every LAN engine obeys (one writer; GET/PUT /inventory/settings and the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days, no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20), bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on); 409 safety_changed (with error.safety, the current block) when version is not the stored one: re-read, merge, save again. Publishes inventory.settings.changed: a run that the new values no longer allow stops",
         "tags": [
           "scanning"
         ],
@@ -72723,6 +72748,11 @@
                       "regular_scan_kinds"
                     ],
                     "additionalProperties": false
+                  },
+                  "version": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "The version of GET /scanning (safety.version) this page was built on. Not the stored one: 409 safety_changed with the current block (error.safety), nothing stored"
                   }
                 },
                 "required": [
@@ -72730,7 +72760,8 @@
                   "window",
                   "speed",
                   "exclusions",
-                  "fragile"
+                  "fragile",
+                  "version"
                 ],
                 "additionalProperties": false
               }
@@ -72909,6 +72940,10 @@
                       ],
                       "additionalProperties": false
                     },
+                    "version": {
+                      "type": "string",
+                      "description": "Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the version it was built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every answer that changed the block carries the new one. The same values give the same version"
+                    },
                     "adjusted": {
                       "type": "array",
                       "items": {
@@ -72936,6 +72971,7 @@
                     "speed",
                     "exclusions",
                     "fragile",
+                    "version",
                     "adjusted"
                   ],
                   "additionalProperties": false
@@ -72959,7 +72995,7 @@
     "/scanning/safety/exclusions": {
       "post": {
         "operationId": "scanning_post_scanning_safety_exclusions",
-        "summary": "Add one exclusion where the person is (\"+ New exclusion\" in a dialog, #842), without sending the whole block: read, append and save in one transaction. 400 bad_exclusion as PUT /scanning/safety; 409 too_many_exclusions when the list would grow past 200. An entry an exclusion already covers is 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the entry) and publishes inventory.settings.changed: a run that may no longer touch it stops. Returns the whole safety block",
+        "summary": "Add one exclusion where the person is (\"+ New exclusion\" in a dialog, #842), without sending the whole block: read, append and save in one transaction. 400 bad_exclusion as PUT /scanning/safety, and too_many_exclusions when the list would grow past 200. An entry an exclusion already covers is 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the entry) and publishes inventory.settings.changed: a run that may no longer touch it stops. Returns the whole safety block with its new version",
         "tags": [
           "scanning"
         ],
@@ -73160,6 +73196,10 @@
                         "devices"
                       ],
                       "additionalProperties": false
+                    },
+                    "version": {
+                      "type": "string",
+                      "description": "Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the version it was built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every answer that changed the block carries the new one. The same values give the same version"
                     }
                   },
                   "required": [
@@ -73167,7 +73207,8 @@
                     "window",
                     "speed",
                     "exclusions",
-                    "fragile"
+                    "fragile",
+                    "version"
                   ],
                   "additionalProperties": false
                 }
@@ -73190,7 +73231,7 @@
     "/scanning/safety/ranges": {
       "post": {
         "operationId": "scanning_post_scanning_safety_ranges",
-        "summary": "Add one LAN range to the scope where the person is (\"+ New range\" in a dialog, #842), without sending the whole block: read, append and save in one transaction, so it never overwrites another edit. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range, too_many_ranges (16), and scope_not_confirmed when confirm is not true. A range the scope already covers is 200 with the block unchanged (no audit row) while the scope is confirmed; while it is not, the confirmation is recorded for the stored ranges. Audited as the PUT (inventory.settings, naming the range) and publishes inventory.settings.changed. Returns the whole safety block, with adjusted when the range was normalized",
+        "summary": "Add one LAN range to the scope where the person is (\"+ New range\" in a dialog, #842), without sending the whole block: read, append and save in one transaction, so it never overwrites another edit. The dialog lists the current ranges with the confirmation tick and sends them back in shown_ranges: the tick confirms those and the new range only. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range, too_many_ranges (16), and scope_not_confirmed when confirm is not true; 409 scope_changed (with error.safety, the current block) when the stored ranges are not shown_ranges. A range the confirmed scope already covers is 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the range, and saying when the add confirmed a scope that was not confirmed) and publishes inventory.settings.changed. Returns the whole safety block with its new version, and adjusted when the range was normalized",
         "tags": [
           "scanning"
         ],
@@ -73213,12 +73254,22 @@
                   },
                   "confirm": {
                     "type": "boolean",
-                    "description": "The attestation of PUT /scanning/safety (scope.confirmed): the ranges, this one included, belong to the company and scanning them is permitted. Must be true (400 scope_not_confirmed); recorded as confirmed_at/confirmed_by"
+                    "description": "The attestation of PUT /scanning/safety (scope.confirmed): the ranges shown, and this one, belong to the company and scanning them is permitted. Must be true (400 scope_not_confirmed); recorded as confirmed_at/confirmed_by"
+                  },
+                  "shown_ranges": {
+                    "maxItems": 16,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "description": "The ranges the dialog showed next to the tick (safety.scope.lan_ranges as read; order does not matter). The tick confirms exactly these and the new range: when the stored list is another one (an admin changed or unconfirmed the scope since), 409 scope_changed with the current block (error.safety) and nothing stored (review #860 H1)"
                   }
                 },
                 "required": [
                   "range",
-                  "confirm"
+                  "confirm",
+                  "shown_ranges"
                 ],
                 "additionalProperties": false
               }
@@ -73397,6 +73448,10 @@
                       ],
                       "additionalProperties": false
                     },
+                    "version": {
+                      "type": "string",
+                      "description": "Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the version it was built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every answer that changed the block carries the new one. The same values give the same version"
+                    },
                     "adjusted": {
                       "type": "array",
                       "items": {
@@ -73424,6 +73479,7 @@
                     "speed",
                     "exclusions",
                     "fragile",
+                    "version",
                     "adjusted"
                   ],
                   "additionalProperties": false
@@ -73636,6 +73692,10 @@
                       "type": "boolean",
                       "const": false
                     },
+                    "version": {
+                      "type": "string",
+                      "description": "Version of the shared safety block (window, rate, exclusions live in inventory INV-32; the same as GET /scanning safety.version); \"\" when this module keeps its own copy"
+                    },
                     "schedule_blocked_reason": {
                       "description": "Set while the schedule is on but nothing automated can start because the organization time zone cannot be read; next_run is null then (D-261 (3))",
                       "type": [
@@ -73651,6 +73711,7 @@
                     "can_scan",
                     "block_reason",
                     "dangerous_checks",
+                    "version",
                     "schedule_blocked_reason"
                   ],
                   "additionalProperties": false
@@ -73672,7 +73733,7 @@
       },
       "put": {
         "operationId": "scan_put_scans_config",
-        "summary": "Save scan settings (partial update); dangerous checks are always rejected",
+        "summary": "Save scan settings (partial update); dangerous checks are always rejected. 409 safety_changed when the version sent is not the stored one",
         "tags": [
           "scan"
         ],
@@ -73770,6 +73831,11 @@
                     "type": "boolean",
                     "const": false,
                     "description": "Rejected when true: no exploitation, no DoS"
+                  },
+                  "version": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "The version of the shared safety block this page read (version of GET /scans/config). Given and not the stored one: 409 safety_changed, nothing stored (review #860 M1). Left out: no check, so an exclusion added since the page loaded is replaced when exclusions are sent; this page is being replaced by Settings › Scanning (#850)"
                   }
                 },
                 "additionalProperties": false
@@ -73957,6 +74023,10 @@
                       "type": "boolean",
                       "const": false
                     },
+                    "version": {
+                      "type": "string",
+                      "description": "Version of the shared safety block (window, rate, exclusions live in inventory INV-32; the same as GET /scanning safety.version); \"\" when this module keeps its own copy"
+                    },
                     "schedule_blocked_reason": {
                       "description": "Set while the schedule is on but nothing automated can start because the organization time zone cannot be read; next_run is null then (D-261 (3))",
                       "type": [
@@ -73972,6 +74042,7 @@
                     "can_scan",
                     "block_reason",
                     "dangerous_checks",
+                    "version",
                     "schedule_blocked_reason"
                   ],
                   "additionalProperties": false

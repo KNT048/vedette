@@ -51,6 +51,7 @@ type Patch struct {
 	SchedWeekday       *int
 	SchedAt            *string
 	DangerousChecks    *bool
+	Version            string // the shared block's version the page read (ConfigView.Version); "" = none, no check
 }
 
 // Limits of INV-5.
@@ -248,6 +249,9 @@ type Checks struct {
 	// before #850 that wrote it after a rollback), settings reads the union of both lists and the slower rate, so nothing either list
 	// excludes is scanned (review #857 M1; equality only, no clock order: r2 L1). On SaveChecks it is the stamp the save wrote.
 	MergedFrom *string
+	// Version names the shared block as read (Checks); on SaveChecks it is the one the page read ("" = none: no check), and another
+	// one refuses the save with 409 safety_changed (review #860 M1).
+	Version string
 }
 
 // SharedChecks is the inventory as the one store of Checks (#850, INV-16). The Inventory adapter of cmd/vedette implements it; an

@@ -171119,15 +171119,20 @@ func (s *InventoryGetInventorySettingsOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("scope_confirmed_by")
 		s.ScopeConfirmedBy.Encode(e)
 	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
 }
 
-var jsonFieldsNameOfInventoryGetInventorySettingsOK = [6]string{
+var jsonFieldsNameOfInventoryGetInventorySettingsOK = [7]string{
 	0: "active",
 	1: "fragile_kinds",
 	2: "lan_ranges",
 	3: "regular_scan_kinds",
 	4: "scope_confirmed_at",
 	5: "scope_confirmed_by",
+	6: "version",
 }
 
 // Decode decodes InventoryGetInventorySettingsOK from json.
@@ -171225,6 +171230,18 @@ func (s *InventoryGetInventorySettingsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"scope_confirmed_by\"")
 			}
+		case "version":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -171235,7 +171252,7 @@ func (s *InventoryGetInventorySettingsOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -180900,9 +180917,13 @@ func (s *InventoryPutInventorySettingsOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("scope_confirmed_by")
 		s.ScopeConfirmedBy.Encode(e)
 	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
 }
 
-var jsonFieldsNameOfInventoryPutInventorySettingsOK = [7]string{
+var jsonFieldsNameOfInventoryPutInventorySettingsOK = [8]string{
 	0: "active",
 	1: "adjusted",
 	2: "fragile_kinds",
@@ -180910,6 +180931,7 @@ var jsonFieldsNameOfInventoryPutInventorySettingsOK = [7]string{
 	4: "regular_scan_kinds",
 	5: "scope_confirmed_at",
 	6: "scope_confirmed_by",
+	7: "version",
 }
 
 // Decode decodes InventoryPutInventorySettingsOK from json.
@@ -181025,6 +181047,18 @@ func (s *InventoryPutInventorySettingsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"scope_confirmed_by\"")
 			}
+		case "version":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -181035,7 +181069,7 @@ func (s *InventoryPutInventorySettingsOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -181572,9 +181606,15 @@ func (s *InventoryPutInventorySettingsReq) encodeFields(e *jx.Encoder) {
 		e.FieldStart("scope_confirmed_by")
 		s.ScopeConfirmedBy.Encode(e)
 	}
+	{
+		if s.Version.Set {
+			e.FieldStart("version")
+			s.Version.Encode(e)
+		}
+	}
 }
 
-var jsonFieldsNameOfInventoryPutInventorySettingsReq = [7]string{
+var jsonFieldsNameOfInventoryPutInventorySettingsReq = [8]string{
 	0: "active",
 	1: "fragile_kinds",
 	2: "lan_ranges",
@@ -181582,6 +181622,7 @@ var jsonFieldsNameOfInventoryPutInventorySettingsReq = [7]string{
 	4: "scope_confirmed",
 	5: "scope_confirmed_at",
 	6: "scope_confirmed_by",
+	7: "version",
 }
 
 // Decode decodes InventoryPutInventorySettingsReq from json.
@@ -181690,6 +181731,16 @@ func (s *InventoryPutInventorySettingsReq) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"scope_confirmed_by\"")
+			}
+		case "version":
+			if err := func() error {
+				s.Version.Reset()
+				if err := s.Version.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -297673,9 +297724,13 @@ func (s *ScanGetScansConfigOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("scope")
 		s.Scope.Encode(e)
 	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
 }
 
-var jsonFieldsNameOfScanGetScansConfigOK = [7]string{
+var jsonFieldsNameOfScanGetScansConfigOK = [8]string{
 	0: "block_reason",
 	1: "can_scan",
 	2: "config",
@@ -297683,6 +297738,7 @@ var jsonFieldsNameOfScanGetScansConfigOK = [7]string{
 	4: "next_run",
 	5: "schedule_blocked_reason",
 	6: "scope",
+	7: "version",
 }
 
 // Decode decodes ScanGetScansConfigOK from json.
@@ -297768,6 +297824,18 @@ func (s *ScanGetScansConfigOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"scope\"")
 			}
+		case "version":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -297778,7 +297846,7 @@ func (s *ScanGetScansConfigOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -305862,9 +305930,13 @@ func (s *ScanPutScansConfigOK) encodeFields(e *jx.Encoder) {
 		e.FieldStart("scope")
 		s.Scope.Encode(e)
 	}
+	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
 }
 
-var jsonFieldsNameOfScanPutScansConfigOK = [7]string{
+var jsonFieldsNameOfScanPutScansConfigOK = [8]string{
 	0: "block_reason",
 	1: "can_scan",
 	2: "config",
@@ -305872,6 +305944,7 @@ var jsonFieldsNameOfScanPutScansConfigOK = [7]string{
 	4: "next_run",
 	5: "schedule_blocked_reason",
 	6: "scope",
+	7: "version",
 }
 
 // Decode decodes ScanPutScansConfigOK from json.
@@ -305957,6 +306030,18 @@ func (s *ScanPutScansConfigOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"scope\"")
 			}
+		case "version":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -305967,7 +306052,7 @@ func (s *ScanPutScansConfigOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b01111111,
+		0b11111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -306836,6 +306921,12 @@ func (s *ScanPutScansConfigReq) encodeFields(e *jx.Encoder) {
 		}
 	}
 	{
+		if s.Version.Set {
+			e.FieldStart("version")
+			s.Version.Encode(e)
+		}
+	}
+	{
 		if s.Window.Set {
 			e.FieldStart("window")
 			s.Window.Encode(e)
@@ -306843,7 +306934,7 @@ func (s *ScanPutScansConfigReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanPutScansConfigReq = [8]string{
+var jsonFieldsNameOfScanPutScansConfigReq = [9]string{
 	0: "auto_rescan",
 	1: "dangerous_checks",
 	2: "exclusions",
@@ -306851,7 +306942,8 @@ var jsonFieldsNameOfScanPutScansConfigReq = [8]string{
 	4: "schedule",
 	5: "stop_on_unresponsive",
 	6: "unresponsive_after",
-	7: "window",
+	7: "version",
+	8: "window",
 }
 
 // Decode decodes ScanPutScansConfigReq from json.
@@ -306940,6 +307032,16 @@ func (s *ScanPutScansConfigReq) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"unresponsive_after\"")
+			}
+		case "version":
+			if err := func() error {
+				s.Version.Reset()
+				if err := s.Version.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
 			}
 		case "window":
 			if err := func() error {
@@ -309041,17 +309143,22 @@ func (s *ScanningGetScanningOKSafety) encodeFields(e *jx.Encoder) {
 		s.Speed.Encode(e)
 	}
 	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+	{
 		e.FieldStart("window")
 		s.Window.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfScanningGetScanningOKSafety = [5]string{
+var jsonFieldsNameOfScanningGetScanningOKSafety = [6]string{
 	0: "exclusions",
 	1: "fragile",
 	2: "scope",
 	3: "speed",
-	4: "window",
+	4: "version",
+	5: "window",
 }
 
 // Decode decodes ScanningGetScanningOKSafety from json.
@@ -309113,8 +309220,20 @@ func (s *ScanningGetScanningOKSafety) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"speed\"")
 			}
-		case "window":
+		case "version":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		case "window":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Window.Decode(d); err != nil {
 					return err
@@ -309133,7 +309252,7 @@ func (s *ScanningGetScanningOKSafety) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -311665,17 +311784,22 @@ func (s *ScanningPatchScanningEnginesIDOKSafety) encodeFields(e *jx.Encoder) {
 		s.Speed.Encode(e)
 	}
 	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+	{
 		e.FieldStart("window")
 		s.Window.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfScanningPatchScanningEnginesIDOKSafety = [5]string{
+var jsonFieldsNameOfScanningPatchScanningEnginesIDOKSafety = [6]string{
 	0: "exclusions",
 	1: "fragile",
 	2: "scope",
 	3: "speed",
-	4: "window",
+	4: "version",
+	5: "window",
 }
 
 // Decode decodes ScanningPatchScanningEnginesIDOKSafety from json.
@@ -311737,8 +311861,20 @@ func (s *ScanningPatchScanningEnginesIDOKSafety) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"speed\"")
 			}
-		case "window":
+		case "version":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		case "window":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Window.Decode(d); err != nil {
 					return err
@@ -311757,7 +311893,7 @@ func (s *ScanningPatchScanningEnginesIDOKSafety) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -313265,17 +313401,22 @@ func (s *ScanningPostScanningSafetyExclusionsOK) encodeFields(e *jx.Encoder) {
 		s.Speed.Encode(e)
 	}
 	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+	{
 		e.FieldStart("window")
 		s.Window.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfScanningPostScanningSafetyExclusionsOK = [5]string{
+var jsonFieldsNameOfScanningPostScanningSafetyExclusionsOK = [6]string{
 	0: "exclusions",
 	1: "fragile",
 	2: "scope",
 	3: "speed",
-	4: "window",
+	4: "version",
+	5: "window",
 }
 
 // Decode decodes ScanningPostScanningSafetyExclusionsOK from json.
@@ -313337,8 +313478,20 @@ func (s *ScanningPostScanningSafetyExclusionsOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"speed\"")
 			}
-		case "window":
+		case "version":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		case "window":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Window.Decode(d); err != nil {
 					return err
@@ -313357,7 +313510,7 @@ func (s *ScanningPostScanningSafetyExclusionsOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -314221,18 +314374,23 @@ func (s *ScanningPostScanningSafetyRangesOK) encodeFields(e *jx.Encoder) {
 		s.Speed.Encode(e)
 	}
 	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+	{
 		e.FieldStart("window")
 		s.Window.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfScanningPostScanningSafetyRangesOK = [6]string{
+var jsonFieldsNameOfScanningPostScanningSafetyRangesOK = [7]string{
 	0: "adjusted",
 	1: "exclusions",
 	2: "fragile",
 	3: "scope",
 	4: "speed",
-	5: "window",
+	5: "version",
+	6: "window",
 }
 
 // Decode decodes ScanningPostScanningSafetyRangesOK from json.
@@ -314312,8 +314470,20 @@ func (s *ScanningPostScanningSafetyRangesOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"speed\"")
 			}
-		case "window":
+		case "version":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		case "window":
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Window.Decode(d); err != nil {
 					return err
@@ -314332,7 +314502,7 @@ func (s *ScanningPostScanningSafetyRangesOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -315192,11 +315362,20 @@ func (s *ScanningPostScanningSafetyRangesReq) encodeFields(e *jx.Encoder) {
 		e.FieldStart("range")
 		e.Str(s.Range)
 	}
+	{
+		e.FieldStart("shown_ranges")
+		e.ArrStart()
+		for _, elem := range s.ShownRanges {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
 }
 
-var jsonFieldsNameOfScanningPostScanningSafetyRangesReq = [2]string{
+var jsonFieldsNameOfScanningPostScanningSafetyRangesReq = [3]string{
 	0: "confirm",
 	1: "range",
+	2: "shown_ranges",
 }
 
 // Decode decodes ScanningPostScanningSafetyRangesReq from json.
@@ -315232,6 +315411,26 @@ func (s *ScanningPostScanningSafetyRangesReq) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"range\"")
 			}
+		case "shown_ranges":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.ShownRanges = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.ShownRanges = append(s.ShownRanges, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"shown_ranges\"")
+			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
@@ -315242,7 +315441,7 @@ func (s *ScanningPostScanningSafetyRangesReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -315326,18 +315525,23 @@ func (s *ScanningPutScanningSafetyOK) encodeFields(e *jx.Encoder) {
 		s.Speed.Encode(e)
 	}
 	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+	{
 		e.FieldStart("window")
 		s.Window.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfScanningPutScanningSafetyOK = [6]string{
+var jsonFieldsNameOfScanningPutScanningSafetyOK = [7]string{
 	0: "adjusted",
 	1: "exclusions",
 	2: "fragile",
 	3: "scope",
 	4: "speed",
-	5: "window",
+	5: "version",
+	6: "window",
 }
 
 // Decode decodes ScanningPutScanningSafetyOK from json.
@@ -315417,8 +315621,20 @@ func (s *ScanningPutScanningSafetyOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"speed\"")
 			}
-		case "window":
+		case "version":
 			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		case "window":
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.Window.Decode(d); err != nil {
 					return err
@@ -315437,7 +315653,7 @@ func (s *ScanningPutScanningSafetyOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -316310,17 +316526,22 @@ func (s *ScanningPutScanningSafetyReq) encodeFields(e *jx.Encoder) {
 		s.Speed.Encode(e)
 	}
 	{
+		e.FieldStart("version")
+		e.Str(s.Version)
+	}
+	{
 		e.FieldStart("window")
 		s.Window.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfScanningPutScanningSafetyReq = [5]string{
+var jsonFieldsNameOfScanningPutScanningSafetyReq = [6]string{
 	0: "exclusions",
 	1: "fragile",
 	2: "scope",
 	3: "speed",
-	4: "window",
+	4: "version",
+	5: "window",
 }
 
 // Decode decodes ScanningPutScanningSafetyReq from json.
@@ -316382,8 +316603,20 @@ func (s *ScanningPutScanningSafetyReq) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"speed\"")
 			}
-		case "window":
+		case "version":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Version = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"version\"")
+			}
+		case "window":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Window.Decode(d); err != nil {
 					return err
@@ -316402,7 +316635,7 @@ func (s *ScanningPutScanningSafetyReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00011111,
+		0b00111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

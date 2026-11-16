@@ -15,14 +15,14 @@ import (
 
 func fastProgress(c *worker.Config) { c.ProgressEvery = 20 * time.Millisecond }
 
-// waitProgress returns the first report of id that ok accepts.
-func (c *fakeCore) waitProgress(t *testing.T, id string, ok func(sensorlink.JobProgress) bool) sensorlink.JobProgress {
+// waitProgress returns the first report of job id1 (the one job of these tests) that ok accepts.
+func (c *fakeCore) waitProgress(t *testing.T, ok func(sensorlink.JobProgress) bool) sensorlink.JobProgress {
 	t.Helper()
 	deadline := time.After(30 * time.Second)
 	for {
 		select {
 		case r := <-c.progress:
-			if r.id == id && ok(r.p) {
+			if r.id == id1 && ok(r.p) {
 				return r.p
 			}
 		case <-deadline:
@@ -58,10 +58,10 @@ EOF
 `)
 	r := start(t, nm, fastProgress)
 	r.core.push(job(id1))
-	if p := r.core.waitProgress(t, id1, func(sensorlink.JobProgress) bool { return true }); p != (sensorlink.JobProgress{Phase: "discovery", Percent: -1}) {
+	if p := r.core.waitProgress(t, func(sensorlink.JobProgress) bool { return true }); p != (sensorlink.JobProgress{Phase: "discovery", Percent: -1}) {
 		t.Fatalf("first report = %+v, want the phase nmap starts with", p)
 	}
-	p := r.core.waitProgress(t, id1, func(p sensorlink.JobProgress) bool { return p.Percent >= 0 })
+	p := r.core.waitProgress(t, func(p sensorlink.JobProgress) bool { return p.Percent >= 0 })
 	if want := (sensorlink.JobProgress{Phase: "ports", Percent: 42.5, RemainingS: 60}); p != want {
 		t.Fatalf("progress = %+v, want %+v (an unknown task and a percent over 100 are not reported)", p, want)
 	}
@@ -90,10 +90,10 @@ EOF
 `)
 	r := start(t, nm, fastProgress)
 	r.core.push(job(id1))
-	if p := r.core.waitProgress(t, id1, func(sensorlink.JobProgress) bool { return true }); p != (sensorlink.JobProgress{Phase: "discovery", Percent: -1}) {
+	if p := r.core.waitProgress(t, func(sensorlink.JobProgress) bool { return true }); p != (sensorlink.JobProgress{Phase: "discovery", Percent: -1}) {
 		t.Fatalf("first report = %+v, want discovery", p)
 	}
-	if p := r.core.waitProgress(t, id1, func(p sensorlink.JobProgress) bool { return p.Phase != "discovery" }); p != (sensorlink.JobProgress{Phase: "ports", Percent: -1}) {
+	if p := r.core.waitProgress(t, func(p sensorlink.JobProgress) bool { return p.Phase != "discovery" }); p != (sensorlink.JobProgress{Phase: "ports", Percent: -1}) {
 		t.Fatalf("next report = %+v, want ports (no percent)", p)
 	}
 	release(t, nm.dir)
@@ -134,7 +134,7 @@ func TestNucleiProgressCountsItsChecks(t *testing.T) {
 EOF
 `+gate, fastProgress)
 	r.core.push(r.job(id1))
-	p := r.core.waitProgress(t, id1, func(p sensorlink.JobProgress) bool { return p.Done == 2 })
+	p := r.core.waitProgress(t, func(p sensorlink.JobProgress) bool { return p.Done == 2 })
 	if want := (sensorlink.JobProgress{Phase: "vulns", Percent: -1, Done: 2, Total: 4}); p != want {
 		t.Fatalf("progress = %+v, want %+v", p, want)
 	}

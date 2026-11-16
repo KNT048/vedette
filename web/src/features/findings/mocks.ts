@@ -9,7 +9,7 @@ import { epssDate, kevPublished as published, planSeed, recentSince, tierFact, t
 import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
 import { compromise, packs } from './packs'
-import type { AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, HomeSummary, KevInfo, MitigationPack, Plan, PlanCve, PlanItem, RowFix, StatusAction } from './types'
+import type { AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, HomeSummary, KevInfo, KnownVersion, MitigationPack, Plan, PlanCve, PlanItem, RowFix, StatusAction } from './types'
 import { fmtDate } from '@/lib/format'
 import { displayName } from '@/features/inventory/nameOf'
 import { openIncidents, sentSince } from '@/features/notify/mocks'
@@ -141,7 +141,41 @@ function renderPack(p: MitigationPack, asset: FindingAsset | null): MitigationPa
   return out
 }
 
-function recheckFor(f: Finding, k: KevInfo | null, a: FindingAsset | null) {
+const VERSION_SOURCE: Record<string, KnownVersion['source']> = { agent: 'agent', snmp: 'snmp', manual: 'manual', nmap: 'scan', scan: 'scan', passive: 'stated' }
+
+/** M2-3 (findings knownVersion): the device's row keyed to the finding's KEV entry that has a version, and who gave it. */
+function knownFor(f: Finding, k: KevInfo | null): KnownVersion | null {
+  if (!k) return null
+  const key = `${k.vendor}|${k.product}`.toLowerCase()
+  const s = assetsStore.get().find((a) => a.id === f.asset_id)?.software.find((x) => x.kev.includes(key) && !!x.version)
+  const source = s ? VERSION_SOURCE[s.source] : undefined
+  if (!s || !s.version || !source) return null
+  const name = source === 'manual' ? s.display : s.display.endsWith(` ${s.version}`) ? s.display.slice(0, -s.version.length - 1) : s.display
+  return { software: name, version: s.version, source }
+}
+
+/** mitigation knownRecheck: the version and who gave it, how a newer one reaches Vedette, what a scan template adds. */
+function knownRecheck(f: Finding, kv: KnownVersion, k: KevInfo | null, device: string, reachable: boolean) {
+  const sw = `${kv.software} ${kv.version}`
+  const [from, again] = {
+    agent: [`the agent on ${device} reports ${sw}`, 'its agent reports the new one by itself, usually within two hours'],
+    snmp: [`Vedette read ${sw} from ${device} over SNMP`, 'press "Read with SNMP now" on its device page (Vedette also reads it again in each scan window)'],
+    stated: [`${device} states on the network (LLDP) that it runs ${sw}`, 'it states the new one on the network by itself'],
+    scan: [`a network scan read ${sw} from ${device}`, reachable ? 'rescan it with the button below' : 'the next network scan of it reads the new one'],
+    manual: [`${sw} was entered for ${device} on the Devices page`, `press "I updated ${kv.software}" at the top of this page and type the new one`],
+  }[kv.source]
+  return { steps: [
+    f.basis === 'product'
+      ? `Nothing to look up: ${from} (Evidence above), but Vedette cannot compare it with the versions NVD lists for this CVE: compare it with the fixed version in the vendor advisory (link in the source section).`
+      : `Nothing to look up: ${from}. Vedette compared it with the affected versions (Evidence above).`,
+    `If ${device} now runs another version, ${again}: Vedette then closes the findings it can prove that version fixes. If this one stays open, press "Mark as handled" and choose Patched.`,
+    k?.has_template && reachable ? 'This CVE has a safe scan template: click "Rescan this device" to confirm.'
+      : k?.has_template ? 'This CVE has a safe scan template, but this device has no IP address in your inventory, so it cannot be scanned. Add its IP on the device page to scan it.'
+      : 'This CVE has no safe scan template yet, so Vedette concludes from the version alone.',
+  ] }
+}
+
+function recheckFor(f: Finding, k: KevInfo | null, a: FindingAsset | null, kv: KnownVersion | null) {
   if (f.cve === 'CVE-2022-27593' && a) {
     return {
       steps: [
@@ -153,6 +187,7 @@ function recheckFor(f: Finding, k: KevInfo | null, a: FindingAsset | null) {
     }
   }
   const reachable = !!a && a.ip !== '—'
+  if (kv && !f.evidence?.agent && !f.evidence?.agent_row && !(f.basis === 'scan' && reachable)) return knownRecheck(f, kv, k, a?.name ?? 'the device', reachable)
   if (f.evidence?.agent) { // D-548: the agent reports the installed version; nothing to look up (mitigation genericRecheck)
     return { steps: [
       `Nothing to look up: the agent on ${a?.name ?? 'the device'} reports the installed version of ${k?.display ?? 'the software'}, and Vedette compared it with the affected versions (Evidence above).`,
@@ -182,13 +217,14 @@ function detail(f: Finding): FindingDetail {
   const ip = r.asset?.ip ?? '<IP>'
   const host = r.asset?.hostname ?? ip
   const outs = aiOutputs.get()
+  const kv = knownFor(f, r.kev)
   return {
     ...r,
     fixed_in: null,
-    known_version: null,
+    known_version: kv,
     pack: pack ? renderPack(pack, r.asset) : null,
     compromise: check ? JSON.parse(fill(JSON.stringify(check), ip, host)) : null,
-    recheck: recheckFor(f, r.kev, r.asset),
+    recheck: recheckFor(f, r.kev, r.asset, kv),
     ai: { explain: outs[`${f.id}:explain`] ?? null, config: outs[`${f.id}:mitigation-config`] ?? null },
     ai_available: { explain: aiAvailable('explain-finding'), config: aiAvailable('mitigation-config') },
     applied: f.history.filter((h) => h.action.startsWith('applied:')).map((h) => ({ item: h.action.slice(8), ts: h.ts, user: h.user })),

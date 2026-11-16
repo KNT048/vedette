@@ -261,7 +261,11 @@ func knownVersion(a Asset, s Software) *KnownVersion {
 	default:
 		return nil
 	}
-	return &KnownVersion{Software: softwareName(s.Display, s.Version), Version: clean(s.Version), Source: src}
+	name := softwareName(s.Display, s.Version)
+	if src == VersionByManual {
+		name = clean(s.Display) // the "I updated <software>" button names the row as inventory does (review r1 L4)
+	}
+	return &KnownVersion{Software: name, Version: clean(s.Version), Source: src}
 }
 
 type historyDoc struct {

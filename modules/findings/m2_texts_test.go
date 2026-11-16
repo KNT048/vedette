@@ -16,6 +16,16 @@ func TestFixedIn_M24_RangeEndThatIsItselfAffectedIsNotTheFix(t *testing.T) {
 	if f == nil || f.Kind != "end_listed" || f.Fixed != "20.4" || f.Version != "15.1R7.9" {
 		t.Fatalf("got %+v, want end_listed 20.4 for 15.1R7.9", f)
 	}
+	// Inside two ranges whose ends are both listed: the highest end, the range the evidence quotes (review r1 L2).
+	two := Vuln{CVE: "CVE-2099-0003", Vendor: "Acme", Product: "Gate", Affected: []Affected{
+		{CPE: "cpe:2.3:a:acme:gate:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "8.0"}},
+		{CPE: "cpe:2.3:a:acme:gate:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "9.1"}},
+		{CPE: "cpe:2.3:a:acme:gate:8.0:*:*:*:*:*:*:*"}, {CPE: "cpe:2.3:a:acme:gate:9.1:*:*:*:*:*:*:*"},
+	}}
+	gate := Asset{ID: "a", Name: "gw", Software: []Software{{ID: "s", Display: "Acme Gate", Vendor: "Acme", Product: "Gate", Version: "7.5", KevKeys: []string{"acme|gate"}}}}
+	if f := FixedInFor(gate, two); f == nil || f.Kind != "end_listed" || f.Fixed != "9.1" {
+		t.Fatalf("two listed ends: got %+v, want end_listed 9.1", f)
+	}
 	// A range whose end is outside every entry still names the fix.
 	v := Vuln{CVE: "CVE-2099-0001", Vendor: "Acme", Product: "Gate", Affected: []Affected{{CPE: "cpe:2.3:a:acme:gate:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "2.0"}}}}
 	a := Asset{ID: "a", Name: "gw", Software: []Software{{ID: "s", Display: "Acme Gate", Vendor: "Acme", Product: "Gate", Version: "1.5", KevKeys: []string{"acme|gate"}}}}
@@ -69,7 +79,11 @@ func TestKnownVersion_M23_EverySource(t *testing.T) {
 			}
 			continue
 		}
-		if k == nil || k.Source != want || k.Software != "OpenSSH" || k.Version != "10.2" {
+		name := "OpenSSH"
+		if src == "manual" {
+			name = "OpenSSH 10.2" // the inventory display, as the "I updated <software>" button shows it (review r1 L4)
+		}
+		if k == nil || k.Source != want || k.Software != name || k.Version != "10.2" {
 			t.Errorf("source %q: %+v", src, k)
 		}
 	}
@@ -103,5 +117,56 @@ func TestFindingDetail_M23_KnownVersion(t *testing.T) {
 	}
 	if f, _ := b["fixed_in"].(map[string]any); f["kind"] != "end_listed" || f["fixed"] != "20.4" {
 		t.Fatalf("fixed_in: %v", b["fixed_in"])
+	}
+}
+
+// detailKnown seeds device a with one exploited entry v, creates its finding and returns the GET /findings/{id} body.
+func detailKnown(t *testing.T, a Asset, v Vuln) map[string]any {
+	t.Helper()
+	e := newHTTPEnv(t)
+	e.inv.mu.Lock()
+	e.inv.match[a.ID] = a
+	e.inv.mu.Unlock()
+	e.feeds.vulns = []Vuln{v}
+	e.feeds.kev[v.CVE] = KevInfo{Name: v.Name, Vendor: v.Vendor, Product: v.Product, RequiredAction: "Apply updates."}
+	res, err := e.svc.OnMatchChanged(t.Context(), a.ID)
+	if err != nil || len(res.Created) != 1 {
+		t.Fatalf("seed: %+v %v", res, err)
+	}
+	_, b := e.call("GET", "/findings/"+res.Created[0], "viewer", "")
+	return b
+}
+
+// Review r1 L8 + M3 of #896: the walked 192.168.18.1 (OpenSSH 10.2 read by a scan) and WINLAB01 (the agent's Windows release row)
+// through GET /findings/{id}; and with two rows keyed to the same product (an nmap row first by name, then the agent's), known_version
+// is the row the finding was matched on, the one the evidence names, not the first keyed one.
+func TestFindingDetail_M23_KnownVersionIsTheMatchedRow(t *testing.T) {
+	t.Parallel()
+	ssh := Vuln{CVE: "CVE-2026-123158", Vendor: "OpenBSD", Product: "OpenSSH", Name: "OpenBSD OpenSSH", Affected: []Affected{{CPE: "cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "10.6"}}}}
+	gw := Asset{ID: "a-1", Name: "192.168.18.1", Software: []Software{{ID: "s-1", Display: "OpenSSH 10.2", Vendor: "openbsd", Product: "openssh", Version: "10.2", KevKeys: []string{"openbsd|openssh"}, Source: "nmap"}}}
+	b := detailKnown(t, gw, ssh)
+	if k, _ := b["known_version"].(map[string]any); k["software"] != "OpenSSH" || k["version"] != "10.2" || k["source"] != "scan" {
+		t.Errorf("192.168.18.1: %v", b["known_version"])
+	}
+	if ev, _ := b["evidence"].(map[string]any); !strings.HasPrefix(ev["summary"].(string), "192.168.18.1 runs OpenSSH 10.2. ") {
+		t.Errorf("192.168.18.1 evidence: %v", ev["summary"])
+	}
+
+	two := Asset{ID: "a-1", Name: "web-01", Software: []Software{
+		{ID: "s-a", Display: "OpenSSH 9.6p1 Ubuntu 3ubuntu13.5", Vendor: "openbsd", Product: "openssh", Version: "", KevKeys: []string{"openbsd|openssh"}, Source: "nmap"},
+		{ID: "s-b", Display: "OpenSSH", Vendor: "openbsd", Product: "openssh", Version: "9.6", KevKeys: []string{"openbsd|openssh"}, Source: "agent"},
+	}}
+	b = detailKnown(t, two, ssh)
+	if k, _ := b["known_version"].(map[string]any); k["version"] != "9.6" || k["source"] != "agent" {
+		t.Errorf("two keyed rows: %v", b["known_version"])
+	}
+
+	vulns := loadGolden(t, "testdata/kev-nvd-winlab01-n55.json")
+	i := slices.IndexFunc(vulns, func(v Vuln) bool { return v.CVE == "CVE-2024-43572" })
+	win := winlab01()
+	win.ID = "a-1"
+	b = detailKnown(t, win, vulns[i])
+	if k, _ := b["known_version"].(map[string]any); k["source"] != "agent" || !strings.HasPrefix(k["version"].(string), "10.0.26100.1742") {
+		t.Errorf("WINLAB01: %v", b["known_version"])
 	}
 }

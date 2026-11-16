@@ -73,10 +73,12 @@ func FixedInFor(a Asset, v Vuln) *FixedIn {
 		case f == nil:
 			return 0
 		case f.DistroFixed != "": // the distribution's own fixed package: the most definite answer (D-516)
-			return 6
+			return 7
 		case f.Kind == "fixed":
-			return 5
+			return 6
 		case f.Kind == "up_to":
+			return 5
+		case f.Kind == "end_listed": // M2-4, review r1 L3: the device's own version decides, above a versionless row's branches
 			return 4
 		case f.Kind == "distro":
 			return 3
@@ -250,7 +252,9 @@ func fixedForVersion(in swInfo, usable []fixedEntry, outside func(string) bool, 
 	}
 	// M2-4: every end is itself affected through another entry (Junos: "before 20.4", then 20.4:r1 … 20.4:r3-s8 one by one): the
 	// end is where NVD's release-by-release list starts, not a fix, and the page says so instead of "fixed version not known".
-	return &FixedIn{Kind: "end_listed", Version: clean(in.ver), Fixed: clean(asc(excl)[0])}
+	// The highest end, as the evidence quotes the widest range (decide, review r1 L2).
+	l := asc(excl)
+	return &FixedIn{Kind: "end_listed", Version: clean(in.ver), Fixed: clean(l[len(l)-1])}
 }
 
 // fixedBranches lists the fix of each release line (the line named by its range's start), for a device whose version

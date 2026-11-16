@@ -179,7 +179,8 @@ func genericRecheck(r findings.Row) findings.Recheck {
 		}
 		return findings.Recheck{Steps: steps}
 	}
-	if k := r.Known; k != nil && k.Version != "" { // M2-3: the box has the version, whoever gave it; never "find which version"
+	// M2-3: the box has the version, whoever gave it; never "find which version". A product match on an agent row keeps D-612's words.
+	if k := r.Known; k != nil && k.Version != "" && (r.Evidence == nil || !r.Evidence.AgentRow) {
 		return knownRecheck(r, k, device, hasTemplate, reachable)
 	}
 	last := "This CVE has no safe scan template yet, so Vedette can only conclude from the version. Check by hand as above."
@@ -217,7 +218,7 @@ func knownRecheck(r findings.Row, k *findings.KnownVersion, device string, hasTe
 		again = "it states the new one on the network by itself"
 	case findings.VersionByScan:
 		from = fmt.Sprintf("a network scan read %s from %s", sw, device)
-		again = `rescan it with "Rescan this device"`
+		again = "rescan it with the button below" // its label depends on the scan module (review r1 L5)
 		if !reachable {
 			again = "the next network scan of it reads the new one"
 		}
@@ -229,7 +230,8 @@ func knownRecheck(r findings.Row, k *findings.KnownVersion, device string, hasTe
 	if r.Basis == findings.BasisProduct {
 		first = fmt.Sprintf("Nothing to look up: %s (Evidence above), but Vedette cannot compare it with the versions NVD lists for this CVE: compare it with the fixed version in the vendor advisory (link in the source section).", from)
 	}
-	steps := []string{first, fmt.Sprintf("If %s now runs another version, %s: Vedette then closes the findings that version fixes.", device, again)}
+	// Review r1 M2: Vedette closes only what it can prove fixed (a Junos release after the last one NVD lists closes nothing, INV-4c).
+	steps := []string{first, fmt.Sprintf(`If %s now runs another version, %s: Vedette then closes the findings it can prove that version fixes. If this one stays open, press "Mark as handled" and choose Patched.`, device, again)}
 	switch {
 	case hasTemplate && reachable:
 		steps = append(steps, `This CVE has a safe scan template: click "Rescan this device" to confirm.`)

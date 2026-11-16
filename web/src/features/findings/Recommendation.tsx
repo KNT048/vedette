@@ -18,7 +18,7 @@ import { useApplied, useAskAi } from './api'
 import type { AiResult, ApplyItem, CodeStep, FindingDetail, FirewallGuide, FirewallVendor, KevInfo } from './types'
 import { isOpen } from './basis'
 import { softwareFor, useDeviceSoftware } from './rematch'
-import { dayAfter } from './accept'
+import { overdue } from './accept'
 
 function SideEffect({ text }: { text: string }) {
   const { t } = useTranslation('findings')
@@ -250,26 +250,27 @@ function linkKind(u: string): 'cisa' | 'nvd' | 'vendor' {
 }
 const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, '') } catch { return u } }
 
-/** CISA's deadline is a day before today, on the person's own calendar (M2-6: "passed on", not "use it as your own deadline"). */
-const overdue = (due: string, today = new Date()) => due < dayAfter(today, 0)
-
 /**
  * "Steps you can take now" without a pack (W1-31). M2-3: a version the box has (any source: agent, SNMP, LLDP, a scan, a person) is
  * said, never asked for, and step 3 names how the new version reaches Vedette. M2-5: the controls named are the page's own
  * ("Mark as handled", then Patched or False positive; "I updated <software>" for a typed row, "I updated it" otherwise).
  */
-export function NowSteps({ finding, kev, updatable, manual, today }: { finding: FindingDetail; kev: KevInfo; updatable: boolean; manual: boolean; today?: Date }) {
+export function NowSteps({ finding, kev, updatable, manual, today }: { finding: FindingDetail; kev: KevInfo; updatable: boolean; manual?: string; today?: Date }) {
   const { t } = useTranslation('findings')
   const device = finding.asset?.name || t('removedDevice')
   const product = kev.display || t('rec.theSoftware')
   const known = finding.known_version
   const due = kev.due_date
   const step2 = !due ? t('rec.step2') : overdue(due, today) ? t('rec.step2Overdue', { date: fmtDate(due) }) : t('rec.step2Due', { date: fmtDate(due) })
-  let step3: ReactNode = updatable ? t(manual ? 'rec.step3Manual' : 'rec.step3', { device, software: known?.software ?? product }) : t('rec.step3Mark')
-  if (known?.source === 'agent') step3 = t('rec.step3Agent', { device })
-  else if (known?.source === 'stated') step3 = t('rec.step3Stated', { device })
-  else if (known?.source === 'scan') step3 = t('rec.step3Scan', { device })
-  else if (known?.source === 'snmp') {
+  // review r1 L4: the button is named as the page shows it, the typed row's own display
+  let step3: ReactNode = updatable ? (manual ? t('rec.step3Manual', { device, software: manual }) : t('rec.step3', { device })) : t('rec.step3Mark')
+  // How the new version reaches Vedette, by who gave the old one; a closed finding keeps the plain step (review r1 L6), and a typed
+  // version keeps "I updated <software>"
+  const via = isOpen(finding.status) && known?.source !== 'manual' ? known?.source : undefined
+  if (via === 'agent') step3 = t('rec.step3Agent', { device })
+  else if (via === 'stated') step3 = t('rec.step3Stated', { device })
+  else if (via === 'scan') step3 = t('rec.step3Scan', { device })
+  else if (via === 'snmp') {
     // docs/UI.md §0: the exact place, the device page that has the button
     step3 = finding.asset
       ? <>{t('rec.step3Snmp', { device })} <Link to={`/devices/${encodeURIComponent(finding.asset.id)}`} className="text-accent underline underline-offset-4">{t('evidence.openDevice')}</Link></>
@@ -329,7 +330,7 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
               </ul>
             ) : null}
           </div>
-          <NowSteps finding={finding} kev={k} updatable={updatable} manual={rows.some((r) => r.source === 'manual')} />
+          <NowSteps finding={finding} kev={k} updatable={updatable} manual={rows.find((r) => r.source === 'manual')?.display} />
         </>
       ) : (
         <div className="flex items-center gap-1 text-sm text-muted">

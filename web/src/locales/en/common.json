@@ -1,5 +1,7 @@
 {
   "close": "Close",
+  "infoAbout": "About {{topic}}",
+  "infoAboutThis": "More about this",
   "cancel": "Cancel",
   "save": "Save",
   "saved": "Saved",

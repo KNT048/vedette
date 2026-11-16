@@ -255,6 +255,15 @@ func attrMatch(c, t Attr) bool {
 	return wildMatch(c.Value, t.Value)
 }
 
+// naCovers reports whether a configuration attribute c of NA ("not applicable", written "-") covers the software's attribute t
+// after the version: NA or unstated (ANY), never a value (#901). This is a product rule, not NISTIR 7696's name matching: there
+// NA against ANY is SUBSET, not a match, and attrMatch keeps that. It is used only where "-" cannot mean "the plain edition
+// beside a named one": the Windows release rows (winUnpinned: "windows_server_2025:*:*:*:*:-:*:x64:*" is every install of the
+// release) and the update of the D-500 rule (evalUpdate: "9.8:-" is the release without an update, read from the version
+// string). Elsewhere NVD's "-" often means "not ESR" or "not LTS", which inventory cannot tell (reviews H1 of #906 r1 and r2),
+// so pinnedAttrs keeps NA pinned. Do not widen it to application rows.
+func naCovers(c, t Attr) bool { return c.Kind == NA && t.Kind != Value }
+
 // Matches reports whether configuration cpe c covers every attribute of the
 // target cpe t. The target is normally a CPE of installed software.
 func (c CPE) Matches(t CPE) bool {

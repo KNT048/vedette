@@ -985,7 +985,9 @@ func evalUpdate(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) Tri {
 	if pv.tail != "" {
 		return Unknown
 	}
-	if c.Update.Kind == NA && !hasSW { // "1.9.17:-" is the release with no update: "1.9.17p2" is not it (D-500)
+	// "1.9.17:-" is the release with no update: "1.9.17p2" is not it (D-500). A row whose CPE leaves the update unstated reads it
+	// from its version string, as a row without a CPE does (naCovers, #901).
+	if c.Update.Kind == NA && (!hasSW || naCovers(c.Update, sw.Update)) {
 		if pv.q.class != 0 {
 			return No
 		}
@@ -1023,6 +1025,11 @@ func evalUpdate(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) Tri {
 // pinnedAttrs checks the attributes the software side rarely carries (edition,
 // language, software edition, target software/hardware, other). A pinned value
 // the software contradicts gives No; one it does not carry lowers Yes to Unknown.
+// NA ("-") is pinned like a value here: it matches the software's NA, and an unstated
+// attribute lowers Yes to Unknown, because NVD's "-" often means "the plain edition"
+// beside one inventory cannot tell apart (Firefox "-" vs ESR, Jenkins "-" vs LTS;
+// reviews H1 of #906 r1 and r2). Only the Windows release rows (winUnpinned) and the
+// update rule (evalUpdate) let NA cover an unstated attribute (naCovers, #901).
 func pinnedAttrs(c, sw CPE, hasSW bool, t Tri) Tri {
 	cfa := c.fields()
 	cf := cfa[5:]

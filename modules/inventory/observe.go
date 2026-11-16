@@ -67,18 +67,18 @@ func (s *Service) RecordObservation(ctx context.Context, o observe.Observation) 
 
 // cleanObs is an observation that passed the boundary check.
 type cleanObs struct {
-	ip     netip.Addr
-	mac    string // hint, normalised, may be ""
-	agent  string // hint: the agent that reports (agent source only, D-598), may be ""
+	ip    netip.Addr
+	mac   string // hint, normalised, may be ""
+	agent string // hint: the agent that reports (agent source only, D-598), may be ""
 	// agentMACs are the MACs the agent reports in this batch (its mac observations), and macsKnown says the batch is an observation
 	// batch that could carry them (Record), not a software or service list. A key hit is checked against them (keyHit).
 	agentMACs []string
 	macsKnown bool
-	field  string
-	value  string
-	source string
-	conf   float64
-	seenAt string
+	field     string
+	value     string
+	source    string
+	conf      float64
+	seenAt    string
 }
 
 func invalid(format string, a ...any) error {
@@ -230,7 +230,7 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 		}
 		created := map[string]string{} // device → the source whose observation created it
 		touched := []string{}
-		before := map[string]string{} // what the findings matcher reads of each device (matchView), before the batch
+		before := map[string]string{}  // what the findings matcher reads of each device (matchView), before the batch
 		binds := map[string]cleanObs{} // device → an observation of the agent that reported on it (D-598)
 		for _, c := range clean {
 			if c.source != string(observe.Agent) {

@@ -96,13 +96,15 @@ Decisions from #842. Patterns: collapsible sections ([Atlassian navigation](http
 groups ([Primer NavList](https://primer.style/product/components/nav-list/)), icon rail and drawer ([Material rail](https://m3.material.io/components/navigation-rail/overview),
 [drawer](https://m3.material.io/components/navigation-drawer/overview)), a quiet dense sidebar ([Linear redesign](https://linear.app/now/how-we-redesigned-the-linear-ui)).
 
-- **Order**: logo and org; the always-visible block **Home**, **Findings**, **Updates to plan**; then the groups **Assets**
-  (Devices, External exposure, Vulnerability scans), **Intrusion detection** (Internal traps, Logs, Incidents), **Assistant and
-  reports** (AI assistant, Reports, Lookup); at the foot the `shell.status` slot, **Settings**, the user menu (with the
-  running version) and "Collapse menu". The placement is one table in `app/nav.ts` (question 1 may move Incidents up).
+- **Order**: logo and org; the always-visible block **Home**, **Findings**, **Updates to plan**, **Incidents** (decided
+  2026-11-16: J3 "the alert arrives" is the P0 journey, and Wiz and CrowdStrike keep Issues and Detections top-level); then the
+  groups **Assets** (Devices, External exposure, Vulnerability scans), **Intrusion detection** (Internal traps, Logs),
+  **Assistant and reports** (AI assistant, Reports, Lookup); at the foot the `shell.status` slot, **Settings** (one entry,
+  decided 2026-11-16: its sections stay in its own menu, D-519, as Linear and GitHub do), the user menu (with the running
+  version) and "Collapse menu". The placement is one table in `app/nav.ts`.
 - **Groups**: a group with one visible item renders as that plain item (no header, no chevron); a group with none is not
   drawn ([Primer NavList](https://primer.style/product/components/nav-list/) groups related items, never one link). On a
-  default v1 box (Preview modules off) Incidents and Lookup are therefore plain items. A real group's header is a disclosure
+  default v1 box (Preview modules off) Lookup is therefore a plain item and Intrusion detection is not drawn. A real group's header is a disclosure
   button (`aria-expanded`, chevron); the group holding the current page stays open (closing it would hide where you are), so its header is `aria-disabled` and
   says "holds this page". Groups are drawn only once `/modules` has answered (no header that turns into an item). First visit: every group closed except the one holding the current page, which opens by
   itself without overwriting the saved state. Open groups and the rail choice are saved per user in `localStorage`
@@ -189,9 +191,13 @@ tabs: [tabs](https://m3.material.io/components/tabs/guidelines)). At most 6 tabs
 ## 7. Chip, counter, badge; risk with its CVSS line
 
 - `Chip` (exists, `StatusChip.tsx`; **fix**: `shape` = `soft` | `solid` | `dashed`, **default `soft` for every tone**): 24 px,
-  `rounded-sm`, `text-caption` 500, always words. `solid` only for `StatusChip` confirmed (danger), `SeverityChip` critical
-  (danger, interim, question 3) and `Counter`; `dashed` only for `StatusChip` suspected (warn). The 64 direct `Chip` uses in
-  features become soft, which is the point: one solid meaning.
+  `rounded-sm`, `text-caption` 500, always words. `solid` only for `StatusChip` confirmed (danger) and `Counter`; `dashed` only
+  for `StatusChip` suspected (warn). The 64 direct `Chip` uses in features become soft, which is the point: one solid meaning.
+- **Severity** (decided 2026-11-16, option (c)): `SeverityChip` is soft in the four tones (Critical and High `danger`, Medium
+  `warn`, Low and Info `off`) with a `SeverityMeter` before the word: four bars, 4 filled for Critical, 3 High, 2 Medium, 1 Low,
+  0 Info, so Critical and High differ by more than the word and Critical never looks like the solid "Confirmed" next to it;
+  no fifth colour. As Tenable gives each severity its own icon
+  ([Tenable severity indicators](https://docs.tenable.com/vulnerability-management/Content/getting-started/VulnerabilitySeverityIndicators.htm)).
 - Exploit markers: **Exploited** / **In KEV** `danger` soft, **Ransomware** `danger` soft, **Not exploited** `off` soft. In a
   row: certainty (`StatusChip`) → risk (`SeverityChip` / `RiskChip`) → exploit markers; the CVSS line under them. The `Chip`
   type allows `solid` only with `danger` and `dashed` only with `warn`. Migration list: `feeds/CvePage.tsx` "In KEV" is `accent`
@@ -294,17 +300,10 @@ tokens and hand-drawn boxes are review-only, as said in §12.
 Review r2 (shell code): M1–M6 and L1–L16 done in the code and the text above; L12 keeps the `<ol>` (note in §3); L14 is on the
 migration list (§7).
 
-## 14. Open questions for kien
+## 14. Decisions (2026-11-16, kien: "để mlee quyết", under his rules)
 
-1. **Incidents** (J3, "the alert arrives") is in Intrusion detection, which on a default box shows it as a plain item anyway.
-   Options: (a) as built; (b) **Incidents always visible** next to Home, Findings and Updates to plan, so the daily loop
-   (what's exploited, what to update, what fired) is one block. Lookup stays in Assistant and reports either way.
-2. **Settings** as a collapsing group would repeat the Settings page's own menu, which D-519 and S-UI-1 already keep. Proposed,
-   following that decision and as Linear and GitHub do: one Settings entry at the foot of the sidebar; its sections stay in its
-   own menu (a row of `UnderlineNav` below `lg`). OK?
-3. **Severity look.** (a) Shapes inside the four tones: Critical solid red, High soft red, Medium soft amber (built as the
-   interim). It clashes with the solid red "Confirmed" chip next to it: a suspected Critical then looks louder than a confirmed
-   High. (b) A fifth colour for Critical (changes FRONTEND's four-tone rule, needs new contrast rows). (c) A small per-level
-   glyph or bars inside the existing tones, as Tenable gives each severity its own icon
-   ([Tenable severity indicators](https://docs.tenable.com/vulnerability-management/Content/getting-started/VulnerabilitySeverityIndicators.htm)),
-   so solid stays for Confirmed only. Recommended: (c).
+1. **Incidents always visible** in the pinned block (§2).
+2. **Settings is one entry at the foot** of the sidebar; its sections keep their own menu (§2, D-519).
+3. **Severity: a level meter inside the existing four tones** (§7); solid stays for "Confirmed" only.
+
+No open questions remain for this standard; new ones go to the issue of the page that raises them.

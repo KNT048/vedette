@@ -16,10 +16,11 @@ const region = (button: HTMLElement) => document.getElementById(button.getAttrib
 beforeEach(() => localStorage.clear())
 
 describe('sidebar groups (docs/UI.md §2)', () => {
-  it('Home, Findings and Updates to plan are always there; other groups start closed and inert, the current page opens its own', async () => {
+  it('Home, Findings, Updates to plan and Incidents are always there; other groups start closed and inert, the current page opens its own', async () => {
     renderApp('/devices')
     const nav = within(await mainNav())
-    for (const name of ['Home', 'Findings', 'Updates to plan']) expect(await nav.findByRole('link', { name })).toBeInTheDocument()
+    for (const name of ['Home', 'Findings', 'Updates to plan', 'Incidents']) expect(await nav.findByRole('link', { name })).toBeInTheDocument()
+    expect(nav.getByRole('link', { name: 'Incidents' }).closest('[role=group]')).toBeNull() // pinned, in no group
     const assets = await nav.findByRole('button', { name: 'Assets, holds this page' })
     expect(assets).toHaveAttribute('aria-expanded', 'true') // holds /devices: open, and its header does nothing
     expect(assets).toHaveAttribute('aria-disabled', 'true')
@@ -63,7 +64,7 @@ describe('badges from one summary read', () => {
     const nav = within(await mainNav())
     expect(await nav.findByRole('button', { name: 'Assets: Devices 15 to review' }, { timeout: 3000 })).toHaveAttribute('aria-expanded', 'false')
     expect(nav.getByRole('link', { name: /^Findings/ })).toHaveAccessibleName('Findings 3 confirmed to handle')
-    expect(nav.getByRole('button', { name: /^Intrusion detection/ })).toHaveAccessibleName('Intrusion detection: Incidents 2 high or critical open')
+    expect(nav.getByRole('link', { name: /^Incidents/ })).toHaveAccessibleName('Incidents 2 high or critical open')
   })
 })
 

@@ -473,3 +473,33 @@ func TestContract_INV23_SummaryConcurrentViewsComputeOnce(t *testing.T) {
 		t.Fatalf("computed %d times, devices %+v", c, first.Devices)
 	}
 }
+
+// n73: "Fix first" names the device's software the entry is keyed to, as the finding's page does (matchedOn); the KEV group stays
+// in product. A device the matcher cannot read, or no row keyed to the entry, leaves software empty.
+func TestSummary_TopNamesTheMatchedSoftware(t *testing.T) {
+	t.Parallel()
+	e, h, _ := sumEnv(t)
+	e.inv.assets["a-2"] = AssetView{ID: "a-2", Name: "web01", IP: "192.168.10.30", Kind: "server"}
+	e.inv.match["a-1"] = Asset{ID: "a-1", Name: "winlab01", Software: []Software{
+		{ID: "s-edge", Display: "Microsoft Edge", KevKeys: []string{"microsoft|edge"}},
+		{ID: "s-win", Display: "Windows Server 2025", KevKeys: []string{"microsoft|windows"}},
+	}}
+	e.feeds.kev = map[string]KevInfo{
+		"CVE-2024-0001": {Vendor: "Microsoft", Product: "Windows", Display: "Windows PCs and servers"},
+		"CVE-2024-0002": {Vendor: "Acme", Product: "NAS"},
+	}
+	e.insertRows(
+		sumRow{"f-con-0001", "a-1", "CVE-2024-0001", StatusSuspected, t0.AddDate(0, 0, -1), time.Time{}},
+		sumRow{"f-con-0002", "a-2", "CVE-2024-0002", StatusSuspected, t0.AddDate(0, 0, -2), time.Time{}}, // a-2: no match input
+	)
+	s := mustSummary(t, h)
+	if len(s.Top) != 2 {
+		t.Fatalf("top = %+v", s.Top)
+	}
+	if got := s.Top[0]; got.Software != "Windows Server 2025" || got.Product != "Windows PCs and servers" {
+		t.Fatalf("top[0] software %q product %q, want the Windows row and the group", got.Software, got.Product)
+	}
+	if got := s.Top[1]; got.Software != "" || got.Product != "Acme NAS" {
+		t.Fatalf("top[1] software %q product %q, want no software", got.Software, got.Product)
+	}
+}

@@ -133965,6 +133965,10 @@ func (s *FindingsGetFindingsSummaryOKTopItem) encodeFields(e *jx.Encoder) {
 		s.Severity.Encode(e)
 	}
 	{
+		e.FieldStart("software")
+		e.Str(s.Software)
+	}
+	{
 		e.FieldStart("source")
 		s.Source.Encode(e)
 	}
@@ -133974,17 +133978,18 @@ func (s *FindingsGetFindingsSummaryOKTopItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsSummaryOKTopItem = [10]string{
-	0: "asset",
-	1: "cve",
-	2: "cvss",
-	3: "first_seen",
-	4: "id",
-	5: "product",
-	6: "ransomware",
-	7: "severity",
-	8: "source",
-	9: "status",
+var jsonFieldsNameOfFindingsGetFindingsSummaryOKTopItem = [11]string{
+	0:  "asset",
+	1:  "cve",
+	2:  "cvss",
+	3:  "first_seen",
+	4:  "id",
+	5:  "product",
+	6:  "ransomware",
+	7:  "severity",
+	8:  "software",
+	9:  "source",
+	10: "status",
 }
 
 // Decode decodes FindingsGetFindingsSummaryOKTopItem from json.
@@ -134086,8 +134091,20 @@ func (s *FindingsGetFindingsSummaryOKTopItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"severity\"")
 			}
-		case "source":
+		case "software":
 			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Software = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"software\"")
+			}
+		case "source":
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				if err := s.Source.Decode(d); err != nil {
 					return err
@@ -134097,7 +134114,7 @@ func (s *FindingsGetFindingsSummaryOKTopItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"source\"")
 			}
 		case "status":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				if err := s.Status.Decode(d); err != nil {
 					return err
@@ -134117,7 +134134,7 @@ func (s *FindingsGetFindingsSummaryOKTopItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000011,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

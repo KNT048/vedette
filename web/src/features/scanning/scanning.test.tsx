@@ -34,7 +34,7 @@ describe('Settings › Scanning: every engine on one page (#850, D-627)', () => 
     expect(within(await card(/Decoys \(honeypot\)/)).getByText('Preview')).toBeInTheDocument()
     expect(within(await card(/Service versions \(nmap\)/)).getByText('Follows Network discovery (nmap)')).toBeInTheDocument() // no switch of its own (409 not_toggleable)
     expect(within(await card(/Web checks \(ZAP baseline\)/)).queryByRole('switch')).toBeNull()
-    expect(screen.getByText(/The engines that are on hold up to/)).toBeInTheDocument()
+    expect(screen.getByText(/The engines that are on can use up to .* \(upper limits, Vedette's core included\)/)).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 
@@ -195,6 +195,23 @@ describe('#850 review r2: dead ends and the buttons of the Devices pages', () =>
     await userEvent.click(within(dlg).getByRole('button', { name: 'Confirm these ranges' }))
     await waitFor(() => expect(within(row).getByRole('switch')).toBeChecked())
     expect(inventorySettingsStore.get().active.enabled).toBe(true)
+  })
+
+  it('n73: limits above the box\'s memory say it is fine while the box responds, name the biggest engine and take an admin to its switch', async () => {
+    const { server } = await import('@/test/server')
+    const { http, HttpResponse } = await import('msw')
+    const { scanningView } = await import('./mocks')
+    server.use(http.get('*/api/v1/scanning', () => {
+      const v = scanningView()
+      return HttpResponse.json({ ...v, box: { memory_mb: 7200, reserved_mb: 7800 },
+        engines: v.engines.map((e) => (e.id === 'openvas' ? { ...e, enabled: true, can_toggle: true, cost: { ...e.cost, ram_mb: 4000, while: 'on' } } : e)) })
+    }))
+    renderApp('/settings/scanning')
+    expect(await screen.findByText('The engines\' memory limits add up to more than this box has', undefined, { timeout: 4000 })).toBeInTheDocument()
+    expect(screen.getByText(/they would need 7.8 GB; this box has 7.2 GB\. The limits are upper bounds/)).toBeInTheDocument()
+    expect(screen.getByText(/OpenVAS deep scan holds the most while it is on: up to 4.0 GB\./)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Go to the OpenVAS deep scan switch' }))
+    expect(within(await card(/OpenVAS deep scan/)).getByRole('switch')).toHaveFocus()
   })
 
   it('N2: an engine that is on but not available can still be turned off', async () => {

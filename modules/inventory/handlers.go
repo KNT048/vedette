@@ -51,9 +51,13 @@ func fail(err error) error {
 	return err
 }
 
-// InventoryGetInventoryDevices implements GET /inventory/devices (viewer).
-func (h *Handlers) InventoryGetInventoryDevices(ctx context.Context) (*oas.InventoryGetInventoryDevicesOK, error) {
-	l, err := h.svc.DevicesPage(ctx)
+// InventoryGetInventoryDevices implements GET /inventory/devices (viewer): the devices the search keeps (#849).
+func (h *Handlers) InventoryGetInventoryDevices(ctx context.Context, p oas.InventoryGetInventoryDevicesParams) (*oas.InventoryGetInventoryDevicesOK, error) {
+	f, err := ParseDeviceFilter(string(p.Approved.Value), string(p.Fragile.Value), string(p.HasFindings.Value), p.Type.Value, p.Source.Value, p.Q.Value)
+	if err != nil {
+		return nil, err
+	}
+	l, err := h.svc.DevicesPage(ctx, f)
 	if err != nil {
 		return nil, err
 	}
@@ -199,13 +203,17 @@ func (h *Handlers) InventoryPutInventoryNotifyNew(ctx context.Context, req *oas.
 	return &oas.InventoryPutInventoryNotifyNewOK{Enabled: req.Enabled}, nil
 }
 
-// InventoryGetInventoryExportCsv implements GET /inventory/export.csv (viewer).
-func (h *Handlers) InventoryGetInventoryExportCsv(ctx context.Context) (oas.InventoryGetInventoryExportCsvOK, error) {
+// InventoryGetInventoryExportCsv implements GET /inventory/export.csv (viewer): the devices the search keeps, as the page shows them.
+func (h *Handlers) InventoryGetInventoryExportCsv(ctx context.Context, p oas.InventoryGetInventoryExportCsvParams) (oas.InventoryGetInventoryExportCsvOK, error) {
 	who, err := actor(ctx)
 	if err != nil {
 		return oas.InventoryGetInventoryExportCsvOK{}, err
 	}
-	r, err := h.svc.ExportCSV(ctx, who)
+	f, err := ParseDeviceFilter(string(p.Approved.Value), string(p.Fragile.Value), string(p.HasFindings.Value), p.Type.Value, p.Source.Value, p.Q.Value)
+	if err != nil {
+		return oas.InventoryGetInventoryExportCsvOK{}, err
+	}
+	r, err := h.svc.ExportCSV(ctx, who, f)
 	if err != nil {
 		return oas.InventoryGetInventoryExportCsvOK{}, err
 	}

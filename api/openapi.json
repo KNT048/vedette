@@ -41653,7 +41653,7 @@
     "/inventory/devices": {
       "get": {
         "operationId": "inventory_get_inventory_devices",
-        "summary": "List devices with counts per filter",
+        "summary": "List devices matching the filters (all when none), with counts per tab over the whole inventory",
         "tags": [
           "inventory"
         ],
@@ -41662,6 +41662,76 @@
           "S-INV-3"
         ],
         "x-min-role": "viewer",
+        "parameters": [
+          {
+            "name": "approved",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "true: the Devices list (approved); false: To review",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Comma-separated device type ids; a value also matches the types that act as it (D-511: type=server finds a hypervisor). Unknown id: 400 bad_filter",
+              "type": "string",
+              "maxLength": 400
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Comma-separated: manual, passive, scan, snmp, osquery, wazuh. Unknown value: 400 bad_filter",
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "fragile",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "has_findings",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "true: findings_count > 0",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Free text, case-insensitive, matched in the name (host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model",
+              "type": "string",
+              "maxLength": 80
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -42349,6 +42419,21 @@
                             ],
                             "description": "When a person approved the device, or osquery enrolment did (D-471: \"Approved in the last 24 h\"); approving again does not move it; null = not approved, added by hand, or approved before this field existed"
                           },
+                          "sources": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "manual",
+                                "passive",
+                                "scan",
+                                "snmp",
+                                "osquery",
+                                "wazuh"
+                              ]
+                            },
+                            "description": "Every source that told Vedette something about the device and is still kept (its details, software or open ports), plus manual for a device added manually, in the order of DeviceSource (#849 source: filter, #829 sources of the device page)"
+                          },
                           "suspicious": {
                             "type": "boolean"
                           },
@@ -42416,6 +42501,7 @@
                           "first_scan_at",
                           "regular_scan",
                           "approved_at",
+                          "sources",
                           "suspicious",
                           "findings_count",
                           "summary"
@@ -44063,7 +44149,7 @@
     "/inventory/export.csv": {
       "get": {
         "operationId": "inventory_get_inventory_export_csv",
-        "summary": "Download the device list as CSV (UTF-8 with BOM, opens in Excel)",
+        "summary": "Download the device list as CSV (UTF-8 with BOM, opens in Excel); the filters of GET /inventory/devices export what the page shows",
         "tags": [
           "inventory"
         ],
@@ -44071,6 +44157,76 @@
           "S-INV-2"
         ],
         "x-min-role": "viewer",
+        "parameters": [
+          {
+            "name": "approved",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "true: the Devices list (approved); false: To review",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Comma-separated device type ids; a value also matches the types that act as it (D-511: type=server finds a hypervisor). Unknown id: 400 bad_filter",
+              "type": "string",
+              "maxLength": 400
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Comma-separated: manual, passive, scan, snmp, osquery, wazuh. Unknown value: 400 bad_filter",
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "name": "fragile",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "has_findings",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "true: findings_count > 0",
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "Free text, case-insensitive, matched in the name (host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model",
+              "type": "string",
+              "maxLength": 80
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "File download",
@@ -45828,6 +45984,495 @@
                     "created_at",
                     "last_answer_at",
                     "answered"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/snmp/{id}/read": {
+      "get": {
+        "operationId": "inventory_get_inventory_snmp_id_read",
+        "summary": "The read of this credential that runs now, or the last one; null when none since the box started",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-1"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "credential_id": {
+                          "type": "string"
+                        },
+                        "by": {
+                          "type": "string"
+                        },
+                        "started_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        "finished_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "running",
+                            "done",
+                            "stopped",
+                            "failed"
+                          ]
+                        },
+                        "message": {
+                          "description": "Why the read stopped or failed, in plain words; null while running and when done",
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "total": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Approved devices of the scope that get one read"
+                        },
+                        "done": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "answered": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "skipped": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Devices of the inventory in the credential's scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is sent to them, nor to an address with no device"
+                        },
+                        "results": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "ok": {
+                                "type": "boolean"
+                              },
+                              "reason": {
+                                "type": "string",
+                                "enum": [
+                                  "ok",
+                                  "no_answer",
+                                  "auth_failed",
+                                  "unknown_user",
+                                  "error",
+                                  "not_in_inventory",
+                                  "not_approved",
+                                  "out_of_scope",
+                                  "not_for_this_credential",
+                                  "scanning_off",
+                                  "scope_not_confirmed",
+                                  "declared_by_hand",
+                                  "box",
+                                  "regular_scan_never",
+                                  "unavailable",
+                                  "busy"
+                                ]
+                              },
+                              "message": {
+                                "type": "string",
+                                "description": "Plain words for the person"
+                              },
+                              "device_id": {
+                                "description": "The inventory device at that IP, when there is one",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "answer": {
+                                "anyOf": [
+                                  {
+                                    "type": "object",
+                                    "properties": {
+                                      "sys_descr": {
+                                        "type": "string"
+                                      },
+                                      "sys_object_id": {
+                                        "type": "string"
+                                      },
+                                      "sys_name": {
+                                        "type": "string",
+                                        "description": "What the device said, cleaned; empty when it has none"
+                                      },
+                                      "vendor": {
+                                        "type": "string"
+                                      },
+                                      "product": {
+                                        "type": "string",
+                                        "description": "Product family from sysObjectID, e.g. FortiGate"
+                                      },
+                                      "model": {
+                                        "type": "string"
+                                      },
+                                      "os": {
+                                        "type": "string"
+                                      },
+                                      "kind": {
+                                        "type": "string",
+                                        "description": "A device type id, or empty"
+                                      },
+                                      "serial": {
+                                        "type": "string"
+                                      },
+                                      "firmware": {
+                                        "type": "string",
+                                        "description": "ENTITY-MIB chassis firmware text; shown, not stored"
+                                      }
+                                    },
+                                    "required": [
+                                      "sys_descr",
+                                      "sys_object_id",
+                                      "sys_name",
+                                      "vendor",
+                                      "product",
+                                      "model",
+                                      "os",
+                                      "kind",
+                                      "serial",
+                                      "firmware"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "What the device said, when it answered; it is also recorded in the inventory with source snmp"
+                              },
+                              "ip": {
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "ok",
+                              "reason",
+                              "message",
+                              "device_id",
+                              "answer",
+                              "ip"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "description": "One row per device read so far, as Test answers it"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "credential_id",
+                        "by",
+                        "started_at",
+                        "finished_at",
+                        "status",
+                        "message",
+                        "total",
+                        "done",
+                        "answered",
+                        "skipped",
+                        "results"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "inventory_post_inventory_snmp_id_read",
+        "summary": "Read now every approved device in this credential's scope (read-only GETs from the scan container, logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent; 409 stopped when active discovery was turned off while the read started",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-1"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "credential_id": {
+                      "type": "string"
+                    },
+                    "by": {
+                      "type": "string"
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "finished_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "running",
+                        "done",
+                        "stopped",
+                        "failed"
+                      ]
+                    },
+                    "message": {
+                      "description": "Why the read stopped or failed, in plain words; null while running and when done",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "total": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Approved devices of the scope that get one read"
+                    },
+                    "done": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "answered": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "skipped": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "Devices of the inventory in the credential's scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is sent to them, nor to an address with no device"
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "ok": {
+                            "type": "boolean"
+                          },
+                          "reason": {
+                            "type": "string",
+                            "enum": [
+                              "ok",
+                              "no_answer",
+                              "auth_failed",
+                              "unknown_user",
+                              "error",
+                              "not_in_inventory",
+                              "not_approved",
+                              "out_of_scope",
+                              "not_for_this_credential",
+                              "scanning_off",
+                              "scope_not_confirmed",
+                              "declared_by_hand",
+                              "box",
+                              "regular_scan_never",
+                              "unavailable",
+                              "busy"
+                            ]
+                          },
+                          "message": {
+                            "type": "string",
+                            "description": "Plain words for the person"
+                          },
+                          "device_id": {
+                            "description": "The inventory device at that IP, when there is one",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "answer": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "sys_descr": {
+                                    "type": "string"
+                                  },
+                                  "sys_object_id": {
+                                    "type": "string"
+                                  },
+                                  "sys_name": {
+                                    "type": "string",
+                                    "description": "What the device said, cleaned; empty when it has none"
+                                  },
+                                  "vendor": {
+                                    "type": "string"
+                                  },
+                                  "product": {
+                                    "type": "string",
+                                    "description": "Product family from sysObjectID, e.g. FortiGate"
+                                  },
+                                  "model": {
+                                    "type": "string"
+                                  },
+                                  "os": {
+                                    "type": "string"
+                                  },
+                                  "kind": {
+                                    "type": "string",
+                                    "description": "A device type id, or empty"
+                                  },
+                                  "serial": {
+                                    "type": "string"
+                                  },
+                                  "firmware": {
+                                    "type": "string",
+                                    "description": "ENTITY-MIB chassis firmware text; shown, not stored"
+                                  }
+                                },
+                                "required": [
+                                  "sys_descr",
+                                  "sys_object_id",
+                                  "sys_name",
+                                  "vendor",
+                                  "product",
+                                  "model",
+                                  "os",
+                                  "kind",
+                                  "serial",
+                                  "firmware"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "What the device said, when it answered; it is also recorded in the inventory with source snmp"
+                          },
+                          "ip": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "ok",
+                          "reason",
+                          "message",
+                          "device_id",
+                          "answer",
+                          "ip"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "One row per device read so far, as Test answers it"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "credential_id",
+                    "by",
+                    "started_at",
+                    "finished_at",
+                    "status",
+                    "message",
+                    "total",
+                    "done",
+                    "answered",
+                    "skipped",
+                    "results"
                   ],
                   "additionalProperties": false
                 }

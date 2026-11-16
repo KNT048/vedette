@@ -101,7 +101,7 @@ func TestContract_D511_N100DevicesGetTheirType(t *testing.T) {
 	if d, _ := e.svc.Device(e.ctx(), ids["192.168.18.251"]); d.Guess != nil || asked != 0 || slices.ContainsFunc(plain.Items, func(d inventory.Device) bool { return d.Guess != nil }) {
 		t.Fatalf("Devices/Device computed guesses (asked the gateway %d times)", asked)
 	}
-	l, err := e.svc.DevicesPage(e.ctx())
+	l, err := e.svc.DevicesPage(e.ctx(), inventory.DeviceFilter{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func TestContract_D511_N100DevicesGetTheirType(t *testing.T) {
 	// Without the host's gateway the .1 still reads as the router, from DNS at the first address.
 	e2 := newEnv(t)
 	loadN100(e2)
-	l2, _ := e2.svc.DevicesPage(e2.ctx())
+	l2, _ := e2.svc.DevicesPage(e2.ctx(), inventory.DeviceFilter{})
 	for _, d := range l2.Items {
 		if d.IP == "192.168.18.1" && (d.Guess == nil || d.Guess.Type != "router" || !strings.Contains(d.Guess.Evidence, "address ending in .1")) {
 			t.Fatalf("gateway unknown: .1 guess = %+v", d.Guess)

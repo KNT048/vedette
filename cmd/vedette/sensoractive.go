@@ -95,10 +95,17 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*
 	}
 	if d.Reg != nil { // turning the module off stops the nmap run in progress, also an identification for Scan now (D-501)
 		d.Reg.OnChange(func(id string, enabled bool) {
-			if id == "sensor-active" && !enabled {
+			switch {
+			case id != "sensor-active":
+			case enabled:
+				svc.Resume() // SNMP reads may be sent again (review #855 r2 L1)
+			default:
 				svc.Stop()
 			}
 		})
+		if !d.Reg.Enabled("sensor-active") {
+			svc.Stop() // off at start: nothing SNMP leaves until the module is turned on
+		}
 	}
 	if d.Bus == nil {
 		return svc, nil

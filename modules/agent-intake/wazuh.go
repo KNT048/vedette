@@ -2,7 +2,10 @@ package agentintake
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -317,9 +320,19 @@ func (s *Service) SaveWazuh(ctx context.Context, actor string, in WazuhInput) (W
 			if err != nil {
 				return fmt.Errorf("agentintake: seal wazuh password: %w", err)
 			}
-			if _, err := tx.ExecContext(ctx, `INSERT INTO intake_wazuh (id, url, username, secret_id, password_last4, interval_minutes, tls_pin, tls_pin_first_seen, next_pull, updated_at) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-				c.origin, c.user, id, last4, c.interval, pin, ts, ts, ts); err != nil {
+			// A new connection's generation never repeats one of a deleted connection (a row of 1 would be the default's again): a
+			// pull of the old connection still running would otherwise pass current() and write as the new one (review #855 r2 L2).
+			gen, err := newGeneration()
+			if err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT INTO intake_wazuh (id, url, username, secret_id, password_last4, interval_minutes, tls_pin, tls_pin_first_seen, next_pull, updated_at, generation) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				c.origin, c.user, id, last4, c.interval, pin, ts, ts, ts, gen); err != nil {
 				return fmt.Errorf("agentintake: insert wazuh: %w", err)
+			}
+			// A new connection starts again at generation 1: no row of an earlier one may count as its agent (#855 r1 M1).
+			if _, err := tx.ExecContext(ctx, `DELETE FROM intake_wazuh_agent`); err != nil {
+				return fmt.Errorf("agentintake: forget wazuh agents: %w", err)
 			}
 		default:
 			last4 := cur.PasswordLast4
@@ -369,6 +382,10 @@ func (s *Service) DeleteWazuh(ctx context.Context, actor string) error {
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM intake_wazuh WHERE id = 1`); err != nil {
 			return fmt.Errorf("agentintake: delete wazuh: %w", err)
+		}
+		// Where the deleted connection's agents were is kept no longer: it names no device and has no other use (#855 r1 M1).
+		if _, err := tx.ExecContext(ctx, `DELETE FROM intake_wazuh_agent`); err != nil {
+			return fmt.Errorf("agentintake: forget wazuh agents: %w", err)
 		}
 		if err := s.cfg.Secrets.Delete(ctx, tx, cur.secretID); err != nil {
 			return fmt.Errorf("agentintake: delete wazuh password: %w", err)
@@ -474,9 +491,65 @@ func (s *Service) WazuhPull(ctx context.Context) error {
 		default:
 			q, args = `UPDATE intake_wazuh SET status = 'error', error = ? WHERE id = 1 AND generation = ?`, []any{pullError(perr), w.generation}
 		}
-		_, err := tx.ExecContext(ctx, q, args...)
+		if _, err := tx.ExecContext(ctx, q, args...); err != nil {
+			return err
+		}
+		if perr != nil {
+			return nil
+		}
+		// A completed pass: the agents the server no longer lists (or lists as stale), and every row of an older connection, name no
+		// device any more (#849). The agents' ids come from this tick's full list, so a pass spread over several ticks keeps them all.
+		keep, _ := json.Marshal(res.usable)
+		_, err := tx.ExecContext(ctx, `DELETE FROM intake_wazuh_agent WHERE generation <> ? OR agent_id NOT IN (SELECT value FROM json_each(?))`, w.generation, string(keep))
 		return err
 	})
+}
+
+// wazuhAgentSeen records the address and card the pull just delivered an agent's data to (#849: the Devices list tells Wazuh from
+// osquery by them).
+func (s *Service) wazuhAgentSeen(ctx context.Context, id string, generation int64, ip netip.Addr, mac string) error {
+	return s.db.Write(ctx, func(tx *sql.Tx) error {
+		// Only for the connection saved now: a pull of a deleted or replaced one writes nothing here (review #855 r2 L2).
+		_, err := tx.ExecContext(ctx, `INSERT INTO intake_wazuh_agent (agent_id, generation, ip, mac, seen_at)
+			SELECT ?1, ?2, ?3, ?4, ?5 WHERE EXISTS (SELECT 1 FROM intake_wazuh WHERE id = 1 AND generation = ?2)
+			ON CONFLICT (agent_id) DO UPDATE SET generation = excluded.generation, ip = excluded.ip, mac = excluded.mac, seen_at = excluded.seen_at`,
+			id, generation, ip.String(), mac, store.FormatTS(s.now()))
+		if err != nil {
+			return fmt.Errorf("agentintake: wazuh agent: %w", err)
+		}
+		return nil
+	})
+}
+
+// newGeneration is the generation of a newly saved connection: random, positive, below 2^53 (edits add one), so it never repeats one
+// of a deleted connection in practice.
+func newGeneration() (int64, error) {
+	var b [8]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return 0, fmt.Errorf("agentintake: wazuh generation: %w", err)
+	}
+	return int64(binary.BigEndian.Uint64(b[:])>>11) + 2, nil
+}
+
+// WazuhAgentAddresses lists the addresses and MACs (aa:bb:cc:dd:ee:ff) of the agents the saved Wazuh connection's pulls delivered to
+// the inventory; none when no connection is saved (#849, inventory Config.WazuhAgents). Read-only.
+func (s *Service) WazuhAgentAddresses(ctx context.Context) (ips, macs []string, err error) {
+	rows, err := s.db.Reader().QueryContext(ctx, `SELECT ip, mac FROM intake_wazuh_agent WHERE generation = (SELECT generation FROM intake_wazuh WHERE id = 1) ORDER BY agent_id`)
+	if err != nil {
+		return nil, nil, fmt.Errorf("agentintake: read wazuh agents: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var ip, mac string
+		if err := rows.Scan(&ip, &mac); err != nil {
+			return nil, nil, fmt.Errorf("agentintake: read wazuh agents: %w", err)
+		}
+		ips = append(ips, ip)
+		if mac != "" {
+			macs = append(macs, mac)
+		}
+	}
+	return ips, macs, rows.Err()
 }
 
 // pullError is the text of the card for a failed pull: the code's own words, in the card's language.
@@ -495,7 +568,8 @@ func pullError(err error) string {
 
 type pullResult struct {
 	agents, written, packages, unbound, failed int
-	last                                       string // the id of the last agent done in this tick
+	last                                       string   // the id of the last agent done in this tick
+	usable                                     []string // the ids of the agents worth reading this tick (usableAgents), all of them
 }
 
 var errSuperseded = errors.New("agentintake: the wazuh connection changed during the pull")
@@ -524,7 +598,11 @@ func (s *Service) pull(ctx context.Context, c *wazuhClient, w *savedWazuh) (pull
 	}
 	res.agents = len(agents)
 	after, _ := strconv.Atoi(w.resumeAfter) // "" = from the first agent
-	for _, a := range usableAgents(agents, s.now()) {
+	usable := usableAgents(agents, s.now())
+	for _, a := range usable {
+		res.usable = append(res.usable, a.ID)
+	}
+	for _, a := range usable {
 		if id, _ := strconv.Atoi(a.ID); w.resumeAfter != "" && id <= after {
 			continue
 		}
@@ -535,7 +613,7 @@ func (s *Service) pull(ctx context.Context, c *wazuhClient, w *savedWazuh) (pull
 		if !ok {
 			return res, errSuperseded
 		}
-		n, err := s.pullAgent(ctx, c, a)
+		n, err := s.pullAgent(ctx, c, a, w.generation)
 		var we *wazuhErr
 		switch {
 		case err == nil:
@@ -619,7 +697,7 @@ func agentIP(a wzAgent, addrs []wzAddr, ifaces []wzIface) (netip.Addr, string, b
 }
 
 // pullAgent reads one agent's interfaces and packages and delivers them. It returns the number of packages written.
-func (s *Service) pullAgent(ctx context.Context, c *wazuhClient, a wzAgent) (int, error) {
+func (s *Service) pullAgent(ctx context.Context, c *wazuhClient, a wzAgent, generation int64) (int, error) {
 	if !agentIDRE.MatchString(a.ID) { // never put text the server sent into a path unless it is the documented id format (usableAgents checks too)
 		return 0, errBadReply("an agent id")
 	}
@@ -644,6 +722,9 @@ func (s *Service) pullAgent(ctx context.Context, c *wazuhClient, a wzAgent) (int
 		if err := s.record(ctx, obs); err != nil {
 			return 0, err
 		}
+	}
+	if err := s.wazuhAgentSeen(ctx, a.ID, generation, ip, mac); err != nil {
+		return 0, err
 	}
 	items, dropped := mapPackages(withWindows(wazuhSnaps(pkgs, wazuhKernel(a)), wazuhWindows(a)), maxRows)
 	if dropped > 0 {

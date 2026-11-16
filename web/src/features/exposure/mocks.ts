@@ -74,7 +74,9 @@ function greenboneView(): Greenbone {
   // D-564 G6: the first weekly feed update is due a week after Enable (the mock never runs it)
   const next = g.enabled && g.changed_at ? new Date(Date.parse(g.changed_at) + WEEK_MS).toISOString() : null
   return { state, reason: state === 'loading' ? 'OpenVAS is loading its feed (first time takes about 2 hours)' : null, changed_by: g.changed_by, changed_at: g.changed_at,
-    preflight: { memory_bytes: mem, disk_free_bytes: disk, ok: reason === null, reason }, feed_sync: { last_at: null, ok: null, note: null, next_at: next }, enabled: g.enabled }
+    preflight: { memory_bytes: mem, disk_free_bytes: disk, ok: reason === null, reason }, feed_sync: { last_at: null, ok: null, note: null, next_at: next },
+    // T10: the feed OpenVAS reports, read once it answers (the mock's feed of 14 Nov 2026, 06:11 UTC)
+    feed: state === 'loading' || state === 'ready' ? { nvt_version: '202611140611', nvt_date: '2026-11-14T06:11:00.000Z', checked_at: new Date().toISOString() } : null, enabled: g.enabled }
 }
 /** What a scan of an IP gets from Greenbone in the mock: its results on the box's own IP when ready, else the line that says why not. */
 function greenboneFor(ip: string, fullScan: boolean): Pick<Content, 'greenbone' | 'greenboneNote'> {

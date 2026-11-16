@@ -6,7 +6,7 @@ import { Chip, type Tone } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
-import { dateTimeText } from './dates'
+import { dateText, dateTimeText } from './dates'
 import { InfoLine } from './InfoLine'
 import { useGreenbone, useSetGreenbone } from './api'
 import type { Greenbone, GreenboneResult, GreenboneRun, Snapshot } from './types'
@@ -66,10 +66,11 @@ function GreenboneBody({ g }: { g: Greenbone }) {
           <KeyValue items={[
             { label: t('greenbone.memory'), value: gb(p.memory_bytes) ?? t('common:unknown') },
             { label: t('greenbone.disk'), value: gb(p.disk_free_bytes) ?? t('common:unknown') },
-            // D-564 G6: the weekly feed update, its last outcome and when the next one is due
-            // N45-4: a ready scanner has its feed: before the first weekly update, say the first full load is done (never "not yet")
-            ...(on || f.last_at ? [{ label: t('greenbone.feedLast'), value: f.last_at ? `${dateTimeText(f.last_at)}. ${f.note ?? ''}` : g.state === 'ready'
-              ? (g.changed_at ? t('greenbone.feedFirstDoneAt', { time: dateTimeText(g.changed_at) }) : t('greenbone.feedFirstDone')) : t('greenbone.feedNever') }] : []),
+            // T10: the date of the tests OpenVAS itself reports (get_feeds), there from the first load at Enable on.
+            // N45-4: a ready scanner whose feed was not read yet has its feed all the same (never "not yet").
+            ...(on ? [{ label: t('greenbone.feedTests'), value: <FeedTests g={g} /> }] : []),
+            // D-564 G6: the weekly feed update, its last outcome (only once one ran) and when the next one is due
+            ...(f.last_at ? [{ label: t('greenbone.feedLast'), value: `${dateTimeText(f.last_at)}. ${f.note ?? ''}` }] : []),
             ...(f.next_at ? [{ label: t('greenbone.feedNext'), value: dateTimeText(f.next_at) }] : []),
           ]} />
           {!on ? <InfoLine className="text-[13px]" topic={t('greenbone.needsTopic')} info={t('greenbone.needsInfo')}>{t('greenbone.needs')}</InfoLine> : null}
@@ -88,6 +89,17 @@ function GreenboneBody({ g }: { g: Greenbone }) {
       )}
     </Panel>
   )
+}
+
+/** T10 (#824): the feed's date on one line; its version and what it is behind ⓘ. */
+function FeedTests({ g }: { g: Greenbone }) {
+  const { t } = useTranslation('exposure')
+  const feed = g.feed
+  if (feed?.nvt_version) {
+    return <InfoLine topic={t('greenbone.feedTests')} info={t('greenbone.feedTestsInfo', { version: feed.nvt_version })}>{feed.nvt_date ? dateText(feed.nvt_date) : feed.nvt_version}</InfoLine>
+  }
+  if (g.state === 'ready') return <>{g.changed_at ? t('greenbone.feedFirstDoneAt', { time: dateTimeText(g.changed_at) }) : t('greenbone.feedFirstDone')}</>
+  return <span className="text-muted">{t('greenbone.feedTestsPending')}</span>
 }
 
 /** A snapshot read from a box older than greenbone_run (or the mock's stored days) has none: the lines say what happened. */

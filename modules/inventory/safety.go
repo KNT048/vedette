@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/knt048/vedette/core/apierr"
 )
@@ -59,27 +60,32 @@ func (s *Service) SaveSafety(ctx context.Context, actor string, in SafetyInput) 
 // AddRange adds one LAN range to the scope (POST /scanning/safety/ranges: "+ New range" where the person is, #842/#850, INV-32). It
 // reads, appends and stores in one write transaction, so two adds at once both land and no other edit is overwritten. The range
 // passes the rules of a PUT (INV-6: an internal IPv4 range, host bits dropped and reported in Adjusted, at most 16, no overlap).
-// confirmed is the attestation of D-26 (400 scope_not_confirmed without it), and like a PUT's it covers only what the person saw:
-// shown is the list of ranges the dialog showed next to the tick, and when the stored list is not that list the add is refused
-// with 409 scope_changed and the current block (*Changed), nothing stored (review #860 H1: a tick never confirms a range the person
-// did not see, nor a scope another admin left unconfirmed since). Then the scope, shown plus the new range, is confirmed by actor
-// now. A range a stored one already covers changes nothing (no audit row, no event) while the scope is confirmed. One audit row
+// in.Confirmed is the attestation of D-26 (400 scope_not_confirmed without it), and like a PUT's it covers only what the person
+// saw: in.Shown is the list of ranges the dialog showed next to the tick and in.ShownConfirmedAt the confirmation it showed (nil:
+// not confirmed); when the stored list (compared as networks, any order) or the stored confirmation is not that, the add is
+// refused with 409 scope_changed and the current block (*Changed), nothing stored (review #860 H1, r2 M1: a tick never confirms a
+// range the person did not see, nor re-confirms a scope another admin unconfirmed or confirmed again since). Then the scope, shown
+// plus the new range, is confirmed by actor now. A range a stored one already covers changes nothing (no audit row, no event) while the scope is confirmed. One audit row
 // inventory.settings naming the range, and saying so when the add confirmed a scope that was not confirmed; then
 // inventory.settings.changed.
-func (s *Service) AddRange(ctx context.Context, actor, raw string, shown []string, confirmed bool) (SavedSettings, error) {
-	one, adjusted, aerr := checkRanges([]string{raw})
+func (s *Service) AddRange(ctx context.Context, actor string, in RangeAdd) (SavedSettings, error) {
+	one, adjusted, aerr := checkRanges([]string{in.Range})
 	if aerr != nil {
 		return SavedSettings{}, aerr
 	}
 	if len(one) != 1 {
 		return SavedSettings{}, badRequest("bad_cidr", "Enter a network range such as 192.168.10.0/24.")
 	}
-	if !confirmed {
+	if !in.Confirmed {
 		return SavedSettings{}, badRequest("scope_not_confirmed", "Tick the confirmation that these network ranges belong to your company and you are allowed to scan them. Vedette only scans within the confirmed scope.")
 	}
-	seen := make([]string, 0, len(shown))
-	for _, r := range shown {
-		if r = strings.TrimSpace(r); !slices.Contains(seen, r) {
+	seen := make([]string, 0, len(in.Shown))
+	for _, r := range in.Shown {
+		r = strings.TrimSpace(r)
+		if p, err := netip.ParsePrefix(r); err == nil { // as stored: 192.168.10.5/24 is 192.168.10.0/24 (r2 I1)
+			r = p.Masked().String()
+		}
+		if !slices.Contains(seen, r) {
 			seen = append(seen, r)
 		}
 	}
@@ -98,7 +104,9 @@ func (s *Service) AddRange(ctx context.Context, actor, raw string, shown []strin
 			saved = prev
 			return nil
 		}
-		if !slices.Equal(sortedCopy(seen), sortedCopy(prev.LANRanges)) {
+		sameConfirmation := (in.ShownConfirmedAt == nil) == (prev.ScopeConfirmedAt == nil) &&
+			(in.ShownConfirmedAt == nil || sameSecond(*in.ShownConfirmedAt, *prev.ScopeConfirmedAt))
+		if !sameConfirmation || !slices.Equal(sortedCopy(seen), sortedCopy(prev.LANRanges)) {
 			return &Changed{API: apierr.New(http.StatusConflict, "scope_changed", "The network ranges changed since this dialog opened. Check the current list, then confirm again."), Current: prev}
 		}
 		next := prev
@@ -136,6 +144,25 @@ func (s *Service) AddRange(ctx context.Context, actor, raw string, shown []strin
 		return err
 	})
 	return SavedSettings{Settings: saved, Adjusted: adjusted}, err
+}
+
+// sameSecond: two timestamps name the same second. The API shows confirmed_at to the second (a date-time without its
+// milliseconds), the store keeps milliseconds; text that is no timestamp compares as text.
+func sameSecond(a, b string) bool {
+	ta, errA := time.Parse(time.RFC3339Nano, strings.TrimSpace(a))
+	tb, errB := time.Parse(time.RFC3339Nano, b)
+	if errA != nil || errB != nil {
+		return a == b
+	}
+	return ta.Truncate(time.Second).Equal(tb.Truncate(time.Second))
+}
+
+// RangeAdd is POST /scanning/safety/ranges: the range, and what the dialog showed beside the tick.
+type RangeAdd struct {
+	Range            string
+	Shown            []string // the ranges listed (safety.scope.lan_ranges as read)
+	ShownConfirmedAt *string  // the confirmation shown (safety.scope.confirmed_at as read); nil: shown as not confirmed
+	Confirmed        bool     // the tick
 }
 
 // AddExclusion adds one exclusion to the shared list (POST /scanning/safety/exclusions, #842/#850, INV-32) in one write transaction.

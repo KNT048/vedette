@@ -147,14 +147,7 @@ func (s *Service) view(ctx context.Context, c Settings) (ConfigView, error) {
 	if err != nil {
 		return ConfigView{}, fmt.Errorf("scan: reading the scope: %w", err)
 	}
-	v := ConfigView{Config: c, Scope: ScopeView{Networks: sc.Networks}}
-	if sh, ok := s.shared(); ok {
-		ch, err := sh.Checks(ctx)
-		if err != nil {
-			return ConfigView{}, fmt.Errorf("scan: reading the shared settings' version: %w", err)
-		}
-		v.Version = ch.Version
-	}
+	v := ConfigView{Config: c, Scope: ScopeView{Networks: sc.Networks}, Version: c.Version} // values and version of one read (r2 L3)
 	if v.Scope.Networks == nil {
 		v.Scope.Networks = []string{}
 	}
@@ -250,6 +243,9 @@ func (s *Service) SaveConfig(ctx context.Context, user string, p Patch) (ConfigV
 	}
 	if err != nil {
 		return ConfigView{}, fmt.Errorf("scan: saving the settings: %w", err)
+	}
+	if shared { // the values and version as stored now, read together (r2 L3): never a version newer than the list it answers
+		return s.Config(ctx)
 	}
 	return s.view(ctx, saved)
 }

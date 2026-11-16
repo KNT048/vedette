@@ -45285,15 +45285,15 @@ func (s *Server) handleScanningPostScanningSafetyExclusionsRequest(args [0]strin
 //
 // Add one LAN range to the scope where the person is ("+ New range" in a dialog, #842), without
 // sending the whole block: read, append and save in one transaction, so it never overwrites another
-// edit. The dialog lists the current ranges with the confirmation tick and sends them back in
-// shown_ranges: the tick confirms those and the new range only. 400 as PUT /scanning/safety for a
-// range: no_prefix, bad_cidr, public_range, overlap_range, too_many_ranges (16), and
-// scope_not_confirmed when confirm is not true; 409 scope_changed (with error.safety, the current
-// block) when the stored ranges are not shown_ranges. A range the confirmed scope already covers is
-// 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the
-// range, and saying when the add confirmed a scope that was not confirmed) and publishes
-// inventory.settings.changed. Returns the whole safety block with its new version, and adjusted when
-// the range was normalized.
+// edit. The dialog lists the current ranges and whether they are confirmed with the confirmation tick,
+// and sends both back (shown_ranges, shown_confirmed_at): the tick confirms those ranges and the new
+// one only. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range,
+// too_many_ranges (16), and scope_not_confirmed when confirm is not true; 409 scope_changed (with
+// error.safety, the current block) when the stored ranges are not shown_ranges or the stored
+// confirmation is not shown_confirmed_at. A range the confirmed scope already covers is 200 with the
+// block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the range, and saying
+// when the add confirmed a scope that was not confirmed) and publishes inventory.settings.changed.
+// Returns the whole safety block with its new version, and adjusted when the range was normalized.
 //
 // POST /scanning/safety/ranges
 func (s *Server) handleScanningPostScanningSafetyRangesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -45377,7 +45377,7 @@ func (s *Server) handleScanningPostScanningSafetyRangesRequest(args [0]string, a
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ScanningPostScanningSafetyRangesOperation,
-			OperationSummary: "Add one LAN range to the scope where the person is (\"+ New range\" in a dialog, #842), without sending the whole block: read, append and save in one transaction, so it never overwrites another edit. The dialog lists the current ranges with the confirmation tick and sends them back in shown_ranges: the tick confirms those and the new range only. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range, too_many_ranges (16), and scope_not_confirmed when confirm is not true; 409 scope_changed (with error.safety, the current block) when the stored ranges are not shown_ranges. A range the confirmed scope already covers is 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the range, and saying when the add confirmed a scope that was not confirmed) and publishes inventory.settings.changed. Returns the whole safety block with its new version, and adjusted when the range was normalized",
+			OperationSummary: "Add one LAN range to the scope where the person is (\"+ New range\" in a dialog, #842), without sending the whole block: read, append and save in one transaction, so it never overwrites another edit. The dialog lists the current ranges and whether they are confirmed with the confirmation tick, and sends both back (shown_ranges, shown_confirmed_at): the tick confirms those ranges and the new one only. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range, too_many_ranges (16), and scope_not_confirmed when confirm is not true; 409 scope_changed (with error.safety, the current block) when the stored ranges are not shown_ranges or the stored confirmation is not shown_confirmed_at. A range the confirmed scope already covers is 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the range, and saying when the add confirmed a scope that was not confirmed) and publishes inventory.settings.changed. Returns the whole safety block with its new version, and adjusted when the range was normalized",
 			OperationID:      "scanning_post_scanning_safety_ranges",
 			Body:             request,
 			RawBody:          rawBody,

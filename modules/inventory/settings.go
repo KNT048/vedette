@@ -73,12 +73,12 @@ type SettingsInput struct {
 	ScopeConfirmed bool `json:"scope_confirmed"` // the attestation of D-26
 }
 
-// SafetyVersion names the safety block's stored values (INV-32): the ranges and their attestation, the window, both speeds, the
-// exclusions and the fragile types. The switch of active discovery and the merge stamp are not part of it (the page does not send
-// them). Equal values give the same version, so a version names what a person saw, not when.
+// SafetyVersion names the safety block's stored values (INV-32): the ranges and their attestation, the switch of active discovery
+// (review #860 r2 L1: a stale Devices › Scope save would turn it back on), the window, both speeds, the exclusions and the fragile
+// types. The merge stamp is not part of it. Equal values give the same version, so a version names what a person saw, not when.
 func SafetyVersion(st Settings) string {
 	raw, err := json.Marshal([]any{
-		st.LANRanges, st.ScopeConfirmedAt, st.ScopeConfirmedBy, st.Active.Days, st.Active.From, st.Active.To, st.Active.Rate,
+		st.LANRanges, st.ScopeConfirmedAt, st.ScopeConfirmedBy, st.Active.Enabled, st.Active.Days, st.Active.From, st.Active.To, st.Active.Rate,
 		st.Active.Checks(), st.Active.Exclusions, st.FragileKinds, st.RegularScanKinds,
 	})
 	if err != nil { // only plain values: cannot happen

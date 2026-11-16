@@ -187279,9 +187279,14 @@ type ScanningPostScanningSafetyRangesReq struct {
 	// One internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461) to add to the scope, e.g. 192.168.20.0/24;
 	// host bits are dropped and reported in adjusted.
 	Range string `json:"range"`
+	// The confirmation the dialog showed (safety.scope.confirmed_at as read, compared to the second; null:
+	// shown as not confirmed). When the stored one is another (an admin unconfirmed the scope, or
+	// confirmed it again, since), 409 scope_changed with the current block, nothing stored (review #860 r2
+	// M1).
+	ShownConfirmedAt NilString `json:"shown_confirmed_at"`
 	// The ranges the dialog showed next to the tick (safety.scope.lan_ranges as read; order does not
-	// matter). The tick confirms exactly these and the new range: when the stored list is another one (an
-	// admin changed or unconfirmed the scope since), 409 scope_changed with the current block
+	// matter, compared as networks). The tick confirms exactly these and the new range: when the stored
+	// list is another one (an admin changed the ranges since), 409 scope_changed with the current block
 	// (error.safety) and nothing stored (review #860 H1).
 	ShownRanges []string `json:"shown_ranges"`
 }
@@ -187294,6 +187299,11 @@ func (s *ScanningPostScanningSafetyRangesReq) GetConfirm() bool {
 // GetRange returns the value of Range.
 func (s *ScanningPostScanningSafetyRangesReq) GetRange() string {
 	return s.Range
+}
+
+// GetShownConfirmedAt returns the value of ShownConfirmedAt.
+func (s *ScanningPostScanningSafetyRangesReq) GetShownConfirmedAt() NilString {
+	return s.ShownConfirmedAt
 }
 
 // GetShownRanges returns the value of ShownRanges.
@@ -187309,6 +187319,11 @@ func (s *ScanningPostScanningSafetyRangesReq) SetConfirm(val bool) {
 // SetRange sets the value of Range.
 func (s *ScanningPostScanningSafetyRangesReq) SetRange(val string) {
 	s.Range = val
+}
+
+// SetShownConfirmedAt sets the value of ShownConfirmedAt.
+func (s *ScanningPostScanningSafetyRangesReq) SetShownConfirmedAt(val NilString) {
+	s.ShownConfirmedAt = val
 }
 
 // SetShownRanges sets the value of ShownRanges.

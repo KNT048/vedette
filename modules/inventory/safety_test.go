@@ -24,6 +24,15 @@ func (e *env) version() string {
 	return st.Version
 }
 
+// addRange is "+ New range" from a dialog opened just now: it shows the stored confirmation, and shown as the ranges.
+func (e *env) addRange(actor, raw string, shown []string, confirmed bool) (inventory.SavedSettings, error) {
+	st, err := e.svc.Settings(e.ctx())
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	return e.svc.AddRange(e.ctx(), actor, inventory.RangeAdd{Range: raw, Shown: shown, ShownConfirmedAt: st.ScopeConfirmedAt, Confirmed: confirmed})
+}
+
 // saveSafety is PUT /scanning/safety from a page that read the block just now.
 func (e *env) saveSafety(in inventory.SafetyInput) (inventory.SavedSettings, error) {
 	in.Version = e.version()
@@ -347,10 +356,10 @@ func TestContract_INV32_AddRange(t *testing.T) {
 		{"8.8.8.0/24", "public_range"},
 		{"192.168.0.0/16", "overlap_range"}, // it contains the stored one
 	} {
-		_, err := e.svc.AddRange(e.ctx(), "admin@acme.example", c.raw, shown, true)
+		_, err := e.addRange("admin@acme.example", c.raw, shown, true)
 		wantAPIError(t, err, 400, c.code)
 	}
-	_, err := e.svc.AddRange(e.ctx(), "admin@acme.example", "192.168.20.0/24", shown, false)
+	_, err := e.addRange("admin@acme.example", "192.168.20.0/24", shown, false)
 	wantAPIError(t, err, 400, "scope_not_confirmed")
 	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.settings' AND detail LIKE 'added range%'`); n != 0 {
 		t.Fatalf("a refused add was audited: %d", n)
@@ -359,7 +368,7 @@ func TestContract_INV32_AddRange(t *testing.T) {
 	e.now = e.now.Add(time.Hour)
 	e.ev.reset()
 	v0 := e.version()
-	saved, err := e.svc.AddRange(e.ctx(), "it@acme.example", " 192.168.20.9/24 ", shown, true)
+	saved, err := e.addRange("it@acme.example", " 192.168.20.9/24 ", shown, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,7 +394,7 @@ func TestContract_INV32_AddRange(t *testing.T) {
 	e.ev.reset()
 	rows := e.count(`SELECT count(*) FROM core_audit`)
 	for _, raw := range []string{"192.168.20.0/24", "192.168.20.128/25", "192.168.18.64/26"} {
-		again, err := e.svc.AddRange(e.ctx(), "admin@acme.example", raw, nil, true)
+		again, err := e.addRange("admin@acme.example", raw, nil, true)
 		if err != nil || !slices.Equal(again.LANRanges, saved.LANRanges) || *again.ScopeConfirmedBy != "it@acme.example" {
 			t.Fatalf("%s again: %+v, %v", raw, again, err)
 		}
@@ -396,7 +405,7 @@ func TestContract_INV32_AddRange(t *testing.T) {
 
 	// a dialog that showed another list (stale, or blind) confirms nothing: 409 scope_changed with the current block
 	for _, stale := range [][]string{nil, shown, {"192.168.18.0/24", "192.168.20.0/24", "10.0.0.0/8"}} {
-		_, err := e.svc.AddRange(e.ctx(), "admin@acme.example", "192.168.30.0/24", stale, true)
+		_, err := e.addRange("admin@acme.example", "192.168.30.0/24", stale, true)
 		wantAPIError(t, err, 409, "scope_changed")
 		var ch *inventory.Changed
 		if !errors.As(err, &ch) || !slices.Equal(ch.Current.LANRanges, saved.LANRanges) || ch.Current.Version != e.version() {
@@ -417,12 +426,12 @@ func TestContract_INV32_AddRange(t *testing.T) {
 	if _, err := e.saveSafety(in); err != nil {
 		t.Fatal(err)
 	}
-	_, err = e.svc.AddRange(e.ctx(), "admin@acme.example", "192.168.50.0/24", []string{"192.168.20.0/24"}, true)
+	_, err = e.addRange("admin@acme.example", "192.168.50.0/24", []string{"192.168.20.0/24"}, true)
 	wantAPIError(t, err, 409, "scope_changed")
 	if st, _ := e.svc.Settings(e.ctx()); st.ScopeConfirmedAt != nil || len(st.LANRanges) != 2 {
 		t.Fatalf("a dialog that did not show 10.0.0.0/8 confirmed it: %+v", st)
 	}
-	again, err := e.svc.AddRange(e.ctx(), "admin@acme.example", "192.168.50.0/24", []string{"192.168.20.0/24", "10.0.0.0/8"}, true)
+	again, err := e.addRange("admin@acme.example", "192.168.50.0/24", []string{"192.168.20.0/24", "10.0.0.0/8"}, true)
 	if err != nil || again.ScopeConfirmedAt == nil || !slices.Equal(again.LANRanges, []string{"10.0.0.0/8", "192.168.20.0/24", "192.168.50.0/24"}) {
 		t.Fatalf("shown and confirmed: %+v, %v", again, err)
 	}
@@ -434,7 +443,7 @@ func TestContract_INV32_AddRange(t *testing.T) {
 	if _, err := e.saveSafety(in); err != nil {
 		t.Fatal(err)
 	}
-	if again, err = e.svc.AddRange(e.ctx(), "admin@acme.example", "192.168.50.0/25", again.LANRanges, true); err != nil || again.ScopeConfirmedAt == nil || len(again.LANRanges) != 3 {
+	if again, err = e.addRange("admin@acme.example", "192.168.50.0/25", again.LANRanges, true); err != nil || again.ScopeConfirmedAt == nil || len(again.LANRanges) != 3 {
 		t.Fatalf("covered, unconfirmed: %+v, %v", again, err)
 	}
 	if e.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.settings' AND detail LIKE 'confirmed the scope, which was not confirmed (%; 192.168.50.0/25 is inside it): 3 ranges%'`) != 1 {
@@ -443,11 +452,11 @@ func TestContract_INV32_AddRange(t *testing.T) {
 
 	// at most 16 ranges
 	for i := 21; len(again.LANRanges) < 16; i++ {
-		if again, err = e.svc.AddRange(e.ctx(), "admin@acme.example", "192.168."+strconv.Itoa(i)+".0/24", again.LANRanges, true); err != nil {
+		if again, err = e.addRange("admin@acme.example", "192.168."+strconv.Itoa(i)+".0/24", again.LANRanges, true); err != nil {
 			t.Fatal(err)
 		}
 	}
-	_, err = e.svc.AddRange(e.ctx(), "admin@acme.example", "172.16.0.0/16", again.LANRanges, true)
+	_, err = e.addRange("admin@acme.example", "172.16.0.0/16", again.LANRanges, true)
 	wantAPIError(t, err, 400, "too_many_ranges")
 }
 
@@ -499,8 +508,17 @@ func TestContract_INV32_FullSavesNeverDropAnInlineAdd(t *testing.T) {
 	if again, err := e.svc.SaveSafety(e.ctx(), "admin@acme.example", stale); err != nil || again.Version != saved.Version {
 		t.Fatalf("the same values again: %v, %q vs %q", err, again.Version, saved.Version)
 	}
-	if err := e.svc.SetDiscovery(e.ctx(), "admin@acme.example", false); err != nil || e.version() != saved.Version {
-		t.Fatalf("the discovery switch is not part of the block: %v", err)
+	// review #860 r2 L1: the discovery switch is part of the version, so a Devices › Scope page loaded with it on cannot turn it
+	// back on after another admin turned it off
+	scopePage := okSettings("192.168.18.0/24")
+	scopePage.ScopeConfirmed, scopePage.Active.Enabled, scopePage.Active.Exclusions, scopePage.Version = true, true, []string{"192.168.18.40"}, e.version()
+	if err := e.svc.SetDiscovery(e.ctx(), "admin@acme.example", false); err != nil || e.version() == saved.Version {
+		t.Fatalf("the discovery switch did not change the version: %v", err)
+	}
+	_, err = e.svc.SaveSettings(e.ctx(), "admin@acme.example", scopePage)
+	wantAPIError(t, err, 409, "safety_changed")
+	if st, _ := e.svc.Settings(e.ctx()); st.Active.Enabled {
+		t.Fatal("a stale Devices › Scope save turned discovery back on")
 	}
 	old.Version = ""
 	old.Active.Exclusions = []string{"192.168.18.40"}
@@ -574,7 +592,7 @@ func TestContract_INV32_ConcurrentAddsKeepBoth(t *testing.T) {
 	exclErrs := make([]error, n)
 	for i := range n {
 		wg.Go(func() {
-			_, rangeErrs[i] = e.svc.AddRange(e.ctx(), "admin@acme.example", "10."+strconv.Itoa(i)+".0.0/16", []string{"192.168.18.0/24"}, true)
+			_, rangeErrs[i] = e.addRange("admin@acme.example", "10."+strconv.Itoa(i)+".0.0/16", []string{"192.168.18.0/24"}, true)
 		})
 		wg.Go(func() {
 			_, exclErrs[i] = e.svc.AddExclusion(e.ctx(), "admin@acme.example", "192.168.18."+strconv.Itoa(i+1))
@@ -600,7 +618,7 @@ func TestContract_INV32_ConcurrentAddsKeepBoth(t *testing.T) {
 		if rangeErrs[i] == nil {
 			continue
 		}
-		saved, err := e.svc.AddRange(e.ctx(), "admin@acme.example", "10."+strconv.Itoa(i)+".0.0/16", st.LANRanges, true)
+		saved, err := e.addRange("admin@acme.example", "10."+strconv.Itoa(i)+".0.0/16", st.LANRanges, true)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -612,4 +630,53 @@ func TestContract_INV32_ConcurrentAddsKeepBoth(t *testing.T) {
 	if got := e.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.settings' AND (detail LIKE 'added range%' OR detail LIKE 'added exclusion%')`); got != 2*n {
 		t.Fatalf("audit rows = %d", got)
 	}
+}
+
+// review #860 r2 M1: the dialog echoes the confirmation it showed. The same list, unconfirmed or confirmed again by another admin
+// since the dialog opened, is 409 scope_changed: the tick never re-confirms a scope someone withdrew while the dialog was open.
+func TestContract_INV32_AddRangeEchoesTheConfirmationShown(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.confirmScope("10.0.0.0/8", "192.168.10.0/24")
+	opened, _ := e.svc.Settings(e.ctx())                // 09:00: B's dialog shows the scope confirmed by A
+	shown := []string{"192.168.10.5/24", " 10.0.0.0/8"} // any order, as networks (r2 I1)
+	add := inventory.RangeAdd{Range: "192.168.50.0/24", Shown: shown, ShownConfirmedAt: opened.ScopeConfirmedAt, Confirmed: true}
+
+	// 10:00: A withdraws the attestation for the same ranges
+	if err := e.svc.SetDiscovery(e.ctx(), "admin@acme.example", false); err != nil {
+		t.Fatal(err)
+	}
+	in := okSafety()
+	in.LANRanges, in.Confirmed = opened.LANRanges, false
+	if _, err := e.saveSafety(in); err != nil {
+		t.Fatal(err)
+	}
+	// 11:00: B's add from the open dialog is refused, nothing stored
+	_, err := e.svc.AddRange(e.ctx(), "b@acme.example", add)
+	wantAPIError(t, err, 409, "scope_changed")
+	var ch *inventory.Changed
+	if !errors.As(err, &ch) || ch.Current.ScopeConfirmedAt != nil {
+		t.Fatalf("the refusal does not carry the current block: %v", err)
+	}
+	if st, _ := e.svc.Settings(e.ctx()); st.ScopeConfirmedAt != nil || len(st.LANRanges) != 2 {
+		t.Fatalf("the withdrawn scope was confirmed again: %+v", st)
+	}
+	// a dialog that showed it unconfirmed may confirm it, and says so
+	add.ShownConfirmedAt = nil
+	saved, err := e.svc.AddRange(e.ctx(), "b@acme.example", add)
+	if err != nil || saved.ScopeConfirmedAt == nil || *saved.ScopeConfirmedBy != "b@acme.example" || len(saved.LANRanges) != 3 {
+		t.Fatalf("shown unconfirmed: %+v, %v", saved, err)
+	}
+	// unconfirmed and confirmed again by someone else since the dialog opened (another time): refused too
+	in.LANRanges, in.Confirmed = saved.LANRanges, false
+	if _, err := e.saveSafety(in); err != nil {
+		t.Fatal(err)
+	}
+	e.now = e.now.Add(time.Hour)
+	in.Confirmed = true
+	if again, err := e.saveSafety(in); err != nil || *again.ScopeConfirmedAt == *saved.ScopeConfirmedAt {
+		t.Fatalf("confirmed again: %+v, %v", again, err)
+	}
+	_, err = e.svc.AddRange(e.ctx(), "b@acme.example", inventory.RangeAdd{Range: "192.168.60.0/24", Shown: saved.LANRanges, ShownConfirmedAt: saved.ScopeConfirmedAt, Confirmed: true})
+	wantAPIError(t, err, 409, "scope_changed")
 }

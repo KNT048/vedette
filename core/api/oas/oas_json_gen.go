@@ -315363,6 +315363,10 @@ func (s *ScanningPostScanningSafetyRangesReq) encodeFields(e *jx.Encoder) {
 		e.Str(s.Range)
 	}
 	{
+		e.FieldStart("shown_confirmed_at")
+		s.ShownConfirmedAt.Encode(e)
+	}
+	{
 		e.FieldStart("shown_ranges")
 		e.ArrStart()
 		for _, elem := range s.ShownRanges {
@@ -315372,10 +315376,11 @@ func (s *ScanningPostScanningSafetyRangesReq) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfScanningPostScanningSafetyRangesReq = [3]string{
+var jsonFieldsNameOfScanningPostScanningSafetyRangesReq = [4]string{
 	0: "confirm",
 	1: "range",
-	2: "shown_ranges",
+	2: "shown_confirmed_at",
+	3: "shown_ranges",
 }
 
 // Decode decodes ScanningPostScanningSafetyRangesReq from json.
@@ -315411,8 +315416,18 @@ func (s *ScanningPostScanningSafetyRangesReq) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"range\"")
 			}
-		case "shown_ranges":
+		case "shown_confirmed_at":
 			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.ShownConfirmedAt.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"shown_confirmed_at\"")
+			}
+		case "shown_ranges":
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				s.ShownRanges = make([]string, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -315441,7 +315456,7 @@ func (s *ScanningPostScanningSafetyRangesReq) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

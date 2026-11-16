@@ -132,11 +132,11 @@ func (s scanningSafety) SaveSafety(ctx context.Context, actor string, in core.Sa
 	return v, adj, nil
 }
 
-func (s scanningSafety) AddRange(ctx context.Context, actor, rng string, shown []string, confirmed bool) (core.Safety, []core.Adjustment, error) {
+func (s scanningSafety) AddRange(ctx context.Context, actor string, in core.RangeAdd) (core.Safety, []core.Adjustment, error) {
 	if s.inv == nil {
 		return core.Safety{}, nil, errors.New("vedette: scanning: the inventory is not wired")
 	}
-	saved, err := s.inv.AddRange(ctx, actor, rng, shown, confirmed)
+	saved, err := s.inv.AddRange(ctx, actor, inventory.RangeAdd{Range: in.Range, Shown: in.Shown, ShownConfirmedAt: in.ShownConfirmedAt, Confirmed: in.Confirmed})
 	if err != nil {
 		return core.Safety{}, nil, s.changed(ctx, err)
 	}

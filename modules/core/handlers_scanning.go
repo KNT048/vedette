@@ -55,10 +55,10 @@ type SafetyStore interface {
 	Safety(ctx context.Context) (Safety, error)
 	// SaveSafety validates and stores in; an error that is an *apierr.Error reaches the person as it is.
 	SaveSafety(ctx context.Context, actor string, in SafetyInput) (Safety, []Adjustment, error)
-	// AddRange adds one range to the scope in one transaction (read, append, store); the attestation covers shown (the ranges the
-	// dialog showed) and the new range, and a stored list other than shown is a *SafetyChanged (scope_changed); a range the confirmed
-	// scope covers changes nothing. Its other errors as SaveSafety's.
-	AddRange(ctx context.Context, actor, rng string, shown []string, confirmed bool) (Safety, []Adjustment, error)
+	// AddRange adds one range to the scope in one transaction (read, append, store); the attestation covers what the dialog showed
+	// (in.Shown, in.ShownConfirmedAt) and the new range, and a stored list or confirmation other than that is a *SafetyChanged
+	// (scope_changed); a range the confirmed scope covers changes nothing. Its other errors as SaveSafety's.
+	AddRange(ctx context.Context, actor string, in RangeAdd) (Safety, []Adjustment, error)
 	// AddExclusion adds one exclusion in one transaction; one an exclusion covers changes nothing. Its errors as SaveSafety's.
 	AddExclusion(ctx context.Context, actor, entry string) (Safety, error)
 }
@@ -88,6 +88,14 @@ type SafetyInput struct {
 	Exclusions                     []string
 	FragileKinds, RegularScanKinds []string
 	Version                        string // the version the page read: another one is a *SafetyChanged (safety_changed)
+}
+
+// RangeAdd is POST /scanning/safety/ranges: the range and what the dialog showed beside the tick.
+type RangeAdd struct {
+	Range            string
+	Shown            []string
+	ShownConfirmedAt *string // nil: shown as not confirmed
+	Confirmed        bool
 }
 
 // SafetyChanged refuses a write built on a block that changed since the person read it (409 Code: safety_changed, scope_changed;
@@ -460,7 +468,11 @@ func (h *ScanningHandlers) ScanningPostScanningSafetyRanges(ctx context.Context,
 	if !ok {
 		return nil, apierr.Unauthenticated()
 	}
-	st, adjusted, err := h.cfg.Safety.AddRange(ctx, p.Email, req.Range, req.ShownRanges, req.Confirm)
+	in := RangeAdd{Range: req.Range, Shown: req.ShownRanges, Confirmed: req.Confirm}
+	if v, ok := req.ShownConfirmedAt.Get(); ok {
+		in.ShownConfirmedAt = &v
+	}
+	st, adjusted, err := h.cfg.Safety.AddRange(ctx, p.Email, in)
 	if err != nil {
 		return nil, h.safetyErr(ctx, err)
 	}

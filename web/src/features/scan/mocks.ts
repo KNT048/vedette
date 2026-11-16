@@ -6,7 +6,7 @@ import { API, audit, body, CIDR_RE, currentUser, fail, guard, IPV4_RE } from '@/
 import { collection, daysAgo, dataMode, newId, nowIso, peek } from '@/mocks/db'
 import { assetsStore, findingsStore, isOn } from '@/mocks/stores'
 import type { Asset, Finding } from '@/lib/types'
-import { BOX_ID, hashOf, inventorySettingsStore, SAFETY_CHANGED } from '@/features/inventory/mocks'
+import { BOX_ID, inventorySettingsStore, SAFETY_CHANGED, safetyVersion } from '@/features/inventory/mocks'
 import { displayName } from '@/features/inventory/nameOf'
 import { exposureSnapshotsStore, exposureTargetsStore } from '@/features/exposure/mocks'
 import { mockDeviceProgress } from '@/lib/progress'
@@ -385,7 +385,7 @@ function configResponse(): ScanConfigResponse {
   const block = !sc.commitment ? 'The scan scope commitment is not ticked yet. Do it under Devices, Scope and sensors.' : !up ? SCANNER_DOWN : null
   const zoneDown = !zoneStore.get().readable
   const sched = zoneDown && c.schedule.enabled ? ZONE_DOWN : null
-  return { config: c, next_run: zoneDown ? null : nextRun(c, new Date(), !runs.get().some((r) => r.trigger === 'schedule')), scope: sc, can_scan: block === null, block_reason: block, dangerous_checks: false, schedule_blocked_reason: sched, version: hashOf(JSON.stringify([c.window, c.rate, c.exclusions])) }
+  return { config: c, next_run: zoneDown ? null : nextRun(c, new Date(), !runs.get().some((r) => r.trigger === 'schedule')), scope: sc, can_scan: block === null, block_reason: block, dangerous_checks: false, schedule_blocked_reason: sched, version: safetyVersion() }
 }
 
 // ---- khoá SSH (S-SCAN-5) ----

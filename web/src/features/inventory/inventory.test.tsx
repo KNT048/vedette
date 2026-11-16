@@ -1013,6 +1013,25 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect((await call('GET', '/settings')).json!.lan_ranges).toEqual(['192.168.20.0/25'])
   })
 
+  it('review #860 r2 L2: a save over a scope changed elsewhere is refused, says so, and shows the current values', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices/setup')
+    await screen.findByRole('button', { name: 'Remove range 192.168.10.0/24' }, T)
+    inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, exclusions: [...st.active.exclusions, '192.168.10.40'] } })) // another tab
+    await user.click(screen.getByRole('button', { name: 'Remove range 192.168.20.0/24' }))
+    await user.click(screen.getByRole('checkbox', { name: /I confirm these network ranges/ }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(await screen.findByText(/Someone else changed the scan scope/, undefined, T)).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Remove range 192.168.20.0/24' }, T)).toBeInTheDocument() // the form shows the stored ranges again
+    expect(inventorySettingsStore.get().active.exclusions).toContain('192.168.10.40') // nothing was dropped
+    await user.click(screen.getByRole('button', { name: 'Remove range 192.168.20.0/24' }))
+    await user.click(screen.getByRole('checkbox', { name: /I confirm these network ranges/ }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await scopeSaved()
+    expect(inventorySettingsStore.get().lan_ranges).toEqual(['192.168.10.0/24'])
+    expect(inventorySettingsStore.get().active.exclusions).toContain('192.168.10.40')
+  })
+
   it('regression: a range stored without a prefix ("192.168.18.0") shows an error on its row and never blocks add, edit or remove', async () => {
     inventorySettingsStore.update((s) => ({ ...s, lan_ranges: ['192.168.18.0'], scope_confirmed_at: null, scope_confirmed_by: null }))
     const user = userEvent.setup()

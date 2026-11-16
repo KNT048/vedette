@@ -35,6 +35,9 @@ type Settings struct {
 	UnresponsiveAfter  int      `json:"unresponsive_after"`
 	AutoRescan         bool     `json:"auto_rescan"`
 	Schedule           Schedule `json:"schedule"`
+	// Version is the shared block's version read with the window, rate and exclusions above, in the same read (Checks; review #860
+	// r2 L3); "" without SharedChecks. Not part of the stored row or of contract.ts ScanConfig.
+	Version string `json:"-"`
 }
 
 // Patch is a partial PUT /scans/config: a nil field keeps the stored value (POST-3).
@@ -291,6 +294,7 @@ func (s *Service) settings(ctx context.Context, q interface {
 		return Settings{}, fmt.Errorf("scan: reading when the settings were saved: %w", err)
 	}
 	own := c
+	c.Version = ch.Version
 	c.Window = Window{Days: slices.Clone(ch.Window.Days), From: ch.Window.From, To: ch.Window.To}
 	c.Rate = ch.Rate
 	c.Exclusions = slices.Clone(ch.Exclusions)

@@ -167,9 +167,10 @@ export const handlers = [
     const st = inventorySettingsStore.get()
     const covered = coveredBy(r, st.lan_ranges)
     if (covered && st.scope_confirmed_at) return HttpResponse.json({ ...scanningView().safety, adjusted })
-    // review #860 H1: the tick covers the ranges the dialog showed, and only those
-    const shown = [...new Set((b.shown_ranges ?? []).map((x) => String(x).trim()))].sort()
-    if (shown.join() !== [...st.lan_ranges].sort().join()) return fail(409, 'scope_changed', 'The network ranges changed since this dialog opened. Check the current list, then confirm again.', { safety: scanningView().safety })
+    // review #860 H1, r2 M1: the tick covers the ranges and the confirmation the dialog showed, and only those
+    const shown = [...new Set((b.shown_ranges ?? []).map((x) => normalizeRange(String(x)).value))].sort()
+    const sec = (v: string | null | undefined) => (v ? new Date(v).toISOString().slice(0, 19) : null)
+    if (shown.join() !== [...st.lan_ranges].sort().join() || sec(b.shown_confirmed_at) !== sec(st.scope_confirmed_at)) return fail(409, 'scope_changed', 'The network ranges changed since this dialog opened. Check the current list, then confirm again.', { safety: scanningView().safety })
     const ranges = covered ? st.lan_ranges : [...st.lan_ranges, r]
     if (ranges.length > 16) return fail(400, 'too_many_ranges', 'At most 16 network ranges.')
     const clash = overlapping(r, st.lan_ranges)

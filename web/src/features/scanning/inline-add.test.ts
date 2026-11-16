@@ -16,28 +16,36 @@ const audits = () => auditStore.get().filter((a) => a.action === 'inventory.sett
 describe('inline adds of Settings › Scanning (#842)', () => {
   it('adds one range with the attestation, normalizes it, and changes nothing for a range already covered', async () => {
     const shown_ranges = inventorySettingsStore.get().lan_ranges
-    expect((await post('/ranges', { range: '192.168.30.0/24', confirm: true, shown_ranges }, 'u-op')).status).toBe(403)
-    expect((await post('/ranges', { range: '192.168.30.0/24', confirm: false, shown_ranges })).json.error.code).toBe('scope_not_confirmed')
-    expect((await post('/ranges', { range: '8.8.8.0/24', confirm: true, shown_ranges })).json.error.code).toBe('public_range')
-    expect((await post('/ranges', { range: '192.168.30.7', confirm: true, shown_ranges })).json.error.code).toBe('no_prefix')
-    expect((await post('/ranges', { range: '192.168.0.0/16', confirm: true, shown_ranges })).json.error.code).toBe('overlap_range')
-    const stale = await post('/ranges', { range: '192.168.30.0/24', confirm: true, shown_ranges: shown_ranges.slice(1) })
+    const shown_confirmed_at = inventorySettingsStore.get().scope_confirmed_at
+    expect((await post('/ranges', { range: '192.168.30.0/24', confirm: true, shown_ranges, shown_confirmed_at }, 'u-op')).status).toBe(403)
+    expect((await post('/ranges', { range: '192.168.30.0/24', confirm: false, shown_ranges, shown_confirmed_at })).json.error.code).toBe('scope_not_confirmed')
+    expect((await post('/ranges', { range: '8.8.8.0/24', confirm: true, shown_ranges, shown_confirmed_at })).json.error.code).toBe('public_range')
+    expect((await post('/ranges', { range: '192.168.30.7', confirm: true, shown_ranges, shown_confirmed_at })).json.error.code).toBe('no_prefix')
+    expect((await post('/ranges', { range: '192.168.0.0/16', confirm: true, shown_ranges, shown_confirmed_at })).json.error.code).toBe('overlap_range')
+    const stale = await post('/ranges', { range: '192.168.30.0/24', confirm: true, shown_ranges: shown_ranges.slice(1), shown_confirmed_at })
     expect(stale.status).toBe(409)
     expect(stale.json.error.code).toBe('scope_changed')
     expect(stale.json.error.safety.scope.lan_ranges).toEqual(shown_ranges)
     const before = audits()
     const v0 = (await (await fetch(`${location.origin}/api/v1/scanning`)).json()).safety.version
-    const added = await post('/ranges', { range: '192.168.30.7/24', confirm: true, shown_ranges })
+    const added = await post('/ranges', { range: '192.168.30.7/24', confirm: true, shown_ranges, shown_confirmed_at })
     expect(added.status).toBe(200)
     expect(added.json.scope.lan_ranges).toContain('192.168.30.0/24')
     expect(added.json.adjusted).toEqual([{ from: '192.168.30.7/24', to: '192.168.30.0/24' }])
     expect(added.json.scope.confirmed_by).toBe('admin@acme.example')
     expect(added.json.version).not.toBe(v0)
     expect(audits()).toBe(before + 1)
-    const again = await post('/ranges', { range: '192.168.30.128/25', confirm: true, shown_ranges: [] })
+    const again = await post('/ranges', { range: '192.168.30.128/25', confirm: true, shown_ranges: [], shown_confirmed_at: null })
     expect(again.status).toBe(200)
     expect(again.json.scope.lan_ranges).toEqual(added.json.scope.lan_ranges)
     expect(audits()).toBe(before + 1)
+    // r2 M1: the same list, but the scope was unconfirmed since the dialog showed it confirmed: refused
+    const st = inventorySettingsStore.get()
+    inventorySettingsStore.set({ ...st, scope_confirmed_at: null, scope_confirmed_by: null })
+    const withdrawn = await post('/ranges', { range: '192.168.40.0/24', confirm: true, shown_ranges: st.lan_ranges, shown_confirmed_at: st.scope_confirmed_at })
+    expect(withdrawn.status).toBe(409)
+    expect(withdrawn.json.error.code).toBe('scope_changed')
+    expect(inventorySettingsStore.get().scope_confirmed_at).toBeNull()
   })
 
   it('adds one exclusion, idempotent, and refuses the 201st', async () => {

@@ -54,22 +54,26 @@ type rangeAdd struct {
 }
 
 // AddRange appends as the inventory does: refused without the attestation, nothing for a range already listed.
-func (f *fakeSafety) AddRange(_ context.Context, actor, rng string, shown []string, confirmed bool) (core.Safety, []core.Adjustment, error) {
+func (f *fakeSafety) AddRange(_ context.Context, actor string, in core.RangeAdd) (core.Safety, []core.Adjustment, error) {
 	if f.err != nil {
 		return core.Safety{}, nil, f.err
 	}
-	f.ranges = append(f.ranges, rangeAdd{actor, rng, strings.Join(shown, ","), confirmed})
-	if !confirmed {
+	confirmedAt := "null"
+	if in.ShownConfirmedAt != nil {
+		confirmedAt = *in.ShownConfirmedAt
+	}
+	f.ranges = append(f.ranges, rangeAdd{actor, in.Range, strings.Join(in.Shown, ",") + " " + confirmedAt, in.Confirmed})
+	if !in.Confirmed {
 		return core.Safety{}, nil, apierr.New(http.StatusBadRequest, "scope_not_confirmed", "Tick the confirmation.")
 	}
-	if !slices.Equal(shown, f.st.LANRanges) {
+	if !slices.Equal(in.Shown, f.st.LANRanges) || in.ShownConfirmedAt == nil || *in.ShownConfirmedAt != *f.st.ConfirmedAt {
 		return core.Safety{}, nil, &core.SafetyChanged{Code: "scope_changed", Message: "The network ranges changed.", Current: f.st}
 	}
 	f.st.Version += "+"
 	if !slices.Contains(f.st.LANRanges, "192.168.20.0/24") {
 		f.st.LANRanges = append(slices.Clone(f.st.LANRanges), "192.168.20.0/24")
 	}
-	return f.st, []core.Adjustment{{From: rng, To: "192.168.20.0/24"}}, nil
+	return f.st, []core.Adjustment{{From: in.Range, To: "192.168.20.0/24"}}, nil
 }
 
 func (f *fakeSafety) AddExclusion(_ context.Context, actor, entry string) (core.Safety, error) {
@@ -497,7 +501,7 @@ func TestContract_INV40_SafetyInlineAdds(t *testing.T) {
 	t.Parallel()
 	s := newScanningStack(t)
 	for _, who := range []string{"viewer", "operator"} {
-		if code, _ := s.call("POST", "/scanning/safety/ranges", who, `{"range":"192.168.20.5/24","confirm":true,"shown_ranges":["192.168.18.0/24"]}`); code != http.StatusForbidden {
+		if code, _ := s.call("POST", "/scanning/safety/ranges", who, `{"range":"192.168.20.5/24","confirm":true,"shown_ranges":["192.168.18.0/24"],"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`); code != http.StatusForbidden {
 			t.Fatalf("%s added a range: %d", who, code)
 		}
 		if code, _ := s.call("POST", "/scanning/safety/exclusions", who, `{"entry":"192.168.18.20"}`); code != http.StatusForbidden {
@@ -507,24 +511,28 @@ func TestContract_INV40_SafetyInlineAdds(t *testing.T) {
 	if len(s.safety.ranges) != 0 || len(s.safety.excl) != 0 {
 		t.Fatal("a refused caller reached the store")
 	}
-	for _, body := range []string{`{"range":"192.168.20.5/24","shown_ranges":[]}`, `{"range":"192.168.20.5/24","confirm":true}`} {
+	for _, body := range []string{`{"range":"192.168.20.5/24","shown_ranges":[]` + `,"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`, `{"range":"192.168.20.5/24","confirm":true` + `,"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`, `{"range":"192.168.20.5/24","confirm":true,"shown_ranges":["192.168.18.0/24"]}`} {
 		if code, out := s.call("POST", "/scanning/safety/ranges", "admin", body); code != http.StatusBadRequest {
 			t.Fatalf("%s: %d %v", body, code, out)
 		}
 	}
-	if code, body := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.5/24","confirm":false,"shown_ranges":["192.168.18.0/24"]}`); code != http.StatusBadRequest || errCode(body) != "scope_not_confirmed" {
+	if code, body := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.5/24","confirm":false,"shown_ranges":["192.168.18.0/24"],"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`); code != http.StatusBadRequest || errCode(body) != "scope_not_confirmed" {
 		t.Fatalf("confirm false: %d %v", code, body)
 	}
 	// review #860 H1: a dialog that showed another list is 409 scope_changed with the current block
-	code, body := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.5/24","confirm":true,"shown_ranges":[]}`)
+	code, body := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.5/24","confirm":true,"shown_ranges":[],"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`)
 	if code != http.StatusConflict || errCode(body) != "scope_changed" {
 		t.Fatalf("stale dialog: %d %v", code, body)
 	}
 	if cur := body["error"].(map[string]any)["safety"].(map[string]any); cur["version"] != "v1" || len(cur["scope"].(map[string]any)["lan_ranges"].([]any)) != 1 {
 		t.Fatalf("the refusal does not carry the current block: %v", cur)
 	}
-	code, out := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.5/24","confirm":true,"shown_ranges":["192.168.18.0/24"]}`)
-	if code != http.StatusOK || s.safety.ranges[2] != (rangeAdd{"admin@acme.example", "192.168.20.5/24", "192.168.18.0/24", true}) || out["version"] != "v1+" {
+	// review #860 r2 M1: a dialog that showed the scope unconfirmed reaches the store as such (null), and is refused here
+	if code, body := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.5/24","confirm":true,"shown_ranges":["192.168.18.0/24"],"shown_confirmed_at":null}`); code != http.StatusConflict || errCode(body) != "scope_changed" || s.safety.ranges[2].shown != "192.168.18.0/24 null" {
+		t.Fatalf("shown unconfirmed: %d %v %+v", code, body, s.safety.ranges)
+	}
+	code, out := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.5/24","confirm":true,"shown_ranges":["192.168.18.0/24"],"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`)
+	if code != http.StatusOK || s.safety.ranges[3] != (rangeAdd{"admin@acme.example", "192.168.20.5/24", "192.168.18.0/24 2026-11-01T00:00:00.000Z", true}) || out["version"] != "v1+" {
 		t.Fatalf("add range = %d %v, store got %+v", code, out, s.safety.ranges)
 	}
 	if r := out["scope"].(map[string]any)["lan_ranges"].([]any); len(r) != 2 || r[1] != "192.168.20.0/24" {
@@ -554,7 +562,7 @@ func TestContract_INV40_SafetyInlineAdds(t *testing.T) {
 		t.Fatalf("a refusal of the store: %d %v", code, body)
 	}
 	s.safety.err = apierr.New(http.StatusBadRequest, "overlap_range", "Range 192.168.0.0/16 overlaps 192.168.18.0/24.")
-	if code, body := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.0.0/16","confirm":true,"shown_ranges":[]}`); code != http.StatusBadRequest || errCode(body) != "overlap_range" {
+	if code, body := s.call("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.0.0/16","confirm":true,"shown_ranges":[],"shown_confirmed_at":"2026-11-01T00:00:00.000Z"}`); code != http.StatusBadRequest || errCode(body) != "overlap_range" {
 		t.Fatalf("a refusal of the store: %d %v", code, body)
 	}
 }

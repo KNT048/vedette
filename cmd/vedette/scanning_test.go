@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -426,6 +427,17 @@ func TestScanningRunNow(t *testing.T) {
 	}
 }
 
+// shownConfirmedAt is `,"shown_confirmed_at":…` for a range dialog opened now: the confirmation GET /scanning shows.
+func (s *stack) shownConfirmedAt() string {
+	s.t.Helper()
+	_, page := s.do("GET", "/scanning", "viewer", "")
+	raw, err := json.Marshal(page["safety"].(map[string]any)["scope"].(map[string]any)["confirmed_at"])
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	return `,"shown_confirmed_at":` + string(raw)
+}
+
 // safetyVersion is safety.version of GET /scanning: what a page that loads now holds.
 func (s *stack) safetyVersion() string {
 	s.t.Helper()
@@ -449,22 +461,23 @@ func TestScanningInlineAdds(t *testing.T) {
 	var changed atomic.Int32
 	s.d.Bus.Subscribe(inventory.EventSettingsChanged, func(context.Context, events.Event) error { changed.Add(1); return nil })
 	opened := s.safetyVersion() // a Settings › Scanning page and a /scans/config page load now
+	conf := s.shownConfirmedAt()
 	_, oldCfg := s.do("GET", "/scans/config", "admin", "")
 	if oldCfg["version"] != opened {
 		t.Fatalf("GET /scans/config version %v, GET /scanning %s", oldCfg["version"], opened)
 	}
 
-	if code, out := s.do("POST", "/scanning/safety/ranges", "operator", `{"range":"192.168.20.0/24","confirm":true,"shown_ranges":["192.168.10.0/24"]}`); code != http.StatusForbidden {
+	if code, out := s.do("POST", "/scanning/safety/ranges", "operator", `{"range":"192.168.20.0/24","confirm":true,"shown_ranges":["192.168.10.0/24"]`+conf+`}`); code != http.StatusForbidden {
 		t.Fatalf("an operator added a range: %d %v", code, out)
 	}
-	if code, out := s.do("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.0/24","confirm":false,"shown_ranges":["192.168.10.0/24"]}`); code != http.StatusBadRequest || errCodeOf(out) != "scope_not_confirmed" {
+	if code, out := s.do("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.0/24","confirm":false,"shown_ranges":["192.168.10.0/24"]`+conf+`}`); code != http.StatusBadRequest || errCodeOf(out) != "scope_not_confirmed" {
 		t.Fatalf("without the attestation: %d %v", code, out)
 	}
-	code, out := s.do("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.0/24","confirm":true,"shown_ranges":[]}`)
+	code, out := s.do("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.0/24","confirm":true,"shown_ranges":[]`+conf+`}`)
 	if code != http.StatusConflict || errCodeOf(out) != "scope_changed" || len(out["error"].(map[string]any)["safety"].(map[string]any)["scope"].(map[string]any)["lan_ranges"].([]any)) != 1 {
 		t.Fatalf("a dialog that showed no range: %d %v", code, out)
 	}
-	code, out = s.do("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.9/24","confirm":true,"shown_ranges":["192.168.10.0/24"]}`)
+	code, out = s.do("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.9/24","confirm":true,"shown_ranges":["192.168.10.0/24"]`+conf+`}`)
 	if code != http.StatusOK || len(out["scope"].(map[string]any)["lan_ranges"].([]any)) != 2 || len(out["adjusted"].([]any)) != 1 || out["version"] == opened {
 		t.Fatalf("add range = %d %v", code, out)
 	}
@@ -504,7 +517,7 @@ func TestScanningInlineAdds(t *testing.T) {
 
 	// people add at once, two ranges built on the same list and two exclusions: the exclusions land, one range lands and the other
 	// is refused with the current list (its tick did not see the first one); nothing is overwritten
-	shown := `["192.168.10.0/24","192.168.20.0/24"]`
+	shown := `["192.168.10.0/24","192.168.20.0/24"]` + s.shownConfirmedAt()
 	var wg sync.WaitGroup
 	codes := make([]int, 4)
 	for i, c := range []struct{ path, body string }{

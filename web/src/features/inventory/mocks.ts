@@ -129,12 +129,11 @@ export function hashOf(s: string): string {
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0 }
   return h.toString(16).padStart(8, '0')
 }
-/** Version of the shared safety block (inventory INV-32, review #860 M1): names its values as the backend's SafetyVersion does
- *  (not the discovery switch); GET /scanning safety.version and GET /inventory/settings version. */
+/** Version of the shared safety block (inventory INV-32, review #860 M1): names its values as the backend's SafetyVersion does,
+ *  the discovery switch included (r2 L1); GET /scanning safety.version, GET /inventory/settings and GET /scans/config version. */
 export function safetyVersion(): string {
   const st = settingsStore.get()
-  const { enabled: _on, ...act } = st.active
-  return hashOf(JSON.stringify([st.lan_ranges, st.scope_confirmed_at, st.scope_confirmed_by, act, st.fragile_kinds, st.regular_scan_kinds, peek('scanning_check_rate') ?? null]))
+  return hashOf(JSON.stringify([st.lan_ranges, st.scope_confirmed_at, st.scope_confirmed_by, st.active, st.fragile_kinds, st.regular_scan_kinds, peek('scanning_check_rate') ?? null]))
 }
 export const SAFETY_CHANGED = 'These safety settings changed since you opened the page (another admin, another tab, or a range or exclusion added elsewhere). Review the current values and save again.'
 

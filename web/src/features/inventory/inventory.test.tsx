@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
+import { collection } from '@/mocks/db'
 import { eachOption } from '@/test/formMatrix'
 import { assetsStore, auditStore, findingsStore, installStore, modulesStore, sessionStore, usersStore } from '@/mocks/stores'
 import kevProducts from '../../../../content/catalog/kev-products.json'
@@ -1660,6 +1661,15 @@ describe('inventory: agents (S-INV-4)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Test connection' }))
     expect(await within(dialog).findByText(/Connected to Wazuh 4\.9\.2\. This user can see \d+ agents\./, undefined, T)).toBeInTheDocument()
     expect((await call('GET', '/agents')).json!.wazuh).toBeNull() // testing does not save
+  })
+
+  it('#847: a Wazuh pull that failed shows why on the card (a password not restored with the backup says to enter it again)', async () => {
+    enableModule('agent-intake', true)
+    const lost = 'The saved Wazuh password was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter the password again and press Save. Nothing is pulled until then.'
+    collection<unknown>('intake_wazuh', () => null).set({ url: 'https://wazuh-manager:55000', username: 'vedette', password: 'x', password_last4: 'pass', interval_minutes: 60, status: 'error', last_sync: null, agents: 0, packages: 0, error: lost })
+    renderApp('/devices/setup?tab=agents')
+    expect(await screen.findByText(lost, undefined, T)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
   })
 
   it('Wazuh connect, sync with sample data, and disconnect from the UI; the password is never shown back', async () => {

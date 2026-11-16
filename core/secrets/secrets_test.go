@@ -847,3 +847,33 @@ func TestOpenOrCreateLeavesTheKeyAloneOnOtherErrors(t *testing.T) {
 		}
 	})
 }
+
+// IsWrongKey is true only for a row of this key version and purpose that this master key does not open (#847): wrapped or not. A row
+// of another key version, a missing row and a restricted purpose are not "lost": callers must not treat them as such.
+func TestIsWrongKeyOnlyForARowSealedUnderAnotherMasterKey(t *testing.T) {
+	t.Parallel()
+	s, db := newStore(t)
+	s.SetLog(slog.New(slog.DiscardHandler))
+	ctx := t.Context()
+	const purpose = "core_device_cookie.key"
+	id, _ := resealed(ctx, t, s, db, purpose)
+	_, err := s.Open(ctx, db.Reader(), id, purpose)
+	if !secrets.IsWrongKey(err) || !secrets.IsWrongKey(fmt.Errorf("a: %w: %w", errors.New("b"), err)) {
+		t.Fatalf("IsWrongKey(%v) = false for a row sealed under another master key", err)
+	}
+	if secrets.IsWrongKey(secrets.ErrDecrypt) || secrets.IsWrongKey(secrets.ErrNotFound) || secrets.IsWrongKey(nil) {
+		t.Fatal("IsWrongKey is true for a plain ErrDecrypt, ErrNotFound or nil")
+	}
+	if err := db.Write(ctx, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, "UPDATE core_secret SET key_version = 2 WHERE id = ?", id)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Open(ctx, db.Reader(), id, purpose); !errors.Is(err, secrets.ErrDecrypt) || secrets.IsWrongKey(err) {
+		t.Fatalf("a row of another key version: %v, IsWrongKey must be false", err)
+	}
+	if _, err := s.Open(ctx, db.Reader(), "no-such-id", purpose); secrets.IsWrongKey(err) {
+		t.Fatal("IsWrongKey is true for a missing row")
+	}
+}

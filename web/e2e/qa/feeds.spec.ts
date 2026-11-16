@@ -23,10 +23,13 @@ const EMAIL: Record<Role, string> = { admin: 'admin@qa.test', operator: 'op@qa.t
 /** Mock: sample data, then switch the mock session to this role. */
 async function asMockRole(page: Page, role: Role) {
   await startWithSample(page)
-  await page.evaluate((u) => {
-    const k = 'vedette-mock-db-v4'
-    const raw = localStorage.getItem(k)
-    if (raw) { const db = JSON.parse(raw); db.core_session = { userId: u }; localStorage.setItem(k, JSON.stringify(db)) }
+  // before every page load (as reports.spec.ts): a late write of the page already open cannot put the old session back
+  await page.addInitScript((u) => {
+    try {
+      const k = 'vedette-mock-db-v4'
+      const raw = localStorage.getItem(k)
+      if (raw) { const db = JSON.parse(raw); db.core_session = { userId: u }; localStorage.setItem(k, JSON.stringify(db)) }
+    } catch { /* no storage: the page keeps its session */ }
   }, USER[role])
 }
 /** Real box (make dev-api REAL=core,feeds, set up with admin@qa.test, op@qa.test, view@qa.test; password in FEEDS_QA_PASSWORD): the real login. */

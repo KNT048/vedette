@@ -7,6 +7,7 @@ import { ScopeLine } from '@/components/common/V1Scope'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { InfoTip } from '@/components/common/InfoTip'
+import { Card } from '@/components/common/Card'
 import { Chip } from '@/components/common/StatusChip'
 import { QueryState, Loading, ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -58,7 +59,7 @@ function AddDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenCha
           <Field label={t('users.add.role')} htmlFor="u-role" hint={t(`users.roleHint.${v.role}`)}>
             <Select id="u-role" value={v.role} onChange={(e) => setV({ ...v, role: e.target.value as Role })}>{ROLES.map((r) => <option key={r} value={r}>{t(`common:role.${r}`)}</option>)}</Select>
           </Field>
-          {err.form ? <p role="alert" className="text-[13px] text-danger">{err.form}</p> : null}
+          {err.form ? <p role="alert" className="text-meta text-danger">{err.form}</p> : null}
           <DialogFooter><Button onClick={() => onOpenChange(false)}>{t('common:cancel')}</Button><Button type="submit" variant="primary" disabled={m.create.isPending}>{t('users.add.submit')}</Button></DialogFooter>
         </form>
       </DialogContent>
@@ -78,13 +79,13 @@ function OidcPanel({ leaving }: { leaving: boolean }) {
   }
   if (!on) {
     return (
-      <div className="rounded-md border border-dashed border-rule bg-surface px-5 py-4">
+      <Card className="max-w-xl">
         <div className="flex items-center gap-1">
           <p className="text-sm">{t('oidc.off')}</p>
           <InfoTip topic={t('oidc.title')}>{t('oidc.offInfo')}</InfoTip>
         </div>
         <Button className="mt-3" onClick={() => void enable(true)} disabled={toggle.isPending}>{t('oidc.enable')}</Button>
-      </div>
+      </Card>
     )
   }
   if (q.isPending) return <Loading />
@@ -109,11 +110,11 @@ function OidcPanel({ leaving }: { leaving: boolean }) {
 function OidcLocked({ cfg, onDisable, busy }: { cfg: OidcConfig; onDisable: () => void; busy: boolean }) {
   const { t } = useTranslation('core')
   return (
-    <div className="grid max-w-xl gap-3">
+    <Card className="grid max-w-xl gap-3">
       <ScopeLine scope="leaving" />
-      <KeyValue items={[{ label: t('oidc.issuer'), value: <span className="break-all font-mono text-[12.5px]">{cfg.issuer || '–'}</span> }, { label: t('oidc.clientId'), value: <span className="break-all font-mono text-[12.5px]">{cfg.client_id || '–'}</span> }]} />
+      <KeyValue items={[{ label: t('oidc.issuer'), value: <span className="break-all font-mono text-meta">{cfg.issuer || '–'}</span> }, { label: t('oidc.clientId'), value: <span className="break-all font-mono text-meta">{cfg.client_id || '–'}</span> }]} />
       <div><Button variant="danger" onClick={onDisable} disabled={busy}>{t('oidc.disable')}</Button></div>
-    </div>
+    </Card>
   )
 }
 
@@ -154,11 +155,12 @@ function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }
   }
   const setMap = (i: number, patch: Partial<{ group: string; role: Role }>) => setV({ ...v, role_map: v.role_map.map((r, k) => (k === i ? { ...r, ...patch } : r)) })
   return (
-    <form onSubmit={(e) => void save(e)} className="grid max-w-xl gap-4" noValidate>
+    <Card className="max-w-xl">
+    <form onSubmit={(e) => void save(e)} className="grid gap-4" noValidate>
       <div className="grid gap-1">
         <CodeBlock label={t('oidc.redirect')} code={cfg.redirect_uri} />
         <div className="flex items-center gap-1">
-          <p className="text-[13px] text-muted">{t('oidc.redirectHint')}</p>
+          <p className="text-meta text-muted">{t('oidc.redirectHint')}</p>
           <InfoTip topic={t('oidc.redirect')}>{t('oidc.redirectInfo')}</InfoTip>
         </div>
       </div>
@@ -170,7 +172,7 @@ function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }
       <OidcCaField cfg={cfg} value={v.ca_pem} error={errOf('ca')} onChange={(ca_pem) => setV({ ...v, ca_pem })} />
       <fieldset className="grid gap-2">
         <legend className="flex items-center gap-1 text-sm font-medium">{t('oidc.map')}<InfoTip topic={t('oidc.map')}>{t('oidc.mapInfo')}</InfoTip></legend>
-        <p className="text-[13px] text-muted">{t('oidc.mapHint')}</p>
+        <p className="text-meta text-muted">{t('oidc.mapHint')}</p>
         {v.role_map.map((r, i) => (
           <div key={i} className="flex flex-wrap items-center gap-2">
             <Input className="max-w-56" aria-label={t('oidc.group', { n: i + 1 })} value={r.group} onChange={(e) => setMap(i, { group: e.target.value })} placeholder="vedette-admins" />
@@ -186,14 +188,14 @@ function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }
           {ROLES.map((r) => <option key={r} value={r}>{t(`common:role.${r}`)}</option>)}
         </Select>
       </Field>
-      {errOf('form') ? <p role="alert" className="text-[13px] text-danger">{errOf('form')}</p> : null}
+      {errOf('form') ? <p role="alert" className="text-meta text-danger">{errOf('form')}</p> : null}
       <div className="flex flex-wrap gap-2">
         <Button type="submit" variant="primary" disabled={m.save.isPending}>{t('common:save')}</Button>
         <Button onClick={() => void test()} disabled={m.test.isPending || !cfg.issuer || dirty} title={cfg.issuer && !dirty ? undefined : t('oidc.saveFirst')}>{t('oidc.test')}</Button>
         <Button variant="ghost" onClick={onDisable}>{t('oidc.disable')}</Button>
       </div>
       {endpoints ? (
-        <section className="grid gap-1 rounded-md border border-rule bg-surface px-4 py-3 text-[13px]" aria-labelledby="oidc-endpoints">
+        <section className="grid gap-1 border-t border-rule pt-3 text-meta" aria-labelledby="oidc-endpoints">
           <h3 id="oidc-endpoints" className="text-sm font-medium">{t('oidc.endpoints')}</h3>
           <dl className="grid gap-1">
           {Object.entries(endpoints).map(([k, url]) => <div key={k} className="grid gap-x-3 sm:grid-cols-[110px_1fr]"><dt className="text-muted">{t(`oidc.endpoint.${k}`, { defaultValue: k })}</dt><dd className="break-all font-mono">{url}</dd></div>)}
@@ -201,6 +203,7 @@ function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }
         </section>
       ) : null}
     </form>
+    </Card>
   )
 }
 
@@ -231,13 +234,13 @@ export default function UsersSection() {
       <PageHeader
         title={q.data ? t('users.title', { count: q.data.items.filter((u) => !u.disabled).length }) : t('settings.users')}
         meta={t('users.meta')} info={t('users.metaInfo')} stories={['S-CORE-3']}
-        actions={<Button variant="primary" onClick={() => setAdding(true)}><Plus />{t('users.add.open')}</Button>}
+        actions={<Button id="users-add" variant="primary" onClick={() => setAdding(true)}><Plus />{t('users.add.open')}</Button>}
       />
       <QueryState query={q}>
         {({ items }) => {
           const isMe = (u: AdminUser) => u.id === me?.id
           const roleSelect = (u: AdminUser) => (u.sso ? (
-            <span className="grid text-sm"><span>{t(`common:role.${u.role}`)}</span><span className="text-[12px] text-muted">{t('users.ssoRole')}</span></span>
+            <span className="grid text-sm"><span>{t(`common:role.${u.role}`)}</span><span className="text-caption text-muted">{t('users.ssoRole')}</span></span>
           ) : (
             <Select className="h-8 w-36" aria-label={t('users.roleOf', { name: u.name })} value={u.role} onChange={(e) => void patch(u, { role: e.target.value as Role })}>{ROLES.map((r) => <option key={r} value={r}>{t(`common:role.${r}`)}</option>)}</Select>
           ))
@@ -248,7 +251,7 @@ export default function UsersSection() {
               {u.twofa ? <Button size="sm" disabled={isMe(u)} title={isMe(u) ? t('users.resetTwofaSelf') : undefined} onClick={() => setAskReset2fa(u)} aria-label={t('users.resetTwofaOf', { name: u.name })}>{t('users.resetTwofa')}</Button> : null}
             </div>
           )
-          const nameCell = (u: AdminUser) => <div className="grid"><span className="font-medium">{u.name}{isMe(u) ? <span className="ml-2 text-[12px] font-normal text-muted">{t('users.you')}</span> : null}</span><span className="break-all text-[13px] text-muted">{u.email}</span></div>
+          const nameCell = (u: AdminUser) => <div className="grid"><span className="font-medium">{u.name}{isMe(u) ? <span className="ml-2 text-caption font-normal text-muted">{t('users.you')}</span> : null}</span><span className="break-all text-meta text-muted">{u.email}</span></div>
           const twofa = (u: AdminUser) => (u.sso ? <Chip tone="accent">{t('users.sso')}</Chip> : u.twofa_method ? <Chip tone="ok">{t(`users.method.${u.twofa_method}`)}</Chip> : <Chip tone="off">{t('users.twofaOff')}</Chip>)
           const stateChip = (u: AdminUser) => (u.disabled ? <Chip tone="off">{t('users.disabled')}</Chip> : <Chip tone="ok">{t('users.active')}</Chip>)
           const columns: ColumnDef<AdminUser>[] = [
@@ -264,7 +267,7 @@ export default function UsersSection() {
               mobileRow={(u) => (
                 <div className="grid gap-2">
                   <div className="flex items-start justify-between gap-3">{nameCell(u)}{stateChip(u)}</div>
-                  <div className="flex flex-wrap items-center gap-2">{roleSelect(u)}{twofa(u)}<span className="text-[12px] text-muted">{u.last_login ? fmtRelative(u.last_login) : t('users.never')}</span></div>
+                  <div className="flex flex-wrap items-center gap-2">{roleSelect(u)}{twofa(u)}<span className="text-caption text-muted">{u.last_login ? fmtRelative(u.last_login) : t('users.never')}</span></div>
                   {actions(u)}
                 </div>
               )} />
@@ -273,7 +276,7 @@ export default function UsersSection() {
       </QueryState>
 
       <div className="mt-8">
-        {oidcScope === 'hidden' ? null : <Section title={t('oidc.title')} description={t('oidc.desc')} info={t('oidc.descInfo')} stories={['S-CORE-3']}><OidcPanel leaving={oidcScope === 'leaving'} /></Section>}
+        {oidcScope === 'hidden' ? null : <Section id="sso" title={t('oidc.title')} description={t('oidc.desc')} info={t('oidc.descInfo')} stories={['S-CORE-3']}><OidcPanel leaving={oidcScope === 'leaving'} /></Section>}
       </div>
 
       <AddDialog open={adding} onOpenChange={setAdding} onCreated={(u, p) => setTemp({ email: u.email, password: p, kind: 'create' })} />

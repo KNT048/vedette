@@ -16,8 +16,9 @@ import { nameOf } from './nameOf'
 import type { DeviceRow } from './types'
 import { kindLabel } from '@/lib/deviceTypes'
 import { InfoTip } from '@/components/common/InfoTip'
+import { SameHint } from './SameDevice'
 
-function PendingItem({ d }: { d: DeviceRow }) {
+function PendingItem({ d, sameAs }: { d: DeviceRow; sameAs: string[] }) {
   const { t } = useTranslation('inventory')
   const can = useCan('operator')
   const act = useDeviceAction(d.id)
@@ -37,6 +38,7 @@ function PendingItem({ d }: { d: DeviceRow }) {
         <p className="text-meta text-muted">
           {[d.ip, d.mac, kindLabel(d.kind)].filter((x) => x && x !== '—').join(', ')}. {t('pending.firstSeen', { when: fmtRelative(d.first_seen) })}
         </p>
+        <SameHint id={d.id} others={sameAs} />
       </div>
       {/* mutateAsync: the row leaves this list when the list reloads, which would drop a mutate() callback and its toast (D-471: the toast links the device). */}
       <div className="flex flex-wrap gap-2">
@@ -54,8 +56,10 @@ function PendingItem({ d }: { d: DeviceRow }) {
 
 /** S-INV-3, #849 "To review": devices found by a scan or by listening and not approved yet; approve, mark unknown or remove.
  *  The switch "notify me about new devices". `items` is the list after the search; `total` before it. */
-export function PendingPanel({ items, total, notifyNew, notifyAvailable, search, filtered, onClear }: {
+export function PendingPanel({ items, total, notifyNew, notifyAvailable, search, filtered, onClear, sameAs }: {
   items: DeviceRow[]; total: number; notifyNew: boolean; notifyAvailable: boolean; search?: ReactNode; filtered?: boolean; onClear?: () => void
+  /** D-599: the names of the devices each row may be the same machine as (GET /inventory/possible-same). */
+  sameAs?: ReadonlyMap<string, string[]>
 }) {
   const { t } = useTranslation('inventory')
   const can = useCan('operator')
@@ -83,7 +87,7 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
       {pending.length ? (
         <Card flush>
           <ul className="divide-y divide-rule" aria-label={t('pending.title', { count: pending.length })}>
-            {pending.map((d) => <PendingItem key={d.id} d={d} />)}
+            {pending.map((d) => <PendingItem key={d.id} d={d} sameAs={sameAs?.get(d.id) ?? []} />)}
           </ul>
         </Card>
       ) : filtered ? (

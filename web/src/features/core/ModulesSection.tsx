@@ -67,25 +67,32 @@ export default function ModulesSection() {
       <QueryState query={q}>
         {(d) => {
           const modules = d.modules.filter((m) => scopeOf(m.id, m.enabled) !== 'hidden')
+          const about = (m: ModuleState) => (
+            <div className="grid max-w-md"><div className="flex items-center gap-1 font-medium">{name(m.id)}{i18n.exists(`modules.${m.id}.summaryInfo`, { ns: 'common' }) ? <InfoTip topic={name(m.id)}>{t(`modules.${m.id}.summaryInfo`, { ns: 'common' })}</InfoTip> : null}{' '}<ScopeBadge scope={scopeOf(m.id, m.enabled)} className="ml-1.5" /></div><span className="text-meta text-muted">{t(`modules.${m.id}.${m.id === 'sensor-active' && install === 'container' ? 'summaryContainer' : 'summary'}`, { ns: 'common' })}</span>{m.available ? null : <span className="text-meta text-warn">{t('modules.notHereWhy')}</span>}<ScopeLine scope={scopeOf(m.id, m.enabled)} /></div>
+          )
+          const state = (m: ModuleState) => !m.available ? <Chip tone="off">{t('modules.notHere')}</Chip>
+            : m.enabled ? <Chip tone="ok">{m.tier === 'core' ? t('modules.always') : t('modules.on')}</Chip> : <Chip tone="off">{t('modules.off')}</Chip>
+          // #842 §0: `module-<id>` is the deep-link target of every "turn on <module>" link (/settings/modules#module-<id>): it lands on the switch.
+          const toggleOf = (m: ModuleState) => {
+            const locked = m.tier === 'core'
+            const notHere = !m.available && !m.enabled // D-381: a module this install cannot run cannot be turned on; one left on can be turned off
+            return <Switch id={`module-${m.id}`} checked={m.enabled} disabled={locked || notHere || gate.disabled || toggle.isPending} title={locked ? t('modules.coreLocked') : notHere ? t('modules.notHereWhy') : gate.title} aria-label={t(m.enabled ? 'modules.toggleOff' : 'modules.toggle', { name: name(m.id) })} onCheckedChange={(v) => onSwitch(modules, m, v)} />
+          }
           const columns: ColumnDef<ModuleState>[] = [
-            { id: 'name', header: t('modules.col.module'), accessorFn: (m) => name(m.id), cell: ({ row }) => (
-              <div className="grid max-w-md"><div className="flex items-center gap-1 font-medium">{name(row.original.id)}{i18n.exists(`modules.${row.original.id}.summaryInfo`, { ns: 'common' }) ? <InfoTip topic={name(row.original.id)}>{t(`modules.${row.original.id}.summaryInfo`, { ns: 'common' })}</InfoTip> : null}{' '}<ScopeBadge scope={scopeOf(row.original.id, row.original.enabled)} className="ml-1.5" /></div><span className="text-[13px] text-muted">{t(`modules.${row.original.id}.${row.original.id === 'sensor-active' && install === 'container' ? 'summaryContainer' : 'summary'}`, { ns: 'common' })}</span>{row.original.available ? null : <span className="text-[13px] text-warn">{t('modules.notHereWhy')}</span>}<ScopeLine scope={scopeOf(row.original.id, row.original.enabled)} /></div>
-            ) },
-            { id: 'depends', header: t('modules.col.needs'), enableSorting: false, accessorFn: (m) => m.depends.join(','), cell: ({ row }) => (row.original.depends.length ? <span className="text-[13px]">{row.original.depends.map(name).join(', ')}</span> : <span className="text-muted">–</span>) },
-            { id: 'state', header: t('modules.col.state'), accessorFn: (m) => Number(m.enabled), cell: ({ row }) => {
-              const m = row.original
-              if (!m.available) return <Chip tone="off">{t('modules.notHere')}</Chip>
-              return m.enabled ? <Chip tone="ok">{m.tier === 'core' ? t('modules.always') : t('modules.on')}</Chip> : <Chip tone="off">{t('modules.off')}</Chip>
-            } },
+            { id: 'name', header: t('modules.col.module'), accessorFn: (m) => name(m.id), cell: ({ row }) => about(row.original) },
+            { id: 'depends', header: t('modules.col.needs'), enableSorting: false, accessorFn: (m) => m.depends.join(','), cell: ({ row }) => (row.original.depends.length ? <span className="text-meta">{row.original.depends.map(name).join(', ')}</span> : <span className="text-muted">–</span>) },
+            { id: 'state', header: t('modules.col.state'), accessorFn: (m) => Number(m.enabled), cell: ({ row }) => state(row.original) },
             { id: 'since', header: t('modules.col.since'), accessorFn: (m) => m.enabled_at ?? '', cell: ({ row }) => fmtDate(row.original.enabled_at) },
-            { id: 'switch', header: t('modules.col.switch'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => {
-              const m = row.original
-              const locked = m.tier === 'core'
-              const notHere = !m.available && !m.enabled // D-381: a module this install cannot run cannot be turned on; one left on can be turned off
-              return <Switch checked={m.enabled} disabled={locked || notHere || gate.disabled || toggle.isPending} title={locked ? t('modules.coreLocked') : notHere ? t('modules.notHereWhy') : gate.title} aria-label={t(m.enabled ? 'modules.toggleOff' : 'modules.toggle', { name: name(m.id) })} onCheckedChange={(v) => onSwitch(modules, m, v)} />
-            } },
+            { id: 'switch', header: t('modules.col.switch'), enableSorting: false, accessorFn: () => '', cell: ({ row }) => toggleOf(row.original) },
           ]
-          return <DataTable data={modules} columns={columns} caption={t('modules.caption')} pageSize={30} filterPlaceholder={t('modules.filter')} />
+          // Phones (UI.md §5: over 3 columns): the module, what it needs, its state and its switch in one row.
+          const mobileRow = (m: ModuleState) => (
+            <div className="grid gap-2">
+              <div className="flex items-start justify-between gap-3">{about(m)}<div className="shrink-0 pt-0.5">{toggleOf(m)}</div></div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta text-muted">{state(m)}{m.depends.length ? <span>{t('modules.col.needs')}: {m.depends.map(name).join(', ')}</span> : null}</div>
+            </div>
+          )
+          return <DataTable data={modules} columns={columns} mobileRow={mobileRow} caption={t('modules.caption')} pageSize={30} filterPlaceholder={t('modules.filter')} />
         }}
       </QueryState>
 

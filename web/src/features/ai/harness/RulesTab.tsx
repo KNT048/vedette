@@ -42,7 +42,7 @@ export default function RulesTab() {
                       <Button size="sm" onClick={() => setDel(x)} aria-label={t('harness.deleteNamed', { name: x.text.slice(0, 40) })}>{t('harness.delete')}</Button>
                     </>}>
                     <p>{x.text}</p>
-                    <p className="text-[13px] text-muted">{t('harness.appliesTo', { jobs: jobNames(t, x.jobs) })}{x.enabled ? '' : ` · ${t('harness.off')}`}</p>
+                    <p className="text-meta text-muted">{t('harness.appliesTo', { jobs: jobNames(t, x.jobs) })}{x.enabled ? '' : ` · ${t('harness.off')}`}</p>
                   </Row>
                 ))}
               </List>

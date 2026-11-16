@@ -157,10 +157,11 @@
     "kind": {
       "scan": "Scan",
       "token": "Token"
-    }
+    },
+    "emptyActionTest": "Test a trap",
+    "emptyActionAdd": "Add a Trap IP"
   },
   "hit": {
-    "back": "Back to internal traps",
     "titleTest": "Test hit on the {{service}} trap at {{time}}",
     "facts": "What happened",
     "service": "Service",
@@ -213,7 +214,8 @@
     "step1": "On the Trap IPs tab, add a Trap IP at an unused address in {{lan}}.",
     "step2": "Check that its status says Listening.",
     "step3": "On the Services tab, select Test trap. Hits then show up under Hits.",
-    "info": "A Trap IP is an address in {{lan}} that no device uses, with a name and what it should look like. Test trap makes sure the trap is recording; from then on every connection to a Trap IP shows up under Hits."
+    "info": "A Trap IP is an address in {{lan}} that no device uses, with a name and what it should look like. Test trap makes sure the trap is recording; from then on every connection to a Trap IP shows up under Hits.",
+    "action": "Add a Trap IP"
   },
   "lanUnknown": "your LAN (add it first under Devices, Scope and sensors)",
   "trapIp": {
@@ -321,7 +323,10 @@
       "device": "In Devices",
       "deviceLink": "{{name}} has this address: the Trap IP cannot listen until one of them moves"
     },
-    "detailsLabel": "Details of Trap IP {{name}}"
+    "detailsLabel": "Details of Trap IP {{name}}",
+    "noLan": "Vedette does not know your LAN range yet, so no Trap IP can go on it.",
+    "noLanLink": "Add your LAN range in Devices, Scope and sensors",
+    "noLanAskAdmin": "Ask an administrator to add it in Devices, Scope and sensors."
   },
   "token": {
     "title": "Honey tokens",
@@ -452,7 +457,8 @@
     "title": "Traps need the appliance install",
     "body": "Container-only install: no trap can run here.",
     "bodyInfo": "There is no vedette-host to run the honeypot container and its Trap IPs, so no trap can listen here and nothing on this page would be covered. Use the appliance install to run traps.",
-    "modules": "Turn the module off in Settings, Modules"
+    "modules": "Turn the module off in Settings, Modules",
+    "modulesWhy": "It is still turned on here."
   },
   "coverage": {
     "title": "Is this enough?",

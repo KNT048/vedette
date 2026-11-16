@@ -16,7 +16,7 @@ export function CvssScore({ cvss, prefix }: { cvss: Cvss | null | undefined; pre
   if (!cvss) {
     const label = prefix ? t('cvss.noneLabel') : t('cvss.none')
     return (
-      <span className="inline-flex items-center gap-1 whitespace-nowrap text-[13px] text-muted">
+      <span className="inline-flex items-center gap-1 whitespace-nowrap text-meta text-muted">
         {label}
         <InfoTip topic={label} className="print:hidden">{t('cvss.noneInfo')}</InfoTip>
       </span>
@@ -27,14 +27,14 @@ export function CvssScore({ cvss, prefix }: { cvss: Cvss | null | undefined; pre
   const label = prefix ? t('cvss.label', { value: text }) : text
   const from = cvss.source === 'nvd' ? t('cvss.fromNvd') : t('cvss.fromOther')
   return (
-    <span className="inline-flex items-center gap-1 whitespace-nowrap text-[13px]">
+    <span className="inline-flex items-center gap-1 whitespace-nowrap text-meta">
       {prefix ? <span className="text-muted">CVSS</span> : null}
       <span className="font-semibold tabular-nums">{cvss.score.toFixed(1)}</span>
       <span className={cn('font-medium', tone[band])}>{t(`cvss.band.${band}`)}</span>
       <InfoTip topic={label} className="print:hidden">
         <span className="block">{t('cvss.info', { version: cvss.version, from })}</span>
         {/* FIRST's terms: a score is shown with its vector, and CVSS is attributed to FIRST */}
-        <code className="block font-mono text-[12px] [overflow-wrap:anywhere]">{cvss.vector}</code>
+        <code className="block font-mono text-caption [overflow-wrap:anywhere]">{cvss.vector}</code>
         <span className="block text-muted">{t('cvss.first')}</span>
       </InfoTip>
     </span>

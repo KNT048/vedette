@@ -71,7 +71,7 @@ function BulkDialog({ ids, open, onOpenChange, opener, onDone }: { ids: string[]
           {BULK.map((a) => (
             <div key={a} className="flex items-start gap-2.5">
               <RadioItem id={`bulk-${a}`} value={a} className="mt-1" />
-              <label htmlFor={`bulk-${a}`} className="grid text-sm"><span className="font-medium">{t(`status.${a}`)}</span><span className="text-[13px] text-muted">{t(`status.${a}Hint`)}</span></label>
+              <label htmlFor={`bulk-${a}`} className="grid text-sm"><span className="font-medium">{t(`status.${a}`)}</span><span className="text-meta text-muted">{t(`status.${a}Hint`)}</span></label>
             </div>
           ))}
         </RadioGroup>
@@ -94,7 +94,7 @@ function StatusCell({ r }: { r: FindingRow }) {
   return (
     <span className="grid justify-items-start gap-0.5">
       <FindingStatusChip f={r} />
-      {r.status === 'risk_accepted' && r.accepted_until ? <span className="whitespace-nowrap text-[12px] text-muted">{t('accept.rowUntil', { date: fmtDate(r.accepted_until) })}</span> : null}
+      {r.status === 'risk_accepted' && r.accepted_until ? <span className="whitespace-nowrap text-caption text-muted">{t('accept.rowUntil', { date: fmtDate(r.accepted_until) })}</span> : null}
     </span>
   )
 }
@@ -140,6 +140,14 @@ function List() {
   const allShown = rows.length > 0 && shown.length === rows.length
   const toggle = (id: string, on: boolean) => setSelected((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n })
   const toggleAll = (on: boolean) => setSelected(on ? new Set(rows.map((r) => r.id)) : new Set())
+  // A filter of the page is on (the table's own search box is the page's here): an empty table then means "no match", not "none yet".
+  const filtersOn = (tab: Tab) => !!(cve || device || product || severity || fixKey || s) || certainty !== 'all' || (tab === 'open' && status !== 'all')
+  const clearFilters = () => {
+    for (const k of ['cve', 'device', 'product', 'severity', 'fix', 'status']) params.delete(k)
+    setParams(params, { replace: true })
+    setSearch('')
+    setCertainty('all')
+  }
 
   const week = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10)
   const kpis = items ? [
@@ -160,7 +168,7 @@ function List() {
     { id: 'device', header: t('col.device'), accessorFn: (r) => name(r), cell: ({ row: { original: r } }) => (
       <div className="grid">
         {r.asset ? <Link to={`/devices/${r.asset.id}`} title={name(r)} className="line-clamp-2 max-w-64 font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{name(r)}</Link> : <span className="font-medium">{name(r)}</span>}
-        <span className="text-[12px] text-muted">{hasIp(r.asset) ? r.asset?.ip : r.asset ? t('noIp') : ''}</span>
+        <span className="text-caption text-muted">{hasIp(r.asset) ? r.asset?.ip : r.asset ? t('noIp') : ''}</span>
       </div>
     ) },
     { id: 'cve', header: t('col.cve'), accessorFn: (r) => r.cve, cell: ({ row: { original: r } }) => <Link to={`/findings/${r.id}`} className="whitespace-nowrap font-medium text-accent underline-offset-4 hover:underline">{r.cve}</Link> },
@@ -172,8 +180,8 @@ function List() {
     ) },
     // hidden, sorted from "Sort by": highest first, no score last both ways
     { id: 'cvss', header: t('col.cvss'), accessorFn: (r) => r.cvss?.score, sortUndefined: 'last', sortDescFirst: true },
-    { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row: { original: r } }) => <span className={unverified(r) ? 'text-[13px] text-muted' : 'text-[13px]'}>{t(basisKey(r.basis))}</span> },
-    { id: 'seen', header: t('col.lastSeen'), accessorFn: (r) => r.last_seen, sortDescFirst: true, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap text-[13px] text-muted" title={fmtDateTime(r.last_seen)}>{fmtRelative(r.last_seen)}</span> },
+    { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row: { original: r } }) => <span className={unverified(r) ? 'text-meta text-muted' : 'text-meta'}>{t(basisKey(r.basis))}</span> },
+    { id: 'seen', header: t('col.lastSeen'), accessorFn: (r) => r.last_seen, sortDescFirst: true, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap text-meta text-muted" title={fmtDateTime(r.last_seen)}>{fmtRelative(r.last_seen)}</span> },
   ]
 
   const panel = (tab: Tab) => (
@@ -211,7 +219,7 @@ function List() {
         {can && shown.length > 0 ? (
           <div role="region" aria-label={t('bulk.region')} className="flex flex-wrap items-center gap-2 rounded-md border border-rule bg-sunken px-3 py-2 text-sm">
             <span className="font-medium">{t('bulk.selected', { count: shown.length })}</span>
-            {shown.length > MAX_BULK ? <span className="text-[13px] text-danger">{t('bulk.tooMany', { max: MAX_BULK })}</span> : null}
+            {shown.length > MAX_BULK ? <span className="text-meta text-danger">{t('bulk.tooMany', { max: MAX_BULK })}</span> : null}
             <Button ref={opener} size="sm" variant="primary" disabled={shown.length > MAX_BULK} onClick={() => setBulkOpen(true)}>{t('status.mark')}</Button>
             <Button size="sm" onClick={() => setSelected(new Set())}>{t('bulk.clear')}</Button>
           </div>
@@ -222,6 +230,15 @@ function List() {
       <QueryState query={q}>
         {() => tab === 'open' && grouping && grouping.groups.length > 0 && rows.length === 0 ? (
           <p className="text-sm text-muted">{t('fix.allGrouped')}</p>
+        ) : tab === 'open' && rows.length === 0 && !filtersOn('open') ? (
+          // docs/UI.md §6: nothing open is good news: the drawing, and what to do next (not a table with an empty row)
+          <EmptyState art="no-findings" title={t('emptyOpen')} info={t('emptyHelpInfo')}
+            action={<span className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm">
+              <Link to="/devices" className="text-accent underline underline-offset-4">{t('emptyDevices')}</Link>
+              <Link to="/settings/scanning" className="text-accent underline underline-offset-4">{t('emptyScan')}</Link>
+            </span>}>
+            {t('emptyHelp')}
+          </EmptyState>
         ) : (
           <DataTable
             caption={t('caption')}
@@ -240,8 +257,8 @@ function List() {
                     <StatusCell r={r} />
                   </div>
                   <span className="text-sm [overflow-wrap:anywhere]">{name(r)}<span className="text-muted">{hasIp(r.asset) ? ` (${r.asset?.ip})` : r.asset ? ` (${t('noIp')})` : ''}</span></span>
-                  <span className="text-[13px] text-muted">{r.kev?.display ?? '–'}</span>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+                  <span className="text-meta text-muted">{r.kev?.display ?? '–'}</span>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
                     <RiskChip f={r} />
                     <CvssScore cvss={r.cvss} prefix />
                     <span>{t(basisKey(r.basis))}</span>
@@ -251,13 +268,16 @@ function List() {
               </div>
             )}
             rowTone={(r) => (r.status === 'confirmed' ? 'danger' : r.status === 'suspected' && !unverified(r) ? 'warn' : undefined)}
-            empty={
-              <EmptyState title={cve ? t('emptyCve', { cve }) : tab === 'open' ? t('emptyOpen') : t('emptyFilter')} info={t('emptyHelpInfo')}>
-                {t('emptyHelp')}{' '}
-                <Link to="/devices" className="text-accent underline underline-offset-4">{t('emptyDevices')}</Link>{' '}
-                <Link to="/settings/scanning" className="text-accent underline underline-offset-4">{t('emptyScan')}</Link>
-              </EmptyState>
-            }
+            // docs/UI.md §6: a filter that hides every row says so and clears it; the other lists say plainly that they are empty
+            filtered={filtersOn(tab)}
+            onClearFilters={clearFilters}
+            emptyFiltered={cve ? (
+              <span className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+                {t('emptyCve', { cve })}
+                <Button size="sm" variant="link" onClick={clearFilters}>{t('common:table.clearFilters')}</Button>
+              </span>
+            ) : undefined}
+            empty={t('emptyFilter')}
           />
         )}
       </QueryState>

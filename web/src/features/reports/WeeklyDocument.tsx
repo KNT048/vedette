@@ -10,7 +10,7 @@ function Rows({ rows, caption }: { rows: FindingRow[]; caption: string }) {
   const { t } = useTranslation('reports')
   return (
     <Scroll>
-      <table className="w-full border-collapse text-[13px]">
+      <table className="w-full border-collapse text-meta">
         <caption className="sr-only">{caption}</caption>
         <thead><tr className="border-b border-rule text-left text-muted">
           <th scope="col" className="py-1 pr-3 font-medium">{t('doc.col.device')}</th><th scope="col" className="py-1 pr-3 font-medium">{t('doc.col.cve')}</th>
@@ -44,7 +44,7 @@ function Risk({ r }: { r: TopRisk }) {
     <li className="grid gap-0.5">
       <span className="flex flex-wrap items-center gap-2"><span className="font-medium">{r.product}</span><SeverityChip severity={r.severity} /></span>
       {r.action ? <span>{r.action}</span> : null}
-      <span className="text-[13px] text-muted">{t('doc.weekly.risk', { device: r.device, count: r.open, confirmed: r.confirmed, cve: r.cve })}</span>
+      <span className="text-meta text-muted">{t('doc.weekly.risk', { device: r.device, count: r.open, confirmed: r.confirmed, cve: r.cve })}</span>
     </li>
   )
 }
@@ -63,14 +63,14 @@ export function WeeklyDocument({ report: r, org }: { report: WeeklyReport; org: 
   const older = r.open.filter((f) => !isNew(f))
   const newOpen = r.open.length - older.length
   const notListed = Math.max(0, open - r.open.length)
-  const stat = (label: string, value: string) => <div className="grid"><dt className="text-[12px] text-muted">{label}</dt><dd className="text-base font-semibold">{value}</dd></div>
+  const stat = (label: string, value: string) => <div className="grid"><dt className="text-caption text-muted">{label}</dt><dd className="text-base font-semibold">{value}</dd></div>
   return (
     <article className="text-sm" aria-label={t('doc.weekly.title')}>
       <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
         <header className="grid gap-1 border-b border-rule pb-3">
-          <p className="text-[13px] text-muted">{org}</p>
-          <h2 className="text-lg font-semibold">{t('doc.weekly.title')}</h2>
-          <p className="text-[13px] text-muted">{t('doc.weekly.period', { from: fmtDate(r.period.from), to: fmtDate(r.period.to) })}</p>
+          <p className="text-meta text-muted">{org}</p>
+          <h2 className="text-base font-semibold">{t('doc.weekly.title')}</h2>
+          <p className="text-meta text-muted">{t('doc.weekly.period', { from: fmtDate(r.period.from), to: fmtDate(r.period.to) })}</p>
           <p className="mt-1 text-base">{open ? t('doc.weekly.headline', { open, confirmed: c.open_confirmed, unapproved: c.devices_unapproved }) : t('doc.weekly.headlineClear', { unapproved: c.devices_unapproved })}</p>
         </header>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
@@ -101,8 +101,8 @@ export function WeeklyDocument({ report: r, org }: { report: WeeklyReport; org: 
                   {r.resolved.slice(0, DONE_LINES).map((f) => <li key={f.id}>{t(f.by ? 'doc.weekly.doneLineBy' : 'doc.weekly.doneLine', { cve: f.cve, product: f.product, device: f.device, status: t(`common:status.${f.status}`), by: f.by })}</li>)}
                 </ul>
               ) : <p className="text-muted">{t('doc.weekly.noneDone')}</p>}
-              {c.resolved > DONE_LINES ? <p className="mt-1 text-[13px] text-muted">{t('doc.weekly.doneMore', { count: c.resolved - DONE_LINES })}</p> : null}
-              {c.accepted ? <p className="mt-1 text-[13px] text-muted">{t('doc.weekly.accepted', { count: c.accepted, date: fmtDate(c.accepted_until) })}</p> : null}
+              {c.resolved > DONE_LINES ? <p className="mt-1 text-meta text-muted">{t('doc.weekly.doneMore', { count: c.resolved - DONE_LINES })}</p> : null}
+              {c.accepted ? <p className="mt-1 text-meta text-muted">{t('doc.weekly.accepted', { count: c.accepted, date: fmtDate(c.accepted_until) })}</p> : null}
             </section>
           </>
         ) : null}
@@ -112,25 +112,25 @@ export function WeeklyDocument({ report: r, org }: { report: WeeklyReport; org: 
             <AiBlock model={r.ai_summary.profile ? `${r.ai_summary.model} (${r.ai_summary.profile})` : r.ai_summary.model} tokens={r.ai_summary.tokens} citations={[{ title: t('doc.weekly.aiCite') }]}>
               {r.ai_summary.paragraphs.map((p, i) => <p key={i}>{p}</p>)}
             </AiBlock>
-            <p className="text-[12px] text-muted">{t('doc.aiAt', { time: fmtDateTime(r.ai_summary.generated_at) })}</p>
+            <p className="text-caption text-muted">{t('doc.aiAt', { time: fmtDateTime(r.ai_summary.generated_at) })}</p>
           </div>
         ) : null}
       </div>
       {/* A block outside the grid: browsers (Firefox) ignore a page break on a grid item, so the appendix starts a new printed page. */}
       <section aria-labelledby="wk-appendix" className="mt-5 block border-t border-rule pt-4 print:break-before-page">
         <div className="grid gap-4">
-          <div className="grid gap-0.5"><h3 id="wk-appendix" className="font-semibold">{t('doc.weekly.appendix')}</h3><p className="text-[13px] text-muted">{t('doc.weekly.appendixNote')}</p></div>
-          <section aria-labelledby="wk-new"><h4 id="wk-new" className="mb-1 font-semibold">{t('doc.weekly.new')}</h4>{r.new_findings.length ? <Rows rows={r.new_findings} caption={t('doc.weekly.new')} /> : <p className="text-muted">{t('doc.weekly.noneNew')}</p>}{c.new_findings > r.new_findings.length ? <p className="mt-1 text-[13px] text-muted">{t('doc.weekly.notListedNew', { count: c.new_findings - r.new_findings.length })}</p> : null}</section>
+          <div className="grid gap-0.5"><h3 id="wk-appendix" className="font-semibold">{t('doc.weekly.appendix')}</h3><p className="text-meta text-muted">{t('doc.weekly.appendixNote')}</p></div>
+          <section aria-labelledby="wk-new"><h4 id="wk-new" className="mb-1 font-semibold">{t('doc.weekly.new')}</h4>{r.new_findings.length ? <Rows rows={r.new_findings} caption={t('doc.weekly.new')} /> : <p className="text-muted">{t('doc.weekly.noneNew')}</p>}{c.new_findings > r.new_findings.length ? <p className="mt-1 text-meta text-muted">{t('doc.weekly.notListedNew', { count: c.new_findings - r.new_findings.length })}</p> : null}</section>
           <section aria-labelledby="wk-done"><h4 id="wk-done" className="mb-1 font-semibold">{t('doc.weekly.handled')}</h4>{r.resolved.length ? <Rows rows={r.resolved} caption={t('doc.weekly.handled')} /> : <p className="text-muted">{t('doc.weekly.noneDone')}</p>}</section>
           <section aria-labelledby="wk-open"><h4 id="wk-open" className="mb-1 font-semibold">{t('doc.weekly.remaining')}</h4>
             {older.length ? <Rows rows={older} caption={t('doc.weekly.remaining')} /> : null}
-            {newOpen ? <p className={older.length ? 'mt-1 text-[13px] text-muted' : undefined}>{t(older.length || notListed ? 'doc.weekly.plusNew' : 'doc.weekly.allNewRemain', { count: newOpen })}</p> : null}
-            {notListed ? <p className="mt-1 text-[13px] text-muted">{t('doc.weekly.notListed', { count: notListed })}</p> : null}
+            {newOpen ? <p className={older.length ? 'mt-1 text-meta text-muted' : undefined}>{t(older.length || notListed ? 'doc.weekly.plusNew' : 'doc.weekly.allNewRemain', { count: newOpen })}</p> : null}
+            {notListed ? <p className="mt-1 text-meta text-muted">{t('doc.weekly.notListed', { count: notListed })}</p> : null}
             {r.open.length ? null : <p className="text-muted">{t('doc.weekly.noneOpen')}</p>}
           </section>
         </div>
       </section>
-      <footer className="mt-5 grid gap-0.5 border-t border-rule pt-2 text-[12px] text-muted">
+      <footer className="mt-5 grid gap-0.5 border-t border-rule pt-2 text-caption text-muted">
         <p>{t('doc.sources')} {r.sources.map((s) => t(`doc.src.${s.id}`)).join(', ')}.</p>
         {r.happened ? null : <p>{t('doc.weekly.notIncluded')}</p>}
         <p>{t('doc.weekly.footer', { time: fmtDateTime(r.generated_at) })}</p>

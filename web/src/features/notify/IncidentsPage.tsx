@@ -20,6 +20,7 @@ import { useCan } from '@/lib/session'
 import { useBulkIncidents, useChannels, useIncidents } from './api'
 import { MAX_BULK_INCIDENTS } from './contract'
 import { DeliveryBadges, IncidentStatusChip, kindKey, needsFix } from './shared'
+import { useNewChannel } from './NewChannel'
 import { X } from 'lucide-react'
 import { INCIDENT_KINDS, type Incident, type IncidentKind } from './types'
 
@@ -75,11 +76,11 @@ function BulkDialog({ ids, status, onOpenChange, opener, onDone }: { ids: string
 
 function Seen({ i }: { i: Incident }) {
   const { t } = useTranslation('notify')
-  return <span className="whitespace-nowrap text-[13px]">{i.first_seen === i.last_seen ? t('incidents.seenOnce', { first: fmtDateTime(i.first_seen) }) : t('incidents.seen', { first: fmtDateTime(i.first_seen), last: fmtDateTime(i.last_seen) })}</span>
+  return <span className="whitespace-nowrap text-meta">{i.first_seen === i.last_seen ? t('incidents.seenOnce', { first: fmtDateTime(i.first_seen) }) : t('incidents.seen', { first: fmtDateTime(i.first_seen), last: fmtDateTime(i.last_seen) })}</span>
 }
 function Handled({ i }: { i: Incident }) {
   const { t } = useTranslation('notify')
-  return <div className="grid gap-0.5"><IncidentStatusChip status={i.status} />{i.resolved_reason ? <span className="text-[12px] text-muted">{t('incidents.closedBy', { reason: i.resolved_reason, time: fmtDateTime(i.handled_at) })}</span> : i.handled_by ? <span className="text-[12px] text-muted">{t('incidents.statusBy', { user: i.handled_by, time: fmtDateTime(i.handled_at) })}</span> : null}</div>
+  return <div className="grid gap-0.5"><IncidentStatusChip status={i.status} />{i.resolved_reason ? <span className="text-caption text-muted">{t('incidents.closedBy', { reason: i.resolved_reason, time: fmtDateTime(i.handled_at) })}</span> : i.handled_by ? <span className="text-caption text-muted">{t('incidents.statusBy', { user: i.handled_by, time: fmtDateTime(i.handled_at) })}</span> : null}</div>
 }
 function RespondLink({ i }: { i: Incident }) {
   const { t } = useTranslation('notify')
@@ -94,6 +95,7 @@ function Content() {
   const admin = useCan('admin')
   const channels = useChannels({ retry: false, enabled: admin }) // not asked of a role that would get 403
   const noChannel = channels.data !== undefined && !channels.data.channels.some((c) => c.enabled)
+  const newChannel = useNewChannel() // its dialogs stay mounted after the save turns a channel on and the button goes
   const responseScope = useScope('response')
   const [params, setParams] = useSearchParams()
   const tab: Tab = params.get('tab') === 'resolved' ? 'resolved' : 'open'
@@ -125,6 +127,9 @@ function Content() {
   const [pageIds, setPageIds] = useState<string[] | null>(null)
   const pageAll = pageIds !== null && rows.length > pageIds.length && pageIds.every((id) => selected.has(id))
   const clear = () => { setSelected(new Set()); setPageIds(null) }
+  // A filter of the page hides rows: an empty table then says "no match" and clears them (docs/UI.md §5), not "nothing yet".
+  const filtersOn = kind !== 'all' || (tab === 'open' && (onlyUrgent || onlyUnsent))
+  const clearFilters = () => { setKind('all'); setPageIds(null); const p = new URLSearchParams(params); p.delete('severity'); p.delete('sent'); setParams(p, { replace: true }) }
   // another page, sort or filter: the banner of the page the box selected goes (the selection stays)
   const onPage = useCallback((key: string) => setPageIds((p) => (p && p.join(',') !== key ? null : p)), [])
   const toggle = (id: string, on: boolean) => setSelected((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n })
@@ -147,7 +152,7 @@ function Content() {
       return <><Checkbox checked={page.length > 0 && on === page.length ? true : on > 0 ? 'indeterminate' : false} onCheckedChange={(v) => set(v === true)} aria-label={t('bulk.selectPage', { count: page.length })} /><PageWatch ids={page} onChange={onPage} /></>
     }, cell: ({ row: { original: r } }) => pick(r) } satisfies ColumnDef<Incident>] : []),
     { id: 'incident', header: t('incidents.col.incident'), accessorFn: (r) => r.title, cell: ({ row: { original: r } }) => (
-      <div className="grid"><Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`font-medium ${link}`}>{r.title}</Link><span className="text-[12px] text-muted">{t(kindKey(r))}</span></div>
+      <div className="grid"><Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`font-medium ${link}`}>{r.title}</Link><span className="text-caption text-muted">{t(kindKey(r))}</span></div>
     ) },
     { id: 'severity', header: t('incidents.col.severity'), accessorFn: (r) => ['info', 'low', 'medium', 'high', 'critical'].indexOf(r.severity), cell: ({ row }) => <SeverityChip severity={row.original.severity} /> },
     { id: 'device', header: t('incidents.col.device'), accessorFn: (r) => r.devices.map((d) => d.name).join(', '), cell: ({ row: { original: r } }) => (
@@ -169,17 +174,18 @@ function Content() {
             {tab === 'open' && onlyUnsent ? <Button size="sm" onClick={() => setParam('sent', '')}><X />{t('incidents.clearUnsent')}</Button> : null}
           </div>
           {noChannel && rows.some((r) => r.not_sent?.reason === 'no_channel') ? (
-            <Notice tone="warn" title={t('incidents.noChannelTitle')} actions={<Link to="/settings/channels" className={link}>{t('incidents.setupChannels')}</Link>} />
+            // docs/UI.md §0: the channel is set up right here (same form as Settings › Alert channels)
+            <Notice tone="warn" title={t('incidents.noChannelTitle')} actions={newChannel.button(t('incidents.setupChannels'))} />
           ) : null}
           {tab === 'open' && can && shown.length > 0 ? (
             <div role="region" aria-label={t('bulk.region')} className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-rule bg-sunken px-3 py-2 text-sm">
               <span className="font-medium">{t('bulk.selected', { count: shown.length })}</span>
-              {shown.length > MAX_BULK_INCIDENTS ? <span className="text-[13px] text-danger">{t('bulk.tooMany', { max: MAX_BULK_INCIDENTS })}</span> : null}
+              {shown.length > MAX_BULK_INCIDENTS ? <span className="text-meta text-danger">{t('bulk.tooMany', { max: MAX_BULK_INCIDENTS })}</span> : null}
               <Button size="sm" disabled={shown.length > MAX_BULK_INCIDENTS} onClick={open('acknowledged')}>{t('detail.acknowledge')}</Button>
               <Button size="sm" variant="primary" disabled={shown.length > MAX_BULK_INCIDENTS} onClick={open('resolved')}>{t('detail.resolve')}</Button>
               <Button size="sm" onClick={clear}>{t('bulk.clear')}</Button>
               {pageAll ? (
-                <span className="flex basis-full flex-wrap items-center gap-2 text-[13px]">
+                <span className="flex basis-full flex-wrap items-center gap-2 text-meta">
                   {shown.length === rows.length ? t('bulk.everySelected', { count: rows.length }) : (
                     <>{t('bulk.pageSelected', { count: pageIds.length })}<Button size="sm" variant="link" onClick={() => setSelected(new Set(rows.map((r) => r.id)))}>{t('bulk.selectEvery', { count: rows.length })}</Button></>
                   )}
@@ -187,10 +193,12 @@ function Content() {
               ) : null}
             </div>
           ) : null}
-          {rows.length === 0 ? (
-            <EmptyState title={tab === 'open' ? t('incidents.emptyOpenTitle') : t('incidents.emptyResolvedTitle')} action={noChannel ? <Link to="/settings/channels" className={link}>{t('incidents.setupChannels')}</Link> : undefined} info={t(noTraps ? 'incidents.emptyBodyNoTrapsInfo' : 'incidents.emptyBodyInfo')}>{t(noTraps ? 'incidents.emptyBodyNoTraps' : 'incidents.emptyBody')}</EmptyState>
+          {rows.length === 0 && tab === 'open' && !filtersOn ? (
+            // docs/UI.md §6: nothing open is good news: the drawing, what shows up here, and the channel when none is set up
+            <EmptyState art="no-alerts" title={t('incidents.emptyOpenTitle')} action={noChannel ? newChannel.button(t('incidents.setupChannels')) : undefined} info={t(noTraps ? 'incidents.emptyBodyNoTrapsInfo' : 'incidents.emptyBodyInfo')}>{t(noTraps ? 'incidents.emptyBodyNoTraps' : 'incidents.emptyBody')}</EmptyState>
           ) : (
             <DataTable caption={t('incidents.caption')} data={rows} columns={columns} onRowClick={(r) => navigate(`/incidents/${r.id}`)} rowTone={(r) => (r.status === 'new' ? (r.severity === 'critical' ? 'danger' : 'warn') : undefined)} initialSort={[{ id: 'seen', desc: true }]}
+              empty={tab === 'open' ? t('incidents.emptyOpenTitle') : t('incidents.emptyResolvedTitle')} filtered={filtersOn} onClearFilters={clearFilters}
               mobileRow={(r) => (
                 <div className="flex items-start gap-3">
                   {can && tab === 'open' ? <span className="pt-0.5">{pick(r)}</span> : null}
@@ -199,8 +207,8 @@ function Content() {
                       <Link to={`/incidents/${r.id}`} onClick={(e) => e.stopPropagation()} className={`font-medium ${link}`}>{r.title}</Link>
                       <SeverityChip severity={r.severity} />
                     </div>
-                    <p className="text-[13px] text-muted">{t(kindKey(r))}, {r.devices.map((x) => x.name).join(', ')}, {t('incidents.times', { count: r.count })}</p>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]"><Handled i={r} /><DeliveryBadges sends={r.sends} notSent={r.not_sent} admin={admin} noChannelShown={noChannel} /><Seen i={r} /></div>
+                    <p className="text-meta text-muted">{t(kindKey(r))}, {r.devices.map((x) => x.name).join(', ')}, {t('incidents.times', { count: r.count })}</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta"><Handled i={r} /><DeliveryBadges sends={r.sends} notSent={r.not_sent} admin={admin} noChannelShown={noChannel} /><Seen i={r} /></div>
                     {respond ? <div><RespondLink i={r} /></div> : null}
                   </div>
                 </div>
@@ -219,6 +227,7 @@ function Content() {
         { id: 'resolved', label: t('tabs.resolved'), panel },
       ]} />
       <BulkDialog ids={shown} status={bulk} onOpenChange={(v) => { if (!v) setBulk(null) }} opener={opener} onDone={clear} />
+      {newChannel.dialogs}
     </>
   )
 }

@@ -1,10 +1,11 @@
 # Exposure — Change Impact Map
 
-## Modifying: `ScanSafety`, `Safety`, `Config.Safety`, `checkExcluded`, the rate of `TemplateJob` (INV-30, #850)
-- **cmd/vedette** (AI-Trưởng): wires `Config.Safety` with an adapter over the scan module's config (`rate`, `exclusions` of `GET/PUT /scans/config`); until then the port is nil and exposure keeps its own rates and no exclusion. The template scanner (`exposureTemplateScan`, `exposurefull.go`) must send each job at its `RPS`, never at the constant (`baselineInstead` sets `TemplateRPS`, the full path `nucleiargv.FullRate`).
-- **scan**: owns the block; a new field there that exposure should follow goes through `Safety` here, never through `scan_config`.
-- **SPA** `features/scan/SafetyTab.tsx` (Settings › Scanning › Safety) says the block applies to the deep scan of public IPs; `features/exposure` shows the refusal (400 `out_of_scope`) as any Scan now error.
-- **docs/API_CONVENTIONS.md** §3.3: `out_of_scope` and `scanner_unavailable` name `POST /exposure/targets/{id}/scan`. The web contract's summary of that endpoint and the exposure mock do not refuse an excluded IP yet (the mock cannot read the scan mock's config without an import cycle): listed in CONTRACT "Không khớp".
+## Modifying: `ScanSafety`, `Safety`, `Config.Safety`, `checkSafety`, `ScannableIP`, the web step's exclusions, the rate of `TemplateJob` (INV-30, #850)
+- **cmd/vedette** (AI-Trưởng): wires `Config.Safety` with an adapter over the one block (D-627, inventory's `active.exclusions` and the check rate that `GET /scanning` shows as `speed.requests_per_s`); until then the port is nil and exposure keeps its own rates and no exclusion. The template scanner (`exposureTemplateScan`, `exposuretemplates.go`) must send each job at its `RPS` and write its own probe row with that rate, not `nucleiargv.OwnIPRate`/`FullRate`; `baselineInstead` keeps `min(j.RPS, TemplateRPS)`.
+- **scan** (runner): its scope callback is `ScannableIP`, which now refuses excluded addresses: no change needed there.
+- **SPA**: `features/scanning/SafetyTab.tsx` says the block does not cover public targets yet; change that line in the PR that wires the port. `features/exposure` shows the refusals (400 `out_of_scope`, 503) as any Scan now error.
+- **docs/API_CONVENTIONS.md** §3.3: `out_of_scope` and `scanner_unavailable` name `POST /exposure/targets/{id}/scan`. The web contract's summary of that endpoint and the exposure mock do not refuse an excluded IP yet: CONTRACT "Không khớp".
+
 ## Modifying: the count of the template step (#830 FAIL 2, INV-29)
 - `cmd/vedette` `exposureTemplateScan` (`scanBaseline`, `scanFull`/`fullPortScan`, `fullMeter`, `portBound`, `reachableTags`, `webCandidate`): each nuclei run goes out with the context of a `progress.Series` job, so the run's Tracker sees one count of the whole step. A new caller of `send` must do the same, or its run's own count reaches the Tracker (held, never backwards, but stalled). No API or UI change: `ScanRun.progress` keeps its shape.
 

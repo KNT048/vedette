@@ -45484,6 +45484,10 @@
                             "minimum": -9007199254740991,
                             "maximum": 9007199254740991,
                             "description": "Devices that answered with it in its latest round in the scan window; a Test that got an answer makes it at least 1"
+                          },
+                          "secret_lost": {
+                            "type": "boolean",
+                            "description": "A saved secret of it cannot be opened on this box (a backup restored without its decryption key, or the box key changed, #868): it is sent nowhere (Test and Read now answer 409 secret_lost, the scan window skips it) until Edit saves it with the secret typed again"
                           }
                         },
                         "required": [
@@ -45498,7 +45502,8 @@
                           "scope",
                           "created_at",
                           "last_answer_at",
-                          "answered"
+                          "answered",
+                          "secret_lost"
                         ],
                         "additionalProperties": false
                       },
@@ -45722,6 +45727,10 @@
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991,
                       "description": "Devices that answered with it in its latest round in the scan window; a Test that got an answer makes it at least 1"
+                    },
+                    "secret_lost": {
+                      "type": "boolean",
+                      "description": "A saved secret of it cannot be opened on this box (a backup restored without its decryption key, or the box key changed, #868): it is sent nowhere (Test and Read now answer 409 secret_lost, the scan window skips it) until Edit saves it with the secret typed again"
                     }
                   },
                   "required": [
@@ -45736,7 +45745,8 @@
                     "scope",
                     "created_at",
                     "last_answer_at",
-                    "answered"
+                    "answered",
+                    "secret_lost"
                   ],
                   "additionalProperties": false
                 }
@@ -45795,7 +45805,7 @@
       },
       "put": {
         "operationId": "inventory_put_inventory_snmp_id",
-        "summary": "Edit an SNMP credential; a blank secret keeps the saved one",
+        "summary": "Edit an SNMP credential; a blank secret keeps the saved one. 409 secret_lost when a blank secret would keep one this box cannot open (type it again)",
         "tags": [
           "inventory"
         ],
@@ -45987,6 +45997,10 @@
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991,
                       "description": "Devices that answered with it in its latest round in the scan window; a Test that got an answer makes it at least 1"
+                    },
+                    "secret_lost": {
+                      "type": "boolean",
+                      "description": "A saved secret of it cannot be opened on this box (a backup restored without its decryption key, or the box key changed, #868): it is sent nowhere (Test and Read now answer 409 secret_lost, the scan window skips it) until Edit saves it with the secret typed again"
                     }
                   },
                   "required": [
@@ -46001,7 +46015,8 @@
                     "scope",
                     "created_at",
                     "last_answer_at",
-                    "answered"
+                    "answered",
+                    "secret_lost"
                   ],
                   "additionalProperties": false
                 }
@@ -46271,7 +46286,7 @@
       },
       "post": {
         "operationId": "inventory_post_inventory_snmp_id_read",
-        "summary": "Read now every approved device in this credential's scope (read-only GETs from the scan container, logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent; 409 stopped when active discovery was turned off while the read started",
+        "summary": "Read now every approved device in this credential's scope (read-only GETs from the scan container, logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent; 409 secret_lost when its saved secret cannot be opened on this box (Edit and type it again); 409 stopped when active discovery was turned off while the read started",
         "tags": [
           "inventory"
         ],
@@ -46513,7 +46528,7 @@
     "/inventory/snmp/{id}/test": {
       "post": {
         "operationId": "inventory_post_inventory_snmp_id_test",
-        "summary": "Read one device with this credential now (read-only GETs from the scan container, logged in the probe log) and say what it answered, or why not; an answer is recorded in the inventory",
+        "summary": "Read one device with this credential now (read-only GETs from the scan container, logged in the probe log) and say what it answered, or why not; an answer is recorded in the inventory. 409 secret_lost when its saved secret cannot be opened on this box (nothing is sent; Edit and type it again)",
         "tags": [
           "inventory"
         ],

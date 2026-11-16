@@ -97432,6 +97432,10 @@ type InventoryGetInventorySnmpOKCredentialsItem struct {
 	// Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has
 	// fewer than 8 characters.
 	SecretLast4 string `json:"secret_last4"`
+	// A saved secret of it cannot be opened on this box (a backup restored without its decryption key, or
+	// the box key changed, #868): it is sent nowhere (Test and Read now answer 409 secret_lost, the scan
+	// window skips it) until Edit saves it with the secret typed again.
+	SecretLost bool `json:"secret_lost"`
 	// V3 user name; null for v2c.
 	Username NilString `json:"username"`
 	// No SNMPv1 (D-512).
@@ -97486,6 +97490,11 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) GetScope() []string {
 // GetSecretLast4 returns the value of SecretLast4.
 func (s *InventoryGetInventorySnmpOKCredentialsItem) GetSecretLast4() string {
 	return s.SecretLast4
+}
+
+// GetSecretLost returns the value of SecretLost.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) GetSecretLost() bool {
+	return s.SecretLost
 }
 
 // GetUsername returns the value of Username.
@@ -97546,6 +97555,11 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) SetScope(val []string) {
 // SetSecretLast4 sets the value of SecretLast4.
 func (s *InventoryGetInventorySnmpOKCredentialsItem) SetSecretLast4(val string) {
 	s.SecretLast4 = val
+}
+
+// SetSecretLost sets the value of SecretLost.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) SetSecretLost(val bool) {
+	s.SecretLost = val
 }
 
 // SetUsername sets the value of Username.
@@ -100012,6 +100026,10 @@ type InventoryPostInventorySnmpCreated struct {
 	// Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has
 	// fewer than 8 characters.
 	SecretLast4 string `json:"secret_last4"`
+	// A saved secret of it cannot be opened on this box (a backup restored without its decryption key, or
+	// the box key changed, #868): it is sent nowhere (Test and Read now answer 409 secret_lost, the scan
+	// window skips it) until Edit saves it with the secret typed again.
+	SecretLost bool `json:"secret_lost"`
 	// V3 user name; null for v2c.
 	Username NilString `json:"username"`
 	// No SNMPv1 (D-512).
@@ -100066,6 +100084,11 @@ func (s *InventoryPostInventorySnmpCreated) GetScope() []string {
 // GetSecretLast4 returns the value of SecretLast4.
 func (s *InventoryPostInventorySnmpCreated) GetSecretLast4() string {
 	return s.SecretLast4
+}
+
+// GetSecretLost returns the value of SecretLost.
+func (s *InventoryPostInventorySnmpCreated) GetSecretLost() bool {
+	return s.SecretLost
 }
 
 // GetUsername returns the value of Username.
@@ -100126,6 +100149,11 @@ func (s *InventoryPostInventorySnmpCreated) SetScope(val []string) {
 // SetSecretLast4 sets the value of SecretLast4.
 func (s *InventoryPostInventorySnmpCreated) SetSecretLast4(val string) {
 	s.SecretLast4 = val
+}
+
+// SetSecretLost sets the value of SecretLost.
+func (s *InventoryPostInventorySnmpCreated) SetSecretLost(val bool) {
+	s.SecretLost = val
 }
 
 // SetUsername sets the value of Username.
@@ -102451,6 +102479,10 @@ type InventoryPutInventorySnmpIDOK struct {
 	// Last 4 characters of the community (v2c) or of the authentication password (v3); empty when it has
 	// fewer than 8 characters.
 	SecretLast4 string `json:"secret_last4"`
+	// A saved secret of it cannot be opened on this box (a backup restored without its decryption key, or
+	// the box key changed, #868): it is sent nowhere (Test and Read now answer 409 secret_lost, the scan
+	// window skips it) until Edit saves it with the secret typed again.
+	SecretLost bool `json:"secret_lost"`
 	// V3 user name; null for v2c.
 	Username NilString `json:"username"`
 	// No SNMPv1 (D-512).
@@ -102505,6 +102537,11 @@ func (s *InventoryPutInventorySnmpIDOK) GetScope() []string {
 // GetSecretLast4 returns the value of SecretLast4.
 func (s *InventoryPutInventorySnmpIDOK) GetSecretLast4() string {
 	return s.SecretLast4
+}
+
+// GetSecretLost returns the value of SecretLost.
+func (s *InventoryPutInventorySnmpIDOK) GetSecretLost() bool {
+	return s.SecretLost
 }
 
 // GetUsername returns the value of Username.
@@ -102565,6 +102602,11 @@ func (s *InventoryPutInventorySnmpIDOK) SetScope(val []string) {
 // SetSecretLast4 sets the value of SecretLast4.
 func (s *InventoryPutInventorySnmpIDOK) SetSecretLast4(val string) {
 	s.SecretLast4 = val
+}
+
+// SetSecretLost sets the value of SecretLost.
+func (s *InventoryPutInventorySnmpIDOK) SetSecretLost(val bool) {
+	s.SecretLost = val
 }
 
 // SetUsername sets the value of Username.

@@ -27,6 +27,7 @@ import { deviceKeys, feedsOfRow, filterDevices, fromOldUrl, matchSoftware, softw
 import { errMsg, kindIcon, shownKind } from './kinds'
 import { declaredSoftwareOnly, nameOf } from './nameOf'
 import { PendingPanel } from './PendingPanel'
+import { SameChip } from './SameDevice'
 import type { DeviceRow } from './types'
 
 /** Where the scan feature (#850) plugs "Scan selected" / "Scan the LAN now" into the Devices list: a component registered as
@@ -167,12 +168,12 @@ function MatchLine({ q, shown, total, onClear }: { q: string; shown: number; tot
 }
 
 /** Devices: the approved list (#849). */
-function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: number; query: Query; same: SameIds }) {
+function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: number; query: Query; same: SamePairsBy }) {
   const { t, i18n } = useTranslation('inventory')
   const navigate = useNavigate()
   const { q, clear } = query
   const deferred = useDeferredValue(q)
-  const shown = useMemo(() => filterDevices(rows, deferred, now, same), [rows, deferred, now, same])
+  const shown = useMemo(() => filterDevices(rows, deferred, now, same.ids), [rows, deferred, now, same.ids])
   const swWanted = useMemo(() => softwareValues(deferred), [deferred])
   const selecting = slotComponents(DEVICES_ACTIONS_SLOT).length > 0
   const [sel, ops] = useRowSelection()
@@ -186,7 +187,7 @@ function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: numbe
       cell: ({ row }) => <span onClick={(e) => e.stopPropagation()}><Checkbox aria-label={t('select.one', { name: nameOf(row.original, kindLabel(row.original.kind)) })} checked={sel.has(row.original.id)} onCheckedChange={(v) => ops.toggle(row.original.id, v === true)} /></span>,
     } satisfies ColumnDef<DeviceRow>] : []),
     { id: 'name', header: t('col.name'), accessorFn: (d) => nameOf(d, kindLabel(d.kind)), cell: ({ row }) => (
-      <div className="flex items-center gap-x-2 whitespace-nowrap">{nameLink(row.original, 'whitespace-nowrap')}<NameChips d={row.original} dense /></div>
+      <div className="flex items-center gap-x-2 whitespace-nowrap">{nameLink(row.original, 'whitespace-nowrap')}<NameChips d={row.original} dense /><SameChip id={row.original.id} others={same.others.get(row.original.id) ?? []} /></div>
     ) },
     { id: 'ip', header: t('col.ip'), accessorFn: (d) => d.ip, cell: ({ row }) => <span className="whitespace-nowrap tabular-nums">{row.original.ip}</span> },
     { id: 'kind', header: t('col.kind'), accessorFn: (d) => { const k = shownKind(d).kind; return `${kindLabel(k)} ${categoryLabel(categoryOf(k))}` }, cell: ({ row }) => <TypeCell d={row.original} dense /> },
@@ -226,7 +227,7 @@ function DevicesList({ rows, now, query, same }: { rows: DeviceRow[]; now: numbe
   ]
   return (
     <section aria-label={t('tabs.devices')} className="grid min-w-0 gap-3">
-      <DeviceSearch rows={rows} now={now} query={query} same={same} />
+      <DeviceSearch rows={rows} now={now} query={query} same={same.ids} />
       <MatchLine q={q} shown={shown.length} total={rows.length} onClear={clear} />
       {selecting ? <div className="flex flex-wrap items-center gap-2"><Slot name={DEVICES_ACTIONS_SLOT} props={{ selectedIds: [...sel], clearSelection: ops.clear }} /></div> : null}
       <DataTable caption={t('table.caption')} data={shown} columns={columns} initialSort={[{ id: 'seen', desc: true }]}
@@ -352,7 +353,7 @@ function Body() {
                 <div className="mb-6"><NoDevices boxOnly canOp={canOp} canAdmin={canAdmin} needRole={needRole} onAdd={setAdd} /></div>
               ) : null}
               <PageTabs label={t('tabs.label')} tabs={[
-                { id: 'devices', label: t('tabs.devices'), panel: <DevicesList rows={lists.approved} now={now} query={query} same={same.ids} /> },
+                { id: 'devices', label: t('tabs.devices'), panel: <DevicesList rows={lists.approved} now={now} query={query} same={same} /> },
                 { id: 'review', label: t('tabs.review'), panel: <ReviewList rows={lists.pending} now={now} notifyNew={d.notify_new} notifyAvailable={d.notify_available} query={query} same={same} />, badge: { count: pending, label: t('tabs.reviewBadge') } },
               ]} />
               {declaredLine}

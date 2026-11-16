@@ -48,9 +48,12 @@ describe('Device page: possibly the same device (D-599)', () => {
 
     await user.click(within(box).getByRole('button', { name: 'Merge' }))
     const dialog = await screen.findByRole('dialog', { name: 'Merge iPhone into iPhone.lan?' }, T)
-    expect(dialog).toHaveTextContent('iPhone disappears; its addresses, software and findings move to iPhone.lan.')
+    // #876 r1 M2: destructive, and the warning is in the visible description, not only behind the info tip
+    expect(dialog).toHaveTextContent('iPhone disappears; its addresses, software and findings move to iPhone.lan. This cannot be undone.')
     expect(within(dialog).getByLabelText('Device to keep')).toHaveValue('a-ph1') // the approved one by default
-    await user.click(within(dialog).getByRole('button', { name: 'Merge into iPhone.lan' }))
+    const go = within(dialog).getByRole('button', { name: 'Merge into iPhone.lan' })
+    expect(go).toHaveClass('bg-danger')
+    await user.click(go)
 
     expect(await screen.findByText('Merged into iPhone.lan.', undefined, T)).toBeInTheDocument()
     expect(await screen.findByRole('heading', { level: 1, name: 'iPhone.lan' }, T)).toBeInTheDocument()
@@ -76,12 +79,21 @@ describe('Device page: possibly the same device (D-599)', () => {
     expect(assetsStore.get().some((a) => a.id === 'a-ph1')).toBe(false)
   })
 
-  it('Keep separate: the pair is not offered again', async () => {
+  it('Keep separate asks first, naming both devices; then the pair is not offered again', async () => {
     const user = userEvent.setup()
     renderApp('/devices/a-ph1', { role: 'admin' })
     const box = await notice()
     expect(box).toHaveTextContent(/Waiting for review, seen/)
+    // #876 r1 M1: one click by mistake must not split the phone for good
     await user.click(within(box).getByRole('button', { name: 'Keep separate' }))
+    let dialog = await screen.findByRole('dialog', { name: 'Keep iPhone.lan and iPhone separate?' }, T)
+    expect(dialog).toHaveTextContent('Vedette will not ask again for these two and will not join them on its own. This cannot be undone.')
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull(), T)
+    expect(await pairs()).toHaveLength(1)
+    await user.click(within(await notice()).getByRole('button', { name: 'Keep separate' }))
+    dialog = await screen.findByRole('dialog', { name: 'Keep iPhone.lan and iPhone separate?' }, T)
+    await user.click(within(dialog).getByRole('button', { name: 'Keep separate' }))
     expect(await screen.findByText('Kept separate from iPhone. Vedette will not ask again for these two.', undefined, T)).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByTestId('possible-same')).toBeNull(), T)
     expect(await pairs()).toHaveLength(0)
@@ -96,7 +108,8 @@ describe('Device page: possibly the same device (D-599)', () => {
     const dialog = await screen.findByRole('dialog', undefined, T)
     await user.click(within(dialog).getByRole('button', { name: 'Merge into iPhone.lan' }))
     expect(await within(dialog).findByRole('alert', undefined, T)).toHaveTextContent(words)
-    expect(screen.getByRole('heading', { level: 1, name: 'iPhone' })).toBeInTheDocument()
+    // the page behind the modal dialog is hidden from the accessibility tree while it is open
+    expect(screen.getByRole('heading', { level: 1, name: 'iPhone', hidden: true })).toBeInTheDocument()
     expect(assetsStore.get().filter((a) => a.id.startsWith('a-ph'))).toHaveLength(2)
   })
 
@@ -120,6 +133,13 @@ describe('Device page: possibly the same device (D-599)', () => {
 })
 
 describe('Devices › To review: the possibly-same hint (D-599)', () => {
+  it('Devices (approved): a row in a pair carries "Possibly the same", linking to the question (#876 r1)', async () => {
+    renderApp('/devices?tab=devices', { role: 'viewer' })
+    const chip = await screen.findByRole('link', { name: 'Possibly the same device as iPhone' }, T)
+    expect(chip).toHaveAttribute('href', '/devices/a-ph1#possible-same')
+    expect(chip).toHaveTextContent('Possibly the same')
+  })
+
   it('links the row to the question on its device page; possible:same keeps only those rows', async () => {
     const user = userEvent.setup()
     renderApp('/devices?tab=review', { role: 'viewer' })

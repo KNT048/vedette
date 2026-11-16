@@ -44,7 +44,7 @@
 - (D-522, N1, INV-14) `endpoints()` đọc tiền tố `ssl/` mà sensor-active ghi cho `tunnel="ssl"`: đổi cách đặt tên ở parser (sensor-active INV-18) phải sửa cả đây.
 
 ## Disabling this module
-- "Scan now" của External exposure trả 409 `module_off`; ảnh chụp cũ giữ nguyên.
+- "Scan now" của External exposure vẫn chạy: runner theo công tắc của `exposure` (INV-12, J6); probe của nó vẫn vào `scan_probe`, chỉ trang Scans (`/scans/probes`) không xem được tới khi bật lại.
 - Mất trang Scans và nút quét; không xác nhận mới; không tự quét lại sau KEV mới.
 - `scan-credentialed` không chạy được (phụ thuộc); `findings` chỉ còn `suspected`; `reports` bỏ mục quét.
 - Cấu hình, lịch sử, probe log, sự kiện quét lại giữ.

@@ -13,6 +13,7 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/coredb"
 )
@@ -143,7 +144,9 @@ func disabledError() *apierr.Error {
 //     IP, 429 rate_limited); without Code, 401 twofa_required with method app, or method email plus sent_to
 //     and resend_after (the code was just mailed); with a bad Code, no session: invalid_code (app) or the
 //     email-code errors of EmailCodes.Verify. An email-method account whose channel cannot send is 503
-//     twofa_email_unavailable, never password-only;
+//     twofa_email_unavailable, never password-only. An app-method account whose key the box cannot open (a backup
+//     restored without its decryption key) is 403 twofa_reset_required, with or without Code, until an administrator
+//     resets its two-step sign-in: never password-only either;
 //     A password an administrator set that is past TempPasswordLifetime is refused here, once it is proven
 //     right: 400 temp_password_expired (D-180). One inside its window signs in, and its session is limited
 //     (server.Principal.PasswordChangeRequired);
@@ -352,11 +355,15 @@ func (s *Service) loginEmailCode(ctx context.Context, row coredb.CoreUser, code 
 // it in the sign-in transaction.
 func (s *Service) loginTOTP(ctx context.Context, row coredb.CoreUser, code string, lims []string) (int64, error) {
 	if code == "" {
+		// Not asked for a code it can never check: the refusal comes now, under the password field.
+		if _, _, _, err := s.totpKey(ctx, row.ID); err != nil {
+			return 0, s.loginKeyLost(ctx, row, err)
+		}
 		return 0, apierr.New(401, CodeTwofaRequired, "This account has two-step sign-in on. Enter the 6-digit code from your authenticator app.").With("method", "app")
 	}
 	step, ok, err := s.checkTOTP(ctx, row.ID, code)
 	if err != nil {
-		return 0, err
+		return 0, s.loginKeyLost(ctx, row, err)
 	}
 	if !ok {
 		s.limit.failAll(row.Email, lims)
@@ -368,25 +375,60 @@ func (s *Service) loginTOTP(ctx context.Context, row coredb.CoreUser, code strin
 	return step, nil
 }
 
-// checkTOTP judges an authenticator code of a user against the stored key and the last accepted step, the
-// one check of sign-in and of VerifyTwoStep. ok is false for a wrong code and for a user without a confirmed
-// key; the caller stores the returned step atomically with accepting the code (AdvanceTotpStep).
-func (s *Service) checkTOTP(ctx context.Context, userID, code string) (step int64, ok bool, err error) {
+// loginKeyLost turns err of totpKey or checkTOTP into the sign-in's answer: a key the box cannot open is written to the
+// audit log and refused with twofaKeyLost; any other error is returned as it is.
+func (s *Service) loginKeyLost(ctx context.Context, row coredb.CoreUser, err error) error {
+	if !errors.Is(err, secrets.ErrDecrypt) {
+		return err
+	}
+	s.log.WarnContext(ctx, "the authenticator key of a user cannot be opened with this box's master key (restored without the decryption key, or the key file was made again); an administrator must reset the user's two-step sign-in", "user_id", row.ID)
+	if aerr := s.auditFailure(ctx, row.Email, row.Email, "two-step key cannot be opened (restored without the decryption key, or the box key changed)"); aerr != nil {
+		return aerr
+	}
+	return twofaKeyLost()
+}
+
+// twofaKeyLost refuses an account whose authenticator key is sealed under another master key: a backup restored without its
+// decryption key (the restore page says so beforehand, and that an administrator resets it in Settings, Users), or a key file
+// made again on a box that lost it. The message names both causes: the box cannot tell them apart. The key is
+// gone for good, so a code can never be checked, and the account never signs in on its password alone.
+func twofaKeyLost() *apierr.Error {
+	return apierr.New(403, CodeTwofaReset, "Your two-step sign-in key could not be read on this box (it was restored without the decryption key, or the box key changed). Ask an administrator to reset your two-step sign-in in Settings, Users, then sign in and set it up again.")
+}
+
+// totpKey reads the confirmed authenticator key of a user and the last accepted step. ok is false for a user without a
+// confirmed key. A key sealed under another box key is an error wrapping secrets.ErrDecrypt.
+func (s *Service) totpKey(ctx context.Context, userID string) (secret []byte, last int64, ok bool, err error) {
 	t, err := coredb.New(s.db.Reader()).GetTotp(ctx, userID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return 0, false, fmt.Errorf("auth: read totp: %w", err)
+		return nil, 0, false, fmt.Errorf("auth: read totp: %w", err)
 	}
 	if err != nil || t.Confirmed != 1 {
-		s.log.ErrorContext(ctx, "user has two-step app method but no confirmed key", "user_id", userID)
-		return 0, false, nil
+		return nil, 0, false, nil
 	}
-	secret, err := s.secrets.Open(ctx, s.db.Reader(), t.SecretID, totpPurpose)
+	secret, err = s.secrets.Open(ctx, s.db.Reader(), t.SecretID, totpPurpose)
 	if err != nil {
-		return 0, false, fmt.Errorf("auth: open totp secret: %w", err)
+		return nil, 0, false, fmt.Errorf("auth: open totp secret: %w", err)
 	}
-	last := NoStep
+	last = NoStep
 	if t.LastStep != nil {
 		last = *t.LastStep
+	}
+	return secret, last, true, nil
+}
+
+// checkTOTP judges an authenticator code of a user against the stored key and the last accepted step, the
+// one check of sign-in and of VerifyTwoStep. ok is false for a wrong code and for a user without a confirmed
+// key; the caller stores the returned step atomically with accepting the code (AdvanceTotpStep). A key the box
+// cannot open is an error wrapping secrets.ErrDecrypt (the caller answers twofaKeyLost).
+func (s *Service) checkTOTP(ctx context.Context, userID, code string) (step int64, ok bool, err error) {
+	secret, last, ok, err := s.totpKey(ctx, userID)
+	if err != nil {
+		return 0, false, err
+	}
+	if !ok {
+		s.log.ErrorContext(ctx, "user has two-step app method but no confirmed key", "user_id", userID)
+		return 0, false, nil
 	}
 	step, ok = VerifyTOTP(secret, code, s.now(), last)
 	return step, ok, nil

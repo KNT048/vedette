@@ -1,6 +1,7 @@
 package inventory_test
 
 import (
+	"fmt"
 	"net/netip"
 	"testing"
 	"time"
@@ -71,10 +72,11 @@ func TestContract_D598_TheN100MacBookStaysOneDevice(t *testing.T) {
 	}
 }
 
-// D-598 (4): a private MAC a device had is that device after the device moved on to another one (macOS returning to an earlier
-// private address), even with no name: the row it makes joins the device in the same write, never announced.
-// Within macMemory (30 days), not after.
-func TestContract_D598_AnEarlierMACFindsItsDevice(t *testing.T) {
+// D-598 (4), review r1 of #862 H1: an older MAC of a device is no key. A machine that shows up with it while the device is away (an
+// intruder who sniffed the iPad's earlier private MAC) is a device of its own and is announced; the approved device keeps its address,
+// MAC and approval; when the iPad comes back under its current MAC nothing new appears, and the intruder's row never joins it.
+// (A device that itself goes back to an older MAC is joined by the name rule when it carries its name, #831.)
+func TestContract_D598_AnOlderMACOfAnAwayDeviceIsANewDevice(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(privMac1, "192.168.18.20", "kiens-ipad")...)
 	id := e.idOf("192.168.18.20")
@@ -86,22 +88,78 @@ func TestContract_D598_AnEarlierMACFindsItsDevice(t *testing.T) {
 	if d := e.only(); d.MAC == nil || *d.MAC != privMac2 {
 		t.Fatalf("setup: %+v", d.AssetCore)
 	}
-	e.ev.reset()
-	e.tick(time.Hour)
-	e.record(dhcp(privMac1, "192.168.18.22", "")...)
-	d := e.only()
-	if d.ID != id || !d.Approved || d.IP != "192.168.18.22" || d.MAC == nil || *d.MAC != privMac1 {
-		t.Errorf("device: id %s approved %v ip %s mac %v; want %s, approved, .22, %s", d.ID, d.Approved, d.IP, d.MAC, id, privMac1)
+	ipad := func(when string) {
+		t.Helper()
+		d, err := e.svc.Device(e.ctx(), id)
+		if err != nil || !d.Approved || d.IP != "192.168.18.21" || d.MAC == nil || *d.MAC != privMac2 {
+			t.Errorf("%s: the iPad's device changed: %+v %v", when, d.AssetCore, err)
+		}
 	}
-	if got := e.discovered(); len(got) != 0 {
-		t.Errorf("a new device was announced: %v", got)
+	e.ev.reset()
+	e.tick(25 * time.Minute) // the iPad sleeps
+	e.record(dhcp(privMac1, "192.168.18.50", "")...)
+	if n := e.devices(); n != 2 || len(e.discovered()) != 1 {
+		t.Fatalf("intruder: %d devices, %d announced; want 2 and 1", n, len(e.discovered()))
+	}
+	ipad("intruder")
+	e.tick(30 * time.Minute)
+	e.record(dhcp(privMac1, "192.168.18.50", "")...)
+	e.record(dhcp(privMac2, "192.168.18.21", "kiens-ipad")...) // the iPad wakes up
+	if n := e.devices(); n != 2 || len(e.discovered()) != 1 {
+		t.Errorf("iPad back: %d devices, %d announced; want 2 and still 1", n, len(e.discovered()))
+	}
+	ipad("iPad back")
+	e.tick(25 * time.Minute) // the intruder left
+	e.record(dhcp(privMac2, "192.168.18.21", "kiens-ipad")...)
+	if n := e.devices(); n != 2 {
+		t.Errorf("intruder gone: %d devices, want 2 (its row never joins the iPad)", n)
+	}
+	ipad("intruder gone")
+}
+
+// D-598 (4), review r1 of #862 M1: a private MAC never joins a row that carries a burned-in MAC (D-598): a laptop row with its dock's
+// card and a newer private MAC, away for 25 minutes; a machine with that private MAC is a device of its own, announced.
+func TestContract_D598_APrivateMACNeverJoinsABurnedInRow(t *testing.T) {
+	e := newEnv(t)
+	e.record(dhcp(burnt1, "192.168.18.20", "")...)
+	id := e.idOf("192.168.18.20")
+	if err := e.svc.Approve(e.ctx(), "kien", id); err != nil {
+		t.Fatal(err)
+	}
+	e.tick(time.Minute)
+	e.exec(`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES ('o-wifi', ?, 'mac', ?, 'passive', 0.9, ?)`,
+		id, privMac3, store.FormatTS(e.now))
+	e.ev.reset()
+	e.tick(25 * time.Minute)
+	e.record(dhcp(privMac3, "192.168.18.60", "")...)
+	if n := e.devices(); n != 2 || len(e.discovered()) != 1 {
+		t.Errorf("%d devices, %d announced; want 2 and 1", n, len(e.discovered()))
+	}
+}
+
+// D-598 (4), review r1 of #862 M2: what sameMAC never counts. A MAC only an agent claims on a row (self-declared, D-265 (4)), even its
+// newest; a MAC observation on the box. Each newcomer stays a device of its own.
+func TestContract_D598_AnAgentsClaimOrTheBoxIsNoSharedMAC(t *testing.T) {
+	e := newEnv(t)
+	e.record(dhcp(privMac2, "192.168.18.30", "")...)
+	x := e.idOf("192.168.18.30")
+	e.tick(time.Minute)
+	e.exec(`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES ('o-claim', ?, 'mac', ?, 'agent', 0.9, ?)`,
+		x, privMac1, store.FormatTS(e.now))
+	e.tick(25 * time.Minute)
+	e.record(dhcp(privMac1, "192.168.18.31", "")...)
+	if n := e.devices(); n != 2 {
+		t.Errorf("an agent's claim: %d devices, want 2", n)
 	}
 
-	// 31 days later privMac2 is forgotten: a new device.
-	e.tick(31 * 24 * time.Hour)
-	e.record(dhcp(privMac2, "192.168.18.23", "")...)
-	if n := e.devices(); n != 2 {
-		t.Errorf("a MAC last seen 31 days ago: %d devices, want 2", n)
+	b := newEnv(t)
+	ts := store.FormatTS(b.now)
+	b.exec(`INSERT INTO inv_asset (id, ip, kind, origin, approved, fragile, is_box, first_seen, last_seen) VALUES ('a-box', '192.168.18.2', 'server', 'manual', 1, 0, 1, ?, ?)`, ts, ts)
+	b.exec(`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES ('o-box', 'a-box', 'mac', ?, 'passive', 0.9, ?)`, privMac1, ts)
+	b.tick(25 * time.Minute)
+	b.record(dhcp(privMac1, "192.168.18.40", "")...)
+	if n := b.devices(); n != 1 {
+		t.Errorf("a MAC on the box: %d devices besides the box, want 1", n)
 	}
 }
 
@@ -136,21 +194,19 @@ func TestContract_D598_AnEarlierMACInUseElsewhereIsNotTheDevice(t *testing.T) {
 		t.Errorf("the device changed: %+v %v", d.AssetCore, err)
 	}
 
-	// Two devices were seen with privMac1 (the tablet, and another row): a third sighting with a new address joins neither.
+	// Two rows a sensor saw last with privMac1 (their columns hold other MACs): a third sighting joins neither.
 	r := newEnv(t)
-	r.record(dhcp(privMac1, "192.168.18.20", "lab-tablet")...)
-	r.exec(`INSERT INTO inv_asset (id, mac, ip, kind, origin, approved, fragile, first_seen, last_seen) VALUES ('a-other', ?, '192.168.18.30', 'unknown', 'discovered', 0, 0, ?, ?)`,
-		privMac3, store.FormatTS(r.now), store.FormatTS(r.now))
-	r.exec(`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES ('o-other', 'a-other', 'mac', ?, 'passive', 0.9, ?)`, privMac1, store.FormatTS(r.now))
-	r.tick(time.Hour)
-	r.record(dhcp(privMac2, "192.168.18.21", "lab-tablet")...) // the tablet moves on (joined by its name): privMac1 is no device's MAC now
-	if r.devices() != 2 {
-		t.Fatalf("setup: %d devices", r.devices())
+	ts := store.FormatTS(r.now)
+	for i, m := range []string{privMac2, privMac3} {
+		r.exec(`INSERT INTO inv_asset (id, mac, ip, kind, origin, approved, fragile, first_seen, last_seen) VALUES (?, ?, ?, 'unknown', 'discovered', 0, 0, ?, ?)`,
+			fmt.Sprintf("a-r%d", i), m, fmt.Sprintf("192.168.18.%d", 30+i), ts, ts)
+		r.exec(`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES (?, ?, 'mac', ?, 'passive', 0.9, ?)`,
+			fmt.Sprintf("o-r%d", i), fmt.Sprintf("a-r%d", i), privMac1, ts)
 	}
 	r.tick(time.Hour)
 	r.record(dhcp(privMac1, "192.168.18.40", "")...)
 	if n := r.devices(); n != 3 {
-		t.Errorf("a MAC two devices had: %d devices, want a third", n)
+		t.Errorf("a MAC two rows hold: %d devices, want a third", n)
 	}
 
 	// A burned-in MAC a device had (a dock's card) makes a row of its own when it comes back: no MAC-overlap join of burned-in MACs
@@ -166,28 +222,51 @@ func TestContract_D598_AnEarlierMACInUseElsewhereIsNotTheDevice(t *testing.T) {
 	}
 }
 
+// n69Leftover builds what build n69 left on the N100: the approved MacBook (kind laptop) kept the old MAC as its MAC and lost its
+// address, and the next sighting of the new MAC made a second row a-dup at .138 stating dupModel. It returns the approved device.
+func n69Leftover(e *env, dupModel string) string {
+	e.t.Helper()
+	id := n100MacBook(e)
+	laptop := "laptop"
+	if err := e.svc.PatchDevice(e.ctx(), "kien", id, inventory.Patch{Kind: &laptop}); err != nil {
+		e.t.Fatal(err)
+	}
+	e.tick(19*time.Minute + 37*time.Second)
+	e.exec(`UPDATE inv_asset SET mac = ?, ip = NULL WHERE id = ?`, n100OldMAC, id)
+	ts := store.FormatTS(e.now)
+	e.exec(`INSERT INTO inv_asset (id, mac, ip, kind, origin, approved, fragile, first_seen, last_seen) VALUES ('a-dup', ?, '192.168.18.138', 'unknown', 'discovered', 0, 0, ?, ?)`, n100NewMAC, ts, ts)
+	e.exec(`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES ('o-dup', 'a-dup', 'mac', ?, 'passive', 0.9, ?)`, n100NewMAC, ts)
+	e.exec(`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES ('o-dupm', 'a-dup', 'model', ?, 'passive', 0.5, ?)`, dupModel, ts)
+	if e.devices() != 2 {
+		e.t.Fatalf("setup: %d devices", e.devices())
+	}
+	return id
+}
+
+// D-598 (4), review r1 of #862 M2: two rows last seen with one private MAC that state another model are two machines (facts, differ):
+// they stay apart.
+func TestContract_D598_ASharedMACWithAnotherModelStaysApart(t *testing.T) {
+	e := newEnv(t)
+	n69Leftover(e, "iPhone15,2")
+	e.tick(110 * time.Minute)
+	e.record(dhcp(n100NewMAC, "192.168.18.138", "")...)
+	if n := e.devices(); n != 2 {
+		t.Errorf("%d devices, want 2", n)
+	}
+}
+
 // D-598 (4), the repair: the duplicate an older build left on the N100 (the approved device keeps the old MAC, has no address and holds
 // the new MAC as an observation; a second row owns the new MAC at .138 with the model only) is joined by the next sighting of the second
 // row. The approved device keeps its id, approval, kind and name, takes the address and the newest MAC; the duplicate is announced
 // merged then deleted, so its "new device" incident closes.
 func TestContract_D598_AnOldDuplicateJoinsOnItsNextSighting(t *testing.T) {
 	e := newEnv(t)
-	id := n100MacBook(e)
-	laptop := "laptop"
-	if err := e.svc.PatchDevice(e.ctx(), "kien", id, inventory.Patch{Kind: &laptop}); err != nil {
-		t.Fatal(err)
-	}
-	// What build n69 left: the old MAC stayed the device's MAC, and the next sighting of the new one made a second row.
-	e.tick(19*time.Minute + 37*time.Second)
-	e.exec(`UPDATE inv_asset SET mac = ?, ip = NULL WHERE id = ?`, n100OldMAC, id)
-	ts := store.FormatTS(e.now)
-	e.exec(`INSERT INTO inv_asset (id, mac, ip, kind, origin, approved, fragile, first_seen, last_seen) VALUES ('a-dup', ?, '192.168.18.138', 'unknown', 'discovered', 0, 0, ?, ?)`, n100NewMAC, ts, ts)
-	e.exec(`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES ('o-dup', 'a-dup', 'mac', ?, 'passive', 0.9, ?)`, n100NewMAC, ts)
-	e.exec(`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES ('o-dupm', 'a-dup', 'model', 'Mac14,2', 'passive', 0.5, ?)`, ts)
-	if e.devices() != 2 {
-		t.Fatalf("setup: %d devices", e.devices())
-	}
+	id := n69Leftover(e, "Mac14,2")
 	e.ev.reset()
+	e.record(dhcp(n100NewMAC, "192.168.18.138", "")...) // the approved row answered 19m37s ago: online together, not yet
+	if n := e.devices(); n != 2 {
+		t.Fatalf("less than rotationQuiet after the approved row: %d devices, want 2", n)
+	}
 	e.tick(110 * time.Minute)
 	e.record(dhcp(n100NewMAC, "192.168.18.138", "")...)
 	d := e.only()
@@ -207,8 +286,8 @@ func TestContract_D598_AnOldDuplicateJoinsOnItsNextSighting(t *testing.T) {
 	}
 }
 
-// n69: a model without a letter that an older sensor stored ("0,1,2" from an mDNS TXT record) never becomes the device's model, even
-// when it is the newest.
+// n69: a passive model without a letter that an older sensor stored ("0,1,2" from an mDNS TXT record) never becomes the device's model,
+// even when it is the newest. A model of digits that SNMP states is a part number and wins as usual (review r1 of #862 L1).
 func TestAModelWithoutALetterNamesNothing(t *testing.T) {
 	e := newEnv(t)
 	e.record(mdnsModel(privMac1, "192.168.18.20", "Mac14,2"))
@@ -216,5 +295,9 @@ func TestAModelWithoutALetterNamesNothing(t *testing.T) {
 	e.record(mdnsModel(privMac1, "192.168.18.20", "0,1,2"))
 	if d := e.only(); d.Model == nil || d.Model.Value != "Mac14,2" {
 		t.Errorf("model %+v, want Mac14,2", d.Model)
+	}
+	e.record(observe.Observation{AssetHint: observe.AssetHint{MAC: privMac1, IP: netip.MustParseAddr("192.168.18.20")}, Field: observe.Model, Value: "1910", Source: observe.SNMP, Confidence: 0.8})
+	if d := e.only(); d.Model == nil || d.Model.Value != "1910" {
+		t.Errorf("model %+v, want SNMP's 1910", d.Model)
 	}
 }

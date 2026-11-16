@@ -65,12 +65,13 @@ func better(a, b obs) bool {
 	return a.id < b.id
 }
 
-// winners picks the current observation of each field. A model without a letter ("0,1,2", n69) names nothing and never
-// wins; the passive sensor no longer sends one (sensor-passive capture.UsefulValue), older rows may still hold one.
+// winners picks the current observation of each field. A passive model without a letter ("0,1,2" from an mDNS TXT record,
+// n69) names nothing and never wins; the passive sensor no longer sends one (sensor-passive capture.UsefulValue), older rows
+// may still hold one. A model of digits that SNMP, an agent or a person states is a part number and stays.
 func winners(list []obs) map[string]obs {
 	best := map[string]obs{}
 	for _, o := range list {
-		if o.field == "model" && !strings.ContainsFunc(o.value, unicode.IsLetter) {
+		if o.field == "model" && o.source == "passive" && !strings.ContainsFunc(o.value, unicode.IsLetter) {
 			continue
 		}
 		if b, ok := best[o.field]; !ok || better(o, b) {

@@ -501,26 +501,40 @@ func onlineTogether(ctx context.Context, tx *sql.Tx, a, b string, now time.Time)
 	return earlier.Sub(start) >= rotationQuiet, nil
 }
 
-// macMemory is how long a private MAC a sensor saw on a device keeps naming that device after the device moved on to another MAC
-// (D-598 (4), n69): a Mac on a "Fixed" private address returns to the one of a network, one on "Rotating" keeps an address for about
-// two weeks. Past that a MAC is a stranger's again.
+// macMemory bounds how old the other row's sighting of the shared MAC may be (D-598 (4), n69): past 30 days a MAC is a stranger's again.
 const macMemory = 30 * 24 * time.Hour
 
-// macHolders lists the devices but except and the box that a sensor saw with mac since: a mac observation that is neither the agent's
-// own claim (D-265 (4)) nor a chassis mark (D-515). The partial index inv_observation_mac_ix (migration 0010) serves the lookup.
+// wireMAC selects the mac observations a sensor made on the wire: not the agent's own claim (D-265 (4)), not a chassis mark (D-515).
+const wireMAC = `field = 'mac' AND source <> 'agent' AND evidence IS NOT '` + chassisEvidence + `'`
+
+// macHolders lists the devices but except and the box that a sensor saw with mac since. The partial index inv_observation_mac_ix
+// (migration 0010) serves the lookup.
 func macHolders(ctx context.Context, tx *sql.Tx, mac, except, since string) ([]string, error) {
-	return candidates(ctx, tx, `SELECT DISTINCT o.asset_id FROM inv_observation o JOIN inv_asset a ON a.id = o.asset_id
-		WHERE o.field = 'mac' AND o.value = ? AND o.source <> 'agent' AND o.evidence IS NOT ? AND o.seen_at >= ? AND a.is_box = 0 AND a.id <> ?`,
-		mac, chassisEvidence, since, except)
+	return candidates(ctx, tx, `SELECT DISTINCT asset_id FROM inv_observation WHERE `+wireMAC+` AND value = ? AND seen_at >= ? AND asset_id <> ?
+		AND asset_id NOT IN (SELECT id FROM inv_asset WHERE is_box = 1)`, mac, since, except)
 }
 
-// sameMAC finds the other row a touched row shares a private MAC with (D-598 (4), n69): a sensor saw both with one locally administered
-// MAC within macMemory (a burned-in MAC on two rows is never joined, as D-598 chose; D-515's chassis rule handles switches). resolve
-// finds a device by its current MAC only, so a sighting of a MAC the device had before (it moved on to another one, or an older build
-// kept a scan's older MAC as the device's MAC) makes a row; this joins it to the device in the same write, so it is never announced,
-// and joins a pair an older build left on its next sighting. Exactly one other row, not the box; they state no other name, model or
-// OS (facts, differ); and they were not online together (onlineTogether): a machine that takes a MAC of a device while the device
-// answers is a second machine (the spoof case), kept apart while both are on the network. The row that stays: keptOrder.
+// newestWireMAC is the wire MAC a sensor saw last on a device: the MAC its column holds by INV-1, unless another row owns it. "" when none.
+func newestWireMAC(ctx context.Context, tx *sql.Tx, id string) (string, error) {
+	var m string
+	err := tx.QueryRowContext(ctx, `SELECT value FROM inv_observation WHERE asset_id = ? AND `+wireMAC+` ORDER BY seen_at DESC, id DESC LIMIT 1`, id).Scan(&m)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	} else if err != nil {
+		return "", fmt.Errorf("inventory: read the newest MAC: %w", err)
+	}
+	return m, nil
+}
+
+// sameMAC finds the other row of a machine whose newest MAC another row already owned (D-598 (4), n69). resolve finds a device by its
+// MAC column, and RecomputeAsset never gives a row a MAC another row owns: so when a device's newest MAC was blocked (an older build kept
+// a scan's two-day-old MAC as the device's MAC while the name rule had joined the new private MAC into it), the next sighting of that
+// MAC made a second row. Two rows are joined only when the MAC a sensor saw **last** on each is the same locally administered MAC, the
+// other row's sighting of it is within macMemory, and no other row holds it; neither row carries a burned-in MAC (D-598: a private MAC
+// never joins a burned-in-MAC device); they state no other name, model or OS (facts, differ); they were not online together
+// (onlineTogether); never the box. An older MAC of a device is no key (review r1 of #862 H1): a machine that takes one while the device
+// is away is a device of its own and is announced, as on main; a device that goes back to an older MAC is joined by the name rule
+// (sameMachine) when it carries its name. The row that stays: keptOrder.
 func sameMAC(ctx context.Context, tx *sql.Tx, id string, now time.Time) (from, into, why string, err error) {
 	var isBox bool
 	if err := tx.QueryRowContext(ctx, `SELECT is_box FROM inv_asset WHERE id = ?`, id).Scan(&isBox); err != nil {
@@ -532,46 +546,38 @@ func sameMAC(ctx context.Context, tx *sql.Tx, id string, now time.Time) (from, i
 	if isBox {
 		return "", "", "", nil
 	}
-	since := store.FormatTS(now.Add(-macMemory))
-	macs, err := candidates(ctx, tx, `SELECT DISTINCT value FROM inv_observation WHERE asset_id = ? AND field = 'mac' AND source <> 'agent' AND evidence IS NOT ? AND seen_at >= ?`,
-		id, chassisEvidence, since)
-	if err != nil {
+	shared, err := newestWireMAC(ctx, tx, id)
+	if err != nil || shared == "" {
 		return "", "", "", err
 	}
-	var others []string
-	var shared string
-	for _, m := range macs {
-		if !localMAC(m) { // a burned-in MAC on two rows is a switch or a proxy answering for others (D-515), not a rotation
-			continue
-		}
-		ids, err := macHolders(ctx, tx, m, id, since)
-		if err != nil {
+	others, err := macHolders(ctx, tx, shared, id, store.FormatTS(now.Add(-macMemory)))
+	if err != nil || len(others) != 1 {
+		return "", "", "", err
+	}
+	other := others[0]
+	if theirs, err := newestWireMAC(ctx, tx, other); err != nil || theirs != shared {
+		return "", "", "", err
+	}
+	for _, x := range []string{id, other} { // a burned-in MAC (shared or not) is a switch, a proxy or a server, never a rotation (D-515, D-598)
+		if burned, _, err := macKinds(ctx, tx, x); burned || err != nil {
 			return "", "", "", err
 		}
-		for _, x := range ids {
-			if !slices.Contains(others, x) {
-				others, shared = append(others, x), m
-			}
-		}
-	}
-	if len(others) != 1 {
-		return "", "", "", nil
 	}
 	own, err := facts(ctx, tx, id)
 	if err != nil {
 		return "", "", "", err
 	}
-	theirs, err := facts(ctx, tx, others[0])
+	theirs, err := facts(ctx, tx, other)
 	if err != nil || differ(own, theirs) {
 		return "", "", "", err
 	}
-	if together, err := onlineTogether(ctx, tx, id, others[0], now); together || err != nil {
+	if together, err := onlineTogether(ctx, tx, id, other, now); together || err != nil {
 		return "", "", "", err
 	}
-	if from, into, err = keptOrder(ctx, tx, id, others[0]); from == "" || err != nil {
+	if from, into, err = keptOrder(ctx, tx, id, other); from == "" || err != nil {
 		return "", "", "", err
 	}
-	return from, into, "a sensor saw both with the MAC " + shared, nil
+	return from, into, "a sensor saw both last with the MAC " + shared, nil
 }
 
 // keptOrder orders two rows of one machine (D-598): the row that stays is one a person declared, else an approved one, else the older

@@ -62,6 +62,11 @@ function kevInfo(cve: string): KevInfo | null {
 
 /** GET /findings/plan (D-613, D-615): the sample items, filtered by tier and device; a CVE older than 12 months only with basis scan. */
 function plan(tier: string, asset: string | null): Plan {
+  const n = (t: string) => tierPlan(t, asset).items.length // M2-9: every tab's number in one answer, as the box gives it
+  return { ...tierPlan(tier, asset), counts: { likely: n('likely'), recent: n('recent'), all: n('all') } }
+}
+
+function tierPlan(tier: string, asset: string | null): Omit<Plan, 'counts'> {
   const feedsOn = isOn('feeds')
   const st = feedsOn ? tierState.get() : { ...tierState.get(), epss: 'module_off' as const, recent: 'module_off' as const }
   const ready = st.epss === 'ready' || st.recent === 'ready'

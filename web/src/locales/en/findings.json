@@ -417,8 +417,14 @@
   },
   "plan": {
     "title": "Updates to plan",
-    "titleCount_one": "1 update to plan",
-    "titleCount_other": "{{count}} updates to plan",
+    "titleCount": {
+      "likely_one": "1 update to plan for CVEs likely to be exploited",
+      "likely_other": "{{count}} updates to plan for CVEs likely to be exploited",
+      "recent_one": "1 update to plan for recent CVEs",
+      "recent_other": "{{count}} updates to plan for recent CVEs",
+      "all_one": "1 update to plan",
+      "all_other": "{{count}} updates to plan"
+    },
     "intro": "Updates that fix CVEs published in the last 12 months that affect the version a device runs and are not on an exploited list yet, marking those likely to be exploited soon (EPSS 10% or more).",
     "introLine": "Not exploited yet; exploited CVEs are findings:",
     "introInfo": "Vedette lists only CVEs it confirmed on the device (the version your agent reports, a version you entered or the device states, or for an Ubuntu or Debian package the distribution's own fixed version), never a version guessed from the network, and never alerts on them.",
@@ -426,6 +432,7 @@
     "dataEpss": "EPSS scores of {{date}}",
     "dataRecent": "CVEs published since {{date}}",
     "filterLabel": "Which CVEs",
+    "filterCount": "{{label}} ({{count}})",
     "filter": {
       "likely": "Likely to be exploited",
       "recent": "Recent",
@@ -536,6 +543,10 @@
     },
     "line_one": "1 update to plan fixes CVEs not exploited yet",
     "line_other": "{{count}} updates to plan fix CVEs not exploited yet",
+    "lineLikely_one": "1 update to plan fixes CVEs likely to be exploited",
+    "lineLikely_other": "{{count}} updates to plan fix CVEs likely to be exploited",
+    "lineAll_one": "{{count}} update in all",
+    "lineAll_other": "{{count}} updates in all",
     "device": {
       "title": "Updates to plan",
       "description": "Fixes for CVEs on this device not exploited yet. They never alert.",

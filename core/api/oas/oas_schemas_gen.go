@@ -68723,9 +68723,12 @@ type FindingsGetFindingsPlanOK struct {
 	// the plan job runs within minutes); the page says so instead of "no update to plan".
 	Compared bool `json:"compared"`
 	// Devices with at least one version Vedette can compare.
-	ComparedDevices int                                  `json:"compared_devices"`
-	Data            FindingsGetFindingsPlanOKData        `json:"data"`
-	Items           []FindingsGetFindingsPlanOKItemsItem `json:"items"`
+	ComparedDevices int `json:"compared_devices"`
+	// M2-9: the number of items each tier filter lists, for the same device filter, whatever tier was
+	// asked: one answer gives every tab its count.
+	Counts FindingsGetFindingsPlanOKCounts      `json:"counts"`
+	Data   FindingsGetFindingsPlanOKData        `json:"data"`
+	Items  []FindingsGetFindingsPlanOKItemsItem `json:"items"`
 	// D-615: CVEs published more than 12 months ago listed because a scan engine found them.
 	OldEvidence int `json:"old_evidence"`
 	// Devices with no version Vedette can read: not checked.
@@ -68740,6 +68743,11 @@ func (s *FindingsGetFindingsPlanOK) GetCompared() bool {
 // GetComparedDevices returns the value of ComparedDevices.
 func (s *FindingsGetFindingsPlanOK) GetComparedDevices() int {
 	return s.ComparedDevices
+}
+
+// GetCounts returns the value of Counts.
+func (s *FindingsGetFindingsPlanOK) GetCounts() FindingsGetFindingsPlanOKCounts {
+	return s.Counts
 }
 
 // GetData returns the value of Data.
@@ -68772,6 +68780,11 @@ func (s *FindingsGetFindingsPlanOK) SetComparedDevices(val int) {
 	s.ComparedDevices = val
 }
 
+// SetCounts sets the value of Counts.
+func (s *FindingsGetFindingsPlanOK) SetCounts(val FindingsGetFindingsPlanOKCounts) {
+	s.Counts = val
+}
+
 // SetData sets the value of Data.
 func (s *FindingsGetFindingsPlanOK) SetData(val FindingsGetFindingsPlanOKData) {
 	s.Data = val
@@ -68790,6 +68803,47 @@ func (s *FindingsGetFindingsPlanOK) SetOldEvidence(val int) {
 // SetUncheckedDevices sets the value of UncheckedDevices.
 func (s *FindingsGetFindingsPlanOK) SetUncheckedDevices(val int) {
 	s.UncheckedDevices = val
+}
+
+// M2-9: the number of items each tier filter lists, for the same device filter, whatever tier was
+// asked: one answer gives every tab its count.
+type FindingsGetFindingsPlanOKCounts struct {
+	// Items the tier=all answer lists.
+	All int `json:"all"`
+	// Items the tier=likely answer lists.
+	Likely int `json:"likely"`
+	// Items the tier=recent answer lists.
+	Recent int `json:"recent"`
+}
+
+// GetAll returns the value of All.
+func (s *FindingsGetFindingsPlanOKCounts) GetAll() int {
+	return s.All
+}
+
+// GetLikely returns the value of Likely.
+func (s *FindingsGetFindingsPlanOKCounts) GetLikely() int {
+	return s.Likely
+}
+
+// GetRecent returns the value of Recent.
+func (s *FindingsGetFindingsPlanOKCounts) GetRecent() int {
+	return s.Recent
+}
+
+// SetAll sets the value of All.
+func (s *FindingsGetFindingsPlanOKCounts) SetAll(val int) {
+	s.All = val
+}
+
+// SetLikely sets the value of Likely.
+func (s *FindingsGetFindingsPlanOKCounts) SetLikely(val int) {
+	s.Likely = val
+}
+
+// SetRecent sets the value of Recent.
+func (s *FindingsGetFindingsPlanOKCounts) SetRecent(val int) {
+	s.Recent = val
 }
 
 type FindingsGetFindingsPlanOKData struct {

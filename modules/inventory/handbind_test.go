@@ -1,10 +1,12 @@
 package inventory_test
 
 import (
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
 )
 
@@ -58,7 +60,7 @@ func TestContract_829_OnlyTheFirstMACAtAHandAddedAddressBinds(t *testing.T) {
 			t.Errorf("%s: the newcomer is approved %v origin %s", tc.name, nd.Approved, nd.Origin)
 		}
 		offered := e.sameAs(id)
-		if !offersWith(offered, newcomer, "00:16:3e:5b:01:01 at 192.168.18.201, the address nas was added with") {
+		if !offersWith(offered, newcomer, "00:16:3e:5b:01:01 was seen at 192.168.18.201, the address nas was added with") {
 			t.Errorf("%s: the hand-added device offers %+v; want the newcomer, seen at its address", tc.name, offered)
 		}
 		if !offersWith(e.sameAs(newcomer), id, "the address nas was added with") {
@@ -160,5 +162,80 @@ func TestContract_829_AWaitingDuplicateIsNotFoldedAfterAnotherMAC(t *testing.T) 
 	e.record(dhcp(xenMAC, "192.168.18.201", "")...)
 	if d := e.device(id); d.MAC != nil || e.devices() != 3 {
 		t.Errorf("the hand-added device bound %v; %d devices, want 3", d.MAC, e.devices())
+	}
+}
+
+// An agent's report is hinted by its address only and carries its card as a mac observation (osquery, Wazuh): the same rule holds
+// (review r1 H1 of the n71 fix). After another MAC was seen at the hand-added address, the agent's machine is a device of its own,
+// announced; the hand-added device keeps no MAC, no agent and its own software. As the first and only machine there, it is the device
+// (C1).
+func TestContract_829_AnAgentAtASharedHandAddedAddressIsItsOwnDevice(t *testing.T) {
+	sw := []observe.Software{{Display: "OpenSSH 9.6", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.95}}
+	at := netip.MustParseAddr("192.168.18.201")
+	wazuh := func(mac string) []observe.Observation {
+		h := observe.AssetHint{IP: at}
+		return []observe.Observation{{AssetHint: h, Field: observe.Hostname, Value: "wz-host", Source: observe.Agent, Confidence: 0.9},
+			{AssetHint: h, Field: observe.MAC, Value: mac, Source: observe.Agent, Confidence: 0.9}}
+	}
+	cases := []struct {
+		name   string
+		before []string // MACs a sensor saw at the address first
+		wazuh  bool
+		bound  bool
+	}{
+		{"osquery first (C1)", nil, false, true},
+		{"osquery after a guest phone", []string{privMac1}, false, false},
+		{"osquery after a phone and a sensor sighting of the laptop", []string{privMac1, burnt1}, false, false},
+		{"wazuh first (C1)", nil, true, true},
+		{"wazuh after two other machines", []string{privMac1, burnt2}, true, false},
+	}
+	for _, tc := range cases {
+		e := newEnv(t)
+		id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201", Name: "nas"})
+		e.ev.reset()
+		for _, m := range tc.before {
+			e.tick(time.Minute)
+			e.record(dhcp(m, "192.168.18.201", "")...)
+		}
+		e.tick(time.Minute)
+		if tc.wazuh {
+			e.record(wazuh(burnt1)...)
+			if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: at}, observe.Agent, sw); err != nil {
+				t.Fatal(err)
+			}
+		} else {
+			e.record(osq("192.168.18.201")...)
+			if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: at, Agent: "osquery:node-a"}, observe.Agent, sw); err != nil {
+				t.Fatal(err)
+			}
+		}
+		d := e.device(id)
+		bound := d.MAC != nil && *d.MAC == burnt1
+		agent := e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_key IS NOT NULL`, id)
+		if bound != tc.bound || len(d.Software) != map[bool]int{true: 2, false: 1}[tc.bound] || (agent == 1) != (tc.bound && !tc.wazuh) {
+			t.Errorf("%s: the hand-added device: mac %v, %d software, agent %d; want bound %v", tc.name, d.MAC, len(d.Software), agent, tc.bound)
+		}
+		announced := 0 // the agent's machine
+		for _, ev := range e.ev.named(inventory.EventAssetDiscovered) {
+			if ev.Data.(inventory.AssetEvent).AssetID == e.idByMAC(burnt1) {
+				announced++
+			}
+		}
+		if merged := len(e.ev.named(inventory.EventAssetMerged)); merged != 0 || tc.bound != (announced == 0) {
+			t.Errorf("%s: %d announced, %d merged", tc.name, announced, merged)
+		}
+		if !tc.bound && !offersWith(e.sameAs(id), e.idByMAC(burnt1), "the address nas was added with") {
+			t.Errorf("%s: the agent's machine is not offered: %+v", tc.name, e.sameAs(id))
+		}
+	}
+}
+
+// Two MACs at a freshly added address in one batch: neither is known to be the person's machine, so neither binds (review r1 L2).
+func TestContract_829_TwoMACsInOneBatchBindNothing(t *testing.T) {
+	e := newEnv(t)
+	id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201", Name: "nas"})
+	e.record(append(dhcp(xenMAC, "192.168.18.201", ""), dhcp(xenMAC2, "192.168.18.201", "")...)...)
+	if d := e.device(id); d.MAC != nil || d.IP != "192.168.18.201" || e.devices() != 3 {
+		t.Errorf("the hand-added device: mac %v ip %s; %d devices, want no MAC, .201, 3", d.MAC, d.IP, e.devices())
 	}
 }

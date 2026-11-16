@@ -463,7 +463,7 @@ func addressWhy(ctx context.Context, tx *sql.Tx, x, y *sameRow, mac string) (str
 	if differ(fx, fy) {
 		return "", nil
 	}
-	return "A sensor saw its MAC address " + mac + " at " + x.ip + ", the address " + deviceName(ctx, tx, x.id) + " was added with.", nil
+	return "Its MAC address " + mac + " was seen at " + x.ip + ", the address " + deviceName(ctx, tx, x.id) + " was added with.", nil
 }
 
 // PossibleSameAs lists the devices that may be the same machine as device id (D-599), the one seen last first. None for the box or

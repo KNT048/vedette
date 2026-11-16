@@ -105,13 +105,16 @@ type Service struct {
 	// generation a read or a round captured (SYS-5; review #855 r2 L1: a Stop that came before the batch registered had nothing to
 	// cancel). Checked by snmpBatch right after it registers, and by Read now before it starts and before each batch.
 	off atomic.Bool
+	// beforeSNMPBatch, when set (tests only, export_test.go), runs as a batch starts, before it registers.
+	beforeSNMPBatch func()
 	// urgent counts the runs waiting in lockWithin (a Scan now identification, an exposure scan): while it is above zero the
 	// weekly scan of every port gives the slot up (review r1 M1).
 	urgent atomic.Int32
 
 	mu      sync.Mutex
-	cur     *running // the job holding runMu, for SettingsChanged
-	snmpCur *snmpRun // the snmp batch holding snmpMu, for SettingsChanged, AssetChanged and Stop
+	cur     *running      // the job holding runMu, for SettingsChanged
+	snmpCur *snmpRun      // the snmp batch holding snmpMu, for SettingsChanged, AssetChanged and Stop
+	reads   snmpReadState // the Read now of each credential (#849)
 	// allPortsHeld are the devices whose weekly run failed in the window that started at allPortsHeldIn: the round leaves them
 	// to the next window (review r1 L3).
 	allPortsHeld   map[string]bool

@@ -77,13 +77,41 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
     tierState.set({ epss: 'off', recent: 'off', compared: true })
     const { unmount } = renderApp('/plan')
     expect(await screen.findByText('Turn on the CVE data to see updates to plan')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open Settings, Feeds' })).toHaveAttribute('href', '/settings/feeds')
+    // docs/UI.md §0: the link names the exact switch (the first missing feed)
+    expect(screen.getByRole('link', { name: 'Open Settings, Feeds' })).toHaveAttribute('href', '/settings/feeds#feed-epss-all')
     unmount()
     tierState.set({ epss: 'ready', recent: 'ready', compared: true })
     modulesStore.update((l) => l.map((m) => (m.id === 'feeds' ? { ...m, enabled: false } : m)))
     renderApp('/plan')
     expect(await screen.findByText('The feeds module is off')).toBeInTheDocument()
     expect(screen.queryByRole('list', { name: 'Updates to plan' })).not.toBeInTheDocument()
+  })
+
+  it('do it where you are (docs/UI.md §0): an administrator turns the missing feeds on from the page', async () => {
+    tierState.set({ epss: 'off', recent: 'off', compared: true })
+    renderApp('/plan')
+    await userEvent.click(await screen.findByRole('button', { name: 'Turn on both feeds' }))
+    // both feeds start their first load: the page now says so, with nothing left to turn on
+    expect(await screen.findByText('Part of the CVE data is missing')).toBeInTheDocument()
+    expect(screen.getByText(/still loading/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Turn on/ })).not.toBeInTheDocument()
+    expect(tierState.get()).toMatchObject({ epss: 'loading', recent: 'loading' })
+  })
+
+  it('a viewer gets no Turn on button, only the exact link (docs/UI.md §0)', async () => {
+    tierState.set({ epss: 'ready', recent: 'off', compared: true })
+    renderApp('/plan', { role: 'viewer' })
+    expect(await screen.findByText('Part of the CVE data is missing')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Turn on/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open Settings, Feeds' })).toHaveAttribute('href', '/settings/feeds#feed-nvd-recent')
+  })
+
+  it('an administrator turns the feeds module on from the page (docs/UI.md §0)', async () => {
+    tierState.set({ epss: 'ready', recent: 'ready', compared: true })
+    modulesStore.update((l) => l.map((m) => (m.id === 'feeds' ? { ...m, enabled: false } : m)))
+    renderApp('/plan')
+    await userEvent.click(await screen.findByRole('button', { name: 'Turn on the feeds module' }))
+    await waitFor(() => expect(modulesStore.get().find((m) => m.id === 'feeds')?.enabled).toBe(true))
   })
 
   it('Findings links to the page; the device page lists its own items', async () => {

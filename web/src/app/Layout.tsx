@@ -1,117 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-router'
+import { Outlet, ScrollRestoration, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { useQueryClient } from '@tanstack/react-query'
-import { Bug, LogOut, Menu, Settings, UserCog, UserRound } from 'lucide-react'
-import { BugReportDialog } from '@/features/core/BugReportDialog'
+import { Menu } from 'lucide-react'
 import { RevokedBanner, RunningVersion } from '@/features/core/UpdateSignals'
-import { navItems, type NavGroup, type NavItem } from './feature'
-import { useModules } from '@/lib/modules'
-import { PageModule, scopeOf } from '@/lib/v1'
-import { ScopeBadge } from '@/components/common/V1Scope'
-import { useMe } from '@/lib/session'
-import { api } from '@/lib/api'
-import { setTheme, useTheme, type ThemePref } from '@/lib/theme'
+import { PageModule } from '@/lib/v1'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/brand/Logo'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Slot } from '@/components/common/Slot'
+import { useDeepLinkTarget } from '@/components/common/DependencyLink'
+import { Dialog, DialogTrigger, DrawerContent } from '@/components/ui/dialog'
+import { Brand, NavList, Sidebar, UserMenu } from './Sidebar'
+import { navItemOf, useNavState } from './nav'
 import { cn } from '@/lib/utils'
-
-const GROUPS: NavGroup[] = ['monitor', 'assets', 'detect', 'assist']
-
-function Nav({ onNavigate }: { onNavigate?: () => void }) {
-  const { t } = useTranslation()
-  const { data } = useModules()
-  const enabled = new Set(data?.modules.filter((m) => m.enabled).map((m) => m.id))
-  // D-624: a module left out of v1 has no entry unless this box has it on (#819); while loading, it is not shown either.
-  const scope = (n: NavItem) => scopeOf(n.module, data ? enabled.has(n.module) : undefined)
-  const items = navItems.filter((n) => (!data || enabled.has(n.module)) && scope(n) !== 'hidden')
-  const link = (isActive: boolean) => cn('flex min-h-9 items-center gap-2.5 rounded-md px-2.5 py-1.5 leading-tight text-sm text-muted hover:bg-sunken hover:text-ink [&_svg]:size-4', isActive && 'bg-accent-soft font-medium text-ink [&_svg]:text-accent')
-  return (
-    <nav aria-label={t('layout.nav')} className="grid grid-cols-[minmax(0,1fr)] gap-5">
-      {GROUPS.map((g) => {
-        const list = items.filter((n) => n.group === g)
-        if (!list.length) return null
-        return (
-          <div key={g} className="grid grid-cols-[minmax(0,1fr)] gap-0.5">
-            <p className="px-2.5 pb-1 text-[12px] text-muted">{t(`layout.group.${g}`)}</p>
-            {list.map((n) => (
-              <NavLink key={n.to} to={n.to} end={n.end} onClick={onNavigate} className={({ isActive }) => link(isActive)}>
-                <n.icon aria-hidden /><span className="min-w-0">{t(n.label)}</span>{' '}
-                <ScopeBadge scope={scope(n)} className="-mr-1 ml-auto h-5 shrink-0 px-1.5 text-[11px]" />
-              </NavLink>
-            ))}
-          </div>
-        )
-      })}
-      <div className="grid gap-0.5 border-t border-rule pt-3">
-        <NavLink to="/settings" onClick={onNavigate} className={({ isActive }) => link(isActive)}><Settings aria-hidden />{t('layout.settings')}</NavLink>
-      </div>
-    </nav>
-  )
-}
-
-function UserMenu() {
-  const { t } = useTranslation()
-  const { data: me } = useMe()
-  const theme = useTheme()
-  const qc = useQueryClient()
-  const navigate = useNavigate()
-  const [bug, setBug] = useState(false)
-  async function logout() {
-    await api.post('/auth/logout')
-    qc.clear()
-    navigate('/login')
-  }
-  return (
-    <>
-    <BugReportDialog open={bug} onOpenChange={setBug} />
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-auto w-full justify-start gap-2.5 px-2.5 py-2 text-left">
-          <UserRound className="text-muted" aria-hidden />
-          <span className="sr-only">{t('layout.account')}:</span>{' '}
-          <span className="grid min-w-0">
-            <span className="truncate text-sm">{me?.name}</span>
-            <span className="truncate text-[12px] text-muted">{me ? t(`role.${me.role}`) : ''}</span>
-          </span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-60">
-        <DropdownMenuLabel>{me?.email}</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>{t('layout.theme')}</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as ThemePref)}>
-          <DropdownMenuRadioItem value="system">{t('layout.themeSystem')}</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="light">{t('layout.themeLight')}</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark">{t('layout.themeDark')}</DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => navigate('/settings/account')}><UserCog />{t('layout.myAccount')}</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => setBug(true)}><Bug />{t('layout.reportProblem')}</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => void logout()}><LogOut />{t('layout.logout')}</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-    </>
-  )
-}
-
-function Brand() {
-  const { data: me } = useMe()
-  return (
-    <div className="grid gap-2 px-2.5">
-      <Logo className="h-6" />
-      <span className="truncate text-[12px] text-muted">{me?.org}</span>
-    </div>
-  )
-}
-
-/** The nav entry a path belongs to (the longest match), none under /settings. */
-const byLength = [...navItems].sort((a, b) => b.to.length - a.to.length)
-function navItemOf(p: string) {
-  return p.startsWith('/settings') ? undefined : byLength.find((n) => (n.to === '/' ? p === '/' : p === n.to || p.startsWith(`${n.to}/`)))
-}
 
 /** Tiêu đề tab trình duyệt theo trang (WCAG 2.4.2) và focus vào nội dung khi đổi trang (trình đọc màn hình đọc trang mới). */
 function usePageChrome() {
@@ -131,34 +31,38 @@ function usePageChrome() {
 export function Layout() {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
+  // A link in the drawer closes it and the page change moves focus to #main; Esc or the close button return it to "Open menu".
+  const byLink = useRef(false)
+  const nav = useNavState()
   const loc = useLocation()
   usePageChrome()
+  useDeepLinkTarget() // docs/UI.md §0: a deep link's #field is focused once its page has drawn it
+  const closeByLink = () => { byLink.current = true; setOpen(false) }
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[240px_1fr]">
+    <div className={cn('min-h-dvh lg:grid', nav.rail ? 'lg:grid-cols-[56px_1fr]' : 'lg:grid-cols-[240px_1fr]')}>
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2">{t('layout.skip')}</a>
       {/* UI-4: the column paints the background and the rule down the whole page (it stretches with the grid row); only its content
           is sticky. With the background on the sticky h-dvh box, everything below the first screen height showed the page grey. */}
       <div className="hidden border-r border-rule bg-surface lg:block">
-        <div className="sticky top-0 flex h-dvh flex-col gap-6 overflow-y-auto px-3 py-5">
-          <Brand />
-          <div className="flex-1"><Nav /></div>
-          <div className="grid gap-1">
-            <UserMenu />
-            <RunningVersion />
-          </div>
+        <Sidebar nav={nav} />
+      </div>
+      {/* The menu button is the Dialog's trigger, so Esc and ✕ give focus back to it (WCAG 2.4.3); a link gives it to #main. */}
+      <Dialog open={open} onOpenChange={(v) => { if (v) byLink.current = false; setOpen(v) }}>
+        <div className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-rule bg-surface px-4 lg:hidden">
+          <DialogTrigger asChild><Button variant="ghost" size="icon" aria-label={t('layout.openMenu')}><Menu /></Button></DialogTrigger>
+          <Logo className="h-5.5" />
+          {/* docs/UI.md §2: the shell.status slot (#850 "1 scan running"); the empty box keeps the logo centred. */}
+          <div className="flex min-w-9 justify-end"><Slot name="shell.status" props={{ compact: true }} /></div>
         </div>
-      </div>
-      <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-rule bg-surface px-4 lg:hidden">
-        <Button variant="ghost" size="icon" onClick={() => setOpen(true)} aria-label={t('layout.openMenu')}><Menu /></Button>
-        <Logo className="h-[22px]" />
-        <span className="w-9" />
-      </div>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent title={t('layout.nav')} className="left-0 top-0 h-dvh max-h-dvh w-72 max-w-72 translate-x-0 translate-y-0 rounded-none">
-          <Nav onNavigate={() => setOpen(false)} />
-          <UserMenu />
-          <RunningVersion onNavigate={() => setOpen(false)} />
-        </DialogContent>
+        <DrawerContent title={t('layout.nav')} returnFocus={() => !byLink.current}>
+          {/* Header row: brand and org, the ✕ on its right, so the ✕ never sits over an entry. */}
+          <div className="flex min-h-10 items-center pr-10"><Brand /></div>
+          <NavList nav={nav} drawer onNavigate={closeByLink} />
+          <div className="grid gap-1 border-t border-rule pt-3">
+            <UserMenu onNavigate={closeByLink} />
+            <RunningVersion onNavigate={closeByLink} />
+          </div>
+        </DrawerContent>
       </Dialog>
       <div className="min-w-0">
         <RevokedBanner />

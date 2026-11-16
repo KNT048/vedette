@@ -13,7 +13,8 @@ import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { saveInventoryScope, useSetupModules, useSetupStatus, useSubmitSetup } from './api'
 import { BUNDLES, closure, without } from './bundles'
-import { CREDENTIALED_IN_UI } from '@/lib/credentialed'
+import { notOffered, scopeOf } from '@/lib/v1'
+import { ScopeBadge } from '@/components/common/V1Scope'
 import { errMsg } from './parts'
 import { EMAIL_RE, isBareIp, isPrivateCidr, MIN_PASSWORD, normaliseCidr } from './util'
 import type { BundleId, SetupPayload } from './types'
@@ -311,7 +312,7 @@ function ModulesStep({ s, set, error }: { s: State; set: (p: Partial<State>) => 
   const name = (id: ModuleId) => t(`modules.${id}.name`, { ns: 'common' })
   if (q.isPending) return <Loading />
   if (q.error) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
-  const all = q.data.modules.filter((m) => CREDENTIALED_IN_UI || m.id !== 'scan-credentialed') // D-417: not offered in this build
+  const all = q.data.modules.filter((m) => !notOffered(m.id)) // D-624 (#819), D-417: not offered in this build
   // D-381: a bundle leaves out what this install cannot run (the honeypot on a container-only install), as the box does.
   const here = (id: ModuleId) => all.find((m) => m.id === id)?.available !== false
   const bundle = (b: Exclude<BundleId, 'custom'>) => BUNDLES[b].filter(here)
@@ -329,7 +330,7 @@ function ModulesStep({ s, set, error }: { s: State; set: (p: Partial<State>) => 
               <span className="text-[13px] text-muted">{t(`setup.modules.${b}.desc`)}</span>
               {b !== 'custom' ? <span className="text-[13px] text-muted">{bundle(b).filter((m) => m !== 'core').map(name).join(', ')}</span> : null}
             </label>
-            {b !== 'custom' ? <InfoTip topic={t(`setup.modules.${b}.name`)}>{t(b === 'smb' && !here('honeypot') ? 'setup.modules.smb.descNoTrapsInfo' : `setup.modules.${b}.descInfo`)}</InfoTip> : null}
+            {b !== 'custom' ? <InfoTip topic={t(`setup.modules.${b}.name`)}>{t(`setup.modules.${b}.descInfo`)}</InfoTip> : null}
           </div>
         ))}
       </RadioGroup>
@@ -341,7 +342,7 @@ function ModulesStep({ s, set, error }: { s: State; set: (p: Partial<State>) => 
           {all.filter((m) => m.tier !== 'core').map((m) => (
             <div key={m.id} className="flex items-start gap-2.5">
               <Checkbox id={`m-${m.id}`} checked={s.picked.has(m.id)} disabled={!m.available} onCheckedChange={(v) => toggle(m.id, v === true)} className="mt-0.5" />
-              <label htmlFor={`m-${m.id}`} className="grid text-sm"><span>{name(m.id)}</span>{m.available ? null : <span className="text-[12px] text-muted">{t('setup.modules.notHereOne')}</span>}{m.depends.filter((d) => d !== 'core').length ? <span className="text-[12px] text-muted">{t('setup.modules.needs', { list: m.depends.filter((d) => d !== 'core').map(name).join(', ') })}</span> : null}</label>
+              <label htmlFor={`m-${m.id}`} className="grid text-sm"><span className="flex items-center gap-1.5">{name(m.id)}{' '}<ScopeBadge scope={scopeOf(m.id, false)} className="h-5 px-1.5 text-[11px]" /></span>{m.available ? null : <span className="text-[12px] text-muted">{t('setup.modules.notHereOne')}</span>}{m.depends.filter((d) => d !== 'core').length ? <span className="text-[12px] text-muted">{t('setup.modules.needs', { list: m.depends.filter((d) => d !== 'core').map(name).join(', ') })}</span> : null}</label>
             </div>
           ))}
         </fieldset>

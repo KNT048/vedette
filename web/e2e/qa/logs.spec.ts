@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { collectErrors, expectAccessible, shot } from '../helpers'
+import { collectErrors, expectAccessible, shot, turnOnModules } from '../helpers'
 
 // QA như người dùng thật cho module logs (S-LOG-1..3). Giao diện chỉ có tiếng Anh (D-28). Mỗi test tự dựng dữ liệu, không phụ thuộc thứ tự.
 // Máy dev dùng chung với agent khác (HMR có thể tải lại trang giữa chừng): cho thử lại một lần.
@@ -47,6 +47,7 @@ async function cleanInstall(page: Page, lan = '192.168.10.0/24') {
   await page.getByRole('button', { name: 'Finish setup' }).click()
   await expect(page).not.toHaveURL(/\/setup/)
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
+  await turnOnModules(page, ['Logs']) // D-624: a bundle turns on v1 modules only
 }
 /** Đổi phiên mock sang tài khoản khác (u-view = chỉ xem). */
 async function asUser(page: Page, userId: string) {

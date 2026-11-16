@@ -12,9 +12,10 @@ import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select, Textarea } from '@/components/ui/input'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
-import { errText, useApprove, useReject, useRollback } from './api'
+import { errText, useApprove, usePlans, useReject, useRollback } from './api'
 import { undoable } from './state'
 import { ChangeView, ItemTag, RiskChip, StatusTag } from './parts'
+import { useFrozen } from './frozen'
 import type { ActionRequest, RequestItem } from './types'
 
 function RejectDialog({ a, onClose }: { a: ActionRequest; onClose: () => void }) {
@@ -85,6 +86,10 @@ function Item({ i, pick, onPick }: { i: RequestItem; pick?: boolean; onPick?: (v
 export function RequestCard({ a }: { a: ActionRequest }) {
   const { t } = useTranslation('response')
   const can = useCan('operator')
+  const frozen = useFrozen() // D-624: Reject and Roll back stay, Approve does not
+  // N-H1: rolling back a device change needs execution on (INV-7), which cannot be turned on again here: say where to undo it instead of a 409
+  const execution = usePlans().data?.execution
+  const onDevice = frozen && execution === false && a.items.some((i) => undoable(i) && i.reversible && i.connector_id !== null)
   const approve = useApprove()
   const rollback = useRollback()
   const [picked, setPicked] = useState<string[] | null>(null)
@@ -143,18 +148,18 @@ export function RequestCard({ a }: { a: ActionRequest }) {
       ) : null}
       <ul className="grid gap-2">
         {a.items.map((i) => <Item key={i.id} i={i} pick={pending ? sel.includes(i.id) : undefined}
-          onPick={pending && can && !locked && a.items.length > 1 ? (v) => setPicked(v ? [...sel, i.id] : sel.filter((x) => x !== i.id)) : undefined} />)}
+          onPick={pending && can && !frozen && !locked && a.items.length > 1 ? (v) => setPicked(v ? [...sel, i.id] : sel.filter((x) => x !== i.id)) : undefined} />)}
       </ul>
       {pending ? (
         <div className="grid gap-3">
           {first ? <p className="text-[13px]">{t('request.secondNeeded', { name: first.name })}</p> : null}
-          {twoStep ? (
+          {twoStep && !frozen ? (
             <Field htmlFor={`code-${a.id}`} label={t('request.code')} hint={t('request.codeHint')} info={t('request.codeInfo')} className="max-w-xs">
               <Input id={`code-${a.id}`} inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} />
             </Field>
           ) : null}
           <div className="flex flex-wrap gap-2">
-            <Button variant="primary" disabled={!can || approve.isPending || !sel.length} title={role}
+            <Button variant="primary" disabled={!can || frozen || approve.isPending || !sel.length} title={frozen ? t('leaving.frozen') : role}
               onClick={() => go(a.items.length > 1 && sel.length < a.items.length ? sel : undefined)}>
               {a.items.length > 1 ? (sel.length === a.items.length ? t('request.approveAll') : t('request.approveSelected', { count: sel.length })) : t('action.approve')}
             </Button>
@@ -162,7 +167,11 @@ export function RequestCard({ a }: { a: ActionRequest }) {
           </div>
         </div>
       ) : a.items.some(undoable) ? (
-        <div><Button disabled={!can || rollback.isPending} title={role} onClick={() => rollback.mutate(a.id, { onSuccess: () => toast.success(t('action.rolledBackToast')), onError: (e) => toast.error(errText(e)) })}>{t('action.rollback')}</Button></div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button disabled={!can || onDevice || rollback.isPending} title={onDevice ? t('leaving.undoOnDevice') : role} aria-describedby={onDevice ? `undo-${a.id}` : undefined} onClick={() => rollback.mutate(a.id, { onSuccess: () => toast.success(t('action.rolledBackToast')), onError: (e) => toast.error(errText(e)) })}>{t('action.rollback')}</Button>
+          {/* what to undo and where: the device above, each change under "Exact change and rollback" */}
+          {onDevice ? <p id={`undo-${a.id}`} className="text-[13px] text-warn">{t('leaving.undoOnDevice')}</p> : null}
+        </div>
       ) : null}
       {rejecting ? <RejectDialog a={a} onClose={() => setRejecting(false)} /> : null}
     </Panel>

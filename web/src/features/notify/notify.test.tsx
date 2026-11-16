@@ -15,6 +15,11 @@ import ChannelsSettings from './ChannelsSettings'
 import { ZALO_BOX_UID, zaloMessagesForTest } from './mocks'
 import { forbiddenHost, ownHost } from './types'
 
+// D-624 (#819): channel approvals belong to AI response, hidden in the v1 GUI (POST_V1_IN_UI false); the screens are kept, so this file
+// runs them as offered. features/core/v1Scope.test.tsx runs the v1 view.
+const postV1 = vi.hoisted(() => ({ POST_V1_IN_UI: true }))
+vi.mock('@/lib/postV1', () => postV1)
+
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
 function renderChannels(role: Role = 'admin') {
   orgStore.update((o) => ({ ...o, setup_complete: true }))

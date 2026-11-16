@@ -26,6 +26,10 @@ vi.mock('@/lib/bundle', () => bundleFlag)
 // D-417: same for the credentialed scan: this file lists it as offered (the deps dialog uses it); one test runs the v1 list.
 const credFlag = vi.hoisted(() => ({ CREDENTIALED_IN_UI: true }))
 vi.mock('@/lib/credentialed', () => credFlag)
+// D-624 (#819): response, mcp-server, auth-oidc and scan-credentialed are hidden in the GUI for v1 (POST_V1_IN_UI false) but their
+// code is kept, so this file runs them as offered; the D-624 tests run the v1 GUI.
+const postV1 = vi.hoisted(() => ({ POST_V1_IN_UI: true }))
+vi.mock('@/lib/postV1', () => postV1)
 
 const setModule = (id: string, enabled: boolean) => modulesStore.update((l) => l.map((m) => (m.id === id ? { ...m, enabled } : m)))
 const user = () => userEvent.setup()

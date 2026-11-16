@@ -11,6 +11,7 @@ import { as, auditHasNo, auditIds, chanRow, closedPort, ERR_UNREACHABLE, getChan
 import { seed, startFeedServer, stopFeedServer, sweep as sweepDevices } from './findings-seed'
 import { expectAccessible, noErrors, noVietnamese } from './ui'
 import { collectErrors, shot } from '../e2e/helpers'
+import { POST_V1_IN_UI } from '../src/lib/postV1'
 
 test.use({ storageState: authFile('admin'), actionTimeout: 10_000 })
 
@@ -387,12 +388,14 @@ test.describe('channels through the form: add, refusals, edit, remove (S-NOT-1, 
     await saveRefused(page, d, 'slack', 'bad_label', 'The channel label can be at most 80 characters.', 'Channel label (optional)')
     // the channel ID and the two Socket Mode tokens belong to approvals only
     await expect(d.getByLabel('Channel ID', { exact: true })).toHaveCount(0)
-    await d.getByRole('switch', { name: 'Approve actions from this channel' }).click()
-    await expect(d.getByLabel('Channel ID', { exact: true })).toBeVisible()
-    await expect(d.getByLabel('App-level token (xapp-…)', { exact: true })).toBeVisible()
-    await expect(d.getByLabel('Bot token (xoxb-…)', { exact: true })).toBeVisible()
-    await d.getByRole('switch', { name: 'Approve actions from this channel' }).click()
-    await expect(d.getByLabel('Channel ID', { exact: true })).toHaveCount(0)
+    if (POST_V1_IN_UI) { // D-624 (#819): channel approvals belong to AI response, which v1 does not offer; a channel without them cannot turn them on
+      await d.getByRole('switch', { name: 'Approve actions from this channel' }).click()
+      await expect(d.getByLabel('Channel ID', { exact: true })).toBeVisible()
+      await expect(d.getByLabel('App-level token (xapp-…)', { exact: true })).toBeVisible()
+      await expect(d.getByLabel('Bot token (xoxb-…)', { exact: true })).toBeVisible()
+      await d.getByRole('switch', { name: 'Approve actions from this channel' }).click()
+      await expect(d.getByLabel('Channel ID', { exact: true })).toHaveCount(0)
+    }
     await d.getByLabel('Channel label (optional)', { exact: true }).fill('#it-alerts-e2e')
     const saved = await saveOk(page, d, 'slack')
     expect(saved).toMatchObject({ type: 'slack', configured: true, enabled: false, fields: { label: '#it-alerts-e2e' }, secret_last4: last4(SLACK_HOOK), approvals: false })
@@ -602,6 +605,7 @@ test.describe('approver lists (INV-7 validation)', () => {
   })
 
   test('Telegram in the form: the approver list offers only operators and administrators, an empty list is refused, a valid one is saved and shown as a chip', async ({ page }) => {
+    test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819): channel approvals belong to AI response, which v1 does not offer')
     const errors = collectErrors(page)
     const server = watch5xx(page)
     const c = await as('admin')

@@ -53,6 +53,12 @@ type wrongKey struct{}
 func (wrongKey) Error() string        { return ErrDecrypt.Error() }
 func (wrongKey) Is(target error) bool { return target == ErrDecrypt }
 
+// IsWrongKey reports whether err (or an error it wraps) is the ErrDecrypt of a row of this key version and purpose whose ciphertext this
+// master key does not authenticate: a secret sealed under another master key (a backup restored without its decryption key, a key file
+// made again). It is the rule OpenOrCreate replaces a key on; a caller uses it to tell "this secret is lost, type it again" apart from
+// any other failure (a row of another key version, a read error), which it must not treat as lost.
+func IsWrongKey(err error) bool { return errors.As(err, new(wrongKey)) }
+
 var purposeRE = regexp.MustCompile(`^[a-z][a-z0-9_.]{0,63}$`)
 
 // GenerateKeyFile creates path with 32 random bytes and mode 0600. It fails if the file exists.
@@ -460,7 +466,7 @@ func (s *Store) OpenOrCreate(ctx context.Context, db *store.DB, purpose string, 
 		return nil, fmt.Errorf("%w: key size %d, want 16 to 64", ErrInvalid, size)
 	}
 	if id, err := coredb.New(db.Reader()).GetSecretIDByPurpose(ctx, purpose); err == nil {
-		if k, err := s.Open(ctx, db.Reader(), id, purpose); !errors.As(err, new(wrongKey)) {
+		if k, err := s.Open(ctx, db.Reader(), id, purpose); !IsWrongKey(err) {
 			return k, err
 		}
 	} else if !errors.Is(err, sql.ErrNoRows) {
@@ -472,7 +478,7 @@ func (s *Store) OpenOrCreate(ctx context.Context, db *store.DB, purpose string, 
 		id, err := coredb.New(tx).GetSecretIDByPurpose(ctx, purpose)
 		if err == nil { // another caller made (or replaced) it between our read and this transaction
 			key, err = s.Open(ctx, tx, id, purpose)
-			if !errors.As(err, new(wrongKey)) {
+			if !IsWrongKey(err) {
 				return err
 			}
 		} else if !errors.Is(err, sql.ErrNoRows) {

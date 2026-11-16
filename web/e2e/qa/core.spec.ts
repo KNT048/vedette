@@ -3,6 +3,7 @@
 import { createHmac } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
 import { axeViolations, collectErrors, expectAccessible, shot } from '../helpers'
+import { POST_V1_IN_UI } from '../../src/lib/postV1'
 
 test.use({ actionTimeout: 10_000 })
 
@@ -402,33 +403,41 @@ test.describe('modules', () => {
     // no multi-site module anywhere
     await expect(page.getByRole('switch', { name: /Multi-site/ })).toHaveCount(0)
     await expect(nav.getByRole('link', { name: 'Multi-site' })).toHaveCount(0)
-    // AI response needs AI assistant (off in the small bundle): ask to turn on together. (The credentialed scan is not listed in v1, D-417.)
-    await page.getByRole('switch', { name: /Turn (on|off) module AI response/ }).click()
+    // D-624: AI response is not offered in v1 and no bundle turns on a preview module, so the dependency check uses a v1/preview
+    // pair: Reports (preview) needs Notifications (v1). Turn Notifications off first, then ask for Reports.
+    const sw = (name: string) => page.getByRole('switch', { name: new RegExp(`^Turn (on|off) module ${name}$`) })
+    await expect(page.getByRole('switch', { name: /module AI response$/ })).toHaveCount(0)
+    await expect(sw('Reports')).not.toBeChecked()
+    await sw('Notifications').click()
+    await page.getByRole('dialog', { name: 'Turn off Notifications?' }).getByRole('button', { name: 'Turn off', exact: true }).click()
+    await expect(sw('Notifications')).not.toBeChecked()
+    await sw('Reports').click()
     const dlg = page.getByRole('dialog', { name: 'Turn on the required modules too?' })
     await expect(dlg).toBeVisible()
-    await expect(dlg.getByText('AI assistant')).toBeVisible()
+    await expect(dlg.getByText('Notifications')).toBeVisible()
     await page.keyboard.press('Escape')
-    await expect(page.getByRole('switch', { name: /Turn (on|off) module AI response/ })).not.toBeChecked()
-    await page.getByRole('switch', { name: /Turn (on|off) module AI response/ }).click()
+    await expect(sw('Reports')).not.toBeChecked()
+    await sw('Reports').click()
     await dlg.getByRole('button', { name: 'Turn on together' }).click()
-    await expect(page.getByRole('switch', { name: /Turn (on|off) module AI assistant/ })).toBeChecked()
-    await expect(page.getByRole('switch', { name: /Turn (on|off) module AI response/ })).toBeChecked()
-    if (!isMobile) await expect(nav.getByRole('link', { name: 'AI assistant' })).toBeVisible() // on a phone the sidebar is behind the menu button
-    await page.getByRole('switch', { name: /Turn (on|off) module AI assistant/ }).click()
-    const off = page.getByRole('dialog', { name: 'Turn off AI assistant?' })
-    await expect(off.getByText('AI response')).toBeVisible()
+    await expect(sw('Notifications')).toBeChecked()
+    await expect(sw('Reports')).toBeChecked()
+    if (!isMobile) await expect(nav.getByRole('link', { name: /^Reports/ })).toBeVisible() // on a phone the sidebar is behind the menu button
+    if (!isMobile) await expect(nav.getByRole('link', { name: /^Reports/ })).toContainText('Preview')
+    await sw('Notifications').click()
+    const off = page.getByRole('dialog', { name: 'Turn off Notifications?' })
+    await expect(off.getByText('Reports')).toBeVisible()
     await off.getByRole('button', { name: 'Cancel' }).click()
-    await expect(page.getByRole('switch', { name: /Turn (on|off) module AI assistant/ })).toBeChecked()
-    await page.getByRole('switch', { name: /Turn (on|off) module AI assistant/ }).click()
-    await off.getByRole('button', { name: 'Turn off', exact: true }).click()
-    if (!isMobile) await expect(nav.getByRole('link', { name: 'AI assistant' })).toHaveCount(0)
-    await page.goto('/assistant')
+    await expect(sw('Notifications')).toBeChecked()
+    await sw('Reports').click()
+    await page.getByRole('dialog', { name: 'Turn off Reports?' }).getByRole('button', { name: 'Turn off', exact: true }).click()
+    if (!isMobile) await expect(nav.getByRole('link', { name: /^Reports/ })).toHaveCount(0)
+    await page.goto('/reports')
     await expect(page.getByText(/is off|off\b/i).first()).toBeVisible()
     await shot(page, 'core', 'module-off-page')
     await page.goto('/settings/modules')
-    await expect(page.getByRole('switch', { name: /Turn (on|off) module Core/ })).toBeDisabled()
+    await expect(sw('Core')).toBeDisabled()
     await page.reload()
-    await expect(page.getByRole('switch', { name: /Turn (on|off) module AI response/ })).toBeChecked()
+    await expect(sw('Notifications')).toBeChecked()
     noErrors(errors)
   })
 })
@@ -571,6 +580,7 @@ test.describe('privacy', () => {
 
 test.describe('MCP server', () => {
   test('turn on, token shown once, revoke', async ({ page }) => {
+    test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819)')
     const errors = collectErrors(page)
     await cleanInstall(page)
     await page.goto('/settings/mcp')

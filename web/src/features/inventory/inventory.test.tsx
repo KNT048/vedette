@@ -480,10 +480,10 @@ describe('inventory: device types in two levels (D-511)', () => {
     const row = within(table).getByRole('link', { name: /192\.168\.10\.251|Fortinet/ }).closest('tr')!
     expect(within(row).getByText('Firewall')).toBeInTheDocument()
     expect(within(row).getByText('likely')).toBeInTheDocument()
-    expect(within(row).getByText('Security')).toBeInTheDocument()
+    expect(within(row).getByTitle(/Security$/)).toBeInTheDocument() // #849: one line per desktop row, the category on hover (the phone list and the device page show it)
     expect(within(row).getByTitle(/Fortinet network card and port 22/)).toBeInTheDocument()
     const nas = within(table).getByRole('link', { name: 'NAS-PHOTOS' }).closest('tr')!
-    expect(within(nas).getByText('Storage')).toBeInTheDocument()
+    expect(within(nas).getByTitle('Storage')).toBeInTheDocument()
     expect(within(nas).queryByText('likely')).toBeNull()
 
     // #849: the category is a type: token (the old ?cat= opens it)

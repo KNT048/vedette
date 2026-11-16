@@ -13,6 +13,7 @@ import { Segmented } from '@/components/ui/segmented'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { useSnmp, useSnmpActions } from './api'
+import { kindLabel } from '@/lib/deviceTypes'
 import { errMsg } from './kinds'
 import type { SnmpCredential, SnmpCredentialInput, SnmpTestResult } from './types'
 import { CIDR_RE_UI, IPV4_RE_UI, isPrivateCidr, LOCAL_RANGE_NAMES } from './validate'
@@ -185,7 +186,7 @@ export function SnmpAnswer({ r, ip }: { r: SnmpTestResult; ip: string }) {
   }
   const rows: [string, string][] = ([
     ['sysName', a.sys_name], ['vendor', [a.vendor, a.product].filter(Boolean).join(' ')], ['model', a.model], ['os', a.os],
-    ['kind', a.kind ? t(`kind.${a.kind}`, { defaultValue: a.kind }) : ''], ['serial', a.serial], ['firmware', a.firmware], ['objectId', a.sys_object_id],
+    ['kind', a.kind ? kindLabel(a.kind) : ''], ['serial', a.serial], ['firmware', a.firmware], ['objectId', a.sys_object_id],
   ] as [string, string][]).filter(([, v]) => v)
   return (
     <div role="status" className="grid min-w-0 gap-2 rounded-md border border-ok/40 bg-ok-soft px-3 py-2 text-sm">

@@ -91,7 +91,8 @@
     "os": "Operating system",
     "source": "Source",
     "lastSeen": "Last seen",
-    "sources": "Sources"
+    "sources": "Sources",
+    "device": "Make, model and OS"
   },
   "table": {
     "caption": "Device list",
@@ -984,7 +985,8 @@
       "passive": "Passive",
       "manual": "Manual"
     },
-    "lowConfidence": "(low confidence)"
+    "lowConfidence": "(low confidence)",
+    "sourcesAll": "Sources: {{list}}"
   },
   "declaredPage": {
     "nav": "Declared software",

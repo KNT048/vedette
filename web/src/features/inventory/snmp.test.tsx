@@ -109,16 +109,19 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     const li = await runTest(user, 'Core switches (v3)', '192.168.10.3')
     const answer = await within(li).findByText('192.168.10.3 answered.', undefined, T)
     const box = answer.closest('[role="status"]') as HTMLElement
-    expect(box).toHaveTextContent('Juniper Networks Junos')
-    expect(box).toHaveTextContent('EX4200-48T')
-    expect(box).toHaveTextContent('JUNOS 15.1R7.9')
+    // the preview answers as the device the list shows at that address (Cisco CBS350 SW-CORE), so recording it changes nothing shown
+    expect(box).toHaveTextContent('SW-CORE')
+    expect(box).toHaveTextContent('Cisco')
+    expect(box).toHaveTextContent('CBS350-24P')
+    expect(box).toHaveTextContent('CBS350 firmware 3.4')
     expect(box).toHaveTextContent('Switch')
-    expect(box).toHaveTextContent('.1.3.6.1.4.1.2636.1.1.1.2.31')
-    expect(within(box).getByText(/^Juniper Networks, Inc\. ex4200-48t Ethernet Switch/).tagName).toBe('PRE')
+    expect(box).toHaveTextContent('.1.3.6.1.4.1.9.6.1.95.24.1')
+    expect(within(box).getByText(/^CBS350-24P-4G 24-Port Gigabit PoE Managed Switch/).tagName).toBe('PRE')
     expect(box).toHaveTextContent('Recorded in the inventory with source SNMP.')
     expect(within(box).getByRole('link', { name: 'Open the device' })).toHaveAttribute('href', '/devices/a-sw01')
     const sw = assetsStore.get().find((a) => a.id === 'a-sw01')!
-    expect(sw.os).toMatchObject({ value: 'JUNOS 15.1R7.9', source: 'snmp' })
+    expect(sw.os).toMatchObject({ value: 'CBS350 firmware 3.4', source: 'snmp' })
+    expect(sw.model?.value).toBe('CBS350-24P')
     expect(auditStore.get()[0]).toMatchObject({ action: 'inventory.snmp_test', target: 'Core switches (v3)', detail: '192.168.10.3: ok' })
   })
 

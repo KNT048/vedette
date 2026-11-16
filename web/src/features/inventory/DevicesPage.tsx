@@ -12,6 +12,7 @@ import { groupState, useRowSelection } from '@/components/common/Selection'
 import { Slot } from '@/components/common/Slot'
 import { EmptyState, ModuleOff, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
+import { Tooltip } from '@/components/ui/tooltip'
 import { TokenSearch, type TokenChip } from '@/components/common/TokenSearch'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -35,18 +36,18 @@ export const DEVICES_ACTIONS_SLOT = 'devices.actions'
 
 /** Type cell (D-511): icon, type, and the category when it says more than the type ("Switch Network", not "Server Servers");
  *  a guess says "likely" and its evidence on hover. */
-function TypeCell({ d }: { d: DeviceRow }) {
+function TypeCell({ d, dense }: { d: DeviceRow; dense?: boolean }) {
   const { t } = useTranslation('inventory')
   const { kind, guessed } = shownKind(d)
   const type = kindLabel(kind)
   const cat = kind === 'unknown' ? '' : categoryLabel(categoryOf(kind))
   const saysMore = cat && !cat.toLowerCase().startsWith(type.toLowerCase().slice(0, 4))
   return (
-    <span className="inline-flex items-center gap-x-1.5 whitespace-nowrap" title={guessed ? d.guess?.evidence : cat || undefined}>
+    <span className="inline-flex items-center gap-x-1.5 whitespace-nowrap" title={[guessed ? d.guess?.evidence : '', cat].filter(Boolean).join(' ') || undefined}>
       {createElement(kindIcon(kind), { className: 'size-4 shrink-0 text-muted', 'aria-hidden': true })}
       <span>{type}</span>
       {guessed ? <Chip tone="off">{t('guess.likely')}</Chip> : null}
-      {saysMore ? <span className="text-[12px] text-muted">{cat}</span> : null}
+      {saysMore && !dense ? <span className="text-[12px] text-muted">{cat}</span> : null}
     </span>
   )
 }
@@ -54,27 +55,45 @@ function TypeCell({ d }: { d: DeviceRow }) {
 const FEED_ORDER = ['osquery', 'snmp', 'scan', 'passive', 'manual'] as const
 /** Sources cell (#849): which feeds report on the device, in the order they win (agent, SNMP, scan, passive), and "low confidence"
  *  when the weakest value is a guess. The device page has every value with its own source and confidence. */
-function SourcesCell({ d }: { d: DeviceRow }) {
+function SourcesCell({ d, compact }: { d: DeviceRow; compact?: boolean }) {
   const { t } = useTranslation('inventory')
   const feeds = feedsOfRow(d)
   const list = FEED_ORDER.filter((f) => feeds.has(f)).map((f) => t(`search.short.${f}`))
   if (!list.length) return <span className="text-muted">–</span>
   const low = (d.summary?.confidence ?? 1) < 0.5
+  const lowNote = low ? <span className="text-warn"> {t('search.lowConfidence')}</span> : null
+  if (!compact || list.length === 1) return <span className="whitespace-nowrap text-[13px] text-muted">{list.join(', ')}{lowNote}</span>
+  // One line on a desktop row (#849 review): the source that wins, "+2", the whole list on hover or focus (and the device page).
+  const all = list.join(', ')
   return (
-    <span className="text-[13px] text-muted">
-      {list.join(', ')}
-      {low ? <span className="text-warn"> {t('search.lowConfidence')}</span> : null}
-    </span>
+    <Tooltip content={all} side="top">
+      <span tabIndex={0} aria-label={t('search.sourcesAll', { list: all })} className="inline-flex items-center gap-1 whitespace-nowrap rounded-sm text-[13px] text-muted">
+        <span>{list[0]}</span><span className="tabular-nums">{`+${list.length - 1}`}</span>{lowNote}
+      </span>
+    </Tooltip>
   )
 }
 
-function NameChips({ d }: { d: DeviceRow }) {
+/** "5 min. ago": the short relative time of a dense row; the exact time is in the title. */
+function shortAgo(iso: string, now: number, locale: string) {
+  const diff = (new Date(iso).getTime() - now) / 1000
+  const abs = Math.abs(diff)
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto', style: 'narrow' })
+  if (abs < 60) return rtf.format(0, 'second')
+  if (abs < 3600) return rtf.format(Math.round(diff / 60), 'minute')
+  if (abs < 86400) return rtf.format(Math.round(diff / 3600), 'hour')
+  return rtf.format(Math.round(diff / 86400), 'day')
+}
+
+/** `dense` (a desktop row, one line): the chips carry their explanation as a title instead of an ⓘ; the device page has the ⓘ. */
+function NameChips({ d, dense }: { d: DeviceRow; dense?: boolean }) {
   const { t } = useTranslation('inventory')
+  const tip = (chip: React.ReactNode, topic: string, text: string) => (dense ? chip : <span className="inline-flex items-center gap-1">{chip}<InfoTip topic={topic}>{text}</InfoTip></span>)
   return (
     <>
-      {d.is_box ? <span className="inline-flex items-center gap-1"><Chip tone="accent">{t('box.badge')}</Chip><InfoTip topic={t('box.badge')}>{t('box.noDelete')}</InfoTip></span> : null}
+      {d.is_box ? tip(<Chip tone="accent" title={dense ? t('box.noDelete') : undefined}>{t('box.badge')}</Chip>, t('box.badge'), t('box.noDelete')) : null}
       {d.suspicious ? <Chip tone="warn">{t('chip.suspicious')}</Chip> : null}
-      {d.fragile ? <span className="inline-flex items-center gap-1"><Chip tone="off">{t('chip.fragile')}</Chip><InfoTip topic={t('chip.fragile')}>{t('chip.fragileHint')}</InfoTip></span> : null}
+      {d.fragile ? tip(<Chip tone="off" title={dense ? t('chip.fragileHint') : undefined}>{t('chip.fragile')}</Chip>, t('chip.fragile'), t('chip.fragileHint')) : null}
     </>
   )
 }
@@ -131,7 +150,7 @@ function MatchLine({ shown, total, onClear }: { shown: number; total: number; on
 
 /** Devices: the approved list (#849). */
 function DevicesList({ rows, now, query }: { rows: DeviceRow[]; now: number; query: Query }) {
-  const { t } = useTranslation('inventory')
+  const { t, i18n } = useTranslation('inventory')
   const navigate = useNavigate()
   const { q, clear } = query
   const deferred = useDeferredValue(q)
@@ -148,14 +167,25 @@ function DevicesList({ rows, now, query }: { rows: DeviceRow[]; now: number; que
       cell: ({ row }) => <span onClick={(e) => e.stopPropagation()}><Checkbox aria-label={t('select.one', { name: nameOf(row.original, kindLabel(row.original.kind)) })} checked={sel.has(row.original.id)} onCheckedChange={(v) => ops.toggle(row.original.id, v === true)} /></span>,
     } satisfies ColumnDef<DeviceRow>] : []),
     { id: 'name', header: t('col.name'), accessorFn: (d) => nameOf(d, kindLabel(d.kind)), cell: ({ row }) => (
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">{nameLink(row.original, 'whitespace-nowrap')}<NameChips d={row.original} /></div>
+      <div className="flex items-center gap-x-2 whitespace-nowrap">{nameLink(row.original, 'whitespace-nowrap')}<NameChips d={row.original} dense /></div>
     ) },
     { id: 'ip', header: t('col.ip'), accessorFn: (d) => d.ip, cell: ({ row }) => <span className="whitespace-nowrap tabular-nums">{row.original.ip}</span> },
-    { id: 'kind', header: t('col.kind'), accessorFn: (d) => { const k = shownKind(d).kind; return `${kindLabel(k)} ${categoryLabel(categoryOf(k))}` }, cell: ({ row }) => <TypeCell d={row.original} /> },
-    { id: 'hw', header: t('col.hardware'), accessorFn: (d) => [d.vendor?.value, d.model?.value].filter(Boolean).join(' '), cell: ({ getValue }) => (getValue() as string) || dash },
-    { id: 'os', header: t('col.os'), accessorFn: (d) => d.os?.value ?? '', cell: ({ getValue }) => (getValue() as string) || dash },
-    { id: 'source', header: t('col.sources'), accessorFn: (d) => FEED_ORDER.filter((f) => feedsOfRow(d).has(f)).join(' '), cell: ({ row }) => <SourcesCell d={row.original} /> },
-    { id: 'seen', header: t('col.lastSeen'), accessorFn: (d) => new Date(d.last_seen).getTime(), cell: ({ row }) => <time className="whitespace-nowrap text-[13px] text-muted" dateTime={row.original.last_seen} title={fmtDateTime(row.original.last_seen)}>{fmtRelative(row.original.last_seen)}</time> },
+    { id: 'kind', header: t('col.kind'), accessorFn: (d) => { const k = shownKind(d).kind; return `${kindLabel(k)} ${categoryLabel(categoryOf(k))}` }, cell: ({ row }) => <TypeCell d={row.original} dense /> },
+    // #849 review: one line per row at 1280. Make, model and OS share a column, cut with an ellipsis (the whole text on hover, the
+    // device page has each value); the OS in muted text after the model.
+    { id: 'hw', header: t('col.device'), accessorFn: (d) => [d.vendor?.value, d.model?.value, d.os?.value].filter(Boolean).join(' '), cell: ({ row }) => {
+      const d = row.original
+      const hw = [d.vendor?.value, d.model?.value].filter(Boolean).join(' ')
+      const os = d.os?.value ?? ''
+      if (!hw && !os) return dash
+      return (
+        <span className="block max-w-56 truncate" title={[hw, os].filter(Boolean).join(', ')}>
+          {hw}{hw && os ? ' ' : ''}{os ? <span className="text-muted">{os}</span> : null}
+        </span>
+      )
+    } },
+    { id: 'source', header: t('col.sources'), accessorFn: (d) => FEED_ORDER.filter((f) => feedsOfRow(d).has(f)).join(' '), cell: ({ row }) => <SourcesCell d={row.original} compact /> },
+    { id: 'seen', header: t('col.lastSeen'), accessorFn: (d) => new Date(d.last_seen).getTime(), cell: ({ row }) => <time className="whitespace-nowrap text-[13px] text-muted" dateTime={row.original.last_seen} title={fmtDateTime(row.original.last_seen)}>{shortAgo(row.original.last_seen, now, i18n.language || 'en')}</time> },
   ]
   return (
     <section aria-label={t('tabs.devices')} className="grid min-w-0 gap-3">

@@ -7,6 +7,7 @@ import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
 import { InfoTip } from '@/components/common/InfoTip'
+import { Card } from '@/components/common/Card'
 import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -51,7 +52,7 @@ function RunPanel({ run, name, reconnecting, after }: { run: UpdateRun; name: st
   const tone = run.status === 'running' ? 'accent' : run.status === 'done' ? 'ok' : 'danger'
   const why = run.status === 'failed' || run.status === 'reverted' ? (run.error ?? t(`updates.run.${run.status}Toast.${run.action}`, { from: run.from ?? '' })) : null
   return (
-    <div className="mb-6 grid gap-3 rounded-md border border-rule bg-surface px-4 py-3">
+    <Card className="mb-6 grid gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold">{t(`updates.run.title.${run.action}.${run.status}`, { name, version: run.to, from: run.from ?? '' })}</h3>
         <Chip tone={tone}>{t(`updates.run.status.${run.status}`)}</Chip>
@@ -73,7 +74,7 @@ function RunPanel({ run, name, reconnecting, after }: { run: UpdateRun; name: st
       {reconnecting ? <p role="status" className="text-meta text-muted">{t('updates.run.reconnecting')}</p> : null}
       {run.status === 'done' && sawEnd ? <div><Button size="sm" onClick={() => window.location.reload()}>{t('updates.run.reload')}</Button> <span className="text-meta text-muted">{t('updates.run.reloadWhy')}</span></div> : null}
       {why ? <p role={sawEnd ? 'alert' : undefined} className="text-sm text-danger">{why}</p> : null}
-    </div>
+    </Card>
   )
 }
 
@@ -240,14 +241,14 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
         {s.advisories.length ? (
         <ul className="grid gap-2">
           {s.advisories.map((a) => (
-            <li key={a.id} className="rounded-md border border-rule bg-surface px-4 py-3 text-sm">
+            <li key={a.id}><Card className="text-sm">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">{a.title}</span>
                 {a.status === 'affected' ? <Chip tone="danger">{t('updates.advisoryAffected')}</Chip> : <Chip tone="ok">{t('updates.advisoryFixed')}</Chip>}
               </div>
               <p className="mt-1 text-meta text-muted">{a.id}, {fmtDate(a.published)}. {t('updates.fixedIn', { version: a.fixed_in })}</p>
               <p className="mt-1">{a.summary}</p>
-            </li>
+            </Card></li>
           ))}
         </ul>
         ) : <p className="max-w-3xl text-sm text-muted">{t(isNever(s.last_check) ? 'updates.advisoriesNotYet' : s.stale_since ? 'updates.advisoriesStale' : 'updates.advisoriesNone')}</p>}

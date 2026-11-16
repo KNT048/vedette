@@ -25,7 +25,7 @@ export default function LogsPanel() {
   return (
     <Section title={t('logs.title')} description={t('logs.description')} info={t('logs.descriptionInfo')} stories={['S-AI-4']}
       actions={<Button onClick={() => refresh.mutate()} disabled={!gate.canRun || refresh.isPending || d?.empty === true} title={gate.reason ?? (d?.empty ? d.summary : undefined)}>{refresh.isPending ? t('logs.working') : t('logs.refresh')}</Button>}>
-      {gate.state === 'unconfigured' || gate.state === 'unassigned' ? <EmptyState title={t(`gate.${gate.state}`)} info={t(`gate.${gate.state}Info`)}>{t(`gate.${gate.state}Body`)} <ToSettings /></EmptyState> : null}
+      {gate.state === 'unconfigured' || gate.state === 'unassigned' ? <EmptyState title={t(`gate.${gate.state}`)} info={t(`gate.${gate.state}Info`)}>{t(`gate.${gate.state}Body`)} <ToSettings state={gate.state} job="log-digest" /></EmptyState> : null}
       <ActionError error={refresh.error} />
       {gate.state === 'ready' && digest.isPending ? <Loading /> : null}
       {gate.state === 'ready' && digest.error && !d ? <ErrorState error={digest.error} onRetry={() => void digest.refetch()} /> : null}
@@ -33,7 +33,7 @@ export default function LogsPanel() {
       {d?.empty ? <p className="text-sm text-muted">{d.summary}</p> : null}
       {d && !d.empty ? (
         <div className="grid gap-2">
-          <p className="text-meta text-muted">{t('logs.tier', { tier: t(`settings.tier.${d.tier}.name`), cadence: d.cadence })} <ToSettings /></p>
+          <p className="text-meta text-muted">{t('logs.tier', { tier: t(`settings.tier.${d.tier}.name`), cadence: d.cadence })} <ToSettings to={`/settings/ai#ai-tier-${d.tier}`} /></p>
           <AiBlock model={`${d.model} (${d.profile})`} tokens={d.tokens} citations={d.items.length ? [{ title: t('logs.cite') }] : []}>
             <p>{d.summary}</p>
             <ul className="grid gap-4">

@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { Card } from '@/components/common/Card'
 import { Section } from '@/components/common/PageHeader'
 import { AiBlock } from '@/components/common/AiBlock'
 import { EmptyState, ModuleOff } from '@/components/common/States'
@@ -31,13 +32,13 @@ function Panels({ id }: { id: string }) {
     <>
       <Section title={t('cve.explainTitle')} description={t('cve.explainDesc')} info={t('cve.explainDescInfo')} stories={['S-AI-3']}
         actions={<Button onClick={() => explain.mutate()} disabled={!gateExplain.canRun || explain.isPending} title={gateExplain.reason}>{explain.isPending ? t('cve.working') : ex ? t('cve.explainAgain') : t('cve.explain')}</Button>}>
-        {blocked(gateExplain.state) ? <EmptyState title={t(`gate.${gateExplain.state}`)} info={t(`gate.${gateExplain.state}Info`, { defaultValue: '' }) || undefined}>{t(`gate.${gateExplain.state}Body`)} <ToSettings /></EmptyState> : null}
+        {blocked(gateExplain.state) ? <EmptyState title={t(`gate.${gateExplain.state}`)} info={t(`gate.${gateExplain.state}Info`, { defaultValue: '' }) || undefined}>{t(`gate.${gateExplain.state}Body`)} <ToSettings state={gateExplain.state} job="explain-finding" /></EmptyState> : null}
         <ActionError error={explain.error} />
         {ex ? <Explain r={ex} /> : !blocked(gateExplain.state) && !explain.error ? <p className="text-sm text-muted">{t('cve.explainEmpty')}</p> : null}
       </Section>
       <Section title={t('cve.newsTitle')} description={t('cve.newsDesc')} info={t('cve.newsDescInfo')} stories={['S-AI-3']}
         actions={<Button onClick={() => news.mutate()} disabled={!gateNews.canRun || news.isPending} title={gateNews.reason}>{news.isPending ? t('cve.working') : nw ? t('cve.newsAgain') : t('cve.news')}</Button>}>
-        {blocked(gateNews.state) ? <EmptyState title={t(`gate.${gateNews.state}`)} info={t(`gate.${gateNews.state}Info`, { defaultValue: '' }) || undefined}>{t(`gate.${gateNews.state}Body`)} <ToSettings /></EmptyState> : null}
+        {blocked(gateNews.state) ? <EmptyState title={t(`gate.${gateNews.state}`)} info={t(`gate.${gateNews.state}Info`, { defaultValue: '' }) || undefined}>{t(`gate.${gateNews.state}Body`)} <ToSettings state={gateNews.state} job="cve-news" /></EmptyState> : null}
         <ActionError error={news.error} />
         {nw ? <News r={nw} /> : !blocked(gateNews.state) && !news.error ? <p className="text-sm text-muted">{t('cve.newsEmpty')}</p> : null}
       </Section>
@@ -67,9 +68,8 @@ function Explain({ r }: { r: ExplainResult }) {
 function SourceList({ sources }: { sources: FetchedSource[] }) {
   const { t } = useTranslation('ai')
   return (
-    <div>
-      <p className="mb-1 text-sm font-medium">{t('cve.fetched')}</p>
-      <ul className="grid divide-y divide-rule rounded-md border border-rule bg-surface text-sm">
+    <Card flush level={3} title={t('cve.fetched')}>
+      <ul className="grid divide-y divide-rule text-sm">
         {sources.map((s) => (
           <li key={s.url} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
             <span className="grid"><a href={s.url} target="_blank" rel="noopener noreferrer" className="text-accent underline-offset-4 hover:underline">{s.title}</a><span className="text-caption text-muted">{s.note}</span></span>
@@ -77,7 +77,7 @@ function SourceList({ sources }: { sources: FetchedSource[] }) {
           </li>
         ))}
       </ul>
-    </div>
+    </Card>
   )
 }
 

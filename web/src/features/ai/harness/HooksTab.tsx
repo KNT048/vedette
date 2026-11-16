@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Section, Panel } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
+import { Section } from '@/components/common/PageHeader'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -87,7 +88,7 @@ function TestBox({ idPrefix, hook }: { idPrefix: string; hook?: HookInput }) {
     test.mutate({ text: text.trim(), when: stage, hook }, { onSuccess: (r) => setRan({ r, draft }) })
   }
   return (
-    <Panel className="grid gap-3 p-4">
+    <Card className="grid gap-3">
       <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
         <Field label={t('harness.hooks.sample')} htmlFor={`${idPrefix}-text`} hint={t('harness.hooks.sampleHint')}><Textarea id={`${idPrefix}-text`} className="min-h-16" value={text} maxLength={1000} onChange={(e) => { setText(e.target.value); setRan(null) }} /></Field>
         {!hook ? <Field label={t('harness.hooks.stage')} htmlFor={`${idPrefix}-when`}><Select id={`${idPrefix}-when`} value={when} onChange={(e) => { setWhen(e.target.value as HookWhen); setRan(null) }}>{WHENS.map((w) => <option key={w} value={w}>{t(`harness.hooks.when.${w}`)}</option>)}</Select></Field> : null}
@@ -100,7 +101,7 @@ function TestBox({ idPrefix, hook }: { idPrefix: string; hook?: HookInput }) {
           <p className="rounded-md border border-rule bg-sunken px-3 py-2">{res.output}</p>
         </div>
       ) : null}
-    </Panel>
+    </Card>
   )
 }
 

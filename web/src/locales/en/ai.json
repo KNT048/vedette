@@ -9,6 +9,7 @@
     "unconfiguredBody": "Add an AI profile to use this.",
     "unconfiguredInfo": "Add an AI profile (provider, model and key) to use this. Until then Vedette sends nothing out.",
     "toSettings": "Open Settings, AI assistant",
+    "toAssign": "Assign a profile in Settings, AI assistant",
     "askAdmin": "Ask an administrator to add an AI profile.",
     "unassigned": "No AI profile is assigned to this task",
     "unassignedBody": "No AI profile is assigned to this task.",
@@ -16,6 +17,7 @@
   },
   "page": {
     "titleLoading": "AI assistant",
+    "info": "Ask about your own devices and findings in plain words. The AI reads data through read-only tools, changes nothing, and every token it uses counts against the monthly budget.",
     "titleOff": "AI assistant is off, existing data is kept",
     "titleUnconfigured": "No AI profile yet: add one in Settings to ask your data",
     "title": "{{used}} of {{cap}} tokens used this month. The AI only reads data and changes nothing.",
@@ -400,6 +402,7 @@
       "public": "Public data only"
     },
     "none": "None",
+    "newProfile": "New AI profile",
     "primaryFor": "Primary profile for {{job}}",
     "fallbackFor": "Fallback profile for {{job}}",
     "fallbackNeedsPrimary": "Pick a primary profile first",
@@ -670,6 +673,7 @@
     "verified": "Chain verified: {{n}} entries, none changed.",
     "broken": "Chain broken at entry {{n}}: this entry or an earlier one was changed after it was written.",
     "readOnly": "Entries cannot be edited or deleted. Kept {{days}} days (Settings, AI assistant).",
+    "retentionLink": "Change how long",
     "open": "Details",
     "openFor": "Details of {{job}} at {{time}}",
     "col": {
@@ -715,7 +719,9 @@
       "outHash": "Output SHA-256",
       "prev": "Previous hash",
       "hash": "Entry hash",
-      "note": "hash = SHA-256 of the previous hash plus the entry's canonical JSON (sorted keys, without hash). Download the logs in Settings, Data to verify offline."
+      "note": "hash = SHA-256 of the previous hash plus the entry's canonical JSON (sorted keys, without hash). Download the logs in Settings, Data to verify offline.",
+      "verify": "To check the chain offline, download the logs.",
+      "verifyLink": "Download in Settings, Data"
     }
   },
   "budget": {

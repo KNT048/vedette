@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { Link } from 'react-router'
+import { Card } from '@/components/common/Card'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Notice } from '@/components/common/PageHeader'
@@ -10,6 +12,7 @@ import { Field, Input, Select } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
 import { useAddSource, useDeleteSource, useEditSource } from './api'
 import { CATALOG, GROUP_LABEL, GROUPS, searchCatalog } from './catalog'
+import { LAN_RANGE } from './places'
 import { BOX_PLACEHOLDER } from './snippets'
 import { defaultPort } from './types'
 import { fmtDate } from '@/lib/format'
@@ -167,7 +170,8 @@ export function ConfigDialog({ source, boxIp, lan, onClose }: { source: LogSourc
         return (
           <DialogContent wide title={t('config.title', { name: source.name })} description={t('config.target', { ip, port: source.port, proto: source.proto.toUpperCase(), sender: source.sender_ip })}>
             {boxIp ? null : <Notice tone="warn" role="alert" title={lan ? t('config.noIpLan', { lan, placeholder: BOX_PLACEHOLDER }) : t('config.noIp', { placeholder: BOX_PLACEHOLDER })}
-              info={lan ? t('config.noIpLanInfo', { lan, placeholder: BOX_PLACEHOLDER }) : t('config.noIpInfo', { placeholder: BOX_PLACEHOLDER })} />}
+              info={lan ? t('config.noIpLanInfo', { lan, placeholder: BOX_PLACEHOLDER }) : t('config.noIpInfo', { placeholder: BOX_PLACEHOLDER })}
+              actions={lan ? undefined : <Link to={LAN_RANGE} className="text-sm font-medium text-accent underline underline-offset-4">{t('sources.noIpLink')}</Link>} />}
             {source.proto === 'tls' ? (
               <div className="flex items-start gap-1 rounded-md border border-rule bg-sunken px-3 py-2 text-meta">
                 <p>{t(source.client_cert_sha256 ? 'config.tlsTrustPinned' : 'config.tlsTrust')}</p>
@@ -218,8 +222,8 @@ export function BoxCertificate({ tls }: { tls: BoxTls }) {
     URL.revokeObjectURL(url)
   }
   return (
-    <div className="mt-4 grid gap-2 rounded-md border border-rule bg-sunken px-3 py-3 text-sm" aria-labelledby="box-cert-title">
-      <h3 id="box-cert-title" className="font-medium">{t('boxCert.title')}</h3>
+    <Card id="box-cert" level={3} title={t('boxCert.title')} className="mt-4 text-sm">
+      <div className="grid gap-2">
       <div className="flex items-start gap-1">
         <p className="text-meta text-muted">{t(`boxCert.${tls.kind}`, { port: tls.port, issuer: tls.issuer })}</p>
         <InfoTip topic={t('boxCert.title')}>{t(`boxCert.${tls.kind}Info`, { port: tls.port, issuer: tls.issuer })}</InfoTip>
@@ -230,6 +234,7 @@ export function BoxCertificate({ tls }: { tls: BoxTls }) {
         <div className="flex flex-wrap gap-x-2"><dt className="text-muted">{t('boxCert.expires')}</dt><dd>{fmtDate(tls.not_after)}</dd></div>
       </dl>
       <div><Button size="sm" onClick={download}>{t('boxCert.download')}</Button></div>
-    </div>
+      </div>
+    </Card>
   )
 }

@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { OldHashToTab, PageTabs } from '@/components/common/PageFrame'
+import { Card } from '@/components/common/Card'
 import { QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -155,7 +156,8 @@ function ManagementForm({ d }: { d: NetworkState }) {
   }
   return (
     <>
-      <form className="grid max-w-xl gap-4" noValidate onSubmit={(e) => { e.preventDefault(); send(false) }}>
+      <Card className="max-w-xl">
+      <form className="grid gap-4" noValidate onSubmit={(e) => { e.preventDefault(); send(false) }}>
         <Field label={t('network.management.mode')} htmlFor="mgmt-mode">
           <Select id="mgmt-mode" value={mode} disabled={locked} onChange={(e) => pick(e.target.value as Management['mode'])}>
             <option value="static">{t('network.management.static')}</option>
@@ -163,10 +165,9 @@ function ManagementForm({ d }: { d: NetworkState }) {
           </Select>
         </Field>
         {mode === 'dhcp' ? (
-          <div className="flex max-w-lg items-start gap-1 rounded-md border border-rule bg-sunken px-3 py-2 text-meta">
-            <p className="min-w-0 flex-1">{t('network.management.dhcpNote')}{m.mode === 'dhcp' && m.address ? ` ${t('network.management.dhcpNow', { ip: `${m.address}/${m.prefix ?? '?'}`, gateway: m.gateway ?? '–', dns: m.dns.join(', ') || '–' })}` : ''}</p>
-            <InfoTip topic={t('network.management.dhcp')}>{t('network.management.dhcpNoteInfo')}</InfoTip>
-          </div>
+          <Notice tone="off" role="note" className="mb-0" title={t('network.management.dhcpNote')} info={t('network.management.dhcpNoteInfo')}>
+            {m.mode === 'dhcp' && m.address ? t('network.management.dhcpNow', { ip: `${m.address}/${m.prefix ?? '?'}`, gateway: m.gateway ?? '–', dns: m.dns.join(', ') || '–' }) : null}
+          </Notice>
         ) : (
           <>
             <div className="grid grid-cols-[minmax(0,1fr)_96px] gap-3">
@@ -181,6 +182,7 @@ function ManagementForm({ d }: { d: NetworkState }) {
         <div><Button type="submit" variant="primary" disabled={locked || management.isPending} title={gate.title}>{t('network.management.save')}</Button></div>
         <p className="max-w-lg text-meta text-muted">{t('network.management.restartNote')}</p>
       </form>
+      </Card>
       {ask ? (
         <Dialog open onOpenChange={(o) => { if (!o) setAsk(null) }}>
           <DialogContent title={t('network.confirm.title')} description={ask.ip ? t('network.confirm.body', { ip: ask.ip }) : t('network.confirm.bodyDhcp')}
@@ -205,7 +207,8 @@ function NtpForm({ d }: { d: NetworkState }) {
   const [servers, setServers] = useState(d.ntp.servers.join(', '))
   const [error, setError] = useState<string | null>(null)
   return (
-    <form className="grid max-w-xl gap-4" noValidate onSubmit={(e) => {
+    <Card className="max-w-xl">
+    <form className="grid gap-4" noValidate onSubmit={(e) => {
       e.preventDefault(); setError(null)
       ntp.mutate(mode === 'default' ? { mode, servers: [] } : { mode, servers: list(servers) }, { onSuccess: () => toast.success(t('network.ntp.saved')), onError: (er) => setError(errMsg(er, t)) })
     }}>
@@ -221,6 +224,7 @@ function NtpForm({ d }: { d: NetworkState }) {
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       <div><Button type="submit" variant="primary" disabled={gate.disabled || ntp.isPending} title={gate.title}>{t('common:save')}</Button></div>
     </form>
+    </Card>
   )
 }
 
@@ -238,7 +242,8 @@ function BoxAddressForm({ d }: { d: NetworkState }) {
     onError: (er) => { setAsk(null); setError(errMsg(er, t)) },
   })
   return (
-    <form className="grid max-w-xl gap-4" noValidate onSubmit={(e) => {
+    <Card className="max-w-xl">
+    <form className="grid gap-4" noValidate onSubmit={(e) => {
       e.preventDefault()
       const v = normaliseBoxAddress(value)
       const problem = boxAddressProblem(v)
@@ -279,6 +284,7 @@ function BoxAddressForm({ d }: { d: NetworkState }) {
         </Dialog>
       ) : null}
     </form>
+    </Card>
   )
 }
 
@@ -325,7 +331,7 @@ function Body({ d }: { d: NetworkState }) {
         { id: 'time', label: t('network.tabs.time'), panel: (
           <Section id="ntp" title={t('network.ntp.title')} description={t('network.ntp.desc')} stories={['S-CORE-8']}>
             <NtpForm key={JSON.stringify(d.ntp)} d={d} />
-            <div className="mt-3 flex items-center gap-1"><p className="text-meta text-muted">{t('network.ntp.privacyShort')} <Link to="/settings/privacy" className="text-accent underline-offset-4 hover:underline">{t('network.ntp.privacyLink')}</Link></p><InfoTip topic={t('network.ntp.title')}>{t('network.ntp.privacy')}</InfoTip></div>
+            <div className="mt-3 flex items-center gap-1"><p className="text-meta text-muted">{t('network.ntp.privacyShort')} <Link to="/settings/privacy#flow-10" className="text-accent underline-offset-4 hover:underline">{t('network.ntp.privacyLink')}</Link></p><InfoTip topic={t('network.ntp.title')}>{t('network.ntp.privacy')}</InfoTip></div>
           </Section>
         ) },
       ]} />

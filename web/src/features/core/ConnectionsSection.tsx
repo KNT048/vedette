@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Notice, PageHeader, Panel } from '@/components/common/PageHeader'
+import { Notice, PageHeader } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Chip } from '@/components/common/StatusChip'
@@ -53,14 +54,13 @@ export default function ConnectionsSection() {
   const count = conns.data?.items.length ?? 0
   return (
     <>
-      <PageHeader title={t('connections.title')} meta={t('connections.meta')} info={t('connections.metaInfo')} stories={['S-AI-7', 'S-RESP-4']} actions={count > 0 ? <Button variant="primary" onClick={() => setEdit('new')}>{t('connections.add')}</Button> : undefined} />
-      <Panel className="mb-4 grid gap-1.5 p-4 text-sm">
-        <div className="flex items-center gap-1"><p><strong>{t('connections.writeNoteLead')}</strong></p><InfoTip topic={t('connections.writeNoteLead')}>{t('connections.writeNote')}</InfoTip></div>
-        <div className="flex items-center gap-1"><p className="text-muted">{t('connections.privacyNote')} <Link className="text-accent underline underline-offset-4" to="/settings/privacy">{t('connections.privacyLink')}</Link></p><InfoTip topic={t('connections.privacyNote')}>{t('connections.privacyNoteInfo')}</InfoTip></div>
-      </Panel>
+      <PageHeader title={t('connections.title')} meta={t('connections.meta')} info={t('connections.metaInfo')} stories={['S-AI-7', 'S-RESP-4']} actions={count > 0 ? <Button id="connections-add" variant="primary" onClick={() => setEdit('new')}>{t('connections.add')}</Button> : undefined} />
+      <Notice tone="off" role="note" title={t('connections.writeNoteLead')} info={t('connections.writeNote')}>
+        <span className="inline-flex flex-wrap items-center gap-1">{t('connections.privacyNote')} <Link className="text-accent underline underline-offset-4" to="/settings/privacy#flow-12">{t('connections.privacyLink')}</Link><InfoTip topic={t('connections.privacyNote')}>{t('connections.privacyNoteInfo')}</InfoTip></span>
+      </Notice>
       <QueryState query={conns}>
         {({ items }) => items.length === 0 ? (
-          <EmptyState title={t('connections.empty')} info={t('connections.emptyInfo')} action={<Button variant="primary" onClick={() => setEdit('new')}>{t('connections.add')}</Button>}>{t('connections.emptyBody')}</EmptyState>
+          <EmptyState title={t('connections.empty')} info={t('connections.emptyInfo')} action={<Button id="connections-add" variant="primary" onClick={() => setEdit('new')}>{t('connections.add')}</Button>}>{t('connections.emptyBody')}</EmptyState>
         ) : (
           <ul aria-label={t('connections.title')} className="grid gap-4">
             {items.map((c) => {
@@ -68,7 +68,7 @@ export default function ConnectionsSection() {
               const mcp = c.kind === 'mcp-http'
               return (
                 <li key={c.id}>
-                  <Panel className={`grid gap-3 p-4 ${c.enabled && !unsupported ? '' : 'opacity-70'}`}>
+                  <Card className={`grid gap-3 ${c.enabled && !unsupported ? '' : 'opacity-70'}`}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="grid min-w-0 gap-1">
                         <h2 className="flex flex-wrap items-center gap-2 text-sm font-semibold">{c.name} <Chip tone="off">{t(`connections.kind.${c.kind}`)}</Chip>
@@ -117,7 +117,7 @@ export default function ConnectionsSection() {
                         {c.tools.some((x) => x.access === 'write') ? <p className="mt-2 text-meta text-muted">{t('connections.writeOnlyApproved')}</p> : null}
                       </div>
                     ) : null}
-                  </Panel>
+                  </Card>
                 </li>
               )
             })}

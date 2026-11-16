@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { PageHeader, Panel, Section } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
+import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs, type PageTab } from '@/components/common/PageFrame'
 import { AiBlock } from '@/components/common/AiBlock'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
@@ -39,7 +40,7 @@ export default function AssistantPage() {
   }
   return (
     <>
-      <PageHeader title={title} meta={cfg.data?.configured ? t('page.meta', { tier: t(`settings.tier.${cfg.data.tier}.name`) }) : undefined} stories={['S-AI-4', 'S-AI-5', 'S-AI-6', 'S-AI-8']} />
+      <PageHeader title={title} info={t('page.info')} meta={cfg.data?.configured ? t('page.meta', { tier: t(`settings.tier.${cfg.data.tier}.name`) }) : undefined} stories={['S-AI-4', 'S-AI-5', 'S-AI-6', 'S-AI-8']} />
       {/* S-UI-1: the meter is a KPI only when a person acts on it (80 % of the month's budget or more); below that the title already says it. */}
       {on && u && budgetPct(u.month.total, u.monthly_budget) >= 80 ? (
         <KpiStrip label={t('page.kpiLabel')} items={[{ value: `${fmtNumber(u.month.total)} / ${fmtNumber(u.monthly_budget)}`, label: t('page.kpiTokens'), to: '?tab=usage' }]} />
@@ -71,7 +72,7 @@ function Ask() {
   return (
     <Section title={t('ask.title')} description={t('ask.description')} info={t('ask.descriptionInfo')} stories={['S-AI-5']}>
       {gate.state === 'unconfigured' || gate.state === 'unassigned' ? (
-        <EmptyState title={t(`gate.${gate.state}`)} info={t(`gate.${gate.state}Info`, { defaultValue: '' }) || undefined}>{t(`gate.${gate.state}Body`)} <ToSettings /></EmptyState>
+        <EmptyState title={t(`gate.${gate.state}`)} info={t(`gate.${gate.state}Info`, { defaultValue: '' }) || undefined}>{t(`gate.${gate.state}Body`)} <ToSettings state={gate.state} job="ask-my-data" /></EmptyState>
       ) : (
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <form className="grid grid-cols-[minmax(0,1fr)] gap-3" onSubmit={(e) => { e.preventDefault(); run(q) }}>
@@ -130,10 +131,9 @@ function Answer({ r }: { r: AskResult }) {
     <div className="grid gap-4" aria-label={t('ask.answerFor', { q: r.question })} role="region">
       <p className="text-sm"><span className="text-muted">{t('ask.you')}</span> {r.question}</p>
       {refused ? (
-        <div role="alert" className="rounded-md border border-warn/50 bg-warn-soft px-4 py-3 text-sm">
-          <p className="mb-1 font-medium">{t(`ask.${refused}`)}</p>
-          {r.answer.map((p, i) => <p key={i}>{p}</p>)}
-        </div>
+        <Notice tone="warn" role="alert" className="mb-0" title={t(`ask.${refused}`)}>
+          {r.answer.map((p, i) => <p key={i} className="text-ink">{p}</p>)}
+        </Notice>
       ) : (
         <AiBlock model={`${r.model} (${r.profile})`} tokens={r.tokens} citations={r.citations}>
           {r.answer.map((p, i) => <p key={i}>{p}</p>)}
@@ -141,13 +141,12 @@ function Answer({ r }: { r: AskResult }) {
       )}
       {r.memories_suggested > 0 ? <p className="text-meta">{t('logs.suggested', { count: r.memories_suggested })} {admin ? <Link to="/settings/ai?tab=memory" className="text-accent underline underline-offset-4">{t('logs.suggestedLink')}</Link> : null}</p> : null}
       {hooks.length ? (
-        <div className="rounded-md border border-rule bg-surface p-3 text-sm">
-          <h3 className="mb-1 text-sm font-medium">{t('ask.hooksTitle')}</h3>
+        <Card level={3} title={t('ask.hooksTitle')} className="text-sm">
           <ul aria-label={t('ask.hooksTitle')} className="grid gap-1.5">
             {hooks.map((h, i) => <li key={i} className="flex flex-wrap items-center gap-2"><Chip tone={h.action === 'block' ? 'danger' : h.action === 'mask' ? 'warn' : 'accent'}>{t(`harness.hooks.action.${h.action}`)}</Chip><span className="font-medium">{h.name}</span><span className="text-muted">{t(`ask.step.${h.step}`, { tool: h.tool ?? '' })}</span><span className="text-muted">{h.message}</span></li>)}
           </ul>
           {blocked ? <p className="mt-2 text-meta text-muted">{t('ask.hooksHint')} {admin ? <Link to="/settings/ai?tab=hooks" className="text-accent underline underline-offset-4">{t('ask.hooksLink')}</Link> : null}</p> : null}
-        </div>
+        </Card>
       ) : null}
       {r.table ? (
         <div>
@@ -156,19 +155,19 @@ function Answer({ r }: { r: AskResult }) {
           <DataTable caption={t('ask.tableCaption', { q: r.question })} data={r.table.rows} columns={cols} pageSize={20} />
         </div>
       ) : null}
-      {refused === 'refused' ? null : <div>
-        <h3 className="mb-1 text-sm font-medium">{t('ask.toolsTitle')}</h3>
+      {refused === 'refused' ? null : <Card level={3} title={t('ask.toolsTitle')}>
         <p className="mb-2 text-meta text-muted">{t('ask.toolsNote')}</p>
-        <ul className="grid gap-1 rounded-md border border-rule bg-surface p-3 text-meta">
+        <ul className="grid gap-1 text-meta">
           {r.tool_calls.map((c, i) => <li key={i} className="flex flex-wrap gap-x-2"><code className="font-mono text-meta">{c.tool}({c.args})</code><span className="text-muted">{t('ask.toolResult', { result: c.result })}</span></li>)}
         </ul>
-      </div>}
+      </Card>}
     </div>
   )
 }
 
 function Meter({ query, renews }: { query: { data: Usage | undefined; error: unknown; isPending: boolean; refetch: () => unknown }; renews: string | undefined }) {
   const { t } = useTranslation('ai')
+  const admin = useCan('admin') // the budget is the administrator's (Settings, AI assistant)
   return (
     <Section title={t('meter.title')} description={t('meter.description')} info={<><p>{t('meter.callsNote')}</p><p>{t('meter.noDowngradesInfo')}</p></>} stories={['S-AI-4']}>
       <QueryState query={query}>
@@ -179,7 +178,7 @@ function Meter({ query, renews }: { query: { data: Usage | undefined; error: unk
           const tone = u.month.total >= u.monthly_budget ? 'bg-danger' : pct >= 80 ? 'bg-warn' : 'bg-accent'
           return (
             <div className="grid gap-5">
-              <Panel className="grid gap-3 p-4">
+              <Card className="grid gap-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <p className="text-sm">{t('meter.today', { used: fmtNumber(u.month.total), cap: fmtNumber(u.monthly_budget) })}</p>
                   <p className="text-meta text-muted">{t('meter.tier', { tier: t(`settings.tier.${u.tier}.name`) })}</p>
@@ -189,7 +188,8 @@ function Meter({ query, renews }: { query: { data: Usage | undefined; error: unk
                 </div>
                 <p className="text-meta text-muted">{t('meter.split', { input: fmtNumber(u.today.input), output: fmtNumber(u.today.output), month: fmtNumber(u.month.total), date })}</p>
                 {pct >= 80 ? <p className={`text-sm ${u.month.total >= u.monthly_budget ? 'text-danger' : 'text-warn'}`}>{u.month.total >= u.monthly_budget ? t('meter.over', { date }) : t('meter.near')}</p> : null}
-              </Panel>
+                {pct >= 80 && admin ? <Link to="/settings/ai#ai-cap" className="text-sm font-medium text-accent underline underline-offset-4">{t('budget.home.raise')}</Link> : null}
+              </Card>
               <DataTable caption={t('meter.skillCaption')} data={u.by_skill} pageSize={20}
                 columns={[
                   { id: 'skill', header: t('meter.col.skill'), accessorFn: (r: Usage['by_skill'][number]) => t(`skill.${r.skill}`, { defaultValue: r.skill }) },

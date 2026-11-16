@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { Download } from 'lucide-react'
 import { PageHeader } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
-import { EmptyState, QueryState } from '@/components/common/States'
+import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select } from '@/components/ui/input'
 import { download } from '@/lib/api'
@@ -32,6 +32,7 @@ export default function AuditSection() {
   const q = useAudit(deferred)
   const set = (patch: Partial<AuditQuery>) => setF({ ...f, ...patch })
   const filtered = Object.values(f).some(Boolean)
+  const clear = () => setF({ q: '', user: '', group: '', from: '', to: '', actor: '' })
 
   async function exportCsv() {
     try { await download(auditExportPath(f), 'vedette-audit.csv') } catch (e) { toast.error(errMsg(e, t)) }
@@ -52,7 +53,7 @@ export default function AuditSection() {
   return (
     <>
       <PageHeader title={q.data ? t('audit.title', { count: q.data.total }) : t('settings.audit')} meta={t('audit.meta')} info={t('audit.metaInfo')} stories={['S-CORE-3']} actions={<Button onClick={() => void exportCsv()}><Download />{t('audit.export')}</Button>} />
-      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div role="search" aria-label={t('audit.filter.label')} className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Field label={t('audit.filter.text')} htmlFor="au-q"><Input id="au-q" value={f.q} onChange={(e) => set({ q: e.target.value })} /></Field>
         <Field label={t('audit.filter.user')} htmlFor="au-user">
           <Select id="au-user" value={f.actor === 'people' ? PEOPLE : f.user} onChange={(e) => set(e.target.value === PEOPLE ? { actor: 'people', user: '' } : { actor: '', user: e.target.value })}>
@@ -79,7 +80,8 @@ export default function AuditSection() {
                   <span className="text-caption text-muted">{fmtDateTime(r.ts)}, {r.user}</span>
                 </div>
               )}
-              empty={<EmptyState title={filtered ? t('audit.emptyFiltered') : t('audit.empty')} />} />
+              empty={t('audit.empty')} filtered={filtered} onClearFilters={clear}
+              emptyFiltered={<span className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1">{t('audit.emptyFiltered')}<Button size="sm" variant="link" onClick={clear}>{t('common:table.clearFilters')}</Button></span>} />
           </>
         )}
       </QueryState>

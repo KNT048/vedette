@@ -62,9 +62,9 @@ export function BoxRestarting() {
     </>
   )
   return (
-    <main className="fixed inset-0 z-50 grid place-items-center bg-canvas p-6 text-center" aria-live="polite">
+    <main className="fixed inset-0 z-50 grid place-items-center bg-paper p-6 text-center" aria-live="polite">
       {kept.length > 0 ? (
-        <div role="dialog" aria-label={t('data.purge.done.title')} className="grid max-w-lg gap-3 rounded-md border border-rule bg-surface p-5 text-left">
+        <div role="dialog" aria-label={t('data.purge.done.title')} className="grid max-w-lg gap-3 rounded-lg border border-rule bg-surface p-5 text-left shadow-lg">
           <h2 className="text-base font-medium">{t('data.purge.done.title')}</h2>
           <p className="text-sm">{t('data.purge.done.body')}</p>
           <ul className="list-disc pl-5 text-sm">{kept.map((k) => <li key={k}>{t(`data.purge.done.kept.${k}`)}</li>)}</ul>

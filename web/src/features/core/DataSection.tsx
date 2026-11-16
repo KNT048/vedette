@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Download } from 'lucide-react'
 import { PageHeader, Section } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
+import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -72,20 +74,22 @@ export default function DataSection() {
       <PageHeader title={t('data.title')} meta={install === 'container' ? t('container.data.meta') : t('data.meta')} info={install === 'container' ? t('container.data.metaInfo') : t('data.metaInfo')} stories={['S-CORE-1']} />
       {install === 'container' ? <ContainerBackup /> : install === 'appliance' ? (
         <>
-          <Section title={t('data.backup.title')} description={t('data.backup.desc')} info={t('data.backup.info')}>
-            <Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/backup', `vedette-backup-${day}.tar.gz`)}><Download />{t('data.backup.button')}</Button>
-            <KeyAside disabled={gate.disabled} title={gate.title} />
+          <Section id="backup" title={t('data.backup.title')} description={t('data.backup.desc')} info={t('data.backup.info')}>
+            <Card className="max-w-3xl">
+              <Button id="backup-download" disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/backup', `vedette-backup-${day}.tar.gz`)}><Download />{t('data.backup.button')}</Button>
+              <KeyAside disabled={gate.disabled} title={gate.title} />
+            </Card>
           </Section>
-          <Section title={t('data.restore.title')} description={t('data.restore.desc')} info={t('data.restore.info')}>
+          <Section id="restore" title={t('data.restore.title')} description={t('data.restore.desc')} info={t('data.restore.info')}>
             <BoxBackups disabled={gate.disabled} title={gate.title} />
           </Section>
         </>
       ) : <InstallPending />}
-      <Section title={t('data.export.title')} description={t('data.export.desc')} info={t('data.export.info')}>
-        <Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/export', `vedette-export-${day}.json`)}><Download />{t('data.export.button')}</Button>
+      <Section id="export" title={t('data.export.title')} description={t('data.export.desc')} info={t('data.export.info')}>
+        <Card className="max-w-3xl"><Button disabled={gate.disabled} title={gate.title} onClick={dl('/core/data/export', `vedette-export-${day}.json`)}><Download />{t('data.export.button')}</Button></Card>
       </Section>
-      <Section title={t('data.logs.title')} description={t('data.logs.desc')} info={<><p>{t('data.logs.info')}</p><p>{t('data.logs.verify')}</p></>} stories={['S-CORE-6']}>
-        <div className="grid max-w-3xl gap-4">
+      <Section id="logs-export" title={t('data.logs.title')} description={t('data.logs.desc')} info={<><p>{t('data.logs.info')}</p><p>{t('data.logs.verify')}</p></>} stories={['S-CORE-6']}>
+        <Card className="grid max-w-3xl gap-4">
           <fieldset className="grid gap-2">
             <legend className="mb-1 text-sm font-medium">{t('data.logs.categories')}</legend>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -104,14 +108,14 @@ export default function DataSection() {
           </div>
           {logsErr ? <p role="alert" className="text-sm text-danger">{logsErr}</p> : null}
           <div><Button disabled={gate.disabled || !!logsErr} title={gate.title} onClick={dl(`/core/logs/export?${logsExportQuery(cats, fmt, from, to)}`, `vedette-logs-${day}.${fmt}`)}><Download />{t('data.logs.button')}</Button></div>
-        </div>
+        </Card>
       </Section>
-      <Section title={t('data.purge.title')} description={t('data.purge.desc')} info={t('data.purge.info')}>
-        <Button variant="danger" disabled={gate.disabled} title={gate.title} onClick={() => { setPurgeErr(null); setTyped(''); setPassword(''); setCode(''); setAskPurge(true) }}>{t('data.purge.button')}</Button>
+      <Section id="purge" title={t('data.purge.title')} description={t('data.purge.desc')} info={t('data.purge.info')}>
+        <Card className="max-w-3xl"><Button variant="danger" disabled={gate.disabled} title={gate.title} onClick={() => { setPurgeErr(null); setTyped(''); setPassword(''); setCode(''); setAskPurge(true) }}>{t('data.purge.button')}</Button></Card>
       </Section>
       {isPreview() ? (
         <Section title={t('data.sample.title')} description={t('data.sample.desc')} info={t('data.sample.info')}>
-          <Button disabled={gate.disabled} title={gate.title} onClick={() => setAskReset(true)}>{t('data.sample.button')}</Button>
+          <Card className="max-w-3xl"><Button disabled={gate.disabled} title={gate.title} onClick={() => setAskReset(true)}>{t('data.sample.button')}</Button></Card>
         </Section>
       ) : null}
 
@@ -173,6 +177,14 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
   // The helper keeps the newest 3 Before restore copies in a pool of their own (#458); with 3 already, the new one pushes the oldest out.
   const pre = rows.filter((b) => b.kind === 'pre_restore')
   const pushedOut = pre.length >= 3 ? pre[pre.length - 1] : undefined
+  const restoreButton = (b: BoxBackup) => <Button size="sm" disabled={disabled || running} title={title} onClick={() => { setErr(null); setSure(false); setPassword(''); setCode(''); setPick(b) }}>{t('data.restore.button')}</Button>
+  const columns: ColumnDef<BoxBackup>[] = [
+    { id: 'when', header: t('data.restore.col.when'), accessorFn: (b) => b.created_at, cell: ({ row }) => <span className="whitespace-nowrap">{fmtDateTime(row.original.created_at)}</span> },
+    { id: 'kind', header: t('data.restore.col.kind'), accessorFn: (b) => b.kind, cell: ({ row }) => t(`data.restore.kind.${row.original.kind}`) },
+    { id: 'size', header: t('data.restore.col.size'), accessorFn: (b) => b.size, cell: ({ row }) => <span className="block text-right tabular-nums">{(row.original.size / 1e6).toFixed(1)} MB</span> },
+    { id: 'key', header: t('data.restore.col.key'), accessorFn: (b) => Number(b.includes_key), cell: ({ row }) => (row.original.includes_key ? t('data.restore.withKey') : t('data.restore.withoutKey')) },
+    { id: 'restore', header: () => <span className="sr-only">{t('data.restore.button')}</span>, enableSorting: false, accessorFn: () => '', cell: ({ row }) => <div className="text-right">{restoreButton(row.original)}</div> },
+  ]
   return (
     <div className="grid gap-3">
       {run ? (
@@ -180,22 +192,14 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
           {run.status === 'failed' ? t('data.restore.failed', { error: run.error ?? '' }) : t(`data.restore.${run.status}`, { when })}
         </p>
       ) : null}
-      {list.isSuccess && rows.length === 0 ? <p className="text-sm text-muted">{t('data.restore.empty')}</p> : null}
-      {rows.length > 0 ? (
-        <table className="w-full max-w-3xl text-sm">
-          <thead><tr className="text-left text-muted"><th className="py-1 font-medium">{t('data.restore.col.when')}</th><th className="font-medium">{t('data.restore.col.kind')}</th><th className="font-medium">{t('data.restore.col.size')}</th><th className="font-medium">{t('data.restore.col.key')}</th><th /></tr></thead>
-          <tbody>
-            {rows.map((b) => (
-              <tr key={b.id} className="border-t border-border">
-                <td className="py-1.5">{fmtDateTime(b.created_at)}</td>
-                <td>{t(`data.restore.kind.${b.kind}`)}</td>
-                <td>{(b.size / 1e6).toFixed(1)} MB</td>
-                <td>{b.includes_key ? t('data.restore.withKey') : t('data.restore.withoutKey')}</td>
-                <td className="text-right"><Button disabled={disabled || running} title={title} onClick={() => { setErr(null); setSure(false); setPassword(''); setCode(''); setPick(b) }}>{t('data.restore.button')}</Button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {list.isSuccess ? (
+        <DataTable data={rows} columns={columns} caption={t('data.restore.title')} pageSize={20} empty={t('data.restore.empty')}
+          mobileRow={(b) => (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="grid gap-0.5"><span className="font-medium">{fmtDateTime(b.created_at)}</span><span className="text-meta text-muted">{t(`data.restore.kind.${b.kind}`)}, {(b.size / 1e6).toFixed(1)} MB, {b.includes_key ? t('data.restore.withKey') : t('data.restore.withoutKey')}</span></div>
+              {restoreButton(b)}
+            </div>
+          )} />
       ) : null}
       <Dialog open={pick !== null} onOpenChange={(o) => { if (!o) setPick(null) }}>
         <DialogContent title={t('data.restore.ask.title', { when: pick ? fmtDateTime(pick.created_at) : '' })} description={t('data.restore.ask.lost')} info={<><p>{t('data.restore.ask.kept')}</p><p>{t('data.restore.ask.retention')}</p><p>{t('data.restore.ask.restart')}</p></>}>
@@ -243,7 +247,7 @@ function KeyAside({ disabled, title }: { disabled: boolean; title?: string }) {
     } catch (e) { setErr(errMsg(e, t)) }
   }
   return (
-    <div className="mt-4 grid max-w-3xl gap-2 rounded-md border border-rule bg-sunken p-3">
+    <div id="backup-key" className="mt-4 grid gap-2 border-t border-rule pt-4">
       <div className="flex items-center gap-1"><p className="text-sm font-medium">{t('data.key.title')}</p><InfoTip topic={t('data.key.title')}>{t('data.key.descInfo')}</InfoTip></div>
       <p className="text-meta text-muted">{t('data.key.desc')}</p>
       {sso ? <div className="flex items-center gap-1"><p className="text-meta">{t('data.key.sso')}</p><InfoTip topic={t('data.key.sso')}>{t('data.key.ssoInfo')}</InfoTip></div> : <div><Button disabled={disabled} title={title} onClick={() => { setErr(null); setPassword(''); setCode(''); setOpen(true) }}><Download />{t('data.key.button')}</Button></div>}

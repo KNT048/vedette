@@ -25,6 +25,8 @@
   },
   "general": {
     "title": "{{name}} box: name and time zone",
+    "meta": "Shown on reports and alerts; sets the clock of every schedule.",
+    "metaInfo": "The name appears in the sidebar, reports and alert messages. The time zone sets scan windows, quiet hours and the weekly report.",
     "name": "Organization name",
     "nameHint": "Shown in the sidebar, reports and alert messages.",
     "nameError": "The organization name needs at least 2 characters.",
@@ -251,6 +253,7 @@
     },
     "filter": {
       "text": "Search text",
+      "label": "Filter the audit log",
       "user": "Who",
       "group": "Kind of action",
       "from": "From date",
@@ -892,7 +895,8 @@
       "upgrade": {
         "title": "Release upgrade to {{to}} is available",
         "warn": "Vedette does not do this for you: upgrade by hand, with a backup.",
-        "warnInfo": "A release upgrade changes the whole system and can fail halfway. Do it by hand, in a console, at a quiet time, with a snapshot or backup."
+        "warnInfo": "A release upgrade changes the whole system and can fail halfway. Do it by hand, in a console, at a quiet time, with a snapshot or backup.",
+        "backupLink": "Download a backup in Settings, Data"
       },
       "checkNow": "Check now"
     },

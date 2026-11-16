@@ -5,7 +5,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { CircleCheck, CircleDashed } from 'lucide-react'
 import { InfoTip } from '@/components/common/InfoTip'
-import { Panel, Section } from '@/components/common/PageHeader'
+import { Section } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -69,17 +70,17 @@ function ProfileStep({ done, admin, ready }: { done: boolean; admin: boolean; re
   }
   return (
     <Step n={5} title={t('setup.profile.title')} done={done} info={<><p>{t('setup.profile.body')}</p><p>{t('setup.profile.waitInfo')}</p></>} leaves={t('setup.profile.leaves')} leavesInfo={t('setup.profile.leavesInfo')}>
-      {aiOn === false ? <p className="text-meta">{t('setup.profile.aiOff')} {admin ? <Link className={link} to="/settings/modules">{t('setup.toModules')}</Link> : null}</p>
+      {aiOn === false ? <p className="text-meta">{t('setup.profile.aiOff')} {admin ? <Link className={link} to="/settings/modules#module-ai">{t('setup.toModules')}</Link> : null}</p>
         : !admin ? <p className="text-meta text-muted">{t('setup.adminDoes')}</p>
-        : profiles.data && !usable.length ? <p className="text-meta">{t('setup.profile.none')} <Link className={link} to="/settings/ai">{t('setup.profile.toAi')}</Link></p>
+        : profiles.data && !usable.length ? <p className="text-meta">{t('setup.profile.none')} <Link className={link} to="/settings/ai#ai-profiles">{t('setup.profile.toAi')}</Link></p>
         : assign.data ? (
           <div className="flex flex-wrap items-center gap-2">
             <label htmlFor="setup-profile" className="text-meta text-muted">{t('setup.profile.label')}</label>
-            <Select id="setup-profile" className="h-8 w-full min-w-0 sm:w-auto sm:min-w-[13rem]" value={slot?.primary ?? ''} disabled={!ready || save.isPending} aria-describedby={ready ? undefined : 'setup-profile-wait'} onChange={(e) => pick(e.target.value)}>
+            <Select id="setup-profile" className="h-8 w-full min-w-0 sm:w-auto sm:min-w-52" value={slot?.primary ?? ''} disabled={!ready || save.isPending} aria-describedby={ready ? undefined : 'setup-profile-wait'} onChange={(e) => pick(e.target.value)}>
               <option value="">{t('setup.profile.noneChosen')}</option>
               {usable.map((p) => <option key={p.id} value={p.id} disabled={!allowed(p.location)}>{p.name} ({p.model}){allowed(p.location) ? '' : ` · ${t('setup.profile.cloudBlocked')}`}</option>)}
             </Select>
-            <Link className={`text-meta ${link}`} to="/settings/ai">{t('setup.profile.toAi')}</Link>
+            <Link className={`text-meta ${link}`} to="/settings/ai#ai-routing">{t('setup.profile.toAi')}</Link>
             {/* a plan written before steps 1, 2 and 4 is never sent (one plan per finding, D-314): the setup waits for them; the AI page still sets it */}
             {ready ? null : <p id="setup-profile-wait" className="basis-full text-meta text-warn">{t('setup.profile.wait')}</p>}
           </div>
@@ -95,7 +96,7 @@ function ConnectStep({ cat, pulled, done, admin }: { cat: CatalogAction[]; pulle
     <Step n={1} title={t('setup.connect.title')} done={done} info={<><p>{t('setup.connect.body')}</p><p>{t('setup.connect.blocklistInfo')}</p></>} leaves={t('setup.connect.leaves')} leavesInfo={t('setup.connect.leavesInfo')}>
       <ul className="ml-5 list-disc text-meta">
         <li>{ready.length ? t('setup.connect.ready', { names: ready.map((a) => a.name).join(', ') }) : t('setup.connect.noneReady')}{' '}
-          {admin ? <><Link className={link} to="/settings/connections">{t('setup.connect.toConnections')}</Link>{' · '}<Link className={link} to="/response?tab=actions">{t('setup.connect.toActions')}</Link></> : null}</li>
+          {admin ? <><Link className={link} to="/settings/connections#connections-add">{t('setup.connect.toConnections')}</Link>{' · '}<Link className={link} to="/response?tab=actions#catalog">{t('setup.connect.toActions')}</Link></> : null}</li>
         <li>{pulled ? t('setup.connect.pulled', { time: fmtDateTime(pulled.at), from: pulled.from }) : t('setup.connect.blocklist')}{' '}
           {admin ? <Link className={link} to="/response?tab=actions">{t('setup.connect.toBlocklist')}</Link> : null}</li>
       </ul>
@@ -147,7 +148,7 @@ function ApproverStep({ s }: { s: SettingsView | undefined }) {
       {!s ? <p className="text-meta text-muted">{t('setup.adminDoes')}</p> : (
         <p className="text-meta">
           {chosen.length ? t('setup.approvers.chosen', { channels: chosen.map((c) => `${c.label} (${t('form.linkedCount', { linked: c.linked, count: c.approvers })})`).join(', ') }) : t('setup.approvers.none')}{' '}
-          <Link className={link} to="/response?tab=settings">{t('setup.approvers.toSettings')}</Link>{' · '}<Link className={link} to="/settings/channels">{t('form.toChannels')}</Link>
+          <Link className={link} to="/response?tab=settings#resp-channels">{t('setup.approvers.toSettings')}</Link>{' · '}<Link className={link} to="/settings/channels">{t('form.toChannels')}</Link>
         </p>
       )}
     </Step>
@@ -220,7 +221,7 @@ export function AiSetup({ compact = false }: { compact?: boolean }) {
   }
   return (
     <Section id="ai-setup" title={title} description={<>{t('setup.description')} <span className="font-medium">{count}</span></>} info={t('setup.descriptionInfo')} stories={['S-RESP-2']}>
-      <Panel className="p-4">{steps}</Panel>
+      <Card>{steps}</Card>
     </Section>
   )
 }
@@ -241,7 +242,7 @@ export function InboxWhy() {
   const trig = (x: TriggerInfo) => !x.ai_evidence.length ? t('why.trigger.never') : !x.ai_allowed ? t('why.trigger.notAllowed') : ASKED.includes(x.id) ? t('why.trigger.asked') : t('why.trigger.nobodyAsks')
   return (
     <Section id="inbox-why" title={t('why.title')} stories={['S-RESP-2']}>
-      <Panel className="grid gap-4 p-4 text-sm">
+      <Card className="grid gap-4 text-sm">
         <div className="grid gap-2">
           <p>{look}</p>
           {p.findings.length ? (
@@ -263,7 +264,7 @@ export function InboxWhy() {
           </ul>
           <p className="text-meta text-muted">{t('why.rules')} <Link className={link} to="/response?tab=rules">{t('why.toRules')}</Link></p>
         </div>
-      </Panel>
+      </Card>
     </Section>
   )
 }

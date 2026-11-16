@@ -230,7 +230,7 @@ describe('honeypot: hit detail', () => {
   it('a missing hit is reported with a way back', async () => {
     renderApp('/honeypot/hits/khong-co')
     expect(await screen.findByText(/No such trap hit/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Back to internal traps' })).toHaveAttribute('href', '/honeypot')
+    expect(within(screen.getByRole('navigation', { name: 'Breadcrumb' })).getByRole('link', { name: 'Internal traps' })).toHaveAttribute('href', '/honeypot')
   })
 
   it('an opened test hit is labelled as a test and has no "What to do" section', async () => {

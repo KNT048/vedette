@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Notice, Section, Panel } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
+import { Notice, Section } from '@/components/common/PageHeader'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -51,7 +52,7 @@ export default function KnowledgeTab() {
         return (
           <>
             <Section title={t('harness.knowledge.indexTitle')} description={t('harness.knowledge.indexBody')} info={t('harness.knowledge.indexInfo')} stories={['S-AI-7']}>
-              <Panel className="grid gap-3 p-4">
+              <Card className="grid gap-3">
                 <Field label={t('harness.knowledge.indexLabel')} htmlFor="kb-index" hint={t('harness.knowledge.indexHint')}>
                   <Select id="kb-index" className="max-w-sm" value={k.index_profile ?? ''} disabled={index.isPending}
                     onChange={(e) => index.mutate(e.target.value || null, { onSuccess: () => { add.reset(); toast.success(t('harness.knowledge.indexSaved')) } })}>
@@ -62,7 +63,7 @@ export default function KnowledgeTab() {
                 {chosen?.location === 'cloud' ? <Notice tone="warn" role="alert" title={t('harness.knowledge.cloudWarn', { host: hostOf(chosen.base_url) })} info={t('harness.knowledge.cloudWarnInfo')} /> : null}
                 {chosen?.location === 'internal' ? <p className="text-meta text-muted">{t('harness.knowledge.internalNote')}</p> : null}
                 <ActionError error={index.error} />
-              </Panel>
+              </Card>
             </Section>
             <Section title={t('harness.knowledge.title')} description={t('harness.knowledge.body')} info={t('harness.knowledge.bodyInfo')}
               actions={<><Button variant="primary" onClick={() => file.current?.click()} disabled={add.isPending || !k.index_profile} title={!k.index_profile ? t('harness.knowledge.needIndex') : undefined}>{add.isPending ? t('harness.knowledge.uploading') : t('harness.knowledge.upload')}</Button>

@@ -4,6 +4,8 @@ import { Link, Navigate, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Plus, RefreshCw } from 'lucide-react'
+import { Card } from '@/components/common/Card'
+import { DependencyLink } from '@/components/common/DependencyLink'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
@@ -22,6 +24,7 @@ import { SPAN_IN_UI } from '@/lib/span'
 import { useCan } from '@/lib/session'
 import { fetchOlderEvents, useDigest, useEvents, useSetRetention, useSources, useUnknownSenders } from './api'
 import { CATALOG } from './catalog'
+import { LAN_RANGE } from './places'
 import { BoxCertificate, ConfigDialog, DeleteDialog, SourceFormDialog } from './SourceDialogs'
 import type { IocHit, EventsResponse, EventWindow, LogEvent, LogSource, NewItem, Proto, SourcesResponse, SpikeItem } from './types'
 
@@ -123,6 +126,8 @@ function SourcesSection() {
           const hints = d.sources.filter((s) => s.state !== 'receiving')
           return (
             <>
+              {/* docs/UI.md §0: the missing LAN range is one link away, on its field */}
+              {!d.box.ip && !d.box.lan ? <DependencyLink className="mb-3" reason={t('sources.noIpReason')} to={LAN_RANGE} label={t('sources.noIpLink')} /> : null}
               {d.sources.length === 0 ? (
                 <EmptyState title={t('sources.emptyTitle')} info={t('sources.emptyBodyInfo')} action={addButton}>{t('sources.emptyBody')}</EmptyState>
               ) : (
@@ -217,7 +222,7 @@ function DigestSections() {
             <ScrollToHash />
             <Section id="bad" title={t('digest.bad.title')} description={t(spanRows ? 'digest.bad.description' : 'digest.bad.descriptionNoSpan')}
               info={<><p>{t(spanRows ? 'digest.bad.descriptionInfo' : 'digest.bad.descriptionNoSpanInfo')}</p>{SPAN_IN_UI ? <p>{t('digest.bad.note')}</p> : spanRows ? <p>{t('digest.bad.noteKept')}</p> : null}</>} stories={['S-LOG-2', 'S-LOG-4']}>
-              {d.bad_connections.length ? <DataTable caption={t('digest.bad.caption')} data={d.bad_connections} columns={bad} rowTone={() => 'danger'} /> : feedsOn === false ? <EmptyState title={t('digest.bad.emptyFeedsOff')}><Link to="/settings/modules" className="text-accent underline-offset-4 hover:underline">{t('digest.bad.openModules')}</Link></EmptyState> : d.ioc_matching ? <EmptyState title={t('digest.bad.empty')} /> : <EmptyState title={t('digest.bad.emptyNoIoc')}>{t('digest.bad.emptyNoIocAction')}</EmptyState>}
+              {d.bad_connections.length ? <DataTable caption={t('digest.bad.caption')} data={d.bad_connections} columns={bad} rowTone={() => 'danger'} /> : feedsOn === false ? <EmptyState title={t('digest.bad.emptyFeedsOff')}><DependencyLink reason={t('digest.bad.feedsOffReason')} to="/settings/modules#module-feeds" label={t('digest.bad.openModules')} /></EmptyState> : d.ioc_matching ? <EmptyState title={t('digest.bad.empty')} /> : <EmptyState title={t('digest.bad.emptyNoIoc')}><DependencyLink reason={t('digest.bad.emptyNoIocAction')} to="/settings/feeds#feeds-builtin" label={t('digest.bad.openFeeds')} /></EmptyState>}
             </Section>
             <Section id="new" title={learning ? t('digest.new.titleLearning') : t('digest.new.title', { days })} description={t('digest.new.description')} info={t('digest.new.descriptionInfo')} stories={['S-LOG-1']}>
               {d.new.length ? <DataTable caption={t('digest.new.caption')} data={d.new} columns={fresh} /> : <EmptyState title={learning ? t('digest.new.emptyLearning', { n: d.history_days, days }) : t('digest.new.empty', { days })} />}
@@ -252,6 +257,8 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
       () => setOlder({ ...extra, busy: false, failed: true }),
     )
   }
+  const filtered = !!text.trim() || !!source
+  const clearFilters = () => { setText(''); setSource('') }
   const columns: ColumnDef<LogEvent>[] = [
     { id: 'time', header: t('events.col.time'), accessorFn: (r) => r.ts, cell: ({ row }) => <span className="whitespace-nowrap">{fmtDateTime(row.original.ts)}</span> },
     { id: 'source', header: t('events.col.source'), accessorFn: (r) => r.source_name, cell: ({ row }) => <span className="grid">{row.original.source_name}{row.original.host && row.original.host !== row.original.source_name ? <span className="text-caption text-muted">{row.original.host}</span> : null}</span> },
@@ -282,7 +289,9 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
             )}
             <DataTable key={`${win}-${source}-${text}`} caption={t('events.caption')} data={rows} columns={columns} pageSize={25} mobileRow={(r) => (
               <div className="grid gap-1"><p className="text-caption text-muted">{fmtDateTime(r.ts)}, {r.source_name}{r.host && r.host !== r.source_name ? ` (${r.host})` : ''}</p><Message e={r} /></div>
-            )} empty={!text.trim() && !source ? <span className="inline-flex items-center gap-1">{t('events.emptyNone')}<InfoTip topic={t('events.title')}>{t('events.emptyNoneInfo')}</InfoTip></span> : t('events.empty')} />
+            )} empty={<span className="inline-flex items-center gap-1">{t('events.emptyNone')}<InfoTip topic={t('events.title')}>{t('events.emptyNoneInfo')}</InfoTip></span>}
+              filtered={filtered} onClearFilters={clearFilters}
+              emptyFiltered={<span className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1">{t('events.empty')}<Button size="sm" variant="link" onClick={clearFilters}>{t('common:table.clearFilters')}</Button></span>} />
           </>
           )
         }}
@@ -305,12 +314,14 @@ function RetentionSection({ days, linesPerHour }: { days: number; linesPerHour: 
   const save = (n: number) => set.mutate(n, { onSuccess: () => toast.success(t('retention.saved')), onError: (er) => toast.error(er instanceof ApiError ? er.message : String(er)), onSettled: () => setPending(null) })
   return (
     <Section id="retention" title={t('retention.title')} description={linesPerHour > 0 ? t('retention.description', { days, mb }) : t('retention.descriptionNone')}>
+      <Card className="max-w-xl">
       <Field label={t('retention.label')} htmlFor="ret-days" className="max-w-xs">
         <Select id="ret-days" value={days} disabled={!isAdmin || set.isPending} title={isAdmin ? undefined : t('common:needRole', { role: t('common:role.admin') })}
           onChange={(e) => { const n = Number(e.target.value); if (n < days) setPending(n); else save(n) }}>
           {[7, 30, 90, 180].map((n) => <option key={n} value={n}>{t('retention.option', { n })}</option>)}
         </Select>
       </Field>
+      </Card>
       <Dialog open={pending !== null} onOpenChange={(o) => { if (!o && !set.isPending) setPending(null) }}>
         {pending !== null ? (
           <DialogContent title={t('retention.shortenTitle', { n: pending })} description={t('retention.shortenBody', { n: pending })}>
@@ -380,7 +391,7 @@ function Content() {
   const sourcesTab = { id: 'sources', label: t('tabs.sources'), panel: <SourcesSection /> }
   return (
     <>
-      <PageHeader title={title} stories={['S-LOG-1', 'S-LOG-2', 'S-LOG-4']}
+      <PageHeader title={title} info={t('pageInfo')} stories={['S-LOG-1', 'S-LOG-2', 'S-LOG-4']}
         meta={digest.data && !noSources && !noLogs ? <span className="inline-flex flex-wrap items-center gap-2">{t(learning ? 'metaLearning' : 'meta', { lines: fmtNumber(digest.data.lines_24h), days: digest.data.baseline_days, time: fmtDateTime(digest.data.generated_at) })}<SampleDataNote /></span> : null} />
       {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
       <PageTabs label={t('tabs.label')} tabs={noSources ? [sourcesTab, ...retention] : [

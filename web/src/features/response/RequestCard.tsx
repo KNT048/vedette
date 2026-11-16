@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AiBlock } from '@/components/common/AiBlock'
 import { InfoTip } from '@/components/common/InfoTip'
-import { Notice, KeyValue, Panel } from '@/components/common/PageHeader'
+import { Notice, KeyValue } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -106,7 +107,7 @@ export function RequestCard({ a }: { a: ActionRequest }) {
     onError: (e) => toast.error(errText(e)),
   })
   return (
-    <Panel className="grid gap-3 p-4">
+    <Card className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-semibold">{a.title}</h3>
         <div className="flex flex-wrap items-center gap-2">
@@ -174,6 +175,6 @@ export function RequestCard({ a }: { a: ActionRequest }) {
         </div>
       ) : null}
       {rejecting ? <RejectDialog a={a} onClose={() => setRejecting(false)} /> : null}
-    </Panel>
+    </Card>
   )
 }

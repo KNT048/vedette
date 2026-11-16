@@ -1,6 +1,7 @@
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Section } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { Chip } from '@/components/common/StatusChip'
 import { useModuleEnabled } from '@/lib/modules'
 import { fmtDateTime } from '@/lib/format'
@@ -24,7 +25,8 @@ function Inner({ assetId }: { assetId: string }) {
         : q.error ? <p role="alert" className="text-sm text-danger">{q.error instanceof Error ? q.error.message : String(q.error)}</p>
         : q.data.items.length === 0 ? <p className="text-sm text-muted">{t('device.none')}</p>
         : (
-          <ul className="grid divide-y divide-rule rounded-md border border-rule bg-surface">
+          <Card flush>
+          <ul className="grid divide-y divide-rule">
             {q.data.items.map((h) => (
               <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm">
                 <Link className="text-accent underline-offset-4 hover:underline" to={`/honeypot/hits/${h.id}`}>{t('device.item', { service: hitName(t, h), time: fmtDateTime(h.ts) })}</Link>
@@ -32,6 +34,7 @@ function Inner({ assetId }: { assetId: string }) {
               </li>
             ))}
           </ul>
+          </Card>
         )}
     </Section>
   )

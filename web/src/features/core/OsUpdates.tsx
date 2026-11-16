@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { CalendarClock, Power, RefreshCw, ShieldCheck } from 'lucide-react'
@@ -7,6 +8,7 @@ import { Notice } from '@/components/common/PageHeader'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Chip } from '@/components/common/StatusChip'
 import { InfoTip } from '@/components/common/InfoTip'
+import { Card } from '@/components/common/Card'
 import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
@@ -136,7 +138,7 @@ function RunPanel({ run }: { run: OsRun }) {
   }, [run.id, run.status, run.error, run.result?.installed, qc, t])
   const r = run.result
   return (
-    <div className="grid gap-3 rounded-md border border-rule bg-surface p-4" aria-live="polite">
+    <Card className="grid gap-3"><div className="contents" aria-live="polite">
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-semibold">{t('updates.os.run.title')}</h3>
         {run.status === 'running' ? <Chip tone="accent">{t('updates.os.run.running')}</Chip> : run.status === 'failed' ? <Chip tone="danger">{t('updates.os.run.failedChip')}</Chip> : <Chip tone="ok">{t('updates.os.run.done')}</Chip>}
@@ -154,7 +156,7 @@ function RunPanel({ run }: { run: OsRun }) {
           <dd>{r.reboot_required ? <Chip tone="warn">{t('updates.os.rebootRequired')}</Chip> : <Chip tone="ok">{t('updates.os.rebootNotNeeded')}</Chip>}</dd>
         </dl>
       ) : null}
-    </div>
+    </div></Card>
   )
 }
 
@@ -190,7 +192,7 @@ function Body({ s }: { s: CheckedOs }) {
         <Band id="os-band" n="1" title={t('updates.os.title')} desc={t('updates.os.desc')} info={<><p>{t('updates.os.info')}</p><p>{t('updates.os.helper')}</p></>}
           actions={<Button onClick={() => void act(() => m.check.mutateAsync(), t('updates.os.checked'))} disabled={operator.disabled || m.check.isPending} title={operator.title}><RefreshCw />{t('updates.os.checkNow')}</Button>} />
         <div className="grid gap-5">
-          <div className="grid gap-x-6 gap-y-3 rounded-md border border-rule bg-surface p-4 sm:grid-cols-[minmax(160px,max-content)_1fr]">
+          <Card className="grid gap-x-6 gap-y-3 sm:grid-cols-[minmax(160px,max-content)_1fr]">
             <span className="text-meta text-muted">{t('updates.os.distro')}</span>
             <span className="flex flex-wrap items-center gap-2 text-sm font-medium">{s.os.name}</span>
             <span className="text-meta text-muted">{t('updates.os.kernel')}</span>
@@ -232,7 +234,7 @@ function Body({ s }: { s: CheckedOs }) {
             </span>
             <span className="text-meta text-muted">{t('updates.os.windowLabel')}</span>
             <span className="text-sm"><WindowSummary w={s.window} /></span>
-          </div>
+          </Card>
 
           <WindowForm key={JSON.stringify(s.window)} s={s} disabled={admin.disabled} title={admin.title} />
 
@@ -261,6 +263,8 @@ function Body({ s }: { s: CheckedOs }) {
             <Notice tone="warn" className="mb-0" title={t('updates.os.upgrade.title', { to: s.release_upgrade.to })} info={t('updates.os.upgrade.warnInfo')}>
               <p>{t('updates.os.upgrade.warn')}</p>
               <ol className="mt-2 grid list-decimal gap-1 pl-5 text-ink">{s.release_upgrade.steps.map((st) => <li key={st} className="[overflow-wrap:anywhere]">{st}</li>)}</ol>
+              {/* §0: the backup the first step asks for is one click away */}
+              <Link to="/settings/data#backup-download" className="mt-2 inline-block font-medium text-accent underline underline-offset-4">{t('updates.os.upgrade.backupLink')}</Link>
             </Notice>
           ) : null}
         </div>

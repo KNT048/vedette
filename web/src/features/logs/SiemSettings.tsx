@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Send } from 'lucide-react'
 import { Notice, PageHeader } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { QueryState, RequireModule } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -115,7 +116,7 @@ export default function SiemSettings() {
   return (
     <RequireModule module="logs">
       <PageHeader title={t('siem.title')} meta={t('siem.description')} info={t('siem.descriptionInfo')} stories={['S-LOG-3']} />
-      <QueryState query={q}>{(cfg) => <SiemForm cfg={cfg} />}</QueryState>
+      <QueryState query={q}>{(cfg) => <Card className="max-w-2xl"><SiemForm cfg={cfg} /></Card>}</QueryState>
     </RequireModule>
   )
 }

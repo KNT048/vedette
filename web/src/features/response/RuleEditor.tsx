@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ArrowDown, ArrowUp, FlaskConical, Plus, Trash2 } from 'lucide-react'
 import { InfoTip } from '@/components/common/InfoTip'
-import { Notice, Panel } from '@/components/common/PageHeader'
+import { Notice } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -197,7 +198,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
               </Field>
               {r.trigger === 'schedule' ? <Field htmlFor="rule-sched" label={t('editor.scheduleMin')} hint={t('editor.scheduleHint')} error={errs['rule-sched']}><Input id="rule-sched" {...inv(errs, 'rule-sched')} type="number" min={15} max={10080} value={r.schedule_min ?? 10080} onChange={(e) => set({ schedule_min: Number(e.target.value) })} /></Field> : null}
               <details className="text-meta"><summary className="cursor-pointer text-accent">{t('editor.fields')}</summary>
-                <ul className="mt-2 grid gap-1">{trig?.fields.map((f) => <li key={f.key}><code className="rounded bg-sunken px-1">{`{{trigger.${f.key}}}`}</code> {f.label}, <span className="text-muted">{t('editor.fieldType', { type: f.type, example: f.example })}</span></li>)}</ul>
+                <ul className="mt-2 grid gap-1">{trig?.fields.map((f) => <li key={f.key}><code className="rounded-sm bg-sunken px-1">{`{{trigger.${f.key}}}`}</code> {f.label}, <span className="text-muted">{t('editor.fieldType', { type: f.type, example: f.example })}</span></li>)}</ul>
               </details>
             </section>
 
@@ -245,7 +246,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
             <section className="grid gap-3" aria-label={t('editor.limits')}>
               <h3 className="text-sm font-semibold">{t('editor.limits')}</h3>
               <Field htmlFor="rule-hour" label={t('rules.perHour')} hint={t('rules.perHourHint')} error={errs['rule-hour']} className="max-w-xs"><Input id="rule-hour" {...inv(errs, 'rule-hour')} type="number" min={1} max={100} value={r.max_per_hour} onChange={(e) => set({ max_per_hour: Number(e.target.value) })} /></Field>
-              <Panel className="grid gap-2 p-3">
+              <Card className="grid gap-2">
                 <div className="flex items-center gap-2.5">
                   <Switch id="rule-pre" checked={r.pre_approved} disabled={!admin || (!r.pre_approved && !eligible)} onCheckedChange={(v) => set({ pre_approved: v })} />
                   <label htmlFor="rule-pre" className="grid text-sm"><span className="font-medium">{t('editor.pre')}</span><span className="text-meta text-muted">{t('editor.preHint')}</span></label>
@@ -254,7 +255,7 @@ export function RuleDialog({ rule, onClose }: { rule: Rule | null; onClose: () =
                 {!admin ? <p className="text-meta text-muted">{t('editor.preAdmin')}</p> : !eligible && !r.pre_approved ? <p className="text-meta text-muted">{t('editor.preNotEligible')}</p> : null}
                 {r.pre_approved ? <Notice tone="danger" role="alert" className="mb-0" title={t('editor.preWarning')} info={t('editor.preWarningInfo')} /> : null}
                 {why ? <p role="alert" className="text-meta text-danger">{t('editor.preBad')}</p> : null}
-              </Panel>
+              </Card>
             </section>
 
             {result ? <SimResult s={result} /> : null}

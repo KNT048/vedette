@@ -4,6 +4,10 @@ import { useTranslation } from 'react-i18next'
 import { Check, Plus, Trash2 } from 'lucide-react'
 import { ErrorState, Loading } from '@/components/common/States'
 import { InfoTip } from '@/components/common/InfoTip'
+import { Card } from '@/components/common/Card'
+import { Notice } from '@/components/common/PageHeader'
+import { StandalonePage } from '@/components/common/StandalonePage'
+import { Illustration } from '@/components/common/Illustration'
 import { Button } from '@/components/ui/button'
 import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Field, Input } from '@/components/ui/input'
@@ -154,29 +158,24 @@ export default function SetupPage() {
 
   if (restoring) {
     return (
-      <main className="mx-auto min-h-dvh w-full max-w-2xl px-4 py-10">
-        <h1 className="text-2xl font-semibold tracking-[-0.01em]">{t('setup.title')}</h1>
-        <section className="mt-6 rounded-md border border-rule bg-surface p-5" aria-labelledby="restore-title">
+      <StandalonePage size="lg" title={t('setup.title')}>
+        <Card>
           <div className="flex items-center gap-1">
-            <h2 id="restore-title" className="text-lg font-semibold">{t('setup.restore.title')}</h2>
+            <h2 id="restore-title" className="text-base font-semibold">{t('setup.restore.title')}</h2>
             <InfoTip topic={t('setup.restore.title')}><p>{t('setup.restore.descInfo')}</p><p>{t('setup.restore.terms')}</p></InfoTip>
           </div>
           <p className="mt-1 text-sm text-muted">{t('setup.restore.desc')}</p>
           <SetupRestore install={install} termsAccepted={s.terms} onBack={() => setRestoring(false)} />
-        </section>
-      </main>
+        </Card>
+      </StandalonePage>
     )
   }
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-2xl px-4 py-10">
-      <div className="flex items-center gap-1">
-        <h1 className="text-2xl font-semibold tracking-[-0.01em]">{t('setup.title')}</h1>
-        <InfoTip topic={t('setup.title')}>{t('setup.subtitleInfo')}</InfoTip>
-      </div>
-      <p className="mt-1 text-sm text-muted">{t('setup.subtitle')}</p>
-
-      <ol aria-label={t('setup.steps')} className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+    // UI.md §3: a standalone page (outside the shell), the welcome drawing on the first step.
+    <StandalonePage size="lg" title={t('setup.title')} subtitle={<span className="inline-flex items-center gap-1">{t('setup.subtitle')}<InfoTip topic={t('setup.title')}>{t('setup.subtitleInfo')}</InfoTip></span>}>
+      {step === 'terms' ? <Illustration name="welcome" className="mx-auto" /> : null}
+      <ol aria-label={t('setup.steps')} className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
         {STEPS.map((k, i) => (
           <li key={k} aria-current={i === idx ? 'step' : undefined} className={cn('flex items-center gap-1.5', i === idx ? 'font-medium text-ink' : 'text-muted')}>
             <span className={cn('grid size-5 place-items-center rounded-full border text-caption', i < idx ? 'border-ok bg-ok-soft text-ok' : i === idx ? 'border-accent bg-accent text-accent-ink' : 'border-rule')}>{i < idx ? <Check className="size-3" aria-hidden /> : i + 1}</span>
@@ -186,7 +185,7 @@ export default function SetupPage() {
       </ol>
 
       {step === 'account' && import.meta.env.VITE_API_MOCK !== 'off' ? (
-        <section className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed border-rule px-5 py-3" aria-labelledby="sample-title">
+        <Card className="flex flex-wrap items-center justify-between gap-3">
           <div className="grid max-w-md gap-0.5">
             <div className="flex items-center gap-1">
               <h2 id="sample-title" className="text-sm font-semibold">{t('setup.sample.title')}</h2>
@@ -195,10 +194,10 @@ export default function SetupPage() {
             <p className="text-meta text-muted">{t('setup.sample.desc')}</p>
           </div>
           <Button onClick={() => void startWithSample()} disabled={submit.isPending}>{t('setup.sample.button')}</Button>
-        </section>
+        </Card>
       ) : null}
       {step === 'account' ? (
-        <section className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-rule px-5 py-3" aria-labelledby="restore-entry">
+        <Card className="flex flex-wrap items-center justify-between gap-3">
           <div className="grid max-w-md gap-0.5">
             <div className="flex items-center gap-1">
               <h2 id="restore-entry" className="text-sm font-semibold">{t('setup.restore.entryTitle')}</h2>
@@ -207,12 +206,12 @@ export default function SetupPage() {
             <p className="text-meta text-muted">{t('setup.restore.entryDesc')}</p>
           </div>
           <Button onClick={() => setRestoring(true)}>{t('setup.restore.entryButton')}</Button>
-        </section>
+        </Card>
       ) : null}
-      <section className="mt-6 rounded-md border border-rule bg-surface p-5" aria-labelledby="step-title">
+      <Card>
         <form noValidate onSubmit={(e) => { e.preventDefault(); if (step === 'modules') void finish(); else next() }}>
         <div className="flex items-center gap-1">
-          <h2 id="step-title" ref={heading} tabIndex={-1} className="text-lg font-semibold outline-none">{t(`setup.${step}.title`)}</h2>
+          <h2 id="step-title" ref={heading} tabIndex={-1} className="text-base font-semibold outline-none">{t(`setup.${step}.title`)}</h2>
           {stepInfo ? <InfoTip topic={t(`setup.${step}.title`)}>{stepInfo}</InfoTip> : null}
         </div>
         <p className="mt-1 text-sm text-muted">{t(`setup.${step}.desc`)}</p>
@@ -267,7 +266,7 @@ export default function SetupPage() {
               <div><Button size="sm" onClick={() => set({ lan: [...s.lan, ''] })} disabled={s.lan.length >= 16}><Plus />{t('setup.network.lanAdd')}</Button></div>
               {s.notes.some((n) => s.lan.includes(n.to)) ? <ul className="grid gap-1 text-meta text-muted" aria-label={t('setup.network.noteLabel')}>{s.notes.filter((n) => s.lan.includes(n.to)).map((n) => <li key={n.to}>{n.text}</li>)}</ul> : null}
             </fieldset>
-            <div className="grid gap-3 rounded-md border border-rule bg-sunken p-4">
+            <div className="grid gap-3 border-t border-rule pt-4">
               <div className="flex items-start gap-2.5">
                 <Checkbox id="s-commit" checked={s.commitment} onCheckedChange={(v) => set({ commitment: v === true })} className="mt-0.5" />
                 <label htmlFor="s-commit" className="text-sm">{t('setup.network.commitment')}</label>
@@ -283,7 +282,7 @@ export default function SetupPage() {
 
         {step === 'modules' ? <ModulesStep s={s} set={set} error={errors.modules} /> : null}
 
-        {formError ? <p role="alert" className="mt-4 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{formError}</p> : null}
+        {formError ? <Notice tone="danger" role="alert" className="mb-0 mt-4" title={formError} /> : null}
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
           {/* W2-8: the first step has nowhere to go back to, so it has no Back (the span keeps Continue on the right). */}
@@ -300,9 +299,8 @@ export default function SetupPage() {
               </div>}
         </div>
         </form>
-      </section>
-
-    </main>
+      </Card>
+    </StandalonePage>
   )
 }
 
@@ -336,8 +334,8 @@ function ModulesStep({ s, set, error }: { s: State; set: (p: Partial<State>) => 
       </RadioGroup>
       {notHere.length ? <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('setup.modules.notHere', { list: notHere.map(name).join(', ') })}</p><InfoTip topic={t('setup.modules.notHereOne')}>{t('setup.modules.notHereInfo')}</InfoTip></div> : null}
       {s.bundle === 'custom' ? (
-        <fieldset className="grid gap-2 rounded-md border border-rule p-3">
-          <legend className="flex items-center gap-1 px-1 text-sm font-medium">{t('setup.modules.pick')}<InfoTip topic={t('setup.modules.pick')}>{t('setup.modules.pickInfo')}</InfoTip></legend>
+        <fieldset className="grid gap-2 border-t border-rule pt-3">
+          <legend className="flex items-center gap-1 text-sm font-medium">{t('setup.modules.pick')}<InfoTip topic={t('setup.modules.pick')}>{t('setup.modules.pickInfo')}</InfoTip></legend>
           <p className="text-meta text-muted">{t('setup.modules.pickHint')}</p>
           {all.filter((m) => m.tier !== 'core').map((m) => (
             <div key={m.id} className="flex items-start gap-2.5">

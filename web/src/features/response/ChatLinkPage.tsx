@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CircleCheck } from 'lucide-react'
 import { InfoTip } from '@/components/common/InfoTip'
 import { PageHeader } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { Button } from '@/components/ui/button'
 import { api, ApiError } from '@/lib/api'
 import { useMe } from '@/lib/session'
@@ -41,7 +42,7 @@ export default function ChatLinkPage() {
   return (
     <div className="max-w-xl">
       <PageHeader title={t('chatLink.title', { name })} stories={['S-RESP-2']} />
-      <div className="grid gap-4 rounded-md border border-rule bg-surface p-4">
+      <Card className="grid gap-4">
         {!token ? <p role="alert" className="text-sm">{t('chatLink.noToken', { name })}</p>
           : done ? (
             <p role="status" className="flex items-start gap-2 text-sm"><CircleCheck className="mt-0.5 size-4 shrink-0 text-ok" aria-hidden />{t(`chatLink.linked.${kind}`, { account })}</p>
@@ -59,8 +60,8 @@ export default function ChatLinkPage() {
               <div><Button variant="primary" disabled={confirm.isPending} onClick={() => confirm.mutate(undefined, { onSuccess: setDone })}>{t('chatLink.confirm')}</Button></div>
             </>
           )}
-        <p className="text-meta"><Link className="underline" to="/settings/account?tab=approvers">{t('chatLink.toAccount')}</Link></p>
-      </div>
+        <p className="text-meta"><Link className="text-accent underline underline-offset-4" to="/settings/account?tab=approvers">{t('chatLink.toAccount')}</Link></p>
+      </Card>
     </div>
   )
 }

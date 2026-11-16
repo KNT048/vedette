@@ -120,7 +120,7 @@ function ReleaseStatus({ s }: { s: UpdatesState }) {
     </Notice>
   ) : !s.check_enabled ? (
     <div className="flex items-center gap-1">
-      <p className="text-sm">{t('container.updates.checkOff')} <Link to="/settings/privacy" className="text-accent underline-offset-4 hover:underline">{t('container.updates.privacyLink')}</Link>.</p>
+      <p className="text-sm">{t('container.updates.checkOff')} <Link to="/settings/privacy#privacy-update-check" className="text-accent underline-offset-4 hover:underline">{t('container.updates.privacyLink')}</Link>.</p>
       <InfoTip topic={t('container.updates.title')}>{t('container.updates.checkOffInfo')}</InfoTip>
     </div>
   ) : !s.last_check ? (

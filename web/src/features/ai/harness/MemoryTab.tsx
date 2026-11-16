@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Section, Panel } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
+import { Section } from '@/components/common/PageHeader'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -30,10 +31,10 @@ export default function MemoryTab() {
       {(m) => (
         <>
           <Section title={t('harness.memory.suggestTitle')} stories={['S-AI-7']}>
-            <Panel className="flex items-start gap-3 p-4">
+            <Card className="flex items-start gap-3">
               <Switch id="mem-suggest" checked={m.suggest_enabled} onCheckedChange={(v) => settings.mutate(v, { onError: fail })} disabled={settings.isPending} />
               <div className="grid gap-0.5"><Label htmlFor="mem-suggest">{t('harness.memory.suggestSwitch')}</Label><p className="text-meta text-muted">{t('harness.memory.suggestHint')}</p></div>
-            </Panel>
+            </Card>
             {m.suggestions.length > 0 ? (
               <div className="mt-4">
                 <h3 className="mb-2 text-sm font-medium">{t('harness.memory.queueTitle', { n: m.suggestions.length })}</h3>

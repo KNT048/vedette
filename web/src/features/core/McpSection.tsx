@@ -7,6 +7,7 @@ import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { Chip } from '@/components/common/StatusChip'
 import { InfoTip } from '@/components/common/InfoTip'
+import { Card } from '@/components/common/Card'
 import { Loading, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -30,13 +31,13 @@ function McpSwitch({ on }: { on: boolean }) {
     try { await toggle.mutateAsync({ id: 'mcp-server', enabled: v }); toast.success(v ? t('mcp.enabledToast') : t('mcp.disabledToast')) } catch (e) { toast.error(errMsg(e, t)) }
   }
   return (
-    <div className="mb-6 flex flex-wrap items-center gap-3 rounded-md border border-rule bg-surface px-4 py-3">
+    <Card className="mb-6 flex flex-wrap items-center gap-3">
       <Switch id="mcp-switch" checked={on} disabled={gate.disabled || toggle.isPending} title={gate.title} aria-label={on ? t('mcp.switchOff') : t('mcp.switch')} onCheckedChange={(v) => void flip(v)} />
       <label htmlFor="mcp-switch" className="text-sm font-medium">{on ? t('mcp.switchOff') : t('mcp.switch')}</label>
       {on ? <Chip tone="ok">{t('mcp.readOnly')}</Chip> : null}
       <span className="text-meta text-muted">{on ? t(container ? 'mcp.onHintContainer' : 'mcp.onHint') : t('mcp.offHint')}</span>
       {on && container ? <InfoTip topic={t('mcp.onHintContainer')}>{t('mcp.onHintContainerInfo')}</InfoTip> : null}
-    </div>
+    </Card>
   )
 }
 

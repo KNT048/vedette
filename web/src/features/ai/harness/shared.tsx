@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { Card } from '@/components/common/Card'
 import { Button } from '@/components/ui/button'
 import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -19,7 +20,7 @@ export function Row({ children, actions, dim }: { children: React.ReactNode; act
     </li>
   )
 }
-export const List = ({ label, children }: { label: string; children: React.ReactNode }) => <ul aria-label={label} className="rounded-md border border-rule bg-surface">{children}</ul>
+export const List = ({ label, children }: { label: string; children: React.ReactNode }) => <Card flush><ul aria-label={label}>{children}</ul></Card>
 
 export function Toggle({ checked, onChange, label, disabled, title }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean; title?: string }) {
   return <Switch checked={checked} onCheckedChange={onChange} aria-label={label} disabled={disabled} title={title} />

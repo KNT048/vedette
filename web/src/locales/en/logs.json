@@ -19,6 +19,7 @@
   "titleLearning": "Learning what is normal: {{n}} of {{days}} days of logs so far.",
   "titleNoIoc": "Today: {{fresh}}, {{spikes}}.",
   "titleLoading": "Logs",
+  "pageInfo": "Vedette reads the syslog your devices send to the box and compares the last 24 hours with the days before, so new log types, spikes and connections to bad addresses stand out.",
   "titleNoSources": "No device is sending logs to the box yet.",
   "meta": "{{lines}} lines in the last 24 hours vs the previous {{days}} days. Updated {{time}}.",
   "metaLearning": "From {{lines}} log lines in the last 24 hours. Updated {{time}}.",
@@ -58,6 +59,8 @@
     "emptyBody": "Add the first device or program that sends logs.",
     "emptyBodyInfo": "Such as a firewall, NAS, Windows server or web server. Vedette then shows the exact settings to enter on it.",
     "descriptionNoIp": "Box address unknown: add your LAN range first (Devices, Scope and sensors).",
+    "noIpReason": "The box takes its address from your LAN range.",
+    "noIpLink": "Add the LAN range in Devices, Scope and sensors",
     "descriptionNoIpInfo": "Devices that send syslog to the box. The box only accepts logs from the IPs declared here.",
     "descriptionNoIpLan": "Point devices at the address of the machine that runs Vedette.",
     "descriptionNoIpLanInfo": "Devices that send syslog to the box. The box cannot see its own address in your LAN range {{lan}}, as when it runs in a container: point devices at the address of the machine that runs Vedette, the one you open this page on. The box only accepts logs from the IPs declared here."
@@ -163,7 +166,9 @@
       "blockedHint": "The device that sent this log blocked the connection: the line records an attempt. A device that tries to reach a listed address may still be infected.",
       "empty": "None of your devices connected to a listed bad address in the last 24 hours.",
       "emptyFeedsOff": "The Feeds module is off, so no connection can be matched.",
+      "feedsOffReason": "Turn on Feeds to match connections against threat feeds.",
       "openModules": "Open Settings, Modules",
+      "openFeeds": "Open Settings, Feeds",
       "emptyNoIoc": "No switched-on threat feed lists any IP address or domain yet, so no connection can be matched.",
       "emptyNoIocAction": "Switch on an IOC feed under Feeds, or wait for its first download.",
       "via": {

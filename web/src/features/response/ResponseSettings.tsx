@@ -3,7 +3,8 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { InfoTip } from '@/components/common/InfoTip'
-import { Notice, PageHeader, Panel } from '@/components/common/PageHeader'
+import { Notice, PageHeader } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -38,7 +39,7 @@ export function EnableDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         <Notice tone="danger" className="mb-0" title={t('risk.statement')} />
         <div className="grid gap-1 text-sm">
           <p className="flex flex-wrap items-center gap-2">{t('enable.twofa')} <Chip tone={twofa ? 'ok' : 'danger'}>{twofa ? t('enable.twofaOn') : t('enable.twofaOff')}</Chip></p>
-          {!twofa ? <p className="text-meta"><Link to="/settings/account?tab=sign-in" className="text-accent underline underline-offset-4" onClick={() => onOpenChange(false)}>{t('enable.toAccount')}</Link></p> : null}
+          {!twofa ? <p className="text-meta"><Link to="/settings/account?tab=sign-in#two-step" className="text-accent underline underline-offset-4" onClick={() => onOpenChange(false)}>{t('enable.toAccount')}</Link></p> : null}
         </div>
         <Field htmlFor="risk-phrase" label={t('enable.phraseLabel', { phrase: RISK_PHRASE })} error={error}>
           <Input id="risk-phrase" value={phrase} autoComplete="off" spellCheck={false} onChange={(e) => { setPhrase(e.target.value); setError(undefined) }} aria-invalid={!!error} aria-describedby={error ? 'risk-phrase-error' : undefined} />
@@ -80,7 +81,7 @@ function Form({ s }: { s: SettingsView }) {
         <Field htmlFor="resp-hour" label={t('form.perHour')} hint={t('form.perHourHint')}><Input id="resp-hour" type="number" min={1} max={20} value={perHour} onChange={(e) => setPerHour(e.target.value)} /></Field>
         <Field htmlFor="resp-expiry" label={t('form.expiry')} hint={t('form.expiryHint')}><Input id="resp-expiry" type="number" min={15} max={30} value={expiry} onChange={(e) => setExpiry(e.target.value)} /></Field>
       </div>
-      <fieldset className="grid gap-2">
+      <fieldset id="resp-channels" className="grid gap-2">
         <legend className="flex items-center gap-1 text-sm font-medium">{t('form.channels')}<InfoTip topic={t('form.channels')}><p>{t('form.channelsHintInfo')}</p><p>{t('form.approversRule')}</p></InfoTip></legend>
         <p className="text-meta text-muted">{t('form.channelsHint')}</p>
         {ready.length ? ready.map((c) => (
@@ -161,7 +162,7 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
       <section>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <Notice tone="danger" className="mb-0" title={t('risk.banner')} info={t('risk.bannerInfo')} />
-          <Panel className="flex flex-wrap items-center justify-between gap-3 p-4">
+          <Card className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <Switch id="resp-exec" checked={s.execution} disabled={set.isPending || (leaving && !s.execution)} title={leaving && !s.execution ? t('leaving.frozen') : undefined}
                 onCheckedChange={(v) => (v ? setOpen(true) : leaving ? setAskOff(true) : off())} />
@@ -169,7 +170,7 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
                 <span className="text-meta text-muted">{s.execution ? t('settings.on', { who: s.accepted_by ?? '', time: fmtDateTime(s.accepted_at) }) : t('settings.off')}</span></label>
             </div>
             {s.execution ? <EmergencyStop /> : null}
-          </Panel>
+          </Card>
           {s.breaker_tripped_at || s.stopped_at ? (
             <Notice tone="danger" role="alert" className="mb-0" title={t('safety.tripped')}
               actions={leaving ? undefined : <Button disabled={reset.isPending} onClick={() => reset.mutate(undefined, { onSuccess: () => toast.success(t('safety.resumed')), onError: (e) => toast.error(errText(e)) })}>{t('safety.resume')}</Button>}>

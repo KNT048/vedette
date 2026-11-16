@@ -42,6 +42,12 @@ export function ChangeView({ change }: { change: Change }) {
   )
 }
 
+const BLOCKED_PLACE: Partial<Record<Proposal['state'], { to: string; label: string }>> = {
+  execution_off: { to: '/settings/response#resp-exec', label: 'blocked.toSettings' },
+  tool_not_allowed: { to: '/response?tab=actions#catalog', label: 'blocked.toCatalog' },
+  tool_unavailable: { to: '/settings/connections', label: 'blocked.toConnections' },
+}
+
 /** The reason an action cannot be requested, in the owner's wording. */
 function Blocked({ state }: { state: Proposal['state'] }) {
   const { t } = useTranslation('response')
@@ -50,7 +56,8 @@ function Blocked({ state }: { state: Proposal['state'] }) {
   if (state === 'ready' || frozen) return null
   return (
     <div className="flex items-start gap-1 rounded-md border border-dashed border-rule bg-sunken px-3 py-2 text-meta text-muted">
-      <p>{t(`blocked.${state}`)} {admin && state !== 'tool_unavailable' && state !== 'not_publishable' ?<Link className="text-accent underline underline-offset-4" to="/settings/response">{t('blocked.toSettings')}</Link> : null}</p>
+      {/* §0: each reason links to the exact place that lifts it */}
+      <p>{t(`blocked.${state}`)} {admin && BLOCKED_PLACE[state] ? <Link className="text-accent underline underline-offset-4" to={BLOCKED_PLACE[state]!.to}>{t(BLOCKED_PLACE[state]!.label)}</Link> : null}</p>
       {state === 'not_publishable' ? <InfoTip topic={t('proposal.label')}>{t('blocked.not_publishableInfo')}</InfoTip> : null}
     </div>
   )

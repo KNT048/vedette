@@ -1,7 +1,8 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { InfoTip } from '@/components/common/InfoTip'
-import { Section, Panel } from '@/components/common/PageHeader'
+import { Section } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { SPAN_IN_UI } from '@/lib/span'
 import { LOGIN_SERVICES } from './presets'
@@ -49,7 +50,7 @@ export default function CoverageSection({ services, listeningIps }: { services: 
   }
   return (
     <Section id="coverage" title={t('coverage.title')} description={t('coverage.description')} info={<><p>{t('coverage.descriptionInfo')}</p><p>{t('coverage.note')}</p></>}>
-      <Panel className="p-4">
+      <Card>
         <ul className="grid divide-y divide-rule" aria-label={t('coverage.listLabel')}>
           {ROWS.map((r) => (
             <li key={r.id} className="grid gap-1 py-2.5 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-4">
@@ -64,7 +65,7 @@ export default function CoverageSection({ services, listeningIps }: { services: 
             <InfoTip topic={t('coverage.title')}>{t('coverage.notListeningInfo')}</InfoTip>
           </div>
         )}
-      </Panel>
+      </Card>
     </Section>
   )
 }

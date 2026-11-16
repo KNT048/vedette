@@ -2,13 +2,15 @@ import { lazy, Suspense, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Notice, PageHeader, Section, Panel } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
+import { CreatableSelect, type CreateDialogProps, type SelectOption } from '@/components/common/CreatableSelect'
+import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
+import { PageTabs } from '@/components/common/PageFrame'
 import { DataTable } from '@/components/common/DataTable'
 import { EmptyState, Loading, QueryState } from '@/components/common/States'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
-import { Segmented } from '@/components/ui/segmented'
 import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Label, Select } from '@/components/ui/input'
@@ -28,9 +30,10 @@ const SkillsTab = lazy(() => import('./harness/SkillsTab'))
 const KnowledgeTab = lazy(() => import('./harness/KnowledgeTab'))
 const ConnectionsMoved = lazy(() => import('./harness/ConnectionsMoved'))
 const HooksTab = lazy(() => import('./harness/HooksTab'))
-const TABS = ['profiles', 'rules', 'memory', 'skills', 'knowledge', 'connections', 'hooks'] as const
+// docs/UI.md §4: at most 6 tabs. Connections moved to core (D-93): an old ?tab=connections link shows where they are now.
+const TABS = ['profiles', 'rules', 'memory', 'skills', 'knowledge', 'hooks'] as const
 type Tab = (typeof TABS)[number]
-const HARNESS: Record<Exclude<Tab, 'profiles'>, React.LazyExoticComponent<() => React.JSX.Element>> = { rules: RulesTab, memory: MemoryTab, skills: SkillsTab, knowledge: KnowledgeTab, connections: ConnectionsMoved, hooks: HooksTab }
+const HARNESS: Record<Exclude<Tab, 'profiles'>, React.LazyExoticComponent<() => React.JSX.Element>> = { rules: RulesTab, memory: MemoryTab, skills: SkillsTab, knowledge: KnowledgeTab, hooks: HooksTab }
 
 // Địa chỉ và model gợi ý, đối chiếu tài liệu chính thức ngày 2026-11-06. Tên model đổi theo thời gian nên người dùng sửa được.
 //  Anthropic: platform.claude.com/docs/en/about-claude/models/overview (claude-haiku-5-5, API https://api.anthropic.com)
@@ -66,10 +69,8 @@ const usable = (p: AiProfile) => p.usable
 export default function AiSettings() {
   const { t } = useTranslation('ai')
   const cfg = useAiConfig()
-  const [params, setParams] = useSearchParams()
-  const raw = params.get('tab')
-  const tab: Tab = (TABS as readonly string[]).includes(raw ?? '') ? (raw as Tab) : 'profiles'
-  const Harness = tab === 'profiles' ? null : HARNESS[tab]
+  const [params] = useSearchParams()
+  const moved = params.get('tab') === 'connections'
   const profiles = useProfiles()
   // "set up" is not the whole truth when no saved profile passed its last test (S-AI-1)
   const allFailed = (c: AiConfigView) => c.configured && !!profiles.data?.items.length && profiles.data.items.every((p) => p.last_test && !p.last_test.ok)
@@ -79,11 +80,12 @@ export default function AiSettings() {
         {(c) => (
           <>
             <PageHeader title={t('settings.title')} meta={allFailed(c) ? t('settings.statusAllFailed') : c.configured ? t('settings.statusOn') : t('settings.statusOff')} info={allFailed(c) ? t('settings.statusAllFailedInfo') : undefined} />
-            <div className="mb-6">
-              <Segmented label={t('harness.tabs.label')} value={tab} options={TABS.map((v) => ({ value: v, label: t(`harness.tabs.${v}`) }))}
-                onChange={(v) => setParams((p) => { const n = new URLSearchParams(p); if (v === 'profiles') n.delete('tab'); else n.set('tab', v); return n }, { replace: true })} />
-            </div>
-            {Harness ? <Suspense fallback={<Loading />}><Harness /></Suspense> : <ProfilesTab cfg={c} />}
+            {moved ? <Suspense fallback={null}><ConnectionsMoved /></Suspense> : null}
+            {/* each lazy panel has its own Suspense (FRONTEND §3) */}
+            <PageTabs label={t('harness.tabs.label')} tabs={TABS.map((id) => {
+              const Harness = id === 'profiles' ? null : HARNESS[id]
+              return { id, label: t(`harness.tabs.${id}`), panel: Harness ? <Suspense fallback={<Loading />}><Harness /></Suspense> : <ProfilesTab cfg={c} /> }
+            })} />
           </>
         )}
       </QueryState>
@@ -110,11 +112,11 @@ function Flow({ profiles }: { profiles: AiProfile[] }) {
   const cloud = [...new Set(profiles.filter((p) => p.location === 'cloud').map((p) => hostOf(p.base_url)))]
   return (
     <Section title={t('settings.flow.title')} stories={['S-AI-1']} info={<><p>{cloud.length ? t('settings.flow.remoteInfo') : t('settings.flow.noneRemoteInfo')}</p><p>{t('settings.flow.rules')}</p></>}>
-      <Panel className="grid gap-2 p-4 text-sm">
+      <Card className="grid gap-2 text-sm">
         <p>{cloud.length ? t('settings.flow.remote', { hosts: cloud.join(', ') }) : t('settings.flow.noneRemote')}</p>
         {/* Legal risk (Vietnam PDPL cross-border transfer): one visible line, the law and what to do behind the ⓘ (#824) */}
         {cloud.length ? <div className="flex items-center gap-1"><p>{t('settings.flow.abroad')}</p><InfoTip topic={t('settings.flow.abroadTopic')}>{t('settings.flow.abroadInfo')}</InfoTip></div> : null}
-      </Panel>
+      </Card>
     </Section>
   )
 }
@@ -192,7 +194,9 @@ type Errs = Partial<Record<'name' | 'base_url' | 'model' | 'key' | 'cap' | 'styl
 
 const sameOrigin = (a: string, b: string) => { try { return new URL(a).origin === new URL(b.trim()).origin } catch { return false } }
 
-function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | null; existing: AiProfile[]; onClose: () => void }) {
+/** Add or edit an AI profile. Also opened where a profile is missing (docs/UI.md §0): "+ New AI profile" of the routing table, the
+ *  Assistant and the AI panels of other pages; `onSaved` gets the saved profile so the caller can select it. */
+export function ProfileDialog({ profile, existing, onClose, onSaved }: { profile: AiProfile | null; existing: AiProfile[]; onClose: () => void; onSaved?: (p: AiProfile) => void }) {
   const { t } = useTranslation('ai')
   const save = useSaveProfile()
   const test = useTestProfile()
@@ -268,7 +272,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
     e.preventDefault()
     test.reset()
     if (!validate(false)) return
-    save.mutate(input(), { onSuccess: () => { toast.success(profile ? t('profiles.saved') : t('profiles.added')); onClose() } })
+    save.mutate(input(), { onSuccess: (saved) => { toast.success(profile ? t('profiles.saved') : t('profiles.added')); onSaved?.(saved); onClose() } })
   }
   function runTest() { save.reset(); if (validate(true)) test.mutate(input()) }
   // The box asks the provider which models it offers (D-475). Only what the call needs is checked here; the box checks the rest.
@@ -429,11 +433,13 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
     } catch (e) { toast.error(e instanceof Error ? e.message : String(e)) }
   }
   const noProfiles = profiles.filter(usable).length === 0
+  const [adding, setAdding] = useState(false)
+  const newProfile = ({ open, onOpenChange, onCreated }: CreateDialogProps) => (open ? <ProfileDialog profile={null} existing={profiles} onClose={() => onOpenChange(false)} onSaved={(p) => onCreated({ value: p.id, label: p.name })} /> : null)
   return (
     <Section id="ai-routing" title={t('assign.title')} description={t('assign.description')} info={<><p>{t('assign.descriptionInfo')}</p><p>{t('assign.fallbackNote')}</p></>} stories={['S-AI-4']}
       actions={<Button onClick={() => void suggest()} disabled={!admin || noProfiles} title={reason ?? (noProfiles ? t('assign.needProfile') : undefined)}>{t('assign.suggest')}</Button>}>
       <div className="grid gap-4">
-        <div className="flex items-start gap-3 rounded-md border border-rule bg-surface p-3">
+        <Card className="flex items-start gap-3">
           <Switch id="ai-internal-only" checked={draft.internal_only} onCheckedChange={toggleRule} disabled={!admin} title={reason} className="mt-0.5" />
           <div className="grid gap-0.5">
             <div className="flex items-center gap-1">
@@ -442,9 +448,9 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
             </div>
             <p className="text-meta text-muted">{t('assign.ruleBody')}</p>
           </div>
-        </div>
+        </Card>
         {note ? <p role="status" className="text-sm">{note}</p> : null}
-        {noProfiles ? <EmptyState title={t('assign.noProfiles')} info={t('assign.noProfilesInfo')}>{t('assign.noProfilesBody')}</EmptyState> : (
+        {noProfiles ? <EmptyState title={t('assign.noProfiles')} info={t('assign.noProfilesInfo')} action={<Button variant="primary" onClick={() => setAdding(true)} disabled={!admin} title={reason}>{t('profiles.add')}</Button>}>{t('assign.noProfilesBody')}</EmptyState> : (
           <div className="overflow-x-auto rounded-md border border-rule bg-surface">
             <table className="w-full min-w-[760px] border-collapse text-sm">
               <caption className="sr-only">{t('assign.caption')}</caption>
@@ -457,23 +463,23 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
               <tbody>
                 {JOBS.map((j) => {
                   const s = draft.jobs[j.id]
-                  const opts = (slot: 'primary' | 'fallback') => profiles.map((p) => {
+                  const opts = (slot: 'primary' | 'fallback'): SelectOption[] => [{ value: '', label: t('assign.none') }, ...profiles.map((p) => {
                     const off = !p.usable || blocked(p, j.data) || (slot === 'fallback' && s.primary === p.id)
                     const why = !p.usable ? t('assign.optNoKey') : blocked(p, j.data) ? t('assign.optCloud') : ''
-                    return <option key={p.id} value={p.id} disabled={off}>{p.name}{why ? ` (${why})` : ''}</option>
-                  })
+                    return { value: p.id, label: `${p.name}${why ? ` (${why})` : ''}`, disabled: off }
+                  })]
                   return (
                     <tr key={j.id} className="border-b border-rule align-top last:border-b-0">
                       <th scope="row" className="px-3 py-2 text-left font-normal"><span className="font-medium">{t(`jobs.${j.id}.name`)}</span><span className="block text-caption text-muted">{t(`jobs.${j.id}.what`)}</span></th>
                       <td className="px-3 py-2"><Chip tone={j.data === 'internal' ? 'warn' : 'off'}>{t(`assign.data.${j.data}`)}</Chip></td>
                       <td className="px-3 py-2">
-                        <Select className="min-w-[13rem]" aria-label={t('assign.primaryFor', { job: t(`jobs.${j.id}.name`) })} value={s.primary ?? ''} onChange={(e) => setSlot(j.id, 'primary', e.target.value)} disabled={!admin} title={reason}>
-                          <option value="">{t('assign.none')}</option>{opts('primary')}
-                        </Select>
+                        {/* §0: the profile a task needs is created right here and selected */}
+                        <CreatableSelect id={`ai-job-${j.id}`} className="min-w-[13rem]" aria-label={t('assign.primaryFor', { job: t(`jobs.${j.id}.name`) })} value={s.primary ?? ''} onChange={(v) => setSlot(j.id, 'primary', v)} disabled={!admin} title={reason}
+                          options={opts('primary')} newLabel={t('assign.newProfile')} canCreate={admin} renderCreate={newProfile} />
                       </td>
                       <td className="px-3 py-2">
                         <Select className="min-w-[13rem]" aria-label={t('assign.fallbackFor', { job: t(`jobs.${j.id}.name`) })} value={s.fallback ?? ''} onChange={(e) => setSlot(j.id, 'fallback', e.target.value)} disabled={!admin || !s.primary} title={reason ?? (!s.primary ? t('assign.fallbackNeedsPrimary') : undefined)}>
-                          <option value="">{t('assign.none')}</option>{opts('fallback')}
+                          {opts('fallback').map((o) => <option key={o.value} value={o.value} disabled={o.disabled}>{o.label}</option>)}
                         </Select>
                       </td>
                     </tr>
@@ -483,6 +489,7 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
             </table>
           </div>
         )}
+        {adding ? <ProfileDialog profile={null} existing={profiles} onClose={() => setAdding(false)} /> : null}
         <ActionError error={save.error} />
         <div className="flex flex-wrap gap-3">
           <Button variant="primary" disabled={!admin || !dirty || save.isPending} title={reason ?? (!dirty ? t('assign.nothingToSave') : undefined)}
@@ -569,11 +576,11 @@ function RetentionForm() {
   return (
     <form noValidate aria-label={t('settings.retention.title')} onSubmit={(e) => { e.preventDefault(); if (!err) save.mutate({ retention_days: n }, { onSuccess: () => { setDays(null); toast.success(t('settings.saved')) } }) }}>
       <Section title={t('settings.retention.title')} description={t('settings.retention.intro')} info={t('settings.retention.introInfo')} stories={['S-AI-8']}>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <Card className="grid gap-4 sm:grid-cols-2">
           <Field label={t('settings.retention.label')} htmlFor="ai-retention" hint={t('settings.retention.hint')} error={err || undefined}>
             <Input id="ai-retention" type="number" min={90} max={3650} value={value} onChange={(e) => setDays(e.target.value)} disabled={!admin} aria-invalid={err ? true : undefined} />
           </Field>
-        </div>
+        </Card>
         {save.error ? <div className="mt-3"><ActionError error={save.error} /></div> : null}
         <div className="mt-4"><Button type="submit" variant="primary" disabled={!admin || !!err || save.isPending || cur.isPending} title={admin ? undefined : t('common:needRole', { role: t('common:role.admin') })}>{t('common:save')}</Button></div>
       </Section>

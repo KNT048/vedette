@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AiBlock } from '@/components/common/AiBlock'
-import { Notice, Panel, Section } from '@/components/common/PageHeader'
+import { Notice, Section } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -13,12 +14,12 @@ import { errText, useAi, useCatalog, useEvents, useMetrics, usePropose, useResum
 import type { Stat } from './types'
 
 function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return <div className="rounded-md border border-rule bg-paper px-3 py-2"><dt className="text-caption text-muted">{label}</dt><dd className="text-xl font-semibold tabular-nums">{value}</dd>{hint ? <dd className="text-caption text-muted">{hint}</dd> : null}</div>
+  return <div className="rounded-md border border-rule bg-paper px-3 py-2"><dt className="text-caption text-muted">{label}</dt><dd className="text-lg font-semibold tabular-nums">{value}</dd>{hint ? <dd className="text-caption text-muted">{hint}</dd> : null}</div>
 }
 function StatBlock({ title, s }: { title: string; s: Stat }) {
   const { t } = useTranslation('response')
   return (
-    <Panel className="grid gap-3 p-4">
+    <Card className="grid gap-3">
       <h3 className="text-sm font-semibold">{title}</h3>
       <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Tile label={t('metrics.sent')} value={String(s.sent)} />
@@ -26,7 +27,7 @@ function StatBlock({ title, s }: { title: string; s: Stat }) {
         <Tile label={t('metrics.median')} value={s.median_approve_min === null ? '-' : `${s.median_approve_min} min`} />
         <Tile label={t('metrics.expired')} value={String(s.expired)} hint={t('metrics.pendingNow', { count: s.pending })} />
       </dl>
-    </Panel>
+    </Card>
   )
 }
 
@@ -45,7 +46,7 @@ function TryProposal() {
   const preset = (p: 'good' | 'low' | 'fake') => { setOut(null); setF({ ...f, action: 'blocklist_add', value: ioc?.fields.dest_ip ?? '203.0.113.5', confidence: p === 'low' ? '0.6' : '0.9', kind: 'ioc_hit', evidence: p === 'fake' ? 'hit-does-not-exist' : ioc?.id ?? '' }) }
   return (
     <Section title={t('try.title')} description={t('try.description')} info={t('try.descriptionInfo')} stories={['S-RESP-2']}>
-      <Panel className="grid gap-4 p-4">
+      <Card className="grid gap-4">
         <div className="flex flex-wrap gap-2"><Button size="sm" onClick={() => preset('good')}>{t('try.good')}</Button><Button size="sm" onClick={() => preset('low')}>{t('try.low')}</Button><Button size="sm" onClick={() => preset('fake')}>{t('try.fake')}</Button></div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field htmlFor="try-action" label={t('try.action')}><Select id="try-action" value={f.action} onChange={(e) => setF({ ...f, action: e.target.value, value: '' })}>{actions.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</Select></Field>
@@ -57,11 +58,11 @@ function TryProposal() {
           </div>
         </div>
         <Field htmlFor="try-why" label={t('try.why')}><Input id="try-why" value={f.why} maxLength={400} onChange={(e) => setF({ ...f, why: e.target.value })} /></Field>
-        {out ? <p role="status" className="rounded-md border border-rule bg-surface px-3 py-2 text-sm">{out}</p> : null}
+        {out ? <Notice tone="off" role="status" className="mb-0" title={out} /> : null}
         <div><Button variant="primary" disabled={propose.isPending || !chosen}
           onClick={() => propose.mutate({ trigger: 'ioc_connection', action_id: f.action, params: { [type]: f.value }, confidence: Number(f.confidence), evidence: [{ kind: f.kind, id: f.evidence }], why: f.why },
             { onSuccess: (r) => { setOut(r.note); toast.success(t(`try.outcome.${r.outcome}`)) }, onError: (e) => setOut(errText(e)) })}>{t('try.send')}</Button></div>
-      </Panel>
+      </Card>
     </Section>
   )
 }
@@ -95,24 +96,24 @@ export function MetricsTab() {
             <Tile label={t('ai.triggers')} value={String(s.gates.triggers.length)} hint={s.gates.triggers.join(', ') || t('ai.noTriggers')} />
           </dl>
           <div className="grid gap-4 lg:grid-cols-2">
-            <Panel className="grid content-start gap-2 p-4">
+            <Card className="grid content-start gap-2">
               <h3 className="text-sm font-semibold">{t('ai.notes')}</h3>
               {s.notes.length ? <ul className="grid gap-3">{s.notes.map((n) => (
                 <li key={n.id}><AiBlock><p className="flex flex-wrap items-center gap-2 font-medium">{n.title} <Chip tone="off">{t(`ai.kind.${n.kind}`)}</Chip></p><p className="text-meta">{n.why}</p><p className="text-caption text-muted">{t('request.confidence', { n: n.confidence.toFixed(2) })} · {fmtDateTime(n.ts)}</p></AiBlock></li>
               ))}</ul> : <p className="text-sm text-muted">{t('ai.noNotes')}</p>}
-            </Panel>
-            <Panel className="grid content-start gap-2 p-4">
+            </Card>
+            <Card className="grid content-start gap-2">
               <h3 className="text-sm font-semibold">{t('ai.hints')}</h3>
               {s.hints.length ? <ul className="grid gap-2 text-sm">{s.hints.map((h) => <li key={h.id}><Chip tone="accent">{t(`ai.hintKind.${h.kind}`)}</Chip> {h.text} <span className="text-caption text-muted">{fmtDateTime(h.ts)}</span></li>)}</ul> : <p className="text-sm text-muted">{t('ai.noHints')}</p>}
-            </Panel>
+            </Card>
           </div>
         </div>
       </Section>
       <Section title={t('metrics.rejectedTitle')} description={t('metrics.rejectedDescription')} stories={['S-RESP-2']}>
         {m.data.rejected.length ? (
-          <Panel><ul className="divide-y divide-rule">{m.data.rejected.map((r) => (
+          <Card flush><ul className="divide-y divide-rule">{m.data.rejected.map((r) => (
             <li key={r.id} className="grid gap-0.5 px-3 py-2 text-sm"><span className="font-medium">{r.title} <Chip tone="off">{r.source === 'ai' ? t('action.fromAi') : r.source === 'person' ? t('action.fromPerson') : t('action.fromRule')}</Chip></span><span className="text-muted">{r.reason} · {fmtDateTime(r.at)}</span></li>
-          ))}</ul></Panel>
+          ))}</ul></Card>
         ) : <p className="text-sm text-muted">{t('metrics.noneRejected')}</p>}
       </Section>
       {import.meta.env.VITE_API_MOCK !== 'off' ? <TryProposal /> : null}

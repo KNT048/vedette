@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { FlaskConical, Trash2 } from 'lucide-react'
 import { InfoTip } from '@/components/common/InfoTip'
-import { Section, Panel } from '@/components/common/PageHeader'
+import { Section } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { CodeBlock } from '@/components/common/CodeBlock'
@@ -68,7 +69,7 @@ function Inner({ items }: { items: Token[] }) {
 
   return (
     <div className="grid gap-4">
-      <Panel className="p-4">
+      <Card>
         <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.2fr_auto] lg:items-start" noValidate>
           <Field label={t('token.form.preset')} htmlFor="tk-preset" hint={t('token.form.presetHint')} info={t('token.form.presetHintInfo')} className="sm:col-span-2 sm:max-w-sm lg:col-span-4">
             <Select id="tk-preset" value={preset} disabled={!admin} onChange={(e) => pickPreset(e.target.value as TokenPreset)}>
@@ -98,14 +99,15 @@ function Inner({ items }: { items: Token[] }) {
           <Field label={t('token.form.plant')} htmlFor="tk-plant" hint={t(`token.form.plantHint.${type}`)}>
             <Input id="tk-plant" value={plant} onChange={(e) => setPlant(e.target.value)} disabled={!admin} autoComplete="off" />
           </Field>
-          <Button type="submit" variant="primary" className="sm:mt-[26px]" disabled={!admin || add.isPending} title={!admin ? t('common:needRole', { role: t('common:role.admin') }) : undefined}>{t('token.form.create')}</Button>
+          <Button type="submit" variant="primary" className="sm:mt-6.5" disabled={!admin || add.isPending} title={!admin ? t('common:needRole', { role: t('common:role.admin') }) : undefined}>{t('token.form.create')}</Button>
         </form>
-      </Panel>
+      </Card>
 
       {items.length === 0 ? <EmptyState title={t('token.emptyTitle')}>{t('token.emptyBody')}</EmptyState> : (
-        <ul className="grid gap-3" aria-label={t('token.listLabel')}>
+        <Card flush>
+        <ul className="grid divide-y divide-rule" aria-label={t('token.listLabel')}>
           {items.map((k) => (
-            <li key={k.id} className="rounded-md border border-rule bg-surface p-4">
+            <li key={k.id} className="p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="grid gap-1">
                   <p className="flex flex-wrap items-center gap-2 text-sm font-medium">{k.name} <Chip tone="accent">{t(`token.type.${k.type}`)}</Chip>{k.type === 'dns' ? <Chip tone="warn">{t('token.noAlert')}</Chip> : null}</p>
@@ -137,6 +139,7 @@ function Inner({ items }: { items: Token[] }) {
             </li>
           ))}
         </ul>
+        </Card>
       )}
     </div>
   )

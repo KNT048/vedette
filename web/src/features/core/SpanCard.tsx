@@ -4,6 +4,7 @@ import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Notice, KeyValue, Section } from '@/components/common/PageHeader'
 import { Chip, type Tone } from '@/components/common/StatusChip'
+import { Card } from '@/components/common/Card'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Label, Select } from '@/components/ui/input'
@@ -72,17 +73,13 @@ export function SpanCard({ d, readOnly = false }: { d: NetworkState; readOnly?: 
         <Status iface={d.span.interface} />
         <p className="-mt-3 text-meta text-muted">{t('network.span.statusNote')}</p>
         {readOnly ? (
-          <div className="grid justify-items-start gap-2 rounded-md border border-rule bg-sunken px-3 py-2">
-            <div className="flex items-center gap-1">
-              <p role="note" className="text-meta">{t('network.span.kept')}</p>
-              <InfoTip topic={t('network.span.title')}>{t('network.span.keptInfo')}</InfoTip>
-            </div>
-            <Button disabled={gate.disabled || span.isPending} title={gate.title} onClick={() => {
+          <Notice tone="off" role="note" className="mb-0" title={t('network.span.kept')} info={t('network.span.keptInfo')}
+            actions={<Button disabled={gate.disabled || span.isPending} title={gate.title} onClick={() => {
               setError(null)
               span.mutate({ ...d.span, enabled: false, interface: null }, { onSuccess: () => toast.success(t('network.span.turnedOff')), onError: (er) => setError(errMsg(er, t)) })
-            }}>{t('network.span.turnOff')}</Button>
-          </div>
+            }}>{t('network.span.turnOff')}</Button>} />
         ) : null}
+        <Card>
         <form className="grid gap-5" noValidate onSubmit={(e) => {
           e.preventDefault(); setError(null)
           span.mutate(v, { onSuccess: () => toast.success(t('network.span.saved')), onError: (er) => setError(errMsg(er, t)) })
@@ -135,7 +132,7 @@ export function SpanCard({ d, readOnly = false }: { d: NetworkState; readOnly?: 
                 <Input id="span-fvalue" autoComplete="off" value={fvalue} disabled={locked} aria-invalid={!!ferror} placeholder={t(`network.span.ftype.${ftype}.example`)} inputMode={ftype === 'port' ? 'numeric' : undefined}
                   onChange={(e) => { setFvalue(e.target.value); setFerror(null) }} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFilter() } }} />
               </Field>
-              <div className="sm:pt-[26px]"><Button type="button" disabled={locked} onClick={addFilter}>{t('network.span.filterAdd')}</Button></div>
+              <div className="sm:pt-6.5"><Button type="button" disabled={locked} onClick={addFilter}>{t('network.span.filterAdd')}</Button></div>
             </div>
           </fieldset>
 
@@ -153,6 +150,7 @@ export function SpanCard({ d, readOnly = false }: { d: NetworkState; readOnly?: 
             {dirty ? <span className="text-meta text-muted">{t('network.span.unsaved')}</span> : null}
           </div>}
         </form>
+        </Card>
       </div>
     </Section>
   )

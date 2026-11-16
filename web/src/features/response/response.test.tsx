@@ -1235,7 +1235,7 @@ describe('response: action catalog (S-RESP-4)', () => {
     // A change that was already on the device before the step: executed, no undo time (the box does not set remove_at).
     actionsDb.update((l) => l.map((x) => (x.id === a.json.id ? { ...x, items: x.items.map((i) => ({ ...i, remove_at: null })) } : x)))
     renderUi(<RequestCard a={await view()} />, 'operator')
-    expect(screen.getAllByText(/Not undone automatically \(undo it by hand\)/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Not undone automatically \(undo it manually\)/).length).toBeGreaterThan(0)
     expect(screen.queryByText(/Undone automatically at|Undone after/)).toBeNull()
   })
 
@@ -2007,7 +2007,7 @@ describe('response: Respond from an incident (S-RESP-3, D-509)', () => {
     const inc = (await call<{ incident: { action: string } }>('viewer', 'GET', '/notify/incidents/al-4')).json.incident
     renderApp('/response?incident=al-4', { role: 'operator' })
     const panel = await screen.findByRole('region', { name: 'Respond to this incident' })
-    expect(await within(panel).findByText('The response module is off, so Vedette cannot ask for any block here. Handle it by hand.')).toBeInTheDocument()
+    expect(await within(panel).findByText('The response module is off, so Vedette cannot ask for any block here. Handle it manually.')).toBeInTheDocument()
     expect(within(panel).getByText((_, el) => el?.tagName === 'LI' && el.textContent === `Do this now: ${inc.action}`)).toBeInTheDocument()
     expect(within(panel).getByRole('button', { name: 'About Blocking next time' })).toHaveAccessibleDescription(/turns on the response module in Settings, Modules, connects your firewall or switch in Settings, Connections, and turns on a trap rule/) // #824: the how-to is behind ⓘ
     expect(within(panel).queryAllByRole('button').filter((b) => !b.getAttribute('aria-label')?.startsWith('About '))).toEqual([]) // no action button; only the ⓘ

@@ -1,3 +1,6 @@
+import { Card } from '@/components/common/Card'
+import { DataTable, type ColumnDef } from '@/components/common/DataTable'
+import type { Blocklist } from './types'
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
@@ -5,7 +8,7 @@ import { toast } from 'sonner'
 import { RefreshCw } from 'lucide-react'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { InfoTip } from '@/components/common/InfoTip'
-import { Notice, Panel, Section } from '@/components/common/PageHeader'
+import { Notice, Section } from '@/components/common/PageHeader'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -21,36 +24,33 @@ export function BlocklistTab() {
   if (q.isPending) return <Loading />
   if (q.error) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
   const b = q.data
+  const entryColumns: ColumnDef<Blocklist['entries'][number]>[] = [
+    { id: 'value', header: t('blocklist.address'), accessorFn: (e) => e.value, cell: ({ getValue }) => <span className="font-medium">{getValue() as string}</span> },
+    { id: 'source', header: t('blocklist.source'), accessorFn: (e) => e.source },
+    { id: 'reason', header: t('blocklist.reason'), accessorFn: (e) => e.reason },
+    { id: 'expires', header: t('blocklist.expires'), accessorFn: (e) => e.expires_at ?? '', cell: ({ row }) => (row.original.expires_at ? fmtDateTime(row.original.expires_at) : t('blocklist.never')) },
+  ]
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
       <Section title={t('blocklist.title')} description={t('blocklist.description')} info={<><p>{t('blocklist.descriptionInfo')}</p><p>{t('blocklist.pullInfo')}</p></>} stories={['S-RESP-3']}>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
-          <p className="rounded-md border border-rule bg-surface px-4 py-3 text-sm">{t('blocklist.pull')}</p>
+          <Card className="text-sm"><p>{t('blocklist.pull')}</p></Card>
           <CodeBlock code={b.url} label={t('blocklist.url')} />
           <div className="flex flex-wrap items-center gap-3 text-meta text-muted">
             <span>{t('blocklist.token', { last4: b.token_last4 })}</span>
             <span>{b.last_fetch ? t('blocklist.fetched', { time: fmtDateTime(b.last_fetch.at), from: b.last_fetch.from }) : t('blocklist.neverFetched')}</span>
             <Button size="sm" onClick={() => setAsk(true)}><RefreshCw className="size-4" aria-hidden />{t('blocklist.regenerate')}</Button>
           </div>
-          <Panel>
-            {b.entries.length ? (
-              <div className="overflow-x-auto"><table className="w-full text-sm">
-                <caption className="sr-only">{t('blocklist.entries')}</caption>
-                <thead><tr className="border-b border-rule text-left text-caption text-muted"><th scope="col" className="px-3 py-2 font-medium">{t('blocklist.address')}</th><th scope="col" className="px-3 py-2 font-medium">{t('blocklist.source')}</th><th scope="col" className="px-3 py-2 font-medium">{t('blocklist.reason')}</th><th scope="col" className="px-3 py-2 font-medium">{t('blocklist.expires')}</th></tr></thead>
-                <tbody className="divide-y divide-rule">
-                  {b.entries.map((e) => (
-                    <tr key={e.value} className="align-top"><th scope="row" className="px-3 py-2 text-left font-medium">{e.value}</th><td className="px-3 py-2">{e.source}</td><td className="px-3 py-2">{e.reason}</td><td className="px-3 py-2">{e.expires_at ? fmtDateTime(e.expires_at) : t('blocklist.never')}</td></tr>
-                  ))}
-                </tbody>
-              </table></div>
-            ) : (
-              // D-469: an empty list says what fills it, what it never holds, and where the rule that fills it is turned on
-              <div className="grid gap-2 px-4 py-3 text-sm">
-                <div className="flex items-center gap-1"><p className="font-medium">{t('blocklist.empty')}</p><InfoTip topic={t('blocklist.title')}><p>{t('blocklist.emptyWhat')}</p><p>{t('blocklist.emptyPublic')}</p></InfoTip></div>
-                <p className="text-muted">{t('blocklist.emptyTemplate')} <Link className="text-accent underline underline-offset-4" to={{ hash: 'rules' }}>{t('blocklist.emptyLink')}</Link></p>
-              </div>
-            )}
-          </Panel>
+          {b.entries.length ? (
+            <DataTable caption={t('blocklist.entries')} data={b.entries} columns={entryColumns} pageSize={b.entries.length}
+              mobileRow={(e) => <div className="grid gap-0.5 text-sm"><span className="font-medium">{e.value}</span><span className="text-meta text-muted">{e.source}, {e.reason}</span><span className="text-meta text-muted">{t('blocklist.expires')}: {e.expires_at ? fmtDateTime(e.expires_at) : t('blocklist.never')}</span></div>} />
+          ) : (
+            // D-469: an empty list says what fills it, what it never holds, and where the rule that fills it is turned on
+            <Card className="grid gap-2 text-sm">
+              <div className="flex items-center gap-1"><p className="font-medium">{t('blocklist.empty')}</p><InfoTip topic={t('blocklist.title')}><p>{t('blocklist.emptyWhat')}</p><p>{t('blocklist.emptyPublic')}</p></InfoTip></div>
+              <p className="text-muted">{t('blocklist.emptyTemplate')} <Link className="text-accent underline underline-offset-4" to="?tab=rules#templates">{t('blocklist.emptyLink')}</Link></p>
+            </Card>
+          )}
           <div className="flex items-center gap-1 text-meta text-muted"><p>{t('blocklist.ipOnly')}</p><InfoTip topic={t('blocklist.entries')}>{t('blocklist.ipOnlyInfo')}</InfoTip></div>
         </div>
       </Section>

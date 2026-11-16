@@ -7,6 +7,7 @@ import { ScopeLine } from '@/components/common/V1Scope'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { InfoTip } from '@/components/common/InfoTip'
+import { Card } from '@/components/common/Card'
 import { Chip } from '@/components/common/StatusChip'
 import { QueryState, Loading, ErrorState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -78,13 +79,13 @@ function OidcPanel({ leaving }: { leaving: boolean }) {
   }
   if (!on) {
     return (
-      <div className="rounded-md border border-dashed border-rule bg-surface px-5 py-4">
+      <Card className="max-w-xl">
         <div className="flex items-center gap-1">
           <p className="text-sm">{t('oidc.off')}</p>
           <InfoTip topic={t('oidc.title')}>{t('oidc.offInfo')}</InfoTip>
         </div>
         <Button className="mt-3" onClick={() => void enable(true)} disabled={toggle.isPending}>{t('oidc.enable')}</Button>
-      </div>
+      </Card>
     )
   }
   if (q.isPending) return <Loading />
@@ -109,11 +110,11 @@ function OidcPanel({ leaving }: { leaving: boolean }) {
 function OidcLocked({ cfg, onDisable, busy }: { cfg: OidcConfig; onDisable: () => void; busy: boolean }) {
   const { t } = useTranslation('core')
   return (
-    <div className="grid max-w-xl gap-3">
+    <Card className="grid max-w-xl gap-3">
       <ScopeLine scope="leaving" />
       <KeyValue items={[{ label: t('oidc.issuer'), value: <span className="break-all font-mono text-meta">{cfg.issuer || '–'}</span> }, { label: t('oidc.clientId'), value: <span className="break-all font-mono text-meta">{cfg.client_id || '–'}</span> }]} />
       <div><Button variant="danger" onClick={onDisable} disabled={busy}>{t('oidc.disable')}</Button></div>
-    </div>
+    </Card>
   )
 }
 
@@ -154,7 +155,8 @@ function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }
   }
   const setMap = (i: number, patch: Partial<{ group: string; role: Role }>) => setV({ ...v, role_map: v.role_map.map((r, k) => (k === i ? { ...r, ...patch } : r)) })
   return (
-    <form onSubmit={(e) => void save(e)} className="grid max-w-xl gap-4" noValidate>
+    <Card className="max-w-xl">
+    <form onSubmit={(e) => void save(e)} className="grid gap-4" noValidate>
       <div className="grid gap-1">
         <CodeBlock label={t('oidc.redirect')} code={cfg.redirect_uri} />
         <div className="flex items-center gap-1">
@@ -193,7 +195,7 @@ function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }
         <Button variant="ghost" onClick={onDisable}>{t('oidc.disable')}</Button>
       </div>
       {endpoints ? (
-        <section className="grid gap-1 rounded-md border border-rule bg-surface px-4 py-3 text-meta" aria-labelledby="oidc-endpoints">
+        <section className="grid gap-1 border-t border-rule pt-3 text-meta" aria-labelledby="oidc-endpoints">
           <h3 id="oidc-endpoints" className="text-sm font-medium">{t('oidc.endpoints')}</h3>
           <dl className="grid gap-1">
           {Object.entries(endpoints).map(([k, url]) => <div key={k} className="grid gap-x-3 sm:grid-cols-[110px_1fr]"><dt className="text-muted">{t(`oidc.endpoint.${k}`, { defaultValue: k })}</dt><dd className="break-all font-mono">{url}</dd></div>)}
@@ -201,6 +203,7 @@ function OidcForm({ cfg, onDisable }: { cfg: OidcConfig; onDisable: () => void }
         </section>
       ) : null}
     </form>
+    </Card>
   )
 }
 
@@ -231,7 +234,7 @@ export default function UsersSection() {
       <PageHeader
         title={q.data ? t('users.title', { count: q.data.items.filter((u) => !u.disabled).length }) : t('settings.users')}
         meta={t('users.meta')} info={t('users.metaInfo')} stories={['S-CORE-3']}
-        actions={<Button variant="primary" onClick={() => setAdding(true)}><Plus />{t('users.add.open')}</Button>}
+        actions={<Button id="users-add" variant="primary" onClick={() => setAdding(true)}><Plus />{t('users.add.open')}</Button>}
       />
       <QueryState query={q}>
         {({ items }) => {
@@ -273,7 +276,7 @@ export default function UsersSection() {
       </QueryState>
 
       <div className="mt-8">
-        {oidcScope === 'hidden' ? null : <Section title={t('oidc.title')} description={t('oidc.desc')} info={t('oidc.descInfo')} stories={['S-CORE-3']}><OidcPanel leaving={oidcScope === 'leaving'} /></Section>}
+        {oidcScope === 'hidden' ? null : <Section id="sso" title={t('oidc.title')} description={t('oidc.desc')} info={t('oidc.descInfo')} stories={['S-CORE-3']}><OidcPanel leaving={oidcScope === 'leaving'} /></Section>}
       </div>
 
       <AddDialog open={adding} onOpenChange={setAdding} onCreated={(u, p) => setTemp({ email: u.email, password: p, kind: 'create' })} />

@@ -10,9 +10,11 @@ import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Button } from '@/components/ui/button'
 import { Field, Label, Select } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
+import { InfoTip } from '@/components/common/InfoTip'
 import { fmtRelative } from '@/lib/format'
 import { dateText, dateTimeText } from './dates'
 import { useCan } from '@/lib/session'
+import { InfoLine } from './InfoLine'
 import { OwnerChip } from './OwnerChip'
 import { RemoveDialog } from './RemoveDialog'
 import { useDetectBoxIp, useRestoreIgnored, useSaveBoxIpSettings } from './api'
@@ -58,14 +60,16 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
 
   return (
     <>
-    <Section id="box-ip" title={t('boxIp.title')} description={t('boxIp.description')}>
+    <Section id="box-ip" title={t('boxIp.title')} description={t('boxIp.description')} info={<>
+      <p>{t('boxIp.help.how')}</p><p>{t('boxIp.help.result')}</p><p>{t('boxIp.help.why')}</p><p>{t('boxIp.help.refuse')}</p><p>{t('boxIp.help.limit')}</p><p>{t('boxIp.comeBack')}</p>
+    </>}>
       <div className="grid gap-4">
         <Panel className="grid gap-4 p-4">
           <p className="text-sm font-medium">{settings.auto ? t('boxIp.state.on', { every: every(settings.interval_min) }) : t('boxIp.state.off')}</p>
           <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
             <div className="flex min-h-10 items-center gap-3">
               <Switch id="box-auto" checked={settings.auto} disabled={!can || save.isPending} onCheckedChange={setAuto} title={locked} />
-              <Label htmlFor="box-auto">{t('boxIp.switch')}</Label>
+              <span className="flex items-center gap-1"><Label htmlFor="box-auto">{t('boxIp.switch')}</Label><InfoTip topic={t('boxIp.switch')}>{t('boxIp.switchHint')}</InfoTip></span>
             </div>
             {settings.auto ? (
               <Field label={t('boxIp.interval')} htmlFor="box-interval" className="w-44">
@@ -78,7 +82,6 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
               <RefreshCw className={detect.isPending ? 'animate-spin motion-reduce:animate-none' : undefined} />{detect.isPending ? t('boxIp.detecting') : t('boxIp.detect')}
             </Button>
           </div>
-          <p className="max-w-3xl text-[13px] text-muted">{t('boxIp.switchHint')}</p>
           {waitText ? <p className="max-w-3xl text-[13px] text-warn">{waitText}</p> : null}
           {!can ? <p className="text-[13px] text-muted">{locked}</p> : null}
           {run ? (
@@ -89,13 +92,7 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
               </p>
               <p>{run.message}</p>
             </div>
-          ) : <p className="text-[13px] text-muted">{t('boxIp.last.never')}</p>}
-          <details className="max-w-3xl text-[13px] text-muted">
-            <summary className="cursor-pointer text-sm text-ink">{t('boxIp.help.summary')}</summary>
-            <ul className="mt-2 grid list-disc gap-1.5 pl-5">
-              <li>{t('boxIp.help.how')}</li><li>{t('boxIp.help.result')}</li><li>{t('boxIp.help.why')}</li><li>{t('boxIp.help.refuse')}</li><li>{t('boxIp.help.limit')}</li>
-            </ul>
-          </details>
+          ) : <InfoLine className="text-[13px] text-muted" topic={t('boxIp.last.title')} info={t('boxIp.last.neverInfo')}>{t('boxIp.last.never')}</InfoLine>}
         </Panel>
         <DataTable caption={t('boxIp.caption')} data={items} columns={columns} pageSize={20}
           mobileRow={(r) => (
@@ -109,8 +106,7 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
               <p className="text-[13px] text-muted">{r.blocked_reason ? t(`blocked.${blockedKey(r)}`) : t('targets.ready')}</p>
             </div>
           )}
-          empty={<EmptyState title={t('boxIp.empty.title')}>{settings.auto ? t('boxIp.empty.on', { every: every(settings.interval_min) }) : t('boxIp.empty.off')}</EmptyState>} />
-        <p className="max-w-3xl text-[13px] text-muted">{t('boxIp.comeBack')}</p>
+          empty={<EmptyState title={t('boxIp.empty.title')}>{settings.auto ? <InfoLine topic={t('boxIp.empty.title')} info={t('boxIp.empty.onInfo', { every: every(settings.interval_min) })}>{t('boxIp.empty.on')}</InfoLine> : t('boxIp.empty.off')}</EmptyState>} />
       </div>
       <RemoveDialog target={removing} onClose={() => setRemoving(null)} />
     </Section>
@@ -139,7 +135,7 @@ function IgnoredList({ ignored }: { ignored: IgnoredIp[] }) {
     { id: 'restore', header: t('boxIp.ignored.col.restore'), enableSorting: false, cell: ({ row }) => btn(row.original) },
   ]
   return (
-    <Section id="box-ignored" title={t('boxIp.ignored.title')} description={t('boxIp.ignored.description')}>
+    <Section id="box-ignored" title={t('boxIp.ignored.title')} description={t('boxIp.ignored.description')} info={t('boxIp.ignored.descriptionInfo')}>
       <DataTable caption={t('boxIp.ignored.caption')} data={ignored} columns={columns} pageSize={20}
         mobileRow={(r) => (
           <div className="grid gap-1.5">

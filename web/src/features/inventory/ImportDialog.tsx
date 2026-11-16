@@ -37,7 +37,6 @@ function ImportForm({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="grid gap-4">
-      <p className="text-sm text-muted">{t('import.body')}</p>
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => void download('/inventory/import-template.csv', 'vedette-devices-template.csv').catch((e: unknown) => toast.error(errMsg(e)))}>{t('import.template')}</Button>
       </div>
@@ -78,7 +77,7 @@ export function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   const { t } = useTranslation('inventory')
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={t('import.title')}><ImportForm onClose={() => onOpenChange(false)} /></DialogContent>
+      <DialogContent title={t('import.title')} description={t('import.body')} info={t('import.bodyInfo')}><ImportForm onClose={() => onOpenChange(false)} /></DialogContent>
     </Dialog>
   )
 }

@@ -61,7 +61,7 @@ export function IUpdated({ asset, software, fixed, size }: { asset: FindingAsset
         {manual ? t('updated.button', { software: sw }) : t('updated.buttonScan')}
       </Button>
       <Dialog open={open} onOpenChange={show}>
-        <DialogContent title={t('updated.title', { software: sw })} description={manual ? t('updated.description', { device, software: sw }) : undefined}>
+        <DialogContent title={t('updated.title', { software: sw })} description={manual ? t('updated.description', { device }) : undefined} info={manual ? t('updated.descriptionInfo', { software: sw }) : undefined}>
           {software.source === 'agent' ? (
             <p className="text-sm">{t('updated.agent', { device })}</p>
           ) : !manual ? (

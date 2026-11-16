@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { RefreshCw } from 'lucide-react'
 import { CodeBlock } from '@/components/common/CodeBlock'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, Panel, Section } from '@/components/common/PageHeader'
 import { ErrorState, Loading } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -22,7 +23,7 @@ export function BlocklistTab() {
   const b = q.data
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
-      <Section title={t('blocklist.title')} description={t('blocklist.description')} stories={['S-RESP-3']}>
+      <Section title={t('blocklist.title')} description={t('blocklist.description')} info={<><p>{t('blocklist.descriptionInfo')}</p><p>{t('blocklist.pullInfo')}</p></>} stories={['S-RESP-3']}>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <p className="rounded-md border border-rule bg-surface px-4 py-3 text-sm">{t('blocklist.pull')}</p>
           <CodeBlock code={b.url} label={t('blocklist.url')} />
@@ -45,14 +46,12 @@ export function BlocklistTab() {
             ) : (
               // D-469: an empty list says what fills it, what it never holds, and where the rule that fills it is turned on
               <div className="grid gap-2 px-4 py-3 text-sm">
-                <p className="font-medium">{t('blocklist.empty')}</p>
-                <p className="text-muted">{t('blocklist.emptyWhat')}</p>
-                <p className="text-muted">{t('blocklist.emptyPublic')}</p>
+                <div className="flex items-center gap-1"><p className="font-medium">{t('blocklist.empty')}</p><InfoTip topic={t('blocklist.title')}><p>{t('blocklist.emptyWhat')}</p><p>{t('blocklist.emptyPublic')}</p></InfoTip></div>
                 <p className="text-muted">{t('blocklist.emptyTemplate')} <Link className="text-accent underline underline-offset-4" to={{ hash: 'rules' }}>{t('blocklist.emptyLink')}</Link></p>
               </div>
             )}
           </Panel>
-          <p className="text-[13px] text-muted">{t('blocklist.ipOnly')}</p>
+          <div className="flex items-center gap-1 text-[13px] text-muted"><p>{t('blocklist.ipOnly')}</p><InfoTip topic={t('blocklist.entries')}>{t('blocklist.ipOnlyInfo')}</InfoTip></div>
         </div>
       </Section>
       <Section title={t('blocklist.setupTitle')} description={t('blocklist.setupDescription')} stories={['S-RESP-3']}>
@@ -66,7 +65,7 @@ export function BlocklistTab() {
             </details>
           ))}
         </div>
-        <Notice tone="accent" className="mb-0 mt-4" title={t('blocklist.pushTitle')}>{t('blocklist.pushBody')}</Notice>
+        <Notice tone="accent" className="mb-0 mt-4" title={t('blocklist.pushTitle')} info={t('blocklist.pushBodyInfo')}>{t('blocklist.pushBody')}</Notice>
       </Section>
       <Dialog open={ask} onOpenChange={setAsk}>
         <DialogContent title={t('blocklist.regenerateTitle')} description={t('blocklist.regenerateBody')}>

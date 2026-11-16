@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AiBlock } from '@/components/common/AiBlock'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, KeyValue, Panel } from '@/components/common/PageHeader'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -25,7 +26,7 @@ function RejectDialog({ a, onClose }: { a: ActionRequest; onClose: () => void })
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent title={t('reject.title')} description={a.title}>
-        <Field htmlFor={`rej-${a.id}`} label={t('reject.reason')} hint={a.source === 'ai' ? t('reject.reasonAi') : t('reject.reasonRule')}>
+        <Field htmlFor={`rej-${a.id}`} label={t('reject.reason')} hint={a.source === 'ai' ? t('reject.reasonAi') : t('reject.reasonRule')} info={a.source === 'ai' ? t('reject.reasonAiInfo') : undefined}>
           <Textarea id={`rej-${a.id}`} className="min-h-20" maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />
         </Field>
         {a.source === 'ai' ? (
@@ -128,12 +129,12 @@ export function RequestCard({ a }: { a: ActionRequest }) {
           <p>{a.ai.why}</p>
           <ul className="ml-5 list-disc text-[13px] text-muted">{a.ai.evidence.map((e) => <li key={`${e.kind}-${e.id}`}>{t(`request.evidence.${e.kind}`)} <span className="font-mono text-[12px]">{e.id}</span>: {e.summary}</li>)}</ul>
           {a.ai.second_check ? <p className="text-[13px]"><Chip tone={a.ai.second_check.ok ? 'ok' : 'danger'}>{t('request.secondCheck')}</Chip> {a.ai.second_check.notes}</p> : null}
-          {a.ai.in_app_only ? <p className="text-[13px] text-danger">{t('request.inAppOnly')}</p> : null}
+          {a.ai.in_app_only ? <div className="flex items-center gap-1"><p className="text-[13px] text-danger">{t('request.inAppOnly')}</p><InfoTip topic={t('request.code')}>{t('request.inAppOnlyInfo')}</InfoTip></div> : null}
         </AiBlock>
       ) : null}
       {a.email_links.length ? (
         <div className="grid gap-1 rounded-md border border-dashed border-rule bg-sunken p-3 text-[13px]">
-          <p className="font-medium">{t('action.links')}</p>
+          <div className="flex items-center gap-1"><p className="font-medium">{t('action.links')}</p><InfoTip topic={t('action.links')}>{t('action.linksHintInfo')}</InfoTip></div>
           <p className="text-muted">{t('action.linksHint')}</p>
           <ul className="grid gap-1">{a.email_links.map((l) => (
             <li key={l.url}>{l.approver} ({l.address}), {l.used ? t('action.linkUsed') : t('action.linkUntil', { time: fmtDateTime(l.expires_at) })}: <a className="break-all text-accent underline underline-offset-4" href={new URL(l.url).pathname}>{l.url}</a></li>
@@ -148,7 +149,7 @@ export function RequestCard({ a }: { a: ActionRequest }) {
         <div className="grid gap-3">
           {first ? <p className="text-[13px]">{t('request.secondNeeded', { name: first.name })}</p> : null}
           {twoStep ? (
-            <Field htmlFor={`code-${a.id}`} label={t('request.code')} hint={t('request.codeHint')} className="max-w-xs">
+            <Field htmlFor={`code-${a.id}`} label={t('request.code')} hint={t('request.codeHint')} info={t('request.codeInfo')} className="max-w-xs">
               <Input id={`code-${a.id}`} inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} />
             </Field>
           ) : null}

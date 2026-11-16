@@ -29,7 +29,7 @@ export function LogTab() {
   if (q.error) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
   const items = q.data.items
   return (
-    <Section title={t('log.title')} description={t('log.description')} stories={['S-RESP-2', 'S-AI-8']}
+    <Section title={t('log.title')} description={t('log.description')} info={t('log.descriptionInfo')} stories={['S-RESP-2', 'S-AI-8']}
       actions={chain === null ? <Chip tone="off">{t('log.checking')}</Chip> : chain.ok ? <Chip tone="ok">{t('log.verified')}</Chip> : <Chip tone="danger">{t('log.broken', { n: (chain.broken_at ?? 0) + 1 })}</Chip>}>
       {items.length ? (
         // a phone scrolls the table sideways: the box takes focus so the keyboard can scroll it too (axe scrollable-region-focusable)

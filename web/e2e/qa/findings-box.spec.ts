@@ -153,7 +153,7 @@ test.describe('findings: What to do with a confirmed pack (S-MIT-1)', () => {
     }
     // "Applied" only writes a log entry
     await page.getByRole('button', { name: /MikroTik/ }).click()
-    const applied = page.getByRole('button', { name: 'Applied' })
+    const applied = page.getByRole('button', { name: 'Applied', exact: true })
     const before = await applied.count()
     if (before > 0) {
       await applied.last().click()
@@ -197,7 +197,7 @@ test.describe('findings: What to do with a confirmed pack (S-MIT-1)', () => {
     const mark = page.getByRole('button', { name: /Mark as handled|Reopen finding/ })
     await expect(mark).toBeDisabled()
     await expect(mark).toHaveAttribute('title', /Operator/)
-    for (const b of await page.getByRole('button', { name: 'Applied' }).all()) { await expect(b).toBeDisabled(); await expect(b).toHaveAttribute('title', /Operator/) }
+    for (const b of await page.getByRole('button', { name: 'Applied', exact: true }).all()) { await expect(b).toBeDisabled(); await expect(b).toHaveAttribute('title', /Operator/) }
   })
 
   test('links: the device, the CVE page, "Rescan this device"', async ({ page }) => {
@@ -221,7 +221,7 @@ test.describe('findings: no pack yet, and the AI (S-MIT-1, S-AI-2)', () => {
     await expect(page.locator('main a[target="_blank"]').first()).toBeVisible()
     await expect(page.getByText(/No confirmed exploitation signs/).first()).toBeVisible()
     await shot(page, 'findings-box', `${info.project.name}-nopack`)
-    const ask = page.getByRole('button', { name: 'Ask my AI' })
+    const ask = page.getByRole('button', { name: 'Ask my AI', exact: true })
     const explain = page.getByRole('button', { name: 'Explain', exact: true })
     if (REAL) { // no AI is wired to the box yet (mitigation's AI port answers "unavailable")
       await expect(ask).toBeDisabled()
@@ -230,7 +230,7 @@ test.describe('findings: no pack yet, and the AI (S-MIT-1, S-AI-2)', () => {
       await expect(page.getByRole('link', { name: 'Open AI assistant settings' }).first()).toHaveAttribute('href', '/settings/ai')
     } else {
       await ask.click()
-      await expect(page.getByText(/AI-generated/).first()).toBeVisible()
+      await expect(page.getByText(/AI-generated/).locator('visible=true').first()).toBeVisible() // #824: the no-pack note's "AI-generated" mention is behind its ⓘ; the label on the answer must show
       await page.reload()
       await expect(page.getByRole('button', { name: /^Ask my AI again$/ })).toHaveCount(1)
     }
@@ -240,7 +240,7 @@ test.describe('findings: no pack yet, and the AI (S-MIT-1, S-AI-2)', () => {
   test('a viewer cannot ask the AI', async ({ page }) => {
     await start(page, 'viewer')
     await page.goto(`/findings/${await findingId(page, 'nopack')}`)
-    await expect(page.getByRole('button', { name: 'Ask my AI' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Ask my AI', exact: true })).toBeDisabled()
     await expect(page.getByRole('button', { name: 'Explain', exact: true })).toBeDisabled()
   })
 })

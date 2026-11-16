@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Section, Panel } from '@/components/common/PageHeader'
 import { Chip, type Tone } from '@/components/common/StatusChip'
 import { SPAN_IN_UI } from '@/lib/span'
@@ -18,6 +19,9 @@ const ROWS: { id: string; level: Level }[] = [
   { id: 'endpoint', level: 'none' },
   { id: 'email', level: 'none' },
 ]
+
+/** Row lines whose detail sits behind ⓘ (#824). */
+const ROW_INFO = new Set(['howNoLogin', 'howOneTrap'])
 
 /** What really fires now (D-467: Coverage claims only that). services: the services some Trap IP listens on; listeningIps: how many Trap IPs listen.
  * Without one, nothing the traps would see is covered (2026-11-12 walk); URL tokens are answered by the box itself, so bait stays partly covered (W6-2).
@@ -44,17 +48,22 @@ export default function CoverageSection({ services, listeningIps }: { services: 
     return listening && n && !n.ok ? n.why : 'how'
   }
   return (
-    <Section id="coverage" title={t('coverage.title')} description={t('coverage.description')}>
+    <Section id="coverage" title={t('coverage.title')} description={t('coverage.description')} info={<><p>{t('coverage.descriptionInfo')}</p><p>{t('coverage.note')}</p></>}>
       <Panel className="p-4">
         <ul className="grid divide-y divide-rule" aria-label={t('coverage.listLabel')}>
           {ROWS.map((r) => (
             <li key={r.id} className="grid gap-1 py-2.5 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-4">
-              <span className="grid"><span className="text-sm font-medium">{t(`coverage.row.${r.id}.move`)}</span><span className="text-[13px] text-muted">{t(`coverage.row.${r.id}.${how(r.id)}`)}{r.id === 'outbound' ? <> <Link to="/logs" className="text-accent underline-offset-4 hover:underline">{t('coverage.openLogs')}</Link></> : null}</span></span>
+              <span className="grid"><span className="text-sm font-medium">{t(`coverage.row.${r.id}.move`)}</span><span className="text-[13px] text-muted">{t(`coverage.row.${r.id}.${how(r.id)}`)}{ROW_INFO.has(how(r.id)) ? <InfoTip topic={t(`coverage.row.${r.id}.move`)}>{t(`coverage.row.${r.id}.${how(r.id)}Info`)}</InfoTip> : null}{r.id === 'outbound' ? <> <Link to="/logs" className="text-accent underline-offset-4 hover:underline">{t('coverage.openLogs')}</Link></> : null}</span></span>
               <span className="sm:justify-self-end"><Chip tone={TONE[level(r.id, r.level)]}>{t(`coverage.level.${level(r.id, r.level)}`)}</Chip></span>
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-[13px] text-muted">{listening ? t('coverage.note') : t('coverage.notListening')}</p>
+        {listening ? null : (
+          <div className="mt-3 flex items-center gap-1 text-[13px] text-muted">
+            <p>{t('coverage.notListening')}</p>
+            <InfoTip topic={t('coverage.title')}>{t('coverage.notListeningInfo')}</InfoTip>
+          </div>
+        )}
       </Panel>
     </Section>
   )

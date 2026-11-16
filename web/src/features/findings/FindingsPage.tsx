@@ -65,7 +65,7 @@ function BulkDialog({ ids, open, onOpenChange, opener, onDone }: { ids: string[]
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={t('bulk.title', { count: ids.length })} description={t('bulk.description')} onCloseAutoFocus={(e) => { e.preventDefault(); opener.current?.focus() }}>
+      <DialogContent title={t('bulk.title', { count: ids.length })} description={t('bulk.description')} info={t('bulk.descriptionInfo')} onCloseAutoFocus={(e) => { e.preventDefault(); opener.current?.focus() }}>
         <RadioGroup value={action} onValueChange={(v) => { setAction(v as BulkAction); setError(undefined); setUntilError(undefined) }} aria-label={t('status.title')}>
           {BULK.map((a) => (
             <div key={a} className="flex items-start gap-2.5">
@@ -243,7 +243,7 @@ function List() {
             )}
             rowTone={(r) => (r.status === 'confirmed' ? 'danger' : r.status === 'suspected' && !unverified(r) ? 'warn' : undefined)}
             empty={
-              <EmptyState title={cve ? t('emptyCve', { cve }) : tab === 'open' ? t('emptyOpen') : t('emptyFilter')}>
+              <EmptyState title={cve ? t('emptyCve', { cve }) : tab === 'open' ? t('emptyOpen') : t('emptyFilter')} info={t('emptyHelpInfo')}>
                 {t('emptyHelp')}{' '}
                 <Link to="/devices" className="text-accent underline underline-offset-4">{t('emptyDevices')}</Link>{' '}
                 <Link to="/scans" className="text-accent underline underline-offset-4">{t('emptyScan')}</Link>
@@ -261,6 +261,7 @@ function List() {
         title={!items ? t('titleLoading') : open === 0 ? t('titleNone') : t('title', { count: open, confirmed })}
         stories={['S-MIT-1', 'S-SCAN-3']}
         meta={t('intro')}
+        info={<><p>{t('introInfo')}</p><p>{t('introStatus')}</p></>}
         actions={<SampleDataNote />}
       />
       {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
@@ -288,7 +289,7 @@ function VersionNeededList({ items }: { items: VersionNeeded[] }) {
   const { t } = useTranslation('findings')
   return (
     <section aria-labelledby="version-needed-title">
-    <Notice tone="warn" title={<span id="version-needed-title">{t('versionNeeded.title', { count: items.length })}</span>}>
+    <Notice tone="warn" title={<span id="version-needed-title">{t('versionNeeded.title', { count: items.length })}</span>} info={t('versionNeeded.helpInfo')}>
       <p>{t('versionNeeded.help')}</p>
       <ul className="mt-1 grid gap-0.5">
         {items.map((n) => {

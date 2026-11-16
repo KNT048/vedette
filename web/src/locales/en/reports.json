@@ -6,7 +6,7 @@
     "titleLoading": "Reports",
     "title": "This week {{open}} findings are unresolved and {{unapproved}} devices await approval.",
     "titleClear": "No unresolved findings this week; {{unapproved}} devices await approval.",
-    "meta": "The weekly report goes to management; the assessment report is for your records or for filing.",
+    "meta": "Weekly report for management; assessment report for your records or filing.",
     "tabs": "Report type",
     "weekly": "Weekly report",
     "pdpl": "Data protection assessment",
@@ -24,7 +24,8 @@
   "weekly": {
     "preview": {
       "title": "Weekly report preview",
-      "description": "Page one is for management: the figures (counted as on Home and Devices), the three biggest risks, what was done and what to do next week. The full list follows as an appendix. Figures are computed when you open the page."
+      "description": "Page one is for management; the full list follows as an appendix.",
+      "descriptionInfo": "Page one has the figures (counted as on Home and Devices), the three biggest risks, what was done and what to do next week. Figures are computed when you open the page."
     },
     "ai": {
       "button": "Write AI commentary",
@@ -80,9 +81,10 @@
     },
     "history": {
       "title": "Sent",
-      "description": "Each sent report keeps that week's figures as they were; open it again to print or save as PDF.",
+      "description": "Each keeps that week's figures; open it to print or save as PDF.",
       "empty": "No report sent yet",
-      "emptyBody": "Use Send now in the report preview once the report has content, or turn on automatic sending to start a history.",
+      "emptyBody": "Use Send now in the preview, or turn on automatic sending.",
+      "emptyBodyInfo": "Send now works once the report has content; each sent report starts the history.",
       "caption": "History of weekly reports sent",
       "col": {
         "time": "Time",
@@ -103,15 +105,18 @@
     },
     "empty": {
       "title": "No data for the weekly report yet",
-      "body": "The weekly report takes its figures from the device inventory and findings. Add a device, import a CSV or turn on passive inventory; once there are devices the report fills itself in.",
+      "body": "Add a device, import a CSV or turn on passive inventory.",
+      "bodyInfo": "The weekly report takes its figures from the device inventory and findings; once there are devices the report fills itself in.",
       "cta": "Open Devices"
     }
   },
   "pdpl": {
     "sensitive": "We process sensitive personal data",
-    "sensitiveHint": "As listed in Decree 356/2025/ND-CP: health, biometrics, personal location, bank accounts and cards, citizen ID card images, online behavior tracking data.",
+    "sensitiveHint": "For example health, biometrics, personal location or bank cards.",
+    "sensitiveHintInfo": "As listed in Decree 356/2025/ND-CP: health, biometrics, personal location, bank accounts and cards, citizen ID card images, online behavior tracking data.",
     "crossBorder": "We transfer data abroad",
-    "crossBorderHint": "Stored on a server or cloud abroad, sent to a recipient abroad, or put on a platform outside Vietnam for further processing. Sending logs that contain personal data to an AI hosted abroad counts too.",
+    "crossBorderHint": "Stored, sent or processed outside Vietnam, including by an AI abroad.",
+    "crossBorderHintInfo": "Stored on a server or cloud abroad, sent to a recipient abroad, or put on a platform outside Vietnam for further processing. Sending logs that contain personal data to an AI hosted abroad counts too.",
     "processors": "We use other parties to process data",
     "processorsHint": "For example payroll, email marketing, cloud or outsourced storage services.",
     "volume": {
@@ -141,9 +146,11 @@
       "sectorPick": "Choose a sector",
       "employees": "Number of staff",
       "volume": "People whose personal data you have processed",
-      "volumeHint": "Cumulative since you started. At 100,000 people or more you lose the exemption or the option to skip the impact assessment dossier and the data protection person.",
+      "volumeHint": "Cumulative since you started.",
+      "volumeHintInfo": "At 100,000 people or more you lose the exemption or the option to skip the impact assessment dossier and the data protection person.",
       "level": "Information system security level",
-      "levelHint": "Under the separate rules on information system security by level (1 to 5), not part of the Personal Data Protection Law. If not determined, choose Not determined.",
+      "levelHint": "If not determined, choose Not determined.",
+      "levelHintInfo": "Under the separate rules on information system security by level (1 to 5), not part of the Personal Data Protection Law.",
       "levelOption": "Level {{level}}",
       "contactName": "Data protection contact",
       "contactHint": "Full name of the person given this task.",
@@ -153,13 +160,15 @@
       "saving": "Saving",
       "save": "Save details",
       "size": "Organisation size",
-      "sizeHint": "By the criteria of Vietnamese law on small and medium enterprises. The size decides whether you must file an impact assessment dossier and appoint a data protection person (Article 38 of Law 91/2025/QH15; Article 41 of Decree 356/2025/ND-CP).",
+      "sizeHint": "By the criteria of Vietnamese law on small and medium enterprises.",
+      "sizeHintInfo": "The size decides whether you must file an impact assessment dossier and appoint a data protection person (Article 38 of Law 91/2025/QH15; Article 41 of Decree 356/2025/ND-CP).",
       "sizePick": "Pick a size",
       "levelNone": "Not determined"
     },
     "report": {
       "title": "Assessment report",
-      "description": "Technical sections are generated from the current inventory, findings and module status. Legal sections only list what a person must do.",
+      "description": "Built from the current inventory, findings and module status.",
+      "descriptionInfo": "Technical sections are generated from that data. Legal sections only list what a person must do.",
       "needOrg": "Save the organisation details first",
       "generate": "Generate report",
       "regenerate": "Regenerate from new data",
@@ -178,7 +187,8 @@
       "other": "Medium or large enterprise, or other organisation"
     },
     "processingService": "Provides personal data processing services to others",
-    "processingServiceHint": "For example processing customer, payroll or marketing data on behalf of other organisations. This type gets no exemption.",
+    "processingServiceHint": "For example customer, payroll or marketing data for other organisations.",
+    "processingServiceHintInfo": "Processing personal data on behalf of other organisations. This type gets no exemption.",
     "err": {
       "name": "Enter the organisation name (2 to 120 characters).",
       "tax": "The tax code is 10 digits, or 10 digits, a hyphen and 3 digits for a branch. Example 0312345678.",

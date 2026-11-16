@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Plus, RefreshCw } from 'lucide-react'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, PageHeader, Section } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
@@ -48,7 +49,12 @@ function UnknownSenders({ data, isAdmin, onAdd, onEdit }: { data: SourcesRespons
   const container = !data.box.ip && !!data.box.lan
   return (
     <section aria-labelledby="unknown-senders-title" className="mt-3">
-    <Notice tone="warn" title={<span id="unknown-senders-title">{t('unknown.title')}</span>}>
+    <Notice tone="warn" title={<span id="unknown-senders-title">{t('unknown.title')}</span>} info={<>
+      <p>{t('unknown.notSourceInfo')} {t('unknown.otherProtoInfo')}</p>
+      {container ? <p>{t('unknown.container')}</p> : null}
+      {list.some((u) => u.protos.includes('udp')) ? <p>{t('unknown.forgedInfo')}</p> : null}
+      <p>{t('unknown.memory')}</p>
+    </>}>
       <ul className="grid gap-2">
         {list.map((u) => {
           const declared = data.sources.find((s) => s.sender_ip === u.ip)
@@ -65,9 +71,7 @@ function UnknownSenders({ data, isAdmin, onAdd, onEdit }: { data: SourcesRespons
           )
         })}
       </ul>
-      {container ? <p className="mt-2 text-muted">{t('unknown.container')}</p> : null}
-      {list.some((u) => u.protos.includes('udp')) ? <p className="mt-1 text-muted">{t('unknown.forged')}</p> : null}
-      <p className="mt-1 text-muted">{t('unknown.memory')}</p>
+      {list.some((u) => u.protos.includes('udp')) ? <p className="mt-2 text-muted">{t('unknown.forged')}</p> : null}
     </Notice>
     </section>
   )
@@ -91,8 +95,9 @@ function SourcesSection() {
   const refresh = <Button onClick={refreshAll} disabled={q.isFetching}><RefreshCw />{t('refresh')}</Button>
   const box = q.data?.box
   const description = !box ? t('sources.description', { ip: '' }) : box.ip ? t('sources.description', { ip: box.ip }) : box.lan ? t('sources.descriptionNoIpLan', { lan: box.lan }) : t('sources.descriptionNoIp')
+  const descriptionInfo = !box || box.ip ? t('sources.descriptionInfo') : box.lan ? t('sources.descriptionNoIpLanInfo', { lan: box.lan }) : t('sources.descriptionNoIpInfo')
   return (
-    <Section id="sources" title={t('sources.title')} description={description} stories={['S-LOG-1']} actions={<>{refresh}{addButton}</>}>
+    <Section id="sources" title={t('sources.title')} description={description} info={descriptionInfo} stories={['S-LOG-1']} actions={<>{refresh}{addButton}</>}>
       <QueryState query={q}>
         {(d) => {
           const columns: ColumnDef<LogSource>[] = [
@@ -119,7 +124,7 @@ function SourcesSection() {
           return (
             <>
               {d.sources.length === 0 ? (
-                <EmptyState title={t('sources.emptyTitle')} action={addButton}>{t('sources.emptyBody')}</EmptyState>
+                <EmptyState title={t('sources.emptyTitle')} info={t('sources.emptyBodyInfo')} action={addButton}>{t('sources.emptyBody')}</EmptyState>
               ) : (
                 <DataTable caption={t('sources.caption')} data={d.sources} columns={columns} rowTone={(r) => (r.state === 'silent' ? 'warn' : undefined)}
                   mobileRow={(r) => (
@@ -187,7 +192,7 @@ function DigestSections() {
             </div>
           ) },
           { id: 'dst', header: t('digest.bad.col.dst'), accessorFn: (r) => r.dest, cell: ({ row: { original: r } }) => (
-            <div className="grid gap-0.5"><span className="font-medium">{r.dest}</span>{r.listed_as ? <span className="text-[12px] text-muted" title={t('digest.bad.listedAsHint')}>{t('digest.bad.listedAs', { name: r.listed_as })}</span> : null}{r.blocked ? <Chip tone="warn" title={t('digest.bad.blockedHint')}>{t('digest.bad.blocked')}</Chip> : null}<Link to={`/lookup?q=${encodeURIComponent(r.listed_as ?? r.dest)}`} className="text-[12px] text-accent underline-offset-4 hover:underline">{t('digest.bad.lookup', { dst: r.listed_as ?? r.dest })}</Link></div>
+            <div className="grid gap-0.5"><span className="font-medium">{r.dest}</span>{r.listed_as ? <span className="flex items-center gap-1 text-[12px] text-muted">{t('digest.bad.listedAs', { name: r.listed_as })}<InfoTip topic={t('digest.bad.listedAs', { name: r.listed_as })}>{t('digest.bad.listedAsHint')}</InfoTip></span> : null}{r.blocked ? <span className="flex items-center gap-1"><Chip tone="warn">{t('digest.bad.blocked')}</Chip><InfoTip topic={t('digest.bad.blocked')}>{t('digest.bad.blockedHint')}</InfoTip></span> : null}<Link to={`/lookup?q=${encodeURIComponent(r.listed_as ?? r.dest)}`} className="text-[12px] text-accent underline-offset-4 hover:underline">{t('digest.bad.lookup', { dst: r.listed_as ?? r.dest })}</Link></div>
           ) },
           { id: 'via', header: t('digest.bad.col.via'), accessorFn: (r) => via(r.seen_via), cell: ({ row }) => <span className="text-[13px]">{via(row.original.seen_via)}</span> },
           { id: 'feed', header: t('digest.bad.col.feed'), accessorFn: (r) => r.feeds.join(', '), cell: ({ row }) => <span className="text-[13px] text-muted">{row.original.feeds.join(', ')}</span> },
@@ -199,6 +204,7 @@ function DigestSections() {
           { id: 'count', header: t('digest.new.col.count'), accessorFn: (r) => r.count },
           { id: 'first', header: t('digest.new.col.first'), accessorFn: (r) => r.first_seen, cell: ({ row }) => <span className="whitespace-nowrap">{fmtDateTime(row.original.first_seen)}</span> },
         ]
+        const spanRows = SPAN_IN_UI || d.bad_connections.some((h) => h.seen_via.startsWith('span_'))
         const spikes: ColumnDef<SpikeItem>[] = [
           { id: 'signature', header: t('digest.spikes.col.signature'), accessorFn: (r) => r.signature, cell: ({ row: { original: r } }) => <div><span className="font-medium">{r.signature}</span>{sampleLine(r.sample)}</div> },
           { id: 'source', header: t('digest.spikes.col.source'), accessorFn: (r) => r.source_name },
@@ -209,10 +215,11 @@ function DigestSections() {
         return (
           <>
             <ScrollToHash />
-            <Section id="bad" title={t('digest.bad.title')} description={t(SPAN_IN_UI || d.bad_connections.some((h) => h.seen_via.startsWith('span_')) ? 'digest.bad.description' : 'digest.bad.descriptionNoSpan')} stories={['S-LOG-2', 'S-LOG-4']}>
-              {d.bad_connections.length ? <><DataTable caption={t('digest.bad.caption')} data={d.bad_connections} columns={bad} rowTone={() => 'danger'} />{SPAN_IN_UI ? <p className="mt-2 text-[13px] text-muted">{t('digest.bad.note')}</p> : d.bad_connections.some((h) => h.seen_via.startsWith('span_')) ? <p className="mt-2 text-[13px] text-muted">{t('digest.bad.noteKept')}</p> : null}</> : feedsOn === false ? <EmptyState title={t('digest.bad.emptyFeedsOff')}><Link to="/settings/modules" className="text-accent underline-offset-4 hover:underline">{t('digest.bad.openModules')}</Link></EmptyState> : <EmptyState title={d.ioc_matching ? t('digest.bad.empty') : t('digest.bad.emptyNoIoc')} />}
+            <Section id="bad" title={t('digest.bad.title')} description={t(spanRows ? 'digest.bad.description' : 'digest.bad.descriptionNoSpan')}
+              info={<><p>{t(spanRows ? 'digest.bad.descriptionInfo' : 'digest.bad.descriptionNoSpanInfo')}</p>{SPAN_IN_UI ? <p>{t('digest.bad.note')}</p> : spanRows ? <p>{t('digest.bad.noteKept')}</p> : null}</>} stories={['S-LOG-2', 'S-LOG-4']}>
+              {d.bad_connections.length ? <DataTable caption={t('digest.bad.caption')} data={d.bad_connections} columns={bad} rowTone={() => 'danger'} /> : feedsOn === false ? <EmptyState title={t('digest.bad.emptyFeedsOff')}><Link to="/settings/modules" className="text-accent underline-offset-4 hover:underline">{t('digest.bad.openModules')}</Link></EmptyState> : d.ioc_matching ? <EmptyState title={t('digest.bad.empty')} /> : <EmptyState title={t('digest.bad.emptyNoIoc')}>{t('digest.bad.emptyNoIocAction')}</EmptyState>}
             </Section>
-            <Section id="new" title={learning ? t('digest.new.titleLearning') : t('digest.new.title', { days })} description={t('digest.new.description')} stories={['S-LOG-1']}>
+            <Section id="new" title={learning ? t('digest.new.titleLearning') : t('digest.new.title', { days })} description={t('digest.new.description')} info={t('digest.new.descriptionInfo')} stories={['S-LOG-1']}>
               {d.new.length ? <DataTable caption={t('digest.new.caption')} data={d.new} columns={fresh} /> : <EmptyState title={learning ? t('digest.new.emptyLearning', { n: d.history_days, days }) : t('digest.new.empty', { days })} />}
             </Section>
             <Section id="spikes" title={t('digest.spikes.title')} description={t('digest.spikes.description', { days })}>
@@ -275,7 +282,7 @@ function EventsSection({ sources }: { sources: LogSource[] }) {
             )}
             <DataTable key={`${win}-${source}-${text}`} caption={t('events.caption')} data={rows} columns={columns} pageSize={25} mobileRow={(r) => (
               <div className="grid gap-1"><p className="text-[12px] text-muted">{fmtDateTime(r.ts)}, {r.source_name}{r.host && r.host !== r.source_name ? ` (${r.host})` : ''}</p><Message e={r} /></div>
-            )} empty={!text.trim() && !source ? t('events.emptyNone') : t('events.empty')} />
+            )} empty={!text.trim() && !source ? <span className="inline-flex items-center gap-1">{t('events.emptyNone')}<InfoTip topic={t('events.title')}>{t('events.emptyNoneInfo')}</InfoTip></span> : t('events.empty')} />
           </>
           )
         }}
@@ -378,7 +385,7 @@ function Content() {
       {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
       <PageTabs label={t('tabs.label')} tabs={noSources ? [sourcesTab, ...retention] : [
         { id: 'digest', label: t('tabs.digest'), panel: <>
-          {noLogs ? <EmptyState title={t('digest.none.title')}>{t('digest.none.body')}</EmptyState> : <DigestSections />}
+          {noLogs ? <EmptyState title={t('digest.none.title')} info={t('digest.none.bodyInfo')}>{t('digest.none.body')}</EmptyState> : <DigestSections />}
           <Slot name="logs.panels" props={{}} />
         </> },
         { id: 'events', label: t('tabs.events'), panel: <EventsSection sources={sourceList} /> },

@@ -6,6 +6,7 @@ import { Chip } from '@/components/common/StatusChip'
 import { SourceBadge } from '@/components/common/SourceBadge'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Field, Select } from '@/components/ui/input'
+import { InfoTip } from '@/components/common/InfoTip'
 import { dateText } from './dates'
 import { riskOf } from './services'
 import { useDiff, useSnapshot, useSnapshots } from './api'
@@ -32,7 +33,7 @@ export function ResultsPanel({ target, blockedText }: { target: Target; blockedT
 
   return (
     <>
-      <Section id="results" title={t('results.title')} description={t('results.description')}>
+      <Section id="results" title={t('results.title')} description={t('results.description')} info={t('results.descriptionInfo')}>
         <QueryState query={list}>
           {(l) => l.items.length === 0 ? (
             <EmptyState title={t('results.emptyTitle')}>{blockedText ?? t('results.emptyBody')}</EmptyState>
@@ -70,7 +71,7 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
       if (!risk && !row.original.last_seen) return null
       return <span className="grid gap-1">
         {row.original.last_seen ? <><PortMark p={row.original} /><PortMarkNote p={row.original} at={s.scanned_at} /></> : null}
-        {risk ? <><Chip tone="warn">{t('open.attacked')}</Chip><span className="text-[12px] text-muted">{t(`risky.${risk}`)} {t('open.purpose')}</span></> : null}
+        {risk ? <span className="flex items-center gap-1"><Chip tone="warn">{t('open.attacked')}</Chip><InfoTip topic={t('open.attacked')}><p>{t(`risky.${risk}`)}</p><p>{t('open.purposePlain')}</p></InfoTip></span> : null}
       </span>
     } },
   ]
@@ -91,7 +92,10 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
   return (
     <div className="grid gap-8">
       <Panel className="p-4">
-        <p className="mb-3 flex flex-wrap items-center gap-x-2 text-[13px] text-muted"><SourceBadge source="nmap" at={s.scanned_at} />{t(!target.full_scan ? 'results.scopeBasic' : target.kind === 'domain' ? 'results.scopeDeepDomain' : 'results.scopeDeepIp')} {t('results.sourceNote')}</p>
+        <div className="mb-3 flex flex-wrap items-center gap-x-2 text-[13px] text-muted">
+          <SourceBadge source="nmap" at={s.scanned_at} />
+          <InfoTip topic={t('results.scopeTopic')}><p>{t(!target.full_scan ? 'results.scopeBasic' : target.kind === 'domain' ? 'results.scopeDeepDomain' : 'results.scopeDeepIp')}</p><p>{t('results.sourceNote')}</p></InfoTip>
+        </div>
         <KeyValue items={[
           ...(target.kind === 'domain' ? [{ label: t('count.subdomains'), value: c.subdomains }] : []),
           { label: t('count.ips'), value: c.ips }, { label: t('count.ports'), value: c.ports },
@@ -102,11 +106,11 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
       {target.kind === 'domain' ? (
         <Section title={t('hosts.title')} description={t('hosts.description')}><DataTable caption={t('hosts.caption')} data={s.hosts} columns={hostCols} pageSize={20} empty={t('hosts.empty')} /></Section>
       ) : null}
-      <Section title={t('ports.title')} description={t('ports.description')}><DataTable caption={t('ports.caption')} data={s.ports} columns={portCols} rowTone={(r) => (riskOf(r) ? 'warn' : undefined)} pageSize={20} empty={t('ports.empty')} filterPlaceholder={t('ports.filter')} /></Section>
-      <Section title={t('admin.title')} description={t('admin.description')}>
+      <Section title={t('ports.title')} description={t('ports.description')} info={t('ports.descriptionInfo')}><DataTable caption={t('ports.caption')} data={s.ports} columns={portCols} rowTone={(r) => (riskOf(r) ? 'warn' : undefined)} pageSize={20} empty={t('ports.empty')} filterPlaceholder={t('ports.filter')} /></Section>
+      <Section title={t('admin.title')} description={t('admin.description')} info={t('admin.descriptionInfo')}>
         <DataTable caption={t('admin.caption')} data={s.admin_panels} columns={adminCols} pageSize={20} rowTone={(r) => (r.risk === 'danger' ? 'danger' : 'warn')} empty={<EmptyState title={t('admin.emptyTitle')}>{t('admin.emptyBody')}</EmptyState>} />
       </Section>
-      <Section title={t('cert.title')} description={t('cert.description', { days: CERT_WARN_DAYS })}>
+      <Section title={t('cert.title')} description={t('cert.description', { days: CERT_WARN_DAYS })} info={t('cert.descriptionInfo')}>
         <DataTable caption={t('cert.caption')} data={s.certs} columns={certCols} pageSize={20} initialSort={[{ id: 'expires', desc: false }]} empty={t('cert.empty')} />
       </Section>
       {target.kind === 'domain' ? <DeepSection s={s} /> : null /* D-571: the deep scan per address, with the names that led to it */}

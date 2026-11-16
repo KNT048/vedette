@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { FlaskConical, Trash2 } from 'lucide-react'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Section, Panel } from '@/components/common/PageHeader'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
@@ -22,7 +23,7 @@ export default function TokensSection() {
   const { t } = useTranslation('honeypot')
   const q = useTokens()
   return (
-    <Section id="tokens" title={t('token.title')} description={t('token.description')}>
+    <Section id="tokens" title={t('token.title')} description={t('token.description')} info={t('token.descriptionInfo')}>
       <QueryState query={q}>{(d) => <Inner items={d.items} />}</QueryState>
     </Section>
   )
@@ -69,7 +70,7 @@ function Inner({ items }: { items: Token[] }) {
     <div className="grid gap-4">
       <Panel className="p-4">
         <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1.2fr_auto] lg:items-start" noValidate>
-          <Field label={t('token.form.preset')} htmlFor="tk-preset" hint={t('token.form.presetHint')} className="sm:col-span-2 sm:max-w-sm lg:col-span-4">
+          <Field label={t('token.form.preset')} htmlFor="tk-preset" hint={t('token.form.presetHint')} info={t('token.form.presetHintInfo')} className="sm:col-span-2 sm:max-w-sm lg:col-span-4">
             <Select id="tk-preset" value={preset} disabled={!admin} onChange={(e) => pickPreset(e.target.value as TokenPreset)}>
               {TOKEN_TYPES.map((x) => (
                 <optgroup key={x} label={t(`token.type.${x}`)}>
@@ -84,7 +85,7 @@ function Inner({ items }: { items: Token[] }) {
               {TOKEN_TYPES.map((x) => <option key={x} value={x}>{t(`token.type.${x}`)}</option>)}
             </Select>
           </Field>
-          <Field label={t(`token.form.name.${type}`)} htmlFor="tk-name" error={error ?? undefined} hint={t(`token.form.nameHint.${type}`)}>
+          <Field label={t(`token.form.name.${type}`)} htmlFor="tk-name" error={error ?? undefined} hint={t(`token.form.nameHint.${type}`)} info={type === 'credential' ? t('token.form.nameHint.credentialInfo') : undefined}>
             <div className="flex gap-2">
               <Input id="tk-name" value={name} onChange={(e) => setName(e.target.value)} disabled={!admin} autoComplete="off" spellCheck={false} aria-invalid={error ? true : undefined} />
               {type === 'file' ? (
@@ -123,8 +124,14 @@ function Inner({ items }: { items: Token[] }) {
                   <CodeBlock code={k.type === 'credential' ? `user: ${k.value}\npassword: ${k.password ?? ''}` : k.value} label={t(`token.valueLabel.${k.type}`)} />
                 </div>
                 <div className="grid content-start gap-1 text-[13px]">
-                  <p><span className="font-medium">{t('token.triggerLabel')}</span> {t(`token.trigger.${k.type}`)}</p>
-                  <p><span className="font-medium">{t('token.howLabel')}</span> {t(`token.how.${k.type}`, { value: k.value })}</p>
+                  <div className="flex items-start gap-1">
+                    <p><span className="font-medium">{t('token.triggerLabel')}</span> {t(`token.trigger.${k.type}`)}</p>
+                    {k.type === 'dns' ? <InfoTip topic={t('token.triggerLabel')}>{t('token.trigger.dnsInfo')}</InfoTip> : null}
+                  </div>
+                  <div className="flex items-start gap-1">
+                    <p><span className="font-medium">{t('token.howLabel')}</span> {t(`token.how.${k.type}`, { value: k.value })}</p>
+                    {k.type !== 'dns' ? <InfoTip topic={t('token.howLabel')}>{t(`token.how.${k.type}Info`)}</InfoTip> : null}
+                  </div>
                 </div>
               </div>
             </li>

@@ -314,6 +314,10 @@ func (e *Engine) add(now time.Time, hintMAC mac, hintIP netip.Addr, field observ
 		e.drop("value_empty")
 		return
 	}
+	if !UsefulValue(field, value) { // a UUID for a host name, a model without a letter (n69)
+		e.drop("value_meaningless")
+		return
+	}
 	switch e.book.admit(hintMAC, now) {
 	case admitKnown:
 	case admitNew:

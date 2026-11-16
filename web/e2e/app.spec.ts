@@ -72,6 +72,7 @@ test('điện thoại: mở menu, đi tới Thiết bị, bảng cuộn trong kh
   test.skip(!isMobile, 'chỉ cho điện thoại')
   await startWithSample(page)
   await page.getByRole('button', { name: 'Open menu' }).click()
+  await page.getByRole('button', { name: /^Assets/ }).click() // docs/UI.md §2: groups start closed except the current page's
   await page.getByRole('link', { name: 'Devices' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)

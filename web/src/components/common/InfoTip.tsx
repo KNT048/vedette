@@ -41,7 +41,7 @@ export function InfoTip({ topic, children, className }: { topic?: string; childr
           collisionPadding={16}
           // z-[60]: nằm trên hộp thoại (z-50) khi ⓘ ở trong một hộp thoại. Nội dung dài (luồng dữ liệu Privacy) cuộn trong popover, không tràn màn hình.
           // Nền tối (L7): popover cùng màu nền với hộp thoại bên dưới, nên viền sáng hơn và bóng đậm hơn để thấy rõ mép.
-          className="z-[60] grid max-h-[min(28rem,var(--radix-popover-content-available-height))] max-w-[min(22rem,calc(100vw-32px))] gap-2 overflow-y-auto overscroll-contain rounded-md border border-rule bg-surface px-3 py-2.5 text-[13px] leading-relaxed text-ink shadow-md [overflow-wrap:anywhere] dark:border-ink/30 dark:shadow-lg dark:shadow-black/60 [&_a]:underline"
+          className="z-[60] grid max-h-[min(28rem,var(--radix-popover-content-available-height))] max-w-[min(22rem,calc(100vw-32px))] gap-2 overflow-y-auto overscroll-contain rounded-lg border border-rule bg-surface px-3 py-2.5 text-[13px] leading-relaxed text-ink shadow-md [overflow-wrap:anywhere] dark:border-ink/30 dark:shadow-lg dark:shadow-black/60 [&_a]:underline"
         >
           {children}
         </Popover.Content>

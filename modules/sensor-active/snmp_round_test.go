@@ -2,6 +2,7 @@ package sensoractive_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
@@ -180,7 +181,8 @@ func TestSNMPADeviceThatKeepsChangingIsLeftOutAndTheRoundEnds(t *testing.T) {
 
 // Review #881 r2 L2: a device run is two scans (the top 1000 ports, then the extra ports); the targets are cleared between them.
 // A device that left the address in between (the inventory moved it while the first scan ran; its event then found no targets to
-// compare) gets no second scan at the old address.
+// compare) gets no second scan at the old address, and the first scan is not recorded either: it is recorded by address, and
+// another device, or none, is there now (review r2 L1). The run is stopped, not failed.
 func TestADeviceThatMovedBetweenTheTwoScansGetsNoSecond(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{})
@@ -197,8 +199,11 @@ func TestADeviceThatMovedBetweenTheTwoScansGetsNoSecond(t *testing.T) {
 		}
 		return sa.Output{XML: xml}, nil
 	}))
-	if err := e.svc.ScanDevice(e.ctx(), "a-web", "discovered"); err != nil {
-		t.Fatal(err)
+	if err := e.svc.ScanDevice(e.ctx(), "a-web", "discovered"); !errors.Is(err, sa.ErrStopped) {
+		t.Fatalf("ScanDevice: %v, want stopped", err)
+	}
+	if obs := e.sink.observations(); len(obs) != 0 {
+		t.Fatalf("the first scan was recorded: %v", obs)
 	}
 	mu.Lock()
 	defer mu.Unlock()

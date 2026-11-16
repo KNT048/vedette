@@ -392,6 +392,10 @@ func (s *Service) failInterrupted(ctx context.Context) error {
 // a stop for a change of settings: the queue counts it as an attempt (M4).
 var errDeadline = fmt.Errorf("%w: its deadline passed", ErrStopped)
 
+// errLeftAddress is ErrStopped for a scan of a device run that did not start because the device left the address (probe's re-read,
+// #882): what an earlier scan of the run found at that address is dropped too, since it is recorded by address.
+var errLeftAddress = fmt.Errorf("%w: the device left the address", ErrStopped)
+
 // probe runs one nmap command over targets and returns the hosts that answered. Order matters (INV-1, INV-2,
 // INV-3): the run's targets are published first, so SettingsChanged can see them; then the settings, the
 // window and the scope are read again for every target; only then the probe row is written (INV-9: no packet
@@ -434,7 +438,9 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 	if asset != "" {
 		a, err := s.inv.Asset(ctx, asset)
 		switch {
-		case errors.Is(err, ErrNotFound), err == nil && !slices.Contains(targets, a.IP), err != nil && ctx.Err() != nil:
+		case errors.Is(err, ErrNotFound), err == nil && !slices.Contains(targets, a.IP):
+			return nil, errLeftAddress
+		case err != nil && ctx.Err() != nil:
 			return nil, ErrStopped
 		case err != nil:
 			return nil, err
@@ -1214,7 +1220,8 @@ func (s *Service) recordDevice(ctx context.Context, assetID string, ip netip.Add
 // probeDevice is the nmap work of one device scan: the run of kind, and after a normal or versions scan the Extra run over
 // nmapargv.ExtraPorts (the surface list and the reviewed admin ports) at the same rate, merged into the same host (D-592): a service
 // moved to 22222 or 11443 is identified like one on its usual port. Each run has its own probe row. When the Extra run fails or is
-// stopped, the first run's result is kept (it finished; POST-3) and the reason logged. When only the Extra run saw the device up, the
+// stopped (except because the device left the address, #882: then the run is ErrStopped and nothing is recorded), the first run's
+// result is kept (it finished; POST-3) and the reason logged. When only the Extra run saw the device up, the
 // result is recorded as an Extra one (its ports added; services and software of the normal scan untouched; review r1 M5): kind is
 // what recordDevice should record.
 func (s *Service) probeDevice(ctx context.Context, jobID string, kind nmapargv.Kind, rate int, ip netip.Addr) ([]host, nmapargv.Kind, error) {
@@ -1223,6 +1230,9 @@ func (s *Service) probeDevice(ctx context.Context, jobID string, kind nmapargv.K
 		return hosts, kind, err
 	}
 	extra, err := s.probe(ctx, jobID, nmapargv.Extra, rate, []netip.Addr{ip})
+	if errors.Is(err, errLeftAddress) { // the first run is recorded by address: another device, or none, is there now (review r2 L1)
+		return nil, kind, ErrStopped
+	}
 	if err != nil {
 		s.log.WarnContext(ctx, "sensoractive: the scan of the extra ports did not finish; the device keeps the top 1000 ports' result", "ip", ip.String(), "error", err)
 		return hosts, kind, nil

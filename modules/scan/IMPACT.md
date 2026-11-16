@@ -2,6 +2,7 @@
 
 ## Modifying: the shared window, rate and exclusions (`SharedChecks`, `settings`, `LegacyChecks`, `Engine`; #850, INV-16)
 - **inventory** owns the values (INV-32): `PUT /scans/config` writes there through `SaveChecks`; Settings › Scanning (`PUT /scanning/safety`) and Devices › Scope write the same keys, so a change there moves nuclei's window, speed and exclusions too.
+- **`Checks.Version` / `ConfigView.Version` / `Patch.Version`** (review #860 M1): the inventory's version of the shared block passes through `SharedChecks`; `PUT /scans/config` with a stale one is 409 `safety_changed` from the inventory's `SaveChecks`, inside this module's transaction (its own row rolls back too).
 - **cmd/vedette** `mergeScanningSafety` reads `LegacyChecks` (scan_setting) once at start; `scanningEngines.nuclei` reads `Engine` for the card.
 - **`scan_setting`** keeps its columns and a copy of the values (forward-only, DATA_MODEL §6): do not drop them before a release that no longer rolls back past #850.
 

@@ -3,11 +3,18 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/exec/exectest"
@@ -119,7 +126,8 @@ func TestScanningSafetyIsOneStore(t *testing.T) {
 	s.d.Bus.Subscribe(inventory.EventSettingsChanged, func(context.Context, events.Event) error { changed++; return nil })
 
 	in := `{"scope":{"lan_ranges":["192.168.10.0/24"],"confirmed":true},"window":{"days":[1,2,3,4,5],"from":"21:00","to":"04:00"},
-		"speed":{"packets_per_s":80,"requests_per_s":8},"exclusions":["192.168.10.99","192.168.10.64/28"],"fragile":{"kinds":["printer"],"regular_scan_kinds":[]}}`
+		"speed":{"packets_per_s":80,"requests_per_s":8},"exclusions":["192.168.10.99","192.168.10.64/28"],"fragile":{"kinds":["printer"],"regular_scan_kinds":[]},
+		"version":"` + s.safetyVersion() + `"}`
 	if code, out := s.do("PUT", "/scanning/safety", "viewer", in); code != http.StatusForbidden {
 		t.Fatalf("a viewer saved: %d %v", code, out)
 	}
@@ -416,5 +424,165 @@ func TestScanningRunNow(t *testing.T) {
 	}
 	if s.count(`SELECT count(*) FROM sa_job WHERE kind = 'sweep' AND status = 'done'`) != 1 {
 		t.Fatal("no sweep ran")
+	}
+}
+
+// shownConfirmedAt is `,"shown_confirmed_at":…` for a range dialog opened now: the confirmation GET /scanning shows.
+func (s *stack) shownConfirmedAt() string {
+	s.t.Helper()
+	_, page := s.do("GET", "/scanning", "viewer", "")
+	raw, err := json.Marshal(page["safety"].(map[string]any)["scope"].(map[string]any)["confirmed_at"])
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	return `,"shown_confirmed_at":` + string(raw)
+}
+
+// safetyVersion is safety.version of GET /scanning: what a page that loads now holds.
+func (s *stack) safetyVersion() string {
+	s.t.Helper()
+	code, page := s.do("GET", "/scanning", "viewer", "")
+	v, _ := page["safety"].(map[string]any)["version"].(string)
+	if code != http.StatusOK || v == "" {
+		s.t.Fatalf("GET /scanning = %d, version %q", code, v)
+	}
+	return v
+}
+
+// "+ New range" and "+ New exclusion" (#842) over the real wiring: the inventory adds one entry in one transaction, the audit row
+// names it, the bus announces it, the scan module reads the new exclusion, adds sent at once never overwrite each other, the tick
+// confirms only the ranges the dialog showed (review #860 H1), and a full save from a page opened before the add is refused instead
+// of dropping it (M1).
+func TestScanningInlineAdds(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	s.module("scan", true)
+	s.saveScope(t)
+	var changed atomic.Int32
+	s.d.Bus.Subscribe(inventory.EventSettingsChanged, func(context.Context, events.Event) error { changed.Add(1); return nil })
+	opened := s.safetyVersion() // a Settings › Scanning page and a /scans/config page load now
+	conf := s.shownConfirmedAt()
+	_, oldCfg := s.do("GET", "/scans/config", "admin", "")
+	if oldCfg["version"] != opened {
+		t.Fatalf("GET /scans/config version %v, GET /scanning %s", oldCfg["version"], opened)
+	}
+
+	if code, out := s.do("POST", "/scanning/safety/ranges", "operator", `{"range":"192.168.20.0/24","confirm":true,"shown_ranges":["192.168.10.0/24"]`+conf+`}`); code != http.StatusForbidden {
+		t.Fatalf("an operator added a range: %d %v", code, out)
+	}
+	if code, out := s.do("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.0/24","confirm":false,"shown_ranges":["192.168.10.0/24"]`+conf+`}`); code != http.StatusBadRequest || errCodeOf(out) != "scope_not_confirmed" {
+		t.Fatalf("without the attestation: %d %v", code, out)
+	}
+	code, out := s.do("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.0/24","confirm":true,"shown_ranges":[]`+conf+`}`)
+	if code != http.StatusConflict || errCodeOf(out) != "scope_changed" || len(out["error"].(map[string]any)["safety"].(map[string]any)["scope"].(map[string]any)["lan_ranges"].([]any)) != 1 {
+		t.Fatalf("a dialog that showed no range: %d %v", code, out)
+	}
+	code, out = s.do("POST", "/scanning/safety/ranges", "admin", `{"range":"192.168.20.9/24","confirm":true,"shown_ranges":["192.168.10.0/24"]`+conf+`}`)
+	if code != http.StatusOK || len(out["scope"].(map[string]any)["lan_ranges"].([]any)) != 2 || len(out["adjusted"].([]any)) != 1 || out["version"] == opened {
+		t.Fatalf("add range = %d %v", code, out)
+	}
+	if s.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.settings' AND detail LIKE 'added range 192.168.20.0/24:%'`) != 1 {
+		t.Fatal("no audit row naming the range")
+	}
+	code, out = s.do("POST", "/scanning/safety/exclusions", "admin", `{"entry":"192.168.20.77"}`)
+	if code != http.StatusOK || !slices.Contains(out["exclusions"].([]any), any("192.168.20.77")) || out["version"] != s.safetyVersion() {
+		t.Fatalf("add exclusion = %d %v", code, out)
+	}
+	if s.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.settings' AND detail LIKE 'added exclusion 192.168.20.77:%'`) != 1 {
+		t.Fatal("no audit row naming the exclusion")
+	}
+	if n := changed.Load(); n != 2 {
+		t.Fatalf("inventory.settings.changed = %d, want one per add", n)
+	}
+	if _, cfg := s.do("GET", "/scans/config", "admin", ""); !slices.Contains(cfg["config"].(map[string]any)["exclusions"].([]any), any("192.168.20.77")) {
+		t.Fatalf("the vulnerability checks do not skip it: %v", cfg)
+	}
+	if code, again := s.do("POST", "/scanning/safety/exclusions", "admin", `{"entry":"192.168.20.77"}`); code != http.StatusOK || len(again["exclusions"].([]any)) != len(out["exclusions"].([]any)) || changed.Load() != 2 {
+		t.Fatalf("the same exclusion again: %d %v", code, again)
+	}
+
+	// review #860 M1: the pages opened before the adds save their old lists: refused, the adds stay
+	stale := `{"scope":{"lan_ranges":["192.168.10.0/24"],"confirmed":true},"window":{"days":[1,2,3,4,5,6,7],"from":"01:00","to":"06:00"},
+		"speed":{"packets_per_s":100,"requests_per_s":5},"exclusions":["192.168.10.99"],"fragile":{"kinds":[],"regular_scan_kinds":[]},"version":"` + opened + `"}`
+	code, out = s.do("PUT", "/scanning/safety", "admin", stale)
+	if code != http.StatusConflict || errCodeOf(out) != "safety_changed" || !slices.Contains(out["error"].(map[string]any)["safety"].(map[string]any)["exclusions"].([]any), any("192.168.20.77")) {
+		t.Fatalf("a stale PUT /scanning/safety: %d %v", code, out)
+	}
+	if code, out := s.do("PUT", "/scans/config", "admin", `{"window":{"from":"22:00","to":"06:00"},"exclusions":["192.168.10.99"],"version":"`+opened+`"}`); code != http.StatusConflict || errCodeOf(out) != "safety_changed" {
+		t.Fatalf("a stale PUT /scans/config: %d %v", code, out)
+	}
+	if a := s.activeSetting(); !slices.Contains(a.Exclusions, "192.168.20.77") || a.To != "05:00" {
+		t.Fatalf("a refused save stored something: %+v", a)
+	}
+
+	// people add at once, two ranges built on the same list and two exclusions: the exclusions land, one range lands and the other
+	// is refused with the current list (its tick did not see the first one); nothing is overwritten
+	shown := `["192.168.10.0/24","192.168.20.0/24"]` + s.shownConfirmedAt()
+	var wg sync.WaitGroup
+	codes := make([]int, 4)
+	for i, c := range []struct{ path, body string }{
+		{"/scanning/safety/ranges", `{"range":"10.20.0.0/16","confirm":true,"shown_ranges":` + shown + `}`},
+		{"/scanning/safety/ranges", `{"range":"10.21.0.0/16","confirm":true,"shown_ranges":` + shown + `}`},
+		{"/scanning/safety/exclusions", `{"entry":"192.168.10.200"}`},
+		{"/scanning/safety/exclusions", `{"entry":"192.168.10.201"}`},
+	} {
+		wg.Go(func() { codes[i], _ = s.do("POST", c.path, "admin", c.body) })
+	}
+	wg.Wait()
+	if codes[2] != http.StatusOK || codes[3] != http.StatusOK || codes[0]+codes[1] != http.StatusOK+http.StatusConflict {
+		t.Fatalf("concurrent adds: %v", codes)
+	}
+	st, err := s.d.Inventory.Settings(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(st.LANRanges) != 3 || !slices.Contains(st.LANRanges, "192.168.20.0/24") {
+		t.Fatalf("ranges = %v", st.LANRanges)
+	}
+	for _, x := range []string{"192.168.10.99", "192.168.20.77", "192.168.10.200", "192.168.10.201"} {
+		if !slices.Contains(st.Active.Exclusions, x) {
+			t.Fatalf("exclusion %s was lost: %v", x, st.Active.Exclusions)
+		}
+	}
+}
+
+// review #860 L2: an exclusion added inline reaches sensor-active through inventory.settings.changed, which stops the scan of that
+// device running now (ErrStopped). The nmap here is a script that sleeps; it never touches a network.
+func TestScanningInlineExclusionStopsTheRunningScan(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	s.saveScope(t)
+	target := s.seen(t, "192.168.10.20", "aa:bb:cc:00:05:01", "server")
+	s.setModule("sensor-active", true)
+	dir := t.TempDir()
+	started := filepath.Join(dir, "started")
+	nmap := filepath.Join(dir, "nmap")
+	exectest.WriteScript(t, nmap, fmt.Sprintf("#!/bin/sh\ntouch %q\nexec sleep 30\n", started))
+	d := *s.d
+	d.Clock = func() time.Time { return time.Date(2026, 11, 9, 2, 0, 0, 0, hcmZone) } // Monday 02:00, inside 01:00-05:00
+	svc, err := newLocalSensorActive(d, nmap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- svc.ScanDevice(t.Context(), target, "discovered") }()
+	for deadline := time.Now().Add(10 * time.Second); ; <-time.After(20 * time.Millisecond) { // the state: nmap has started
+		if _, err := os.Stat(started); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the fake nmap did not start")
+		}
+	}
+	if code, out := s.do("POST", "/scanning/safety/exclusions", "admin", `{"entry":"192.168.10.16/29"}`); code != http.StatusOK {
+		t.Fatalf("add exclusion = %d %v", code, out)
+	}
+	select {
+	case err := <-done:
+		if !errors.Is(err, sensoractive.ErrStopped) {
+			t.Errorf("err = %v, want ErrStopped", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the scan of the device went on after it was excluded")
 	}
 }

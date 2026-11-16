@@ -2,15 +2,19 @@ package inventory
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/knt048/vedette/content/devicetypes"
+	"github.com/knt048/vedette/core/apierr"
 )
 
 // ActiveWindow is when and how fast the box may scan actively (INV-7). Since #850 it is the one store of the safety settings every
@@ -58,12 +62,44 @@ type Settings struct {
 	RegularScanKinds []string     `json:"regular_scan_kinds"`
 	ScopeConfirmedAt *string      `json:"scope_confirmed_at"`
 	ScopeConfirmedBy *string      `json:"scope_confirmed_by"`
+	// Version names the stored safety block (INV-32, review #860 M1): every read sets it (SafetyVersion), a writer given one
+	// refuses with 409 safety_changed when the block changed since. In SettingsInput it is the version the page read ("" = none).
+	Version string `json:"version"`
 }
 
 // SettingsInput is PUT /inventory/settings.
 type SettingsInput struct {
 	Settings
 	ScopeConfirmed bool `json:"scope_confirmed"` // the attestation of D-26
+}
+
+// SafetyVersion names the safety block's stored values (INV-32): the ranges and their attestation, the switch of active discovery
+// (review #860 r2 L1: a stale Devices › Scope save would turn it back on), the window, both speeds, the exclusions and the fragile
+// types. The merge stamp is not part of it. Equal values give the same version, so a version names what a person saw, not when.
+func SafetyVersion(st Settings) string {
+	raw, err := json.Marshal([]any{
+		st.LANRanges, st.ScopeConfirmedAt, st.ScopeConfirmedBy, st.Active.Enabled, st.Active.Days, st.Active.From, st.Active.To, st.Active.Rate,
+		st.Active.Checks(), st.Active.Exclusions, st.FragileKinds, st.RegularScanKinds,
+	})
+	if err != nil { // only plain values: cannot happen
+		panic("inventory: encode the safety version: " + err.Error())
+	}
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:8])
+}
+
+// Changed refuses a write built on values that changed since the person read them (409 safety_changed or scope_changed, review
+// #860 H1/M1): nothing was stored. Current is the block as it is now, for the page to show again. It unwraps to its *apierr.Error.
+type Changed struct {
+	API     *apierr.Error
+	Current Settings
+}
+
+func (e *Changed) Error() string { return "inventory: " + e.API.Code }
+func (e *Changed) Unwrap() error { return e.API }
+
+func safetyChanged(cur Settings) *Changed {
+	return &Changed{API: apierr.New(http.StatusConflict, "safety_changed", "These safety settings changed since you opened the page (another admin, another tab, or a range or exclusion added elsewhere). Review the current values and save again."), Current: cur}
 }
 
 type scopeValue struct {
@@ -129,6 +165,7 @@ func loadSettings(ctx context.Context, q querier) (Settings, error) {
 	if st.Active.Days == nil {
 		st.Active.Days = []int{}
 	}
+	st.Version = SafetyVersion(st)
 	return st, nil
 }
 
@@ -193,15 +230,9 @@ func checkSettings(in SettingsInput) (SettingsInput, []Adjustment, error) {
 	}
 	var excl []string
 	for _, raw := range act.Exclusions {
-		x := strings.TrimSpace(raw)
-		ok := false
-		if _, isIP := ipv4(x); isIP {
-			ok = true
-		} else if p, err := netip.ParsePrefix(x); err == nil && p.Addr().Is4() && p.Masked() == p {
-			ok = true
-		}
-		if !ok {
-			return in, nil, badRequest("bad_exclusion", `Exclusion "`+clip(x, 30)+`" is not valid. Enter an IP (192.168.10.10) or a valid range (192.168.10.0/28).`)
+		x, aerr := checkExclusion(raw)
+		if aerr != nil {
+			return in, nil, aerr
 		}
 		if !slices.Contains(excl, x) {
 			excl = append(excl, x)
@@ -242,6 +273,19 @@ func checkSettings(in SettingsInput) (SettingsInput, []Adjustment, error) {
 	return out, adjusted, nil
 }
 
+// checkExclusion is one exclusion as PUT /inventory/settings and PUT /scanning/safety accept it: an IPv4 address or an IPv4 range
+// without host bits (strict: 192.168.10.5/28 is refused, not reduced).
+func checkExclusion(raw string) (string, *apierr.Error) {
+	x := strings.TrimSpace(raw)
+	if _, isIP := ipv4(x); isIP {
+		return x, nil
+	}
+	if p, err := netip.ParsePrefix(x); err == nil && p.Addr().Is4() && p.Masked() == p {
+		return x, nil
+	}
+	return "", badRequest("bad_exclusion", `Exclusion "`+clip(x, 30)+`" is not valid. Enter an IP (192.168.10.10) or a valid range (192.168.10.0/28).`)
+}
+
 func dedupe(in []string) []string {
 	out := []string{}
 	for _, k := range in {
@@ -260,8 +304,9 @@ func (s *Service) SaveSettings(ctx context.Context, actor string, in SettingsInp
 
 // saveOpts are the rules of PUT /scanning/safety on top of SaveSettings' (INV-32).
 type saveOpts struct {
-	keepEnabled   bool // the switch of active discovery is not part of the input: the stored one, read in the transaction, stays (L8)
-	capExclusions bool // more than MaxExclusions exclusions only when the list does not grow (L7)
+	keepEnabled    bool // the switch of active discovery is not part of the input: the stored one, read in the transaction, stays (L8)
+	capExclusions  bool // more than MaxExclusions exclusions only when the list does not grow (L7)
+	requireVersion bool // the input names the version it was built on (PUT /scanning/safety); without it, only when one is given
 }
 
 func (s *Service) saveSettings(ctx context.Context, actor string, in SettingsInput, opt saveOpts) (SavedSettings, error) {
@@ -276,6 +321,10 @@ func (s *Service) saveSettings(ctx context.Context, actor string, in SettingsInp
 		prev, err := loadSettings(ctx, tx)
 		if err != nil {
 			return err
+		}
+		// review #860 M1: a page read before another change (an inline add, another admin) would replace it: refused, nothing stored
+		if (opt.requireVersion || in.Version != "") && in.Version != prev.Version {
+			return safetyChanged(prev)
 		}
 		if opt.keepEnabled {
 			in.Active.Enabled = prev.Active.Enabled
@@ -325,8 +374,8 @@ func (s *Service) saveSettings(ctx context.Context, actor string, in SettingsInp
 			return err
 		}
 		o.add(EventSettingsChanged, SettingsEvent{Scope: "scan"})
-		saved = next
-		return nil
+		saved, err = loadSettings(ctx, tx) // as stored, with its new version
+		return err
 	})
 	return SavedSettings{Settings: saved, Adjusted: adjusted}, err
 }

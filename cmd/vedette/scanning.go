@@ -81,7 +81,21 @@ func (s scanningSafety) view(ctx context.Context, st inventory.Settings) (core.S
 		LANRanges: st.LANRanges, ConfirmedAt: st.ScopeConfirmedAt, ConfirmedBy: st.ScopeConfirmedBy,
 		Days: st.Active.Days, From: st.Active.From, To: st.Active.To, PacketsPerS: st.Active.Rate, RequestsPerS: st.Active.Checks(),
 		Exclusions: st.Active.Exclusions, FragileKinds: st.FragileKinds, RegularScanKinds: st.RegularScanKinds, FragileDevices: n,
+		Version: st.Version,
 	}, nil
+}
+
+// changed turns the inventory's *Changed (409 safety_changed, scope_changed) into core's, with the current block; other errors pass.
+func (s scanningSafety) changed(ctx context.Context, err error) error {
+	var ch *inventory.Changed
+	if !errors.As(err, &ch) {
+		return err
+	}
+	cur, verr := s.view(ctx, ch.Current)
+	if verr != nil {
+		return err
+	}
+	return &core.SafetyChanged{Code: ch.API.Code, Message: ch.API.Message, Current: cur}
 }
 
 func (s scanningSafety) Safety(ctx context.Context) (core.Safety, error) {
@@ -102,9 +116,10 @@ func (s scanningSafety) SaveSafety(ctx context.Context, actor string, in core.Sa
 	saved, err := s.inv.SaveSafety(ctx, actor, inventory.SafetyInput{
 		LANRanges: in.LANRanges, Confirmed: in.Confirmed, Days: in.Days, From: in.From, To: in.To, PacketsPerS: in.PacketsPerS,
 		RequestsPerS: in.RequestsPerS, Exclusions: in.Exclusions, FragileKinds: in.FragileKinds, RegularScanKinds: in.RegularScanKinds,
+		Version: in.Version,
 	})
 	if err != nil {
-		return core.Safety{}, nil, err
+		return core.Safety{}, nil, s.changed(ctx, err)
 	}
 	v, err := s.view(ctx, saved.Settings)
 	if err != nil {
@@ -115,6 +130,36 @@ func (s scanningSafety) SaveSafety(ctx context.Context, actor string, in core.Sa
 		adj = append(adj, core.Adjustment{From: a.From, To: a.To})
 	}
 	return v, adj, nil
+}
+
+func (s scanningSafety) AddRange(ctx context.Context, actor string, in core.RangeAdd) (core.Safety, []core.Adjustment, error) {
+	if s.inv == nil {
+		return core.Safety{}, nil, errors.New("vedette: scanning: the inventory is not wired")
+	}
+	saved, err := s.inv.AddRange(ctx, actor, inventory.RangeAdd{Range: in.Range, Shown: in.Shown, ShownConfirmedAt: in.ShownConfirmedAt, Confirmed: in.Confirmed})
+	if err != nil {
+		return core.Safety{}, nil, s.changed(ctx, err)
+	}
+	v, err := s.view(ctx, saved.Settings)
+	if err != nil {
+		return core.Safety{}, nil, err
+	}
+	adj := make([]core.Adjustment, 0, len(saved.Adjusted))
+	for _, a := range saved.Adjusted {
+		adj = append(adj, core.Adjustment{From: a.From, To: a.To})
+	}
+	return v, adj, nil
+}
+
+func (s scanningSafety) AddExclusion(ctx context.Context, actor, entry string) (core.Safety, error) {
+	if s.inv == nil {
+		return core.Safety{}, errors.New("vedette: scanning: the inventory is not wired")
+	}
+	saved, err := s.inv.AddExclusion(ctx, actor, entry)
+	if err != nil {
+		return core.Safety{}, s.changed(ctx, err)
+	}
+	return s.view(ctx, saved.Settings)
 }
 
 // ---- the scan module reads the shared window, check rate and exclusions from the inventory (scan INV-16) ----
@@ -135,7 +180,7 @@ func (s scanInventory) Checks(ctx context.Context) (scan.Checks, error) {
 		return scan.Checks{}, err
 	}
 	return scan.Checks{Window: scan.Window{Days: st.Active.Days, From: st.Active.From, To: st.Active.To}, Rate: st.Active.Checks(), Exclusions: st.Active.Exclusions,
-		MergedFrom: st.Active.ChecksMergedFrom}, nil
+		MergedFrom: st.Active.ChecksMergedFrom, Version: st.Version}, nil
 }
 
 // SaveChecks implements scan.SharedChecks.
@@ -144,7 +189,7 @@ func (s scanInventory) SaveChecks(ctx context.Context, tx *sql.Tx, user string, 
 	if !ok {
 		return fmt.Errorf("vedette: scan: the inventory cannot store the shared settings")
 	}
-	in := inventory.ChecksInput{Days: c.Window.Days, From: c.Window.From, To: c.Window.To, CheckRate: c.Rate, Exclusions: c.Exclusions}
+	in := inventory.ChecksInput{Days: c.Window.Days, From: c.Window.From, To: c.Window.To, CheckRate: c.Rate, Exclusions: c.Exclusions, Version: c.Version}
 	if c.MergedFrom != nil {
 		in.CopySavedAt = *c.MergedFrom
 	}

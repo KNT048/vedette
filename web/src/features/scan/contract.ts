@@ -36,10 +36,12 @@ export const ScanConfigPatch = z.object({
   stop_on_unresponsive: z.boolean(), unresponsive_after: ScanConfig.shape.unresponsive_after, auto_rescan: z.boolean(),
   schedule: ScanConfig.shape.schedule.partial(),
   dangerous_checks: z.literal(false).describe('Rejected when true: no exploitation, no DoS'),
+  version: z.string().max(64).describe('The version of the shared safety block this page read (version of GET /scans/config). Given and not the stored one: 409 safety_changed, nothing stored (review #860 M1). Left out: no check, so an exclusion added since the page loaded is replaced when exclusions are sent; this page is being replaced by Settings › Scanning (#850)'),
 }).partial()
 export const ScanConfigResponse = z.object({
   config: ScanConfig, next_run: iso.nullable(), scope: ScanScope,
   can_scan: z.boolean().describe('false without the scope commitment, or while the scanner in the scan container is not available'), block_reason: z.string().nullable(), dangerous_checks: z.literal(false),
+  version: z.string().describe('Version of the shared safety block (window, rate, exclusions live in inventory INV-32; the same as GET /scanning safety.version); "" when this module keeps its own copy'),
   schedule_blocked_reason: z.string().nullable().describe('Set while the schedule is on but nothing automated can start because the organization time zone cannot be read; next_run is null then (D-261 (3))'),
 })
 
@@ -79,7 +81,7 @@ export const CredTarget = z.object({
 
 export const endpoints = defineEndpoints([
   { method: 'get', path: '/scans/config', summary: 'Scan settings: time window, rate, exclusions, schedule, scope and commitment', stories: ['S-SCAN-1', 'S-SCAN-4'], role: 'viewer', response: ScanConfigResponse },
-  { method: 'put', path: '/scans/config', summary: 'Save scan settings (partial update); dangerous checks are always rejected', stories: ['S-SCAN-2', 'S-SCAN-4'], role: 'admin', body: ScanConfigPatch, response: ScanConfigResponse },
+  { method: 'put', path: '/scans/config', summary: 'Save scan settings (partial update); dangerous checks are always rejected. 409 safety_changed when the version sent is not the stored one', stories: ['S-SCAN-2', 'S-SCAN-4'], role: 'admin', body: ScanConfigPatch, response: ScanConfigResponse },
   { method: 'get', path: '/scans/targets', summary: 'Scannable targets and why others are not (unapproved device, out of scope, external IP the box has not seen for 30 days)', stories: ['S-SCAN-1'], role: 'viewer', response: z.object({ items: z.array(ScanTarget) }) },
   { method: 'get', path: '/scans/runs', summary: 'Scan history and the running scan, with per-device results', stories: ['S-SCAN-1', 'S-SCAN-3', 'S-SCAN-4'], role: 'viewer', response: z.object({ items: z.array(ScanRun), engine_busy: z.boolean().describe('true while the scanner still works on a run that already shows stopped; a new scan is refused (409 already_running) until it is free (D-261 (4))') }) },
   { method: 'post', path: '/scans/runs', status: 201, summary: 'Scan the chosen targets now (only inside the confirmed scope, with the commitment ticked)', stories: ['S-SCAN-1'], role: 'operator', body: z.object({ targets: z.array(z.string()).min(1).max(200) }), response: ScanRun },

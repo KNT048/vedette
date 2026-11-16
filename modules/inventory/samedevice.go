@@ -61,6 +61,16 @@ type sameRow struct {
 	id, origin, host, model, first, last, agent string
 	approved, box                               bool
 	burned, private                             []string // sorted
+	lastWire                                    string   // when a sensor last saw any of its MACs on the wire; last when none
+}
+
+// lastOnline is when the row was last seen online: a sensor's MAC sighting, else any sighting. A late scan result, software list or
+// open-port list for an old row moves last_seen but says nothing about the machine answering then (review r2 of #871 L2).
+func (r *sameRow) lastOnline() string {
+	if r.lastWire != "" {
+		return r.lastWire
+	}
+	return r.last
 }
 
 func (r *sameRow) ref(ctx context.Context, q querier) SameRef {
@@ -119,11 +129,28 @@ func loadSameRows(ctx context.Context, q querier, ids []string) (map[string]*sam
 			r.burned = append(r.burned, mac)
 		}
 	}
+	if err := macs.Err(); err != nil {
+		return nil, fmt.Errorf("inventory: read the MACs: %w", err)
+	}
+	wire, err := q.QueryContext(ctx, `SELECT asset_id, max(seen_at) FROM inv_observation WHERE `+wireMAC+macWhere+` GROUP BY asset_id`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read the MAC sightings: %w", err)
+	}
+	defer func() { _ = wire.Close() }()
+	for wire.Next() {
+		var id, at string
+		if err := wire.Scan(&id, &at); err != nil {
+			return nil, fmt.Errorf("inventory: read the MAC sightings: %w", err)
+		}
+		if r := out[id]; r != nil {
+			r.lastWire = at
+		}
+	}
 	for _, r := range out {
 		slices.Sort(r.burned)
 		slices.Sort(r.private)
 	}
-	return out, macs.Err()
+	return out, wire.Err()
 }
 
 // sameCandidates is device only and the rows that share its name label, its model or one of its MACs: the only rows a pair of it
@@ -134,25 +161,46 @@ func sameCandidates(ctx context.Context, q *sql.Tx, only string) ([]string, erro
 		return nil, err
 	}
 	r := self[only]
-	cond, args := []string{"id = ?"}, []any{only}
-	if l := sameLabel(r.host); l != "" {
-		cond = append(cond, "lower(hostname) = ? OR (lower(hostname) >= ? AND lower(hostname) < ?)")
-		args = append(args, l, l+".", l+"/")
+	// Name and model are compared in Go (sameLabel, strings.ToLower), as samePairs groups them: SQLite's lower() and trim() know only
+	// ASCII letters and spaces (review r2 of #871 L1). inv_asset is small; the MAC observations are read through their index.
+	label, model := sameLabel(r.host), strings.ToLower(strings.TrimSpace(r.model))
+	rows, err := q.QueryContext(ctx, `SELECT id, coalesce(hostname, ''), coalesce(model, '') FROM inv_asset WHERE is_box = 0`)
+	if err != nil {
+		return nil, fmt.Errorf("inventory: read devices: %w", err)
 	}
-	if m := strings.ToLower(strings.TrimSpace(r.model)); m != "" {
-		cond = append(cond, "lower(trim(model)) = ?")
-		args = append(args, m)
+	ids := []string{only}
+	for rows.Next() {
+		var id, host, mod string
+		if err := rows.Scan(&id, &host, &mod); err != nil {
+			_ = rows.Close()
+			return nil, fmt.Errorf("inventory: read devices: %w", err)
+		}
+		if id != only && (label != "" && sameLabel(host) == label || model != "" && strings.ToLower(strings.TrimSpace(mod)) == model) {
+			ids = append(ids, id)
+		}
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return nil, fmt.Errorf("inventory: read devices: %w", err)
 	}
 	if all := append(slices.Clone(r.burned), r.private...); len(all) > 0 {
 		in := "(" + strings.TrimSuffix(strings.Repeat("?,", len(all)), ",") + ")"
-		cond = append(cond, "mac IN "+in, "id IN (SELECT asset_id FROM inv_observation WHERE field = 'mac' AND value IN "+in+")")
+		args := []any{}
 		for range 2 {
 			for _, m := range all {
 				args = append(args, m)
 			}
 		}
+		byMAC, err := candidates(ctx, q, `SELECT id FROM inv_asset WHERE is_box = 0 AND (mac IN `+in+` OR id IN (SELECT asset_id FROM inv_observation WHERE field = 'mac' AND value IN `+in+`))`, args...)
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range byMAC {
+			if !slices.Contains(ids, id) {
+				ids = append(ids, id)
+			}
+		}
 	}
-	return candidates(ctx, q, `SELECT id FROM inv_asset WHERE is_box = 0 AND (`+strings.Join(cond, " OR ")+`)`, args...)
+	return ids, nil
 }
 
 // keptApart reports a pair a person kept separate (D-599): no join rule and no offer takes it.
@@ -336,10 +384,10 @@ func pairWhy(ctx context.Context, tx *sql.Tx, x, y *sameRow, sig signal, value s
 	if sig == byModel && (fx["model"] == "" || !strings.EqualFold(fx["model"], fy["model"])) {
 		return "", nil
 	}
-	// "Never online at the same time" must be true for a person (review r1 of #871 H2): one row was last seen before the other was
-	// first seen. The join's own test (onlineTogether) forgives a short overlap; a visitor's phone seen while the approved one was
+	// "Never online at the same time" must be true for a person (review r1 of #871 H2): one row was last seen online (lastOnline)
+	// before the other was first seen. The join's own test (onlineTogether) forgives a short overlap; a visitor's phone seen while the approved one was
 	// online must not be offered as it.
-	if !(x.last < y.first || y.last < x.first) {
+	if !(x.lastOnline() < y.first || y.lastOnline() < x.first) {
 		return "", nil
 	}
 	if together, err := onlineTogether(ctx, tx, x.id, y.id, now); together || err != nil {

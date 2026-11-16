@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/inventory"
 )
 
@@ -370,5 +371,50 @@ func TestContract_D599_OldRowsDoNotSilenceTheOffer(t *testing.T) {
 	got := e.sameAs(e.idOf("192.168.18.60"))
 	if len(got) != 5 || got[0].ID != olds[8] || got[4].ID != olds[4] {
 		t.Errorf("offered: %+v; want the five old rows seen last", got)
+	}
+}
+
+// Review r2 of #871 M1: Keep separate on one of two rows of a name leaves the name ambiguous for a third row: the other row is not
+// joined automatically because the person answered about a different pair.
+func TestContract_D599_KeepSeparateKeepsTheNameAmbiguous(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	for range 3 { // two Macs of one name, online together: two devices
+		e.record(dhcp(privMac1, "192.168.18.10", "kiens-macbook-air")...)
+		e.record(dhcp(privMac2, "192.168.18.11", "kiens-macbook-air")...)
+		e.tick(30 * time.Minute)
+	}
+	first := e.idOf("192.168.18.10")
+	e.tick(time.Hour)
+	e.record(dhcp(privMac3, "192.168.18.12", "kiens-macbook-air")...)
+	third := e.idOf("192.168.18.12")
+	e.tick(30 * time.Minute)
+	if err := e.svc.KeepSeparate(e.ctx(), admin, third, first); err != nil {
+		t.Fatal(err)
+	}
+	e.tick(time.Hour)
+	e.record(dhcp(privMac3, "192.168.18.12", "kiens-macbook-air")...)
+	if n := e.devices(); n != 3 {
+		t.Errorf("%d devices, want 3: a pair nobody answered was joined", n)
+	}
+}
+
+// Review r2 of #871 L1, L2: the device page finds the same pairs as the list for names SQLite cannot fold (Vietnamese, a trailing
+// space); a late software list for the old row (no MAC sighting) does not make the two "online together".
+func TestContract_D599_PageFindsUnicodeNamesAndIgnoresLateLists(t *testing.T) {
+	t.Parallel()
+	for _, names := range [][2]string{{"KIÊN-PC", "kiên-pc"}, {"iPhone ", "iPhone"}} {
+		e := newEnv(t)
+		e.record(dhcp(privMac1, "192.168.18.10", names[0])...)
+		a := e.idOf("192.168.18.10")
+		e.tick(time.Hour)
+		e.record(dhcp(privMac2, "192.168.18.11", names[1])...)
+		b := e.idOf("192.168.18.11")
+		e.tick(time.Minute)
+		e.exec(`UPDATE inv_asset SET last_seen = ? WHERE id = ?`, store.FormatTS(e.now), a) // a queued list for the old row
+		e.tick(30 * time.Minute)
+		if got := e.sameAs(b); len(got) != 1 || got[0].ID != a {
+			t.Errorf("%q / %q: page offers %+v", names[0], names[1], got)
+		}
 	}
 }

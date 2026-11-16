@@ -464,11 +464,6 @@ func sameMachine(ctx context.Context, tx *sql.Tx, id string, now time.Time) (fro
 		if machineName(theirs["hostname"]) != name || differ(own, theirs) {
 			continue
 		}
-		if apart, err := keptApart(ctx, tx, id, other); err != nil {
-			return "", "", "", err
-		} else if apart { // a person said two machines (D-599)
-			continue
-		}
 		b, p, err := macKinds(ctx, tx, other)
 		if err != nil {
 			return "", "", "", err
@@ -479,6 +474,10 @@ func sameMachine(ctx context.Context, tx *sql.Tx, id string, now time.Time) (fro
 	}
 	if len(fits) != 1 {
 		return "", "", "", nil
+	}
+	// A pair a person kept separate (D-599) still counts above: it keeps the name ambiguous for any third row (review r2 of #871 M1).
+	if apart, err := keptApart(ctx, tx, id, fits[0]); apart || err != nil {
+		return "", "", "", err
 	}
 	if together, err := onlineTogether(ctx, tx, id, fits[0], now); together || err != nil {
 		return "", "", "", err

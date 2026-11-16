@@ -53,12 +53,13 @@ func (e *env) insertRows(rows ...sumRow) {
 }
 
 // homeCalls counts the calls to the other modules' counts, so a test sees when the summary was computed again.
-type homeCalls struct{ devices, alerts atomic.Int32 }
+type homeCalls struct{ devices, alerts, incidents atomic.Int32 }
 
 func (c *homeCalls) sources(total, pending, sent, failed int) HomeSources {
 	return HomeSources{
-		Devices: func(context.Context) (int, int, error) { c.devices.Add(1); return total, pending, nil },
-		Alerts:  func(context.Context, time.Time) (int, int, error) { c.alerts.Add(1); return sent, failed, nil },
+		Devices:   func(context.Context) (int, int, error) { c.devices.Add(1); return total, pending, nil },
+		Alerts:    func(context.Context, time.Time) (int, int, error) { c.alerts.Add(1); return sent, failed, nil },
+		Incidents: func(context.Context) (int, int, error) { c.incidents.Add(1); return 3, 1, nil },
 	}
 }
 
@@ -154,6 +155,9 @@ func TestContract_INV23_SummaryCountsTopAndTrend(t *testing.T) {
 	if s.Devices != (SummaryDevices{Total: 12, Pending: 3}) || s.Alerts == nil || *s.Alerts != (SummaryAlerts{Sent: 4, Failed: 1, Days: 7}) {
 		t.Fatalf("devices/alerts = %+v %+v", s.Devices, s.Alerts)
 	}
+	if s.Incidents == nil || *s.Incidents != (SummaryIncidents{Open: 3, Urgent: 1}) {
+		t.Fatalf("incidents = %+v", s.Incidents)
+	}
 	if s.GeneratedAt != store.FormatTS(t0) {
 		t.Fatalf("generated_at = %s", s.GeneratedAt)
 	}
@@ -213,14 +217,14 @@ func TestContract_INV23_SummaryCacheAndInvalidation(t *testing.T) {
 	if n := calls.devices.Load(); n != 3 {
 		t.Fatalf("after the TTL: computed %d times", n)
 	}
-	// Notifications off: alerts null at once, not after the TTL; notify's count is not read.
+	// Notifications off: alerts and incidents null at once, not after the TTL; notify's counts are not read.
 	gate.Set(NotifyModule, false)
-	if s := mustSummary(t, h); s.Alerts != nil || calls.alerts.Load() != 3 {
-		t.Fatalf("notify off: alerts %+v, alert reads %d", s.Alerts, calls.alerts.Load())
+	if s := mustSummary(t, h); s.Alerts != nil || s.Incidents != nil || calls.alerts.Load() != 3 || calls.incidents.Load() != 3 {
+		t.Fatalf("notify off: alerts %+v, incidents %+v, reads %d/%d", s.Alerts, s.Incidents, calls.alerts.Load(), calls.incidents.Load())
 	}
 	gate.Set(NotifyModule, true)
-	if s := mustSummary(t, h); s.Alerts == nil || s.Alerts.Sent != 2 {
-		t.Fatalf("notify on again: alerts %+v", s.Alerts)
+	if s := mustSummary(t, h); s.Alerts == nil || s.Alerts.Sent != 2 || s.Incidents == nil || s.Incidents.Open != 3 {
+		t.Fatalf("notify on again: alerts %+v, incidents %+v", s.Alerts, s.Incidents)
 	}
 	// A clock set back never serves an answer "from the future".
 	e.advance(-time.Hour)
@@ -237,7 +241,7 @@ func TestContract_INV23_SummaryWithoutSources(t *testing.T) {
 	t.Parallel()
 	_, h, _ := sumEnv(t)
 	s := mustSummary(t, h)
-	if s.Devices.Total != 1 || s.Devices.Pending != 0 || s.Alerts != nil || s.Top == nil || len(s.Top) != 0 || s.Open != (SummaryOpen{}) {
+	if s.Devices.Total != 1 || s.Devices.Pending != 0 || s.Alerts != nil || s.Incidents != nil || s.Top == nil || len(s.Top) != 0 || s.Open != (SummaryOpen{}) {
 		t.Fatalf("summary = %+v", s)
 	}
 	for _, n := range s.Trend {
@@ -298,7 +302,7 @@ func TestContract_INV23_SummaryEndpoint(t *testing.T) {
 	open, _ := b["open"].(map[string]any)
 	top, _ := b["top"].([]any)
 	trend, _ := b["trend"].([]any)
-	if open["total"] != 1.0 || len(top) != 1 || len(trend) != SummaryDays || b["alerts"] != nil {
+	if open["total"] != 1.0 || len(top) != 1 || len(trend) != SummaryDays || b["alerts"] != nil || b["incidents"] != nil {
 		t.Fatalf("body = %v", b)
 	}
 	it, _ := top[0].(map[string]any)
@@ -310,7 +314,8 @@ func TestContract_INV23_SummaryEndpoint(t *testing.T) {
 	}
 }
 
-// INV-23: both reads of the summary go through the status index, never a scan of fnd_finding.
+// INV-23: both reads of the summary go through an index on status, never a scan of fnd_finding; the trend's closed read is a range on
+// (status, resolved_at) (migration 0006).
 func TestContract_INV23_SummaryReadsUseTheStatusIndex(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
@@ -341,8 +346,14 @@ func TestContract_INV23_SummaryReadsUseTheStatusIndex(t *testing.T) {
 			plan = append(plan, detail)
 		}
 		_ = rows.Close()
-		if p := strings.Join(plan, "; "); !strings.Contains(p, "USING INDEX fnd_finding_status_idx") {
-			t.Errorf("query %q: plan %q does not use the status index", q[1], p)
+		p := strings.Join(plan, "; ")
+		switch {
+		case strings.Contains(q[1], "resolved_at"): // the closed rows of the window: a range on (status, resolved_at), not every closed row
+			if !strings.Contains(p, "USING INDEX fnd_finding_status_resolved_idx (status=? AND resolved_at>?)") {
+				t.Errorf("query %q: plan %q is not a range on (status, resolved_at)", q[1], p)
+			}
+		case !strings.Contains(p, "USING INDEX fnd_finding_status"): // the open rows: either index on status
+			t.Errorf("query %q: plan %q does not use a status index", q[1], p)
 		}
 	}
 }
@@ -365,5 +376,100 @@ func BenchmarkSummaryCold(b *testing.B) {
 		if _, err := h.computeSummary(b.Context(), HomeSources{}, true, t0); err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+// INV-23, D-484: "Fix first" shows a device as GET /findings does (shownAsset): never the internal id, a kind outside the device types is
+// "unknown".
+func TestContract_INV23_SummaryDeviceAsTheListShowsIt(t *testing.T) {
+	t.Parallel()
+	e, h, _ := sumEnv(t)
+	e.inv.assets["a-7"] = AssetView{ID: "a-7", Name: "a-7", IP: NoIP, Kind: "bogus-kind", Display: "Acme NAS"}
+	e.inv.assets["a-8"] = AssetView{ID: "a-8", Name: "", IP: NoIP, Kind: "bogus-kind"}
+	e.insertRows(
+		sumRow{"f-7", "a-7", "CVE-2024-0007", StatusConfirmed, t0.Add(-time.Hour), time.Time{}},
+		sumRow{"f-8", "a-8", "CVE-2024-0008", StatusConfirmed, t0.Add(-2 * time.Hour), time.Time{}},
+	)
+	s := mustSummary(t, h)
+	if len(s.Top) != 2 || s.Top[0].Asset == nil || s.Top[1].Asset == nil {
+		t.Fatalf("top = %+v", s.Top)
+	}
+	if a := s.Top[0].Asset; a.Name != "Acme NAS" || a.Kind != "unknown" {
+		t.Fatalf("name = id: asset %+v, want the software name and kind unknown", a)
+	}
+	if a := s.Top[1].Asset; a.Name != "unknown" || a.Kind != "unknown" {
+		t.Fatalf("no name, no software: asset %+v, want the kind", a)
+	}
+	if want := shownAsset(e.inv.assets["a-7"]); *s.Top[0].Asset != want {
+		t.Fatalf("summary %+v != list %+v", *s.Top[0].Asset, want)
+	}
+}
+
+// INV-23: the last trend point is the open count even when the clock was set back (a finding first seen "after now", one closed
+// "after now").
+func TestContract_INV23_SummaryLastPointIsTheOpenCount(t *testing.T) {
+	t.Parallel()
+	e, h, _ := sumEnv(t)
+	e.insertRows(
+		sumRow{"f-1", "a-1", "CVE-2024-0001", StatusSuspected, t0.AddDate(0, 0, -3), time.Time{}},
+		sumRow{"f-2", "a-1", "CVE-2024-0002", StatusSuspected, t0.Add(time.Hour), time.Time{}},            // first seen after now
+		sumRow{"f-3", "a-1", "CVE-2024-0003", StatusPatched, t0.AddDate(0, 0, -3), t0.Add(2 * time.Hour)}, // closed after now
+	)
+	s := mustSummary(t, h)
+	if last := s.Trend[SummaryDays-1]; s.Open.Total != 2 || last != 2 {
+		t.Fatalf("open %d, last point %d (trend %v)", s.Open.Total, last, s.Trend)
+	}
+	if day := s.Trend[SummaryDays-2]; day != 2 { // f-1 and f-3 (closed later) at the end of yesterday
+		t.Fatalf("yesterday = %d, want 2 (trend %v)", day, s.Trend)
+	}
+}
+
+// INV-23: views that arrive together on an empty cache share one computation (sumMu): the computation holds until every view has
+// called Summary, then each gets the same answer.
+func TestContract_INV23_SummaryConcurrentViewsComputeOnce(t *testing.T) {
+	t.Parallel()
+	_, h, _ := sumEnv(t)
+	const n = 16
+	var arrived atomic.Int32
+	all := make(chan struct{})
+	var computed atomic.Int32
+	h.SetHome(HomeSources{Devices: func(context.Context) (int, int, error) {
+		computed.Add(1)
+		<-all // every view has arrived (and calls Summary) before this computation ends
+		return 4, 1, nil
+	}})
+	start := make(chan struct{})
+	got := make(chan *Summary, n)
+	errs := make(chan error, n)
+	for range n {
+		go func() {
+			<-start
+			if arrived.Add(1) == n {
+				close(all)
+			}
+			s, err := h.Summary(t.Context())
+			if err != nil {
+				errs <- err
+				return
+			}
+			got <- s
+		}()
+	}
+	close(start)
+	var first *Summary
+	for range n {
+		select {
+		case err := <-errs:
+			t.Fatal(err)
+		case s := <-got:
+			if first == nil {
+				first = s
+			} else if s != first {
+				t.Fatal("two views got two computations")
+			}
+		}
+	}
+	if c := computed.Load(); c != 1 || first.Devices.Total != 4 {
+		t.Fatalf("computed %d times, devices %+v", c, first.Devices)
 	}
 }

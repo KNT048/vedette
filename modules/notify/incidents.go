@@ -535,15 +535,30 @@ func (s *Service) History(ctx context.Context) (HistoryView, error) {
 	return v, nil
 }
 
-// SentSince counts the delivery attempts of the history since a time (Home's "alerts sent", #825): sent = arrived, failed = did
-// not arrive and is not waiting to be sent again (a "Delayed" row resends by itself, D-483). One indexed range over notify_send.at.
+// SentSince counts the alert messages (kinds incident and vuln: an approval request is not an alert) sent since a time (Home's "alerts
+// sent", #825): sent = attempts that arrived; failed = attempts that did not arrive, are not waiting to be sent again (a "Delayed" row
+// resends by itself, D-483), and were not resent with success later to the same channel for the same item (kind, ref_id). One range on
+// notify_send_at_ix; the resend check is a lookup on notify_send_ref_ix.
 func (s *Service) SentSince(ctx context.Context, since time.Time) (sent, failed int, err error) {
-	err = s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT ifnull(sum(ok = 1), 0), ifnull(sum(ok = 0 AND delayed = 0), 0) FROM notify_send WHERE at >= ?`,
-		store.FormatTS(since)).Scan(&sent, &failed)
+	err = s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT ifnull(sum(s.ok = 1), 0),
+  ifnull(sum(s.ok = 0 AND s.delayed = 0 AND NOT EXISTS (SELECT 1 FROM notify_send r
+    WHERE r.kind = s.kind AND r.ref_id = s.ref_id AND r.channel = s.channel AND r.ok = 1 AND r.at >= s.at)), 0)
+FROM notify_send s WHERE s.at >= ? AND s.kind IN ('incident', 'vuln')`, store.FormatTS(since)).Scan(&sent, &failed)
 	if err != nil {
 		return 0, 0, fmt.Errorf("notify: count sent messages: %w", err)
 	}
 	return sent, failed, nil
+}
+
+// OpenIncidents counts the open incidents (new or acknowledged, the Incidents page's Open tab) and, of them, the urgent ones (high or
+// critical, its "?severity=urgent" filter): the shell's nav badge and Home (#825). One read on notify_incident_status_ix.
+func (s *Service) OpenIncidents(ctx context.Context) (open, urgent int, err error) {
+	err = s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT count(*), ifnull(sum(severity IN ('high', 'critical')), 0) FROM notify_incident WHERE status IN ('new', 'acknowledged')`).
+		Scan(&open, &urgent)
+	if err != nil {
+		return 0, 0, fmt.Errorf("notify: count open incidents: %w", err)
+	}
+	return open, urgent, nil
 }
 
 // historyLimit is the most rows History returns (API_CONVENTIONS 6: /notify/history max 500).

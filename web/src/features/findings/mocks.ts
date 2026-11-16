@@ -12,7 +12,7 @@ import { compromise, packs } from './packs'
 import type { AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, HomeSummary, KevInfo, MitigationPack, Plan, PlanCve, PlanItem, RowFix, StatusAction } from './types'
 import { fmtDate } from '@/lib/format'
 import { displayName } from '@/features/inventory/nameOf'
-import { sentSince } from '@/features/notify/mocks'
+import { openIncidents, sentSince } from '@/features/notify/mocks'
 import { SUMMARY_DAYS, SUMMARY_TOP } from './contract'
 
 interface Vuln { cve: string; vendor: string; product: string; name: string; required_action: string; links: string[]; date_added: string; due_date: string | null; ransomware: boolean; epss: number | null; has_template: boolean }
@@ -263,6 +263,7 @@ function summary(): HomeSummary {
     trend,
     devices: { total: assets.length, pending: assets.filter((a) => !a.approved).length },
     alerts: isOn('notify') ? { ...sentSince(new Date(now - 7 * 864e5).toISOString()), days: 7 } : null,
+    incidents: isOn('notify') ? openIncidents() : null,
     generated_at: nowIso(),
   }
 }

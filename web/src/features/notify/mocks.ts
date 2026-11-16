@@ -133,10 +133,18 @@ function history(): HistoryItem[] {
   return [...inc, ...vul, ...apr].sort((a, b) => b.at.localeCompare(a.at))
 }
 
-/** #825: Home's "Alerts sent" count: messages of the history sent and failed (a delayed row is not a failure) since a time. */
+/** #825: Home's "Alerts sent" count, as notify.SentSince: alert messages (incident, vuln; not approval requests) of the history sent and
+ *  failed since a time. Not a failure: a delayed row, or one resent later with success to the same channel for the same item. */
 export function sentSince(since: string): { sent: number; failed: number } {
-  const rows = history().filter((h) => h.at >= since)
-  return { sent: rows.filter((h) => h.ok).length, failed: rows.filter((h) => !h.ok && !h.delayed).length }
+  const rows = history().filter((h) => h.at >= since && (h.kind === 'incident' || h.kind === 'vuln'))
+  const resent = (h: HistoryItem) => rows.some((r) => r.ok && r.kind === h.kind && r.link === h.link && r.channel === h.channel && r.at >= h.at)
+  return { sent: rows.filter((h) => h.ok).length, failed: rows.filter((h) => !h.ok && !h.delayed && !resent(h)).length }
+}
+
+/** #825: the open incidents (new, acknowledged) and the urgent ones (high, critical), as notify.OpenIncidents. */
+export function openIncidents(): { open: number; urgent: number } {
+  const open = incidents.get().filter((i) => i.status !== 'resolved')
+  return { open: open.length, urgent: open.filter((i) => i.severity === 'high' || i.severity === 'critical').length }
 }
 
 const last4 = (v?: string) => (v ? v.slice(-4) : null)

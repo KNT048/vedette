@@ -31,11 +31,13 @@ const (
 const NotifyModule = "notify"
 
 // HomeSources are the counts of other modules GET /findings/summary carries, wired by the binary (findings imports neither inventory nor
-// notify). Devices is inventory's "All" and "To review" counts; Alerts is notify's sent and failed messages since a time. A nil Devices
-// counts the devices from Inventory.AssetIDs with no "to review"; a nil Alerts, or notify off, answers alerts: null.
+// notify). Devices is inventory's "All" and "To review" counts; Alerts is notify's sent and failed alert messages since a time;
+// Incidents is notify's open and urgent (high, critical) incidents. A nil Devices counts the devices from Inventory.AssetIDs with no
+// "to review"; a nil Alerts or Incidents, or notify off, answers null for it.
 type HomeSources struct {
-	Devices func(ctx context.Context) (total, pending int, err error)
-	Alerts  func(ctx context.Context, since time.Time) (sent, failed int, err error)
+	Devices   func(ctx context.Context) (total, pending int, err error)
+	Alerts    func(ctx context.Context, since time.Time) (sent, failed int, err error)
+	Incidents func(ctx context.Context) (open, urgent int, err error)
 }
 
 // SetHome registers the sources of the device and alert counts (the binary, at start-up).
@@ -48,12 +50,13 @@ func (h *FindingHandlers) SetHome(src HomeSources) {
 
 // Summary is contract.ts HomeSummary.
 type Summary struct {
-	Open        SummaryOpen    `json:"open"`
-	Top         []SummaryItem  `json:"top"`
-	Trend       []int          `json:"trend"`
-	Devices     SummaryDevices `json:"devices"`
-	Alerts      *SummaryAlerts `json:"alerts"`
-	GeneratedAt string         `json:"generated_at"`
+	Open        SummaryOpen       `json:"open"`
+	Top         []SummaryItem     `json:"top"`
+	Trend       []int             `json:"trend"`
+	Devices     SummaryDevices    `json:"devices"`
+	Alerts      *SummaryAlerts    `json:"alerts"`
+	Incidents   *SummaryIncidents `json:"incidents"`
+	GeneratedAt string            `json:"generated_at"`
 }
 
 // SummaryOpen counts the open findings.
@@ -89,6 +92,12 @@ type SummaryAlerts struct {
 	Sent   int `json:"sent"`
 	Failed int `json:"failed"`
 	Days   int `json:"days"`
+}
+
+// SummaryIncidents is notify's open incidents (new or acknowledged) and, of them, the high and critical ones.
+type SummaryIncidents struct {
+	Open   int `json:"open"`
+	Urgent int `json:"urgent"`
 }
 
 // summaryCache is the last answer, the change counter and the Notifications switch it was computed under, and when.
@@ -183,6 +192,7 @@ func (h *FindingHandlers) computeSummary(ctx context.Context, src HomeSources, n
 	for _, r := range top {
 		it := SummaryItem{ID: r.id, CVE: r.cve, Status: r.status, Severity: r.severity, FirstSeen: store.FormatTS(r.firstSeen)}
 		if a, ok := assets[r.assetID]; ok {
+			a = shownAsset(a)
 			it.Asset = &a
 		}
 		if k, ok := kev[r.cve]; ok {
@@ -212,6 +222,13 @@ func (h *FindingHandlers) computeSummary(ctx context.Context, src HomeSources, n
 			return nil, fmt.Errorf("findings: summary: counting alerts: %w", err)
 		}
 		s.Alerts = &SummaryAlerts{Sent: sent, Failed: failed, Days: alertDays}
+	}
+	if src.Incidents != nil && notifyOn {
+		open, urgent, err := src.Incidents(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("findings: summary: counting incidents: %w", err)
+		}
+		s.Incidents = &SummaryIncidents{Open: open, Urgent: urgent}
 	}
 	return s, nil
 }
@@ -260,11 +277,11 @@ type summaryRow struct {
 	firstSeen        time.Time
 }
 
-// summaryData reads the open findings (the status index) and the trend: at the end of each of the last SummaryDays UTC days (the last is
-// now), how many findings had been first seen and were not closed yet. Two reads, both on the status index: the open rows, and the
-// first_seen/resolved_at of the closed rows (every status but the two open ones, listed so the index serves it) closed inside the window
-// (rows closed before it count on no day). A finding reopened after a close counts as open since its first
-// sighting (fnd_finding keeps one resolved_at): the line is a trend, the tile's number is the exact count.
+// summaryData reads the open findings and the trend: at the end of each of the last SummaryDays UTC days (the last is now), how many
+// findings had been first seen and were not closed yet. Two reads: the open rows (status index), and the first_seen/resolved_at of the
+// rows closed inside the window, one range per closed status on fnd_finding_status_resolved_idx (the statuses are listed so the index
+// serves it; rows closed before the window count on no day). The last point is the open count. A finding reopened after a close
+// counts as open since its first sighting (fnd_finding keeps one resolved_at): the line is a trend, the tile's number is exact.
 func (s *Service) summaryData(ctx context.Context, now time.Time) ([]summaryRow, []int, error) {
 	db := s.cfg.DB.Reader()
 	now = now.UTC()
@@ -276,6 +293,9 @@ func (s *Service) summaryData(ctx context.Context, now time.Time) ([]summaryRow,
 	ends[SummaryDays-1] = now
 	trend := make([]int, SummaryDays)
 	count := func(first, resolved time.Time) {
+		if resolved.After(now) { // a close stamped after now (the clock was set back) counts as closed now: the last point stays exact
+			resolved = now
+		}
 		for i, e := range ends {
 			if !first.After(e) && (resolved.IsZero() || resolved.After(e)) {
 				trend[i]++
@@ -328,6 +348,7 @@ func (s *Service) summaryData(ctx context.Context, now time.Time) ([]summaryRow,
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, nil, fmt.Errorf("findings: summary: trend: %w", err)
 	}
+	trend[SummaryDays-1] = len(open) // now: exactly the open findings, also one first seen "after now" (clock set back)
 	return open, trend, nil
 }
 

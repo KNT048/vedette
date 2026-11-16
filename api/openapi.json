@@ -37559,7 +37559,37 @@
                           "type": "null"
                         }
                       ],
-                      "description": "Messages the alert channels sent and failed to send in the last `days` days; null when Notifications is off"
+                      "description": "Alert messages (incidents, vulnerabilities; not approval requests) sent and failed in the last `days` days; a failure resent later with success to the same channel is not counted as failed; null when Notifications is off"
+                    },
+                    "incidents": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "open": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "description": "Open incidents (new or acknowledged)"
+                            },
+                            "urgent": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "description": "Of them, high or critical"
+                            }
+                          },
+                          "required": [
+                            "open",
+                            "urgent"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null when Notifications is off"
                     },
                     "generated_at": {
                       "type": "string",
@@ -37574,6 +37604,7 @@
                     "trend",
                     "devices",
                     "alerts",
+                    "incidents",
                     "generated_at"
                   ],
                   "additionalProperties": false

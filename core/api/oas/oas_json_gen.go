@@ -132897,6 +132897,10 @@ func (s *FindingsGetFindingsSummaryOK) encodeFields(e *jx.Encoder) {
 		json.EncodeDateTime(e, s.GeneratedAt)
 	}
 	{
+		e.FieldStart("incidents")
+		s.Incidents.Encode(e)
+	}
+	{
 		e.FieldStart("open")
 		s.Open.Encode(e)
 	}
@@ -132918,13 +132922,14 @@ func (s *FindingsGetFindingsSummaryOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsSummaryOK = [6]string{
+var jsonFieldsNameOfFindingsGetFindingsSummaryOK = [7]string{
 	0: "alerts",
 	1: "devices",
 	2: "generated_at",
-	3: "open",
-	4: "top",
-	5: "trend",
+	3: "incidents",
+	4: "open",
+	5: "top",
+	6: "trend",
 }
 
 // Decode decodes FindingsGetFindingsSummaryOK from json.
@@ -132968,8 +132973,18 @@ func (s *FindingsGetFindingsSummaryOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"generated_at\"")
 			}
-		case "open":
+		case "incidents":
 			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Incidents.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"incidents\"")
+			}
+		case "open":
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				if err := s.Open.Decode(d); err != nil {
 					return err
@@ -132979,7 +132994,7 @@ func (s *FindingsGetFindingsSummaryOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"open\"")
 			}
 		case "top":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Top = make([]FindingsGetFindingsSummaryOKTopItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -132997,7 +133012,7 @@ func (s *FindingsGetFindingsSummaryOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"top\"")
 			}
 		case "trend":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				s.Trend = make([]int, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -133026,7 +133041,7 @@ func (s *FindingsGetFindingsSummaryOK) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00111111,
+		0b01111111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -133311,6 +133326,119 @@ func (s *FindingsGetFindingsSummaryOKDevices) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *FindingsGetFindingsSummaryOKDevices) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *FindingsGetFindingsSummaryOKIncidents) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *FindingsGetFindingsSummaryOKIncidents) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("open")
+		e.Int(s.Open)
+	}
+	{
+		e.FieldStart("urgent")
+		e.Int(s.Urgent)
+	}
+}
+
+var jsonFieldsNameOfFindingsGetFindingsSummaryOKIncidents = [2]string{
+	0: "open",
+	1: "urgent",
+}
+
+// Decode decodes FindingsGetFindingsSummaryOKIncidents from json.
+func (s *FindingsGetFindingsSummaryOKIncidents) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode FindingsGetFindingsSummaryOKIncidents to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "open":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int()
+				s.Open = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"open\"")
+			}
+		case "urgent":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int()
+				s.Urgent = int(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"urgent\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode FindingsGetFindingsSummaryOKIncidents")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfFindingsGetFindingsSummaryOKIncidents) {
+					name = jsonFieldsNameOfFindingsGetFindingsSummaryOKIncidents[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *FindingsGetFindingsSummaryOKIncidents) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *FindingsGetFindingsSummaryOKIncidents) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -195997,6 +196125,50 @@ func (s NilFindingsGetFindingsSummaryOKAlerts) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilFindingsGetFindingsSummaryOKAlerts) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes FindingsGetFindingsSummaryOKIncidents as json.
+func (o NilFindingsGetFindingsSummaryOKIncidents) Encode(e *jx.Encoder) {
+	if o.Null {
+		e.Null()
+		return
+	}
+	o.Value.Encode(e)
+}
+
+// Decode decodes FindingsGetFindingsSummaryOKIncidents from json.
+func (o *NilFindingsGetFindingsSummaryOKIncidents) Decode(d *jx.Decoder) error {
+	if o == nil {
+		return errors.New("invalid: unable to decode NilFindingsGetFindingsSummaryOKIncidents to nil")
+	}
+	if d.Next() == jx.Null {
+		if err := d.Null(); err != nil {
+			return err
+		}
+
+		var v FindingsGetFindingsSummaryOKIncidents
+		o.Value = v
+		o.Null = true
+		return nil
+	}
+	o.Null = false
+	if err := o.Value.Decode(d); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s NilFindingsGetFindingsSummaryOKIncidents) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *NilFindingsGetFindingsSummaryOKIncidents) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

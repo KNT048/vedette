@@ -68531,13 +68531,16 @@ func (s *FindingsGetFindingsPlanTier) UnmarshalText(data []byte) error {
 }
 
 type FindingsGetFindingsSummaryOK struct {
-	// Messages the alert channels sent and failed to send in the last `days` days; null when Notifications
-	// is off.
+	// Alert messages (incidents, vulnerabilities; not approval requests) sent and failed in the last
+	// `days` days; a failure resent later with success to the same channel is not counted as failed; null
+	// when Notifications is off.
 	Alerts  NilFindingsGetFindingsSummaryOKAlerts `json:"alerts"`
 	Devices FindingsGetFindingsSummaryOKDevices   `json:"devices"`
 	// When the box computed this summary (it keeps it up to 60 s, and drops it at every finding change).
-	GeneratedAt time.Time                        `json:"generated_at"`
-	Open        FindingsGetFindingsSummaryOKOpen `json:"open"`
+	GeneratedAt time.Time `json:"generated_at"`
+	// Null when Notifications is off.
+	Incidents NilFindingsGetFindingsSummaryOKIncidents `json:"incidents"`
+	Open      FindingsGetFindingsSummaryOKOpen         `json:"open"`
 	// The open findings to fix first: confirmed before suspected, then ransomware, then the highest CVSS
 	// (no score last), then the newest.
 	Top []FindingsGetFindingsSummaryOKTopItem `json:"top"`
@@ -68558,6 +68561,11 @@ func (s *FindingsGetFindingsSummaryOK) GetDevices() FindingsGetFindingsSummaryOK
 // GetGeneratedAt returns the value of GeneratedAt.
 func (s *FindingsGetFindingsSummaryOK) GetGeneratedAt() time.Time {
 	return s.GeneratedAt
+}
+
+// GetIncidents returns the value of Incidents.
+func (s *FindingsGetFindingsSummaryOK) GetIncidents() NilFindingsGetFindingsSummaryOKIncidents {
+	return s.Incidents
 }
 
 // GetOpen returns the value of Open.
@@ -68588,6 +68596,11 @@ func (s *FindingsGetFindingsSummaryOK) SetDevices(val FindingsGetFindingsSummary
 // SetGeneratedAt sets the value of GeneratedAt.
 func (s *FindingsGetFindingsSummaryOK) SetGeneratedAt(val time.Time) {
 	s.GeneratedAt = val
+}
+
+// SetIncidents sets the value of Incidents.
+func (s *FindingsGetFindingsSummaryOK) SetIncidents(val NilFindingsGetFindingsSummaryOKIncidents) {
+	s.Incidents = val
 }
 
 // SetOpen sets the value of Open.
@@ -68666,6 +68679,33 @@ func (s *FindingsGetFindingsSummaryOKDevices) SetPending(val int) {
 // SetTotal sets the value of Total.
 func (s *FindingsGetFindingsSummaryOKDevices) SetTotal(val int) {
 	s.Total = val
+}
+
+type FindingsGetFindingsSummaryOKIncidents struct {
+	// Open incidents (new or acknowledged).
+	Open int `json:"open"`
+	// Of them, high or critical.
+	Urgent int `json:"urgent"`
+}
+
+// GetOpen returns the value of Open.
+func (s *FindingsGetFindingsSummaryOKIncidents) GetOpen() int {
+	return s.Open
+}
+
+// GetUrgent returns the value of Urgent.
+func (s *FindingsGetFindingsSummaryOKIncidents) GetUrgent() int {
+	return s.Urgent
+}
+
+// SetOpen sets the value of Open.
+func (s *FindingsGetFindingsSummaryOKIncidents) SetOpen(val int) {
+	s.Open = val
+}
+
+// SetUrgent sets the value of Urgent.
+func (s *FindingsGetFindingsSummaryOKIncidents) SetUrgent(val int) {
+	s.Urgent = val
 }
 
 type FindingsGetFindingsSummaryOKOpen struct {
@@ -115118,6 +115158,51 @@ func (o NilFindingsGetFindingsSummaryOKAlerts) Get() (v FindingsGetFindingsSumma
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsGetFindingsSummaryOKAlerts) Or(d FindingsGetFindingsSummaryOKAlerts) FindingsGetFindingsSummaryOKAlerts {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsSummaryOKIncidents returns new NilFindingsGetFindingsSummaryOKIncidents with value set to v.
+func NewNilFindingsGetFindingsSummaryOKIncidents(v FindingsGetFindingsSummaryOKIncidents) NilFindingsGetFindingsSummaryOKIncidents {
+	return NilFindingsGetFindingsSummaryOKIncidents{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsSummaryOKIncidents is nullable FindingsGetFindingsSummaryOKIncidents.
+type NilFindingsGetFindingsSummaryOKIncidents struct {
+	Value FindingsGetFindingsSummaryOKIncidents
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsSummaryOKIncidents) SetTo(v FindingsGetFindingsSummaryOKIncidents) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsSummaryOKIncidents) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsSummaryOKIncidents) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsSummaryOKIncidents
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsSummaryOKIncidents) Get() (v FindingsGetFindingsSummaryOKIncidents, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsSummaryOKIncidents) Or(d FindingsGetFindingsSummaryOKIncidents) FindingsGetFindingsSummaryOKIncidents {
 	if v, ok := o.Get(); ok {
 		return v
 	}

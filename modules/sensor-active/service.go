@@ -584,7 +584,7 @@ func (s *Service) insertProbe(ctx context.Context, jobID string, kind nmapargv.K
 	var id int64
 	err = s.db.Write(ctx, func(tx *sql.Tx) error {
 		res, err := tx.ExecContext(ctx, `INSERT INTO sa_probe (time, job_id, shape, rate, hosts, flags, targets, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			s.now(), jobID, kind.Name(), rate, len(targets), strings.Join(flags, " "), compactTargets(targets), note.with("started"))
+			s.now(), jobID, kind.Name(), rate, len(targets), strings.Join(append(flags, nmapargv.StatsFlags()...), " "), compactTargets(targets), note.with("started"))
 		if err != nil {
 			return err
 		}

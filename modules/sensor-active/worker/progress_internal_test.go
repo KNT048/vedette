@@ -91,3 +91,29 @@ func FuzzNucleiCounter(f *testing.F) {
 		}
 	})
 }
+
+// Review r1 #6: a target nuclei gives up (max_host_errors timeouts in its error log) keeps only the pairs it finished in the total.
+func TestNucleiCounterDropsAGivenUpTarget(t *testing.T) {
+	nj := &sensorlink.NucleiJob{Templates: []string{"CVE-2024-1", "CVE-2024-2"}, MaxHostErrors: 2,
+		Targets: []sensorlink.NucleiTarget{{Host: "192.168.10.20", Port: 8080}, {Host: "10.0.0.7", Port: 22}}}
+	rep := &reporter{}
+	w := nucleiWatch(nj, rep)
+	if p, _ := rep.take(); p.Total != 4 || p.Done != 0 {
+		t.Fatalf("start = %+v", p)
+	}
+	_, _ = w.Stdout.Write([]byte(`{"template-id":"CVE-2024-1","host":"10.0.0.7","port":"22","matcher-status":false}` + "\n" +
+		`{"template-id":"CVE-2024-1","host":"192.168.10.20","port":"8080","matcher-status":false}` + "\n"))
+	timeout := `{"template":"CVE-2024-2","type":"tcp","input":"10.0.0.7:22","address":"10.0.0.7:22","error":"i/o timeout","kind":"network-temporary-error"}` + "\n"
+	_, _ = w.Stderr.Write([]byte(timeout + `{"kind":"network-permanent-error","address":"192.168.10.20:8080"}` + "\nnot json\n"))
+	if p, _ := rep.take(); p.Total != 4 || p.Done != 2 {
+		t.Fatalf("one timeout = %+v, want the target still counted", p)
+	}
+	_, _ = w.Stderr.Write([]byte(timeout))
+	if p, _ := rep.take(); p.Total != 3 || p.Done != 2 || !validReport(p) {
+		t.Fatalf("given up = %+v, want 2 + the 1 pair 10.0.0.7:22 finished", p)
+	}
+	_, _ = w.Stdout.Write([]byte(`{"template-id":"CVE-2024-2","host":"192.168.10.20","port":"8080","matcher-status":false}` + "\n"))
+	if p, _ := rep.take(); p.Total != 3 || p.Done != 3 {
+		t.Fatalf("end = %+v, want all of what can run", p)
+	}
+}

@@ -52,19 +52,7 @@ func ParseHostErrors(stderr []byte, targets []string, maxHostErrors int) []HostE
 	}
 	counts := make([]int, len(targets))
 	for _, raw := range bytes.Split(stderr, []byte("\n")) {
-		raw = bytes.TrimSpace(raw)
-		if len(raw) == 0 || len(raw) > maxErrorLogLine || raw[0] != '{' || jsonstrict.Ambiguous(raw) != "" {
-			continue
-		}
-		var l errLine
-		if json.Unmarshal(raw, &l) != nil || l.Kind != kindTimeout {
-			continue
-		}
-		i := slices.Index(targets, l.Address)
-		if i < 0 {
-			i = slices.Index(targets, hostOf(l.Input))
-		}
-		if i >= 0 && counts[i] < 1<<20 {
+		if i := TimeoutTarget(raw, targets); i >= 0 && counts[i] < 1<<20 {
 			counts[i]++
 		}
 	}
@@ -76,3 +64,24 @@ func ParseHostErrors(stderr []byte, targets []string, maxHostErrors int) []HostE
 	}
 	return out
 }
+
+// TimeoutTarget reads one line of the error log: the index in targets of the target a timeout line is about, or -1 for any other
+// line (the rules of ParseHostErrors). The worker uses it while nuclei runs, to know which targets nuclei has given up (#830).
+func TimeoutTarget(raw []byte, targets []string) int {
+	raw = bytes.TrimSpace(raw)
+	if len(raw) == 0 || len(raw) > maxErrorLogLine || raw[0] != '{' || jsonstrict.Ambiguous(raw) != "" {
+		return -1
+	}
+	var l errLine
+	if json.Unmarshal(raw, &l) != nil || l.Kind != kindTimeout {
+		return -1
+	}
+	i := slices.Index(targets, l.Address)
+	if i < 0 {
+		i = slices.Index(targets, hostOf(l.Input))
+	}
+	return i
+}
+
+// MaxErrorLogLine is the longest line TimeoutTarget reads.
+const MaxErrorLogLine = maxErrorLogLine

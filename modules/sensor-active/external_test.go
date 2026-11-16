@@ -104,7 +104,7 @@ func TestScanExternalThroughTheWorker(t *testing.T) {
 	if s := e.str(`SELECT shape || '|' || rate || '|' || hosts || '|' || targets || '|' || result FROM sa_probe`); s != "external|100|1|8.8.8.8|ok: 4 open ports" {
 		t.Fatalf("probe row = %s", s)
 	}
-	if f := e.str(`SELECT flags FROM sa_probe`); !strings.HasSuffix(f, "-p "+nmapargv.ExternalPorts) || len(f) <= 300 {
+	if f := e.str(`SELECT flags FROM sa_probe`); !strings.HasSuffix(f, "-p "+nmapargv.ExternalPorts+" --stats-every "+nmapargv.StatsEvery) || len(f) <= 300 {
 		t.Fatalf("flags = %s", f)
 	}
 	if s := e.str(`SELECT kind || '|' || reason || '|' || status FROM sa_job`); s != "external|exposure|done" {

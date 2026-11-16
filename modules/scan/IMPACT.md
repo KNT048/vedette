@@ -2,6 +2,7 @@
 
 ## Modifying: `RunView.progress`, `live.prog`, `setProgress`/`progressOf` (#830, INV-15)
 - **SPA**: `/scans` (the web part of #830 shows it; contract `web/src/lib/progress.ts` `JobProgress`, shared with exposure). **sensor-active**: its `Dispatcher` reports into the Sink of the context the run probes with; a wrapper of that context in `cmd/vedette` must keep its values (`context.WithoutCancel`, never `context.Background()`).
+- `nucleiout.TimeoutTarget` (one line of the error log; `ParseHostErrors` is built on it) is read by the scan worker while nuclei runs, to drop the checks of a target nuclei gave up from the progress total. Changing what counts as a timeout changes both.
 
 ## Modifying: `scan.Service.StartRun(ctx, targets, trigger)` và bộ chọn `Targets()`
 - **SPA** (`/scans`, `RunsTab`, `TargetPicker`, Devices → "Scan"), **core/jobs** (lịch), `OnNewKEV`. Đổi điều kiện chọn mục tiêu đổi số gói/request rời hộp: sửa CONTRACT + test INV-1…3.

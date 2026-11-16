@@ -2,6 +2,8 @@ package sensoractive_test
 
 import (
 	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -52,6 +54,87 @@ func TestProgressWithoutASinkIsDropped(t *testing.T) {
 	j := r.poll(t, "", 5*time.Second).Jobs[0]
 	if err := r.worker.PostProgress(t.Context(), j.ID, &sensorlink.JobProgress{Phase: "discovery", Percent: 3}); err != nil {
 		t.Fatal(err)
+	}
+	if err := r.worker.PostResult(t.Context(), j.ID, okResult("<nmaprun/>")); err != nil {
+		t.Fatal(err)
+	}
+	await(t, ch)
+}
+
+// sinkFunc is a progress.Sink of a function.
+type sinkFunc func(progress.Update)
+
+func (f sinkFunc) Report(u progress.Update) { f(u) }
+
+// Review r1 #1: a report never reaches the Sink after the job's result has been taken, however the two race.
+func TestNoProgressAfterTheResult(t *testing.T) {
+	t.Parallel()
+	r := newDRig(t)
+	r.beat(t, true)
+	var ended, late atomic.Bool
+	sink := sinkFunc(func(progress.Update) {
+		if ended.Load() {
+			late.Store(true)
+		}
+	})
+	ch := probe(progress.WithSink(t.Context(), sink), r.d, argvOf(t, nmapargv.Normal, 100, "192.168.10.20"))
+	j := r.poll(t, "", 5*time.Second).Jobs[0]
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+	wg.Add(1)
+	go func() { // a worker that keeps reporting while its result goes in (the Dispatcher's clock moves, so none is throttled)
+		defer wg.Done()
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			r.clk.Advance(5 * time.Second)
+			_ = r.d.JobProgress(t.Context(), j.ID, &sensorlink.JobProgress{Phase: "ports", Percent: 50})
+		}
+	}()
+	if err := r.worker.PostResult(t.Context(), j.ID, okResult("<nmaprun/>")); err != nil {
+		t.Fatal(err)
+	}
+	await(t, ch)
+	ended.Store(true)
+	for range 50 { // the reporter goes on after the result: none of its reports may land
+		r.clk.Advance(5 * time.Second)
+		_ = r.d.JobProgress(t.Context(), j.ID, &sensorlink.JobProgress{Phase: "ports", Percent: 99})
+	}
+	close(stop)
+	wg.Wait()
+	if late.Load() {
+		t.Fatal("a progress report reached the Sink after the result")
+	}
+}
+
+// Review r1 #2: core takes at most one report per job every ProgressEvery (a second of slack), whatever the worker sends.
+func TestProgressIsThrottledPerJob(t *testing.T) {
+	t.Parallel()
+	r := newDRig(t)
+	r.beat(t, true)
+	tr := progress.NewTracker(r.clk.Now)
+	ch := probe(progress.WithSink(t.Context(), tr), r.d, argvOf(t, nmapargv.Normal, 100, "192.168.10.20"))
+	j := r.poll(t, "", 5*time.Second).Jobs[0]
+	post := func(pct float64) {
+		t.Helper()
+		if err := r.worker.PostProgress(t.Context(), j.ID, &sensorlink.JobProgress{Phase: "ports", Percent: pct}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	post(10)
+	post(20) // same instant: dropped
+	r.clk.Advance(3 * time.Second)
+	post(30) // 3 s later: dropped
+	if p := *tr.View().Percent; p != 10 {
+		t.Fatalf("percent = %v, want the first report only", p)
+	}
+	r.clk.Advance(time.Second + time.Millisecond) // 4 s after the first: inside the slack, taken
+	post(40)
+	if p := *tr.View().Percent; p != 40 {
+		t.Fatalf("percent = %v, want the report after the gap", p)
 	}
 	if err := r.worker.PostResult(t.Context(), j.ID, okResult("<nmaprun/>")); err != nil {
 		t.Fatal(err)

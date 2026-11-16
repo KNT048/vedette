@@ -120,6 +120,7 @@ type djob struct {
 	cancelOut bool // a poll reply has carried the cancel
 
 	sink        progress.Sink   // of the probe's context (#830): where the worker's progress reports of this job go; nil: nowhere
+	progressAt  time.Time       // the latest report that reached sink: one per progressEvery at most
 	ctxDone     <-chan struct{} // of the probe's context: a pending job whose probe is over is dropped
 	ctxErr      func() error
 	deliveredAt time.Time // when the worker fetched it
@@ -642,30 +643,34 @@ func (d *Dispatcher) JobResult(_ context.Context, id string, res *sensorlink.Job
 
 // JobProgress implements sensorlink.ProgressReceiver (#830): the worker's report of how far a running job is goes to the Sink the
 // probe's context carried (the scan run or the exposure scan that waits for it). Nothing is stored here; a report of a job that is
-// being cancelled, or whose probe has no Sink, is accepted and dropped. The Tracker behind the Sink checks every field again.
+// being cancelled, or whose probe has no Sink, is accepted and dropped, and so is one that comes sooner than progressMin after the
+// last one of the job (the worker sends one every sensorlink.ProgressEvery; review r1 #2). The Sink is called under mu, so a report
+// can never land after the job's result (JobResult takes mu too and the job is then no longer running; review r1 #1). A Sink is a
+// progress.Tracker: a short lock of its own, never a call back into the Dispatcher. The Tracker checks every field again.
 func (d *Dispatcher) JobProgress(_ context.Context, id string, p *sensorlink.JobProgress) error {
 	d.mu.Lock()
+	defer d.mu.Unlock()
 	s := d.runningSlot(id)
 	if s == nil {
-		d.mu.Unlock()
 		return sensorlink.NewError(sensorlink.CodeUnknownJob)
 	}
 	j := s.running
-	sink, shape := j.sink, j.spec.Shape
-	if j.cancelled {
-		sink = nil
-	}
-	d.mu.Unlock()
-	if sink == nil {
+	now := d.now()
+	if j.sink == nil || j.cancelled || (!j.progressAt.IsZero() && now.Sub(j.progressAt) < progressMin) {
 		return nil
 	}
-	u := progress.Update{Phase: p.Phase, Percent: p.Percent, Done: p.Done, Total: p.Total, Remaining: time.Duration(p.RemainingS) * time.Second, Message: passNote[shape]}
+	j.progressAt = now
+	u := progress.Update{Phase: p.Phase, Percent: p.Percent, Done: p.Done, Total: p.Total, Remaining: time.Duration(p.RemainingS) * time.Second, Message: passNote[j.spec.Shape]}
 	if s.kind == sensorlink.KindNuclei {
 		u.Unit = progress.UnitChecks
 	}
-	sink.Report(u)
+	j.sink.Report(u)
 	return nil
 }
+
+// progressMin is the shortest gap between two reports of one job that reach its Sink: the worker's period less a second of slack
+// for the network.
+const progressMin = sensorlink.ProgressEvery - time.Second
 
 // passNote says which nmap run of a device a report is about, when a device gets more than one (D-592) or a slower one (D-126).
 var passNote = map[string]string{

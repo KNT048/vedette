@@ -154,3 +154,23 @@ func TestReportFindsTheSinkOfTheContext(t *testing.T) {
 		t.Fatal("a sink from nowhere")
 	}
 }
+
+// Review r1 #7: a pace that would put the end centuries away is capped at MaxRemaining, never an overflowed time.
+func TestPaceEstimateIsCapped(t *testing.T) {
+	c := newClock()
+	tr := NewTracker(c.now)
+	tr.Report(Update{Phase: PhaseVulns, Done: 0, Total: MaxCount, Unit: UnitChecks})
+	c.add(time.Hour)
+	tr.Report(Update{Phase: PhaseVulns, Done: MaxCount / 50, Total: MaxCount, Unit: UnitChecks}) // 2 %: 49 h more at this pace
+	if e, _ := val(tr.View().ETA); e != "2026-11-18T09:00:00.000Z" {
+		t.Fatalf("eta = %v, want now + MaxRemaining", e)
+	}
+	c.add(1000 * time.Hour)
+	tr.Report(Update{Phase: PhaseServices, Percent: 0})
+	c.add(1000000 * time.Hour)
+	tr.Report(Update{Phase: PhaseServices, Percent: 1})
+	want := c.t.Add(MaxRemaining).UTC().Format("2006-01-02T15:04:05.000Z")
+	if e, _ := val(tr.View().ETA); e != want {
+		t.Fatalf("eta = %v, want %s", e, want)
+	}
+}

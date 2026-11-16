@@ -232,6 +232,10 @@ const titleScriptTimeout = "20s"
 // estimate of the time left. The worker reads those lines while nmap runs (sensor protocol 6.6); core's parser skips them.
 const StatsEvery = "5s"
 
+// StatsFlags is the progress part of every command line, before -oX - (#830). The probe log stores it with the flags of the shape
+// (INV-9: the row shows what was run).
+func StatsFlags() []string { return []string{flagStats, StatsEvery} }
+
 // Host time limits (D-84 (7)): a gentle scan is slow by design, a normal one has -sV and -O to finish.
 const (
 	gentleHostTimeout = "15m"

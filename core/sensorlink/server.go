@@ -364,15 +364,15 @@ func (s *Server) dispatch(ctx context.Context, w http.ResponseWriter, r *http.Re
 				return
 			}
 		}
-		if rt.id != rProgress { // a progress body (1 KiB, one connection each) never takes a slot a heartbeat or a result needs
-			release, ok := s.takeBody(role, rt.id)
-			if !ok {
-				closeAfter(w, r)
-				s.writeError(w, StoreBusy(time.Second))
-				return
-			}
-			defer release()
+		// A progress report takes a slot like any body (review r1 #3): takeBody never waits, so with none free it is answered
+		// 503 store_busy unread and dropped; the worker does not retry it, and the next one comes ProgressEvery later.
+		release, ok := s.takeBody(role, rt.id)
+		if !ok {
+			closeAfter(w, r)
+			s.writeError(w, StoreBusy(time.Second))
+			return
 		}
+		defer release()
 		if raw, err = s.readBody(w, r, rt.max); err != nil {
 			closeAfter(w, r) // refused before (or while) reading: the rest of the body is not waited for
 			s.rejectResult(rt, jobID, err)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -125,42 +126,85 @@ func nmapProgress(line []byte) (p sensorlink.JobProgress, ok bool) {
 }
 
 // nucleiCounter counts the template and target pairs a nuclei run has finished from its -ms lines: each line that reads as a result
-// of the job (nucleiout, the same reader core uses) is one pair, counted once.
+// of the job (nucleiout, the same reader core uses) is one pair, counted once. A target nuclei gives up (its error log reached the
+// job's max_host_errors timeouts: nuclei's -mhe stops sending to it) keeps only the pairs it finished in the total, so the bar does
+// not stall on checks that will never run (review r1 #6). The pairs are one map; the stdout and stderr readers share the counter
+// under mu.
 type nucleiCounter struct {
+	mu                 sync.Mutex
 	templates, targets []string
+	maxErrors          int
 	seen               map[string]bool
+	perTarget, errors  []int
+	dead               []bool
 }
 
 func newNucleiCounter(nj *sensorlink.NucleiJob) *nucleiCounter {
-	c := &nucleiCounter{templates: nj.Templates, seen: map[string]bool{}}
+	c := &nucleiCounter{templates: nj.Templates, maxErrors: nj.MaxHostErrors, seen: map[string]bool{}}
 	for _, t := range nj.Targets {
 		c.targets = append(c.targets, t.Host+":"+strconv.Itoa(t.Port))
 	}
+	c.perTarget, c.errors, c.dead = make([]int, len(c.targets)), make([]int, len(c.targets)), make([]bool, len(c.targets))
 	return c
 }
 
-func (c *nucleiCounter) total() int64 { return int64(len(c.templates) * len(c.targets)) }
-
-// line counts one line; it says whether the count changed.
+// line counts one -ms line; it says whether the count changed.
 func (c *nucleiCounter) line(raw []byte) bool {
 	raw = bytes.TrimSpace(raw)
-	if len(raw) == 0 || len(c.seen) >= len(c.templates)*len(c.targets) {
+	if len(raw) == 0 {
 		return false
 	}
 	res, _, err := nucleiout.Read(raw, c.templates, c.targets)
 	if err != nil || len(res) != 1 {
 		return false
 	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	k := res[0].Template + "\x00" + res[0].Target
 	if c.seen[k] {
 		return false
 	}
 	c.seen[k] = true
+	if i := slices.Index(c.targets, res[0].Target); i >= 0 {
+		c.perTarget[i]++
+	}
 	return true
 }
 
-func (c *nucleiCounter) progress() sensorlink.JobProgress {
-	return sensorlink.JobProgress{Phase: "vulns", Percent: -1, Done: int64(len(c.seen)), Total: c.total()}
+// errorLine reads one line of nuclei's error log; it says whether a target was given up just now.
+func (c *nucleiCounter) errorLine(raw []byte) bool {
+	i := nucleiout.TimeoutTarget(raw, c.targets)
+	if i < 0 {
+		return false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.errors[i]++
+	if c.dead[i] || c.maxErrors < 1 || c.errors[i] < c.maxErrors {
+		return false
+	}
+	c.dead[i] = true
+	return true
+}
+
+// publish hands the current count to rep. It holds mu while it does, so the two readers never hand over their counts out of order.
+func (c *nucleiCounter) publish(rep *reporter) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	rep.set(c.progressLocked())
+}
+
+// progressLocked is the current count. The caller holds mu.
+func (c *nucleiCounter) progressLocked() sensorlink.JobProgress {
+	var total int64
+	for i := range c.targets {
+		if c.dead[i] {
+			total += int64(c.perTarget[i])
+		} else {
+			total += int64(len(c.templates))
+		}
+	}
+	return sensorlink.JobProgress{Phase: "vulns", Percent: -1, Done: int64(len(c.seen)), Total: total}
 }
 
 // reporter keeps the latest progress of one job between two posts.
@@ -210,14 +254,14 @@ func (w *Worker) runReporting(ctx context.Context, id, name string, argv []strin
 	return out, err
 }
 
-// postProgress makes one attempt. A refusal is only logged: a core of before #830 answers 404 unknown_job, and a lost report is
-// replaced by the next.
+// postProgress makes one attempt. A refusal is only logged: a core of before #830 answers 404 unknown_job (or 403 forbidden_route:
+// it has no such route, review r1 #4), and a lost report is replaced by the next.
 func (w *Worker) postProgress(ctx context.Context, id string, p *sensorlink.JobProgress) {
 	err := w.link.PostProgress(ctx, id, p)
 	var e *sensorlink.Error
 	switch {
 	case err == nil, ctx.Err() != nil:
-	case errors.As(err, &e) && (e.Status == http.StatusNotFound || e.Status == http.StatusTooManyRequests || e.Status == http.StatusServiceUnavailable):
+	case errors.As(err, &e) && (e.Status == http.StatusNotFound || e.Status == http.StatusForbidden || e.Status == http.StatusTooManyRequests || e.Status == http.StatusServiceUnavailable):
 		w.log.DebugContext(ctx, "sensor_active_progress_not_taken", "id", id, "error", err)
 	default:
 		w.log.WarnContext(ctx, "sensor_active_progress_not_taken", "id", id, "error", err)
@@ -233,14 +277,22 @@ func nmapWatch(rep *reporter) exec.Watch {
 	}}}
 }
 
-// nucleiWatch is the Watch of a nuclei run: its stdout (the -ms lines) through a nucleiCounter into rep. The count starts at 0 of
-// the total, so the page shows the checks to come from the first report on.
+// nucleiWatch is the Watch of a nuclei run: its stdout (the -ms lines) and its stderr (the error log, for the targets nuclei gives
+// up) through a nucleiCounter into rep. The count starts at 0 of the total, so the page shows the checks to come from the first
+// report on.
 func nucleiWatch(nj *sensorlink.NucleiJob, rep *reporter) exec.Watch {
 	c := newNucleiCounter(nj)
-	rep.set(c.progress())
-	return exec.Watch{Stdout: &lines{max: maxNucleiLine, onLine: func(l []byte) {
-		if c.line(l) {
-			rep.set(c.progress())
-		}
-	}}}
+	c.publish(rep)
+	return exec.Watch{
+		Stdout: &lines{max: maxNucleiLine, onLine: func(l []byte) {
+			if c.line(l) {
+				c.publish(rep)
+			}
+		}},
+		Stderr: &lines{max: nucleiout.MaxErrorLogLine, onLine: func(l []byte) {
+			if c.errorLine(l) {
+				c.publish(rep)
+			}
+		}},
+	}
 }

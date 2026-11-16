@@ -160,12 +160,12 @@ func (t *Tracker) estimate(now time.Time) time.Time {
 	}
 	if u.Total > 0 {
 		if gained := u.Done - t.done0; gained > 0 {
-			left := float64(u.Total-u.Done) / float64(gained) * float64(elapsed)
+			left := min(float64(u.Total-u.Done)/float64(gained)*float64(elapsed), float64(MaxRemaining)) // review r1 #7: no overflow
 			return now.Add(time.Duration(left))
 		}
 		return time.Time{}
 	}
-	left := float64(elapsed) * (100 - u.Percent) / u.Percent
+	left := min(float64(elapsed)*(100-u.Percent)/u.Percent, float64(MaxRemaining))
 	return now.Add(time.Duration(left))
 }
 

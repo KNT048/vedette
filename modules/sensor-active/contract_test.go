@@ -495,9 +495,8 @@ func TestContract_INV9_ProbeLog(t *testing.T) {
 	}
 	for i, p := range probes {
 		// the row keeps the flags as approved (shape and rate), the addresses are in Target
-		// (the progress flag --stats-every of #830 is not a probe setting: the row keeps the shape's flags and -oX -)
-		n := len(p.Argv)
-		if n+2 > len(calls[i]) || !slices.Equal(p.Argv[:n-2], calls[i][:n-2]) || !slices.Equal(calls[i][n-2:n+2], []string{"--stats-every", "5s", "-oX", "-"}) || p.Argv[n-2] != "-oX" {
+		// (the progress flag of #830 included: the row shows what was run, review r1 #5)
+		if n := len(p.Argv); n > len(calls[i]) || !slices.Equal(p.Argv, calls[i][:n]) || p.Argv[n-2] != "-oX" || p.Argv[n-4] != "--stats-every" {
 			t.Errorf("row %d argv = %q, the process got %q", i, p.Argv, calls[i])
 		}
 		if p.Time == "" || p.Target == "" || !strings.HasPrefix(p.Result, "ok:") || p.JobID == "" {

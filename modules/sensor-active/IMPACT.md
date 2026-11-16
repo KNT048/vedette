@@ -69,7 +69,7 @@
 - `SettingsChanged` bỏ qua lượt `external` (`running.external`): sửa chỗ đó thì một đổi cài đặt LAN sẽ dừng hay để lọt lượt của exposure.
 
 ## Modifying: progress of a running job (#830: `nmapargv.StatsEvery`, `worker/progress.go`, `Dispatcher.JobProgress`)
-- `nmapargv.Build`/`BuildFor`/`Validate`/`ParseFor`: `--stats-every 5s` sits before `-oX -` in every shape; every test that spells an argv carries it (`cmd/vedette` `sensoractive_test.go` too). The probe log row keeps the shape's flags without it.
+- `nmapargv.Build`/`BuildFor`/`Validate`/`ParseFor`: `--stats-every 5s` sits before `-oX -` in every shape; every test that spells an argv carries it (`cmd/vedette` `sensoractive_test.go` too). The probe log row of a run stores it after the shape's flags (`StatsFlags`, INV-9); rows from before have none.
 - The worker's `Link` gained `PostProgress`; `*sensorlink.Client` implements it. A `core` of before #830 answers `404`, which the worker ignores.
 - Readers of progress: `modules/scan` (`RunView.progress`) and `modules/exposure` (`ScanRun.progress`) through `core/progress`; they put a Tracker in the context they probe with.
 

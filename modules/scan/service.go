@@ -116,6 +116,9 @@ type ConfigView struct {
 	// ScheduleBlockedReason is set while the schedule is on but nothing automated can start because the organization
 	// zone cannot be read; NextRun is nil then (D-261 (3)).
 	ScheduleBlockedReason *string `json:"schedule_blocked_reason"`
+	// Version is the shared safety block's (INV-16, inventory INV-32): a PUT that sends it back is refused with 409 safety_changed
+	// when the block changed since (review #860 M1). "" without SharedChecks.
+	Version string `json:"version"`
 }
 
 // ready is the scanner part of INV-2: an Engine that answers Ready.
@@ -132,7 +135,7 @@ func (s *Service) ready(ctx context.Context) bool {
 
 // Config returns the settings with the scope, the commitment, whether a scan can start and the next scheduled run.
 func (s *Service) Config(ctx context.Context) (ConfigView, error) {
-	c, err := loadSettings(ctx, s.cfg.DB.Reader())
+	c, err := s.settings(ctx, s.cfg.DB.Reader())
 	if err != nil {
 		return ConfigView{}, err
 	}
@@ -144,7 +147,7 @@ func (s *Service) view(ctx context.Context, c Settings) (ConfigView, error) {
 	if err != nil {
 		return ConfigView{}, fmt.Errorf("scan: reading the scope: %w", err)
 	}
-	v := ConfigView{Config: c, Scope: ScopeView{Networks: sc.Networks}}
+	v := ConfigView{Config: c, Scope: ScopeView{Networks: sc.Networks}, Version: c.Version} // values and version of one read (r2 L3)
 	if v.Scope.Networks == nil {
 		v.Scope.Networks = []string{}
 	}
@@ -166,6 +169,11 @@ func (s *Service) view(ctx context.Context, c Settings) (ConfigView, error) {
 	} else if c.Schedule.Enabled {
 		v.ScheduleBlockedReason = ptr(msgZoneUnknown)
 	}
+	// #850: the window is shared and saved on Settings › Scanning too, so it can move away from the schedule time (INV-16).
+	if c.Schedule.Enabled && v.ScheduleBlockedReason == nil && hhmmRE.MatchString(c.Schedule.At) && hhmmRE.MatchString(c.Window.From) &&
+		hhmmRE.MatchString(c.Window.To) && !inTimeRange(c.Schedule.At, c.Window.From, c.Window.To) {
+		v.ScheduleBlockedReason = ptr(fmt.Sprintf("The schedule time %s is outside the scan window %s to %s (Settings, Scanning), so no scheduled scan runs. Pick a time inside the window.", c.Schedule.At, c.Window.From, c.Window.To))
+	}
 	switch {
 	case v.Scope.Commitment == nil:
 		v.BlockReason = ptr(msgNoCommitment)
@@ -185,17 +193,37 @@ func (s *Service) SaveConfig(ctx context.Context, user string, p Patch) (ConfigV
 		return ConfigView{}, fmt.Errorf("scan: saving the settings: %w", ErrDangerousLocked)
 	}
 	var saved Settings
+	sh, shared := s.shared()
+	var wtx *sql.Tx // the write transaction, for the inventory's Settle
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		cur, err := loadSettings(ctx, tx)
+		wtx = tx
+		cur, err := s.settings(ctx, tx)
 		if err != nil {
 			return err
 		}
 		next := p.apply(cur)
-		if err := next.validate(); err != nil {
+		if err := next.validate(len(cur.Exclusions)); err != nil {
 			return err
 		}
-		if err := saveSettings(ctx, tx, next, user, store.FormatTS(s.now())); err != nil {
+		copyOf := next // scan_setting's copy holds at most MaxExclusions (its CHECK): a longer shared list leaves the stored copy as it is
+		if len(next.Exclusions) > MaxExclusions {
+			raw, err := loadSettings(ctx, tx)
+			if err != nil {
+				return err
+			}
+			copyOf.Exclusions = raw.Exclusions
+		}
+		at := store.FormatTS(s.now())
+		if err := saveSettings(ctx, tx, copyOf, user, at); err != nil {
 			return err
+		}
+		// INV-16 (#850): the window, the rate and the exclusions are the inventory's; every save writes the values it read (the
+		// union while the copy was not merged: review #857 M1) back there, in the same transaction, so the inventory marks the copy
+		// taken in and discovery and Settings › Scanning see the same values.
+		if shared {
+			if err := sh.SaveChecks(ctx, tx, user, Checks{Window: next.Window, Rate: next.Rate, Exclusions: next.Exclusions, MergedFrom: &at, Version: p.Version}); err != nil {
+				return err
+			}
 		}
 		detail, err := json.Marshal(struct {
 			Rate       int    `json:"rate"`
@@ -210,8 +238,14 @@ func (s *Service) SaveConfig(ctx context.Context, user string, p Patch) (ConfigV
 		saved = next
 		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: "scan.config", Target: "scan", Detail: string(detail)})
 	})
+	if shared && wtx != nil {
+		sh.Settle(ctx, wtx, err == nil)
+	}
 	if err != nil {
 		return ConfigView{}, fmt.Errorf("scan: saving the settings: %w", err)
+	}
+	if shared { // the values and version as stored now, read together (r2 L3): never a version newer than the list it answers
+		return s.Config(ctx)
 	}
 	return s.view(ctx, saved)
 }

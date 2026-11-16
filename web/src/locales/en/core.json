@@ -288,11 +288,13 @@
       "report": "Reports",
       "response": "Response",
       "scan": "Scans",
+      "scanning": "Scanning",
       "sensor": "Sensor",
       "notify": "Notifications",
       "sensor-ca": "Sensor CA",
       "sensor-cert": "Sensor certificates",
-      "box-ca": "Box CA"
+      "box-ca": "Box CA",
+      "box-key": "Box keys"
     },
     "action": {
       "auth": {
@@ -418,6 +420,8 @@
       "network.span": "Change mirror (SPAN) port",
       "os.install_done": "Operating system updates installed",
       "scan.config": "Change scan settings",
+      "scanning.run": "Start a scan now",
+      "scanning.safety.merged": "Merge the two scan windows into one",
       "scan.pick": "Pick device to scan",
       "scan.start": "Start scan",
       "scan.stop": "Stop scan",
@@ -544,6 +548,7 @@
       "inventory.snmp_edit": "Edit SNMP credential",
       "inventory.snmp_delete": "Delete SNMP credential",
       "inventory.snmp_test": "Test SNMP credential",
+      "inventory.snmp_read": "Read devices now with SNMP credential",
       "inventory.box_created": "Vedette box added as a device",
       "inventory.services_pruned": "Open services not seen for 90 days removed",
       "inventory.delete": "Delete device",
@@ -580,6 +585,7 @@
       "box-ca.create": "Create box certificate authority",
       "box-ca.migrate": "Move box certificate authority into the database",
       "box-ca.replace": "Replace box certificate authority (enrolled agents must run the install command again)",
+      "box-key.replace": "Replace a box key that could not be read (restored without the decryption key, or the box key changed)",
       "notify.retention": "Old alert history deleted",
       "sensor-ca.create": "Create sensor certificate authority",
       "sensor-ca.replace": "Replace sensor certificate authority",

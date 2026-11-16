@@ -14,7 +14,7 @@
 // (default: the two sample IPs, i.e. a load balancer), "offline" when no public IP service answers, or "disagree" when they never agree.
 import { http, HttpResponse } from 'msw'
 import { API, audit, body, currentUser, DOMAIN_RE, fail, guard, IPV4_RE } from '@/mocks/http'
-import { auditStore, isOn } from '@/mocks/stores'
+import { auditStore } from '@/mocks/stores'
 import { canonHash, GENESIS } from '@/lib/chain'
 import { collection, newId, nowIso, type Collection } from '@/mocks/db'
 import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, boxGreenbone, DEFAULT_INTERVAL, outsideAnswer, seedOutside, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, withDeep, type Content, type StoredTarget } from './data'
@@ -74,7 +74,9 @@ function greenboneView(): Greenbone {
   // D-564 G6: the first weekly feed update is due a week after Enable (the mock never runs it)
   const next = g.enabled && g.changed_at ? new Date(Date.parse(g.changed_at) + WEEK_MS).toISOString() : null
   return { state, reason: state === 'loading' ? 'OpenVAS is loading its feed (first time takes about 2 hours)' : null, changed_by: g.changed_by, changed_at: g.changed_at,
-    preflight: { memory_bytes: mem, disk_free_bytes: disk, ok: reason === null, reason }, feed_sync: { last_at: null, ok: null, note: null, next_at: next }, enabled: g.enabled }
+    preflight: { memory_bytes: mem, disk_free_bytes: disk, ok: reason === null, reason }, feed_sync: { last_at: null, ok: null, note: null, next_at: next },
+    // T10: the feed OpenVAS reports, read once it answers (the mock's feed of 14 Nov 2026, 12:00 UTC; midday so every time zone shows 14 Nov)
+    feed: state === 'loading' || state === 'ready' ? { nvt_version: '202611141200', nvt_date: '2026-11-14T12:00:00.000Z', checked_at: new Date().toISOString() } : null, enabled: g.enabled }
 }
 /** What a scan of an IP gets from Greenbone in the mock: its results on the box's own IP when ready, else the line that says why not. */
 function greenboneFor(ip: string, fullScan: boolean): Pick<Content, 'greenbone' | 'greenboneNote'> {
@@ -579,8 +581,7 @@ export const handlers = [
       const paused = ipPaused(t)
       if (paused) return paused
     }
-    // The scan is done by the Vulnerability scans module (D-229): off, nothing is scanned and nothing is saved.
-    if (!isOn('scan')) return fail(409, 'module_off', 'The Vulnerability scans module is off, so the box cannot scan. An admin can turn it on in Settings, Modules.')
+    // The scan module's runner does the scan (D-229) behind this module's own switch (J6): the Vulnerability scans module may be off.
     // Like the box: 202 with the run at once, and the phases move on while the page polls GET /exposure/scan. The mock has no one-at-a-time or 10-minute limit
     // (its tests scan an IP several times in a row). The result is stored when the run is done.
     const at = nowIso()

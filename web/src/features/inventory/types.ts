@@ -41,3 +41,6 @@ export type SnmpCredentialInput = z.infer<typeof C.SnmpCredentialInput>
 export type SnmpResponse = z.infer<typeof C.SnmpResponse>
 export type SnmpTestReason = z.infer<typeof C.SnmpTestReason>
 export type SnmpTestResult = z.infer<typeof C.SnmpTestResult>
+export type DeviceSource = z.infer<typeof C.DeviceSource>
+export type DevicesQuery = z.infer<typeof C.DevicesQuery>
+export type SnmpRead = z.infer<typeof C.SnmpRead>

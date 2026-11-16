@@ -411,7 +411,7 @@ func checkItem(it sensorlink.ObservationItem, now time.Time) (observe.Observatio
 	if f == observe.MAC && (it.MAC == "" || it.Value != it.MAC) { // a MAC row says the MAC of the device it is about, nothing else
 		return o, codeInvalidItem
 	}
-	if n := len(it.Value); n < 1 || n > capture.MaxValueBytes || !capture.Printable(it.Value) {
+	if n := len(it.Value); n < 1 || n > capture.MaxValueBytes || !capture.Printable(it.Value) || !capture.UsefulValue(f, it.Value) {
 		return o, codeInvalidItem
 	}
 	if math.IsNaN(it.Confidence) || it.Confidence < 0 || it.Confidence > 1 {

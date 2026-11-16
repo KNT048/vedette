@@ -124,6 +124,12 @@ var contractRoutes = map[string][]string{
 		"PATCH /core/updates/os/settings",
 		"PATCH /core/users/{id}",
 		"PATCH /modules/{id}",
+		"GET /scanning", // #850: Settings › Scanning answers with every engine module off (core INV-40)
+		"PUT /scanning/safety",
+		"POST /scanning/safety/ranges", // #842: the inline adds of the safety block
+		"POST /scanning/safety/exclusions",
+		"PATCH /scanning/engines/{id}",
+		"POST /scanning/engines/nmap-discovery/run",
 		"POST /auth/login",
 		"POST /auth/login/resend-code",
 		"POST /auth/logout",
@@ -380,7 +386,9 @@ var contractRoutes = map[string][]string{
 	"sensor-active": {
 		"DELETE /inventory/snmp/{id}",
 		"GET /inventory/snmp",
+		"GET /inventory/snmp/{id}/read",
 		"POST /inventory/snmp",
+		"POST /inventory/snmp/{id}/read",
 		"POST /inventory/snmp/{id}/test",
 		"PUT /inventory/snmp/{id}",
 	},

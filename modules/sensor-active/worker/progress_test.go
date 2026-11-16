@@ -15,14 +15,14 @@ import (
 
 func fastProgress(c *worker.Config) { c.ProgressEvery = 20 * time.Millisecond }
 
-// waitProgress returns the first report of id that ok accepts.
-func (c *fakeCore) waitProgress(t *testing.T, id string, ok func(sensorlink.JobProgress) bool) sensorlink.JobProgress {
+// waitProgress returns the first report of job id1 (the one job of these tests) that ok accepts.
+func (c *fakeCore) waitProgress(t *testing.T, ok func(sensorlink.JobProgress) bool) sensorlink.JobProgress {
 	t.Helper()
 	deadline := time.After(30 * time.Second)
 	for {
 		select {
 		case r := <-c.progress:
-			if r.id == id && ok(r.p) {
+			if r.id == id1 && ok(r.p) {
 				return r.p
 			}
 		case <-deadline:
@@ -36,6 +36,14 @@ func (c *fakeCore) waitProgress(t *testing.T, id string, ok func(sensorlink.JobP
 const gate = `while [ ! -f "$DIR/go" ]; do sleep 0.02; done
 `
 
+// started lets a fake tool that waits for $DIR/started print its first lines: after the test saw the report of the starting phase.
+func started(t *testing.T, dir string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, "started"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func release(t *testing.T, dir string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(dir, "go"), nil, 0o600); err != nil {
@@ -45,7 +53,10 @@ func release(t *testing.T, dir string) {
 
 func TestNmapProgressIsReportedFromItsXML(t *testing.T) {
 	t.Parallel()
-	nm := writeNmap(t, `cat <<'EOF'
+	// The progress lines wait for the test to see the first report (first gate): printed at once they could reach the worker before
+	// its first tick, and that report would carry them instead of the starting phase (CI shard 1, #857).
+	nm := writeNmap(t, `while [ ! -f "$DIR/started" ]; do sleep 0.02; done
+cat <<'EOF'
 <?xml version="1.0"?>
 <nmaprun>
 <taskprogress task="Unknown Task" time="1700000000" percent="50.00" remaining="10"/>
@@ -58,13 +69,71 @@ EOF
 `)
 	r := start(t, nm, fastProgress)
 	r.core.push(job(id1))
-	p := r.core.waitProgress(t, id1, func(sensorlink.JobProgress) bool { return true })
+	if p := r.core.waitProgress(t, func(sensorlink.JobProgress) bool { return true }); p != (sensorlink.JobProgress{Phase: "discovery", Percent: -1}) {
+		t.Fatalf("first report = %+v, want the phase nmap starts with", p)
+	}
+	started(t, nm.dir)
+	p := r.core.waitProgress(t, func(p sensorlink.JobProgress) bool { return p.Percent >= 0 })
 	if want := (sensorlink.JobProgress{Phase: "ports", Percent: 42.5, RemainingS: 60}); p != want {
 		t.Fatalf("progress = %+v, want %+v (an unknown task and a percent over 100 are not reported)", p, want)
 	}
 	release(t, nm.dir)
 	if got := r.core.next(t); got.res.Status != "done" {
 		t.Fatalf("result = %+v", got.res)
+	}
+}
+
+// #830 FAIL 1, fix B: where nmap prints no <taskprogress> (it found no terminal), the worker still names the phase: the one its
+// command line starts with as soon as nmap starts, then the port scan once nmap's XML says discovery found the host.
+func TestNmapPhaseMovesWithoutItsProgressLines(t *testing.T) {
+	t.Parallel()
+	nm := writeNmap(t, `while [ ! -f "$DIR/started" ]; do sleep 0.02; done
+cat <<'EOF'
+<?xml version="1.0"?>
+<nmaprun>
+<hosthint><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="192.168.10.20" addrtype="ipv4"/>
+<hostnames>
+</hostnames>
+</hosthint>
+EOF
+`+gate+`cat <<'EOF'
+<host><status state="up"/><address addr="192.168.10.20" addrtype="ipv4"/></host></nmaprun>
+EOF
+`)
+	r := start(t, nm, fastProgress)
+	r.core.push(job(id1))
+	if p := r.core.waitProgress(t, func(sensorlink.JobProgress) bool { return true }); p != (sensorlink.JobProgress{Phase: "discovery", Percent: -1}) {
+		t.Fatalf("first report = %+v, want discovery", p)
+	}
+	started(t, nm.dir) // only now the host hint: it could otherwise beat the worker's first tick (#857 CI)
+	if p := r.core.waitProgress(t, func(p sensorlink.JobProgress) bool { return p.Phase != "discovery" }); p != (sensorlink.JobProgress{Phase: "ports", Percent: -1}) {
+		t.Fatalf("next report = %+v, want ports (no percent)", p)
+	}
+	release(t, nm.dir)
+	if got := r.core.next(t); got.res.Status != "done" {
+		t.Fatalf("result = %+v", got.res)
+	}
+}
+
+// #830 FAIL 1, fix A: the worker's nmap runs on a terminal of its own (core/exec Binary.TTY), the only way nmap 7.95 prints its
+// --stats-every lines. The fake nmap records whether its stdin is a terminal.
+func TestNmapRunsOnATerminal(t *testing.T) {
+	t.Parallel()
+	if f, err := os.OpenFile("/dev/ptmx", os.O_RDWR, 0); err != nil {
+		t.Skipf("no pseudo-terminal here: %v", err)
+	} else {
+		_ = f.Close()
+	}
+	nm := writeNmap(t, `if [ -t 0 ]; then echo yes > "$DIR/tty"; else echo no > "$DIR/tty"; fi
+`+printXML)
+	r := start(t, nm)
+	r.core.push(job(id1))
+	if got := r.core.next(t); got.res.Status != "done" {
+		t.Fatalf("result = %+v", got.res)
+	}
+	if b, err := os.ReadFile(filepath.Join(nm.dir, "tty")); err != nil || string(b) != "yes\n" {
+		t.Fatalf("nmap's stdin a terminal: %q, %v; want yes", b, err)
 	}
 }
 
@@ -79,7 +148,7 @@ func TestNucleiProgressCountsItsChecks(t *testing.T) {
 EOF
 `+gate, fastProgress)
 	r.core.push(r.job(id1))
-	p := r.core.waitProgress(t, id1, func(p sensorlink.JobProgress) bool { return p.Done == 2 })
+	p := r.core.waitProgress(t, func(p sensorlink.JobProgress) bool { return p.Done == 2 })
 	if want := (sensorlink.JobProgress{Phase: "vulns", Percent: -1, Done: 2, Total: 4}); p != want {
 		t.Fatalf("progress = %+v, want %+v", p, want)
 	}

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
+import { collection } from '@/mocks/db'
 import { eachOption } from '@/test/formMatrix'
 import { assetsStore, auditStore, findingsStore, installStore, modulesStore, sessionStore, usersStore } from '@/mocks/stores'
 import kevProducts from '../../../../content/catalog/kev-products.json'
@@ -1012,6 +1013,25 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect((await call('GET', '/settings')).json!.lan_ranges).toEqual(['192.168.20.0/25'])
   })
 
+  it('review #860 r2 L2: a save over a scope changed elsewhere is refused, says so, and shows the current values', async () => {
+    const user = userEvent.setup()
+    renderApp('/devices/setup')
+    await screen.findByRole('button', { name: 'Remove range 192.168.10.0/24' }, T)
+    inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, exclusions: [...st.active.exclusions, '192.168.10.40'] } })) // another tab
+    await user.click(screen.getByRole('button', { name: 'Remove range 192.168.20.0/24' }))
+    await user.click(screen.getByRole('checkbox', { name: /I confirm these network ranges/ }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(await screen.findByText(/Someone else changed the scan scope/, undefined, T)).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Remove range 192.168.20.0/24' }, T)).toBeInTheDocument() // the form shows the stored ranges again
+    expect(inventorySettingsStore.get().active.exclusions).toContain('192.168.10.40') // nothing was dropped
+    await user.click(screen.getByRole('button', { name: 'Remove range 192.168.20.0/24' }))
+    await user.click(screen.getByRole('checkbox', { name: /I confirm these network ranges/ }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await scopeSaved()
+    expect(inventorySettingsStore.get().lan_ranges).toEqual(['192.168.10.0/24'])
+    expect(inventorySettingsStore.get().active.exclusions).toContain('192.168.10.40')
+  })
+
   it('regression: a range stored without a prefix ("192.168.18.0") shows an error on its row and never blocks add, edit or remove', async () => {
     inventorySettingsStore.update((s) => ({ ...s, lan_ranges: ['192.168.18.0'], scope_confirmed_at: null, scope_confirmed_by: null }))
     const user = userEvent.setup()
@@ -1072,8 +1092,14 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect(put2.status).toBe(200)
     expect(put2.json!.lan_ranges).toEqual(['192.168.18.0/24', '192.168.20.0/24'])
     expect(put2.json!.adjusted).toEqual([{ from: '192.168.18.5/24', to: '192.168.18.0/24' }])
-    const put3 = await call('PUT', '/settings', { ...base, lan_ranges: ['192.168.18.0/24'], scope_confirmed: true })
+    const put3 = await call('PUT', '/settings', { ...base, lan_ranges: ['192.168.18.0/24'], scope_confirmed: true, version: put2.json!.version })
     expect(put3.json!.adjusted).toEqual([]) // already normal: nothing adjusted
+    // review #860 M1: the version the page read is checked when it is sent; an older one is 409 safety_changed
+    const stale = await call('PUT', '/settings', { ...base, lan_ranges: ['192.168.18.0/24'], scope_confirmed: true })
+    expect(stale.status).toBe(409)
+    expect(stale.json!.error.code).toBe('safety_changed')
+    const { version: _v, ...noVersion } = base
+    expect((await call('PUT', '/settings', { ...noVersion, lan_ranges: ['192.168.18.0/24'], scope_confirmed: true })).status).toBe(200) // left out: no check
   })
 
   it('a stored invalid range shows an error on its own row, blocks Save, and does not block removing or adding others', async () => {
@@ -1103,7 +1129,7 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
 
   it('the server rejects public ranges, bad hours, bad speed, bad exclusions and more', async () => {
     asAdmin()
-    const base = (await call('GET', '/settings')).json!
+    const { version: _v, ...base } = (await call('GET', '/settings')).json! // no version: these saves check the rules, not the race
     const put = async (patch: Record<string, unknown>) => (await call('PUT', '/settings', { ...base, scope_confirmed: true, ...patch })).json?.error?.code
     expect(await put({ lan_ranges: ['8.8.8.0/24'] })).toBe('public_range')
     expect(await put({ lan_ranges: ['10.0.0.0/7'] })).toBe('public_range')
@@ -1660,6 +1686,15 @@ describe('inventory: agents (S-INV-4)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Test connection' }))
     expect(await within(dialog).findByText(/Connected to Wazuh 4\.9\.2\. This user can see \d+ agents\./, undefined, T)).toBeInTheDocument()
     expect((await call('GET', '/agents')).json!.wazuh).toBeNull() // testing does not save
+  })
+
+  it('#847: a Wazuh pull that failed shows why on the card (a password not restored with the backup says to enter it again)', async () => {
+    enableModule('agent-intake', true)
+    const lost = 'The saved Wazuh password was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter the password again and press Save. Nothing is pulled until then.'
+    collection<unknown>('intake_wazuh', () => null).set({ url: 'https://wazuh-manager:55000', username: 'vedette', password: 'x', password_last4: 'pass', interval_minutes: 60, status: 'error', last_sync: null, agents: 0, packages: 0, error: lost })
+    renderApp('/devices/setup?tab=agents')
+    expect(await screen.findByText(lost, undefined, T)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
   })
 
   it('Wazuh connect, sync with sample data, and disconnect from the UI; the password is never shown back', async () => {

@@ -160,8 +160,10 @@ func (s *Service) ConfirmTOTP(ctx context.Context, userID, currentSessionID, cod
 	secret, err := s.secrets.Open(ctx, s.db.Reader(), p.SecretID, totpPurpose)
 	if err != nil {
 		s.pendingTries.refund(p.SecretID)
-		guess.refund()                           // not a wrong guess
-		if errors.Is(err, secrets.ErrNotFound) { // the key was dropped, replaced or confirmed while we ran
+		guess.refund() // not a wrong guess
+		// The key was dropped, replaced or confirmed while we ran, or it was sealed under another box key (a backup restored
+		// without its decryption key): either way there is no key to confirm, and "Set up authenticator app" makes a new one.
+		if errors.Is(err, secrets.ErrNotFound) || errors.Is(err, secrets.ErrDecrypt) {
 			return Issued{}, noPending()
 		}
 		return Issued{}, fmt.Errorf("auth: open totp secret: %w", err)

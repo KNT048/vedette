@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/apierr"
@@ -11,7 +12,8 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// SNMPHandlers implement the SNMP credential operations (CONTRACT "Endpoints owned", D-512): list, add, edit, delete, test. The
+// SNMPHandlers implement the SNMP credential operations (CONTRACT "Endpoints owned", D-512): list, add, edit, delete, test, and Read
+// now (#849). The
 // route table requires the admin role; the server answers 404 for all of them while the module is off (SYS-5).
 type SNMPHandlers struct{ s *Service }
 
@@ -146,4 +148,103 @@ func (h *SNMPHandlers) InventoryPostInventorySnmpIDTest(ctx context.Context, req
 		})
 	}
 	return out, nil
+}
+
+// readWire is a Read now in the JSON shape of the API (SnmpRead in contract.ts).
+type readWire struct {
+	ID           string     `json:"id"`
+	CredentialID string     `json:"credential_id"`
+	By           string     `json:"by"`
+	StartedAt    time.Time  `json:"started_at"`
+	FinishedAt   *time.Time `json:"finished_at"`
+	Status       string     `json:"status"`
+	Message      *string    `json:"message"`
+	Total        int        `json:"total"`
+	Done         int        `json:"done"`
+	Answered     int        `json:"answered"`
+	Skipped      int        `json:"skipped"`
+	Results      []readRow  `json:"results"`
+}
+
+type readRow struct {
+	IP       string     `json:"ip"`
+	OK       bool       `json:"ok"`
+	Reason   string     `json:"reason"`
+	Message  string     `json:"message"`
+	DeviceID *string    `json:"device_id"`
+	Answer   *answerRow `json:"answer"`
+}
+
+type answerRow struct {
+	SysDescr    string `json:"sys_descr"`
+	SysObjectID string `json:"sys_object_id"`
+	SysName     string `json:"sys_name"`
+	Vendor      string `json:"vendor"`
+	Product     string `json:"product"`
+	Model       string `json:"model"`
+	OS          string `json:"os"`
+	Kind        string `json:"kind"`
+	Serial      string `json:"serial"`
+	Firmware    string `json:"firmware"`
+}
+
+// readAs converts a read to the generated type T of the same JSON shape.
+func readAs[T any](r SNMPRead) (*T, error) {
+	w := readWire{ID: r.ID, CredentialID: r.CredentialID, By: r.By, StartedAt: r.StartedAt, Status: r.Status, Total: r.Total, Done: r.Done,
+		Answered: r.Answered, Skipped: r.Skipped, Results: []readRow{}}
+	if !r.FinishedAt.IsZero() {
+		w.FinishedAt = &r.FinishedAt
+	}
+	if r.Message != "" {
+		w.Message = &r.Message
+	}
+	for _, x := range r.Results {
+		row := readRow{IP: x.IP, OK: x.OK, Reason: x.Reason, Message: x.Message}
+		if x.DeviceID != "" {
+			row.DeviceID = &x.DeviceID
+		}
+		if a := x.Answer; a != nil {
+			row.Answer = &answerRow{SysDescr: a.SysDescr, SysObjectID: a.SysObjectID, SysName: a.SysName, Vendor: a.Vendor, Product: a.Product,
+				Model: a.Model, OS: a.OS, Kind: a.Kind, Serial: a.Serial, Firmware: a.Firmware}
+		}
+		w.Results = append(w.Results, row)
+	}
+	b, err := json.Marshal(w)
+	if err != nil {
+		return nil, err
+	}
+	var out T
+	if err := json.Unmarshal(b, &out); err != nil {
+		return nil, fmt.Errorf("sensoractive: read shape: %w", err)
+	}
+	return &out, nil
+}
+
+// InventoryPostInventorySnmpIDRead implements POST /inventory/snmp/{id}/read (#849): Read now, 202 with the run.
+func (h *SNMPHandlers) InventoryPostInventorySnmpIDRead(ctx context.Context, params oas.InventoryPostInventorySnmpIDReadParams) (*oas.InventoryPostInventorySnmpIDReadAccepted, error) {
+	who, err := h.actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	r, err := h.s.ReadSNMP(ctx, who, params.ID)
+	if err != nil {
+		return nil, err
+	}
+	return readAs[oas.InventoryPostInventorySnmpIDReadAccepted](r)
+}
+
+// InventoryGetInventorySnmpIDRead implements GET /inventory/snmp/{id}/read (#849): the read that runs, or the last one; null when none.
+func (h *SNMPHandlers) InventoryGetInventorySnmpIDRead(ctx context.Context, params oas.InventoryGetInventorySnmpIDReadParams) (oas.NilInventoryGetInventorySnmpIDReadOK, error) {
+	if _, err := h.actor(ctx); err != nil {
+		return oas.NilInventoryGetInventorySnmpIDReadOK{}, err
+	}
+	r, err := h.s.SNMPReadOf(ctx, params.ID)
+	if err != nil || r == nil {
+		return oas.NilInventoryGetInventorySnmpIDReadOK{Null: true}, err
+	}
+	out, err := readAs[oas.InventoryGetInventorySnmpIDReadOK](*r)
+	if err != nil {
+		return oas.NilInventoryGetInventorySnmpIDReadOK{}, err
+	}
+	return oas.NewNilInventoryGetInventorySnmpIDReadOK(*out), nil
 }

@@ -298,11 +298,13 @@ func (e scanEngine) Run(ctx context.Context, j scan.Job) (nucleiout.Outcome, err
 // scanRunner is the scan module's exposure.Runner (D-229, exposure INV-12, scan INV-12): the surface scan of modules/scan/surface,
 // within D-57 (7) and LEGAL §3. A domain's names (certificate transparency) are resolved and listed and get HTTP checks by name on
 // 80 and 443; an address is port-scanned only when exposure says it is a verified IP target that may be scanned now
-// (ScannableIP). Every probe goes to the scan module's probe log first. It runs only while the scan module is on: off, a scan
-// answers 409 module_off and nothing is probed, and switching it off stops a scan that runs (SYS-5).
+// (ScannableIP). Every probe goes to the scan module's probe log first. The code is the scan module's, the switch is exposure's (J6,
+// #841): it runs while the External exposure module is on, whatever the Vulnerability scans module (LAN nuclei scans, Preview, off
+// in v1's bundles) is. Exposure off, a scan answers 409 module_off and nothing is probed, and switching it off stops a scan that
+// runs (SYS-5).
 func scanRunner(d deps) exposure.Runner {
 	r := &exposureRunner{
-		on:      func() bool { return d.Reg == nil || d.Reg.Enabled("scan") }, // a nil Reg: tests that build by hand
+		on:      func() bool { return d.Reg == nil || d.Reg.Enabled(exposure.ModuleID) }, // a nil Reg: tests that build by hand
 		running: map[*int]context.CancelCauseFunc{},
 		log:     d.Log,
 		// Both services are asked when a scan runs, not here: exposureService builds this runner, and scanService builds exposure's.
@@ -317,7 +319,7 @@ func scanRunner(d deps) exposure.Runner {
 	r.scan = s
 	if d.Reg != nil {
 		d.Reg.OnChange(func(id string, enabled bool) {
-			if id == "scan" && !enabled {
+			if id == exposure.ModuleID && !enabled {
 				r.stopAll()
 			}
 		})
@@ -346,8 +348,8 @@ type surfaceScan interface {
 	IP(ctx context.Context, ip netip.Addr) (surface.Result, error)
 }
 
-// errScanSwitchedOff is the cause of a scan's context when the scan module is switched off while it runs.
-var errScanSwitchedOff = errors.New("vedette: the scan module was switched off")
+// errScanSwitchedOff is the cause of a scan's context when the External exposure module is switched off while it runs.
+var errScanSwitchedOff = errors.New("vedette: the External exposure module was switched off")
 
 type exposureRunner struct {
 	on    func() bool

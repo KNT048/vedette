@@ -1,20 +1,20 @@
-// The placement of the nav entries and their badges (docs/UI.md §2, #842). One table, so kien's answer to UI.md question 1 (Incidents
-// always visible?) is a one-line change here. Features declare their entries (feature.ts); the shell decides where they sit.
+// The placement of the nav entries and their badges (docs/UI.md §2, #842), in one table. Features declare their entries (feature.ts); the shell decides where they sit.
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useMe } from '@/lib/session'
 import { navItems, type NavGroup, type NavItem } from './feature'
 
-/** Always visible, in this order, never in a group. */
-export const PINNED = ['/', '/findings', '/plan'] as const
+/** Always visible, in this order, never in a group. Incidents is here (UI.md §2, decided 2026-11-16): J3 "the alert arrives" is the
+ *  P0 journey, as Wiz and CrowdStrike keep Issues and Detections top-level. */
+export const PINNED = ['/', '/findings', '/plan', '/incidents'] as const
 
 /** The collapsible groups, in order. `monitor` holds no group of its own any more: what it held is pinned or moved below. */
 export type ShellGroup = Exclude<NavGroup, 'monitor'>
 export const GROUPS: ShellGroup[] = ['assets', 'detect', 'assist']
 
-/** Entries whose feature still says `monitor` but that sit in a group (UI.md question 1). */
-const MOVED: Record<string, ShellGroup> = { '/incidents': 'detect', '/lookup': 'assist' }
+/** Entries whose feature still says `monitor` but that sit in a group. */
+const MOVED: Record<string, ShellGroup> = { '/lookup': 'assist' }
 
 export function placeOf(n: NavItem): 'pinned' | ShellGroup {
   if ((PINNED as readonly string[]).includes(n.to)) return 'pinned'

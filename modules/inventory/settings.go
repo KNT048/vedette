@@ -2,18 +2,24 @@ package inventory
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/knt048/vedette/content/devicetypes"
+	"github.com/knt048/vedette/core/apierr"
 )
 
-// ActiveWindow is when and how fast the box may scan actively (INV-7).
+// ActiveWindow is when and how fast the box may scan actively (INV-7). Since #850 it is the one store of the safety settings every
+// LAN engine shares (INV-32): the window and the exclusions bind the vulnerability checks of the scan module too, and CheckRate is
+// their speed.
 type ActiveWindow struct {
 	Enabled    bool     `json:"enabled"`
 	Days       []int    `json:"days"` // 1 = Monday ... 7 = Sunday
@@ -21,6 +27,31 @@ type ActiveWindow struct {
 	To         string   `json:"to"` // earlier than From means the window crosses midnight
 	Rate       int      `json:"rate"`
 	Exclusions []string `json:"exclusions"` // IPv4 or CIDR
+	// CheckRate is the speed of the vulnerability checks (nuclei) on LAN devices, in requests per second (1..MaxCheckRate). 0: the
+	// one-time merge of the scan module's own copy has not run yet (MergeLegacyChecks), read as DefaultCheckRate. Not part of GET/PUT
+	// /inventory/settings (the handlers leave it out): /scanning/safety and /scans/config carry it.
+	CheckRate int `json:"check_rate,omitempty"`
+	// ChecksMergedFrom is the scan module's own copy (scan_setting) last taken in, named by that copy's own updated_at value ("" for
+	// a copy nobody saved): by MergeLegacyChecks at start, or by SaveChecks, whose caller wrote the values it read (the union while
+	// unmerged) and that stamp in the same transaction. nil = never. The copy counts as taken in only while its updated_at is exactly
+	// this value: no two clocks are compared, so a clock that ran ahead never hides a later edit of the copy (scan INV-16, review #857
+	// M1, r2 L1). Not part of GET/PUT /inventory/settings.
+	ChecksMergedFrom *string `json:"checks_merged_from,omitempty"`
+}
+
+// Limits of the vulnerability checks' speed and of the shared exclusions (#850, INV-32).
+const (
+	DefaultCheckRate = 5  // the scan module's default (scan migration 0001)
+	MaxCheckRate     = 20 // scan INV-5
+	MaxExclusions    = 200
+)
+
+// Checks is the check rate, DefaultCheckRate until it was stored.
+func (a ActiveWindow) Checks() int {
+	if a.CheckRate == 0 {
+		return DefaultCheckRate
+	}
+	return a.CheckRate
 }
 
 // Settings is the scan scope of the box (contract.ts InventorySettings).
@@ -31,12 +62,44 @@ type Settings struct {
 	RegularScanKinds []string     `json:"regular_scan_kinds"`
 	ScopeConfirmedAt *string      `json:"scope_confirmed_at"`
 	ScopeConfirmedBy *string      `json:"scope_confirmed_by"`
+	// Version names the stored safety block (INV-32, review #860 M1): every read sets it (SafetyVersion), a writer given one
+	// refuses with 409 safety_changed when the block changed since. In SettingsInput it is the version the page read ("" = none).
+	Version string `json:"version"`
 }
 
 // SettingsInput is PUT /inventory/settings.
 type SettingsInput struct {
 	Settings
 	ScopeConfirmed bool `json:"scope_confirmed"` // the attestation of D-26
+}
+
+// SafetyVersion names the safety block's stored values (INV-32): the ranges and their attestation, the switch of active discovery
+// (review #860 r2 L1: a stale Devices › Scope save would turn it back on), the window, both speeds, the exclusions and the fragile
+// types. The merge stamp is not part of it. Equal values give the same version, so a version names what a person saw, not when.
+func SafetyVersion(st Settings) string {
+	raw, err := json.Marshal([]any{
+		st.LANRanges, st.ScopeConfirmedAt, st.ScopeConfirmedBy, st.Active.Enabled, st.Active.Days, st.Active.From, st.Active.To, st.Active.Rate,
+		st.Active.Checks(), st.Active.Exclusions, st.FragileKinds, st.RegularScanKinds,
+	})
+	if err != nil { // only plain values: cannot happen
+		panic("inventory: encode the safety version: " + err.Error())
+	}
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:8])
+}
+
+// Changed refuses a write built on values that changed since the person read them (409 safety_changed or scope_changed, review
+// #860 H1/M1): nothing was stored. Current is the block as it is now, for the page to show again. It unwraps to its *apierr.Error.
+type Changed struct {
+	API     *apierr.Error
+	Current Settings
+}
+
+func (e *Changed) Error() string { return "inventory: " + e.API.Code }
+func (e *Changed) Unwrap() error { return e.API }
+
+func safetyChanged(cur Settings) *Changed {
+	return &Changed{API: apierr.New(http.StatusConflict, "safety_changed", "These safety settings changed since you opened the page (another admin, another tab, or a range or exclusion added elsewhere). Review the current values and save again."), Current: cur}
 }
 
 type scopeValue struct {
@@ -102,6 +165,7 @@ func loadSettings(ctx context.Context, q querier) (Settings, error) {
 	if st.Active.Days == nil {
 		st.Active.Days = []int{}
 	}
+	st.Version = SafetyVersion(st)
 	return st, nil
 }
 
@@ -161,17 +225,14 @@ func checkSettings(in SettingsInput) (SettingsInput, []Adjustment, error) {
 	if act.Rate < 1 || act.Rate > 1000 {
 		return in, nil, badRequest("bad_rate", "Scan rate is 1 to 1000 packets per second.")
 	}
+	if act.CheckRate != 0 && (act.CheckRate < 1 || act.CheckRate > MaxCheckRate) {
+		return in, nil, badRequest("bad_rate", "The vulnerability check rate is 1 to 20 requests per second.")
+	}
 	var excl []string
 	for _, raw := range act.Exclusions {
-		x := strings.TrimSpace(raw)
-		ok := false
-		if _, isIP := ipv4(x); isIP {
-			ok = true
-		} else if p, err := netip.ParsePrefix(x); err == nil && p.Addr().Is4() && p.Masked() == p {
-			ok = true
-		}
-		if !ok {
-			return in, nil, badRequest("bad_exclusion", `Exclusion "`+clip(x, 30)+`" is not valid. Enter an IP (192.168.10.10) or a valid range (192.168.10.0/28).`)
+		x, aerr := checkExclusion(raw)
+		if aerr != nil {
+			return in, nil, aerr
 		}
 		if !slices.Contains(excl, x) {
 			excl = append(excl, x)
@@ -206,9 +267,23 @@ func checkSettings(in SettingsInput) (SettingsInput, []Adjustment, error) {
 	}
 	out := in
 	out.LANRanges = ranges
-	out.Active = ActiveWindow{Enabled: act.Enabled, Days: days, From: act.From, To: act.To, Rate: act.Rate, Exclusions: excl}
+	out.Active = ActiveWindow{Enabled: act.Enabled, Days: days, From: act.From, To: act.To, Rate: act.Rate, Exclusions: excl, CheckRate: act.CheckRate,
+		ChecksMergedFrom: act.ChecksMergedFrom}
 	out.FragileKinds, out.RegularScanKinds = fragile, regular
 	return out, adjusted, nil
+}
+
+// checkExclusion is one exclusion as PUT /inventory/settings and PUT /scanning/safety accept it: an IPv4 address or an IPv4 range
+// without host bits (strict: 192.168.10.5/28 is refused, not reduced).
+func checkExclusion(raw string) (string, *apierr.Error) {
+	x := strings.TrimSpace(raw)
+	if _, isIP := ipv4(x); isIP {
+		return x, nil
+	}
+	if p, err := netip.ParsePrefix(x); err == nil && p.Addr().Is4() && p.Masked() == p {
+		return x, nil
+	}
+	return "", badRequest("bad_exclusion", `Exclusion "`+clip(x, 30)+`" is not valid. Enter an IP (192.168.10.10) or a valid range (192.168.10.0/28).`)
 }
 
 func dedupe(in []string) []string {
@@ -224,18 +299,48 @@ func dedupe(in []string) []string {
 // SaveSettings stores the scan scope (PRE-5, INV-6, INV-7). scope_confirmed_at stays when the ranges did
 // not change (POST-5). The fragile flag of every device without a manual override follows the new kinds.
 func (s *Service) SaveSettings(ctx context.Context, actor string, in SettingsInput) (SavedSettings, error) {
-	in, adjusted, err := checkSettings(in)
-	if err != nil {
-		return SavedSettings{}, err
+	return s.saveSettings(ctx, actor, in, saveOpts{})
+}
+
+// saveOpts are the rules of PUT /scanning/safety on top of SaveSettings' (INV-32).
+type saveOpts struct {
+	keepEnabled    bool // the switch of active discovery is not part of the input: the stored one, read in the transaction, stays (L8)
+	capExclusions  bool // more than MaxExclusions exclusions only when the list does not grow (L7)
+	requireVersion bool // the input names the version it was built on (PUT /scanning/safety); without it, only when one is given
+}
+
+func (s *Service) saveSettings(ctx context.Context, actor string, in SettingsInput, opt saveOpts) (SavedSettings, error) {
+	if !opt.keepEnabled { // checked before the transaction as before; with keepEnabled it needs the stored switch
+		if _, _, err := checkSettings(in); err != nil {
+			return SavedSettings{}, err
+		}
 	}
 	var saved Settings
-	err = s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+	var adjusted []Adjustment
+	err := s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		prev, err := loadSettings(ctx, tx)
 		if err != nil {
 			return err
 		}
+		// review #860 M1: a page read before another change (an inline add, another admin) would replace it: refused, nothing stored
+		if (opt.requireVersion || in.Version != "") && in.Version != prev.Version {
+			return safetyChanged(prev)
+		}
+		if opt.keepEnabled {
+			in.Active.Enabled = prev.Active.Enabled
+		}
+		if in, adjusted, err = checkSettings(in); err != nil {
+			return err
+		}
+		if opt.capExclusions && len(in.Active.Exclusions) > MaxExclusions && len(in.Active.Exclusions) > len(prev.Active.Exclusions) {
+			return badRequest("too_many_exclusions", "The exclusion list can have at most 200 lines.")
+		}
 		now := s.now()
 		next := in.Settings
+		if next.Active.CheckRate == 0 { // PUT /inventory/settings does not carry it: the stored value stays
+			next.Active.CheckRate = prev.Active.CheckRate
+		}
+		next.Active.ChecksMergedFrom = prev.Active.ChecksMergedFrom
 		next.ScopeConfirmedAt, next.ScopeConfirmedBy = nil, nil
 		if in.ScopeConfirmed {
 			at, by := now, actor
@@ -269,8 +374,8 @@ func (s *Service) SaveSettings(ctx context.Context, actor string, in SettingsInp
 			return err
 		}
 		o.add(EventSettingsChanged, SettingsEvent{Scope: "scan"})
-		saved = next
-		return nil
+		saved, err = loadSettings(ctx, tx) // as stored, with its new version
+		return err
 	})
 	return SavedSettings{Settings: saved, Adjusted: adjusted}, err
 }

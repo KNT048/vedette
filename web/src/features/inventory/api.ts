@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import i18n from 'i18next'
 import { toast } from 'sonner'
-import { api } from '@/lib/api'
+import { api, ApiError } from '@/lib/api'
 import type { AssetKind } from '@/lib/types'
 import type {
   AddDeviceInput, AddDeviceResult, AgentKind, AgentsResponse, CatalogResponse, CreateTokenResult, DeviceDetail, DevicesResponse,
@@ -70,6 +70,14 @@ export function useSaveSettings() {
     onSuccess: async (r) => {
       toast.success(r.adjusted.length ? i18n.t('inventory:network.savedAdjusted', { list: r.adjusted.map((a) => `${a.from} → ${a.to}`).join(', ') }) : i18n.t('inventory:network.saved'))
       await inv()
+    },
+    // review #860 r2 L2: the block changed since the page loaded (another admin, an inline add): read it again, so the form shows
+    // the current values and its version; the toast outlives the form, which is built again on the new values
+    onError: async (e) => {
+      if (e instanceof ApiError && e.code === 'safety_changed') {
+        toast.error(i18n.t('inventory:network.changedElsewhere'))
+        await inv()
+      }
     },
   })
 }

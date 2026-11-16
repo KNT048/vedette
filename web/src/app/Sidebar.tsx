@@ -89,14 +89,14 @@ function Group({ id, entries, nav, current, drawer, onNavigate }: { id: ShellGro
         type="button"
         aria-expanded={open}
         aria-controls={region}
-        aria-label={!open && total ? t('layout.groupWaiting', { group: name, parts }) : undefined}
         // The group holding the current page stays open (closing it would hide where you are), so its header says so and does nothing.
         aria-disabled={current || undefined}
         onClick={() => { if (!current) nav.toggle(id, !open) }}
         className={cn('flex h-8 items-center gap-1.5 rounded-md px-2.5 text-left text-caption text-muted hover:text-ink', current && 'cursor-default hover:text-muted')}
       >
         <span className="min-w-0 flex-1 truncate">{name}{current ? <span className="sr-only">, {t('layout.groupHere')}</span> : null}</span>
-        {!open && total ? <Counter count={total} tone="danger" /> : null}
+        {/* No aria-label: the name is the visible text (WCAG 2.5.3) plus sr-only words after it: "Assets 2 waiting: Devices 2 to review". */}
+        {!open && total ? <>{' '}<Counter count={total} tone="danger" label={t('layout.groupWaiting', { parts })} /></> : null}
         <ChevronDown aria-hidden className={cn('size-3.5 shrink-0 transition-transform duration-150', open ? 'rotate-0' : '-rotate-90')} />
       </button>
       {/* Closed: zero height and inert (out of the tab order and the accessibility tree); opening eases the height over 150 ms. */}

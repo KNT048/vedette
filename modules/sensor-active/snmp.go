@@ -145,11 +145,16 @@ func (s *Service) SNMPCredentials(ctx context.Context) ([]SNMPCredential, error)
 	out := make([]SNMPCredential, len(rows))
 	for i, r := range rows {
 		out[i] = r.SNMPCredential
-		if s.secrets != nil {
-			if out[i].SecretLost, err = s.snmpLost(ctx, s.db.Reader(), r); err != nil {
-				return nil, err
-			}
+		if s.secrets == nil {
+			continue
 		}
+		// Only a secret sealed under another master key is "lost"; any other failure to open one (a row of another key version, a read
+		// error) leaves the list as it was: a Test or a round reports it as before.
+		lost, err := s.snmpLost(ctx, s.db.Reader(), r)
+		if err != nil {
+			s.log.WarnContext(ctx, "sensoractive: checking an snmp credential's secret failed", "credential", r.ID, "error", err)
+		}
+		out[i].SecretLost = lost
 	}
 	return out, nil
 }
@@ -1110,11 +1115,8 @@ func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 	usable := creds[:0:0]
 	var lost []string
 	for _, c := range creds {
-		gone, err := s.snmpLost(ctx, s.db.Reader(), c)
-		if err != nil {
-			return err
-		}
-		if gone {
+		// Another failure to open a secret is not "lost": the credential stays in, and the batch fails on it as before (snmpJob).
+		if gone, _ := s.snmpLost(ctx, s.db.Reader(), c); gone {
 			lost = append(lost, c.Name)
 			continue
 		}

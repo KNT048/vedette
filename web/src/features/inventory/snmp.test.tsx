@@ -171,7 +171,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     const li = await row('Core switches (v3)')
     expect(within(li).getByRole('alert')).toHaveTextContent('The saved community or password was not restored')
     await clickUntil(user, () => within(li).getByRole('button', { name: 'Edit Core switches (v3)' }), () => screen.getByRole('dialog'))
-    const dialog = await screen.findByRole('dialog', T)
+    const dialog = await screen.findByRole('dialog', undefined, T)
     expect(dialog).not.toHaveTextContent('Leave blank to keep the saved one.') // nothing that cannot be opened is kept
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
     expect(within(dialog).getAllByText('Enter the password, 8 characters or more.')).toHaveLength(2)

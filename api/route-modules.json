@@ -144,6 +144,7 @@
   "GET /response/triggers": "response",
   "GET /scans/config": "scan",
   "GET /scans/credentialed": "scan-credentialed",
+  "GET /scans/engines": "scan",
   "GET /scans/events": "scan",
   "GET /scans/probes": "scan",
   "GET /scans/probes.csv": "scan",
@@ -326,5 +327,6 @@
   "PUT /response/catalog/{id}": "response",
   "PUT /response/rules/{id}": "response",
   "PUT /response/settings": "response",
-  "PUT /scans/config": "scan"
+  "PUT /scans/config": "scan",
+  "PUT /scans/engines/{id}": "scan"
 }

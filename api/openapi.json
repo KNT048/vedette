@@ -70921,6 +70921,530 @@
         }
       }
     },
+    "/scans/engines": {
+      "get": {
+        "operationId": "scan_get_scans_engines",
+        "summary": "Every scan engine of the box: on or off, state, measured RAM and CPU cost, last and next run, and the runs going on now (#850)",
+        "tags": [
+          "scan"
+        ],
+        "x-stories": [
+          "S-SCAN-4"
+        ],
+        "x-min-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "enum": [
+                              "passive",
+                              "nmap_discovery",
+                              "nmap_versions",
+                              "snmp",
+                              "osquery",
+                              "wazuh",
+                              "nuclei",
+                              "zap",
+                              "openvas",
+                              "honeypot"
+                            ]
+                          },
+                          "group": {
+                            "type": "string",
+                            "enum": [
+                              "discover",
+                              "identify",
+                              "vulns",
+                              "traps"
+                            ],
+                            "description": "The group of the card on Settings › Scanning (#850)"
+                          },
+                          "module": {
+                            "type": "string",
+                            "description": "The module that owns the engine, e.g. sensor-active, exposure, honeypot"
+                          },
+                          "preview": {
+                            "type": "boolean",
+                            "description": "The engine belongs to a Preview module (#818, D-624)"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "can_toggle": {
+                            "type": "boolean",
+                            "description": "false when the switch cannot change now; toggle_blocked says why"
+                          },
+                          "toggle_blocked": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "module_off",
+                                  "post_v1",
+                                  "needs_setup",
+                                  "not_installed"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "off",
+                              "idle",
+                              "queued",
+                              "running",
+                              "error",
+                              "needs_setup",
+                              "not_installed"
+                            ]
+                          },
+                          "state_detail": {
+                            "description": "One short customer line, e.g. \"Feed not loaded yet\"",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "cost": {
+                            "type": "object",
+                            "properties": {
+                              "ram_mb": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "cpu": {
+                                "type": "string",
+                                "enum": [
+                                  "low",
+                                  "medium",
+                                  "high"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "ram_mb",
+                              "cpu"
+                            ],
+                            "additionalProperties": false,
+                            "description": "Measured on the N100 for one run of the engine, not a guess"
+                          },
+                          "last_run": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "outcome": {
+                                    "type": "string",
+                                    "enum": [
+                                      "ok",
+                                      "failed",
+                                      "stopped"
+                                    ]
+                                  },
+                                  "run_id": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "summary": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "at",
+                                  "outcome",
+                                  "run_id",
+                                  "summary"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "next_run": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "null: runs only on demand, or all the time (passive listening)"
+                          },
+                          "settings_href": {
+                            "type": "string",
+                            "description": "Deep link to the engine's own settings, e.g. /settings/scanning#snmp"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "group",
+                          "module",
+                          "preview",
+                          "enabled",
+                          "can_toggle",
+                          "toggle_blocked",
+                          "state",
+                          "state_detail",
+                          "cost",
+                          "last_run",
+                          "next_run",
+                          "settings_href"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "running": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "run_id": {
+                            "type": "string"
+                          },
+                          "engine": {
+                            "type": "string",
+                            "enum": [
+                              "passive",
+                              "nmap_discovery",
+                              "nmap_versions",
+                              "snmp",
+                              "osquery",
+                              "wazuh",
+                              "nuclei",
+                              "zap",
+                              "openvas",
+                              "honeypot"
+                            ]
+                          },
+                          "started_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "target_count": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "run_id",
+                          "engine",
+                          "started_at",
+                          "target_count"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "The runs going on now; also the source of the \"1 scan running\" indicator of the top bar (#850)"
+                    }
+                  },
+                  "required": [
+                    "items",
+                    "running"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scans/engines/{id}": {
+      "put": {
+        "operationId": "scan_put_scans_engines_id",
+        "summary": "Turn one engine on or off (audited scan.engine_on / scan.engine_off). Turning off an engine that runs stops its run. 409 module_off when its module is off; 422 needs_setup when it cannot run yet (OpenVAS not installed, no SNMP credential)",
+        "tags": [
+          "scan"
+        ],
+        "x-stories": [
+          "S-SCAN-4"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "passive",
+                "nmap_discovery",
+                "nmap_versions",
+                "snmp",
+                "osquery",
+                "wazuh",
+                "nuclei",
+                "zap",
+                "openvas",
+                "honeypot"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "enabled"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "enum": [
+                        "passive",
+                        "nmap_discovery",
+                        "nmap_versions",
+                        "snmp",
+                        "osquery",
+                        "wazuh",
+                        "nuclei",
+                        "zap",
+                        "openvas",
+                        "honeypot"
+                      ]
+                    },
+                    "group": {
+                      "type": "string",
+                      "enum": [
+                        "discover",
+                        "identify",
+                        "vulns",
+                        "traps"
+                      ],
+                      "description": "The group of the card on Settings › Scanning (#850)"
+                    },
+                    "module": {
+                      "type": "string",
+                      "description": "The module that owns the engine, e.g. sensor-active, exposure, honeypot"
+                    },
+                    "preview": {
+                      "type": "boolean",
+                      "description": "The engine belongs to a Preview module (#818, D-624)"
+                    },
+                    "enabled": {
+                      "type": "boolean"
+                    },
+                    "can_toggle": {
+                      "type": "boolean",
+                      "description": "false when the switch cannot change now; toggle_blocked says why"
+                    },
+                    "toggle_blocked": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "module_off",
+                            "post_v1",
+                            "needs_setup",
+                            "not_installed"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "off",
+                        "idle",
+                        "queued",
+                        "running",
+                        "error",
+                        "needs_setup",
+                        "not_installed"
+                      ]
+                    },
+                    "state_detail": {
+                      "description": "One short customer line, e.g. \"Feed not loaded yet\"",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "cost": {
+                      "type": "object",
+                      "properties": {
+                        "ram_mb": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "cpu": {
+                          "type": "string",
+                          "enum": [
+                            "low",
+                            "medium",
+                            "high"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "ram_mb",
+                        "cpu"
+                      ],
+                      "additionalProperties": false,
+                      "description": "Measured on the N100 for one run of the engine, not a guess"
+                    },
+                    "last_run": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "outcome": {
+                              "type": "string",
+                              "enum": [
+                                "ok",
+                                "failed",
+                                "stopped"
+                              ]
+                            },
+                            "run_id": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "summary": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "at",
+                            "outcome",
+                            "run_id",
+                            "summary"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "next_run": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null: runs only on demand, or all the time (passive listening)"
+                    },
+                    "settings_href": {
+                      "type": "string",
+                      "description": "Deep link to the engine's own settings, e.g. /settings/scanning#snmp"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "group",
+                    "module",
+                    "preview",
+                    "enabled",
+                    "can_toggle",
+                    "toggle_blocked",
+                    "state",
+                    "state_detail",
+                    "cost",
+                    "last_run",
+                    "next_run",
+                    "settings_href"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/scans/events": {
       "get": {
         "operationId": "scan_get_scans_events",

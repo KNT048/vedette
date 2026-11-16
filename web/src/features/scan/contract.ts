@@ -77,7 +77,34 @@ export const CredTarget = z.object({
   last_test: z.object({ ok: z.boolean(), ts: iso, message: z.string() }).nullable(),
 })
 
+// #850: one read for Settings › Scanning, every engine of the box with its state, cost and runs (proposal on the issue, for AI-Trưởng).
+export const ENGINE_IDS = ['passive', 'nmap_discovery', 'nmap_versions', 'snmp', 'osquery', 'wazuh', 'nuclei', 'zap', 'openvas', 'honeypot'] as const
+export const EngineId = z.enum(ENGINE_IDS)
+export const Engine = z.object({
+  id: EngineId,
+  group: z.enum(['discover', 'identify', 'vulns', 'traps']).describe('The group of the card on Settings › Scanning (#850)'),
+  module: z.string().describe('The module that owns the engine, e.g. sensor-active, exposure, honeypot'),
+  preview: z.boolean().describe('The engine belongs to a Preview module (#818, D-624)'),
+  enabled: z.boolean(),
+  can_toggle: z.boolean().describe('false when the switch cannot change now; toggle_blocked says why'),
+  toggle_blocked: z.enum(['module_off', 'post_v1', 'needs_setup', 'not_installed']).nullable(),
+  state: z.enum(['off', 'idle', 'queued', 'running', 'error', 'needs_setup', 'not_installed']),
+  state_detail: z.string().nullable().describe('One short customer line, e.g. "Feed not loaded yet"'),
+  cost: z.object({ ram_mb: z.number().int().min(0), cpu: z.enum(['low', 'medium', 'high']) }).describe('Measured on the N100 for one run of the engine, not a guess'),
+  last_run: z.object({ at: iso, outcome: z.enum(['ok', 'failed', 'stopped']), run_id: z.string().nullable(), summary: z.string().nullable() }).nullable(),
+  next_run: iso.nullable().describe('null: runs only on demand, or all the time (passive listening)'),
+  settings_href: z.string().describe('Deep link to the engine\'s own settings, e.g. /settings/scanning#snmp'),
+})
+export const EngineRunning = z.object({ run_id: z.string(), engine: EngineId, started_at: iso, target_count: z.number().int() })
+export const EnginesResponse = z.object({
+  items: z.array(Engine),
+  running: z.array(EngineRunning).describe('The runs going on now; also the source of the "1 scan running" indicator of the top bar (#850)'),
+})
+
 export const endpoints = defineEndpoints([
+  { method: 'get', path: '/scans/engines', summary: 'Every scan engine of the box: on or off, state, measured RAM and CPU cost, last and next run, and the runs going on now (#850)', stories: ['S-SCAN-4'], role: 'viewer', response: EnginesResponse },
+  { method: 'put', path: '/scans/engines/{id}', summary: 'Turn one engine on or off (audited scan.engine_on / scan.engine_off). Turning off an engine that runs stops its run. 409 module_off when its module is off; 422 needs_setup when it cannot run yet (OpenVAS not installed, no SNMP credential)', stories: ['S-SCAN-4'], role: 'admin',
+    params: z.object({ id: EngineId }), body: z.object({ enabled: z.boolean() }), response: Engine },
   { method: 'get', path: '/scans/config', summary: 'Scan settings: time window, rate, exclusions, schedule, scope and commitment', stories: ['S-SCAN-1', 'S-SCAN-4'], role: 'viewer', response: ScanConfigResponse },
   { method: 'put', path: '/scans/config', summary: 'Save scan settings (partial update); dangerous checks are always rejected', stories: ['S-SCAN-2', 'S-SCAN-4'], role: 'admin', body: ScanConfigPatch, response: ScanConfigResponse },
   { method: 'get', path: '/scans/targets', summary: 'Scannable targets and why others are not (unapproved device, out of scope, external IP the box has not seen for 30 days)', stories: ['S-SCAN-1'], role: 'viewer', response: z.object({ items: z.array(ScanTarget) }) },

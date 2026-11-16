@@ -207,7 +207,8 @@ func TestDeviceRefsCarryModelOriginAndApproval(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	hint := observe.AssetHint{IP: netip.MustParseAddr("192.168.20.40")}
-	if err := e.svc.Record(e.ctx(), []observe.Observation{{AssetHint: hint, Field: observe.Model, Value: "EX4200-48T", Source: observe.SNMP, Confidence: 0.9}}); err != nil {
+	if err := e.svc.Record(e.ctx(), []observe.Observation{{AssetHint: hint, Field: observe.Model, Value: "EX4200-48T", Source: observe.SNMP, Confidence: 0.9},
+		{AssetHint: hint, Field: observe.OS, Value: "JUNOS 15.1R7.9", Source: observe.SNMP, Confidence: 0.9}}); err != nil {
 		t.Fatal(err)
 	}
 	found := e.idOf("192.168.20.40")
@@ -220,11 +221,11 @@ func TestDeviceRefsCarryModelOriginAndApproval(t *testing.T) {
 		t.Fatal(err)
 	}
 	f, m := refs[found], refs[manual]
-	if f.Model != "EX4200-48T" || f.Origin != "discovered" || f.ApprovedAt == nil || !f.ApprovedAt.Equal(e.now) {
-		t.Errorf("discovered device = model %q origin %q approved_at %v, want EX4200-48T, discovered, %v", f.Model, f.Origin, f.ApprovedAt, e.now)
+	if f.Model != "EX4200-48T" || f.OS != "JUNOS 15.1R7.9" || f.Origin != "discovered" || f.ApprovedAt == nil || !f.ApprovedAt.Equal(e.now) {
+		t.Errorf("discovered device = model %q os %q origin %q approved_at %v, want EX4200-48T, JUNOS 15.1R7.9, discovered, %v", f.Model, f.OS, f.Origin, f.ApprovedAt, e.now)
 	}
-	if m.Model != "" || m.Origin != "manual" || m.ApprovedAt != nil {
-		t.Errorf("declared device = model %q origin %q approved_at %v, want none, manual, nil", m.Model, m.Origin, m.ApprovedAt)
+	if m.Model != "" || m.OS != "" || m.Origin != "manual" || m.ApprovedAt != nil {
+		t.Errorf("declared device = model %q os %q origin %q approved_at %v, want none, none, manual, nil", m.Model, m.OS, m.Origin, m.ApprovedAt)
 	}
 }
 

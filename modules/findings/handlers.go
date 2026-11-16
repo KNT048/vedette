@@ -174,7 +174,8 @@ func (h *FindingHandlers) Detail(ctx context.Context, rec Record) (Detail, error
 // OS it states, deviceSoftware): the Device panel of the finding names it (N53-1, D-619), not the device's first software by name, which
 // showed "Microsoft Edge" for a Windows CVE. A "Multiple Products" entry is keyed to every row of its vendor, so there it is the row the
 // matcher matches through NVD's list (review r1 #2 of #807: MatchAsset on that entry alone, v the stored entry). "" when no row is keyed
-// to the entry, or for Multiple Products when the entry is not read or the matcher matches none (the panel then keeps inventory's display).
+// to the entry, or for Multiple Products when the entry is not read or the matcher matches none (the panel then keeps AssetView.Display:
+// the device's OS, else its kind, never an arbitrary software row, #905).
 func matchedOn(a Asset, k KevInfo, v *Vuln) string {
 	if s, ok := matchedRow(a, k, v); ok {
 		return clean(s.Display)

@@ -254,7 +254,6 @@ func TestContract_D598_AnAgentIsNotBoundToAnotherMachinesRow(t *testing.T) {
 func TestContract_D598_AnAgentsRowJoinsItsMachine(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(burnt1, "192.168.18.20", "")...)
-	id := e.idOf("192.168.18.20")
 	e.tick(time.Hour)
 	e.record(osq("192.168.18.40")...)
 	if e.devices() != 2 {
@@ -273,7 +272,7 @@ func TestContract_D598_AnAgentsRowJoinsItsMachine(t *testing.T) {
 	if e.count(`SELECT count(*) FROM inv_asset WHERE agent_key = 'osquery:node-a'`) != 1 {
 		t.Errorf("the node's binding did not survive the join")
 	}
-	id = d.ID
+	id := d.ID
 	e.tick(time.Minute)
 	e.record(osq("192.168.18.40")...)
 	if d := e.only(); d.ID != id {

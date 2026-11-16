@@ -279,8 +279,19 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 	}
 	tctx, cancel := context.WithTimeout(ctx, bound)
 	defer cancel()
+	steps := stepsOf(ctx) // INV-30: each address the templates run on is a call of the nuclei step
+	steps.begin(StepNuclei, st.Mode.Full)
 	res, err := s.cfg.Templates.ScanTemplates(tctx, st, ip, jobs)
 	var un *Unavailable
+	switch {
+	case err == nil:
+		steps.end(StepNuclei, callRan, matched(res.Results), s.clock())
+	case ctx.Err() != nil: // a stop of the run leaves the call open: the step reads as stopped
+	case errors.As(err, &un): // nuclei did not run (the module off, the scan container down, the terms withdrawn): not a run
+		steps.end(StepNuclei, callSkipped, 0, s.clock())
+	default:
+		steps.end(StepNuclei, callFailed, 0, s.clock())
+	}
 	switch {
 	case err == nil:
 		rows, notKept := sanitizeTemplateResults(res.Results, jobs)
@@ -668,4 +679,15 @@ func sentIDs(in []string) []string {
 		}
 	}
 	return out
+}
+
+// matched is how many of the results confirmed something (the count on the nuclei card's last run, INV-30).
+func matched(rs []TemplateResult) int {
+	n := 0
+	for _, r := range rs {
+		if r.Outcome == OutcomeMatched {
+			n++
+		}
+	}
+	return n
 }

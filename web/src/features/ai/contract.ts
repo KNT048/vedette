@@ -14,6 +14,7 @@ export const Location = z.enum(['internal', 'cloud']).describe('internal = runs 
 export const AiProfile = z.object({
   id: z.string(), name: z.string(), kind: ProfileKind, api_style: ApiStyle, base_url: z.string(), model: z.string(),
   key_last4: z.string().nullable().describe('Last 4 characters of the key; the full key is never returned (SYS-4). null = no key yet (valid for internal profiles)'),
+  key_lost: z.boolean().describe('A key is saved but this box cannot open it (a backup restored without its decryption key, or the box key changed, #847). The profile is not usable and is never called; Test and Edit without a new key answer 409 secret_lost. Enter the key again in Edit, or delete the profile'),
   location: Location, monthly_budget: z.number().int().describe('Monthly token budget of this profile alone (D-531); when used up, its jobs switch to the fallback profile or stop with 429 budget_reached'),
   usable: z.boolean(), used_month: z.number().int().describe('Tokens this profile used this calendar month (box time zone)'),
   last_test: z.object({ at: iso, ok: z.boolean(), detail: z.string().describe("On failure the box's own sentence, which may name the server's host but never the key or the provider's raw text; empty on success") }).nullable()

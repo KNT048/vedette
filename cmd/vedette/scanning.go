@@ -424,6 +424,22 @@ func (e scanningEngines) active(ctx context.Context, id string) (core.EngineStat
 			at, _ := parseTS(h.StartedAt)
 			s.Running = append(s.Running, core.RunningJob{Engine: id, ID: h.ID, Label: "SNMP reads", StartedAt: at})
 		}
+		// A credential whose saved secret this box cannot open is skipped by every read until it is typed again (#868).
+		var lost []string
+		for _, c := range creds {
+			if c.SecretLost {
+				lost = append(lost, strconv.Quote(c.Name))
+			}
+		}
+		if len(lost) > 0 {
+			s.Reason = "The saved community or password of SNMP credential " + strings.Join(lost, ", ") + " was not restored (the backup was restored without its decryption key, or the box key changed), so it is skipped. Open Devices › Scope and sensors › SNMP, Edit it, enter it again and save."
+			if len(lost) > 1 {
+				s.Reason = "The saved communities or passwords of SNMP credentials " + strings.Join(lost, ", ") + " were not restored (the backup was restored without its decryption key, or the box key changed), so they are skipped. Open Devices › Scope and sensors › SNMP, Edit each, enter it again and save."
+			}
+			if len(lost) == len(creds) && s.State == core.EngineReady {
+				s.State = core.EngineError
+			}
+		}
 	}
 	return s, nil
 }
@@ -554,8 +570,44 @@ func (e scanningEngines) wazuh(ctx context.Context) (core.EngineStatus, error) {
 	return s, nil
 }
 
+// externalRun is the newest external scan in which engine's step ran (exposure INV-30, #861) as a card's last run; nil when none did.
+// Those scans run on Scan now only (exposure has no schedule), so the cards of zap and openvas have no next run.
+func (e scanningEngines) externalRun(ctx context.Context, engine string) (*core.LastRun, error) {
+	if e.d.DB == nil {
+		return nil, nil //nolint:nilnil // no database: no run
+	}
+	runs, err := exposureService(e.d).EngineRuns(ctx)
+	if err != nil {
+		return nil, err
+	}
+	r, ok := runs[engine]
+	if !ok {
+		return nil, nil //nolint:nilnil // the step never ran
+	}
+	at, ok := parseTS(r.At)
+	if !ok {
+		return nil, nil //nolint:nilnil // never stored: the column holds the box's timestamps only
+	}
+	return &core.LastRun{At: at, Outcome: r.Outcome, Text: r.Text}, nil
+}
+
+// later is the newer of two last runs.
+func later(a, b *core.LastRun) *core.LastRun {
+	if a == nil || (b != nil && b.At.After(a.At)) {
+		return b
+	}
+	return a
+}
+
+// nuclei is the card of the vulnerability checks: the scan module's LAN runs and the template step of the external scans (which run
+// nuclei too), whichever ran last.
 func (e scanningEngines) nuclei(ctx context.Context) (core.EngineStatus, error) {
 	s := core.EngineStatus{Enabled: e.on("scan"), State: core.EngineOff}
+	ext, err := e.externalRun(ctx, exposure.StepNuclei)
+	if err != nil {
+		return s, err
+	}
+	s.Last = ext
 	if e.d.DB == nil || e.d.Audit == nil || e.d.Log == nil {
 		return s, nil
 	}
@@ -576,7 +628,7 @@ func (e scanningEngines) nuclei(ctx context.Context) (core.EngineStatus, error) 
 			if outcome == "" {
 				outcome = "partial"
 			}
-			s.Last = &core.LastRun{At: at, Outcome: outcome, Text: fmt.Sprintf("Checked %d of %d devices, %d confirmed", l.Done, l.Total, l.Matched)}
+			s.Last = later(ext, &core.LastRun{At: at, Outcome: outcome, Text: fmt.Sprintf("Checked %d of %d devices, %d confirmed", l.Done, l.Total, l.Matched)})
 		}
 	}
 	if !s.Enabled {
@@ -628,8 +680,13 @@ func (e scanningEngines) external() (core.RunningJob, string, bool) {
 // zap is the card of the passive web checks, a step of every external scan of a web port. It also lists the external scan running
 // now in running[], whatever its step (one entry; the engine named is the step's), since that scan belongs to the External exposure
 // module that both zap and openvas follow.
-func (e scanningEngines) zap(context.Context) (core.EngineStatus, error) {
+func (e scanningEngines) zap(ctx context.Context) (core.EngineStatus, error) {
 	s := core.EngineStatus{Enabled: e.on(exposure.ModuleID), State: core.EngineOff}
+	last, err := e.externalRun(ctx, exposure.StepZAP)
+	if err != nil {
+		return s, err
+	}
+	s.Last = last
 	if !s.Enabled {
 		return s, nil
 	}
@@ -655,6 +712,9 @@ func (e scanningEngines) openvas(ctx context.Context) (core.EngineStatus, error)
 	}
 	v, err := exposureService(e.d).GreenboneSetting(ctx)
 	if err != nil {
+		return s, err
+	}
+	if s.Last, err = e.externalRun(ctx, exposure.StepOpenVAS); err != nil {
 		return s, err
 	}
 	s.Enabled = e.on(exposure.ModuleID) && v.Enabled

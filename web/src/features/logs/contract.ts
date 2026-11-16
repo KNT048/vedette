@@ -103,6 +103,7 @@ export const SiemConfig = z.object({
   proto: Proto,
   url: z.string(),
   secret_last4: z.string().nullable().describe('The signing key is never returned, only its last 4 characters (SYS-4)'),
+  secret_lost: z.boolean().describe('A signing key is saved but this box cannot open it (a backup restored without its decryption key, or the box key changed, #847). Only the JSON webhook signs with it: while the format is json, Test and Save without a new key answer 409 secret_lost and nothing is forwarded until the key is entered again'),
   events: z.array(SiemEvent),
   last_test: z.object({ at: iso, ok: z.boolean(), detail: z.string() }).nullable(),
 })

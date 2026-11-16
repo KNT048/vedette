@@ -35,7 +35,7 @@ func (h *SNMPHandlers) actor(ctx context.Context) (string, error) {
 func credentialItem(c SNMPCredential) oas.InventoryGetInventorySnmpOKCredentialsItem {
 	out := oas.InventoryGetInventorySnmpOKCredentialsItem{
 		ID: c.ID, Name: c.Name, Version: oas.InventoryGetInventorySnmpOKCredentialsItemVersion(c.Version), SecretLast4: c.SecretLast4, PrivLast4: c.PrivLast4,
-		Scope: c.Scope, CreatedAt: c.CreatedAt, Answered: c.Answered, Username: oas.NilString{Null: true}, LastAnswerAt: oas.NilDateTime{Null: true},
+		Scope: c.Scope, CreatedAt: c.CreatedAt, Answered: c.Answered, SecretLost: c.SecretLost, Username: oas.NilString{Null: true}, LastAnswerAt: oas.NilDateTime{Null: true},
 		Auth: oas.NilInventoryGetInventorySnmpOKCredentialsItemAuth{Null: true}, Priv: oas.NilInventoryGetInventorySnmpOKCredentialsItemPriv{Null: true},
 	}
 	if c.Version == "v3" {

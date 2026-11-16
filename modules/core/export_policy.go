@@ -70,6 +70,7 @@ var exportPolicy = map[string]tablePolicy{
 	"core_user":              {export: "id name email role cred_version twofa_method disabled created_at last_login sso_issuer sso_subject", skip: "password_hash temp_password_expires_at"},
 	"core_user_totp":         {skipAll: true, skip: "user_id secret_id confirmed last_step created_at"},
 	"exp_attempt":            {export: "id ts"},
+	"exp_engine_run":         {export: "engine run_id target at outcome text"},
 	"exp_ignored":            {export: "value ignored_by ignored_at"},
 	"exp_outside":            {export: "target_id ip checked_at checked_by found", json: "answer"},
 	"exp_setting":            {export: "id auto interval_min last_run_at last_run_ok last_run_message last_deep_at last_full_ok_at greenbone greenbone_by greenbone_at greenbone_sync_at greenbone_sync_ok greenbone_sync_note"},

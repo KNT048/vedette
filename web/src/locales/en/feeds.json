@@ -20,7 +20,8 @@
     "titleFirstRun": "Today: add your devices so Vedette can check them",
     "titleOpen_one": "Today: {{count}} of your devices runs software being exploited",
     "titleOpen_other": "Today: {{count}} of your devices run software being exploited",
-    "titleClear": "Today: nothing you run is being exploited"
+    "titleClear": "Today: nothing you run is being exploited",
+    "kevNoData": "No exploited list has been fetched yet, so Vedette cannot say whether anything you run is exploited."
   },
   "search": {
     "placeholder": "CVE, product, IP or domain",
@@ -461,7 +462,17 @@
       "done_one": "{{count}} device found.",
       "done_other": "{{count}} devices found.",
       "range": "Set the network range",
-      "add": "Add a device"
+      "addRange": "Add a range",
+      "add": "Add a device",
+      "rangeSet": "Range set: {{ranges}}. Next scan {{when}}, or scan it now.",
+      "rangeSetNoNext": "Range set: {{ranges}}.",
+      "sweeping": "Scanning {{ranges}} now. Devices appear here as they are found.",
+      "discoveryOff": "Range set: {{ranges}}. Network discovery is off, so nothing scans it yet.",
+      "scopeWhere": "In Devices, Scope and sensors:",
+      "turnOn": "Turn on network discovery",
+      "confirm": "Confirm the scope",
+      "scanNow": "Scan the LAN now",
+      "scanStarted": "Scan started. Devices appear on Home and under Devices as they are found."
     },
     "alerts": {
       "title": "Get alerts",
@@ -491,6 +502,6 @@
     "confirmedAt": "Confirmed by {{who}} on {{when}}.",
     "notConfirmed": "Not confirmed yet.",
     "submit": "Add range",
-    "added": "{{range}} added. Vedette is looking for devices in it."
+    "added": "{{range}} added. Scan it now from Get started, or Vedette scans it in its next window."
   }
 }

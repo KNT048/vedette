@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
+import type { z } from 'zod'
 import { api } from '@/lib/api'
 import type { HomeSummary } from '@/features/findings/types'
+import type { Scanning } from '@/features/scanning/contract'
 
 export const KEY = ['findings', 'summary'] as const
 
@@ -16,3 +18,11 @@ export function useHome(enabled: boolean) {
 
 /** A box with no device but itself and nothing open: Home shows the first-run path instead of tiles of zeros. */
 export const isFirstRun = (s: HomeSummary) => s.devices.total <= 1 && s.open.total === 0
+
+export const SCANNING_KEY = ['scanning'] as const
+
+/** `GET /scanning` (#850): the scope ranges, the discovery engine's next window and the runs going on. The first-run step reads it to
+ *  say whether a range is set and when it is scanned; the range dialog reads the same key, so one request serves both. */
+export function useScanning(enabled: boolean) {
+  return useQuery({ queryKey: SCANNING_KEY, queryFn: () => api.get<z.infer<typeof Scanning>>('/scanning'), enabled, retry: false })
+}

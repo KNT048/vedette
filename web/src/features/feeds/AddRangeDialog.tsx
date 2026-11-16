@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { Field, Input, Label } from '@/components/ui/input'
 import { Loading, ErrorState } from '@/components/common/States'
 import { api, ApiError } from '@/lib/api'
 import { fmtStamp } from './dates'
+import { SCANNING_KEY, useScanning } from './homeSummary'
 import type { z } from 'zod'
 import type { Safety, SafetySaved } from '@/features/scanning/contract'
 
@@ -19,12 +20,13 @@ type Saved = z.infer<typeof SafetySaved>
  * Home's first-run "Set the network range", done where the customer is (docs/UI.md §0.1, #825, #860): one range and the scope
  * commitment (the same words as Devices › Scope), sent with `POST /scanning/safety/ranges`. The dialog shows the ranges already in
  * the scope and whether they are confirmed, and sends both back: the tick confirms exactly those and the new one. Read only when
- * opened, so Home pays nothing for it. The whole scope stays editable under Devices › Scope and sensors.
+ * opened (or by the step, for an administrator), under the step's key. The toast says when the range is scanned: the step then offers
+ * "Scan the LAN now". The whole scope stays editable under Devices › Scope and sensors.
  */
 export function AddRangeDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { t } = useTranslation('feeds')
   const qc = useQueryClient()
-  const read = useQuery({ queryKey: ['scanning'], queryFn: () => api.get<{ safety: { scope: Scope } }>('/scanning'), enabled: open, retry: false })
+  const read = useScanning(open)
   // After a 409 scope_changed the box sends the current block: the dialog shows it and asks for the tick again.
   const [fresh, setFresh] = useState<Scope | null>(null)
   const scope = fresh ?? read.data?.safety.scope
@@ -36,7 +38,8 @@ export function AddRangeDialog({ open, onOpenChange }: { open: boolean; onOpenCh
     onSuccess: (saved) => {
       const added = saved.adjusted.find((a) => a.from === range.trim())?.to ?? range.trim()
       toast.success(t('range.added', { range: added }))
-      void qc.invalidateQueries({ queryKey: ['scanning'] })
+      // The step on Home reads the same key: it then says the range is set and offers "Scan the LAN now".
+      void qc.invalidateQueries({ queryKey: SCANNING_KEY })
       void qc.invalidateQueries({ queryKey: ['inventory'] })
       void qc.invalidateQueries({ queryKey: ['findings', 'summary'] })
       onOpenChange(false)

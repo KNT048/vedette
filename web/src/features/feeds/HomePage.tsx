@@ -50,7 +50,10 @@ function useKevNotice() {
   const link = <Link to="/settings/feeds" className="text-accent underline-offset-4 hover:underline">{t('home.kevSeeFeeds')}</Link>
   const notice = kev?.state === 'off' ? <>{t('home.kevOff')} {link}</>
     : kev?.state === 'never_loaded' && !(never && !kev.error) ? <>{t('home.kevNever', { reason: kev.error ?? t('home.kevNoAttempt') })} {link}</> : null
-  return { never, notice }
+  // What Home's dashboard says instead of "nothing exploited" (D-92): the notice, or, on a box that has never fetched (no notice, the
+  // headline says "no data yet"), that nothing was fetched yet.
+  const noClaim = notice ?? (never ? <>{t('home.kevNoData')} {link}</> : null)
+  return { never, notice, noClaim }
 }
 
 function HotBoard({ noDevices }: { noDevices: boolean }) {
@@ -96,7 +99,7 @@ function HotBoard({ noDevices }: { noDevices: boolean }) {
               <div className="grid gap-1.5">
                 <div className="flex items-start justify-between gap-3">
                   <span className="font-medium">{r.display}</span>
-                  <YouHaveCell value={r.you_have} />
+                  <YouHaveCell value={r.you_have} noDevices={noDevices} />
                 </div>
                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-[13px]">
                   {r.cves.map((c) => <Link key={c.cve} to={`/cve/${c.cve}`} className="text-accent">{c.cve}</Link>)}
@@ -168,7 +171,7 @@ export default function HomePage() {
   const rows = hot.data?.rows ?? []
   const cves = rows.reduce((n, r) => n + r.cves.length, 0)
   const matched = rows.filter((r) => r.you_have === 'yes').length
-  const { never, notice: kevTitle } = useKevNotice()
+  const { never, notice: kevTitle, noClaim } = useKevNotice()
   const s = summary.data
   // #825: with findings on, the headline answers "is anything I run being exploited?" from the summary; the week's new CVEs are the board below.
   const answer = s ? (isFirstRun(s) ? t('home.titleFirstRun') : s.open.total ? t('home.titleOpen', { count: s.open.devices }) : t('home.titleClear')) : null
@@ -183,7 +186,7 @@ export default function HomePage() {
         actions={<SearchBox />}
       />
       <AiBudgetPrompt />
-      <HomeDashboard kevNotice={kevTitle} prompts={<><AlertChannelPrompt /><TwoStepPrompt /></>} />
+      <HomeDashboard kevNotice={noClaim} prompts={<><AlertChannelPrompt /><TwoStepPrompt /></>} />
       <HotBoard noDevices={s ? s.devices.total <= 1 : false} />
       <Weekly />
     </>

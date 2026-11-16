@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
@@ -104,14 +104,20 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     await expectNoA11yViolations()
   })
 
-  it('first run: the network range is added right on Home with the scope commitment (#825, #860, docs/UI.md §0.1)', async () => {
+  it('first run: the network range is added right on Home with the scope commitment, then scanned now in place (#825, #860, docs/UI.md §0.1)', async () => {
     findingsStore.set([])
     assetsStore.set([])
     const sent: unknown[] = []
-    server.events.on('request:start', async ({ request }) => { if (request.method === 'POST' && request.url.endsWith('/scanning/safety/ranges')) sent.push(await request.clone().json()) })
+    const runs: string[] = []
+    server.events.on('request:start', async ({ request }) => {
+      if (request.method === 'POST' && request.url.endsWith('/scanning/safety/ranges')) sent.push(await request.clone().json())
+      if (request.method === 'POST' && request.url.endsWith('/scanning/engines/nmap-discovery/run')) runs.push(await request.clone().text())
+    })
     renderApp('/')
     const card = await screen.findByRole('region', { name: 'Get started' })
-    await userEvent.click(within(card).getByRole('button', { name: 'Set the network range' }))
+    // The sample box already has ranges in its scope: the step says so and when they are scanned, instead of asking for a range again.
+    const step = (await within(card).findByText(/^Range set: 192\.168\.10\.0\/24, 192\.168\.20\.0\/24\. Next scan .+, or scan it now\.$/)).closest('li')!
+    await userEvent.click(within(step).getByRole('button', { name: 'Add a range' }))
     const dlg = await screen.findByRole('dialog', { name: 'Set the network range' })
     const input = await within(dlg).findByLabelText('Network range')
     await userEvent.click(within(dlg).getByRole('button', { name: 'Add range' }))
@@ -123,9 +129,17 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     await userEvent.click(within(dlg).getByRole('checkbox', { name: 'I confirm these network ranges belong to my company and I am allowed to scan them.' }))
     await expectNoA11yViolations()
     await userEvent.click(within(dlg).getByRole('button', { name: 'Add range' }))
-    expect(await screen.findByText('192.168.77.0/24 added. Vedette is looking for devices in it.')).toBeInTheDocument()
+    expect(await screen.findByText('192.168.77.0/24 added. Scan it now from Get started, or Vedette scans it in its next window.')).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Set the network range' })).toBeNull())
     expect(sent).toEqual([expect.objectContaining({ range: '192.168.77.9/24', confirm: true, shown_ranges: expect.any(Array) })])
+    // The toast's promise holds: the step names the new range and "Scan the LAN now" starts the sweep (#850), whatever the window.
+    expect(await within(card).findByText(/^Range set: .*192\.168\.77\.0\/24\. Next scan/)).toBeInTheDocument()
+    expect(runs).toHaveLength(0)
+    await userEvent.click(within(card).getByRole('button', { name: 'Scan the LAN now' }))
+    expect(await screen.findByText('Scan started. Devices appear on Home and under Devices as they are found.')).toBeInTheDocument()
+    expect(runs).toEqual(['{}'])
+    expect(await within(card).findByText(/^Scanning .*192\.168\.77\.0\/24 now\. Devices appear here as they are found\.$/)).toBeInTheDocument()
+    expect(within(card).queryByRole('button', { name: 'Scan the LAN now' })).toBeNull()
     server.events.removeAllListeners()
   })
 
@@ -134,7 +148,7 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     assetsStore.set([])
     renderApp('/')
     const card = await screen.findByRole('region', { name: 'Get started' })
-    await userEvent.click(within(card).getByRole('button', { name: 'Set the network range' }))
+    await userEvent.click(await within(card).findByRole('button', { name: 'Add a range' }))
     const dlg = await screen.findByRole('dialog', { name: 'Set the network range' })
     await userEvent.type(await within(dlg).findByLabelText('Network range'), '8.8.8.0/24')
     await userEvent.click(within(dlg).getByRole('checkbox'))
@@ -149,19 +163,66 @@ describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
     renderApp('/', { role: 'viewer' })
     const card = await screen.findByRole('region', { name: 'Get started' })
     expect(within(card).getByRole('button', { name: 'Add a device' })).toBeDisabled()
+    // The reason is on the page, not only in a tooltip touch and keyboard cannot reach.
+    expect(within(card).getByText('Requires Operator role')).toBeInTheDocument()
     expect(within(card).queryByRole('button', { name: 'Set the network range' })).toBeNull()
+    expect(within(card).queryByRole('button', { name: 'Scan the LAN now' })).toBeNull()
   })
 
-  it('Hide keeps the first-run card away (#825)', async () => {
+  it('first run: a box with no range keeps "Set the network range" (#825)', async () => {
     findingsStore.set([])
+    assetsStore.set([])
+    server.use(http.get('*/api/v1/scanning', () => HttpResponse.json({ error: { code: 'x', message: 'Not available.' } }, { status: 503 })))
+    renderApp('/')
+    const card = await screen.findByRole('region', { name: 'Get started' })
+    expect(within(card).getByText('Give Vedette your network range to scan, or add a device by hand.')).toBeInTheDocument()
+    expect(within(card).getByRole('button', { name: 'Set the network range' })).toBeInTheDocument()
+  })
+
+  it('first run on a phone: "In your network?" says "No devices yet", never a guessed No (#825)', async () => {
+    findingsStore.set([])
+    assetsStore.set([])
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('max-width'), media: q, addEventListener: () => {}, removeEventListener: () => {} }))
+    try {
+      renderApp('/')
+      await screen.findByRole('region', { name: 'Get started' })
+      const hot = await screen.findByRole('list', { name: 'Newly exploited' })
+      expect((await within(hot).findAllByText('No devices yet')).length).toBeGreaterThan(0)
+      expect(within(hot).queryByText('No', { exact: true })).toBeNull()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('D-92: on a box that never fetched a feed, Home at a glance claims nothing: no green 0, no "nothing exploited" (#825)', async () => {
+    findingsStore.set([])
+    server.use(http.get('*/api/v1/feeds/status', () => HttpResponse.json({ generated_at: '1970-01-01T00:00:00Z', kev_catalog_version: '', sources: [], inventory_on: true })))
+    renderApp('/')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today: no data yet' })).toBeInTheDocument()
+    const glance = await screen.findByRole('list', { name: 'Today at a glance' })
+    expect(await screen.findByText(/No exploited list has been fetched yet, so Vedette cannot say whether anything you run is exploited\./)).toBeInTheDocument()
+    expect(screen.queryByText('Nothing you run is being exploited')).toBeNull()
+    expect(glance.querySelector('.text-ok, .bg-ok')).toBeNull()
+  })
+
+  it('first run has no Hide (the card is the only way forward); after it, Hide keeps the card away (#825, docs/UI.md §0)', async () => {
+    findingsStore.set([])
+    const devices = assetsStore.get()
     assetsStore.set([])
     renderApp('/')
     const card = await screen.findByRole('region', { name: 'Get started' })
-    await userEvent.click(within(card).getByRole('button', { name: 'Hide' }))
+    expect(await within(card).findByText('Get alerts')).toBeInTheDocument()
+    expect(within(card).queryByRole('button', { name: 'Hide' })).toBeNull()
+    cleanup()
+    // Devices found: the card stays for the person who saw it with steps to do, until Hide.
+    assetsStore.set(devices)
+    renderApp('/')
+    const after = await screen.findByRole('region', { name: 'Get started' })
+    await userEvent.click(within(after).getByRole('button', { name: 'Hide' }))
     await waitFor(() => expect(screen.queryByRole('region', { name: 'Get started' })).toBeNull())
     cleanup()
     renderApp('/')
-    await screen.findByRole('heading', { level: 1, name: /^Today: add your devices/ })
+    await screen.findByRole('list', { name: 'Today at a glance' })
     expect(screen.queryByRole('region', { name: 'Get started' })).toBeNull()
   })
 

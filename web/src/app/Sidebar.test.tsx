@@ -12,6 +12,8 @@ import { modulesStore } from '@/mocks/stores'
 
 const mainNav = () => screen.findByRole('navigation', { name: 'Main navigation' })
 const off = (...ids: string[]) => modulesStore.update((l) => l.map((m) => (ids.includes(m.id) ? { ...m, enabled: false } : m)))
+// A nav link's name, its count badge allowed after it ("Incidents 2 high or critical open"): the mock box answers GET /findings/summary.
+const named = (label: string) => new RegExp(`^${label}( \\d+ .+)?$`)
 const region = (button: HTMLElement) => document.getElementById(button.getAttribute('aria-controls')!)!
 
 beforeEach(() => localStorage.clear())
@@ -20,8 +22,8 @@ describe('sidebar groups (docs/UI.md §2)', () => {
   it('Home, Findings, Updates to plan and Incidents are always there; other groups start closed and inert, the current page opens its own', async () => {
     renderApp('/devices')
     const nav = within(await mainNav())
-    for (const name of ['Home', 'Findings', 'Updates to plan', 'Incidents']) expect(await nav.findByRole('link', { name })).toBeInTheDocument()
-    expect(nav.getByRole('link', { name: 'Incidents' }).closest('[role=group]')).toBeNull() // pinned, in no group
+    for (const name of ['Home', 'Findings', 'Updates to plan', 'Incidents']) expect(await nav.findByRole('link', { name: named(name) })).toBeInTheDocument()
+    expect(nav.getByRole('link', { name: named('Incidents') }).closest('[role=group]')).toBeNull() // pinned, in no group
     const assets = await nav.findByRole('button', { name: 'Assets, holds this page' })
     expect(assets).toHaveAttribute('aria-expanded', 'true') // holds /devices: open, and its header does nothing
     expect(assets).toHaveAttribute('aria-disabled', 'true')
@@ -51,7 +53,7 @@ describe('sidebar groups (docs/UI.md §2)', () => {
     const nav = within(await mainNav())
     // While the module list loads every entry shows; wait for the box's own list.
     await waitFor(() => expect(nav.queryByRole('button', { name: /Intrusion detection/ })).toBeNull())
-    expect(nav.getByRole('link', { name: 'Incidents' })).toBeInTheDocument()
+    expect(nav.getByRole('link', { name: named('Incidents') })).toBeInTheDocument()
     expect(nav.getByRole('link', { name: 'Lookup' })).toBeInTheDocument()
     expect(nav.queryByRole('button', { name: /Assistant and reports/ })).toBeNull()
     expect(nav.getByRole('button', { name: 'Assets' })).toBeInTheDocument() // Devices + External exposure
@@ -81,7 +83,7 @@ describe('icon rail', () => {
     const nav = within(await mainNav())
     expect(nav.queryByRole('button', { name: 'Assets' })).toBeNull() // groups flatten
     expect(nav.getByRole('group', { name: 'Assets' })).toBeInTheDocument()
-    expect(nav.getByRole('link', { name: 'Devices' })).toBeInTheDocument()
+    expect(nav.getByRole('link', { name: named('Devices') })).toBeInTheDocument()
     first.unmount()
     renderApp('/')
     expect(await screen.findByRole('button', { name: 'Expand menu' })).toBeInTheDocument()
@@ -113,7 +115,7 @@ describe('phone drawer', () => {
     expect(screen.queryByRole('dialog', { name: 'Main navigation' })).toBeNull()
     expect(open).toHaveFocus()
     await u.click(open)
-    await u.click(within(await screen.findByRole('dialog', { name: 'Main navigation' })).getByRole('link', { name: 'Findings' }))
+    await u.click(within(await screen.findByRole('dialog', { name: 'Main navigation' })).getByRole('link', { name: named('Findings') }))
     expect(screen.queryByRole('dialog', { name: 'Main navigation' })).toBeNull()
     expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
   })

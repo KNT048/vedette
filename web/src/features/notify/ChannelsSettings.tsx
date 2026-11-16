@@ -458,7 +458,8 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
   )
   return (
     <>
-      <DataTable caption={t('channels.caption')} data={channels} columns={columns} mobileRow={mobileRow} />
+      {/* The target of deep links to the channel list (Home's "Get alerts" step, docs/UI.md §0.2): it scrolls into view, focus on its first control. */}
+      <div id="channels"><DataTable caption={t('channels.caption')} data={channels} columns={columns} mobileRow={mobileRow} /></div>
       {editing ? <ChannelDialog key={editing.type} channel={editing} codeUsers={codeUsers} onClose={() => setEditing(null)} onSaved={(thenTest) => { setEditing(null); if (thenTest) runTest(editing.type) }} /> : null}
       <Dialog open={removing !== null} onOpenChange={(o) => { if (!o) setRemoving(null) }}>
         {removing ? (

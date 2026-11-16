@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import type { z } from 'zod'
 import { Circle, CircleCheck } from 'lucide-react'
 import { Card } from '@/components/common/Card'
 import { KpiGrid, KpiTile } from '@/components/common/KpiTile'
@@ -13,6 +15,7 @@ import { DependencyLink } from '@/components/common/DependencyLink'
 import { Chip, StatusChip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { fmtRelative } from '@/lib/format'
+import { api, ApiError } from '@/lib/api'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan, useMe } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -20,7 +23,9 @@ import { CvssScore } from '@/features/findings/Cvss'
 import type { HomeSummary, SummaryItem } from '@/features/findings/types'
 import { useChannels } from '@/features/notify/api'
 import { useAccount } from '@/features/core/api'
-import { KEY, isFirstRun, useHome } from './homeSummary'
+import type { RunningJob } from '@/features/scanning/contract'
+import { KEY, SCANNING_KEY, isFirstRun, useHome, useScanning } from './homeSummary'
+import { fmtStamp } from './dates'
 
 // The add-device dialog is inventory's; Home loads it only when the button is pressed, so the Home chunk does not carry it.
 const AddDeviceDialog = lazy(() => import('@/features/inventory/AddDeviceDialog').then((m) => ({ default: m.AddDeviceDialog })))
@@ -28,8 +33,9 @@ const AddRangeDialog = lazy(() => import('./AddRangeDialog').then((m) => ({ defa
 
 const dayFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 
-/** The tiles: what needs action now (with its 30-day trend), devices, and, while Notifications is on, alerts and incidents. */
-function Tiles({ s }: { s: HomeSummary }) {
+/** The tiles: what needs action now (with its 30-day trend), devices, and, while Notifications is on, alerts and incidents.
+ *  `noClaim` (D-92): the exploited list is off or was never fetched, so a 0 open is not good news and is not shown green. */
+function Tiles({ s, noClaim }: { s: HomeSummary; noClaim: boolean }) {
   const { t } = useTranslation('feeds')
   const admin = useCan('admin') // the history of sent messages is on an administrator's page
   const { open, trend } = s
@@ -42,7 +48,7 @@ function Tiles({ s }: { s: HomeSummary }) {
   const link = 'text-accent underline-offset-4 hover:underline'
   return (
     <KpiGrid label={t('dash.label')} className={notify ? 'lg:grid-cols-5' : 'lg:grid-cols-3'}>
-      <KpiTile className="col-span-2" to="/findings?tab=open" value={open.total} tone={open.total ? 'danger' : 'ok'}
+      <KpiTile className="col-span-2" to="/findings?tab=open" value={open.total} tone={open.total ? 'danger' : noClaim ? undefined : 'ok'}
         label={open.total ? t('dash.open', { count: open.total, devices: open.devices }) : t('dash.openNone')}
         sub={open.total ? (
           <>
@@ -53,7 +59,7 @@ function Tiles({ s }: { s: HomeSummary }) {
         ) : null}
         chart={(
           <div className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:gap-4">
-            <Sparkline values={trend} tone={last ? 'danger' : 'ok'} label={t('dash.trendLabel', { days, first, last })}
+            <Sparkline values={trend} tone={last ? 'danger' : noClaim ? 'accent' : 'ok'} label={t('dash.trendLabel', { days, first, last })}
               point={(i) => t('dash.trendDay', { day: dayOf(i), count: trend[i] })} start={dayOf(0)} end={dayOf(days - 1)} />
             <p className={cn('text-meta sm:pb-5', delta > 0 ? 'text-danger' : delta < 0 ? 'text-ok' : 'text-muted')}>
               {delta === 0 ? t('dash.trendSame', { days }) : t(delta > 0 ? 'dash.trendUp' : 'dash.trendDown', { count: Math.abs(delta), days })}
@@ -114,7 +120,7 @@ function FixRow({ f, rank }: { f: SummaryItem; rank: number }) {
 function FixFirst({ s, kevNotice }: { s: HomeSummary; kevNotice: ReactNode }) {
   const { t } = useTranslation('feeds')
   if (!s.top.length) {
-    // D-92: while the CISA list is off or never loaded, "nothing exploited" would be a claim Vedette cannot make.
+    // D-92: while the CISA list is off, never loaded or never fetched, "nothing exploited" would be a claim Vedette cannot make.
     if (kevNotice) return <div className="mb-8"><EmptyState title={t('dash.fixFirst')}>{kevNotice}</EmptyState></div>
     return (
       <div className="mb-8">
@@ -142,11 +148,12 @@ function writeSetup(user: string, v: 'seen' | 'hidden') {
   try { localStorage.setItem(SETUP_KEY(user), v) } catch { /* the card comes back next visit */ }
 }
 
-type Step = { id: string; done: boolean; title: string; line: string; action?: ReactNode }
+type Step = { id: string; done: boolean; title: string; line: string; note?: string; action?: ReactNode }
 
 /** The first-run steps: what Home needs before it can say anything (devices), then what makes the alert arrive (J3), then the sign-in. */
 function useSteps(s: HomeSummary, onAdd: () => void, onRange: () => void): Step[] | null {
   const { t } = useTranslation('feeds')
+  const qc = useQueryClient()
   const { data: me } = useMe()
   const op = useCan('operator')
   const admin = me?.role === 'admin'
@@ -154,18 +161,44 @@ function useSteps(s: HomeSummary, onAdd: () => void, onRange: () => void): Step[
   // Both reads are the ones the alert and two-step prompts make (same keys): Home hides those prompts while this card shows its steps.
   const channels = useChannels({ retry: false, enabled: admin && notifyOn })
   const account = useAccount(admin)
+  // The scope and the discovery engine (#850), for an administrator: once a range is set the step says when it is scanned and offers
+  // "Scan the LAN now" in place, so setting a range in the afternoon does not leave Home looking unchanged until the night window.
+  const found = s.devices.total > 1
+  const scanning = useScanning(admin && !found)
+  const scan = useMutation({
+    mutationFn: () => api.post<z.infer<typeof RunningJob>>('/scanning/engines/nmap-discovery/run', {}),
+    onSuccess: () => { toast.success(t('start.devices.scanStarted')); void qc.invalidateQueries({ queryKey: SCANNING_KEY }) },
+    onError: (e) => toast.error(e instanceof ApiError ? e.message : String(e)),
+  })
   if (!me) return null
   const needRole = op ? undefined : t('common:needRole', { role: t('common:role.operator') })
+  const sc = admin && !found ? scanning.data : undefined
+  const ranges = (sc?.safety.scope.lan_ranges ?? []).join(', ')
+  const discovery = sc?.engines.find((e) => e.id === 'nmap-discovery')
+  const sweeping = !!sc?.running.some((r) => r.engine === 'nmap-discovery')
+  const add = (primary: boolean) => <Button size="sm" variant={primary ? 'primary' : 'secondary'} disabled={!op} title={needRole} onClick={onAdd}>{t('start.devices.add')}</Button>
+  let line = found ? t('start.devices.done', { count: s.devices.total }) : t('start.devices.line')
+  let action: ReactNode = <>{admin ? <Button size="sm" variant="primary" onClick={onRange}>{t('start.devices.range')}</Button> : null}{add(!admin)}</>
+  if (ranges && discovery) {
+    const more = <><Button size="sm" variant="secondary" onClick={onRange}>{t('start.devices.addRange')}</Button>{add(false)}</>
+    if (sweeping) {
+      line = t('start.devices.sweeping', { ranges })
+      action = more
+    } else if (!discovery.enabled) {
+      line = t('start.devices.discoveryOff', { ranges })
+      action = <><DependencyLink reason={t('start.devices.scopeWhere')} to="/devices/setup?tab=scope#active-enabled" label={t('start.devices.turnOn')} />{more}</>
+    } else if (discovery.state === 'needs_setup') {
+      line = [t('start.devices.rangeSetNoNext', { ranges }), discovery.reason].filter(Boolean).join(' ')
+      action = <><DependencyLink reason={t('start.devices.scopeWhere')} to="/devices/setup?tab=scope#scope-confirm" label={t('start.devices.confirm')} />{more}</>
+    } else {
+      line = discovery.next_run_at ? t('start.devices.rangeSet', { ranges, when: fmtStamp(discovery.next_run_at) }) : t('start.devices.rangeSetNoNext', { ranges })
+      action = <><Button size="sm" variant="primary" disabled={scan.isPending} onClick={() => scan.mutate()}>{t('start.devices.scanNow')}</Button>{more}</>
+    }
+  }
   const steps: Step[] = [{
-    id: 'devices', done: s.devices.total > 1,
-    title: t('start.devices.title'),
-    line: s.devices.total > 1 ? t('start.devices.done', { count: s.devices.total }) : t('start.devices.line'),
-    action: (
-      <>
-        {admin ? <Button size="sm" variant="primary" onClick={onRange}>{t('start.devices.range')}</Button> : null}
-        <Button size="sm" variant={admin ? 'secondary' : 'primary'} disabled={!op} title={needRole} onClick={onAdd}>{t('start.devices.add')}</Button>
-      </>
-    ),
+    id: 'devices', done: found, title: t('start.devices.title'), line, action,
+    // A viewer's only action is disabled: the reason is said in the step, not only in a tooltip touch and keyboard cannot reach.
+    note: needRole,
   }]
   if (admin && notifyOn && channels.data) {
     const on = channels.data.channels.some((c) => c.configured && c.enabled)
@@ -181,13 +214,13 @@ function useSteps(s: HomeSummary, onAdd: () => void, onRange: () => void): Step[
 }
 
 /** The first-run path (docs/UI.md §0): each step done in place (add a device) or linked to the exact page and field; done steps say so. */
-function GetStarted({ s, steps, onHide }: { s: HomeSummary; steps: Step[]; onHide: () => void }) {
+function GetStarted({ s, steps, onHide }: { s: HomeSummary; steps: Step[]; onHide?: () => void }) {
   const { t } = useTranslation('feeds')
   const done = steps.every((x) => x.done)
   const todo = steps.filter((x) => !x.done).length
   return (
     <Card id="get-started" className="mb-8" title={done ? t('start.doneTitle') : t('start.title')} info={t('start.info')}
-      actions={<Button size="sm" variant="ghost" onClick={onHide}>{t('start.hide')}</Button>}>
+      actions={onHide ? <Button size="sm" variant="ghost" onClick={onHide}>{t('start.hide')}</Button> : undefined}>
       <div className="grid gap-6 md:grid-cols-[auto_minmax(0,1fr)] md:items-start">
         <Illustration name={done ? 'setup-done' : 'welcome'} className="justify-self-center" />
         <div className="grid gap-3">
@@ -201,6 +234,7 @@ function GetStarted({ s, steps, onHide }: { s: HomeSummary; steps: Step[]; onHid
                     {x.title}<span className="sr-only">{x.done ? ` (${t('start.doneWord')})` : ` (${t('start.todoWord')})`}</span>
                   </p>
                   <p className="text-meta text-muted">{x.line}</p>
+                  {!x.done && x.note ? <p className="text-meta text-muted">{x.note}</p> : null}
                 </div>
                 {!x.done && x.action ? <div className="col-start-2 flex flex-wrap gap-2 sm:col-start-3">{x.action}</div> : null}
               </li>
@@ -212,8 +246,9 @@ function GetStarted({ s, steps, onHide }: { s: HomeSummary; steps: Step[]; onHid
   )
 }
 
-/** First run: the card with its steps; afterwards, for the person who saw it with a step to do, until Hide (once all is done it says
- *  "You're set up"). `prompts` (the alert and two-step notices) are shown only when the card is not: the card has those steps. */
+/** First run: the card with its steps, without Hide (on a box with no device the card is Home's only way forward, docs/UI.md §0);
+ *  afterwards, for the person who saw it with a step to do, until Hide (once all is done it says "You're set up"). `prompts` (the
+ *  alert and two-step notices) are shown only when the card is not: the card has those steps. */
 function Onboarding({ s, firstRun, prompts }: { s: HomeSummary; firstRun: boolean; prompts: ReactNode }) {
   const { data: me } = useMe()
   const qc = useQueryClient()
@@ -221,14 +256,14 @@ function Onboarding({ s, firstRun, prompts }: { s: HomeSummary; firstRun: boolea
   const [hidden, setHidden] = useState(false)
   const steps = useSteps(s, () => setAdding('device'), () => setAdding('range'))
   const stored = me ? readSetup(me.id) : null
-  const show = !!me && !!steps && !hidden && stored !== 'hidden' && (firstRun || stored === 'seen')
+  const show = !!me && !!steps && (firstRun || (!hidden && stored === 'seen'))
   const todo = !!steps && steps.some((x) => !x.done)
-  useEffect(() => { if (me && show && todo && stored !== 'seen') writeSetup(me.id, 'seen') }, [me, show, todo, stored])
+  useEffect(() => { if (me && show && todo && stored === null) writeSetup(me.id, 'seen') }, [me, show, todo, stored])
   if (!show || !me || !steps) return <>{prompts}</>
   const hide = () => { writeSetup(me.id, 'hidden'); setHidden(true) }
   return (
     <>
-      <GetStarted s={s} steps={steps} onHide={hide} />
+      <GetStarted s={s} steps={steps} onHide={firstRun ? undefined : hide} />
       {adding ? (
         <Suspense fallback={null}>
           {/* A device added here changes the counts: ask the summary again (the box drops its cache on the device's findings). */}
@@ -243,14 +278,16 @@ function Onboarding({ s, firstRun, prompts }: { s: HomeSummary; firstRun: boolea
 
 /**
  * Home at a glance (#825, S-UI-1): the first-run path, or the tiles and "Fix first", all from one read. Without the findings module, or
- * when the read fails, only `prompts`; a placeholder of the same height while the read is on its way (never a 0 that is really "unknown").
+ * when the read fails, only `prompts`; a placeholder of the same height while the module list or the read is on its way (never a 0 that
+ * is really "unknown"). `prompts` mount once the card's place is known, so a notice never shows, goes and comes back. `kevNotice`: why
+ * Vedette cannot say "nothing exploited" (D-92: the CISA list off, never loaded or never fetched); null when it can.
  */
 export function HomeDashboard({ kevNotice, prompts }: { kevNotice: ReactNode; prompts: ReactNode }) {
   const { t } = useTranslation('feeds')
   const on = useModuleEnabled('findings')
   const q = useHome(on === true)
-  if (on !== true) return <>{prompts}</>
-  if (q.isPending) return <div role="status" aria-label={t('dash.loading')} className="mb-5 h-36 rounded-md border border-rule bg-surface" />
+  if (on === false) return <>{prompts}</>
+  if (on === undefined || q.isPending) return <div role="status" aria-label={t('dash.loading')} className="mb-5 h-36 rounded-md border border-rule bg-surface" />
   if (q.isError) return <>{prompts}<div className="mb-8"><ErrorState error={q.error} onRetry={() => void q.refetch()} /></div></>
   const s = q.data
   const firstRun = isFirstRun(s)
@@ -259,7 +296,7 @@ export function HomeDashboard({ kevNotice, prompts }: { kevNotice: ReactNode; pr
       <Onboarding s={s} firstRun={firstRun} prompts={prompts} />
       {firstRun ? null : (
         <>
-          <Tiles s={s} />
+          <Tiles s={s} noClaim={!!kevNotice} />
           <FixFirst s={s} kevNotice={kevNotice} />
         </>
       )}

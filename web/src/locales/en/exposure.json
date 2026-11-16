@@ -535,9 +535,11 @@
       "queued": "Starting",
       "probing": "Probing the target",
       "saving": "Saving the result",
-      "greenbone": "OpenVAS scan running (up to 90 minutes). The results of the other checks are already saved; other scans on this box wait until it ends",
+      "greenbone": "OpenVAS scan running (up to 90 minutes)",
       "done": "Done"
     },
+    "greenboneTopic": "OpenVAS scan",
+    "greenboneInfo": "The results of the other checks are already saved and shown below. Other scans on this box wait until OpenVAS ends.",
     "stop": "Stop",
     "done": "Scan of {{value}} finished. The new result is below.",
     "stopped": "The scan of {{value}} was stopped. Nothing was saved.",

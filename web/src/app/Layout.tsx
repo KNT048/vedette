@@ -13,6 +13,7 @@ import { useMe } from '@/lib/session'
 import { api } from '@/lib/api'
 import { setTheme, useTheme, type ThemePref } from '@/lib/theme'
 import { Button } from '@/components/ui/button'
+import { Logo } from '@/components/brand/Logo'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
@@ -99,8 +100,8 @@ function UserMenu() {
 function Brand() {
   const { data: me } = useMe()
   return (
-    <div className="grid px-2.5">
-      <span className="text-[17px] font-semibold tracking-[-0.01em]">Vedette</span>
+    <div className="grid gap-2 px-2.5">
+      <Logo className="h-6" />
       <span className="truncate text-[12px] text-muted">{me?.org}</span>
     </div>
   )
@@ -149,7 +150,7 @@ export function Layout() {
       </div>
       <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-rule bg-surface px-4 lg:hidden">
         <Button variant="ghost" size="icon" onClick={() => setOpen(true)} aria-label={t('layout.openMenu')}><Menu /></Button>
-        <span className="text-[17px] font-semibold">Vedette</span>
+        <Logo className="h-[22px]" />
         <span className="w-9" />
       </div>
       <Dialog open={open} onOpenChange={setOpen}>

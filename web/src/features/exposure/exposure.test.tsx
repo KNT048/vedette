@@ -6,6 +6,7 @@ import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
 import { auditStore, modulesStore, sessionStore, usersStore } from '@/mocks/stores'
+import { scanPoll } from './api'
 import { NOTICE_VERSION } from './contract'
 import { feature } from './index'
 import { portLabel, riskOf } from './services'
@@ -17,6 +18,7 @@ async function call(method: string, path: string, body?: unknown, role: keyof ty
   return { status: res.status, json: (await res.json().catch(() => null)) as any } // eslint-disable-line @typescript-eslint/no-explicit-any
 }
 const setEgress = (ip: string | null) => { if (ip) localStorage.setItem('vedette-mock-egress', ip); else localStorage.removeItem('vedette-mock-egress') }
+scanPoll.ms = 2000 // the page reads every 5 s while a scan runs (#830); the tests' mock scan lasts 2 s
 beforeEach(() => setEgress(null))
 afterEach(() => vi.useRealTimers())
 const targetsTable = () => screen.findByRole('table', { name: 'Declared domains' })
@@ -1596,6 +1598,26 @@ describe('exposure: the OpenVAS heading follows its one state, its start in the 
     expect(await within(s).findByText('OpenVAS did not finish this scan')).toBeInTheDocument()
     expect(within(s).getByText(`${ip} (shop.acme.example): OpenVAS failed, so its results are not shown. The box log has the error.`)).toBeInTheDocument()
     expect(within(s).queryByText(/found no open port/)).toBeNull()
+  })
+
+  it('#830: the step of the running scan under its row; the OpenVAS sentence stays, its detail behind an ⓘ', async () => {
+    const at = new Date().toISOString()
+    const prog = (phase: string, percent: number | null) => ({ phase, percent, done: null, total: null, unit: null, started_at: at, phase_started_at: at, updated_at: at, eta: null, message: null })
+    let run = { phase: 'probing', progress: prog('services', null) as unknown }
+    server.use(http.get('*/api/v1/exposure/scan', () => HttpResponse.json({ id: 'sr-p', target_id: 'xt-2', target_value: ip, by: 'admin@acme.example', started_at: at, finished_at: null,
+      status: 'running', snapshot_id: null, error: null, stop_reason: null, ...run })))
+    renderApp('/exposure/xt-2')
+    expect(await screen.findByRole('progressbar', { name: 'Identifying services' })).not.toHaveAttribute('aria-valuenow')
+    expect(screen.getAllByRole('status').some((x) => x.textContent === `Scanning ${ip}`)).toBe(true)
+    expect(screen.queryByText('Probing the target')).toBeNull() // the step says it better
+    run = { phase: 'greenbone', progress: prog('openvas', 63) }
+    expect(await screen.findByRole('progressbar', { name: 'OpenVAS deep scan' }, { timeout: 5000 })).toHaveAttribute('aria-valuenow', '63')
+    expect(screen.getByText('OpenVAS scan running (up to 90 minutes)')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'About OpenVAS scan' })).toHaveAccessibleDescription(/other checks are already saved/)
+    run = { phase: 'queued', progress: null }
+    expect(await screen.findByText('Starting', {}, { timeout: 5000 })).toBeInTheDocument()
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    await expectNoA11yViolations()
   })
 
   it('review L6: when the run enters the OpenVAS phase the page reads the saved snapshot again, without waiting for OpenVAS', async () => {

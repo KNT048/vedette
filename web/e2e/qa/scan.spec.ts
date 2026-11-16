@@ -155,7 +155,7 @@ test.describe('scan: IT operator', () => {
     await page.getByRole('button', { name: /Scan now \(1\)/ }).click()
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Scanning')
     await expect(page.getByRole('button', { name: 'Stop now' })).toBeVisible()
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Last scan', { timeout: 15_000 })
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Last scan', { timeout: 40_000 }) // the dev mock scans a device in 15 s, read every 5 s (#830)
     await page.getByRole('button', { name: /View results of the scan/ }).first().click()
     const dlg = page.getByRole('dialog')
     await expect(dlg.getByText('CVE-2022-27593: the scan template matches')).toBeVisible()

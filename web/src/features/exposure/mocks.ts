@@ -154,7 +154,8 @@ const dayLeft = (iso: string) => Math.ceil((Date.parse(iso) - Date.now()) / 864e
 /** The mock's scan run: the phase follows the time since the press (queued, probing, saving, then done). The snapshot, last_scan_at and the audit row come when it is done, as on the box; a stop saves nothing. */
 interface MockRun { run: ScanRun; startedMs: number; snap: Snapshot }
 const mockRunStore = collection<MockRun | null>('exp_scan_run', () => null, () => null)
-const PHASE_AT_MS = { probing: 300, saving: 1500, done: 2000 }
+// #830: in the browser the scan takes 15 s, so the page (read every 5 s) shows its steps move; tests keep 2 s.
+const PHASE_AT_MS = import.meta.env.MODE === 'test' ? { probing: 300, saving: 1500, done: 2000 } : { probing: 300, saving: 14_000, done: 15_500 }
 function settledRun(): ScanRun | null {
   const m = mockRunStore.get()
   if (!m) return null

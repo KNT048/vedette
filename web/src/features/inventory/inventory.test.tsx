@@ -64,13 +64,13 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     let table = await deviceTable()
     const box = screen.getByRole('combobox', { name: 'Search devices' })
     await waitFor(() => expect(box).toHaveValue('approved:24h'), T)
-    expect(within(table).getByText('No rows match these filters.')).toBeInTheDocument()
+    expect(await within(table).findByText('No rows match these filters.', undefined, T)).toBeInTheDocument() // the list filters a deferred value
     await user.click(within(table).getByRole('button', { name: 'Clear filters' }))
     await waitFor(() => expect(box).toHaveValue(''), T)
     expect(screen.queryByRole('button', { name: /^Manual 0$/ })).toBeNull() // a chip that would show 0 is left out
     await user.type(box, 'source:manual ')
     table = screen.getByRole('table', { name: DEVICE_TABLE })
-    expect(within(table).getByText('No rows match these filters.')).toBeInTheDocument()
+    expect(await within(table).findByText('No rows match these filters.', undefined, T)).toBeInTheDocument() // the list filters a deferred value
     await user.click(screen.getByRole('button', { name: /^Manual 0/, pressed: true })) // shown while it is on, so it can be turned off
     const fragile = assetsStore.get().filter((a) => a.fragile && a.approved).length
     await user.click(screen.getByRole('button', { name: new RegExp(`^Fragile ${fragile}$`) }))
@@ -373,12 +373,12 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(screen.queryByRole('link', { name: /sensors/ })).not.toBeInTheDocument()
   })
 
-  it('D-519: old #agents and #snmp links to the setup page open their tab', async () => {
+  it('D-519: old #agents links open their tab; #snmp lands on the SNMP card of Settings › Scanning (#850)', async () => {
     const { unmount } = renderApp('/devices/setup#agents')
     expect(await screen.findByRole('tab', { name: 'Agents', selected: true }, T)).toBeInTheDocument()
     unmount()
-    renderApp('/devices/setup#snmp') // #849 keeps the SNMP credentials here until #850 moves them to Settings › Scanning
-    expect(await screen.findByRole('tab', { name: 'SNMP', selected: true }, T)).toBeInTheDocument()
+    renderApp('/devices/setup#snmp') // #850: the SNMP credentials live on the SNMP card of Settings › Scanning
+    expect(await screen.findByRole('tab', { name: 'Engines', selected: true }, T)).toBeInTheDocument()
     expect(await screen.findByRole('heading', { level: 2, name: 'SNMP credentials' }, T)).toBeInTheDocument()
   })
 
@@ -1025,7 +1025,7 @@ describe('inventory: scope and sensors (S-INV-1, admin)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: '2 network ranges to watch' }, T)).toBeInTheDocument()
     // D-519: one tab per area that saves on its own; Scope first
     const tabs = await screen.findByRole('tablist', { name: 'Parts of the setup' }, T)
-    expect(within(tabs).getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Scope', 'Sensor', 'SNMP', 'Agents'])
+    expect(within(tabs).getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Scope', 'Sensor', 'Agents']) // #850: SNMP credentials moved to Settings › Scanning
     for (const h of ['LAN ranges', 'Active scanning', 'Device types scanned only once']) {
       expect(await screen.findByRole('heading', { level: 2, name: h }, T)).toBeInTheDocument()
     }

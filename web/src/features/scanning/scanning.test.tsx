@@ -214,9 +214,9 @@ describe('#850 review r2: dead ends and the buttons of the Devices pages', () =>
   it('the Devices list carries "Scan the LAN now" and, with a selection, "Scan selected (N)" (slot devices.actions)', async () => {
     renderApp('/devices')
     expect(await screen.findByRole('button', { name: 'Scan the LAN now' }, { timeout: 4000 })).toBeInTheDocument()
-    const boxes = await screen.findAllByRole('checkbox', { name: /^Select / })
-    await userEvent.click(boxes[1]!)
-    await userEvent.click(boxes[2]!)
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Select FW-HQ' }))
+    expect(await screen.findByRole('button', { name: 'Scan selected (1)' })).toBeEnabled()
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select WEB01' }))
     expect(await screen.findByRole('button', { name: 'Scan selected (2)' })).toBeEnabled()
   })
 

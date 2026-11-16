@@ -7,6 +7,8 @@ device now), S-CORE-1 (engine switches).
   `contract.ts` and the first `mocks.ts` came with the backend (AI-Trưởng, #857); the page, `api.ts` and the mocks after that are the UI's.
 - Mock: the block is inventory's settings store; OpenVAS is the exposure mock's flag; `running[]` adds the LAN vulnerability checks
   (scan mock) and the public scan (exposure mock).
+- Slots it fills: `shell.status` (indicator), `devices.actions` (`DevicesActions`: Scan selected, Scan the LAN now), `device.actions`
+  (`DeviceActions`: Check this device now, Run vulnerability checks now from features/scan `VulnChecksButton`).
 - For other pages: `ScanNow.tsx` `ScanNowButton` (`targets={[id]}`, `targets={ids}`, `targets="lan"`, or `onStart/running/progress`
   for another job) and `ScansRunningIndicator` (shell slot `shell.status`); `Fixes.tsx` `ScopeDialog`/`ScopeButton` (ranges + commitment)
   and `TurnOnModule`; `places.ts` `runPlace` (where a run is seen).

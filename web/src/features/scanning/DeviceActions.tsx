@@ -1,12 +1,14 @@
+import { useTranslation } from 'react-i18next'
 import { VulnChecksButton } from '@/features/scan/VulnChecksButton'
 import { ScanNowButton } from './ScanNow'
 
 /** #850 H3, slot `devices.actions` of the Devices list: "Scan selected (N)" with a selection, "Scan the LAN now" always. */
 export function DevicesActions({ selectedIds, clearSelection }: { selectedIds: string[]; clearSelection: () => void }) {
+  const { t } = useTranslation('scanning')
   void clearSelection // the selection stays: the person sees what was sent while it runs
   return (
     <div className="flex flex-wrap items-start gap-3">
-      {selectedIds.length ? <ScanNowButton targets={selectedIds} size="sm" /> : null}
+      {selectedIds.length ? <ScanNowButton targets={selectedIds} size="sm" label={t('scanNow.selected', { count: selectedIds.length })} /> : null}
       <ScanNowButton targets="lan" size="sm" variant="secondary" />
     </div>
   )

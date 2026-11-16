@@ -5,7 +5,7 @@ import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, CIDR_RE, currentUser, fail, guard, IPV4_RE } from '@/mocks/http'
 import { assetsStore, boxInfo, installStore, isOn, findingsStore } from '@/mocks/stores'
 import { matchAssetToKev } from '@/mocks/match'
-import { collection, dataMode, daysAgo, newId, nowIso } from '@/mocks/db'
+import { collection, dataMode, daysAgo, newId, nowIso, peek } from '@/mocks/db'
 import { boxAddress, networkStore, spanStatusOf } from '@/mocks/network'
 import type { Asset, AssetKind, ObsSource, Software } from '@/lib/types'
 import { OSQUERY_SCHEDULE } from './agentConfig'
@@ -36,7 +36,8 @@ export type StoredObs = Omit<Observation, 'current'>
 const metaStore = collection<Record<string, Meta>>('inv_meta', () => ({}))
 const obsStore = collection<Record<string, StoredObs[]>>('inv_obs', () => ({}))
 const notifyStore = collection<{ enabled: boolean }>('inv_notify', () => ({ enabled: true }))
-const settingsStore = collection<InventorySettings>('inv_settings', () => ({
+type StoredSettings = Omit<InventorySettings, 'version'>
+const settingsStore = collection<StoredSettings>('inv_settings', () => ({
   lan_ranges: ['192.168.10.0/24', '192.168.20.0/24'],
   active: { enabled: true, days: [1, 2, 3, 4, 5, 6, 7], from: '22:00', to: '05:00', rate: 50, exclusions: [] },
   fragile_kinds: ['printer', 'camera', 'nvr', 'nas', 'ap', 'iot'], regular_scan_kinds: [],
@@ -122,7 +123,21 @@ const LABEL_RE = /^[^<>\u0000-\u001f]{1,64}$/
 const VERSION_RE = /^[\w.\-+() ]{1,40}$/u
 const hasIp = (a: Asset) => a.ip !== '' && a.ip !== '—'
 /** Đọc cài đặt; dải lưu với bit máy ("192.168.18.5/24") được đưa về địa chỉ mạng. Dải thiếu /prefix giữ nguyên để UI báo lỗi trên dòng đó, không kẹt các thao tác khác. */
-function loadSettings(): InventorySettings {
+/** A short hash of a string (FNV-1a), for the mock's versions. */
+export function hashOf(s: string): string {
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0 }
+  return h.toString(16).padStart(8, '0')
+}
+/** Version of the shared safety block (inventory INV-32, review #860 M1): names its values as the backend's SafetyVersion does,
+ *  the discovery switch included (r2 L1); GET /scanning safety.version, GET /inventory/settings and GET /scans/config version. */
+export function safetyVersion(): string {
+  const st = settingsStore.get()
+  return hashOf(JSON.stringify([st.lan_ranges, st.scope_confirmed_at, st.scope_confirmed_by, st.active, st.fragile_kinds, st.regular_scan_kinds, peek('scanning_check_rate') ?? null]))
+}
+export const SAFETY_CHANGED = 'These safety settings changed since you opened the page (another admin, another tab, or a range or exclusion added elsewhere). Review the current values and save again.'
+
+function loadSettings(): StoredSettings {
   const cur = settingsStore.get()
   const next = [...new Set(cur.lan_ranges.map((r) => normalizeRange(r).value))]
   if (JSON.stringify(next) === JSON.stringify(cur.lan_ranges)) return cur
@@ -821,12 +836,13 @@ export const handlers = [
   // ---- Phạm vi và cảm biến (admin) ----
   http.get(`${API}/inventory/settings`, () => {
     const denied = guard('admin'); if (denied) return denied
-    return HttpResponse.json(loadSettings())
+    return HttpResponse.json({ ...loadSettings(), version: safetyVersion() })
   }),
 
   http.put(`${API}/inventory/settings`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
     const b = await body<SettingsInput>(request)
+    if (b.version && b.version !== safetyVersion()) return fail(409, 'safety_changed', SAFETY_CHANGED)
     const adjusted: { from: string; to: string }[] = []
     // "192.168.18.5/24" được đưa về "192.168.18.0/24" (phản hồi nói rõ đã đổi gì); địa chỉ không có /prefix bị từ chối bên dưới, không đoán.
     const ranges = Array.isArray(b.lan_ranges) ? [...new Set(b.lan_ranges.map((x) => { const raw = String(x).trim(); const n = normalizeRange(raw); if (n.value !== raw) adjusted.push({ from: raw, to: n.value }); return n.value }))] : null
@@ -857,7 +873,7 @@ export const handlers = [
     if (regular.some((k) => !KINDS.includes(k))) return fail(400, 'bad_kinds', 'The list of device types for regular scans is not valid.')
     const prev = loadSettings()
     const confirmedNow = b.scope_confirmed === true
-    const next: InventorySettings = {
+    const next: StoredSettings = {
       lan_ranges: ranges, fragile_kinds: [...new Set(kinds)], regular_scan_kinds: [...new Set(regular)].filter((k) => kinds.includes(k)),
       active: { enabled: act.enabled, days: [...new Set(act.days)].sort(), from: act.from, to: act.to, rate: act.rate, exclusions: [...new Set(excl)] },
       scope_confirmed_at: confirmedNow ? (prev.scope_confirmed_at && sameSet(prev.lan_ranges, ranges) ? prev.scope_confirmed_at : nowIso()) : null,
@@ -866,7 +882,7 @@ export const handlers = [
     settingsStore.set(next)
     applyFragilePolicy()
     audit('inventory.settings', 'scan scope', `${ranges.length} ranges, active scanning ${act.enabled ? 'on' : 'off'}`)
-    return HttpResponse.json({ ...next, adjusted })
+    return HttpResponse.json({ ...next, adjusted, version: safetyVersion() })
   }),
 
   http.get(`${API}/inventory/sensors`, () => {

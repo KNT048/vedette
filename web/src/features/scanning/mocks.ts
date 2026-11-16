@@ -8,8 +8,9 @@ import { collection, newId, nowIso } from '@/mocks/db'
 import { assetsStore, installStore, isOn, modulesStore } from '@/mocks/stores'
 import type { ModuleId } from '@/lib/modules'
 import { mockDeviceProgress } from '@/lib/progress'
-import { inventorySettingsStore } from '@/features/inventory/mocks'
-import type { DiscoveryRunInput, Engine, EngineId, EnginePatch, RunningJob, Scanning, SafetyInput } from './contract'
+import { inventorySettingsStore, SAFETY_CHANGED, safetyVersion } from '@/features/inventory/mocks'
+import { cidrRange, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from '@/features/inventory/validate'
+import type { DiscoveryRunInput, Engine, EngineId, EnginePatch, ExclusionAdd, RangeAdd, RunningJob, Scanning, SafetyInput } from './contract'
 
 type EngineT = z.infer<typeof Engine>
 type Id = z.infer<typeof EngineId>
@@ -89,6 +90,7 @@ export function scanningView(): z.infer<typeof Scanning> {
       speed: { packets_per_s: st.active.rate, requests_per_s: checkRate.get().requests_per_s },
       exclusions: st.active.exclusions,
       fragile: { kinds: st.fragile_kinds, regular_scan_kinds: st.regular_scan_kinds, devices: assetsStore.get().filter((a) => a.fragile).length },
+      version: safetyVersion(),
     },
     engines, running, box: { memory_mb: 7680, reserved_mb: reserved },
   }
@@ -102,12 +104,20 @@ const masked = (cidr: string) => {
   return `${[24, 16, 8, 0].map((s) => Math.floor(m / 2 ** s) % 256).join('.')}/${b}`
 }
 
+/** c (a CIDR or an IPv4 address, its /32) lies inside one of list's ranges or addresses: adding it changes nothing. */
+const coveredBy = (c: string, list: string[]) => {
+  const r = cidrRange(c.includes('/') ? c : `${c}/32`)
+  return list.find((o) => { const q = cidrRange(o.includes('/') ? o : `${o}/32`); return r.base >= q.base && r.base + r.size <= q.base + q.size })
+}
+const SCOPE_NOT_CONFIRMED = 'Tick the confirmation that these network ranges belong to your company and you are allowed to scan them. Vedette only scans within the confirmed scope.'
+
 export const handlers = [
   http.get(`${API}/scanning`, () => guard('viewer') ?? HttpResponse.json(scanningView())),
 
   http.put(`${API}/scanning/safety`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied
     const b = await body<z.infer<typeof SafetyInput>>(request)
+    if (b.version !== safetyVersion()) return fail(409, 'safety_changed', SAFETY_CHANGED, { safety: scanningView().safety })
     const st = inventorySettingsStore.get()
     const ranges = b.scope?.lan_ranges ?? []
     if (ranges.length > 16) return fail(400, 'too_many_ranges', 'At most 16 network ranges.')
@@ -141,6 +151,50 @@ export const handlers = [
     checkRate.set({ requests_per_s: rps })
     audit('inventory.settings', 'scan scope', `${clean.length} ranges`)
     return HttpResponse.json({ ...scanningView().safety, adjusted })
+  }),
+
+  // "+ New range" where the person is (#842): one range added in one step, the same rules as the PUT (inventory POST of the backend)
+  http.post(`${API}/scanning/safety/ranges`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<z.infer<typeof RangeAdd>>(request)
+    const raw = String(b.range ?? '').trim()
+    const { value: r } = normalizeRange(raw)
+    const adjusted = r !== raw ? [{ from: raw, to: r }] : []
+    if (IPV4_RE.test(r)) return fail(400, 'no_prefix', `"${r}" has no prefix length. Add it so Vedette scans the right size of network, for example ${r}/24 or ${r}/25.`)
+    if (!CIDR_RE.test(r)) return fail(400, 'bad_cidr', `"${r.slice(0, 30)}" is not a valid network range. Enter something like 192.168.10.0/24.`)
+    if (!isPrivateCidr(r)) return fail(400, 'public_range', `${r} is not an internal range (${LOCAL_RANGE_NAMES}). To scan public addresses, add them under External exposure after verifying ownership.`)
+    if (b.confirm !== true) return fail(400, 'scope_not_confirmed', SCOPE_NOT_CONFIRMED)
+    const st = inventorySettingsStore.get()
+    const covered = coveredBy(r, st.lan_ranges)
+    if (covered && st.scope_confirmed_at) return HttpResponse.json({ ...scanningView().safety, adjusted })
+    // review #860 H1, r2 M1: the tick covers the ranges and the confirmation the dialog showed, and only those
+    const shown = [...new Set((b.shown_ranges ?? []).map((x) => normalizeRange(String(x)).value))].sort()
+    const sec = (v: string | null | undefined) => (v ? new Date(v).toISOString().slice(0, 19) : null)
+    if (shown.join() !== [...st.lan_ranges].sort().join() || sec(b.shown_confirmed_at) !== sec(st.scope_confirmed_at)) return fail(409, 'scope_changed', 'The network ranges changed since this dialog opened. Check the current list, then confirm again.', { safety: scanningView().safety })
+    const ranges = covered ? st.lan_ranges : [...st.lan_ranges, r]
+    if (ranges.length > 16) return fail(400, 'too_many_ranges', 'At most 16 network ranges.')
+    const clash = overlapping(r, st.lan_ranges)
+    if (!covered && clash) return fail(400, 'overlap_range', `Range ${r} overlaps ${clash}. Keep the larger range and drop the smaller one.`)
+    inventorySettingsStore.set({ ...st, lan_ranges: ranges, scope_confirmed_at: nowIso(), scope_confirmed_by: currentUser()?.email ?? null })
+    const was = st.scope_confirmed_at ? '' : `${st.lan_ranges.join(', ')} were shown`
+    const what = covered ? `confirmed the scope, which was not confirmed (${was}; ${r} is inside it)` : `added range ${r}${was && st.lan_ranges.length ? ` and confirmed the scope, which was not confirmed (${was})` : ''}`
+    audit('inventory.settings', 'scan scope', `${what}: ${ranges.length} ranges, active scanning ${st.active.enabled ? 'on' : 'off'}`)
+    return HttpResponse.json({ ...scanningView().safety, adjusted })
+  }),
+
+  // "+ New exclusion" where the person is (#842): one entry added in one step
+  http.post(`${API}/scanning/safety/exclusions`, async ({ request }) => {
+    const denied = guard('admin'); if (denied) return denied
+    const b = await body<z.infer<typeof ExclusionAdd>>(request)
+    const x = String(b.entry ?? '').trim()
+    if (!IPV4_RE.test(x) && !(CIDR_RE.test(x) && masked(x) === x)) return fail(400, 'bad_exclusion', `Exclusion "${x.slice(0, 30)}" is not valid. Enter an IP (192.168.10.10) or a valid range (192.168.10.0/28).`)
+    const st = inventorySettingsStore.get()
+    if (coveredBy(x, st.active.exclusions)) return HttpResponse.json(scanningView().safety)
+    if (st.active.exclusions.length >= 200) return fail(400, 'too_many_exclusions', 'The exclusion list can have at most 200 lines. Remove one in Settings, Scanning, or exclude a range that covers several.')
+    const exclusions = [...st.active.exclusions, x]
+    inventorySettingsStore.set({ ...st, active: { ...st.active, exclusions } })
+    audit('inventory.settings', 'scan scope', `added exclusion ${x}: ${exclusions.length} exclusions`)
+    return HttpResponse.json(scanningView().safety)
   }),
 
   http.patch(`${API}/scanning/engines/:id`, async ({ request, params }) => {

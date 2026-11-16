@@ -30178,7 +30178,8 @@ func (s *Server) handleInventoryPutInventoryNotifyNewRequest(args [0]string, arg
 
 // handleInventoryPutInventorySettingsRequest handles inventory_put_inventory_settings operation.
 //
-// Save the scan scope; enabling active scanning requires scope attestation.
+// Save the scan scope; enabling active scanning requires scope attestation. 409 safety_changed when
+// the version sent is not the stored one.
 //
 // PUT /inventory/settings
 func (s *Server) handleInventoryPutInventorySettingsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -30262,7 +30263,7 @@ func (s *Server) handleInventoryPutInventorySettingsRequest(args [0]string, args
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPutInventorySettingsOperation,
-			OperationSummary: "Save the scan scope; enabling active scanning requires scope attestation",
+			OperationSummary: "Save the scan scope; enabling active scanning requires scope attestation. 409 safety_changed when the version sent is not the stored one",
 			OperationID:      "inventory_put_inventory_settings",
 			Body:             request,
 			RawBody:          rawBody,
@@ -44555,7 +44556,8 @@ func (s *Server) handleScanPostScansRunsIDStopRequest(args [1]string, argsEscape
 
 // handleScanPutScansConfigRequest handles scan_put_scans_config operation.
 //
-// Save scan settings (partial update); dangerous checks are always rejected.
+// Save scan settings (partial update); dangerous checks are always rejected. 409 safety_changed when
+// the version sent is not the stored one.
 //
 // PUT /scans/config
 func (s *Server) handleScanPutScansConfigRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -44639,7 +44641,7 @@ func (s *Server) handleScanPutScansConfigRequest(args [0]string, argsEscaped boo
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ScanPutScansConfigOperation,
-			OperationSummary: "Save scan settings (partial update); dangerous checks are always rejected",
+			OperationSummary: "Save scan settings (partial update); dangerous checks are always rejected. 409 safety_changed when the version sent is not the stored one",
 			OperationID:      "scan_put_scans_config",
 			Body:             request,
 			RawBody:          rawBody,
@@ -45133,14 +45135,313 @@ func (s *Server) handleScanningPostScanningEnginesNmapDiscoveryRunRequest(args [
 	}
 }
 
+// handleScanningPostScanningSafetyExclusionsRequest handles scanning_post_scanning_safety_exclusions operation.
+//
+// Add one exclusion where the person is ("+ New exclusion" in a dialog, #842), without sending the
+// whole block: read, append and save in one transaction. 400 bad_exclusion as PUT /scanning/safety,
+// and too_many_exclusions when the list would grow past 200. An entry an exclusion already covers is
+// 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the
+// entry) and publishes inventory.settings.changed: a run that may no longer touch it stops. Returns
+// the whole safety block with its new version.
+//
+// POST /scanning/safety/exclusions
+func (s *Server) handleScanningPostScanningSafetyExclusionsRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ScanningPostScanningSafetyExclusionsOperation,
+			ID:   "scanning_post_scanning_safety_exclusions",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, ScanningPostScanningSafetyExclusionsOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeScanningPostScanningSafetyExclusionsRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *ScanningPostScanningSafetyExclusionsOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ScanningPostScanningSafetyExclusionsOperation,
+			OperationSummary: "Add one exclusion where the person is (\"+ New exclusion\" in a dialog, #842), without sending the whole block: read, append and save in one transaction. 400 bad_exclusion as PUT /scanning/safety, and too_many_exclusions when the list would grow past 200. An entry an exclusion already covers is 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the entry) and publishes inventory.settings.changed: a run that may no longer touch it stops. Returns the whole safety block with its new version",
+			OperationID:      "scanning_post_scanning_safety_exclusions",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *ScanningPostScanningSafetyExclusionsReq
+			Params   = struct{}
+			Response = *ScanningPostScanningSafetyExclusionsOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ScanningPostScanningSafetyExclusions(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ScanningPostScanningSafetyExclusions(ctx, request)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeScanningPostScanningSafetyExclusionsResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
+// handleScanningPostScanningSafetyRangesRequest handles scanning_post_scanning_safety_ranges operation.
+//
+// Add one LAN range to the scope where the person is ("+ New range" in a dialog, #842), without
+// sending the whole block: read, append and save in one transaction, so it never overwrites another
+// edit. The dialog lists the current ranges and whether they are confirmed with the confirmation tick,
+// and sends both back (shown_ranges, shown_confirmed_at): the tick confirms those ranges and the new
+// one only. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range,
+// too_many_ranges (16), and scope_not_confirmed when confirm is not true; 409 scope_changed (with
+// error.safety, the current block) when the stored ranges are not shown_ranges or the stored
+// confirmation is not shown_confirmed_at. A range the confirmed scope already covers is 200 with the
+// block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the range, and saying
+// when the add confirmed a scope that was not confirmed) and publishes inventory.settings.changed.
+// Returns the whole safety block with its new version, and adjusted when the range was normalized.
+//
+// POST /scanning/safety/ranges
+func (s *Server) handleScanningPostScanningSafetyRangesRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: ScanningPostScanningSafetyRangesOperation,
+			ID:   "scanning_post_scanning_safety_ranges",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, ScanningPostScanningSafetyRangesOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+	request, rawBody, close, err := s.decodeScanningPostScanningSafetyRangesRequest(r)
+	if err != nil {
+		err = &ogenerrors.DecodeRequestError{
+			OperationContext: opErrContext,
+			Err:              err,
+		}
+		defer recordError("DecodeRequest", err)
+		s.cfg.ErrorHandler(ctx, w, r, err)
+		return
+	}
+	defer func() {
+		if err := close(); err != nil {
+			recordError("CloseRequest", err)
+		}
+	}()
+
+	var response *ScanningPostScanningSafetyRangesOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    ScanningPostScanningSafetyRangesOperation,
+			OperationSummary: "Add one LAN range to the scope where the person is (\"+ New range\" in a dialog, #842), without sending the whole block: read, append and save in one transaction, so it never overwrites another edit. The dialog lists the current ranges and whether they are confirmed with the confirmation tick, and sends both back (shown_ranges, shown_confirmed_at): the tick confirms those ranges and the new one only. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range, too_many_ranges (16), and scope_not_confirmed when confirm is not true; 409 scope_changed (with error.safety, the current block) when the stored ranges are not shown_ranges or the stored confirmation is not shown_confirmed_at. A range the confirmed scope already covers is 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the range, and saying when the add confirmed a scope that was not confirmed) and publishes inventory.settings.changed. Returns the whole safety block with its new version, and adjusted when the range was normalized",
+			OperationID:      "scanning_post_scanning_safety_ranges",
+			Body:             request,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = *ScanningPostScanningSafetyRangesReq
+			Params   = struct{}
+			Response = *ScanningPostScanningSafetyRangesOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.ScanningPostScanningSafetyRanges(ctx, request)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.ScanningPostScanningSafetyRanges(ctx, request)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeScanningPostScanningSafetyRangesResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleScanningPutScanningSafetyRequest handles scanning_put_scanning_safety operation.
 //
 // Save the shared safety settings every LAN engine obeys (one writer; GET/PUT /inventory/settings and
 // the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT
 // /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days,
 // no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20),
-// bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on).
-// Publishes inventory.settings.changed: a run that the new values no longer allow stops.
+// bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on); 409
+// safety_changed (with error.safety, the current block) when version is not the stored one: re-read,
+// merge, save again. Publishes inventory.settings.changed: a run that the new values no longer allow
+// stops.
 //
 // PUT /scanning/safety
 func (s *Server) handleScanningPutScanningSafetyRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -45224,7 +45525,7 @@ func (s *Server) handleScanningPutScanningSafetyRequest(args [0]string, argsEsca
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ScanningPutScanningSafetyOperation,
-			OperationSummary: "Save the shared safety settings every LAN engine obeys (one writer; GET/PUT /inventory/settings and the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days, no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20), bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on). Publishes inventory.settings.changed: a run that the new values no longer allow stops",
+			OperationSummary: "Save the shared safety settings every LAN engine obeys (one writer; GET/PUT /inventory/settings and the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days, no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20), bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on); 409 safety_changed (with error.safety, the current block) when version is not the stored one: re-read, merge, save again. Publishes inventory.settings.changed: a run that the new values no longer allow stops",
 			OperationID:      "scanning_put_scanning_safety",
 			Body:             request,
 			RawBody:          rawBody,

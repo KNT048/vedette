@@ -392,6 +392,7 @@
     },
     "save": "Save changes",
     "saved": "Scan scope saved.",
+    "changedElsewhere": "Someone else changed the scan scope since you opened this page, so nothing was saved. The current values are shown again: check them and save.",
     "savedAdjusted": "Scan scope saved. Adjusted: {{list}}.",
     "unsaved": "You have unsaved changes.",
     "fixFirst_one": "Fix or remove the {{count}} range marked in red to save.",

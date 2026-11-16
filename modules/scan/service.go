@@ -116,6 +116,9 @@ type ConfigView struct {
 	// ScheduleBlockedReason is set while the schedule is on but nothing automated can start because the organization
 	// zone cannot be read; NextRun is nil then (D-261 (3)).
 	ScheduleBlockedReason *string `json:"schedule_blocked_reason"`
+	// Version is the shared safety block's (INV-16, inventory INV-32): a PUT that sends it back is refused with 409 safety_changed
+	// when the block changed since (review #860 M1). "" without SharedChecks.
+	Version string `json:"version"`
 }
 
 // ready is the scanner part of INV-2: an Engine that answers Ready.
@@ -144,7 +147,7 @@ func (s *Service) view(ctx context.Context, c Settings) (ConfigView, error) {
 	if err != nil {
 		return ConfigView{}, fmt.Errorf("scan: reading the scope: %w", err)
 	}
-	v := ConfigView{Config: c, Scope: ScopeView{Networks: sc.Networks}}
+	v := ConfigView{Config: c, Scope: ScopeView{Networks: sc.Networks}, Version: c.Version} // values and version of one read (r2 L3)
 	if v.Scope.Networks == nil {
 		v.Scope.Networks = []string{}
 	}
@@ -218,7 +221,7 @@ func (s *Service) SaveConfig(ctx context.Context, user string, p Patch) (ConfigV
 		// union while the copy was not merged: review #857 M1) back there, in the same transaction, so the inventory marks the copy
 		// taken in and discovery and Settings › Scanning see the same values.
 		if shared {
-			if err := sh.SaveChecks(ctx, tx, user, Checks{Window: next.Window, Rate: next.Rate, Exclusions: next.Exclusions, MergedFrom: &at}); err != nil {
+			if err := sh.SaveChecks(ctx, tx, user, Checks{Window: next.Window, Rate: next.Rate, Exclusions: next.Exclusions, MergedFrom: &at, Version: p.Version}); err != nil {
 				return err
 			}
 		}
@@ -240,6 +243,9 @@ func (s *Service) SaveConfig(ctx context.Context, user string, p Patch) (ConfigV
 	}
 	if err != nil {
 		return ConfigView{}, fmt.Errorf("scan: saving the settings: %w", err)
+	}
+	if shared { // the values and version as stored now, read together (r2 L3): never a version newer than the list it answers
+		return s.Config(ctx)
 	}
 	return s.view(ctx, saved)
 }

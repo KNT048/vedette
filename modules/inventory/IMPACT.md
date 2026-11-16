@@ -3,7 +3,8 @@
 ## Modifying: the shared safety block (`active.check_rate`, `SaveSafety`, `SetDiscovery`, `SaveChecks`, `MergeLegacyChecks`, `FragileCount`; #850, INV-32)
 - **scan** reads the window, the check rate and the exclusions through `cmd/vedette` `scanInventory` (`scan.SharedChecks`) and writes them back with `SaveChecks` in its own transaction: a change of their meaning or limits changes when and how fast nuclei runs, and what it skips.
 - **sensor-active** reads the same `active` (window, exclusions, rate) through `sensorInventory.Settings`: the exclusions merged from the scan module now bind discovery too.
-- **core** (`GET/PUT /scanning*`, `PATCH /scanning/engines/nmap-discovery`) reads and writes through `cmd/vedette` `scanningSafety` and `SetDiscovery`.
+- **core** (`GET/PUT /scanning*`, `POST /scanning/safety/ranges|exclusions`, `PATCH /scanning/engines/nmap-discovery`) reads and writes through `cmd/vedette` `scanningSafety` (`AddRange`, `AddExclusion`) and `SetDiscovery`; the SPA's inline dialogs (#842, Mlee) read their refusal codes.
+- **`SafetyVersion`** (review #860 M1) is what every writer of the block compares: adding a field to the block means adding it to the version, or a save from an older page silently replaces it; removing one from the version makes an edit of it invisible to the check. The SPA (`NetworkForm` sends the version it read, Settings › Scanning must) shows 409 `safety_changed`.
 - **`GET/PUT /inventory/settings`** must keep `check_rate` out (the generated decoder refuses an unknown field) and keep the stored value on save.
 
 ## Modifying: the Devices search (`DeviceFilter`, `ParseDeviceFilter`, `deviceSources`, `Device.Sources`, `Config.WazuhAgents`; #849, INV-33)

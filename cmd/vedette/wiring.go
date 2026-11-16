@@ -462,6 +462,25 @@ func (a mitigationVendors) HasFirewallVendor(ctx context.Context, vendor string)
 	return a.inv.HasDevice(ctx, []string{"firewall", "router"}, vendor)
 }
 
+func (a mitigationVendors) OpenPorts(ctx context.Context, assetID string) ([]mitigation.OpenPort, error) {
+	d, err := a.inv.Device(ctx, assetID)
+	if errors.Is(err, inventory.ErrNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := make([]mitigation.OpenPort, 0, len(d.Services))
+	for _, s := range d.Services {
+		p := mitigation.OpenPort{Port: s.Port, Proto: s.Proto, Name: s.Name}
+		if s.Product != nil {
+			p.Product = *s.Product
+		}
+		out = append(out, p)
+	}
+	return out, nil
+}
+
 // ---- building the services ----
 
 // buildServices builds the module services that others reach through ports, once, in dependency order, and

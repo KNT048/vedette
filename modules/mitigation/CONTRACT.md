@@ -1,6 +1,6 @@
 # Mitigation Contract
 
-> Tier: standard · Story: S-MIT-1 (phần "What to do"), S-MIT-3, S-MIT-4, S-AI-2 · Last verified: 2026-11-15 (D-612: bước kiểm của finding sản phẩm trên dòng agent, INV-7) (D-548: `genericRecheck` của finding agent, INV-7); trước đó 2026-11-12 (gói ký trong image, D-345..D-349; WP-21: bộ nạp gói, nhà cung cấp "What to do", `applied|ai`, migration `mit_*`, có test; đã nối vào `cmd/vedette`: `Vendors` từ inventory, `Provider` đăng ký vào findings, `ActionHandlers`; `AI` là bản giả luôn "không có" (409 `ai_unavailable`) tới khi nối `ai` (WP-25); `Loader` nạp gói ký trong image qua job `load-packs`, D-345..D-349)
+> Tier: standard · Story: S-MIT-1 (phần "What to do"), S-MIT-3, S-MIT-4, S-AI-2 · Last verified: 2026-11-16 (M2-1: gia cố chung INV-8); 2026-11-15 (D-612: bước kiểm của finding sản phẩm trên dòng agent, INV-7) (D-548: `genericRecheck` của finding agent, INV-7); trước đó 2026-11-12 (gói ký trong image, D-345..D-349; WP-21: bộ nạp gói, nhà cung cấp "What to do", `applied|ai`, migration `mit_*`, có test; đã nối vào `cmd/vedette`: `Vendors` từ inventory, `Provider` đăng ký vào findings, `ActionHandlers`; `AI` là bản giả luôn "không có" (409 `ai_unavailable`) tới khi nối `ai` (WP-25); `Loader` nạp gói ký trong image qua job `load-packs`, D-345..D-349)
 
 Mitigation là phần **"What to do"** của một finding: gói giảm thiểu đã xác nhận, "Đã áp dụng", dấu hiệu "Tôi đã bị chưa?", giải thích AI. Finding (khớp, trạng thái, vòng đời) thuộc module `findings` (D-57(6)); `mitigation` phụ thuộc `findings`, tắt `mitigation` không mất phát hiện hay cảnh báo. GUI: `web/src/features/findings/{Recommendation.tsx,packs.ts}` và phần `pack`/`ai`/`applied` của trang finding. Nguồn hành vi: `findings/{contract,mocks,packs}.ts`.
 
@@ -12,9 +12,10 @@ Mitigation là phần **"What to do"** của một finding: gói giảm thiểu 
 - **INV-5**: `firewall[].detected=true` khi `inventory` có thiết bị của hãng đó.
 - **INV-6**: Dấu hiệu "Tôi đã bị chưa?" và lệnh kiểm tra chỉ là văn bản từ nội dung ký; Vedette không bao giờ chạy chúng.
 - **INV-7** (D-548): `recheck` khi không có gói (`genericRecheck`) cho finding có `evidence.agent`: "Nothing to look up: the agent on <thiết bị> reports the installed version of <phần mềm> …", rồi cài bản cập nhật (agent tự báo phiên bản mới, thường trong hai giờ; Vedette tự đóng finding), thêm dòng "Rescan this device" khi CVE có mẫu và thiết bị có IP; không bao giờ "About screen". `TestGenericRecheck_D548_AgentVersionIsNotAskedFor`. D-612: finding chỉ khớp sản phẩm có `evidence.agent_row` (agent đã báo phiên bản, không so được với NVD): bước đầu là "Nothing to look up on <thiết bị>: its agent reports the installed version of <phần mềm> …, but Vedette cannot compare it …", không "About screen". `TestGenericRecheck_N52_AgentRowProductMatchDoesNotAskForTheVersion`.
+- **INV-8** (M2-1, lượt đi khách n74): **gia cố chung** (`findings.Guide.Hardening`, `hardening.go`) khi gói đã xác nhận vắng hoặc thiếu phần đó: (a) cấu hình firewall FortiGate / MikroTik / Linux (nftables, iptables) do code đã review viết, chỉ cho mạng quản trị (`{ADMIN_NET}`, trang điền) tới thiết bị; cổng = cổng mở inventory thấy trên thiết bị thuộc họ phần mềm của finding (`Vendors.OpenPorts`), không có thì mọi kết nối mới vào (nói rõ trong `intro`, tác dụng phụ trước lệnh); CVE của chính FortiOS/RouterOS → bảo vệ cổng quản trị của chính thiết bị (local-in-policy / chain input; chưa thấy cổng → cổng quản trị thường dùng); IP chỉ vào khi phân tích được (không zone), còn lại `<IP>` (INV-4); `detected` theo INV-5; (b) dấu hiệu "Tôi đã bị chưa?" chung theo họ phần mềm đọc từ hãng/sản phẩm KEV (Windows, IIS, Linux, OpenSSH, máy chủ web, Junos, FortiOS, RouterOS, Cisco IOS, thiết bị mạng, chung), không chứa giá trị thiết bị. Không nói gì riêng cho CVE (D-21): GUI ghi "General hardening — Not a Vedette recommendation for this CVE", không bao giờ "Vedette confirmed" (FORBID-2), không "Đã áp dụng" (INV-1); chỉ là văn bản (FORBID-1). Gói có cả firewall lẫn dấu hiệu → `hardening:null`. Test: `TestContract_INV8_GeneralHardeningRestrictsTheSoftwaresPortsForEveryVendor`, `TestContract_INV8_UnknownPortsRestrictAllInboundAndSaySo`, `TestContract_INV8_UnsafeDeviceValuesNeverReachTheConfigs`, `TestContract_INV8_TheFirewallItselfGetsItsOwnAdminAccessRestricted`, `TestContract_INV8_ChecksArePerFamilyAndClaimNothingAboutTheCVE`, `TestContract_INV8_TheConfirmedPackWinsWhereItHasItsOwn`, `TestContract_INV8_FindingWithoutPackShowsGeneralHardening`; GUI `web/src/features/findings/hardening.test.tsx`.
 
 ## Preconditions / Postconditions
-- **PRE-1** (`Guidance(finding)`, nguồn của phần "What to do" trong `GET /findings/{id}`): finding tồn tại (do `findings` kiểm). **POST-1**: trả `pack`, `compromise`, `recheck`, `ai`, `ai_available {explain, config}`, `applied`; thiết bị thay vào `{IP}`/`{HOST}` theo INV-4. `recheck` chung (gói không có) gọi thiết bị bằng `AssetView.Name` (không bao giờ id), không giả định trang quản trị, và chỉ nhắc "Rescan this device" khi thiết bị có IP (D-484, W1-32).
+- **PRE-1** (`Guidance(finding)`, nguồn của phần "What to do" trong `GET /findings/{id}`): finding tồn tại (do `findings` kiểm). **POST-1**: trả `pack`, `compromise`, `recheck`, `ai`, `ai_available {explain, config}`, `applied`, `hardening` (INV-8); thiết bị thay vào `{IP}`/`{HOST}` theo INV-4. `recheck` chung (gói không có) gọi thiết bị bằng `AssetView.Name` (không bao giờ id), không giả định trang quản trị, và chỉ nhắc "Rescan this device" khi thiết bị có IP (D-484, W1-32).
 - **PRE-2** (`POST /findings/{id}/applied`, `…/ai`): `operator`. **POST-2**: trả `FindingDetail` mới; thất bại không đổi gì.
 
 ## Forbidden
@@ -25,7 +26,7 @@ Mitigation là phần **"What to do"** của một finding: gói giảm thiểu 
 - **FORBID-5**: Tự đổi `status` của finding (việc của `findings`); chỉ `findings` ghi `fnd_*`.
 
 ## Dependencies
-- **DEPENDS ON**: `core`, `findings` (finding, KevInfo), `inventory` (`firewall[].detected`). Tuỳ chọn: `ai` (giải thích).
+- **DEPENDS ON**: `core`, `findings` (finding, KevInfo), `inventory` (`firewall[].detected`, cổng mở của thiết bị cho INV-8). Tuỳ chọn: `ai` (giải thích).
 - **DEPENDED ON BY**: SPA trang finding (panel "What to do"), `ai` (hỏi AI khi chưa có khuyến nghị đã xác nhận). `findings` không phụ thuộc `mitigation`.
 
 ## Endpoints owned (role tối thiểu)
@@ -43,7 +44,7 @@ Mitigation là phần **"What to do"** của một finding: gói giảm thiểu 
 - **Nhận**: `core.update.applied` (nạp lại gói).
 
 ## Behaviour khi tắt
-Không route `POST /findings/{id}/applied|ai`; trang finding mất panel "What to do" (`pack`, `compromise`, `recheck`, `ai`, `applied` rỗng). Finding, trạng thái và cảnh báo `notify` vẫn chạy bình thường. Bảng giữ nguyên.
+Không route `POST /findings/{id}/applied|ai`; trang finding mất panel "What to do" (`pack`, `compromise`, `recheck`, `ai`, `applied`, `hardening` rỗng). Finding, trạng thái và cảnh báo `notify` vẫn chạy bình thường. Bảng giữ nguyên.
 
 ## Story và quyết định
 S-MIT-1 (phần "What to do"), S-MIT-3, S-MIT-4, S-AI-2. D-3 không chặn; D-21 gói xác nhận qua PR; D-29 hồ sơ AI theo việc; D-31 bỏ vá ảo; D-57(6) tách `findings`.

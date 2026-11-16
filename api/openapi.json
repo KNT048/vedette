@@ -32873,6 +32873,332 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "hardening": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "software": {
+                              "type": "string",
+                              "description": "The software the checks are for, as the page names it"
+                            },
+                            "family": {
+                              "type": "string",
+                              "description": "The family the checks are written for (\"Linux\", \"Network device\", \"General\")"
+                            },
+                            "target": {
+                              "type": "string",
+                              "description": "The device address in the configs; \"<IP>\" when the device has no usable IP (INV-4)"
+                            },
+                            "self": {
+                              "type": "boolean",
+                              "description": "The device is itself the firewall: its own guide protects its admin access"
+                            },
+                            "ports_from": {
+                              "type": "string",
+                              "enum": [
+                                "seen",
+                                "usual",
+                                "all"
+                              ],
+                              "description": "seen = ports inventory saw open on the device for this software; usual = the usual admin ports of the firewall itself; all = none known, the configs block every new inbound connection except from the admin network"
+                            },
+                            "ports": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "port": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 65535
+                                  },
+                                  "proto": {
+                                    "type": "string",
+                                    "enum": [
+                                      "tcp",
+                                      "udp"
+                                    ]
+                                  },
+                                  "service": {
+                                    "type": "string",
+                                    "description": "Service name from inventory or the software defaults; empty when unknown"
+                                  }
+                                },
+                                "required": [
+                                  "port",
+                                  "proto",
+                                  "service"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "Empty when ports_from is all"
+                            },
+                            "admin_example": {
+                              "type": "string",
+                              "description": "The example admin network the page starts with; the configs hold {ADMIN_NET}"
+                            },
+                            "firewall": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "vendor": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fortigate",
+                                      "mikrotik",
+                                      "generic"
+                                    ]
+                                  },
+                                  "label": {
+                                    "type": "string"
+                                  },
+                                  "detected": {
+                                    "type": "boolean",
+                                    "description": "The user declared a device of this vendor in the inventory"
+                                  },
+                                  "intro": {
+                                    "type": "string"
+                                  },
+                                  "steps": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "alternative": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "intro": {
+                                        "type": "string"
+                                      },
+                                      "steps": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string"
+                                            },
+                                            "code": {
+                                              "type": "string"
+                                            },
+                                            "note": {
+                                              "type": "string"
+                                            },
+                                            "side_effect": {
+                                              "description": "Side effect that must be stated before the user pastes the command",
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "code"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "intro",
+                                      "steps"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "verify": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "undo": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "plain": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "vendor",
+                                  "label",
+                                  "detected",
+                                  "intro",
+                                  "steps",
+                                  "verify",
+                                  "undo"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "Empty when the confirmed pack has its own firewall guides"
+                            },
+                            "checks": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "summary": {
+                                      "type": "string"
+                                    },
+                                    "indicators": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "kind": {
+                                            "type": "string",
+                                            "enum": [
+                                              "file",
+                                              "web",
+                                              "log",
+                                              "process"
+                                            ]
+                                          },
+                                          "title": {
+                                            "type": "string"
+                                          },
+                                          "detail": {
+                                            "type": "string"
+                                          },
+                                          "commands": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "code": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "label",
+                                                "code"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "kind",
+                                          "title",
+                                          "detail"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "if_found": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "summary",
+                                    "indicators",
+                                    "if_found"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "General \"Have I been hit?\" checks for the software family; null when the confirmed pack has its own"
+                            }
+                          },
+                          "required": [
+                            "software",
+                            "family",
+                            "target",
+                            "self",
+                            "ports_from",
+                            "ports",
+                            "admin_example",
+                            "firewall",
+                            "checks"
+                          ],
+                          "additionalProperties": false,
+                          "description": "M2-1, mitigation INV-8: general hardening written by reviewed code, not a recommendation for the CVE (D-21): never shown as \"Vedette confirmed\", never run by Vedette"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null when the confirmed pack has both firewall guides and compromise signs, or mitigation is off"
                     }
                   },
                   "required": [
@@ -32900,7 +33226,8 @@
                     "recheck",
                     "ai",
                     "ai_available",
-                    "applied"
+                    "applied",
+                    "hardening"
                   ],
                   "additionalProperties": false
                 }
@@ -34177,6 +34504,332 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "hardening": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "software": {
+                              "type": "string",
+                              "description": "The software the checks are for, as the page names it"
+                            },
+                            "family": {
+                              "type": "string",
+                              "description": "The family the checks are written for (\"Linux\", \"Network device\", \"General\")"
+                            },
+                            "target": {
+                              "type": "string",
+                              "description": "The device address in the configs; \"<IP>\" when the device has no usable IP (INV-4)"
+                            },
+                            "self": {
+                              "type": "boolean",
+                              "description": "The device is itself the firewall: its own guide protects its admin access"
+                            },
+                            "ports_from": {
+                              "type": "string",
+                              "enum": [
+                                "seen",
+                                "usual",
+                                "all"
+                              ],
+                              "description": "seen = ports inventory saw open on the device for this software; usual = the usual admin ports of the firewall itself; all = none known, the configs block every new inbound connection except from the admin network"
+                            },
+                            "ports": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "port": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 65535
+                                  },
+                                  "proto": {
+                                    "type": "string",
+                                    "enum": [
+                                      "tcp",
+                                      "udp"
+                                    ]
+                                  },
+                                  "service": {
+                                    "type": "string",
+                                    "description": "Service name from inventory or the software defaults; empty when unknown"
+                                  }
+                                },
+                                "required": [
+                                  "port",
+                                  "proto",
+                                  "service"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "Empty when ports_from is all"
+                            },
+                            "admin_example": {
+                              "type": "string",
+                              "description": "The example admin network the page starts with; the configs hold {ADMIN_NET}"
+                            },
+                            "firewall": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "vendor": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fortigate",
+                                      "mikrotik",
+                                      "generic"
+                                    ]
+                                  },
+                                  "label": {
+                                    "type": "string"
+                                  },
+                                  "detected": {
+                                    "type": "boolean",
+                                    "description": "The user declared a device of this vendor in the inventory"
+                                  },
+                                  "intro": {
+                                    "type": "string"
+                                  },
+                                  "steps": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "alternative": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "intro": {
+                                        "type": "string"
+                                      },
+                                      "steps": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string"
+                                            },
+                                            "code": {
+                                              "type": "string"
+                                            },
+                                            "note": {
+                                              "type": "string"
+                                            },
+                                            "side_effect": {
+                                              "description": "Side effect that must be stated before the user pastes the command",
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "code"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "intro",
+                                      "steps"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "verify": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "undo": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "plain": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "vendor",
+                                  "label",
+                                  "detected",
+                                  "intro",
+                                  "steps",
+                                  "verify",
+                                  "undo"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "Empty when the confirmed pack has its own firewall guides"
+                            },
+                            "checks": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "summary": {
+                                      "type": "string"
+                                    },
+                                    "indicators": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "kind": {
+                                            "type": "string",
+                                            "enum": [
+                                              "file",
+                                              "web",
+                                              "log",
+                                              "process"
+                                            ]
+                                          },
+                                          "title": {
+                                            "type": "string"
+                                          },
+                                          "detail": {
+                                            "type": "string"
+                                          },
+                                          "commands": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "code": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "label",
+                                                "code"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "kind",
+                                          "title",
+                                          "detail"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "if_found": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "summary",
+                                    "indicators",
+                                    "if_found"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "General \"Have I been hit?\" checks for the software family; null when the confirmed pack has its own"
+                            }
+                          },
+                          "required": [
+                            "software",
+                            "family",
+                            "target",
+                            "self",
+                            "ports_from",
+                            "ports",
+                            "admin_example",
+                            "firewall",
+                            "checks"
+                          ],
+                          "additionalProperties": false,
+                          "description": "M2-1, mitigation INV-8: general hardening written by reviewed code, not a recommendation for the CVE (D-21): never shown as \"Vedette confirmed\", never run by Vedette"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null when the confirmed pack has both firewall guides and compromise signs, or mitigation is off"
                     }
                   },
                   "required": [
@@ -34204,7 +34857,8 @@
                     "recheck",
                     "ai",
                     "ai_available",
-                    "applied"
+                    "applied",
+                    "hardening"
                   ],
                   "additionalProperties": false
                 }
@@ -35483,6 +36137,332 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "hardening": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "software": {
+                              "type": "string",
+                              "description": "The software the checks are for, as the page names it"
+                            },
+                            "family": {
+                              "type": "string",
+                              "description": "The family the checks are written for (\"Linux\", \"Network device\", \"General\")"
+                            },
+                            "target": {
+                              "type": "string",
+                              "description": "The device address in the configs; \"<IP>\" when the device has no usable IP (INV-4)"
+                            },
+                            "self": {
+                              "type": "boolean",
+                              "description": "The device is itself the firewall: its own guide protects its admin access"
+                            },
+                            "ports_from": {
+                              "type": "string",
+                              "enum": [
+                                "seen",
+                                "usual",
+                                "all"
+                              ],
+                              "description": "seen = ports inventory saw open on the device for this software; usual = the usual admin ports of the firewall itself; all = none known, the configs block every new inbound connection except from the admin network"
+                            },
+                            "ports": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "port": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 65535
+                                  },
+                                  "proto": {
+                                    "type": "string",
+                                    "enum": [
+                                      "tcp",
+                                      "udp"
+                                    ]
+                                  },
+                                  "service": {
+                                    "type": "string",
+                                    "description": "Service name from inventory or the software defaults; empty when unknown"
+                                  }
+                                },
+                                "required": [
+                                  "port",
+                                  "proto",
+                                  "service"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "Empty when ports_from is all"
+                            },
+                            "admin_example": {
+                              "type": "string",
+                              "description": "The example admin network the page starts with; the configs hold {ADMIN_NET}"
+                            },
+                            "firewall": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "vendor": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fortigate",
+                                      "mikrotik",
+                                      "generic"
+                                    ]
+                                  },
+                                  "label": {
+                                    "type": "string"
+                                  },
+                                  "detected": {
+                                    "type": "boolean",
+                                    "description": "The user declared a device of this vendor in the inventory"
+                                  },
+                                  "intro": {
+                                    "type": "string"
+                                  },
+                                  "steps": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "alternative": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "intro": {
+                                        "type": "string"
+                                      },
+                                      "steps": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string"
+                                            },
+                                            "code": {
+                                              "type": "string"
+                                            },
+                                            "note": {
+                                              "type": "string"
+                                            },
+                                            "side_effect": {
+                                              "description": "Side effect that must be stated before the user pastes the command",
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "code"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "intro",
+                                      "steps"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "verify": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "undo": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "plain": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "vendor",
+                                  "label",
+                                  "detected",
+                                  "intro",
+                                  "steps",
+                                  "verify",
+                                  "undo"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "Empty when the confirmed pack has its own firewall guides"
+                            },
+                            "checks": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "summary": {
+                                      "type": "string"
+                                    },
+                                    "indicators": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "kind": {
+                                            "type": "string",
+                                            "enum": [
+                                              "file",
+                                              "web",
+                                              "log",
+                                              "process"
+                                            ]
+                                          },
+                                          "title": {
+                                            "type": "string"
+                                          },
+                                          "detail": {
+                                            "type": "string"
+                                          },
+                                          "commands": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "code": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "label",
+                                                "code"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "kind",
+                                          "title",
+                                          "detail"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "if_found": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "summary",
+                                    "indicators",
+                                    "if_found"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "General \"Have I been hit?\" checks for the software family; null when the confirmed pack has its own"
+                            }
+                          },
+                          "required": [
+                            "software",
+                            "family",
+                            "target",
+                            "self",
+                            "ports_from",
+                            "ports",
+                            "admin_example",
+                            "firewall",
+                            "checks"
+                          ],
+                          "additionalProperties": false,
+                          "description": "M2-1, mitigation INV-8: general hardening written by reviewed code, not a recommendation for the CVE (D-21): never shown as \"Vedette confirmed\", never run by Vedette"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null when the confirmed pack has both firewall guides and compromise signs, or mitigation is off"
                     }
                   },
                   "required": [
@@ -35510,7 +36490,8 @@
                     "recheck",
                     "ai",
                     "ai_available",
-                    "applied"
+                    "applied",
+                    "hardening"
                   ],
                   "additionalProperties": false
                 }
@@ -36801,6 +37782,332 @@
                         ],
                         "additionalProperties": false
                       }
+                    },
+                    "hardening": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "software": {
+                              "type": "string",
+                              "description": "The software the checks are for, as the page names it"
+                            },
+                            "family": {
+                              "type": "string",
+                              "description": "The family the checks are written for (\"Linux\", \"Network device\", \"General\")"
+                            },
+                            "target": {
+                              "type": "string",
+                              "description": "The device address in the configs; \"<IP>\" when the device has no usable IP (INV-4)"
+                            },
+                            "self": {
+                              "type": "boolean",
+                              "description": "The device is itself the firewall: its own guide protects its admin access"
+                            },
+                            "ports_from": {
+                              "type": "string",
+                              "enum": [
+                                "seen",
+                                "usual",
+                                "all"
+                              ],
+                              "description": "seen = ports inventory saw open on the device for this software; usual = the usual admin ports of the firewall itself; all = none known, the configs block every new inbound connection except from the admin network"
+                            },
+                            "ports": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "port": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 65535
+                                  },
+                                  "proto": {
+                                    "type": "string",
+                                    "enum": [
+                                      "tcp",
+                                      "udp"
+                                    ]
+                                  },
+                                  "service": {
+                                    "type": "string",
+                                    "description": "Service name from inventory or the software defaults; empty when unknown"
+                                  }
+                                },
+                                "required": [
+                                  "port",
+                                  "proto",
+                                  "service"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "Empty when ports_from is all"
+                            },
+                            "admin_example": {
+                              "type": "string",
+                              "description": "The example admin network the page starts with; the configs hold {ADMIN_NET}"
+                            },
+                            "firewall": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "vendor": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fortigate",
+                                      "mikrotik",
+                                      "generic"
+                                    ]
+                                  },
+                                  "label": {
+                                    "type": "string"
+                                  },
+                                  "detected": {
+                                    "type": "boolean",
+                                    "description": "The user declared a device of this vendor in the inventory"
+                                  },
+                                  "intro": {
+                                    "type": "string"
+                                  },
+                                  "steps": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "alternative": {
+                                    "type": "object",
+                                    "properties": {
+                                      "title": {
+                                        "type": "string"
+                                      },
+                                      "intro": {
+                                        "type": "string"
+                                      },
+                                      "steps": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "object",
+                                          "properties": {
+                                            "title": {
+                                              "type": "string"
+                                            },
+                                            "code": {
+                                              "type": "string"
+                                            },
+                                            "note": {
+                                              "type": "string"
+                                            },
+                                            "side_effect": {
+                                              "description": "Side effect that must be stated before the user pastes the command",
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "title",
+                                            "code"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      }
+                                    },
+                                    "required": [
+                                      "title",
+                                      "intro",
+                                      "steps"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "verify": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "undo": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "title": {
+                                          "type": "string"
+                                        },
+                                        "code": {
+                                          "type": "string"
+                                        },
+                                        "note": {
+                                          "type": "string"
+                                        },
+                                        "side_effect": {
+                                          "description": "Side effect that must be stated before the user pastes the command",
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "title",
+                                        "code"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "plain": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "vendor",
+                                  "label",
+                                  "detected",
+                                  "intro",
+                                  "steps",
+                                  "verify",
+                                  "undo"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "description": "Empty when the confirmed pack has its own firewall guides"
+                            },
+                            "checks": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "summary": {
+                                      "type": "string"
+                                    },
+                                    "indicators": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "kind": {
+                                            "type": "string",
+                                            "enum": [
+                                              "file",
+                                              "web",
+                                              "log",
+                                              "process"
+                                            ]
+                                          },
+                                          "title": {
+                                            "type": "string"
+                                          },
+                                          "detail": {
+                                            "type": "string"
+                                          },
+                                          "commands": {
+                                            "type": "array",
+                                            "items": {
+                                              "type": "object",
+                                              "properties": {
+                                                "label": {
+                                                  "type": "string"
+                                                },
+                                                "code": {
+                                                  "type": "string"
+                                                }
+                                              },
+                                              "required": [
+                                                "label",
+                                                "code"
+                                              ],
+                                              "additionalProperties": false
+                                            }
+                                          }
+                                        },
+                                        "required": [
+                                          "kind",
+                                          "title",
+                                          "detail"
+                                        ],
+                                        "additionalProperties": false
+                                      }
+                                    },
+                                    "if_found": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  },
+                                  "required": [
+                                    "summary",
+                                    "indicators",
+                                    "if_found"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "General \"Have I been hit?\" checks for the software family; null when the confirmed pack has its own"
+                            }
+                          },
+                          "required": [
+                            "software",
+                            "family",
+                            "target",
+                            "self",
+                            "ports_from",
+                            "ports",
+                            "admin_example",
+                            "firewall",
+                            "checks"
+                          ],
+                          "additionalProperties": false,
+                          "description": "M2-1, mitigation INV-8: general hardening written by reviewed code, not a recommendation for the CVE (D-21): never shown as \"Vedette confirmed\", never run by Vedette"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null when the confirmed pack has both firewall guides and compromise signs, or mitigation is off"
                     }
                   },
                   "required": [
@@ -36828,7 +38135,8 @@
                     "recheck",
                     "ai",
                     "ai_available",
-                    "applied"
+                    "applied",
+                    "hardening"
                   ],
                   "additionalProperties": false
                 }

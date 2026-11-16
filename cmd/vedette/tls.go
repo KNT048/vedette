@@ -382,6 +382,16 @@ func ipSANs(names []string) map[netip.Addr]bool {
 	return out
 }
 
+// coversIPs says whether have holds every address of want.
+func coversIPs(have, want map[netip.Addr]bool) bool {
+	for a := range want {
+		if !have[a] {
+			return false
+		}
+	}
+	return true
+}
+
 func certIPs(c *x509.Certificate) map[netip.Addr]bool {
 	out := map[netip.Addr]bool{}
 	for _, ip := range c.IPAddresses {
@@ -414,16 +424,21 @@ func (r *selfSignedRenewer) Kick() {
 }
 
 // Check re-issues the pair, for the same key, when it expires soon, when its IP addresses are not those the
-// box has: -hosts, localNames and the management addresses vedette-host reports (D-139), or when it lacks the box's
-// name (certBoxName). A host that does not answer, or answers nothing, never removes an address or a name: the
-// certificate keeps the ones it has. The new certificate is loaded for new handshakes; the Host allowlist is fixed
-// at start (transport), so a name first known after start is answered to from the next start of core.
+// box has: -hosts and the management addresses vedette-host reports (D-139; localNames ride along in a re-issue
+// made for another reason, they never cause one), or when it lacks the box's name (certBoxName). A host that does
+// not answer, or answers nothing, never removes an address or a name: the certificate keeps the ones it has. The
+// new certificate is loaded for new handshakes; the Host allowlist is fixed at start (transport), so a name first
+// known after start is answered to from the next start of core.
 //
-// The decision to re-issue for addresses compares the management addresses with those of the last answer (at
-// start: with the certificate), never the container's own addresses, which localNames adds to the certificate
-// but which are not the box's address. The new certificate is built from the new PEM and the key already in
-// memory, so a disk that cannot be read back does not keep the old certificate being served; when the pair on
-// disk was replaced by something else that loads, that is served instead.
+// The decision to re-issue for addresses compares the management addresses with those of the last answer, never
+// the container's own addresses, which localNames adds to the certificate but which are not the box's address. At
+// start (no answer yet) it asks only whether the certificate already has every management address, -hosts address
+// and Box address: a new container has a new address of its own and the certificate still lists the old one's, so
+// an exact comparison re-issued it at every restart, update and reboot, and every browser that had accepted it
+// warned again (J7, #812). An address the box lost while core was down stays until the next re-issue; one it
+// gained is missing from the certificate and re-issues it. The new certificate is built from the new PEM and the
+// key already in memory, so a disk that cannot be read back does not keep the old certificate being served; when
+// the pair on disk was replaced by something else that loads, that is served instead.
 func (r *selfSignedRenewer) Check(ctx context.Context, log *slog.Logger) error {
 	r.mu.RLock()
 	cur := r.cert
@@ -481,7 +496,7 @@ func (r *selfSignedRenewer) Check(ctx context.Context, log *slog.Logger) error {
 			now[a] = true
 		}
 		if r.lastMgmt == nil { // first answer since start: the certificate is the reference
-			addrChange = !maps.Equal(certIPs(leaf), ipSANs(append(hosts, r.localList()...)))
+			addrChange = !coversIPs(certIPs(leaf), ipSANs(hosts))
 		} else {
 			addrChange = !maps.Equal(now, r.lastMgmt)
 		}

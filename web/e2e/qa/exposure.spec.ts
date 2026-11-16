@@ -99,7 +99,7 @@ test('clean install: no sample targets, the box finds its two IPs by itself; a d
   await shot(page, 'exposure', `commitment-${isMobile ? 'mobile' : 'desktop'}`)
   await expect(scan).toBeEnabled()
   await scan.click()
-  await expect(page.getByRole('tab', { name: 'Results', selected: true })).toBeVisible() // a finished scan lands on the results
+  await expect(page.getByRole('tab', { name: 'Results', selected: true })).toBeVisible({ timeout: 25_000 }) // a finished scan lands on the results
   await page.getByRole('tab', { name: /^Ownership/ }).click()
   await expect(page.getByText(/Confirmed by admin@testco\.example on .*, by pressing Scan now\./)).toBeVisible()
   await page.getByRole('tab', { name: 'Results' }).click()
@@ -274,7 +274,7 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await turnOnTwoStep(page, 'a-very-long-password-123')
   await page.reload()
   await page.getByRole('button', { name: 'Scan now', exact: true }).click()
-  await expect(page.getByRole('tab', { name: 'Results', selected: true })).toBeVisible() // a finished scan lands on the results
+  await expect(page.getByRole('tab', { name: 'Results', selected: true })).toBeVisible({ timeout: 25_000 }) // a finished scan lands on the results
   await page.getByRole('tab', { name: /^Ownership/ }).click()
   await expect(page.getByText(/Confirmed by admin@testco\.example on .*, by pressing Scan now\./)).toBeVisible()
   await page.getByRole('tab', { name: 'Results' }).click()
@@ -309,7 +309,7 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await page.getByRole('button', { name: 'Verify again', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Scan now', exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Scan now', exact: true }).click()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7: \d+ open port\(s\)/)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7: \d+ open port\(s\)/, { timeout: 25_000 })
   await expect(page.getByRole('heading', { name: 'Subdomains' })).toHaveCount(0)
   await expectAccessible(page, 'ip target results')
   expect(detect502, 'the offline Detect now answered 502 once').toBe(1)
@@ -368,7 +368,7 @@ test('sample: expired IP, expiring IP, missing TXT record and unverified domain 
   await shot(page, 'exposure', `compare-${isMobile ? 'mobile' : 'desktop'}`)
   await expectAccessible(page, 'xt-1 compare')
   await page.getByRole('button', { name: 'Scan now', exact: true }).click()
-  await expect(page.getByText('staging.acme.example').first()).toBeVisible()
+  await expect(page.getByText('staging.acme.example').first()).toBeVisible({ timeout: 25_000 })
   expect(errors).toEqual([])
 })
 

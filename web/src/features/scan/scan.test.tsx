@@ -7,6 +7,7 @@ import { server } from '@/test/server'
 import { eachOption } from '@/test/formMatrix'
 import { assetsStore, auditStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { engineStore, nextRun, runs, scannerStore, timing, zoneStore } from './mocks'
+import { runsPoll, runsPollMs } from './api'
 import { manyAssets } from '@/mocks/seed/assets'
 import { inventorySettingsStore } from '@/features/inventory/mocks'
 import type { ScanConfig, ScanRun } from './types'
@@ -22,6 +23,8 @@ const getRuns = async () => ((await (await fetch(`${base()}/scans/runs`)).json()
 const postRun = (targets: string[]) => fetch(`${base()}/scans/runs`, json('POST', { targets }))
 
 timing.engineMs = 0 // the mock's engine is busy after Stop now only where a test says so (D-261 (4))
+const RUNNING_POLL_MS = runsPoll.runningMs
+runsPoll.runningMs = 1000 // the page reads every 5 s while a scan runs (#830); the tests' mock scans last 2 s
 afterEach(() => { timing.stepMs = 2000; timing.stopMs = 1000; timing.engineMs = 0; vi.useRealTimers(); localStorage.removeItem('vedette-mock-egress') })
 
 async function onlyTarget(label: RegExp) {
@@ -264,6 +267,28 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
 })
 
 describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
+  it('#830: one device shows its step, not an empty devices bar; phase-only progress reads right; the page reads every 5 s, every second while stopping', async () => {
+    timing.stepMs = 60_000
+    const running = { id: 'run-x', trigger: 'manual', trigger_note: null, started_at: new Date().toISOString(), started_by: 'it@acme.example', ended_at: null, status: 'running',
+      total: 1, done: 0, current: { label: 'NAS-PHOTOS', ip: '192.168.10.21' }, results: [], matched: 0, stop_reason: null, stop_requested_at: null, identification: [],
+      progress: { phase: 'ports', percent: null, done: null, total: null, unit: null, started_at: new Date(Date.now() - 75_000).toISOString(), phase_started_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(), eta: null, message: null } } as unknown as ScanRun
+    server.use(http.get('*/api/v1/scans/runs', () => HttpResponse.json({ items: [running], engine_busy: false })))
+    renderApp('/scans')
+    expect(await screen.findByRole('heading', { level: 2, name: 'Device 1 of 1' })).toBeInTheDocument()
+    expect(screen.queryByRole('progressbar', { name: 'Scan progress' })).toBeNull()
+    const step = screen.getByRole('progressbar', { name: 'Checking open ports' }) // a real box today: the phase, no percent yet
+    expect(step).not.toHaveAttribute('aria-valuenow')
+    expect(screen.getByText('Scanning NAS-PHOTOS (192.168.10.21)')).toBeInTheDocument()
+    expect(screen.getByText(/^1 min 1\d s elapsed$/)).toBeInTheDocument()
+    expect(RUNNING_POLL_MS).toBe(5000)
+    expect(runsPollMs({ items: [running], engine_busy: false })).toBe(runsPoll.runningMs)
+    expect(runsPollMs({ items: [{ ...running, status: 'stopping' }], engine_busy: false })).toBe(1000)
+    expect(runsPollMs({ items: [{ ...running, status: 'done' }], engine_busy: true })).toBe(runsPoll.runningMs)
+    expect(runsPollMs({ items: [{ ...running, status: 'done' }], engine_busy: false })).toBe(false)
+    await expectNoA11yViolations()
+  })
+
   it('quét một thiết bị đến khi xong: ghi kết quả vào phát hiện dùng chung, kiểm toán, nhật ký probe', async () => {
     timing.stepMs = 30
     renderApp('/scans')
@@ -319,6 +344,9 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     const bar = await screen.findByRole('progressbar', { name: 'Scan progress' })
     expect(bar).toHaveAttribute('aria-valuenow', '0')
     expect(await screen.findByRole('heading', { level: 1, name: 'Scanning: 0/2 devices done' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Device 1 of 2' })).toBeInTheDocument()
+    // #830: the device's own step under the devices bar (the mock starts each device with host discovery, no percent yet)
+    expect(screen.getByRole('progressbar', { name: 'Finding the device' })).not.toHaveAttribute('aria-valuenow')
     expect(screen.getByRole('button', { name: /Scan now/ })).toBeDisabled()
     expect(screen.getByText(/Scanning NAS-PHOTOS|Scanning WEB01|Scanning SRV-AD/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Stop now' }))

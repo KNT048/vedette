@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { InfoTip } from '@/components/common/InfoTip'
 import type { JobProgress as Progress } from '@/lib/progress'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
-import { PROGRESS_STRINGS_EN, say, sayDuration, type ProgressStrings } from './strings'
+import { sayDuration } from './duration'
 import './JobProgress.css'
 
 /** A report older than this reads "Last report N s ago": the box reports every 5 s at most, and some checks are silent until they end. */
@@ -25,16 +26,16 @@ function useNow(stepMs = 1000) {
  * Screen readers: the bar is a progressbar named by the step (no aria-valuenow when indeterminate); only a change of step (or of its note)
  * is announced, never the ticking time or the percent.
  */
-export function JobProgress({ progress, strings, className }: { progress: Progress | null; strings?: Partial<ProgressStrings>; className?: string }) {
-  const s: ProgressStrings = { ...PROGRESS_STRINGS_EN, ...strings }
+export function JobProgress({ progress, className }: { progress: Progress | null; className?: string }) {
+  const { t } = useTranslation('progress')
   const now = useNow()
-  const step = progress ? say(s, `phase.${progress.phase}`) : say(s, 'starting')
+  const step = progress ? t(`phase.${progress.phase}`) : t('starting')
   const percent = progress?.percent == null ? null : Math.round(Math.min(100, Math.max(0, progress.percent)))
   const counted = progress?.done != null && progress.total != null && progress.total > 0
-  const count = counted ? say(s, progress.unit ? `count.${progress.unit}` : 'count', { done: progress.done!, total: progress.total! }, progress.total!) : null
+  const count = counted ? t(`count.${progress.unit ?? 'plain'}`, { done: progress.done, total: progress.total, count: progress.total }) : null
   const elapsed = progress ? now - Date.parse(progress.started_at) : null
   const etaMs = progress?.eta ? Date.parse(progress.eta) - now : null
-  const left = etaMs === null || etaMs <= 0 ? null : etaMs < 60_000 ? say(s, 'leftSoon') : say(s, 'left', { time: sayDuration(s, Math.ceil(etaMs / 60_000) * 60_000) })
+  const left = etaMs === null || etaMs <= 0 ? null : etaMs < 60_000 ? t('leftSoon') : t('left', { time: sayDuration(t, Math.ceil(etaMs / 60_000) * 60_000) })
   const quietMs = progress ? now - Date.parse(progress.updated_at) : 0
   const quiet = quietMs >= QUIET_AFTER_MS
   return (
@@ -45,7 +46,7 @@ export function JobProgress({ progress, strings, className }: { progress: Progre
           <span className="font-medium">{step}</span>
           {progress?.message ? <span className="block text-[13px] text-muted">{progress.message}</span> : null}
         </p>
-        {percent !== null ? <span aria-hidden className="shrink-0 text-sm tabular-nums text-muted">{say(s, 'percent', { percent })}</span> : null}
+        {percent !== null ? <span aria-hidden className="shrink-0 text-sm tabular-nums text-muted">{t('percent', { percent })}</span> : null}
       </div>
       <div
         role="progressbar"
@@ -53,7 +54,7 @@ export function JobProgress({ progress, strings, className }: { progress: Progre
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={percent ?? undefined}
-        aria-valuetext={percent === null ? undefined : [say(s, 'percent', { percent }), count].filter(Boolean).join(', ')}
+        aria-valuetext={percent === null ? undefined : [t('percent', { percent }), count].filter(Boolean).join(', ')}
         className="relative h-2 overflow-hidden rounded-full bg-rule"
       >
         {percent === null
@@ -62,12 +63,12 @@ export function JobProgress({ progress, strings, className }: { progress: Progre
       </div>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[13px] text-muted tabular-nums">
         {count ? <span className="text-ink">{count}</span> : null}
-        {elapsed !== null ? <span>{say(s, 'elapsed', { time: sayDuration(s, elapsed) })}</span> : null}
+        {elapsed !== null ? <span>{t('elapsed', { time: sayDuration(t, elapsed) })}</span> : null}
         {left ? <span>{left}</span> : null}
         {quiet ? (
           <span className="inline-flex items-center gap-1">
-            {say(s, 'quiet', { time: sayDuration(s, quietMs) })}
-            <InfoTip topic={say(s, 'quietTopic')}>{say(s, 'quietHelp')}</InfoTip>
+            {t('quiet', { time: sayDuration(t, quietMs) })}
+            <InfoTip topic={t('quietTopic')}>{t('quietHelp')}</InfoTip>
           </span>
         ) : null}
       </div>

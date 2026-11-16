@@ -26,20 +26,19 @@ func (l stepsProbeLog) RecordWebProbe(ctx context.Context, p WebProbe) error {
 
 // stepsEnv is a deep scan of ipA with every engine step wired: service identification finds a web server on 80 with an exploited CVE
 // (nuclei runs its templates there), ZAP scans http://ipA/ (one alert), and OpenVAS, turned on, checks the open ports (4 results).
-func stepsEnv(t *testing.T) (*env, *fakeTemplates) {
+func stepsEnv(t *testing.T) *env {
 	t.Helper()
 	e, h := gbEnv(t)
 	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Ports: 98, Services: []ServiceRow{
 		{IP: ipA, Port: 80, Name: "http", Product: "Apache httpd", Version: "2.4.49", CPE: "cpe:/a:apache:http_server:2.4.49"}}}}
 	e.svc.cfg.Matcher = &fakeMatcher{m: Matches{Compared: 1, Listed: 1500, Vulns: []VulnRow{
 		{IP: ipA, Port: 80, CVE: "CVE-2021-41773", Name: "Path traversal", Basis: "version", Summary: "In range."}}}}
-	tpl := &fakeTemplates{log: &fakeProbeLog{}, results: []TemplateResult{{Port: 80, Template: "CVE-2021-41773", CVE: "CVE-2021-41773", Outcome: OutcomeMatched}}}
-	e.svc.cfg.Templates = tpl
+	e.svc.cfg.Templates = &fakeTemplates{log: &fakeProbeLog{}, results: []TemplateResult{{Port: 80, Template: "CVE-2021-41773", CVE: "CVE-2021-41773", Outcome: OutcomeMatched}}}
 	e.svc.cfg.Web = &fakeWeb{report: cleanReport}
 	e.svc.cfg.Probes = stepsProbeLog{gbLog: h.gvm.log, web: &webLog{}}
 	e.enable()
 	h.gvm.with(func(g *fakeGVM) { g.states = []string{"Requested", "Running", "Done"} })
-	return e, tpl
+	return e
 }
 
 func (e *env) engineRuns() map[string]EngineRun {
@@ -55,7 +54,7 @@ func (e *env) engineRuns() map[string]EngineRun {
 // step ended, ok, and what it found. Before any scan there is none.
 func TestContract_INV30_ADeepRunGivesEachStepItsLastRun(t *testing.T) {
 	t.Parallel()
-	e, _ := stepsEnv(t)
+	e := stepsEnv(t)
 	if runs := e.engineRuns(); len(runs) != 0 {
 		t.Fatalf("before any scan: %+v", runs)
 	}
@@ -82,7 +81,7 @@ func TestContract_INV30_ADeepRunGivesEachStepItsLastRun(t *testing.T) {
 // move to the new one. The second scan of the day replaces the snapshot, never the step's row.
 func TestContract_INV30_ARunThatSkippedAStepLeavesItsEarlierRun(t *testing.T) {
 	t.Parallel()
-	e, _ := stepsEnv(t)
+	e := stepsEnv(t)
 	e.scanIP(gbOpen())
 	first := e.engineRuns()
 	if _, err := e.svc.SetGreenbone(e.ctx(), "admin@acme.example", false); err != nil {

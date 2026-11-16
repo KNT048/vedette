@@ -23,6 +23,7 @@ import (
 	"github.com/knt048/vedette/core/api/routes"
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/auth"
+	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 )
 
@@ -37,6 +38,25 @@ const (
 
 func oidcOff() *apierr.Error {
 	return apierr.New(400, "oidc_off", "SSO sign-in is not set up. Sign in with your email and password, or ask an administrator.")
+}
+
+// secretLost refuses SSO sign-in while the client secret is sealed under another box key: a backup restored without its
+// decryption key (the restore page warns that SSO accounts cannot sign in then). An administrator enters the secret again.
+func secretLost() *apierr.Error {
+	return apierr.New(409, "sso_secret_lost", "SSO sign-in cannot be used: this box was restored without the decryption key, so the SSO client secret was not restored. An administrator signs in with a password and enters the client secret again in Settings, Users, SSO sign-in.")
+}
+
+// clientSecret opens the stored client secret; one sealed under another box key is secretLost.
+func (s *Service) clientSecret(ctx context.Context, c Config) ([]byte, error) {
+	secret, err := s.secrets.Open(ctx, s.db.Reader(), c.secretID, secretPurpose)
+	if errors.Is(err, secrets.ErrDecrypt) {
+		s.log.WarnContext(ctx, "the SSO client secret cannot be opened with this box's key (restored without the decryption key?); an administrator must enter it again", "issuer", c.Issuer)
+		return nil, secretLost()
+	}
+	if err != nil {
+		return nil, fmt.Errorf("authoidc: open client secret: %w", err)
+	}
+	return secret, nil
 }
 
 func ssoExpired() *apierr.Error {
@@ -98,6 +118,9 @@ func (s *Service) Start(ctx context.Context, origin string, ip netip.Addr) (Star
 	if callbackURL(origin) != c.RedirectURI {
 		at := strings.TrimSuffix(c.RedirectURI, "/sso/callback")
 		return Started{}, apierr.New(409, "sso_wrong_address", "SSO sign-in works at "+at+". Open Vedette there to sign in with SSO.").With("address", at)
+	}
+	if _, err := s.clientSecret(ctx, c); err != nil { // not sent to the identity provider for a code this box cannot exchange
+		return Started{}, err
 	}
 	d, err := s.discover(ctx, c, false)
 	if err != nil {
@@ -217,9 +240,12 @@ func (s *Service) Callback(ctx context.Context, in CallbackRequest) (auth.Issued
 		s.log.WarnContext(ctx, "SSO discovery failed", "issuer", c.Issuer, "err", reason(err))
 		return refuse("token", idpUnreachable(c.Issuer))
 	}
-	secret, err := s.secrets.Open(ctx, s.db.Reader(), c.secretID, secretPurpose)
+	secret, err := s.clientSecret(ctx, c)
+	if e, ok := apierr.As(err); ok {
+		return refuse("client_secret", e)
+	}
 	if err != nil {
-		return auth.Issued{}, fmt.Errorf("authoidc: open client secret: %w", err)
+		return auth.Issued{}, err
 	}
 	ep := d.provider.Endpoint()
 	ep.AuthStyle = d.authStyle // D-194 (1): the method the provider names, never a retry with the secret in another place

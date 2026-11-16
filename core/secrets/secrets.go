@@ -427,6 +427,11 @@ func (s *Store) Delete(ctx context.Context, tx *sql.Tx, id string) error {
 // first time it is asked for. It is for keys the box makes for itself (an HMAC key), not for secrets a user
 // supplies: there is exactly one row per purpose, and callers racing on first use all get the same bytes
 // (the check and the insert run in one write transaction).
+//
+// A row this store cannot decrypt (a backup restored without its decryption key, so it was sealed under another master
+// key) holds a key nobody can read again: it is replaced in place by a new random key, in the same transaction, instead of
+// failing every caller for good. Nothing a user typed is lost; what the old key signed (device cookies, pending email codes,
+// approval links) stops being accepted, as after any change of the box key.
 func (s *Store) OpenOrCreate(ctx context.Context, db *store.DB, purpose string, size int) ([]byte, error) {
 	if err := checkPurpose(purpose); err != nil {
 		return nil, err
@@ -435,25 +440,32 @@ func (s *Store) OpenOrCreate(ctx context.Context, db *store.DB, purpose string, 
 		return nil, fmt.Errorf("%w: key size %d, want 16 to 64", ErrInvalid, size)
 	}
 	if id, err := coredb.New(db.Reader()).GetSecretIDByPurpose(ctx, purpose); err == nil {
-		return s.Open(ctx, db.Reader(), id, purpose)
+		if k, err := s.Open(ctx, db.Reader(), id, purpose); !errors.Is(err, ErrDecrypt) {
+			return k, err
+		}
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("secrets: find %s: %w", purpose, err)
 	}
 	var key []byte
 	err := db.Write(ctx, func(tx *sql.Tx) error {
 		id, err := coredb.New(tx).GetSecretIDByPurpose(ctx, purpose)
-		if err == nil { // another caller made it between our read and this transaction
+		if err == nil { // another caller made (or replaced) it between our read and this transaction
 			key, err = s.Open(ctx, tx, id, purpose)
-			return err
-		}
-		if !errors.Is(err, sql.ErrNoRows) {
+			if !errors.Is(err, ErrDecrypt) {
+				return err
+			}
+		} else if !errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("secrets: find %s: %w", purpose, err)
 		}
 		k := make([]byte, size)
 		if _, err := io.ReadFull(rand.Reader, k); err != nil {
 			return fmt.Errorf("secrets: random key: %w", err)
 		}
-		if _, _, err := s.Seal(ctx, tx, purpose, k, false); err != nil {
+		if id != "" { // sealed under another key: the same row gets the new key
+			if _, err := s.Replace(ctx, tx, id, purpose, k, false); err != nil {
+				return err
+			}
+		} else if _, _, err := s.Seal(ctx, tx, purpose, k, false); err != nil {
 			return err
 		}
 		key = k

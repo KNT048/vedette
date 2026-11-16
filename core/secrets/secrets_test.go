@@ -653,3 +653,49 @@ func TestReserveClosesAPurposeBeforeAnyHolderRestrictsIt(t *testing.T) {
 	}()
 	secrets.Reserve("Bad Purpose")
 }
+
+// A key the box made for itself that was sealed under another master key (a backup restored without its decryption key)
+// is replaced in place by a new random key: one row, the same id, opened by this store, the same bytes for later callers.
+func TestOpenOrCreateReplacesAKeySealedUnderAnotherKey(t *testing.T) {
+	t.Parallel()
+	s, db := newStore(t)
+	ctx := t.Context()
+	const purpose = "core_device_cookie.key"
+	before, err := s.OpenOrCreate(ctx, db, purpose, 32)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := secrets.New(bytes.Repeat([]byte{0x42}, secrets.KeySize))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var id string
+	if err := db.Reader().QueryRowContext(ctx, "SELECT id FROM core_secret WHERE purpose = ?", purpose).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Write(ctx, func(tx *sql.Tx) error {
+		_, err := other.Replace(ctx, tx, id, purpose, before, false)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Open(ctx, db.Reader(), id, purpose); !errors.Is(err, secrets.ErrDecrypt) {
+		t.Fatalf("Open of the resealed row = %v, want ErrDecrypt", err)
+	}
+	after, err := s.OpenOrCreate(ctx, db, purpose, 32)
+	if err != nil {
+		t.Fatalf("OpenOrCreate over a row sealed under another key: %v", err)
+	}
+	if len(after) != 32 || bytes.Equal(after, before) {
+		t.Fatalf("new key = %x (old %x): want 32 new random bytes", after, before)
+	}
+	again, err := s.OpenOrCreate(ctx, db, purpose, 32)
+	if err != nil || !bytes.Equal(again, after) {
+		t.Fatalf("second call = %x, %v; want the replaced key", again, err)
+	}
+	var n int
+	var got string
+	if err := db.Reader().QueryRowContext(ctx, "SELECT count(*), max(id) FROM core_secret WHERE purpose = ?", purpose).Scan(&n, &got); err != nil || n != 1 || got != id {
+		t.Fatalf("rows = %d, id %q (was %q), %v; want the one row replaced in place", n, got, id, err)
+	}
+}

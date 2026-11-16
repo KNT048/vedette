@@ -61,6 +61,7 @@ const (
 	CodeInvalidEmail       = "invalid_email"
 	CodeInvalidRole        = "invalid_role"
 	CodeTempExpired        = "temp_password_expired"
+	CodeTwofaReset         = "twofa_reset_required" // 403: the authenticator key cannot be opened (a restore without the decryption key)
 	CodeSSOUser            = "sso_user"
 	CodeBusy               = "server_busy" // 503: too many password checks at once (the 409 `busy` of the update module is another thing)
 )

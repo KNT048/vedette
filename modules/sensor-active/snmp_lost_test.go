@@ -191,3 +191,36 @@ func TestSNMPEditWithTheSecretTypedAgainFixesALostCredential(t *testing.T) {
 		t.Fatalf("v3 without privacy still lost %v", got)
 	}
 }
+
+// A secret lost after Test's own check (between the check and the job) is still never sent: the job is not built, the probe row says
+// why, and the Test answers 409 secret_lost (review r1 L3).
+func TestSNMPASecretLostRightBeforeTheJobIsNeverSent(t *testing.T) {
+	t.Parallel()
+	r := &fakeReader{}
+	w := newSNMPWorld(t, r)
+	c := w.add(v2cInput("Core switches", "s3cret-community"))
+	sa.SetBeforeSNMPBatch(w.svc, func() { w.loseSecret(c.ID, "secret_id") })
+	_, err := w.svc.TestSNMP(t.Context(), "admin@example.com", c.ID, "192.168.10.20")
+	wantLost(t, "Test", err)
+	if len(r.sent()) != 0 || w.count(`SELECT count(*) FROM sa_probe WHERE result = 'failed: a saved SNMP secret was not restored'`) != 1 {
+		t.Fatalf("sent %d jobs; probe rows %d", len(r.sent()), w.count(`SELECT count(*) FROM sa_probe`))
+	}
+}
+
+// Only a secret sealed under another master key is "lost": a secret row that is gone is another failure, and the list does not call
+// it lost (review r1 L4).
+func TestSNMPOnlyAWrongKeyIsLost(t *testing.T) {
+	t.Parallel()
+	w := newSNMPWorld(t, &fakeReader{})
+	c := w.add(v2cInput("Core switches", "s3cret-community"))
+	err := w.db.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `DELETE FROM core_secret WHERE id = (SELECT secret_id FROM sa_snmp WHERE id = ?)`, c.ID)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := w.lostOf(); got["Core switches"] {
+		t.Fatalf("a missing secret row is called lost: %v", got)
+	}
+}

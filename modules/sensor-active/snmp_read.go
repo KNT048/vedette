@@ -75,9 +75,8 @@ func (s *Service) ReadSNMP(ctx context.Context, actor, id string) (SNMPRead, err
 	if err != nil {
 		return SNMPRead{}, err
 	}
-	if lost, err := s.snmpLost(ctx, s.db.Reader(), *cred); err != nil {
-		return SNMPRead{}, err
-	} else if lost {
+	// Only a lost secret is refused here; any other failure to open one is reported where the job is built, as before.
+	if lost, _ := s.snmpLost(ctx, s.db.Reader(), *cred); lost {
 		return SNMPRead{}, snmpSecretLost()
 	}
 	st, err := s.inv.Settings(ctx)

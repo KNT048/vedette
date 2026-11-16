@@ -167,7 +167,7 @@ const codeSecretLost = "secret_lost"
 const snmpLostText = "The saved SNMP community or password of this credential was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter it again and save."
 
 // errSNMPSecretLost is a credential's secret found sealed under another master key while a job was built (snmpJob): nothing was sent.
-var errSNMPSecretLost = errors.New("sensoractive: a saved snmp secret was not restored")
+var errSNMPSecretLost = errors.New("the saved SNMP community or password was not restored")
 
 // snmpSecretLost is the answer of a Test, a Read now and an Edit that keeps a secret this box cannot open (#868).
 func snmpSecretLost() *apierr.Error {
@@ -481,9 +481,7 @@ func (s *Service) EditSNMP(ctx context.Context, actor, id string, in SNMPCredent
 			if last4, err = s.secrets.Replace(ctx, tx, prev.secretID, snmpSecretPurpose, []byte(f.secret), true); err != nil {
 				return fmt.Errorf("sensoractive: replace snmp secret: %w", err)
 			}
-		} else if lost, err := s.secretLost(ctx, tx, prev.secretID, snmpSecretPurpose); err != nil {
-			return err
-		} else if lost {
+		} else if lost, _ := s.secretLost(ctx, tx, prev.secretID, snmpSecretPurpose); lost { // another failure to open it: kept, as before
 			return snmpKeptLost()
 		}
 		var privID any
@@ -505,9 +503,7 @@ func (s *Service) EditSNMP(ctx context.Context, actor, id string, in SNMPCredent
 				if privLast4, err = s.secrets.Replace(ctx, tx, prev.privID, snmpPrivPurpose, []byte(f.privSecret), true); err != nil {
 					return fmt.Errorf("sensoractive: replace snmp privacy password: %w", err)
 				}
-			} else if lost, err := s.secretLost(ctx, tx, prev.privID, snmpPrivPurpose); err != nil {
-				return err
-			} else if lost {
+			} else if lost, _ := s.secretLost(ctx, tx, prev.privID, snmpPrivPurpose); lost { // another failure to open it: kept, as before
 				return snmpKeptLost()
 			}
 		}
@@ -616,9 +612,8 @@ func (s *Service) TestSNMP(ctx context.Context, actor, id, ipText string) (SNMPT
 	if err != nil {
 		return SNMPTestResult{}, err
 	}
-	if lost, err := s.snmpLost(ctx, s.db.Reader(), *cred); err != nil {
-		return SNMPTestResult{}, err
-	} else if lost {
+	// Only a lost secret is refused here; any other failure to open one is reported where the job is built, as before.
+	if lost, _ := s.snmpLost(ctx, s.db.Reader(), *cred); lost {
 		return SNMPTestResult{}, snmpSecretLost()
 	}
 	res, err := s.testSNMP(ctx, *cred, ip)

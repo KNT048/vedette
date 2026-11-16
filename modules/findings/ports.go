@@ -66,7 +66,7 @@ type AssetView struct {
 	Hostname *string `json:"hostname"` // nil when the device has no name
 	IP       string  `json:"ip"`       // "—" when the device has no IP address (hand-added, LLDP only)
 	Kind     string  `json:"kind"`     // one of the inventory kinds; anything else is shown as "unknown"
-	Display  string  `json:"display"`  // first software's display name, else the kind
+	Display  string  `json:"display"`  // the device's OS, else its kind; GET /findings/{id} puts the matched software here (matchedOn, #905)
 }
 
 // NoIP is the IP of a device without an address, as the inventory API writes it.

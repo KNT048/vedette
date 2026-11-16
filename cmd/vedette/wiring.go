@@ -190,9 +190,19 @@ func (a findingsInventory) Assets(ctx context.Context, ids []string) (map[string
 	}
 	out := make(map[string]findings.AssetView, len(refs))
 	for id, r := range refs {
-		out[id] = findings.AssetView{ID: r.ID, Name: names[id], Hostname: r.Hostname, IP: r.IP, Kind: r.Kind, Display: r.Display}
+		out[id] = findings.AssetView{ID: r.ID, Name: names[id], Hostname: r.Hostname, IP: r.IP, Kind: r.Kind, Display: assetDisplay(r)}
 	}
 	return out, nil
+}
+
+// assetDisplay is what a finding's device is shown running when the finding's page cannot name the matched software (findings
+// matchedOn): its operating system, else its kind; never the device's first software by name, which read "Microsoft Edge" under a
+// Windows finding (#905). DeviceRef.Display keeps that first row for the callers that name a declared device by it (notify, audit).
+func assetDisplay(r inventory.DeviceRef) string {
+	if os := strings.TrimSpace(r.OS); os != "" {
+		return os
+	}
+	return r.Kind
 }
 
 // AssetIDs lists every device id for findings' reconcile job: inventory's unfiltered read (no kind filter, no row cap) returns a

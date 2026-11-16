@@ -24,7 +24,8 @@ type DeviceRef struct {
 	MAC      string // "" when unknown
 	Vendor   string // the current vendor value, "" when none
 	Kind     string
-	Display  string // the first software's display name, else the kind
+	Display  string // the first software's display name, else the kind (DisplayName's product of a declared device, notify)
+	OS       string // the current operating system value ("Microsoft Windows Server 2025 10.0.26100.1742"), "" when unknown (#905)
 	Approved bool   // a person approved it, or osquery enrolment did (sensor-active sends SNMP credentials only to approved devices, D-512)
 	Model    string // the current model value, "" when none (D-474: notify names a device without inv.Device)
 	Origin   string // "discovered" or "manual"
@@ -40,7 +41,7 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 		for i, id := range chunk {
 			args[i] = id
 		}
-		rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.ip, a.mac, a.vendor, a.kind, a.approved, a.model, a.origin, a.approved_at,
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.ip, a.mac, a.vendor, a.kind, a.approved, a.model, a.origin, a.approved_at, a.os,
 			(SELECT display FROM inv_software WHERE asset_id = a.id ORDER BY display, id LIMIT 1)
 			FROM inv_asset a WHERE a.id IN (?`+strings.Repeat(`, ?`, len(chunk)-1)+`)`, args...)
 		if err != nil {
@@ -48,12 +49,12 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 		}
 		for rows.Next() {
 			var d DeviceRef
-			var host, ip, mac, vendor, model, approvedAt, display sql.NullString
-			if err := rows.Scan(&d.ID, &host, &ip, &mac, &vendor, &d.Kind, &d.Approved, &model, &d.Origin, &approvedAt, &display); err != nil {
+			var host, ip, mac, vendor, model, approvedAt, osName, display sql.NullString
+			if err := rows.Scan(&d.ID, &host, &ip, &mac, &vendor, &d.Kind, &d.Approved, &model, &d.Origin, &approvedAt, &osName, &display); err != nil {
 				_ = rows.Close()
 				return nil, fmt.Errorf("inventory: read devices: %w", err)
 			}
-			d.Hostname, d.IP, d.MAC, d.Vendor, d.Display, d.Model = ptr(host), noIP, mac.String, vendor.String, d.Kind, model.String
+			d.Hostname, d.IP, d.MAC, d.Vendor, d.Display, d.Model, d.OS = ptr(host), noIP, mac.String, vendor.String, d.Kind, model.String, osName.String
 			if approvedAt.Valid {
 				t, err := time.Parse(time.RFC3339Nano, approvedAt.String)
 				if err != nil {

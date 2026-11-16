@@ -99,7 +99,35 @@ describe('exposure: list (S-EXP-1)', () => {
     expect(within(open).getAllByText('Is that on purpose? If not, close it on your router or firewall.')).toHaveLength(2)
     expect(within(open).getByText('answers as nginx')).toBeInTheDocument()
     // a service name from the network never finds Object.prototype
-    expect([riskOf({ service: 'constructor' }), portLabel({ service: 'constructor', port: 1 })]).toEqual([null, 'CONSTRUCTOR 1'])
+    expect([riskOf({ service: 'constructor' }), portLabel({ service: 'constructor', port: 1 })]).toEqual([null, 'constructor 1'])
+  })
+
+  it('M2-7: a port only the port number names says "probably" and is attacked only "if it is" that; an unidentified port says so with its certificate names; no raw nmap names', async () => {
+    const at = '2026-11-16T06:41:00.000Z'
+    const ip = { id: 't-ip', kind: 'ip', value: '203.0.113.10', status: 'verified', method: 'box_egress', token: '', verified_at: at, expires_at: '2026-12-16T06:41:00.000Z', validity: 'valid', last_check: null,
+      commitment: { by: 'An', at }, scannable: true, blocked_reason: null, created_at: at, last_scan_at: at,
+      latest: { subdomains: 0, ips: 1, ports: 6, admin_panels: 0, certs_expiring: 0 },
+      open_ports: [
+        { ip: '203.0.113.10', port: 5060, service: 'sip', ident: 'port' }, { ip: '203.0.113.10', port: 10443, service: 'https', product: 'nginx', ident: 'probed', title: 'Sign in · GitLab' },
+        { ip: '203.0.113.10', port: 2000, service: 'cisco-sccp', ident: 'port' }, { ip: '203.0.113.10', port: 10022, service: 'ssh', product: 'OpenSSH 9.6p1 Ubuntu 3ubuntu13.20', ident: 'probed' },
+        { ip: '203.0.113.10', port: 11080, service: 'unknown', ident: 'none', server: 'Caddy' }, { ip: '203.0.113.10', port: 11443, service: 'ssl/unknown', ident: 'none', cert_names: ['gw.example.net', 'vpn.example.net'] },
+      ] }
+    server.use(http.get('*/api/v1/exposure/targets', () => HttpResponse.json({ items: [ip], box_ip: { auto: true, interval_min: 60, last_run: null, retry_in_min: null }, ignored: [] })))
+    renderApp('/exposure?tab=open')
+    expect(await screen.findByRole('heading', { level: 1, name: '6 ports are open to the Internet: Probably SIP 5060, HTTPS 10443, Probably Cisco SCCP (IP phones) 2000 and 3 more' })).toBeInTheDocument()
+    const open = screen.getByRole('region', { name: '6 ports open to the Internet' })
+    for (const label of ['Probably SIP 5060', 'HTTPS 10443', 'Probably Cisco SCCP (IP phones) 2000', 'SSH 10022', 'Unidentified service 11080', 'Unidentified TLS service 11443']) expect(within(open).getByText(label)).toBeInTheDocument()
+    expect(within(open).queryByText(/UNKNOWN|CISCO-SCCP/)).toBeNull()
+    expect(within(open).getAllByText('by port number, not confirmed')).toHaveLength(2)
+    // SSH is attacked for sure; SIP only if it is SIP (the port number is all that says so)
+    expect(within(open).getByText('Commonly attacked if it is SIP')).toBeInTheDocument()
+    expect(within(open).getAllByText('Commonly attacked')).toHaveLength(1)
+    expect(within(open).getByRole('button', { name: 'About Commonly attacked if it is SIP' })).toHaveAccessibleDescription(/could not confirm it.*toll fraud/)
+    expect(within(open).getByText('certificate for gw.example.net, vpn.example.net')).toBeInTheDocument()
+    expect(within(open).getByText('Server header Caddy')).toBeInTheDocument()
+    expect(within(open).getByText('page title "Sign in · GitLab"')).toBeInTheDocument()
+    // an older row with no ident still never shows nmap's "unknown" upper-cased
+    expect([portLabel({ service: 'ssl/unknown', port: 11443 }), portLabel({ service: 'cisco-sccp', port: 2000 }), riskOf({ service: 'sip', ident: 'none' })]).toEqual(['Unidentified TLS service 11443', 'Cisco SCCP (IP phones) 2000', null])
   })
 
   const gwTarget = () => {
@@ -115,6 +143,8 @@ describe('exposure: list (S-EXP-1)', () => {
       'Your gateway fortigate-hq (192.168.18.1) has 1 open exploited vulnerability: fix these first.', /answered by your gateway, or a device it forwards them to/, '/findings?device=d-gw'],
     ['known without findings', { ip: '192.168.18.1', device_id: 'd-gw', name: 'fortigate-hq', open_exploited: 0 },
       'Your gateway fortigate-hq (192.168.18.1) answers these ports; no open exploited vulnerability is known on it.', /on fortigate-hq does not prove the device it forwards to is safe/, null],
+    ['known, named by its IP (M2-8)', { ip: '192.168.18.1', device_id: 'd-gw', name: '192.168.18.1', open_exploited: 1 },
+      'Your gateway 192.168.18.1 has 1 open exploited vulnerability: fix these first.', /answered by your gateway, or a device it forwards them to/, '/findings?device=d-gw'],
     ['gateway not in the device list', { ip: '192.168.18.1', device_id: null, name: null, open_exploited: 0 },
       'Your gateway (192.168.18.1) answers these ports, but it is not in your device list yet.', /Vedette cannot say what is exploited on it\. Scan your network to add it\./, null],
     ['gateway unknown', { ip: null, device_id: null, name: null, open_exploited: 0 },
@@ -1146,9 +1176,18 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(within(within(services).getByRole('row', { name: /18443/ })).getByText('2 exploited')).toBeInTheDocument()
     expect(within(within(services).getByRole('row', { name: /^443/ })).getByText('No version sent')).toBeInTheDocument()
     expect(within(services).getByText('Closed at once (tcpwrapped)')).toBeInTheDocument()
+    // M2-7: nmap's table name is a guess, an unknown TLS service says what its certificate names; neither "sent" no version
+    const sip = within(services).getByRole('row', { name: /^5060/ })
+    expect(within(sip).getByText('Probably SIP')).toBeInTheDocument()
+    expect(within(sip).getByText('By port number, not confirmed')).toBeInTheDocument()
+    expect(within(sip).getByText('Not read')).toBeInTheDocument()
+    const tls = within(services).getByRole('row', { name: /^11443/ })
+    expect(within(tls).getByText('TLS, service not identified')).toBeInTheDocument()
+    expect(within(tls).getByText('certificate for nas01.acme.example, backup.acme.example')).toBeInTheDocument()
+    expect(within(services).queryByText(/^ssl\/unknown$|^sip$/)).toBeNull()
     const checked = screen.getByRole('list', { name: 'Checked' })
-    expect(within(checked).getByText(/Service identification \(nmap -sV\) on 98 TCP ports: 3 services identified\./)).toBeInTheDocument()
-    expect(within(checked).getByText(/2 identified services of 3 compared with today's CISA list of exploited vulnerabilities/)).toBeInTheDocument()
+    expect(within(checked).getByText(/Service identification \(nmap -sV\) on 98 TCP ports: 2 services identified, 1 named by port number only, 2 not identified\./)).toBeInTheDocument()
+    expect(within(checked).getByText(/2 identified services of 5 compared with today's CISA list of exploited vulnerabilities/)).toBeInTheDocument()
     const not = screen.getByRole('list', { name: 'Not checked' })
     for (const line of ['UDP ports: the scan connects over TCP only.', 'TCP ports outside the fixed list of commonly exposed ports.', /only the CISA list of exploited vulnerabilities \(KEV\) is compared/]) expect(within(not).getByText(line)).toBeInTheDocument()
     await expectNoA11yViolations()

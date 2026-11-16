@@ -17,6 +17,7 @@
 
 ## Modifying: gọi `ai.Run(skill, input)` (`explain`, `mitigation-config`)
 - Lỗi `*apierr.Error` từ `AI.Run` được handler trả nguyên (D-481): `cmd/vedette` `aiMitigation.Run` không bọc lại; đổi điều đó thì trang finding lại hiện sai lý do.
+- M2-2: `AIRequest.FixedIn` và dữ liệu `aiFindingData` (thiết bị, cổng, firewall trong inventory qua `inventory.DevicesOfKind`/`Device`) là điều AI biết; bỏ một mục thì câu trả lời lại hỏi điều trang đã có. `AIOutput.Configs`/`Shortened` → `findings.AIResult.configs/shortened` (contract.ts `AiResult`) → `AiOutput` trong `Recommendation.tsx`.
 - **ai** (nhóm B): đổi tên skill/schema đầu ra làm `ai_available` sai và kết quả mất nhãn.
 
 ## Modifying: `POST /findings/{id}/applied`

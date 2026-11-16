@@ -24,6 +24,7 @@ export type GeneralHardening = z.infer<typeof C.GeneralHardening>
 export type AiResult = z.infer<typeof C.AiResult>
 export type AppliedEntry = z.infer<typeof C.AppliedEntry>
 export type FindingDetail = z.infer<typeof C.FindingDetail>
+export type KnownVersion = z.infer<typeof C.KnownVersion>
 export type StatusAction = z.infer<typeof C.StatusAction>
 export type BulkAction = z.infer<typeof C.BulkAction>
 export type ApplyItem = z.infer<typeof C.ApplyItem>

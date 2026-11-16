@@ -10,7 +10,7 @@ import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
 import { compromise, packs } from './packs'
 import { mockHardening } from './hardeningMock'
-import type { AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, HomeSummary, KevInfo, MitigationPack, Plan, PlanCve, PlanItem, RowFix, StatusAction } from './types'
+import type { AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, HomeSummary, KevInfo, KnownVersion, MitigationPack, Plan, PlanCve, PlanItem, RowFix, StatusAction } from './types'
 import { fmtDate } from '@/lib/format'
 import { displayName } from '@/features/inventory/nameOf'
 import { openIncidents, sentSince } from '@/features/notify/mocks'
@@ -147,7 +147,41 @@ function renderPack(p: MitigationPack, asset: FindingAsset | null): MitigationPa
   return out
 }
 
-function recheckFor(f: Finding, k: KevInfo | null, a: FindingAsset | null) {
+const VERSION_SOURCE: Record<string, KnownVersion['source']> = { agent: 'agent', snmp: 'snmp', manual: 'manual', nmap: 'scan', scan: 'scan', passive: 'stated' }
+
+/** M2-3 (findings knownVersion): the device's row keyed to the finding's KEV entry that has a version, and who gave it. */
+function knownFor(f: Finding, k: KevInfo | null): KnownVersion | null {
+  if (!k) return null
+  const key = `${k.vendor}|${k.product}`.toLowerCase()
+  const s = assetsStore.get().find((a) => a.id === f.asset_id)?.software.find((x) => x.kev.includes(key) && !!x.version)
+  const source = s ? VERSION_SOURCE[s.source] : undefined
+  if (!s || !s.version || !source) return null
+  const name = source === 'manual' ? s.display : s.display.endsWith(` ${s.version}`) ? s.display.slice(0, -s.version.length - 1) : s.display
+  return { software: name, version: s.version, source }
+}
+
+/** mitigation knownRecheck: the version and who gave it, how a newer one reaches Vedette, what a scan template adds. */
+function knownRecheck(f: Finding, kv: KnownVersion, k: KevInfo | null, device: string, reachable: boolean) {
+  const sw = `${kv.software} ${kv.version}`
+  const [from, again] = {
+    agent: [`the agent on ${device} reports ${sw}`, 'its agent reports the new one by itself, usually within two hours'],
+    snmp: [`Vedette read ${sw} from ${device} over SNMP`, 'press "Read with SNMP now" on its device page (Vedette also reads it again in each scan window)'],
+    stated: [`${device} states on the network (LLDP) that it runs ${sw}`, 'it states the new one on the network by itself'],
+    scan: [`a network scan read ${sw} from ${device}`, reachable ? 'rescan it with the button below' : 'the next network scan of it reads the new one'],
+    manual: [`${sw} was entered for ${device} on the Devices page`, `press "I updated ${kv.software}" at the top of this page and type the new one`],
+  }[kv.source]
+  return { steps: [
+    f.basis === 'product'
+      ? `Nothing to look up: ${from} (Evidence above), but Vedette cannot compare it with the versions NVD lists for this CVE: compare it with the fixed version in the vendor advisory (link in the source section).`
+      : `Nothing to look up: ${from}. Vedette compared it with the affected versions (Evidence above).`,
+    `If ${device} now runs another version, ${again}: Vedette then closes the findings it can prove that version fixes. If this one stays open, press "Mark as handled" and choose Patched.`,
+    k?.has_template && reachable ? 'This CVE has a safe scan template: click "Rescan this device" to confirm.'
+      : k?.has_template ? 'This CVE has a safe scan template, but this device has no IP address in your inventory, so it cannot be scanned. Add its IP on the device page to scan it.'
+      : 'This CVE has no safe scan template yet, so Vedette concludes from the version alone.',
+  ] }
+}
+
+function recheckFor(f: Finding, k: KevInfo | null, a: FindingAsset | null, kv: KnownVersion | null) {
   if (f.cve === 'CVE-2022-27593' && a) {
     return {
       steps: [
@@ -159,6 +193,7 @@ function recheckFor(f: Finding, k: KevInfo | null, a: FindingAsset | null) {
     }
   }
   const reachable = !!a && a.ip !== '—'
+  if (kv && !f.evidence?.agent && !f.evidence?.agent_row && !(f.basis === 'scan' && reachable)) return knownRecheck(f, kv, k, a?.name ?? 'the device', reachable)
   if (f.evidence?.agent) { // D-548: the agent reports the installed version; nothing to look up (mitigation genericRecheck)
     return { steps: [
       `Nothing to look up: the agent on ${a?.name ?? 'the device'} reports the installed version of ${k?.display ?? 'the software'}, and Vedette compared it with the affected versions (Evidence above).`,
@@ -172,7 +207,7 @@ function recheckFor(f: Finding, k: KevInfo | null, a: FindingAsset | null) {
       : [
           f.evidence?.agent_row // D-612: the agent reported the installed version; Vedette could not compare it (mitigation genericRecheck)
             ? `Nothing to look up on ${a?.name ?? 'the device'}: its agent reports the installed version of ${k?.display ?? 'the software'} (Evidence above), but Vedette cannot compare it with the versions NVD lists for this CVE.`
-            : `Check which version of ${k?.display ?? 'the software'} ${a?.name ?? 'the device'} runs (in its settings, its admin page or its About screen).`,
+            : `Check which version of ${k?.display ?? 'the software'} runs on ${a?.name ?? 'the device'} (in its settings, its admin page or its About screen).`,
           'Compare it with the fixed version in the vendor advisory (link in the source section). An older version means the flaw is still there.',
           k?.has_template && reachable ? 'This CVE has a safe scan template: click "Rescan this device" to confirm.'
             : k?.has_template ? 'This CVE has a safe scan template, but this device has no IP address in your inventory, so it cannot be scanned. Add its IP on the device page to scan it, or check by hand as above.'
@@ -188,12 +223,14 @@ function detail(f: Finding): FindingDetail {
   const ip = r.asset?.ip ?? '<IP>'
   const host = r.asset?.hostname ?? ip
   const outs = aiOutputs.get()
+  const kv = knownFor(f, r.kev)
   return {
     ...r,
     fixed_in: null,
+    known_version: kv,
     pack: pack ? renderPack(pack, r.asset) : null,
     compromise: check ? JSON.parse(fill(JSON.stringify(check), ip, host)) : null,
-    recheck: recheckFor(f, r.kev, r.asset),
+    recheck: recheckFor(f, r.kev, r.asset, kv),
     ai: { explain: outs[`${f.id}:explain`] ?? null, config: outs[`${f.id}:mitigation-config`] ?? null },
     ai_available: { explain: aiAvailable('explain-finding'), config: aiAvailable('mitigation-config') },
     applied: f.history.filter((h) => h.action.startsWith('applied:')).map((h) => ({ item: h.action.slice(8), ts: h.ts, user: h.user })),
@@ -250,9 +287,17 @@ function aiResult(f: Finding, skill: AiResult['skill']): AiResult {
     ? ['Patch: follow the vendor advisory in the sources below.', 'If you cannot patch yet: cut the path in from the Internet and turn off the affected component if unused.', 'Signs of exploitation: check access logs and unfamiliar processes around the time the flaw was published.']
     : harden ? harden : ['Update to the fixed version per the vendor advisory.', 'If you cannot patch yet, restrict Internet access to this device (firewall, VPN).', 'Watch the device logs for a few days after applying.']
   const citations = (k?.links ?? []).slice(0, 3).map((u) => ({ title: new URL(u).hostname.replace(/^www\./, ''), url: u }))
-  const len = paragraphs.join('').length + steps.join('').length
+  // M2-2: the config skill answers with config blocks to paste; with no firewall vendor known, a generic nftables rule for the gateway
+  const ip = r.asset?.ip && r.asset.ip !== '—' ? r.asset.ip : '<DEVICE_IP>'
+  const configs = skill === 'explain' ? undefined : [{
+    title: `Linux gateway (nftables): only the admin network reaches ${dev}`,
+    code: `nft add rule inet filter forward ip saddr != <ADMIN_NETWORK> ip daddr ${ip} tcp dport { 80, 443 } drop`,
+    note: 'Based on: general hardening',
+    side_effect: `People outside <ADMIN_NETWORK> can no longer open the web interface of ${dev}.`,
+  }]
+  const len = paragraphs.join('').length + steps.join('').length + (configs?.[0]?.code.length ?? 0)
   const prof = aiCandidates(jobOf(skill))[0]
-  return { skill, ts: nowIso(), model: prof?.model ?? '', profile: prof?.name, tokens: { input: 1200 + len, output: Math.round(len / 3.2) }, paragraphs, steps, citations }
+  return { skill, ts: nowIso(), model: prof?.model ?? '', profile: prof?.name, tokens: { input: 1200 + len, output: Math.round(len / 3.2) }, paragraphs, steps, citations, configs }
 }
 
 /** GET /findings/summary (#825), computed as the box does: open = confirmed + suspected; the trend counts, at the end of each UTC day, the

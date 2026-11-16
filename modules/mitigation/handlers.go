@@ -53,6 +53,8 @@ const (
 	maxAISteps      = 30
 	maxAICitations  = 20
 	maxAIText       = 8000
+	maxAIConfigs    = 10
+	maxAICode       = 40000 // a config block over it is left out whole: half a config can be pasted and do harm
 )
 
 func noPack() error {
@@ -135,7 +137,7 @@ func (h *ActionHandlers) FindingsPostFindingsIDAi(ctx context.Context, req *oas.
 	if err != nil {
 		return nil, err
 	}
-	out, err := h.ai.Run(ctx, AIRequest{Skill: skill, Finding: before.Row, HasPack: before.Pack != nil, User: p.Email})
+	out, err := h.ai.Run(ctx, AIRequest{Skill: skill, Finding: before.Row, FixedIn: before.FixedIn, HasPack: before.Pack != nil, User: p.Email})
 	if ae, ok := apierr.As(err); ok { // the AI module says what happened (cut off, wrong format, a hook, the provider, the cap): pass it on
 		return nil, ae
 	}
@@ -182,12 +184,32 @@ func (h *ActionHandlers) storeAI(ctx context.Context, rec findings.Record, res f
 }
 
 // sanitizeAI turns the AI module's answer into an AI result within the limits of the schema: text is
-// cut, lists are capped, and a citation link survives only if it is an http(s) URL (it is shown as a link).
+// cut, lists are capped, a config block over its limit is left out whole, and a citation link survives only if it is an http(s) URL
+// (it is shown as a link). The AI module keeps every text within a sentence end already (M2-2); these caps are the last guard.
 func sanitizeAI(skill Skill, ts time.Time, o AIOutput) findings.AIResult {
 	r := findings.AIResult{
 		Skill: string(skill), TS: ts, Model: clip(o.Model, 200), Profile: clip(o.Profile, 200),
 		Tokens:     findings.Tokens{Input: max(o.InputTok, 0), Output: max(o.OutputTok, 0)},
-		Paragraphs: []string{}, Steps: []string{}, Citations: []findings.Citation{},
+		Paragraphs: []string{}, Steps: []string{}, Citations: []findings.Citation{}, Shortened: o.Shortened,
+		NoConfigReason: clip(o.NoConfigReason, maxAIText),
+	}
+	for _, c := range o.Configs {
+		code := strings.ToValidUTF8(strings.ReplaceAll(c.Code, "\x00", ""), "\uFFFD")
+		if strings.TrimSpace(code) == "" {
+			continue
+		}
+		if utf8.RuneCountInString(code) > maxAICode || len(r.Configs) == maxAIConfigs {
+			r.Shortened = true
+			continue
+		}
+		var check []string
+		for _, a := range c.Check[:min(len(c.Check), 20)] {
+			check = append(check, clip(a, 64))
+		}
+		if len(c.Check) > 20 {
+			check = append(check, "and more")
+		}
+		r.Configs = append(r.Configs, findings.CodeStep{Title: clip(c.Title, 300), Code: code, Note: clip(c.Note, 300), SideEffect: clip(c.SideEffect, maxAIText), Check: check})
 	}
 	for _, s := range o.Paragraphs[:min(len(o.Paragraphs), maxAIParagraphs)] {
 		r.Paragraphs = append(r.Paragraphs, clip(s, maxAIText))

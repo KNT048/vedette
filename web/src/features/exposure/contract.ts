@@ -16,7 +16,11 @@ export const VerifyMethod = z.enum(['dns_txt', 'box_egress'])
 
 export const Counts = z.object({ subdomains: z.number().int(), ips: z.number().int(), ports: z.number().int(), admin_panels: z.number().int(), certs_expiring: z.number().int() })
 
-export const PortRow = z.object({ ip: z.string(), port: z.number().int(), service: z.string(), product: z.string().optional(), last_seen: isoDate.optional().describe('Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last saw it open (INV-22)'), misses: z.number().int().optional().describe('With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan)'), unchecked: z.boolean().optional().describe('The newest scan did not check the address: the row is as an earlier scan left it') })
+export const PortRow = z.object({ ip: z.string(), port: z.number().int(), service: z.string(), product: z.string().optional(), last_seen: isoDate.optional().describe('Set only on a port the newest scan did not report, kept from an earlier scan: the day a scan last saw it open (INV-22)'), misses: z.number().int().optional().describe('With last_seen: how many scans in a row that checked the address missed the port (1 = missed by the last scan)'), unchecked: z.boolean().optional().describe('The newest scan did not check the address: the row is as an earlier scan left it'),
+  ident: z.enum(['probed', 'port', 'none']).optional().describe('M2-7: how service identification named the service: probed (a probe\'s answer, or the surface scan\'s GET read a product), port (only the usual service of the port number: not confirmed), none (nothing identified: service is unknown, ssl/unknown or tcpwrapped). Missing: identification did not run on the port, or an older scan'),
+  cert_names: z.array(z.string()).optional().describe('M2-7: the names of the port\'s TLS certificate as the deep scan read them (subject common name, then DNS alternative names), at most 5'),
+  title: z.string().optional().describe('M2-7: the title of the web page on the port (deep scan, http-title)'),
+  server: z.string().optional().describe('M2-7: the HTTP Server header on the port (deep scan, http-server-header)') })
 
 /** The sentence an administrator's first Scan now confirms (D-473). The backend owns the text (modules/exposure/notice.go) and sends it with the target's name in it; the page shows what it received. These two constants are the mock's copy, held equal to the backend's by a Go test. */
 export const NOTICE_VERSION = '2026-11-14'
@@ -96,6 +100,8 @@ export const ServiceRow = z.object({
   name: z.string().describe('nmap\'s service name: http, ssh, tcpwrapped'), product: z.string().describe('"" when nmap named none'),
   version: z.string().describe('"" when the service sent none'), cpe: z.string().describe('The CPE 2.2 URI nmap printed; "" when none'),
   extra: z.string().describe('nmap\'s extrainfo, e.g. (Debian); "" when none'),
+  method: z.enum(['probed', 'table']).optional().describe('M2-7: how nmap named the service: probed (a probe\'s answer matched) or table (only the usual service of the port number, not confirmed). Missing: an older scan'),
+  conf: z.number().int().min(1).max(10).optional().describe('M2-7: nmap\'s confidence in the name, 1 to 10 (a table name is 3)'),
 })
 export const CheckRow = z.object({ kind: z.string().describe('ports, names, services, templates, cve, web or greenbone'), text: z.string(), at: z.iso.datetime() })
 export const NotCheckedRow = z.object({ kind: z.string().describe('udp, ports, non_exploited, services, templates, cve, web, greenbone; a domain\'s surface (INV-27): wordlist (common names not tried: wildcard DNS), by_name (names on other public addresses: checked by name only), address_family (IPv6 not scanned), lookup (names whose address lookup got no answer: left as the last scan found them); deep (D-571: the deep scan of the names\' addresses: the cap, needs the domain fence, private addresses, a refused re-check)'), text: z.string() })

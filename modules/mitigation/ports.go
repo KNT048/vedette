@@ -26,6 +26,9 @@ var ErrAIUnavailable = errors.New("ai unavailable")
 type AIRequest struct {
 	Skill   Skill
 	Finding findings.Row
+	// FixedIn is the page's "Fixed version" fact (the device's version, the fixed release or the fix of each release line), nil
+	// when NVD names none: the AI gets the same facts the page shows (M2-2: it said "the data does not list affected versions").
+	FixedIn *findings.FixedIn
 	HasPack bool
 	User    string // email of the person who asked
 }
@@ -38,6 +41,13 @@ type AIOutput struct {
 	OutputTok  int
 	Paragraphs []string
 	Steps      []string
+	// Configs are the ready config blocks of the mitigation-config skill (Code is the lines to paste, Note what the change is based
+	// on, SideEffect what it can break); none for explain.
+	Configs []findings.CodeStep
+	// NoConfigReason says why no config (or no firewall rule) helps for this finding, when the AI gave none (#897 r1 H1).
+	NoConfigReason string
+	// Shortened: a part of the answer was longer than the AI module keeps (cut at a sentence end, or a config block left out whole).
+	Shortened  bool
 	Citations  []findings.Citation
 	ActivityID string // id of the ai_activity row, "" when none
 }

@@ -105,7 +105,7 @@ export const AiResult = z.object({
 export const AppliedEntry = z.object({ item: z.string(), ts: iso, user: z.string() })
 
 export const FixedIn = z.object({
-  kind: z.enum(['fixed', 'up_to', 'branches', 'distro', 'feature_update', 'esu']).describe('fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a package of the distribution, whose security updates carry the fix under their own numbers: an agent read it from the device\'s package database (deb/rpm), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`'),
+  kind: z.enum(['fixed', 'up_to', 'end_listed', 'branches', 'distro', 'feature_update', 'esu']).describe('fixed = the device version is inside a range that ends before `fixed`, and `fixed` is outside every range that applies; up_to = inside a range whose end `fixed` is itself affected (no fixed release named); end_listed (M2-4) = inside a range that ends before `fixed`, but NVD lists releases of `fixed` itself as affected (Junos: "before 20.4", then 20.4R1 … one by one): `fixed` is not a fix, the vendor advisory names it; branches = the version is unknown or unreadable, `branches` lists the fix of each release line; distro = a package of the distribution, whose security updates carry the fix under their own numbers: an agent read it from the device\'s package database (deb/rpm), or the version carries a marker such as ubuntu, +deb12, .el9; feature_update (D-546) = a Windows release NVD does not list for the fix, which only a later release of its line (`branches[0].branch`, from build `fixed`) has: Microsoft no longer updates it, so it needs a feature update; esu (D-546) = the fixing Windows build `fixed` comes only with Extended Security Updates for `branches[0].branch`'),
   version: z.string().describe("The device's version; for branches empty when it has none, else the text Vedette cannot read"),
   fixed: z.string().describe('The fixed release (fixed), the last affected release (up_to), the upstream fixed release as a reference when NVD names one (distro: the backport may keep the package\'s number below it); empty for branches'),
   branches: z.array(z.object({ branch: z.string().describe('Release line such as 7.4; empty when it cannot be told'), fixed: z.string() })).describe('At most 5, newest first'),
@@ -117,7 +117,13 @@ export const FixedIn = z.object({
   distro_pro: z.boolean().describe('distro_fixed is in Ubuntu Pro (ESM) only'),
   source: z.string().describe('Where the versions come from: "NVD affected versions", "CVE.org affected versions (from the CVE record\'s CNA)" when NVD has none (D-556), or with distro_fixed "Ubuntu security data" / "Debian Security Tracker" (D-516)'),
 })
+export const KnownVersion = z.object({
+  software: z.string().describe('Display name of the software the finding was matched on'),
+  version: z.string(),
+  source: z.enum(['agent', 'snmp', 'stated', 'scan', 'manual']).describe('Who gave the version: the device\'s agent, its answer to Vedette\'s SNMP read, its own statement on the network (LLDP), a network scan, or a person on the Devices page'),
+}).describe('M2-3: the version the box has for the matched software; the page says it and how a newer one reaches Vedette, never "find which version"')
 export const FindingDetail = FindingRow.extend({
+  known_version: KnownVersion.nullable().describe('M2-3: null when the matched software has no version or its source is not known'),
   fixed_in: FixedIn.nullable().describe('The release that fixes this finding on this device, from the NVD affected versions (D-488); null = NVD gives none, the page shows CISA and the vendor advisory only'),
   pack: MitigationPack.nullable().describe('null = no recommendation confirmed by Vedette maintainers yet (D-21)'),
   compromise: CompromiseCheck.nullable(),

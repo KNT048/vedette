@@ -68,10 +68,10 @@
   },
   "openEmpty": "No open port was found in the newest scans.",
   "gateway": {
-    "known_one": "Your gateway {{name}} ({{ip}}) has {{count}} open exploited vulnerability: fix these first.",
-    "known_other": "Your gateway {{name}} ({{ip}}) has {{count}} open exploited vulnerabilities: fix these first.",
+    "known_one": "Your gateway {{label}} has {{count}} open exploited vulnerability: fix these first.",
+    "known_other": "Your gateway {{label}} has {{count}} open exploited vulnerabilities: fix these first.",
     "knownInfo": "These ports are answered by your gateway, or a device it forwards them to.",
-    "none": "Your gateway {{name}} ({{ip}}) answers these ports; no open exploited vulnerability is known on it.",
+    "none": "Your gateway {{label}} answers these ports; no open exploited vulnerability is known on it.",
     "noneInfo": "These ports are answered by your gateway, or a device it forwards them to. That no open exploited vulnerability is known on {{name}} does not prove the device it forwards to is safe.",
     "link": "See the vulnerabilities of {{name}}",
     "notListed": "Your gateway ({{ip}}) answers these ports, but it is not in your device list yet.",

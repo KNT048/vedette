@@ -179,8 +179,11 @@ func genericRecheck(r findings.Row) findings.Recheck {
 		}
 		return findings.Recheck{Steps: steps}
 	}
+	if k := r.Known; k != nil && k.Version != "" { // M2-3: the box has the version, whoever gave it; never "find which version"
+		return knownRecheck(r, k, device, hasTemplate, reachable)
+	}
 	last := "This CVE has no safe scan template yet, so Vedette can only conclude from the version. Check by hand as above."
-	first := fmt.Sprintf("Check which version of %s %s runs (in its settings, its admin page or its About screen).", software, device)
+	first := fmt.Sprintf("Check which version of %s runs on %s (in its settings, its admin page or its About screen).", software, device)
 	if r.Evidence != nil && r.Evidence.AgentRow { // N52-2: the agent reported the installed version; it is the comparison that failed
 		first = fmt.Sprintf("Nothing to look up on %s: its agent reports the installed version of %s (Evidence above), but Vedette cannot compare it with the versions NVD lists for this CVE.", device, software)
 	}
@@ -195,6 +198,47 @@ func genericRecheck(r findings.Row) findings.Recheck {
 		"Compare it with the fixed version in the vendor advisory (link in the source section). An older version means the flaw is still there.",
 		last,
 	}}
+}
+
+// knownRecheck is genericRecheck for a finding whose software has a version on the box (M2-3, widening D-548/D-612 to every
+// source): it says the version, who gave it, and how a newer one reaches Vedette, then what a scan template adds.
+func knownRecheck(r findings.Row, k *findings.KnownVersion, device string, hasTemplate, reachable bool) findings.Recheck {
+	sw := k.Software + " " + k.Version
+	var from, again string
+	switch k.Source {
+	case findings.VersionByAgent:
+		from = fmt.Sprintf("the agent on %s reports %s", device, sw)
+		again = "its agent reports the new one by itself, usually within two hours"
+	case findings.VersionBySNMP:
+		from = fmt.Sprintf("Vedette read %s from %s over SNMP", sw, device)
+		again = `press "Read with SNMP now" on its device page (Vedette also reads it again in each scan window)`
+	case findings.VersionByStated:
+		from = fmt.Sprintf("%s states on the network (LLDP) that it runs %s", device, sw)
+		again = "it states the new one on the network by itself"
+	case findings.VersionByScan:
+		from = fmt.Sprintf("a network scan read %s from %s", sw, device)
+		again = `rescan it with "Rescan this device"`
+		if !reachable {
+			again = "the next network scan of it reads the new one"
+		}
+	default: // findings.VersionByManual
+		from = fmt.Sprintf("%s was entered for %s on the Devices page", sw, device)
+		again = fmt.Sprintf(`press "I updated %s" at the top of this page and type the new one`, k.Software)
+	}
+	first := fmt.Sprintf("Nothing to look up: %s. Vedette compared it with the affected versions (Evidence above).", from)
+	if r.Basis == findings.BasisProduct {
+		first = fmt.Sprintf("Nothing to look up: %s (Evidence above), but Vedette cannot compare it with the versions NVD lists for this CVE: compare it with the fixed version in the vendor advisory (link in the source section).", from)
+	}
+	steps := []string{first, fmt.Sprintf("If %s now runs another version, %s: Vedette then closes the findings that version fixes.", device, again)}
+	switch {
+	case hasTemplate && reachable:
+		steps = append(steps, `This CVE has a safe scan template: click "Rescan this device" to confirm.`)
+	case hasTemplate:
+		steps = append(steps, "This CVE has a safe scan template, but this device has no IP address in your inventory, so it cannot be scanned. Add its IP on the device page to scan it.")
+	default:
+		steps = append(steps, "This CVE has no safe scan template yet, so Vedette concludes from the version alone.")
+	}
+	return findings.Recheck{Steps: steps}
 }
 
 // hostRE is the host name rule of the product (rules/security.md): letters, digits, dot, dash, underscore.

@@ -166,7 +166,7 @@ function recheckFor(f: Finding, k: KevInfo | null, a: FindingAsset | null) {
       : [
           f.evidence?.agent_row // D-612: the agent reported the installed version; Vedette could not compare it (mitigation genericRecheck)
             ? `Nothing to look up on ${a?.name ?? 'the device'}: its agent reports the installed version of ${k?.display ?? 'the software'} (Evidence above), but Vedette cannot compare it with the versions NVD lists for this CVE.`
-            : `Check which version of ${k?.display ?? 'the software'} ${a?.name ?? 'the device'} runs (in its settings, its admin page or its About screen).`,
+            : `Check which version of ${k?.display ?? 'the software'} runs on ${a?.name ?? 'the device'} (in its settings, its admin page or its About screen).`,
           'Compare it with the fixed version in the vendor advisory (link in the source section). An older version means the flaw is still there.',
           k?.has_template && reachable ? 'This CVE has a safe scan template: click "Rescan this device" to confirm.'
             : k?.has_template ? 'This CVE has a safe scan template, but this device has no IP address in your inventory, so it cannot be scanned. Add its IP on the device page to scan it, or check by hand as above.'
@@ -185,6 +185,7 @@ function detail(f: Finding): FindingDetail {
   return {
     ...r,
     fixed_in: null,
+    known_version: null,
     pack: pack ? renderPack(pack, r.asset) : null,
     compromise: check ? JSON.parse(fill(JSON.stringify(check), ip, host)) : null,
     recheck: recheckFor(f, r.kev, r.asset),

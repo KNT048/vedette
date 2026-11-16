@@ -13,7 +13,8 @@ import (
 type FixedIn struct {
 	// Kind is "fixed" (the device's version is inside a range that ends before Fixed, and Fixed is outside every
 	// range that applies), "up_to" (inside a range that ends at Fixed, itself affected: NVD names no fixed release),
-	// "branches" (the version is not known, or not readable) or "distro" (a package of the distribution, whose security
+	// "branches" (the version is not known, or not readable), "end_listed" (inside a range that ends before Fixed, but NVD lists
+	// releases of Fixed itself as affected: Fixed is not a fix, the advisory names it, M2-4) or "distro" (a package of the distribution, whose security
 	// updates carry the fix under their own numbers: an agent read it from the device's package database, or the version
 	// carries a distribution marker, "2.4.52-1ubuntu4", on Ubuntu/Debian). A Windows release row (D-546) may also give "feature_update"
 	// (the device's release no longer gets monthly updates: Fixed is the build of Branches[0].Branch, a later release of its line,
@@ -122,6 +123,7 @@ func boundsReadable(r VersionRange) bool {
 type fixedParts struct {
 	ents, usable []fixedEntry
 	outside      func(string) bool
+	listed       func(string) bool // some applicable entry lists the version as affected (M2-4: a range's end that is itself affected)
 }
 
 func fixedPartsOf(in swInfo, v Vuln, key []identity) fixedParts {
@@ -153,7 +155,15 @@ func fixedPartsOf(in swInfo, v Vuln, key []identity) fixedParts {
 		}
 		return true
 	}
-	return fixedParts{ents, usable, outside}
+	listed := func(x string) bool {
+		for _, e := range ents {
+			if t, _ := evalAffected(e.c, e.r, x, in.cpe, in.hasCPE); t == Yes {
+				return true
+			}
+		}
+		return false
+	}
+	return fixedParts{ents, usable, outside, listed}
 }
 
 func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
@@ -172,6 +182,9 @@ func fixedInSoftware(in swInfo, v Vuln, key []identity) *FixedIn {
 	var f *FixedIn
 	if in.given && versionKnown(in.ver) {
 		f = fixedForVersion(in, usable, outside, distro)
+		if f != nil && f.Kind == "end_listed" && !p.listed(f.Fixed) {
+			f = nil // the end is not proved affected (an entry Vedette cannot judge): say nothing rather than "not the fix"
+		}
 	} else {
 		f = fixedBranches(in, usable, outside)
 		if f != nil && distro {
@@ -235,7 +248,9 @@ func fixedForVersion(in swInfo, usable []fixedEntry, outside func(string) bool, 
 		l := asc(incl)
 		return &FixedIn{Kind: "up_to", Version: clean(in.ver), Fixed: clean(l[len(l)-1])}
 	}
-	return nil
+	// M2-4: every end is itself affected through another entry (Junos: "before 20.4", then 20.4:r1 … 20.4:r3-s8 one by one): the
+	// end is where NVD's release-by-release list starts, not a fix, and the page says so instead of "fixed version not known".
+	return &FixedIn{Kind: "end_listed", Version: clean(in.ver), Fixed: clean(asc(excl)[0])}
 }
 
 // fixedBranches lists the fix of each release line (the line named by its range's start), for a device whose version

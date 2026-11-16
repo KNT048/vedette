@@ -270,7 +270,7 @@ func (s *Service) Record(ctx context.Context, batch []observe.Observation) error
 					continue
 				}
 			}
-			id, isNew, err := s.resolve(ctx, tx, c)
+			id, isNew, err := s.resolve(ctx, tx, o, c)
 			if err != nil {
 				return err
 			}
@@ -513,9 +513,9 @@ const ipTrust = 72 * time.Hour
 // whose device is a waiting discovered one goes to the hand-added device, and joinSame folds the other into it (handBound, review r1
 // M1: the duplicate an earlier batch made). A hint with only a MAC that a join left as a chassis MAC (D-515) is about the device it
 // joined.
-func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id string, created bool, err error) {
+func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs) (id string, created bool, err error) {
 	if c.agent != "" { // the agent bound to a device finds it wherever its address went (D-598); an agent moves the address
-		if id, err := s.keyHit(ctx, tx, c); id != "" || err != nil {
+		if id, err := s.keyHit(ctx, tx, o, c); id != "" || err != nil {
 			return id, false, err
 		}
 		if c.mac == "" && !c.ip.IsValid() { // the agent's key alone (AssetHint.From): only its bound device takes it
@@ -532,7 +532,7 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id strin
 				}
 				return hand, false, confirmIP(ctx, tx, hand, c.ip, c.seenAt)
 			}
-			return id, false, s.claimIP(ctx, tx, id, c.ip, c.source, c.seenAt)
+			return id, false, s.claimIP(ctx, tx, o, id, c.ip, c.source, c.seenAt)
 		case !errors.Is(err, sql.ErrNoRows):
 			return "", false, fmt.Errorf("inventory: find device by MAC: %w", err)
 		}
@@ -593,7 +593,7 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id strin
 	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_asset (id, mac, kind, origin, approved, fragile, first_seen, last_seen) VALUES (?, ?, 'unknown', 'discovered', 0, 0, ?, ?)`, id, nullStr(c.mac), now, now); err != nil {
 		return "", false, fmt.Errorf("inventory: create device: %w", err)
 	}
-	return id, true, s.claimIP(ctx, tx, id, c.ip, c.source, c.seenAt)
+	return id, true, s.claimIP(ctx, tx, o, id, c.ip, c.source, c.seenAt)
 }
 
 // handHolder is the hand-added device at c's address that a sighting of c's burned-in MAC, which device other already owns, is about
@@ -694,7 +694,7 @@ func (s *Service) staleLog(ctx context.Context, id string, c cleanObs, confirmed
 // (no address the agent confirmed, AssetHint.From) reaches the device only when the device is at the address it came from, and moves
 // nothing: a key used from another machine's address writes nothing (agent-intake INV-12). A rotating private MAC is no evidence (it
 // is never burned in).
-func (s *Service) keyHit(ctx context.Context, tx *sql.Tx, c cleanObs) (string, error) {
+func (s *Service) keyHit(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs) (string, error) {
 	var id string
 	var mac, ip, agentIP sql.NullString
 	switch err := tx.QueryRowContext(ctx, `SELECT id, mac, ip, agent_ip FROM inv_asset WHERE agent_key = ?`, c.agent).Scan(&id, &mac, &ip, &agentIP); {
@@ -725,7 +725,7 @@ func (s *Service) keyHit(ctx context.Context, tx *sql.Tx, c cleanObs) (string, e
 			return "", nil
 		}
 	}
-	if err := s.claimIP(ctx, tx, id, c.ip, string(observe.Agent), c.seenAt); err != nil {
+	if err := s.claimIP(ctx, tx, o, id, c.ip, string(observe.Agent), c.seenAt); err != nil {
 		return "", err
 	}
 	return id, setAgentIP(ctx, tx, id, c.ip)
@@ -793,7 +793,9 @@ func (s *Service) ReleaseAgents(ctx context.Context, agents []string) error {
 // which binds nothing, is a new announced device without an address until the person merges or deletes the row), and the update is
 // then a no-op. The box, and a hand-added device known by its address only, keep their own address against
 // anything but an agent (L10 of the SP-4 review); a hand-added device bound to a MAC moves with that MAC (#829, C1).
-func (s *Service) claimIP(ctx context.Context, tx *sql.Tx, id string, ip netip.Addr, source, seenAt string) error {
+// The device that lost the address, and id when it had another one, are recorded in o (readdress): the write announces them, so a
+// job holding the old address stops (#874).
+func (s *Service) claimIP(ctx context.Context, tx *sql.Tx, o *outbox, id string, ip netip.Addr, source, seenAt string) error {
 	if !ip.IsValid() {
 		return nil
 	}
@@ -808,13 +810,21 @@ func (s *Service) claimIP(ctx context.Context, tx *sql.Tx, id string, ip netip.A
 	if cur.Valid && cur.String == ip.String() {
 		return confirmIP(ctx, tx, id, ip, seenAt)
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = NULL, ip_confirmed_at = NULL WHERE ip = ? AND id <> ? AND is_box = 0
-		AND (origin = 'discovered' OR mac IS NOT NULL OR agent_key IS NOT NULL)`, ip.String(), id); err != nil {
+	var freed string
+	switch err := tx.QueryRowContext(ctx, `UPDATE inv_asset SET ip = NULL, ip_confirmed_at = NULL WHERE ip = ? AND id <> ? AND is_box = 0
+		AND (origin = 'discovered' OR mac IS NOT NULL OR agent_key IS NOT NULL) RETURNING id`, ip.String(), id).Scan(&freed); {
+	case err == nil: // the address is unique (inv_asset_ip_uq): one row at most
+		o.readdress(freed)
+	case !errors.Is(err, sql.ErrNoRows):
 		return fmt.Errorf("inventory: free IP: %w", err)
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = ?, ip_confirmed_at = ? WHERE id = ? AND NOT EXISTS (SELECT 1 FROM inv_asset WHERE ip = ?)`,
-		ip.String(), seenAt, id, ip.String()); err != nil {
+	res, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = ?, ip_confirmed_at = ? WHERE id = ? AND NOT EXISTS (SELECT 1 FROM inv_asset WHERE ip = ?)`,
+		ip.String(), seenAt, id, ip.String())
+	if err != nil {
 		return fmt.Errorf("inventory: set IP: %w", err)
+	}
+	if n, _ := res.RowsAffected(); n > 0 && cur.Valid { // it left its old address
+		o.readdress(id)
 	}
 	return nil
 }

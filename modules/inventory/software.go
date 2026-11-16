@@ -373,8 +373,8 @@ func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, c cleanO
 	}
 	find := c
 	find.list = true
-	find.source = ""                           // a list moves no address by its source (as before D-598); the agent bound to a device does, in resolve
-	id, isNew, err := s.resolve(ctx, tx, find) // binds no agent: the observation batch of the same report does (Record)
+	find.source = ""                              // a list moves no address by its source (as before D-598); the agent bound to a device does, in resolve
+	id, isNew, err := s.resolve(ctx, tx, o, find) // binds no agent: the observation batch of the same report does (Record)
 	if err != nil || id == "" {
 		return "", err
 	}

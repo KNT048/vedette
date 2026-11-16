@@ -13,8 +13,14 @@ import (
 
 const (
 	xenMAC = "00:16:3e:5a:01:01" // burned in (Xensource OUI): the N100 C1 walk
-	router = "3c:22:fb:00:00:fe" // another device a sensor sees, so the sensors are known to run
+	router = "3c:22:fb:00:00:fe" // another device the discovery sweep finds, so the sweep is known to run
 )
+
+// sweep is what sensor-active's discovery sweep sends for one host it found on the segment (results.go sweepObservations).
+func sweep(mac, ip string) []observe.Observation {
+	h := observe.AssetHint{MAC: mac, IP: netip.MustParseAddr(ip)}
+	return []observe.Observation{{AssetHint: h, Field: observe.MAC, Value: mac, Source: observe.Nmap, Confidence: 0.9}}
+}
 
 // arp is what the passive sensor sends for one ARP sighting of a new MAC, in its order: the card's maker (the OUI table, a MAC-only
 // hint) is queued before the ARP that pairs the MAC with its address (sensor-passive capture/engine.go add, queueVendor).
@@ -128,8 +134,8 @@ func TestContract_829_AReusedAddressIsANewDevice(t *testing.T) {
 }
 
 // C5 / gap 2: a report by address only (a version scan, an SNMP read, a software list) reaches the device at that address only while a
-// sighting tied the two within ipTrust (3 days), or while no sensor saw any MAC in that time (sensors off: nothing tells a stale
-// address from a quiet one); past it the report is dropped, never written onto a device that may have left. A device known by its
+// sighting tied the two within ipTrust (3 days), or while the discovery sweep did not run in that time (the passive sensor sees
+// broadcasts only: a quiet server is not a stale one; review r1 M2 of #872); past it the report is dropped, never written onto a device that may have left. A device known by its
 // address only (a routed subnet) is still found by it. An address-only device past ipTrust does not adopt a MAC
 // seen at its address: that MAC is a new device.
 func TestContract_829_AnAddressOnlyReportNeedsARecentSighting(t *testing.T) {
@@ -138,15 +144,16 @@ func TestContract_829_AnAddressOnlyReportNeedsARecentSighting(t *testing.T) {
 	id := e.idOf("192.168.18.20")
 	e.tick(71 * time.Hour)
 	e.record(byAddress("192.168.18.20", "fresh-name")...)
-	if d := e.only(); d.Hostname == nil || *d.Hostname != "fresh-name" {
-		t.Fatalf("within 3 days: name %v", d.Hostname)
+	if d := e.only(); d.ID != id || d.Hostname == nil || *d.Hostname != "fresh-name" {
+		t.Fatalf("within 3 days: id %s name %v", d.ID, d.Hostname)
 	}
 	e.tick(2 * time.Hour) // 73 h since the MAC was last seen at .20
 	e.record(byAddress("192.168.18.20", "quiet-name")...)
-	if d := e.only(); *d.Hostname != "quiet-name" {
-		t.Fatalf("no sensor saw any MAC in 3 days (sensors off): the report must still reach the device, name %v", *d.Hostname)
+	e.record(dhcp(router, "192.168.18.1", "")...) // the passive sensor runs, but sees broadcasts only: a quiet server's silence is no news
+	if d := e.device(id); *d.Hostname != "quiet-name" {
+		t.Fatalf("no discovery sweep in 3 days: the report must still reach the device, name %v", *d.Hostname)
 	}
-	e.record(dhcp(router, "192.168.18.1", "")...) // a sensor runs: the device's silence is news
+	e.record(sweep(router, "192.168.18.1")...) // the sweep runs and did not find the device at .20: its silence is news
 	e.record(byAddress("192.168.18.20", "stale-name")...)
 	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20")}, observe.Nmap,
 		[]observe.Software{{Display: "OpenSSH 9.6", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.9}}); err != nil {
@@ -249,7 +256,7 @@ func TestContract_829_AnAgentAtAStaleAddress(t *testing.T) {
 			t.Fatal(err)
 		}
 		e.tick(73 * time.Hour)
-		e.record(dhcp(router, "192.168.18.1", "")...) // a sensor runs
+		e.record(sweep(router, "192.168.18.1")...) // the sweep runs
 		h := observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20"), Agent: "osquery:node-a"}
 		e.record(observe.Observation{AssetHint: h, Field: observe.Hostname, Value: "build01", Source: observe.Agent, Confidence: 0.9},
 			observe.Observation{AssetHint: h, Field: observe.MAC, Value: card, Source: observe.Agent, Confidence: 0.9})
@@ -284,5 +291,104 @@ func TestContract_829_FromOnlyWithAnAgent(t *testing.T) {
 	}
 	if err := e.svc.Record(e.ctx(), []observe.Observation{{AssetHint: observe.AssetHint{Agent: "osquery:node-z"}, Field: observe.OS, Value: "x", Source: observe.Passive, Confidence: 0.5}}); err == nil {
 		t.Error("a sensor's agent-only hint was accepted")
+	}
+}
+
+// Review r1 H2 of #872: a hand-added device binds a MAC by its address alone only when the MAC is burned in and a person declared the
+// address within 3 days. A private MAC (a guest phone given that lease) and any MAC at an address declared longer ago are a new,
+// announced device; the old declaration gives the address to it, a recent one keeps it.
+func TestContract_829_AHandAddedDeviceBindsOnlyABurnedInMACSoon(t *testing.T) {
+	cases := []struct {
+		name     string
+		mac      string
+		age      time.Duration
+		keepsIP  bool
+		newcomer bool
+	}{
+		{"burned-in MAC within 3 days", xenMAC, time.Hour, true, false},
+		{"private MAC (a guest phone)", privMac1, time.Hour, true, true},
+		{"burned-in MAC a month later", xenMAC, 30 * 24 * time.Hour, false, true},
+	}
+	for _, tc := range cases {
+		e := newEnv(t)
+		id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201", Name: "nas"})
+		e.ev.reset()
+		e.tick(tc.age)
+		e.record(byAddress("192.168.18.201", "nas")...) // something answering at the address is not the person's word: no new window
+		e.record(arp(tc.mac, "192.168.18.201")...)
+		d := e.device(id)
+		bound := d.MAC != nil && *d.MAC == tc.mac
+		if bound == tc.newcomer || (len(e.ev.named(inventory.EventAssetDiscovered)) == 1) != tc.newcomer {
+			t.Errorf("%s: bound %v, %d announced; want a newcomer %v", tc.name, bound, len(e.ev.named(inventory.EventAssetDiscovered)), tc.newcomer)
+		}
+		if (d.IP == "192.168.18.201") != tc.keepsIP {
+			t.Errorf("%s: the hand-added device is at %s", tc.name, d.IP)
+		}
+	}
+}
+
+// Review r1 M1 of #872 (the n70 data on the N100): the MAC of a hand-added device was seen before its address (a MAC-only hint in an
+// earlier batch, an LLDP frame), so a waiting discovered device holds it with no address. The next sighting of that MAC at the
+// hand-added address folds the waiting one into the hand-added device: one device, the hand-added id, approval and name, the MAC, the
+// address; the waiting one is announced merged then deleted, so its "new device" incident closes.
+func TestContract_829_AWaitingDuplicateJoinsTheHandAddedDevice(t *testing.T) {
+	e := newEnv(t)
+	id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201", Name: "nas"})
+	e.record(arp(xenMAC, "192.168.18.201")[:1]...) // the vendor alone, in a batch of its own
+	dup := e.idByMAC(xenMAC)
+	if dup == id || e.devices() != 2 {
+		t.Fatalf("setup: %d devices", e.devices())
+	}
+	e.ev.reset()
+	e.tick(time.Minute)
+	e.record(dhcp(xenMAC, "192.168.18.201", "")...)
+	d := e.only()
+	if d.ID != id || d.MAC == nil || *d.MAC != xenMAC || d.IP != "192.168.18.201" || !d.Approved || d.Origin != "manual" || d.Vendor == nil {
+		t.Errorf("after the sighting: %+v", d.AssetCore)
+	}
+	merged := e.ev.named(inventory.EventAssetMerged)
+	if len(merged) != 1 || merged[0].Data.(inventory.MergeEvent).From != dup || len(e.ev.named(inventory.EventAssetDeleted)) != 1 {
+		t.Errorf("events: merged %+v deleted %d", merged, len(e.ev.named(inventory.EventAssetDeleted)))
+	}
+	e.tick(time.Hour)
+	e.record(dhcp(xenMAC, "192.168.18.202", "")...)
+	if d := e.only(); d.ID != id || d.IP != "192.168.18.202" {
+		t.Errorf("after the move: id %s ip %s", d.ID, d.IP)
+	}
+	// A private MAC, or an approved device, is never folded by an address alone.
+	for _, approved := range []bool{false, true} {
+		e := newEnv(t)
+		hand := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201"})
+		mac := privMac1
+		e.record(arp(mac, "192.168.18.201")[:1]...)
+		if approved {
+			mac = xenMAC
+			e.record(arp(mac, "192.168.18.201")[:1]...)
+			if err := e.svc.Approve(e.ctx(), "kien", e.idByMAC(mac)); err != nil {
+				t.Fatal(err)
+			}
+		}
+		e.record(dhcp(mac, "192.168.18.201", "")...)
+		if e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND mac IS NULL`, hand) != 1 || e.count(`SELECT count(*) FROM inv_asset WHERE mac = ?`, mac) != 1 ||
+			e.count(`SELECT count(*) FROM inv_observation WHERE asset_id = ? AND field = 'mac'`, hand) != 0 {
+			t.Errorf("approved %v: the hand-added device took %s", approved, mac)
+		}
+	}
+}
+
+// Review r1 L1 of #872: a list (software, services) at an address whose device the sweep has not seen there for 3 days makes no device,
+// even an agent's: an announced duplicate would go out before the agent's next observation batch.
+func TestContract_829_AListAtAStaleAddressMakesNoDevice(t *testing.T) {
+	e := newEnv(t)
+	e.record(dhcp(burnt1, "192.168.18.20", "")...)
+	e.tick(73 * time.Hour)
+	e.record(sweep(router, "192.168.18.1")...)
+	e.ev.reset()
+	if err := e.svc.ReplaceSoftware(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20"), Agent: "osquery:node-a"}, observe.Agent,
+		[]observe.Software{{Display: "OpenSSH 9.6", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6", Confidence: 0.95}}); err != nil {
+		t.Fatal(err)
+	}
+	if e.devices() != 2 || len(e.ev.named(inventory.EventAssetDiscovered)) != 0 {
+		t.Errorf("%d devices, %d announced; want 2 and none", e.devices(), len(e.ev.named(inventory.EventAssetDiscovered)))
 	}
 }

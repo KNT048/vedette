@@ -85,3 +85,18 @@ func (w *world) intervalsFrom(key, remote string) map[string]float64 {
 	}
 	return out
 }
+
+// Review r1 H1 of #872: a copied node key used from an address the node did not declare stores nothing on the node: its kernel_info (or
+// os_revision) does not become the kernel the device's next list is matched with.
+func TestContract_829_ACopiedKeyFromElsewhereStoresNoKernel(t *testing.T) {
+	w := newWorld(t)
+	_, secret := w.token("srv", 7)
+	key := w.enroll(secret, "srv-1", peerA)
+	w.post("/intake/osquery/log", peerA, logBody(key, snap("interfaces", ifaceRow(macA, peerA)), snap("kernel_info", map[string]string{"version": "7.0.0-43-generic"})))
+	w.clock.Advance(6 * time.Minute)
+	w.post("/intake/osquery/log", "192.0.2.99", logBody(key, snap("kernel_info", map[string]string{"version": "7.0.0-30-generic"}),
+		snap("os_revision", map[string]string{"name": "Microsoft Windows 11 Pro", "version": "10.0.22631", "revision": "1", "arch": "64-bit"})))
+	if n := w.count(`SELECT count(*) FROM intake_osquery_nodes WHERE kernel = '7.0.0-43-generic' AND win_version = ''`); n != 1 {
+		t.Errorf("a key used from another address changed the node's kernel or Windows release")
+	}
+}

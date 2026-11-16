@@ -71,6 +71,7 @@ type cleanObs struct {
 	mac   string     // hint, normalised, may be ""
 	agent string     // hint: the agent that reports (agent source only, D-598), may be ""
 	from  netip.Addr // hint: where an agent-only report came from (AssetHint.From, #829); judges keyHit's binding, nothing else
+	list  bool       // a list (software, services: deviceFor), not an observation: at a stale address it makes no device (review r1 L1 of #872)
 	// agentMACs are the MACs the agent reports in this batch (its mac observations); bindAgent checks the device against them.
 	agentMACs []string
 	field     string
@@ -488,23 +489,31 @@ func (c cleanObs) target() string {
 }
 
 // ipTrust is how long a device's address stays its own without a sighting that ties the two (#829, D-598): a sensor that saw the
-// device's MAC at that address, its bound agent reporting from it, or, for a device known by address only, anything seen there
-// (ip_confirmed_at). Past it, a hint with only an address (a version scan, an SNMP read, a Wazuh or software list) is not given to
-// the device, and an address-only device no longer adopts a MAC seen there: DHCP may have given the address to another machine that
-// no sensor has seen yet. Three days, as runZero (an address not confirmed by a scan for three days is not trusted on its own): the
-// slowest source that confirms one is the daily discovery sweep (sensor-active, once per scan window), so a day with no sweep does not
-// drop a live device's facts; the passive sensor confirms every 15 minutes.
+// device's MAC at that address, its bound agent reporting from it, a person declaring it, or, for a discovered device known by address
+// only, anything seen there (ip_confirmed_at). Past it, while the discovery sweep runs (sweepRan), a hint with only an address (a
+// version scan, an SNMP read, a Wazuh or software list) is not given to the device, an address-only device no longer adopts a MAC seen
+// there, and a hand-added device nobody saw binds no MAC and gives its address to the machine there: DHCP may have given the address to
+// another machine. Three days, as runZero (an address not confirmed by a scan for three days is not trusted on its own): the slowest
+// source that confirms one is the daily discovery sweep (sensor-active, once per scan window, an ARP ping every live host on the segment
+// answers), so a day with no sweep does not drop a live device's facts; the passive sensor confirms every 15 minutes.
 const ipTrust = 72 * time.Hour
 
 // resolve finds the device a hint points to, or creates it (#829: the address is an attribute, never the identity); "" when no device
 // may take it. The agent bound to a device wins (D-598); a hint with only an agent reaches that device or nothing. Then the MAC; then
-// the address. A hint with no MAC goes to the device holding the address when that device has no MAC (the address is all it is known
-// by), when its address was confirmed within ipTrust, or when no device's was (no sensor that sees MACs runs: nothing tells a stale
-// address from a quiet one); otherwise a sensor's hint goes nowhere (logged) and an agent's makes a device of its own, which
-// agentOrphan joins to the old one when the agent reports its card. A hint with a MAC nobody owns binds the address's device when that
-// device has no MAC yet: a hand-added one at any age (its address is a person's word: the bootstrap Lansweeper and Tenable do), a
-// discovered one only within ipTrust; otherwise, or when the holder has another MAC, a new device is made and takes the address
-// (claimIP). A hint with only a MAC that a join left as a chassis MAC (D-515) is about the device it joined.
+// the address.
+//
+// A hint with no MAC goes to the device holding the address when that device has no MAC (the address is all it is known by), when its
+// address was confirmed within ipTrust, or when the discovery sweep has not run in that time (no sweep: nothing tells a stale address
+// from a quiet one). Otherwise a sensor's hint or a list goes nowhere (logged), and an agent's observation makes a device of its own,
+// which agentOrphan joins to the old one when the agent reports its card.
+//
+// A hint with a MAC nobody owns binds the address's device when that device has no MAC yet: a hand-added one when the MAC is burned in
+// and a person declared the address within ipTrust (the bootstrap Lansweeper and Tenable do; a private MAC is a phone or a guest, never
+// bound by an address alone: review r1 H2 of #872), a discovered one when its address was seen within ipTrust; otherwise, or when the
+// holder has another MAC, a new device is made and takes the address (claimIP). A known MAC at such a hand-added device's address
+// whose device is a waiting discovered one goes to the hand-added device, and joinSame folds the other into it (handBound, review r1
+// M1: the duplicate an earlier batch made). A hint with only a MAC that a join left as a chassis MAC (D-515) is about the device it
+// joined.
 func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id string, created bool, err error) {
 	if c.agent != "" { // the agent bound to a device finds it wherever its address went (D-598); an agent moves the address
 		if id, err := s.keyHit(ctx, tx, c); id != "" || err != nil {
@@ -514,9 +523,13 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id strin
 			return "", false, nil
 		}
 	}
+	cutoff := store.FormatTS(s.clock().Add(-ipTrust))
 	if c.mac != "" {
 		switch err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE mac = ?`, c.mac).Scan(&id); {
 		case err == nil:
+			if hand, err := handHolder(ctx, tx, c, id, cutoff); hand != "" || err != nil {
+				return hand, false, err
+			}
 			return id, false, s.claimIP(ctx, tx, id, c.ip, c.source, c.seenAt)
 		case !errors.Is(err, sql.ErrNoRows):
 			return "", false, fmt.Errorf("inventory: find device by MAC: %w", err)
@@ -531,47 +544,46 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id strin
 		var holderMAC, confirmed sql.NullString
 		var manual bool
 		err := tx.QueryRowContext(ctx, `SELECT id, mac, ip_confirmed_at, origin = 'manual' FROM inv_asset WHERE ip = ?`, c.ip.String()).Scan(&id, &holderMAC, &confirmed, &manual)
+		fresh := confirmed.Valid && confirmed.String >= cutoff
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 		case err != nil:
 			return "", false, fmt.Errorf("inventory: find device by IP: %w", err)
 		case c.mac == "":
-			cutoff := store.FormatTS(s.clock().Add(-ipTrust))
 			switch {
 			case !holderMAC.Valid: // known by its address only: the address is its identity, and this is a sighting of it
+				if manual { // a hand-added device's address stays the person's word (handHolder, the bind below)
+					return id, false, nil
+				}
 				return id, false, confirmIP(ctx, tx, id, c.ip, c.seenAt)
-			case confirmed.Valid && confirmed.String >= cutoff:
+			case fresh:
 				return id, false, nil
 			}
-			var watched bool // a sensor tied some device to its address lately: the holder's silence is news, not a sensor turned off
-			if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM inv_asset WHERE mac IS NOT NULL AND ip_confirmed_at >= ?)`, cutoff).Scan(&watched); err != nil {
-				return "", false, fmt.Errorf("inventory: check the sensors: %w", err)
+			swept, err := sweepRan(ctx, tx, cutoff)
+			if err != nil {
+				return "", false, err
 			}
 			switch {
-			case !watched:
+			case !swept:
 				return id, false, nil
-			case c.agent == "":
-				s.log.InfoContext(ctx, "inventory: a report by address only was not given to the device holding the address: no sensor tied that address to the device lately",
-					"device", id, "ip", c.ip, "source", c.source, "field", c.field, "confirmed_at", confirmed.String)
+			case c.agent == "" || c.list:
+				s.staleLog(ctx, id, c, confirmed.String)
 				return "", false, nil
 			}
-			// an agent at a stale address: a device of its own takes the address (below); when the agent reports the old device's card,
-			// agentOrphan joins the two in this write (INV-31 (3)), keeping the old device
-		case !holderMAC.Valid:
-			fresh := confirmed.Valid && confirmed.String >= store.FormatTS(s.clock().Add(-ipTrust))
-			if manual || fresh {
-				// Same device, first time its MAC is known. Set it now so the next observation of this batch finds the device
-				// by MAC (RecomputeAsset only runs at the end of the batch).
-				if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET mac = ? WHERE id = ?`, c.mac, id); err != nil {
-					return "", false, fmt.Errorf("inventory: set MAC: %w", err)
-				}
-				if manual {
-					if err := s.auditTx(ctx, tx, systemActor, "inventory.bind_mac", deviceName(ctx, tx, id), c.mac+" seen at "+c.ip.String()); err != nil {
-						return "", false, err
-					}
-				}
-				return id, false, confirmIP(ctx, tx, id, c.ip, c.seenAt)
+			// an agent's observation at a stale address: a device of its own takes the address (below); when the agent reports the old
+			// device's card, agentOrphan joins the two in this write (INV-31 (3)), keeping the old device
+		case !holderMAC.Valid && (manual && fresh && !localMAC(c.mac) || !manual && fresh):
+			// Same device, first time its MAC is known. Set it now so the next observation of this batch finds the device by MAC
+			// (RecomputeAsset only runs at the end of the batch).
+			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET mac = ? WHERE id = ?`, c.mac, id); err != nil {
+				return "", false, fmt.Errorf("inventory: set MAC: %w", err)
 			}
+			if manual {
+				if err := s.auditTx(ctx, tx, systemActor, "inventory.bind_mac", deviceName(ctx, tx, id), c.mac+" seen at "+c.ip.String()); err != nil {
+					return "", false, err
+				}
+			}
+			return id, false, confirmIP(ctx, tx, id, c.ip, c.seenAt)
 		}
 	}
 	now := c.seenAt
@@ -580,6 +592,74 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, c cleanObs) (id strin
 		return "", false, fmt.Errorf("inventory: create device: %w", err)
 	}
 	return id, true, s.claimIP(ctx, tx, id, c.ip, c.source, c.seenAt)
+}
+
+// handHolder is the hand-added device at c's address that a sighting of c's burned-in MAC, which device other already owns, is about
+// (review r1 M1 of #872): it has no MAC and no agent, a person declared its address within ipTrust (cutoff), and other is a discovered
+// device nobody approved (the duplicate an earlier batch made of it: a MAC-only hint before the ARP, an LLDP frame). "" otherwise.
+// The hint then goes to the hand-added device, and joinSame folds other into it (handBound).
+func handHolder(ctx context.Context, tx *sql.Tx, c cleanObs, other, cutoff string) (string, error) {
+	if !c.ip.IsValid() || localMAC(c.mac) {
+		return "", nil
+	}
+	var id string
+	err := tx.QueryRowContext(ctx, `SELECT h.id FROM inv_asset h, inv_asset o WHERE h.ip = ? AND h.origin = 'manual' AND h.mac IS NULL AND h.agent_key IS NULL
+		AND h.is_box = 0 AND h.ip_confirmed_at >= ? AND o.id = ? AND o.id <> h.id AND o.origin = 'discovered' AND o.approved = 0 AND o.is_box = 0`,
+		c.ip.String(), cutoff, other).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	} else if err != nil {
+		return "", fmt.Errorf("inventory: find the hand-added device at the address: %w", err)
+	}
+	return id, nil
+}
+
+// handBound is the waiting discovered device a hand-added device (id) is (review r1 M1 of #872): id has no MAC and no agent, and holds
+// the one burned-in MAC a sensor saw on it (resolve gave it the sighting: handHolder), which that discovered device, nobody approved,
+// owns. "" otherwise. The discovered device goes into the hand-added one, which keeps its id, approval and notes.
+func handBound(ctx context.Context, tx *sql.Tx, id string) (from, why string, err error) {
+	macs, err := candidates(ctx, tx, `SELECT DISTINCT o.value FROM inv_observation o JOIN inv_asset h ON h.id = o.asset_id
+		WHERE o.asset_id = ? AND o.field = 'mac' AND o.source <> 'agent' AND o.evidence IS NOT ? AND h.origin = 'manual' AND h.mac IS NULL
+		AND h.agent_key IS NULL AND h.is_box = 0`, id, chassisEvidence)
+	if err != nil || len(macs) != 1 || localMAC(macs[0]) {
+		return "", "", err
+	}
+	err = tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE mac = ? AND id <> ? AND origin = 'discovered' AND approved = 0 AND is_box = 0`, macs[0], id).Scan(&from)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", "", nil
+	} else if err != nil {
+		return "", "", fmt.Errorf("inventory: find the hand-added device's MAC: %w", err)
+	}
+	return from, "a sensor saw its network card " + macs[0] + " at the address it was added with", nil
+}
+
+// sweepRan says whether the discovery sweep (sensor-active's nmap MAC sightings) ran since cutoff: then a device it did not confirm at its
+// address was not there (an ARP ping is answered by every live host on the segment), and its silence is news (review r1 M2 of #872).
+func sweepRan(ctx context.Context, tx *sql.Tx, cutoff string) (bool, error) {
+	var ran bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM inv_observation WHERE field = 'mac' AND source = 'nmap' AND seen_at >= ?)`, cutoff).Scan(&ran); err != nil {
+		return false, fmt.Errorf("inventory: check the discovery sweep: %w", err)
+	}
+	return ran, nil
+}
+
+// staleLog logs, at most once an hour per device, that a report by address only was not given to the device at the address.
+func (s *Service) staleLog(ctx context.Context, id string, c cleanObs, confirmed string) {
+	s.staleMu.Lock()
+	if s.stale == nil || len(s.stale) > 4096 {
+		s.stale = map[string]time.Time{}
+	}
+	now := s.clock()
+	last, seen := s.stale[id]
+	due := !seen || now.Sub(last) >= time.Hour
+	if due {
+		s.stale[id] = now
+	}
+	s.staleMu.Unlock()
+	if due {
+		s.log.InfoContext(ctx, "inventory: reports by address only are not given to the device at that address: the discovery sweep has not seen it there for 3 days (DHCP may have given the address to another machine)",
+			"device", id, "ip", c.ip, "source", c.source, "confirmed_at", confirmed)
+	}
 }
 
 // keyHit is the device the agent of c is bound to (D-598), moved to c's address, or "" (then the caller goes on by MAC and address).
@@ -687,8 +767,9 @@ func (s *Service) ReleaseAgents(ctx context.Context, agents []string) error {
 
 // claimIP gives ip to the device and records the sighting that confirmed it (ip_confirmed_at, ipTrust). The address is taken from
 // a device that holds it when that device is a discovered one or is bound to a MAC or an agent (#829: a hand-added device bound to its
-// MAC is one machine like any other, and DHCP gives its address away like any other's); a hand-added device known by its address only
-// keeps it, and the update is then a no-op. The box, and a hand-added device known by its address only, keep their own address against
+// MAC is one machine like any other, and DHCP gives its address away like any other's), or is a hand-added one known by its address
+// only that a person declared more than ipTrust ago (a machine nobody saw there since; review r1 H2 of #872); a hand-added device
+// declared within ipTrust keeps it, and the update is then a no-op. The box, and a hand-added device known by its address only, keep their own address against
 // anything but an agent (L10 of the SP-4 review); a hand-added device bound to a MAC moves with that MAC (#829, C1).
 func (s *Service) claimIP(ctx context.Context, tx *sql.Tx, id string, ip netip.Addr, source, seenAt string) error {
 	if !ip.IsValid() {
@@ -706,7 +787,7 @@ func (s *Service) claimIP(ctx context.Context, tx *sql.Tx, id string, ip netip.A
 		return confirmIP(ctx, tx, id, ip, seenAt)
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = NULL, ip_confirmed_at = NULL WHERE ip = ? AND id <> ? AND is_box = 0
-		AND (origin = 'discovered' OR mac IS NOT NULL OR agent_key IS NOT NULL)`, ip.String(), id); err != nil {
+		AND (origin = 'discovered' OR mac IS NOT NULL OR agent_key IS NOT NULL OR coalesce(ip_confirmed_at, '') < ?)`, ip.String(), id, store.FormatTS(s.clock().Add(-ipTrust))); err != nil {
 		return fmt.Errorf("inventory: free IP: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = ?, ip_confirmed_at = ? WHERE id = ? AND NOT EXISTS (SELECT 1 FROM inv_asset WHERE ip = ?)`,

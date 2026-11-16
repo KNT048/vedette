@@ -57,13 +57,15 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 			hint.From = a
 		}
 	}
-	kernel, err := s.nodeKernel(ctx, n, in)
-	if err != nil {
-		return err
-	}
-	win, err := s.nodeWindows(ctx, n, in)
-	if err != nil {
-		return err
+	kernel, win := n.kernel, n.win // a key-only report stores nothing on the node (review r1 H1 of #872): a copied key must not set its kernel
+	if ip.IsValid() {
+		var err error
+		if kernel, err = s.nodeKernel(ctx, n, in); err != nil {
+			return err
+		}
+		if win, err = s.nodeWindows(ctx, n, in); err != nil {
+			return err
+		}
 	}
 	in.snaps = withWindows(withKernel(in.snaps, kernel), win)
 	taken, err := s.deliver(ctx, src.Unmap().WithZone(""), hint, mac, n.id, in)

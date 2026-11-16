@@ -340,6 +340,9 @@ func sameAs(ctx context.Context, tx *sql.Tx, id string, now time.Time) (from, in
 	if into, why, err = sameDevice(ctx, tx, id); into != "" || err != nil {
 		return id, into, why, joinChassis, err
 	}
+	if from, why, err = handBound(ctx, tx, id); from != "" || err != nil { // #829 C1: the hand-added device keeps its id
+		return from, id, why, joinMachine, err
+	}
 	var orphan string
 	if orphan, why, err = agentOrphan(ctx, tx, id); err != nil {
 		return "", "", "", 0, err

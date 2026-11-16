@@ -223,7 +223,7 @@ func clip(s string, n int) string { return cleanLine(s, n) }
 // ---------- the tools of the box
 
 const (
-	searchAssetsDesc = "Search the devices in the inventory. All arguments are optional filters that are combined: free text (words must all appear in the name, IP, vendor, model, operating system, services or software), the device kind, an open TCP/UDP port, whether the device is approved, a word of the operating system. Returns how many devices match and the first limit of them (default 10) with vendor, model, operating system, open ports and software; detail=true adds when each was first and last seen, how it was added (found on the network or added by hand) and which source saw it."
+	searchAssetsDesc = "Search the devices in the inventory. All arguments are optional filters that are combined: free text (words must all appear in the name, IP, vendor, model, operating system, services or software), the device kind, an open TCP/UDP port, whether the device is approved, a word of the operating system. Returns how many devices match and the first limit of them (default 10) with vendor, model, operating system, open ports and software; detail=true adds when each was first and last seen, how it was added (found on the network or added manually) and which source saw it."
 	listFindingsDesc = "List findings: devices matched to an exploited vulnerability. Filters: status (open = confirmed or suspected, the default; any; or one status), severity, CVE id, asset_id of one device. Returns how many findings match, counts by severity, status and basis and per device (the devices with the most first), then the riskiest first limit findings (default 10). Use get_finding for the evidence of one."
 	getFindingDesc   = "Get one finding by its id, with the scan evidence if a scan confirmed it."
 	lookupCVEDesc    = "Look a CVE up on the exploited-vulnerabilities list this box holds, and list the devices of this network that it matches."
@@ -408,7 +408,7 @@ func toolSearchAssets(ctx context.Context, d Data, raw map[string]any) (toolOut,
 func addedHow(origin string) string {
 	switch origin {
 	case "manual":
-		return "added by hand"
+		return "added manually"
 	case "discovered":
 		return "found on the network"
 	}

@@ -1,13 +1,10 @@
-import { Link } from 'react-router'
+import { Breadcrumbs } from '@/components/common/Breadcrumbs'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft } from 'lucide-react'
 import { PageHeader } from '@/components/common/PageHeader'
 import { OldHashToTab, PageTabs } from '@/components/common/PageFrame'
 import { EmptyState, Loading, ModuleOff, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
-import { buttonVariants } from '@/components/ui/button'
 import { useModuleEnabled } from '@/lib/modules'
 import { useMe } from '@/lib/session'
-import { cn } from '@/lib/utils'
 import { AgentsSection } from './AgentsSection'
 import { useSettings } from './api'
 import { NetworkForm } from './NetworkForm'
@@ -23,7 +20,9 @@ function Body() {
   const settings = useSettings()
   const admin = me.data?.role === 'admin'
   const snmpOn = useModuleEnabled('sensor-active') === true
-  const back = <Link to="/devices" className={cn(buttonVariants({ variant: 'link', size: 'sm' }), 'mb-3 inline-flex')}><ArrowLeft />{t('detail.back')}</Link>
+  // UI.md §3: breadcrumbs (parents only) above the title. #849 keeps SNMP credentials here until #850 moves them to Settings › Scanning.
+  const crumbs = [{ label: t('nav.devices'), to: '/devices' }]
+  const back = <Breadcrumbs items={crumbs} />
   if (me.isPending) return <>{back}<Loading /></>
   if (!admin) {
     return <>{back}<PageHeader title={t('setup.forbiddenTitle')} /><EmptyState title={t('setup.forbidden')}>{t('setup.forbiddenBody', { role: t('common:role.admin') })}</EmptyState></>

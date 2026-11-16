@@ -583,33 +583,48 @@ const SNMP_MSG: Record<Exclude<SnmpTestReason, 'ok' | 'unavailable'>, (ip: strin
   not_for_this_credential: (ip) => `${ip} is outside the scope of this credential, so it is never sent there.`,
   scanning_off: () => 'Active scanning is off under Scope and sensors, so nothing is sent.',
   scope_not_confirmed: () => 'The scan scope commitment is not ticked under Scope and sensors, so nothing is sent.',
-  declared_by_hand: () => 'This device was added by hand: Vedette never probes it.',
+  declared_by_hand: () => 'This device was added manually: Vedette never probes it.',
   box: () => 'This is the Vedette box itself (or one of its trap addresses): it is never probed.',
   regular_scan_never: () => 'This device is set to never be scanned.',
   busy: () => 'SNMP reads are running for the scan window right now. Try again in a minute.',
 }
-/** What the mock device says when it answers: a Juniper EX4200 (the switch of walk W1-32). */
-const snmpAnswer = (a: Asset): NonNullable<SnmpTestResult['answer']> => ({
-  sys_descr: 'Juniper Networks, Inc. ex4200-48t Ethernet Switch, kernel JUNOS 15.1R7.9, Build date: 2019-06-28 21:18:40 UTC Copyright (c) 1996-2019 Juniper Networks, Inc.',
-  sys_object_id: '.1.3.6.1.4.1.2636.1.1.1.2.31', sys_name: (a.hostname ?? 'ex4200-48t').toLowerCase(),
-  vendor: 'Juniper Networks', product: 'Junos', model: 'EX4200-48T', os: 'JUNOS 15.1R7.9', kind: 'switch', serial: '', firmware: '', // Junos has no ENTITY-MIB chassis row (D-512)
-})
+/** What the mock device says when it answers: the device it is (#849 review: the preview's answer for 192.168.10.1 must be the FortiGate the
+ *  list shows, not some other box), with the sysDescr and enterprise number its maker uses; recording it changes nothing the list shows. */
+const SNMP_VENDOR: Record<string, { oid: string; descr: (m: string, os: string) => string }> = {
+  fortinet: { oid: '.1.3.6.1.4.1.12356.101.1.6005', descr: (m, os) => `${m.replace(/\s+/g, '-')} ${os.replace(/^FortiOS\s*/i, 'v')}` },
+  cisco: { oid: '.1.3.6.1.4.1.9.6.1.95.24.1', descr: (m) => `${m}-4G 24-Port Gigabit PoE Managed Switch` },
+  mikrotik: { oid: '.1.3.6.1.4.1.14988.1', descr: (m, os) => `${os} ${m}` },
+  hp: { oid: '.1.3.6.1.4.1.11.2.3.9.1', descr: (m) => `HP ${m}` },
+  juniper: { oid: '.1.3.6.1.4.1.2636.1.1.1.2.31', descr: (m, os) => `Juniper Networks, Inc. ${m.toLowerCase()} Ethernet Switch, kernel ${os}` },
+}
+const snmpAnswer = (a: Asset): NonNullable<SnmpTestResult['answer']> => {
+  const vendor = a.vendor?.value ?? ''
+  const model = a.model?.value ?? ''
+  const os = a.os?.value ?? ''
+  const v = SNMP_VENDOR[vendor.toLowerCase().split(/\s+/)[0] ?? '']
+  return {
+    sys_descr: v ? v.descr(model, os) : [vendor, model, os].filter(Boolean).join(' '),
+    sys_object_id: v?.oid ?? '.1.3.6.1.4.1.8072.3.2.10', sys_name: a.hostname ?? model,
+    vendor, product: '', model, os, kind: a.kind === 'unknown' ? '' : a.kind, serial: '', firmware: '',
+  }
+}
 /** Records an answer as source snmp: new observations (nothing overwritten), and the device's fields where snmp outranks what it had. */
 function recordSnmp(a: Asset, ans: NonNullable<SnmpTestResult['answer']>) {
   const conf = 0.9
   const now = nowIso()
-  addObs(a, 'hostname', ans.sys_name, 'snmp', conf)
-  addObs(a, 'vendor', ans.vendor, 'snmp', conf)
-  addObs(a, 'model', ans.model, 'snmp', conf)
-  addObs(a, 'os', ans.os, 'snmp', conf)
+  // an empty answer field says nothing: it is neither observed nor shown (#849 review)
+  if (ans.sys_name) addObs(a, 'hostname', ans.sys_name, 'snmp', conf)
+  if (ans.vendor) addObs(a, 'vendor', ans.vendor, 'snmp', conf)
+  if (ans.model) addObs(a, 'model', ans.model, 'snmp', conf)
+  if (ans.os) addObs(a, 'os', ans.os, 'snmp', conf)
   if (ans.kind) addObs(a, 'kind', ans.kind, 'snmp', conf)
   const wins = (cur: Asset['vendor']) => !cur || sourceRank('snmp') >= sourceRank(cur.source)
   const o = (value: string) => ({ value, source: 'snmp' as ObsSource, confidence: conf, seen_at: now })
   const patch: Partial<Asset> = {}
-  if (wins(a.vendor)) patch.vendor = o(ans.vendor)
-  if (wins(a.model)) patch.model = o(ans.model)
-  if (wins(a.os)) patch.os = o(ans.os)
-  if (!a.hostname) patch.hostname = ans.sys_name
+  if (ans.vendor && wins(a.vendor)) patch.vendor = o(ans.vendor)
+  if (ans.model && wins(a.model)) patch.model = o(ans.model)
+  if (ans.os && wins(a.os)) patch.os = o(ans.os)
+  if (!a.hostname && ans.sys_name) patch.hostname = ans.sys_name
   if (a.kind === 'unknown' && KINDS.includes(ans.kind as AssetKind)) patch.kind = ans.kind as AssetKind
   assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, ...patch, last_seen: now } : x)))
   matchAssetToKev(a.id)

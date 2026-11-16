@@ -130,7 +130,11 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
     expect(tg).toHaveTextContent('What to do first: Take the machine off the network')
     expect(tg).toHaveTextContent('https://192.168.10.250/incidents/al-4')
     expect(screen.queryByText('Vulnerability IDs')).not.toBeInTheDocument()
-    expect(within(screen.getByRole('table', { name: 'Delivery log of the incident' })).getAllByText('Sent')).toHaveLength(1)
+    const delivery = within(screen.getByRole('table', { name: 'Delivery log of the incident' }))
+    expect(delivery.getAllByText('Sent')).toHaveLength(1)
+    // D-483: a rate-limited send is Delayed (sent again by itself), as in History, never Failed
+    expect(delivery.getByText('Delayed')).toBeInTheDocument()
+    expect(delivery.queryByText('Failed')).toBeNull()
     await expectNoA11yViolations()
   })
 
@@ -179,16 +183,41 @@ describe('notify: incidents (S-ALERT-3, D-52)', () => {
   })
 
   it('no open incidents: the empty state shows what to do, and the channel link only while no channel is on', async () => {
-    const channels = (enabled: boolean) => http.get('*/api/v1/notify/channels', () => HttpResponse.json({ channels: [{ type: 'webhook', configured: enabled, enabled, fields: {} }], quiet: {}, grouping: {}, email_code_users: 0 }))
+    // a whole channel (the create dialog opens its form), as the box sends it
+    const channels = (enabled: boolean) => http.get('*/api/v1/notify/channels', () => HttpResponse.json({ channels: [{ type: 'webhook', configured: enabled, enabled, fields: {}, secret_last4: null, min_severity: 'high', last_test: null, approvals: false, approvers: [], approval_last4: { app_token: null, bot_token: null } }], quiet: { enabled: false, from: '22:00', to: '07:00', allow_critical: true }, grouping: { enabled: false, window_min: 15 }, email_code_users: 0 }))
     server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json({ incidents: [] })), channels(false))
     const view = renderApp('/incidents')
     expect(await screen.findByRole('heading', { level: 1, name: 'No new incidents' })).toBeInTheDocument()
-    expect(await screen.findByRole('link', { name: 'Set up alert channels' })).toHaveAttribute('href', '/settings/channels')
+    // docs/UI.md §0: the channel is set up right here: the one channel not set up opens its form at once
+    await userEvent.click(await screen.findByRole('button', { name: 'Set up alert channels' }))
+    expect(await screen.findByRole('dialog', { name: /Webhook/ })).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    // docs/UI.md §8: focus returns to the button that opened the form
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Set up alert channels' })).toHaveFocus())
     view.unmount()
     server.use(channels(true))
     renderApp('/incidents')
     expect(await screen.findByRole('heading', { level: 1, name: 'No new incidents' })).toBeInTheDocument()
-    await waitFor(() => expect(screen.queryByRole('link', { name: 'Set up alert channels' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Set up alert channels' })).toBeNull())
+  })
+
+  it('review r1 M1 of #879: "Save and send test" from Incidents shows the test result although the save turned the channel on and the button went', async () => {
+    sessionStore.set({ userId: USER.admin })
+    const all = (await getJson('/notify/channels')) as { channels: { type: string; configured: boolean }[] }
+    for (const c of all.channels.filter((x) => x.configured)) expect((await fetch(`${location.origin}/api/v1/notify/channels/${c.type}`, { method: 'DELETE' })).status).toBe(204)
+    server.use(http.get('*/api/v1/notify/incidents', () => HttpResponse.json({ incidents: [] })))
+    renderApp('/incidents')
+    await userEvent.click(await screen.findByRole('button', { name: 'Set up alert channels' }))
+    const chooser = await screen.findByRole('dialog', { name: 'Set up an alert channel' })
+    await userEvent.selectOptions(within(chooser).getByLabelText('Channel'), 'webhook')
+    await userEvent.click(within(chooser).getByRole('button', { name: 'Continue' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Channel Webhook' })
+    await userEvent.type(within(dlg).getByLabelText('Webhook URL'), 'https://hooks.khong-co.invalid/vedette')
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Generate random' }))
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save and send test' }))
+    // the channel is on: the button goes, and the test's answer still reaches the person
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Set up alert channels' })).toBeNull())
+    expect(await screen.findByText(/Could not connect to hooks\.khong-co\.invalid/)).toBeInTheDocument()
   })
 
   it('container-only: the empty state does not promise trap touches (the honeypot cannot run there)', async () => {
@@ -304,7 +333,8 @@ describe('notify: why not sent, bulk acknowledge and resolve (S-ALERT-3, D-551)'
     await userEvent.click(screen.getByRole('tab', { name: 'Resolved' }))
     const row = (await screen.findByText('NAS-BACKUP logged a configuration change at night')).closest('tr')!
     expect(within(row).getByText('Not sent: this incident is low, and your channels only send medium and above.')).toBeInTheDocument()
-    expect(within(row).getByRole('link', { name: 'Change the minimum severity' })).toHaveAttribute('href', '/settings/channels')
+    // docs/UI.md §0: the link lands on the channel named (its Edit button), not on the page
+    expect(within(row).getByRole('link', { name: 'Change the minimum severity' })).toHaveAttribute('href', '/settings/channels#channel-telegram')
     expect(within(row).queryByText('Not sent')).toBeNull()
     view.unmount()
     renderApp('/incidents/in-9', { role: 'viewer' })

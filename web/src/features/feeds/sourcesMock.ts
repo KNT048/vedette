@@ -4,6 +4,7 @@ import { http, HttpResponse } from 'msw'
 import kev from '@/mocks/fixtures/kev.json'
 import { API, audit, body, fail, guard } from '@/mocks/http'
 import { collection, newId, nowIso } from '@/mocks/db'
+import { tierState } from '@/mocks/tiers'
 import { fmtNumber } from '@/lib/format'
 import { FeedInput as FeedInputSchema, FeedPatch as FeedPatchSchema, ParseTestInput } from './contract'
 import { BLOCKED_TEXT, blockedFeedHost, OWN_TEXT, checkFeedUrl, defaultParser, FORMATS, PREVIEW_ROWS, sameFeedAddress } from './defaults'
@@ -147,6 +148,9 @@ export const sourceHandlers = [
     }
     if (def) config.update((x) => ({ ...x, builtin: { ...x.builtin, [id]: { ...x.builtin[id]!, ...(p.data.enabled !== undefined && key === undefined && { enabled: p.data.enabled }), ...(p.data.interval_hours !== undefined && { interval_hours: p.data.interval_hours }), ...(url !== undefined && { url }) } } }))
     else config.update((x) => ({ ...x, custom: x.custom.map((f) => f.id === id ? { ...f, ...(p.data.enabled !== undefined && { enabled: p.data.enabled }), ...(p.data.interval_hours !== undefined && { interval_hours: p.data.interval_hours }), ...(url !== undefined && { url }) } : f) }))
+    // The two tier feeds of Updates to plan (D-614): on starts their first load, off empties them, as the box's tier state does.
+    const tier = id === 'epss-all' ? 'epss' : id === 'nvd-recent' ? 'recent' : null
+    if (tier && p.data.enabled !== undefined) tierState.update((st) => ({ ...st, [tier]: p.data.enabled ? (st[tier] === 'off' ? 'loading' : st[tier]) : 'off' }))
     audit('feeds.update', name, [key !== undefined && (key ? 'API key saved' : 'API key removed'), p.data.enabled !== undefined && (p.data.enabled ? 'enabled' : 'disabled'), p.data.interval_hours !== undefined && `every ${p.data.interval_hours} h`, url !== undefined && 'address changed'].filter(Boolean).join(', '))
     return HttpResponse.json(allFeeds(config.get()).find((f) => f.id === id))
   }),

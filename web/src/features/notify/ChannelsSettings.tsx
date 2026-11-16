@@ -67,7 +67,8 @@ function randomKey() {
   return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('')
 }
 
-function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { channel: Channel; codeUsers: number; onClose: () => void; onSaved: (thenTest: boolean) => void }) {
+/** The form of one alert channel (exported for #850: Settings › Scanning creates a channel where matches need one, §0). */
+export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { channel: Channel; codeUsers: number; onClose: () => void; onSaved: (thenTest: boolean) => void }) {
   const { t, i18n } = useTranslation('notify')
   // #824: a field's hint is one short line; its explanation, when it has one, is the sibling `info` key of the hint actually shown.
   const infoOf = (keys: string[]) => {
@@ -188,7 +189,7 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent title={t('channels.dialogTitle', { name })} description={t('channels.dialogDesc')}>
         <form onSubmit={submit} className="grid gap-4" noValidate>
-          {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{error}</p> : null}
+          {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
           {type === 'zalo-personal' ? null : FIELDS[type].filter(shown).map((k) => {
             const id = `ch-${type}-${k}`
             const label = type === 'email' ? t(emailKeys(prov, k, 'label')) : t(`channels.f.${type}.${k}.label`)
@@ -304,7 +305,7 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
                   <Switch id={`ch-${type}-appr`} checked={approvals} disabled={approvalsFrozen && !approvals} onCheckedChange={setApprovals} />
                   <Label htmlFor={`ch-${type}-appr`}>{t('approve.switch')}</Label>
                 </div>
-                <p className="text-[13px] text-muted">{t(`approve.hint.${type}`)}</p>
+                <p className="text-meta text-muted">{t(`approve.hint.${type}`)}</p>
                 <fieldset disabled={approvalsFrozen} className="m-0 grid min-w-0 gap-3 border-0 p-0">
                 {approvals ? (
                   <div className="grid gap-2" role="group" aria-label={t('approve.listTitle')}>
@@ -312,13 +313,13 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
                       <span className="text-sm font-medium">{t('approve.listTitle')}</span>
                       <InfoTip topic={t('approve.listTitle')}>{t('approve.viewersInfo')}</InfoTip>
                     </div>
-                    {approvers.length === 0 ? <p className="text-[13px] text-muted">{t('approve.empty')}</p> : null}
+                    {approvers.length === 0 ? <p className="text-meta text-muted">{t('approve.empty')}</p> : null}
                     {approvers.map((a) => {
                       const u = eligible.find((x) => x.id === a.user_id)
                       const who = u?.email ?? a.user_id
                       return (
                         <div key={a.user_id} className="grid items-end gap-2 sm:grid-cols-[1fr_1.4fr_auto]">
-                          <div className="grid text-sm"><span className="font-medium">{u?.name ?? a.user_id}</span><span className="text-[12px] text-muted">{u ? `${u.email}, ${t(`common:role.${u.role}`)}` : ''}</span></div>
+                          <div className="grid text-sm"><span className="font-medium">{u?.name ?? a.user_id}</span><span className="text-caption text-muted">{u ? `${u.email}, ${t(`common:role.${u.role}`)}` : ''}</span></div>
                           {type === 'zalo-personal'
                             ? <LinkApproverField approver={a} saved={channel.configured ? channel : null} canLook={zaloLook} onChange={(n) => setApprovers((l) => l.map((x) => (x.user_id === a.user_id ? n : x)))} />
                             : (
@@ -327,7 +328,7 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
                                   <Input id={`ap-${type}-${a.user_id}`} value={a.address} placeholder={t(`approve.placeholder.${type}`)} autoComplete="off" onChange={(e) => setApprovers((l) => l.map((x) => (x.user_id === a.user_id ? { ...x, address: e.target.value } : x)))} />
                                 </Field>
                                 {/* D-414: a Telegram approver confirms the link the bot sends them, signed in as themselves */}
-                                {type === 'telegram' ? (channel.configured ? <ApproverLinkState kind="telegram" approver={a} saved={channel} /> : a.address ? <p className="text-[13px] text-muted">{t('tg.unsaved')}</p> : null) : null}
+                                {type === 'telegram' ? (channel.configured ? <ApproverLinkState kind="telegram" approver={a} saved={channel} /> : a.address ? <p className="text-meta text-muted">{t('tg.unsaved')}</p> : null) : null}
                               </div>
                             )}
                           <Button size="sm" variant="ghost" onClick={() => setApprovers((l) => l.filter((x) => x.user_id !== a.user_id))}><X /><span className="sr-only">{t('approve.remove', { who })}</span></Button>
@@ -360,7 +361,7 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
                 ) : null}
                 </fieldset>
               </>
-            ) : <p className="text-[13px] text-muted">{t('approve.linkOnly')}</p>}
+            ) : <p className="text-meta text-muted">{t('approve.linkOnly')}</p>}
           </fieldset>) : null}
           <Field label={t('channels.minSeverity')} hint={t('channels.minSeverityHint')} htmlFor={`ch-${type}-min`}>
             <Select id={`ch-${type}-min`} value={min} onChange={(e) => setMin(e.target.value as RouteSeverity)} aria-describedby={`ch-${type}-min-hint`}>
@@ -407,13 +408,13 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
   const lastTest = (r: Channel) => {
     if (!r.configured) return null
     if (test.isPending && test.variables === r.type) return <span role="status" className="inline-flex items-center gap-1.5 text-muted"><LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden />{t('channels.testing')}</span>
-    if (!r.last_test) return <span className="text-[13px] text-muted">{t('channels.testNever')}</span>
-    if (r.last_test.ok) return <span className="text-[13px] text-ok">{t('channels.testOk', { time: fmtDateTime(r.last_test.at) })}</span>
+    if (!r.last_test) return <span className="text-meta text-muted">{t('channels.testNever')}</span>
+    if (r.last_test.ok) return <span className="text-meta text-ok">{t('channels.testOk', { time: fmtDateTime(r.last_test.at) })}</span>
     return (
       <span className="grid min-w-[12rem] max-w-72 gap-0.5">
-        <span className="text-[13px] font-medium text-danger">{t('channels.testFail', { time: fmtDateTime(r.last_test.at) })}</span>
-        <span className="text-[12px]">{r.last_test.detail}</span>
-        {r.enabled ? <span className="text-[12px] text-muted">{t('channels.onButFailed')}</span> : null}
+        <span className="text-meta font-medium text-danger">{t('channels.testFail', { time: fmtDateTime(r.last_test.at) })}</span>
+        <span className="text-caption">{r.last_test.detail}</span>
+        {r.enabled ? <span className="text-caption text-muted">{t('channels.onButFailed')}</span> : null}
       </span>
     )
   }
@@ -421,7 +422,7 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
     const name = t(`ch.${r.type}`)
     return (
       <div className={stacked ? 'grid justify-items-start gap-1' : 'flex flex-wrap gap-1'}>
-        <Button size="sm" variant={r.configured ? 'secondary' : 'primary'} disabled={!isAdmin} title={need} onClick={() => setEditing(r)}>{r.configured ? t('channels.edit') : t('channels.configure')} <span className="sr-only">{name}</span></Button>
+        <Button id={`channel-${r.type}`} size="sm" variant={r.configured ? 'secondary' : 'primary'} disabled={!isAdmin} title={need} onClick={() => setEditing(r)}>{r.configured ? t('channels.edit') : t('channels.configure')} <span className="sr-only">{name}</span></Button>
         {r.configured ? (
           <>
             <Button size="sm" disabled={!isAdmin || test.isPending} title={need}
@@ -438,8 +439,8 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
     { id: 'channel', header: t('channels.col.channel'), accessorFn: (r) => r.type, cell: ({ row: { original: r } }) => (
       <span className="grid gap-0.5">
         {chName(r)}
-        {r.configured ? <span className="max-w-[18rem] break-words text-[12px] text-muted">{dest(r)}</span> : null}
-        {r.configured ? <span className="text-[12px] text-muted">{min(r)}</span> : null}
+        {r.configured ? <span className="max-w-[18rem] break-words text-caption text-muted">{dest(r)}</span> : null}
+        {r.configured ? <span className="text-caption text-muted">{min(r)}</span> : null}
       </span>
     ) },
     { id: 'status', header: t('channels.col.status'), accessorFn: (r) => (r.configured ? (r.enabled ? 0 : 1) : 2), cell: ({ row: { original: r } }) => (
@@ -458,12 +459,13 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
   )
   return (
     <>
-      <DataTable caption={t('channels.caption')} data={channels} columns={columns} mobileRow={mobileRow} />
+      {/* #850: the place deep links name (docs/UI.md §0): /settings/channels#channels focuses the first channel's button */}
+      <div id="channels"><DataTable caption={t('channels.caption')} data={channels} columns={columns} mobileRow={mobileRow} /></div>
       {editing ? <ChannelDialog key={editing.type} channel={editing} codeUsers={codeUsers} onClose={() => setEditing(null)} onSaved={(thenTest) => { setEditing(null); if (thenTest) runTest(editing.type) }} /> : null}
       <Dialog open={removing !== null} onOpenChange={(o) => { if (!o) setRemoving(null) }}>
         {removing ? (
           <DialogContent title={t('channels.removeTitle', { name: t(`ch.${removing.type}`) })} description={t('channels.removeBody')}>
-            {removing.type === 'email' && codeUsers > 0 ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{t('channels.emailCodes', { count: codeUsers })}</p> : null}
+            {removing.type === 'email' && codeUsers > 0 ? <Notice tone="danger" role="alert" className="mb-0" title={t('channels.emailCodes', { count: codeUsers })} /> : null}
             <DialogFooter>
               <Button onClick={() => setRemoving(null)}>{t('common:cancel')}</Button>
               <Button variant="danger" disabled={remove.isPending} onClick={() => remove.mutate(removing.type, { onSuccess: () => { toast.success(t('channels.removed', { name: t(`ch.${removing.type}`) })); setRemoving(null) }, onError: (e) => toast.error(errMsg(e)) })}>{t('common:delete')}</Button>
@@ -489,21 +491,22 @@ function Rules({ init }: { init: { quiet: Quiet; grouping: Grouping } }) {
   }
   return (
     <form onSubmit={submit} className="grid max-w-2xl gap-8" noValidate>
-      {error ? <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{error}</p> : null}
-      <fieldset disabled={!isAdmin} className="grid gap-3 border-0 p-0">
+      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
+      {/* /settings/channels#quiet-hours (NotSentFix of a held incident) lands here */}
+      <fieldset id="quiet-hours" disabled={!isAdmin} className="grid gap-3 border-0 p-0">
         <legend className="mb-1 flex items-center gap-1 text-base font-semibold">{t('rules.quiet.title')}<InfoTip topic={t('rules.quiet.title')}>{t('rules.quiet.descriptionInfo')}</InfoTip></legend>
-        <p className="text-[13px] text-muted">{t('rules.quiet.description')}</p>
+        <p className="text-meta text-muted">{t('rules.quiet.description')}</p>
         <div className="flex items-center gap-3"><Switch id="q-on" checked={quiet.enabled} onCheckedChange={(v) => setQuiet({ ...quiet, enabled: v })} /><Label htmlFor="q-on">{t('rules.quiet.enabled')}</Label></div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={t('rules.quiet.from')} htmlFor="q-from"><Input id="q-from" type="time" value={quiet.from} onChange={(e) => setQuiet({ ...quiet, from: e.target.value })} /></Field>
           <Field label={t('rules.quiet.to')} htmlFor="q-to"><Input id="q-to" type="time" value={quiet.to} onChange={(e) => setQuiet({ ...quiet, to: e.target.value })} /></Field>
         </div>
-        {quiet.enabled && quiet.from && quiet.to && quiet.from !== quiet.to ? <p className="text-[13px]" role="status">{quiet.from > quiet.to ? t('rules.quiet.overnight', { from: quiet.from, to: quiet.to }) : t('rules.quiet.sameDay', { from: quiet.from, to: quiet.to })}</p> : null}
+        {quiet.enabled && quiet.from && quiet.to && quiet.from !== quiet.to ? <p className="text-meta" role="status">{quiet.from > quiet.to ? t('rules.quiet.overnight', { from: quiet.from, to: quiet.to }) : t('rules.quiet.sameDay', { from: quiet.from, to: quiet.to })}</p> : null}
         <div className="flex items-center gap-2"><Checkbox id="q-crit" checked={quiet.allow_critical} onCheckedChange={(c) => setQuiet({ ...quiet, allow_critical: c === true })} /><Label htmlFor="q-crit" className="font-normal">{t('rules.quiet.allowCritical')}</Label></div>
       </fieldset>
       <fieldset disabled={!isAdmin} className="grid gap-3 border-0 p-0">
         <legend className="mb-1 flex items-center gap-1 text-base font-semibold">{t('rules.grouping.title')}<InfoTip topic={t('rules.grouping.title')}>{t('rules.grouping.descriptionInfo')}</InfoTip></legend>
-        <p className="text-[13px] text-muted">{t('rules.grouping.description')}</p>
+        <p className="text-meta text-muted">{t('rules.grouping.description')}</p>
         <div className="flex items-center gap-3"><Switch id="g-on" checked={grouping.enabled} onCheckedChange={(v) => setGrouping({ ...grouping, enabled: v })} /><Label htmlFor="g-on">{t('rules.grouping.enabled')}</Label></div>
         <Field label={t('rules.grouping.window')} htmlFor="g-win" className="max-w-xs">
           <Select id="g-win" value={grouping.window_min} onChange={(e) => setGrouping({ ...grouping, window_min: Number(e.target.value) as Grouping['window_min'] })}>

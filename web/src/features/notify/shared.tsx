@@ -21,11 +21,19 @@ const FIXABLE: NotSentReason[] = ['no_channel', 'channels_off', 'channel_off', '
 /** Open incidents no channel has and that will not go out by themselves (queued / quiet hours do): the KPI "not sent" and `?sent=no`. */
 export const needsFix = (n: NotSent | null) => !!n && ['no_channel', 'channels_off', 'channel_off', 'channel_removed', 'below_min_severity', 'failed'].includes(n.reason)
 
+/** Need → place (docs/UI.md §0): the exact spot of Settings › Alert channels that fixes a reason: the channel named (its Set up or
+ *  Edit button), the quiet hours, else the list of channels. The ids are in ChannelsSettings. */
+export function fixAt(n: NotSent): string {
+  if (n.reason === 'quiet_hours') return '/settings/channels#quiet-hours'
+  if (n.channel && ['channel_off', 'channel_removed', 'below_min_severity', 'failed'].includes(n.reason)) return `/settings/channels#channel-${n.channel}`
+  return '/settings/channels#channels'
+}
+
 /** The fix link of a not-sent reason, for an admin; nothing for the others or a reason with nothing to fix. */
 export function NotSentFix({ notSent, admin }: { notSent: NotSent | null; admin: boolean }) {
   const { t } = useTranslation('notify')
   if (!admin || !notSent || !FIXABLE.includes(notSent.reason)) return null
-  return <Link to="/settings/channels" onClick={(e) => e.stopPropagation()} className="text-[13px] text-accent underline-offset-4 hover:underline">{t(`incidents.fix.${notSent.reason}`)}</Link>
+  return <Link to={fixAt(notSent)} onClick={(e) => e.stopPropagation()} className="text-meta text-accent underline-offset-4 hover:underline">{t(`incidents.fix.${notSent.reason}`)}</Link>
 }
 
 /**
@@ -40,7 +48,7 @@ export function DeliveryBadges({ sends, notSent = null, admin = false, noChannel
     // the page already said once that no channel is set up: the row does not repeat it (W13-2)
     if (noChannelShown && notSent?.reason === 'no_channel') return <span className="text-muted">{t('incidents.notSent')}</span>
     return notSent
-      ? <span className="grid max-w-[36ch] gap-0.5 text-[13px]"><span className={notSent.reason === 'queued' || notSent.reason === 'quiet_hours' ? 'text-muted' : undefined}>{notSent.text}</span><NotSentFix notSent={notSent} admin={admin} /></span>
+      ? <span className="grid max-w-[36ch] gap-0.5 text-meta"><span className={notSent.reason === 'queued' || notSent.reason === 'quiet_hours' ? 'text-muted' : undefined}>{notSent.text}</span><NotSentFix notSent={notSent} admin={admin} /></span>
       : <span className="text-muted">{t('incidents.notSent')}</span>
   }
   return (

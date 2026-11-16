@@ -160,7 +160,7 @@ func fixedPartsOf(in swInfo, v Vuln, key []identity) fixedParts {
 	}
 	listed := func(x string) bool {
 		for _, e := range ents {
-			if t, _ := evalAffected(e.c, e.r, x, in.cpe, in.hasCPE); t == Yes {
+			if t, _ := evalAffected(e.c, e.r, x, in.cpe, in.hasCPE, e.valued); t == Yes {
 				return true
 			}
 		}

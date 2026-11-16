@@ -1133,7 +1133,7 @@ func endsBefore(a, b VersionRange) bool {
 		return false
 	}
 	c, ok := compareBound(end, start)
-	return ok && (c < 0 || c == 0 && !(endIn && startIn))
+	return ok && (c < 0 || c == 0 && (!endIn || !startIn))
 }
 
 // clean removes control characters and caps the length: names, versions and

@@ -240,7 +240,8 @@
     "unavailable": "The AI assistant is off, or no AI profile is assigned to this job.",
     "openSettings": "Open AI assistant settings",
     "privacy": "Sent to the AI provider you configured, with your key.",
-    "privacyInfo": "The data level is set in Settings, AI assistant."
+    "privacyInfo": "The data level is set in Settings, AI assistant.",
+    "openModules": "Open Settings, Modules"
   },
   "noIp": "No IP address",
   "removedDevice": "A removed device",
@@ -501,7 +502,15 @@
       "notComparedInfo": "Vedette has not compared CVEs that are not exploited yet with your devices since it started. Exploited CVEs are compared and listed in Findings.",
       "moduleOffTitle": "The feeds module is off",
       "moduleOff": "This list's CVE data comes from the feeds module, which is off.",
-      "openModules": "Open Settings, Modules"
+      "openModules": "Open Settings, Modules",
+      "turnOn_one": "Turn on this feed",
+      "turnOn_other": "Turn on both feeds",
+      "turningOn": "Turning on…",
+      "turnedOn_one": "{{feeds}} is on. Its first load can take an hour.",
+      "turnedOn_other": "{{feeds}} are on. Their first load can take an hour.",
+      "turnOnModule": "Turn on the feeds module",
+      "moduleOn": "The feeds module is on.",
+      "moduleOnWith": "The feeds module is on, with what it needs: {{modules}}."
     },
     "line_one": "1 update to plan fixes CVEs not exploited yet",
     "line_other": "{{count}} updates to plan fix CVEs not exploited yet",
@@ -511,6 +520,7 @@
       "descriptionInfo": "The CVEs are likely to be exploited, or published in the last 12 months.",
       "none": "No update to plan for this device.",
       "all": "See every update to plan"
-    }
+    },
+    "showAllTiers": "Show all updates"
   }
 }

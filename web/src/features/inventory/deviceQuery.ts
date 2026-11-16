@@ -37,7 +37,11 @@ function haystack(d: DeviceRow): string {
   return [nameOf(d, kindLabel(d.kind)), d.hostname, d.ip, d.mac, d.vendor?.value, d.model?.value, d.os?.value].filter(Boolean).join(' ').toLowerCase()
 }
 
-function tokenMatch(d: DeviceRow, key: string, value: string | null, now: number): boolean {
+/** Ids of the devices that may be the same machine as another (D-599, GET /inventory/possible-same), for `possible:same`. */
+export type SameIds = ReadonlySet<string>
+const NONE: SameIds = new Set()
+
+function tokenMatch(d: DeviceRow, key: string, value: string | null, now: number, same: SameIds): boolean {
   switch (key) {
     case 'type': return !!value && isType(d, value)
     case 'source': return feedsOfRow(d).has(value as SourceToken)
@@ -45,6 +49,7 @@ function tokenMatch(d: DeviceRow, key: string, value: string | null, now: number
     case 'suspicious': return d.suspicious
     case 'has': return value === 'findings' ? d.findings_count > 0 : value === 'software' ? d.software.length > 0 : value === 'ports' ? d.services.length > 0 : false
     case 'software': return !!value && matchSoftware(d, [value]).length > 0
+    case 'possible': return value === 'same' && same.has(d.id)
     case 'approved': {
       const span = APPROVED_WITHIN[value as keyof typeof APPROVED_WITHIN]
       return !!span && !!d.approved_at && now - new Date(d.approved_at).getTime() < span
@@ -54,7 +59,7 @@ function tokenMatch(d: DeviceRow, key: string, value: string | null, now: number
 }
 
 /** The rows a query keeps. `now`: when the list was read, so "approved in the last 24 h" does not move while the page is open. */
-export function filterDevices(rows: DeviceRow[], q: string, now: number): DeviceRow[] {
+export function filterDevices(rows: DeviceRow[], q: string, now: number, same: SameIds = NONE): DeviceRow[] {
   const p = parseQuery(q, DEVICE_KEYS)
   if (!p.text.length && !p.tokens.length) return rows
   const byKey = new Map<string, (string | null)[]>()
@@ -63,7 +68,7 @@ export function filterDevices(rows: DeviceRow[], q: string, now: number): Device
     const hay = haystack(d)
     const hayMac = d.mac ? mac(d.mac) : ''
     if (!p.text.every((w) => hay.includes(w) || (hayMac && mac(w).length >= 4 && hayMac.includes(mac(w))))) return false
-    for (const [key, values] of byKey) if (!values.some((v) => tokenMatch(d, key, v, now))) return false
+    for (const [key, values] of byKey) if (!values.some((v) => tokenMatch(d, key, v, now, same))) return false
     return true
   })
 }
@@ -81,7 +86,7 @@ function topSoftware(rows: DeviceRow[]): TokenValue[] {
 }
 
 /** The keys, with the values offered for each counted over `rows` (only types some device has; every source, so `source:wazuh` is findable). */
-export function deviceKeys(rows: DeviceRow[], now: number): TokenKey[] {
+export function deviceKeys(rows: DeviceRow[], now: number, same: SameIds = NONE): TokenKey[] {
   const types = new Map<string, number>()
   const cats = new Map<string, number>()
   for (const d of rows) {
@@ -93,7 +98,7 @@ export function deviceKeys(rows: DeviceRow[], now: number): TokenKey[] {
     ...DEVICE_TYPES.filter((ty) => types.has(ty.id)).map((ty) => ({ value: ty.id, label: ty.label, count: types.get(ty.id) })),
     ...DEVICE_CATEGORIES.filter((c) => cats.has(c.id) && !types.has(c.id)).map((c) => ({ value: c.id, label: t('anyType', { category: categoryLabel(c.id) }), count: cats.get(c.id) })),
   ]
-  const count = (key: string, value: string | null) => rows.filter((d) => tokenMatch(d, key, value, now)).length
+  const count = (key: string, value: string | null) => rows.filter((d) => tokenMatch(d, key, value, now, same)).length
   return [
     { key: 'type', label: t('key.type'), values: typeValues },
     { key: 'source', label: t('key.source'), values: SOURCES.map((s) => ({ value: s, label: t(`source.${s}`), count: count('source', s) })) },
@@ -103,6 +108,7 @@ export function deviceKeys(rows: DeviceRow[], now: number): TokenKey[] {
     { key: 'software', label: t('key.software'), values: topSoftware(rows), free: true },
     { key: 'suspicious', label: t('key.suspicious') },
     { key: 'approved', label: t('key.approved'), values: (['24h', '7d'] as const).map((v) => ({ value: v, label: t(`approved.${v}`), count: count('approved', v) })) },
+    { key: 'possible', label: t('key.possible'), values: [{ value: 'same', label: t('possible.same'), count: count('possible', 'same') }] },
   ]
 }
 
@@ -110,7 +116,7 @@ export function deviceKeys(rows: DeviceRow[], now: number): TokenKey[] {
 export const DEVICE_KEYS: TokenKey[] = [
   { key: 'type', label: 'type', values: [] }, { key: 'source', label: 'source', values: [] }, { key: 'fragile', label: 'fragile' },
   { key: 'has', label: 'has', values: [] }, { key: 'software', label: 'software', values: [], free: true }, { key: 'suspicious', label: 'suspicious' },
-  { key: 'approved', label: 'approved', values: [] },
+  { key: 'approved', label: 'approved', values: [] }, { key: 'possible', label: 'possible', values: [] },
 ]
 
 /** The old Devices URLs (D-471 `?show=`, `?cat=`, the Software and Add devices tabs) as the new query (#849). */

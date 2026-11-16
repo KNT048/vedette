@@ -1,7 +1,8 @@
 import { Link, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft } from 'lucide-react'
-import { Notice, PageHeader, Section, KeyValue, Panel } from '@/components/common/PageHeader'
+import { Notice, PageHeader, Section, KeyValue } from '@/components/common/PageHeader'
+import { Breadcrumbs } from '@/components/common/Breadcrumbs'
+import { Card } from '@/components/common/Card'
 import { EmptyState, ModuleOff, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Slot } from '@/components/common/Slot'
@@ -22,41 +23,44 @@ export default function CvePage() {
   // D-613 (S-TIER-1): a CVE on no exploited list answers from the tier data instead of a dead end
   const notInKev = cve.error instanceof ApiError && cve.error.code === 'not_in_kev'
   const tier = useTierCve(id, notInKev)
+  // docs/UI.md §3: a CVE page's parent is Lookup (where any CVE is looked up), shown in every state of the page. Breadcrumbs show where
+  // the page sits, not the path taken (Primer, Atlassian page header): Home and Findings link here too, the browser's Back returns there.
+  const crumbs = <Breadcrumbs items={[{ label: t('nav.lookup'), to: '/lookup' }]} />
   if (notInKev && !(tier.error instanceof ApiError && tier.error.code === 'not_in_data')) {
     return (
       <>
-        <Link to="/" className="mb-3 inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink"><ArrowLeft className="size-3.5" />{t('cve.back')}</Link>
+        {crumbs}
         <QueryState query={tier}>{(v) => <TierCvePage v={v} />}</QueryState>
       </>
     )
   }
   return (
     <>
-      <Link to="/" className="mb-3 inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink"><ArrowLeft className="size-3.5" />{t('cve.back')}</Link>
+      {crumbs}
       {!CVE_ID.test(id) ? <EmptyState title={t('cve.notAnId', { id: raw.trim().slice(0, 80) })}>{t('cve.notAnIdBody')}<p className="mt-2"><Link to={`/lookup?q=${encodeURIComponent(raw.trim().slice(0, 200))}`} className="text-accent underline-offset-4 hover:underline">{t('cve.tryLookup')}</Link></p></EmptyState> : null}
       {CVE_ID.test(id) ? <QueryState query={cve}>
         {(v) => (
           <>
             <PageHeader title={t('cve.title', { cve: v.cve, product: v.display })} stories={['S-FEED-1', 'S-FEED-3']}
-              meta={<span className="flex flex-wrap items-center gap-2">{v.ransomware ? <Chip tone="danger">{t('cve.ransomware')}</Chip> : null}<Chip tone="accent">{t('cve.inKev', { date: fmtDay(v.date_added) })}</Chip></span>} />
+              meta={<span className="flex flex-wrap items-center gap-2">{v.ransomware ? <Chip tone="danger">{t('cve.ransomware')}</Chip> : null}<Chip tone="danger">{t('cve.inKev', { date: fmtDay(v.date_added) })}</Chip></span>} />
             <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
               <div>
                 <Section title={t('cve.facts')}>
-                  <Panel className="p-4">
+                  <Card>
                     <KeyValue items={[
                       { label: t('cve.name'), value: v.name },
                       { label: t('cve.product'), value: `${v.vendor} ${v.product}` },
                       { label: t('cve.published'), value: v.published ? fmtDay(v.published) : <span className="text-muted">{t('cve.publishedUnknown')}</span> },
                       { label: t('cve.kevDate'), value: fmtDay(v.date_added) },
-                      { label: t('cve.dueDate'), value: v.due_date ? <>{fmtDay(v.due_date)} <span className="text-[12px] text-muted">{t('cve.dueHint')}</span></> : '–' },
-                      { label: t('cve.epss'), value: <>{fmtPercent(v.epss)} <span className="text-[12px] text-muted">{t('cve.epssHint')}</span></> },
+                      { label: t('cve.dueDate'), value: v.due_date ? <>{fmtDay(v.due_date)} <span className="text-caption text-muted">{t('cve.dueHint')}</span></> : '–' },
+                      { label: t('cve.epss'), value: <>{fmtPercent(v.epss)} <span className="text-caption text-muted">{t('cve.epssHint')}</span></> },
                       { label: t('cve.template'), value: v.has_template ? t('cve.templateYes') : t('cve.templateNo') },
                     ]} />
-                  </Panel>
+                  </Card>
                 </Section>
                 <Section title={t('cve.description')} description={t(v.source === 'vulncheck-kev' ? 'cve.descriptionHintVulnCheck' : 'cve.descriptionHint')}>
-                  <p lang="en" className="max-w-[72ch] text-[15px] leading-relaxed">{v.description}</p>
-                  <p lang="en" className="mt-3 max-w-[72ch] text-[13px] text-muted">{t(v.source === 'vulncheck-kev' ? 'cve.requiredActionVulnCheck' : 'cve.requiredAction')} {v.required_action}</p>
+                  <p lang="en" className="max-w-[72ch] text-base leading-relaxed">{v.description}</p>
+                  <p lang="en" className="mt-3 max-w-[72ch] text-meta text-muted">{t(v.source === 'vulncheck-kev' ? 'cve.requiredActionVulnCheck' : 'cve.requiredAction')} {v.required_action}</p>
                 </Section>
                 <Section title={t('cve.links')}>
                   <ul className="grid gap-1 text-sm">
@@ -73,19 +77,19 @@ export default function CvePage() {
                   ) : v.matched.length === 0 ? (
                     <EmptyState title={t('cve.matchedNone')}>{t('cve.matchedNoneBody')}</EmptyState>
                   ) : (
-                    <ul className="grid divide-y divide-rule rounded-md border border-rule bg-surface">
+                    <Card flush><ul className="grid divide-y divide-rule">
                       {v.matched.map((m) => (
                         <li key={m.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
                           <Link to={`/devices/${m.id}`} className="grid text-sm hover:underline">
                             <span className="font-medium">{m.hostname ?? m.display}</span>
-                            <span className="text-[12px] text-muted">{m.ip}</span>
+                            <span className="text-caption text-muted">{m.ip}</span>
                           </Link>
                           <YouHaveCell value={m.how} />
                         </li>
                       ))}
-                    </ul>
+                    </ul></Card>
                   )}
-                  {v.matched?.length && v.not_affected ? <p className="mt-2 text-[13px] text-muted">{t('cve.notAffected', { count: v.not_affected })}</p> : null}
+                  {v.matched?.length && v.not_affected ? <p className="mt-2 text-meta text-muted">{t('cve.notAffected', { count: v.not_affected })}</p> : null}
                   {v.matched?.length ? <Link to={`/findings?cve=${v.cve}`} className="mt-3 inline-block text-sm text-accent underline-offset-4 hover:underline">{t('cve.toFindings')}</Link> : null}
                 </Section>
               </aside>

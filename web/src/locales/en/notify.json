@@ -78,7 +78,7 @@
         "chat_id": {
           "label": "Chat ID",
           "hint": "Chat or group number, like -1001234567890, or @channelname.",
-          "info": "Number of the chat or group that receives messages. Easiest: type the bot token below, send any message to the bot (or add the bot to a group and post there), then press Find my chat and pick the chat. By hand: open https://api.telegram.org/bot<TOKEN>/getUpdates in a browser and read the number in \"chat\":{\"id\":…}. Groups usually look like -1001234567890; for a public channel enter @channelname."
+          "info": "Number of the chat or group that receives messages. Easiest: type the bot token below, send any message to the bot (or add the bot to a group and post there), then press Find my chat and pick the chat. Manually: open https://api.telegram.org/bot<TOKEN>/getUpdates in a browser and read the number in \"chat\":{\"id\":…}. Groups usually look like -1001234567890; for a public channel enter @channelname."
         },
         "secret": {
           "label": "Bot token",
@@ -712,5 +712,12 @@
     "open": "Open",
     "resolved": "Resolved",
     "openBadge": "open"
+  },
+  "newChannel": {
+    "title": "Set up an alert channel",
+    "body": "Choose where incidents are sent. It stays editable in Settings, Alert channels.",
+    "kind": "Channel",
+    "continue": "Continue",
+    "off": "{{name}} (set up, switched off)"
   }
 }

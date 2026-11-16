@@ -22,15 +22,15 @@ const NEW_QR: ZaloLogin['state'][] = ['expired', 'declined', 'failed']
 /** One neutral line, not an alarm (Z4): the channel is unofficial and the account can be locked. */
 export function ZaloWarning() {
   const { t } = useTranslation('notify')
-  return <p role="note" className="flex items-start gap-2 text-[13px] text-warn"><TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />{t('zp.warning')}</p>
+  return <p role="note" className="flex items-start gap-2 text-meta text-warn"><TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />{t('zp.warning')}</p>
 }
 
 /** The QR code, redrawn by the box as one SVG path on a white square (the quiet zone is part of the view box). */
 function QrImage({ size, path, label }: { size: number; path: string; label: string }) {
   return (
     <svg role="img" aria-label={label} viewBox={`0 0 ${size} ${size}`} className="size-48 rounded-md border border-rule" shapeRendering="crispEdges">
-      <rect width={size} height={size} fill="#fff" />
-      <path d={path} fill="#000" />
+      <rect width={size} height={size} fill="white" />
+      <path d={path} fill="black" />
     </svg>
   )
 }
@@ -65,15 +65,15 @@ export function ZaloSignIn({ channel, onSigned }: { channel: Channel; onSigned: 
         <span className="text-sm font-medium">{t('zp.login')}</span>
         <InfoTip topic={t('zp.login')}><p>{t('zp.loginInfo')} {t('zp.scanInfo')}</p><p>{t('zp.signOutHint')}</p></InfoTip>
       </div>
-      <p className="text-[13px] text-muted">{signedName ? t('zp.signedNew', { name: signedName }) : saved ? t('zp.signedSaved', { name: saved }) : channel.secret_last4 ? t('zp.sessionSaved') : t('zp.none')}</p>
+      <p className="text-meta text-muted">{signedName ? t('zp.signedNew', { name: signedName }) : saved ? t('zp.signedSaved', { name: saved }) : channel.secret_last4 ? t('zp.sessionSaved') : t('zp.none')}</p>
       {v && v.qr && (v.state === 'waiting' || v.state === 'scanned') ? (
         <div className="grid justify-items-start gap-2">
           <QrImage size={v.qr.size} path={v.qr.path} label={t('zp.qrAlt')} />
-          <p role="status" className="text-[13px]">{v.state === 'scanned' ? (v.name ? t('zp.scannedBy', { name: v.name }) : t('zp.scannedConfirm')) : t('zp.scan', { time: v.expires_at ? fmtDateTime(v.expires_at) : '' })}</p>
+          <p role="status" className="text-meta">{v.state === 'scanned' ? (v.name ? t('zp.scannedBy', { name: v.name }) : t('zp.scannedConfirm')) : t('zp.scan', { time: v.expires_at ? fmtDateTime(v.expires_at) : '' })}</p>
         </div>
       ) : null}
-      {v && NEW_QR.includes(v.state) ? <p role="status" className="text-[13px] text-danger">{v.state === 'failed' ? v.error : t(`zp.state.${v.state}`)}</p> : null}
-      {err ? <p role="alert" className="text-[13px] text-danger">{err}</p> : null}
+      {v && NEW_QR.includes(v.state) ? <p role="status" className="text-meta text-danger">{v.state === 'failed' ? v.error : t(`zp.state.${v.state}`)}</p> : null}
+      {err ? <p role="alert" className="text-meta text-danger">{err}</p> : null}
       {!v || v.state === 'none' || NEW_QR.includes(v.state) || v.state === 'signed_in' ? (
         <div><Button disabled={start.isPending} onClick={() => void begin()}><QrCode />{v && v.state !== 'none' && v.state !== 'signed_in' ? t('zp.newQr') : saved || channel.secret_last4 || signedName ? t('zp.relogin') : t('zp.show')}</Button></div>
       ) : null}
@@ -119,8 +119,8 @@ export function ZaloRecipient({ value, onChange, canLook, error }: { value: Zalo
   return (
     <fieldset className="grid gap-3 rounded-md border border-rule p-3">
       <legend className="px-1 text-sm font-medium">{t('zp.recipient')}</legend>
-      <p id={`${id}-now`} className="text-[13px]">{value.user_id ? t(value.group ? 'zp.toGroup' : 'zp.toPerson', { name: value.name || value.user_id, id: value.user_id }) : t('zp.noRecipient')}</p>
-      {error ? <p role="alert" className="text-[13px] text-danger">{error}</p> : null}
+      <p id={`${id}-now`} className="text-meta">{value.user_id ? t(value.group ? 'zp.toGroup' : 'zp.toPerson', { name: value.name || value.user_id, id: value.user_id }) : t('zp.noRecipient')}</p>
+      {error ? <p role="alert" className="text-meta text-danger">{error}</p> : null}
       {canLook ? (
         <Field label={t('zp.pick')} hint={contacts.isError ? errMsg(contacts.error) : t('zp.pickHint')} htmlFor={`${id}-pick`}>
           <Select id={`${id}-pick`} value={all.some((c) => c.id === value.user_id) ? value.user_id : ''} disabled={!contacts.data} aria-describedby={`${id}-pick-hint`}
@@ -130,9 +130,9 @@ export function ZaloRecipient({ value, onChange, canLook, error }: { value: Zalo
             {contacts.data?.friends.length ? <optgroup label={t('zp.friends')}>{contacts.data.friends.map((f) => <option key={f.id} value={f.id}>{f.name || f.id}</option>)}</optgroup> : null}
           </Select>
         </Field>
-      ) : <p className="text-[13px] text-muted">{t('zp.signInToPick')}</p>}
+      ) : <p className="text-meta text-muted">{t('zp.signInToPick')}</p>}
       <Finder id={id} label={t('zp.findLabel')} hint={t('zp.findHint')} groups onFound={pick} />
-      {notMember ? <p role="status" className="text-[13px] text-warn">{t('zp.notMember', { name: notMember })}</p> : null}
+      {notMember ? <p role="status" className="text-meta text-warn">{t('zp.notMember', { name: notMember })}</p> : null}
     </fieldset>
   )
 }
@@ -145,7 +145,7 @@ export function LinkApproverField({ approver, saved, onChange, canLook }: { appr
   const friends = contacts.data?.friends ?? []
   return (
     <div className="grid gap-2">
-      <p className="text-[13px]">{approver.address ? t('zp.approverIs', { name: approver.name || approver.address, id: approver.address }) : t('zp.approverNone')}</p>
+      <p className="text-meta">{approver.address ? t('zp.approverIs', { name: approver.name || approver.address, id: approver.address }) : t('zp.approverNone')}</p>
       {canLook && friends.length ? (
         <Field label={t('zp.approverPick')} htmlFor={`${id}-pick`}>
           <Select id={`${id}-pick`} value={friends.some((f) => f.id === approver.address) ? approver.address : ''} onChange={(e) => { const f = friends.find((x) => x.id === e.target.value); if (f) onChange({ ...approver, address: f.id, name: f.name }) }}>
@@ -155,7 +155,7 @@ export function LinkApproverField({ approver, saved, onChange, canLook }: { appr
         </Field>
       ) : null}
       <Finder id={id} label={t('zp.approverFind')} hint={t('zp.approverFindHint')} groups={false} onFound={(c) => onChange({ ...approver, address: c.id, name: c.name })} />
-      {saved ? <ApproverLinkState kind="zalo" approver={approver} saved={saved} /> : approver.address ? <p className="text-[13px] text-muted">{t('zp.link.unsaved')}</p> : null}
+      {saved ? <ApproverLinkState kind="zalo" approver={approver} saved={saved} /> : approver.address ? <p className="text-meta text-muted">{t('zp.link.unsaved')}</p> : null}
     </div>
   )
 }
@@ -170,7 +170,7 @@ export function ApproverLinkState({ kind, approver, saved }: { kind: LinkKind; a
   const send = useSendLink(kind)
   const s = states.data?.items.find((x) => x.user_id === approver.user_id && x.address === approver.address)
   const unsaved = kind === 'zalo' ? t('zp.link.unsaved') : t('tg.unsaved')
-  if (!on || !s) return approver.address ? <p className="text-[13px] text-muted">{unsaved}</p> : null
+  if (!on || !s) return approver.address ? <p className="text-meta text-muted">{unsaved}</p> : null
   const who = s.name || s.address
   const again = () => send.mutate(approver.user_id, {
     onSuccess: (v) => { if (v.link) void navigate(v.link); else toast.success(t('zp.link.sentToast', { name: who })) },
@@ -178,7 +178,7 @@ export function ApproverLinkState({ kind, approver, saved }: { kind: LinkKind; a
   })
   if (s.state !== 'linked' && s.self && s.box_account) { // the box's own account, proved by the QR sign-in: confirm it here
     return (
-      <div className="flex flex-wrap items-center gap-2 text-[13px]" role="status">
+      <div className="flex flex-wrap items-center gap-2 text-meta" role="status">
         <Chip tone="warn">{t('zp.link.not_sent')}</Chip>
         <span>{t('zp.link.yours')}</span>
         <Button size="sm" variant="primary" disabled={send.isPending} onClick={again}>{t('zp.link.mine')}</Button>
@@ -186,7 +186,7 @@ export function ApproverLinkState({ kind, approver, saved }: { kind: LinkKind; a
     )
   }
   return (
-    <div className="flex flex-wrap items-center gap-2 text-[13px]" role="status">
+    <div className="flex flex-wrap items-center gap-2 text-meta" role="status">
       {s.state === 'linked' ? <Chip tone="ok">{t('zp.link.linked')}</Chip> : <Chip tone="warn">{t(`zp.link.${s.state}`)}</Chip>}
       {s.state === 'waiting' ? <span>{t('zp.link.waitingFor', { name: who, time: s.sent_at ? fmtDateTime(s.sent_at) : '' })}</span> : null}
       {s.state === 'not_sent' && s.error ? <span className="text-danger">{s.error}</span> : null}

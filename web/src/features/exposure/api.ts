@@ -10,13 +10,13 @@ export const useSnapshot = (id: string, date: string | null) =>
 export const useDiff = (id: string, from: string | null, to: string | null) =>
   useQuery({ queryKey: ['exposure', 'diff', id, from, to], queryFn: () => api.get<Diff>(`/exposure/targets/${encodeURIComponent(id)}/diff?from=${from}&to=${to}`), enabled: !!from && !!to && from !== to, retry: false })
 
-/** How often the page asks how the scan is going while one runs. */
-export const SCAN_POLL_MS = 2000
+/** How often the page asks how the scan is going while one runs: 5 s, the box reports a step's progress at most every 5 s (#830). Tests shorten it. */
+export const scanPoll = { ms: 5000 }
 /** The scan that runs now, or the last one (null before the first since the box started). Polls only while it runs. */
 export const useScanRun = () => useQuery({
   queryKey: ['exposure', 'scan'], queryFn: () => api.get<ScanRun | null>('/exposure/scan'),
   // a failed poll slows down but does not stop while the last answer says running, so the row cannot hang on "Scanning"
-  refetchInterval: (q) => (q.state.data?.status === 'running' ? (q.state.status === 'error' ? SCAN_POLL_MS * 5 : SCAN_POLL_MS) : false) })
+  refetchInterval: (q) => (q.state.data?.status === 'running' ? (q.state.status === 'error' ? scanPoll.ms * 5 : scanPoll.ms) : false) })
 
 function useInvalidate() {
   const qc = useQueryClient()

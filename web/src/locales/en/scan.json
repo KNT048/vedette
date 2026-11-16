@@ -33,7 +33,7 @@
     "done_other": "Scan finished: {{count}} devices match a vulnerability"
   },
   "progress": {
-    "running": "Scanning: {{done}}/{{total}} devices done",
+    "device": "Device {{n}} of {{total}}",
     "stopping": "Stopping the scan",
     "stoppingBody": "Vedette stopped sending new requests. Closing open connections.",
     "bar": "Scan progress",

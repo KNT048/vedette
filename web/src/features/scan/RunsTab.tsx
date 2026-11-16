@@ -9,6 +9,7 @@ import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { useRowSelection } from '@/components/common/Selection'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
+import { JobProgress } from '@/components/progress/JobProgress'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { fmtDate, fmtDateTime, fmtRelative } from '@/lib/format'
@@ -27,17 +28,21 @@ function Progress({ run }: { run: ScanRun }) {
   const pct = run.total ? Math.round((run.done / run.total) * 100) : 0
   return (
     <section aria-labelledby="progress-title" className="mb-8 rounded-md border border-accent/40 bg-accent-soft p-4">
-      <h2 id="progress-title" className="text-base font-semibold">{stopping ? t('progress.stopping') : t('progress.running', { done: run.done, total: run.total })}</h2>
-      <div role="progressbar" aria-label={t('progress.bar')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} className="my-3 h-2 overflow-hidden rounded-full bg-surface">
-        <div className="h-full bg-accent transition-[width]" style={{ width: `${pct}%` }} />
-      </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <h2 id="progress-title" className="text-base font-semibold">{stopping ? t('progress.stopping') : t('progress.device', { n: Math.min(run.done + 1, run.total), total: run.total })}</h2>
+      {/* #830: the devices bar only when there are several; one device's progress is the step bar below */}
+      {run.total > 1 ? (
+        <div role="progressbar" aria-label={t('progress.bar')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} className="my-3 h-2 overflow-hidden rounded-full bg-surface">
+          <div className="h-full bg-accent transition-[width]" style={{ width: `${pct}%` }} />
+        </div>
+      ) : null}
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
         <p className="text-sm" role="status">{stopping ? t('progress.stoppingBody') : run.current ? t('progress.current', { label: run.current.label, ip: run.current.ip }) : ''}</p>
         <Button variant="danger" className="ml-auto" disabled={!can || stopping || stop.isPending} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
           onClick={() => stop.mutate(run.id, { onError: (e) => toast.error(errMsg(e)) })}>
           <OctagonX />{stopping ? t('progress.stoppingButton') : t('progress.stop')}
         </Button>
       </div>
+      {stopping ? null : <JobProgress progress={run.progress} className="mt-3 rounded-md bg-surface p-3" />}
       <p className="mt-2 text-[13px] text-muted">{t('progress.note')}</p>
     </section>
   )

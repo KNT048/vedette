@@ -334,7 +334,7 @@ var (
 // an address the box answers on is no device (ownedFilter, as in Record). The row must be this machine's: it is approved only when no
 // source ever saw it with a MAC other than nodeMAC (the agent's card on that address). An address DHCP gave to a new machine still
 // resolves to the old machine's row until a sensor sees the move, and the agent's own MAC observation has by then made nodeMAC the
-// row's MAC (agent outranks passive), so the column alone proves nothing: the old MAC's observations do. Such a row is found but
+// row's MAC (the newest MAC), so the column alone proves nothing: the old MAC's observations do. Such a row is found but
 // left waiting for a person, with a log line. A device a person marked suspicious keeps waiting (a person's flag wins); the box and
 // an approved device are left as they are. One audit row inventory.approve_enrolled by "system", reason naming the token and its
 // maker, only when the flag changes. On the same row (not the box, not one seen with another MAC) an agent OS stored with no agent kind

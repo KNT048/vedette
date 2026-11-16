@@ -2,8 +2,10 @@ package capture
 
 import (
 	"net/netip"
+	"regexp"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/knt048/vedette/core/observe"
 )
@@ -49,6 +51,25 @@ func MaxConfidence(f observe.Field, value string) (limit float64, ok bool) {
 		return ConfLLDPDesc, true // the OS read from a known layout of an LLDP description (sysdesc.go)
 	}
 	return ConfMDNSIotKind, true
+}
+
+// idName is a host name that is only an identifier: a UUID or 32 hex digits. macOS answers mDNS for its services under such names
+// ("6a3d1565-2a3d-4d87-afe3-9e59546c8acc.local", N100 n69, about 15 on one MacBook); they name no machine, and each new one pushes the
+// machine's real name further down the inventory's 32-row history of the field.
+var idName = regexp.MustCompile(`^(?i:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{32})$`)
+
+// UsefulValue reports whether a value says something about a device (n69): a host name whose first label is not a bare identifier
+// (idName), a model with at least one letter (an mDNS TXT "model=0,1,2" is a list of numbers, not a model). Other fields pass. The
+// engine drops what fails (value_meaningless); the backend refuses it from a remote sensor (invalid_item).
+func UsefulValue(f observe.Field, v string) bool {
+	switch f {
+	case observe.Hostname:
+		l, _, _ := strings.Cut(v, ".")
+		return !idName.MatchString(l)
+	case observe.Model:
+		return strings.ContainsFunc(v, unicode.IsLetter)
+	}
+	return true
 }
 
 // Claim is one observation as the budget sees it: whose it is (a MAC, or an IPv4 address for an observation without one),

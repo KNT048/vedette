@@ -30,11 +30,14 @@ describe('M2-1: general hardening when no confirmed pack exists (mitigation INV-
     await userEvent.clear(field)
     await userEvent.type(field, '10.20.0.0/40')
     expect(await within(block).findByText(/Type a network such as/)).toBeInTheDocument()
-    expect(code(/FortiGate CLI/)).toContain('set subnet <ADMIN-NETWORK>')
+    // r1 M2: no pasteable config with a bad admin network (it would block everyone or no one)
+    expect(within(block).getByText('Enter your admin network first')).toBeInTheDocument()
+    expect(within(block).queryAllByLabelText(/FortiGate CLI/)).toHaveLength(0)
+    expect(fg).toContain('set match-vip enable') // r1 H1
 
     // "Have I been hit?" shows the general checks of the software family, labelled the same way
     const checks = screen.getByTestId('general-checks')
-    expect(within(checks).getByRole('heading', { name: 'General checks (Web server on Linux)' })).toBeInTheDocument()
+    expect(within(checks).getByRole('heading', { name: 'General checks (Web server)' })).toBeInTheDocument()
     expect(within(checks).getByText(/not specific to CVE-2026-119977/)).toBeInTheDocument()
   })
 
@@ -44,7 +47,7 @@ describe('M2-1: general hardening when no confirmed pack exists (mitigation INV-
     assetsStore.set(saved.filter((a) => a.kind !== 'firewall' && a.kind !== 'router'))
     renderApp('/findings/f-2')
     const block = await screen.findByRole('region', { name: 'General hardening' })
-    expect(within(block).getByText(/No firewall in Devices/)).toBeInTheDocument()
+    expect(within(block).getByText(/No FortiGate or MikroTik in Devices/)).toBeInTheDocument()
     expect(within(block).getByRole('button', { name: 'Linux (nftables)' })).toHaveAttribute('aria-pressed', 'true')
     expect(code(/nftables: drop/)).toContain('ip daddr 192.168.10.12 ip saddr != 192.168.1.0/24 tcp dport { 80, 443 } drop')
 
@@ -63,5 +66,10 @@ describe('M2-1: general hardening when no confirmed pack exists (mitigation INV-
     expect(adminNetwork('fd00::/64', true)).toBe('fd00::/64')
     for (const bad of ['10.0.0.0/33', '300.1.1.1', '10.0.0.0/24; reboot', '$(id)', '', 'fd00::/64']) expect(adminNetwork(bad, false)).toBeNull()
     expect(adminNetwork('fd00:::1', true)).toBeNull()
+    // r1 L1: host bits cleared, no /0 or very wide networks, real IPv6 groups
+    expect(adminNetwork('192.168.1.5/24', false)).toBe('192.168.1.0/24')
+    for (const bad of ['0.0.0.0/0', '10.0.0.0/7']) expect(adminNetwork(bad, false)).toBeNull()
+    for (const bad of [':', '1:2:3', 'fffff::', '::/0', '1:2:3:4:5:6:7:8:9']) expect(adminNetwork(bad, true)).toBeNull()
+    expect(adminNetwork('2001:db8::1', true)).toBe('2001:db8::1/128')
   })
 })

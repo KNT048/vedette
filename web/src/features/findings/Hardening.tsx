@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { Chip } from '@/components/common/StatusChip'
 import { InfoTip } from '@/components/common/InfoTip'
+import { Notice } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
@@ -17,7 +18,6 @@ import type { CodeStep, FindingDetail, FirewallGuide, FirewallVendor } from './t
 const AddDialog = lazy(() => import('@/features/inventory/AddDialog').then((m) => ({ default: m.AddDialog })))
 
 const STORE_KEY = 'vedette.adminNetwork'
-const UNSET = '<ADMIN-NETWORK>'
 
 function remembered(): string | null {
   try { return localStorage.getItem(STORE_KEY) } catch { return null }
@@ -129,7 +129,14 @@ export function GeneralHardening({ finding }: { finding: FindingDetail }) {
         </div>
         <Segmented<FirewallVendor> label={t('rec.fwVendor')} value={g.vendor} onChange={setChosen} className="flex-wrap"
           options={h.firewall.map((x) => ({ value: x.vendor, label: x.detected ? t('hardening.fwInDevices', { name: x.label }) : x.label }))} />
-        <GuideView key={g.vendor} g={g} net={net ?? UNSET} />
+        {/* r1 M2: no pasteable config with a bad admin network (MikroTik would drop everyone, FortiGate would restrict nobody),
+            nor with the example one when the device is the firewall itself (it locks the admins out). */}
+        {net && !(h.self && example) ? <GuideView key={g.vendor} g={g} net={net} /> : (
+          <div className="grid gap-3">
+            <p className="max-w-3xl text-sm">{g.intro}</p>
+            <Notice tone="warn" className="mb-0" title={t('hardening.needNet')}>{t(net ? 'hardening.needNetSelf' : 'hardening.needNetBody')}</Notice>
+          </div>
+        )}
       </div>
       {adding ? (
         <Suspense fallback={null}>

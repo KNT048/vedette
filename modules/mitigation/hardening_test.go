@@ -2,6 +2,7 @@ package mitigation
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -79,22 +80,22 @@ func TestContract_INV8_GeneralHardeningRestrictsTheSoftwaresPortsForEveryVendor(
 	if !fg.Detected || guideOf(t, h, "mikrotik").Detected || guideOf(t, h, "generic").Detected {
 		t.Fatal("detected must follow the inventory (INV-5)")
 	}
-	mustContain(t, "FortiGate", codeOf(fg), `set subnet {ADMIN_NET}`, `edit "vedette-host-10-0-0-5"`, "set subnet 10.0.0.5/32", "set tcp-portrange 22\n",
-		"set srcaddr-negate enable", `set dstaddr "vedette-host-10-0-0-5"`, "set action deny", `set service "vedette-ports-10-0-0-5"`, "move <ID> before <FIRST-ID>")
+	mustContain(t, "FortiGate", codeOf(fg), `set subnet {ADMIN_NET}`, `edit "vedette-cve-2024-6387-10-0-0-5"`, "set subnet 10.0.0.5/32", "set tcp-portrange 22\n",
+		"set srcaddr-negate enable", `set dstaddr "vedette-cve-2024-6387-10-0-0-5"`, "set action deny", `set service "vedette-cve-2024-6387-10-0-0-5-ports"`,
+		"set match-vip enable", "move <ID> before <FIRST-ID>") // r1 H1: match-vip, so traffic through a Virtual IP is denied too
+	mustContain(t, "FortiGate note", fg.Steps[1].Note, "Virtual IP")
 	mustContain(t, "MikroTik", codeOf(guideOf(t, h, "mikrotik")), "address-list add list=vedette-admin address={ADMIN_NET}",
-		"chain=forward action=drop dst-address=10.0.0.5 src-address-list=!vedette-admin protocol=tcp dst-port=22 place-before=0")
+		"filter add chain=forward action=drop dst-address=10.0.0.5 src-address-list=!vedette-admin protocol=tcp dst-port=22 comment=\"Vedette CVE-2024-6387: restrict 10.0.0.5\" place-before=$first")
 	gen := codeOf(guideOf(t, h, "generic"))
-	mustContain(t, "nftables", gen, "table inet vedette_10_0_0_5", "ip daddr 10.0.0.5 ip saddr != {ADMIN_NET} tcp dport { 22 } drop",
-		"hook forward", "hook input", "sudo nft delete table inet vedette_10_0_0_5",
-		"sudo iptables -I INPUT -d 10.0.0.5 ! -s {ADMIN_NET} -p tcp -m multiport --dports 22 -m comment --comment vedette -j DROP",
-		"sudo iptables -D FORWARD -d 10.0.0.5 ! -s {ADMIN_NET} -p tcp -m multiport --dports 22")
+	mustContain(t, "nftables", gen, "table inet vedette_cve_2024_6387_10_0_0_5", "ip daddr 10.0.0.5 ip saddr != {ADMIN_NET} tcp dport { 22 } drop",
+		"hook forward", "hook input", "sudo nft delete table inet vedette_cve_2024_6387_10_0_0_5",
+		"sudo iptables -I INPUT -d 10.0.0.5 ! -s {ADMIN_NET} ! -i lo -p tcp -m multiport --dports 22 -m conntrack --ctstate NEW -m comment --comment vedette-cve-2024-6387 -j DROP",
+		"sudo iptables -D FORWARD -d 10.0.0.5 ! -s {ADMIN_NET} -p tcp -m multiport --dports 22 -m comment")
 	for _, g := range h.Firewall {
 		if g.Steps[0].SideEffect == "" {
 			t.Errorf("%s: the side effect must be stated before the paste (INV-4)", g.Vendor)
 		}
-		if strings.Contains(codeOf(g), "80") {
-			t.Errorf("%s: port 80 is not OpenSSH's: %s", g.Vendor, codeOf(g))
-		}
+		mustContain(t, g.Vendor+" side effect", g.Steps[0].SideEffect, "Vedette's own scans") // r1 M6
 	}
 }
 
@@ -108,7 +109,7 @@ func TestContract_INV8_UnknownPortsRestrictAllInboundAndSaySo(t *testing.T) {
 	}
 	for _, g := range h.Firewall {
 		mustContain(t, g.Vendor+" intro", g.Intro, "blocks every new connection to the device except from your admin network")
-		mustContain(t, g.Vendor+" side effect", g.Steps[0].SideEffect, "Everything else the device serves")
+		mustContain(t, g.Vendor+" side effect", g.Steps[0].SideEffect, "Everything the device serves")
 	}
 	mustContain(t, "FortiGate", codeOf(guideOf(t, &h, "fortigate")), `set service "ALL"`)
 	mustContain(t, "MikroTik", codeOf(guideOf(t, &h, "mikrotik")), "connection-state=new")
@@ -148,7 +149,7 @@ func TestContract_INV8_UnsafeDeviceValuesNeverReachTheConfigs(t *testing.T) {
 	}
 	mustContain(t, "FortiGate v6", codeOf(guideOf(t, &h, "fortigate")), "config firewall address6", "set ip6 2001:db8::5/128", "set srcaddr6-negate enable", "set dstaddr6")
 	mustContain(t, "MikroTik v6", codeOf(guideOf(t, &h, "mikrotik")), "/ipv6 firewall filter add")
-	mustContain(t, "nftables v6", codeOf(guideOf(t, &h, "generic")), "ip6 daddr 2001:db8::5 ip6 saddr != {ADMIN_NET}", "sudo ip6tables -I INPUT", "vedette_2001_db8__5")
+	mustContain(t, "nftables v6", codeOf(guideOf(t, &h, "generic")), "ip6 daddr 2001:db8::5 ip6 saddr != {ADMIN_NET}", "sudo ip6tables -I INPUT", "vedette_cve_2024_6387_2001_db8__5")
 }
 
 // INV-8: the firewall's own CVE protects its own admin access: local-in policies on a FortiGate, chain input on a MikroTik,
@@ -187,8 +188,12 @@ func TestContract_INV8_ChecksArePerFamilyAndClaimNothingAboutTheCVE(t *testing.T
 		{"server", "Microsoft", "Exchange Server", "Windows web server (IIS)", "C:\\inetpub"},
 		{"server", "Linux", "Kernel", "Linux", "sudo ss -tulpn"},
 		{"server", "OpenBSD", "OpenSSH", "OpenSSH", "sshd -T"},
-		{"server", "Apache", "HTTP Server", "Web server on Linux", "/var/log/apache2/access.log"},
-		{"switch", "Juniper", "Junos OS", "Juniper Junos OS", "show system commit"},
+		{"server", "Apache", "HTTP Server", "Web server", "/var/log/apache2/access.log"},
+		{"server", "Adobe", "ColdFusion", "Web server", "C:\\inetpub"}, // r1 M5: often on Windows, so both
+		{"server", "Progress", "MOVEit Transfer", "Windows web server (IIS)", "w3wp.exe"},
+		{"server", "Veeam", "Backup & Replication", "Windows", "Get-WinEvent"},
+		{"router", "Cisco", "IOS XR", "Network device", "Compare the running configuration"},      // r1 L4
+		{"switch", "Juniper", "Junos OS", "Juniper Junos OS", "show system rollback 1 compare 0"}, // r1 L3
 		{"firewall", "Fortinet", "FortiOS", "Fortinet FortiOS", "show system admin"},
 		{"router", "MikroTik", "RouterOS", "MikroTik RouterOS", "/system scheduler print"},
 		{"router", "Cisco", "IOS XE Software", "Cisco IOS", "show control-plane host open-ports"},
@@ -257,5 +262,97 @@ func TestContract_INV8_FindingWithoutPackShowsGeneralHardening(t *testing.T) {
 	}
 	if len(det) != 3 || !det["mikrotik"] || det["fortigate"] || det["generic"] {
 		t.Fatalf("detected = %v", det)
+	}
+}
+
+// r1 H2: two findings on one device never share a policy, service, rule or table, and the undo of one names nothing of the other.
+func TestContract_INV8_TwoFindingsOnOneDeviceNeverShareObjects(t *testing.T) {
+	t.Parallel()
+	open := []OpenPort{{Port: 22, Proto: "tcp", Name: "ssh"}, {Port: 80, Proto: "tcp", Name: "http"}, {Port: 443, Proto: "tcp", Name: "https"}}
+	ssh := hardeningRow("10.0.0.5", "server", "OpenBSD", "OpenSSH")
+	web := hardeningRow("10.0.0.5", "server", "Apache", "HTTP Server")
+	web.CVE = "CVE-2021-41773"
+	a := generalHardening(hardeningInput{Row: ssh, Firewall: true, Open: open})
+	b := generalHardening(hardeningInput{Row: web, Firewall: true, Open: open})
+	for _, v := range []string{"fortigate", "mikrotik", "generic"} {
+		ga, gb := guideOf(t, &a, v), guideOf(t, &b, v)
+		if strings.Contains(codeOf(ga), "41773") || strings.Contains(codeOf(gb), "6387") {
+			t.Errorf("%s: a finding's config names the other finding", v)
+		}
+		for _, u := range gb.Undo {
+			if strings.Contains(u.Code, "vedette-admin") && v != "fortigate" {
+				t.Errorf("%s: the undo removes the shared admin list: %s", v, u.Code)
+			}
+		}
+	}
+	if pa, pb := (cfg{t: targetOf(ssh.Asset), tag: tagOf(ssh.CVE)}).policyName(), (cfg{t: targetOf(web.Asset), tag: tagOf(web.CVE)}).policyName(); pa == pb || len(pa) > 35 {
+		t.Fatalf("policy names %q %q", pa, pb)
+	}
+	// r1 L7: IPv6 hosts of one /64 and a long tag still get distinct names within 35 characters
+	x := cfg{t: target{ip: "2001:db8::1", ok: true}, tag: "cve-2026-12345678901"}
+	y := cfg{t: target{ip: "2001:db8::2", ok: true}, tag: "cve-2026-12345678901"}
+	if x.policyName() == y.policyName() || len(x.policyName()) > 35 {
+		t.Fatalf("v6 policy names %q %q", x.policyName(), y.policyName())
+	}
+}
+
+// r1 M1, M2: MikroTik never uses rule numbers and adds no drop rule while the admin list is empty.
+func TestContract_INV8_MikroTikFailsClosedWithoutRuleNumbers(t *testing.T) {
+	t.Parallel()
+	for _, row := range []findings.Row{hardeningRow("10.0.0.5", "server", "OpenBSD", "OpenSSH"), hardeningRow("192.168.88.1", "router", "MikroTik", "RouterOS")} {
+		h := generalHardening(hardeningInput{Row: row, Firewall: true})
+		code := codeOf(guideOf(t, &h, "mikrotik"))
+		if strings.Contains(code, "place-before=0") {
+			t.Errorf("rule numbers depend on the last print: %s", code)
+		}
+		mustContain(t, "MikroTik", code, ":if ([:len [/ip firewall address-list find list=vedette-admin]] = 0) do={ :error", ":local first [:pick [/ip firewall filter find where dynamic=no] 0]", "place-before=$first } else={")
+		mustContain(t, "MikroTik verify", guideOf(t, &h, "mikrotik").Verify[0].Note, "if they are not, the paste failed")
+	}
+}
+
+// r1 M3: on the Linux device itself the input chain drops only new connections and the side effect warns of a lock-out.
+func TestContract_INV8_LinuxOnTheDeviceKeepsTheAdminSession(t *testing.T) {
+	t.Parallel()
+	h := generalHardening(hardeningInput{Row: hardeningRow("10.0.0.5", "server", "OpenBSD", "OpenSSH"), Firewall: true, Open: []OpenPort{{Port: 22, Proto: "tcp", Name: "ssh"}}})
+	g := guideOf(t, &h, "generic")
+	in := g.Steps[0].Code[strings.Index(g.Steps[0].Code, "chain input"):]
+	mustContain(t, "input chain", in, `iifname "lo" accept`, "tcp dport { 22 } ct state new drop")
+	mustContain(t, "side effect", g.Steps[0].SideEffect, "the session you are in stays", "lock yourself out")
+}
+
+// r1 M4, M6: the intro names the ports and their kind, never the CVE's software; the side effect says who loses what.
+func TestContract_INV8_IntroClaimsNothingAboutTheCVEAndNamesTheOutage(t *testing.T) {
+	t.Parallel()
+	h := generalHardening(hardeningInput{Row: hardeningRow("10.0.0.7", "pc", "Microsoft", "Office"), Firewall: true,
+		Open: []OpenPort{{Port: 445, Proto: "tcp", Name: "microsoft-ds"}, {Port: 3389, Proto: "tcp", Name: "ms-wbt-server"}}})
+	g := guideOf(t, &h, "generic")
+	if strings.Contains(g.Intro, "Office") {
+		t.Fatalf("the intro says the CVE's software answers there: %s", g.Intro)
+	}
+	mustContain(t, "intro", g.Intro, "Vedette saw these remote access services open on 10.0.0.7: 445/tcp (microsoft-ds), 3389/tcp (ms-wbt-server)")
+	mustContain(t, "side effect", g.Steps[0].SideEffect, "Shared folders")
+	w := generalHardening(hardeningInput{Row: hardeningRow("10.0.0.8", "server", "Microsoft", "Exchange Server"), Firewall: true, Open: []OpenPort{{Port: 443, Proto: "tcp", Name: "https"}}})
+	mustContain(t, "Exchange side effect", guideOf(t, &w, "fortigate").Steps[0].SideEffect, "Outlook on the web")
+	many := make([]OpenPort, 0, 20)
+	for i := range 20 {
+		many = append(many, OpenPort{Port: 8000 + i, Proto: "tcp", Name: "http"})
+	}
+	m := generalHardening(hardeningInput{Row: hardeningRow("10.0.0.9", "server", "Apache", "HTTP Server"), Firewall: true, Open: many})
+	mustContain(t, "too many", guideOf(t, &m, "generic").Intro, "too many to list") // r1 L8
+}
+
+type failingPorts struct{ fakeVendors }
+
+func (failingPorts) OpenPorts(context.Context, string) ([]OpenPort, error) {
+	return nil, errors.New("inventory down")
+}
+
+// r1 L6: a failed read of the open ports gives the all-inbound config, never a failed finding page.
+func TestContract_INV8_AFailedPortReadStillGivesAConfig(t *testing.T) {
+	t.Parallel()
+	p := &Provider{vendors: failingPorts{}}
+	h, err := p.hardening(t.Context(), hardeningRow("10.0.0.5", "server", "OpenBSD", "OpenSSH"), nil, nil)
+	if err != nil || h == nil || h.PortsFrom != portsAll {
+		t.Fatalf("hardening = %+v, %v", h, err)
 	}
 }

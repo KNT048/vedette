@@ -21,7 +21,7 @@ const FAMILIES: Record<string, Family> = {
       commands: [{ label: 'PowerShell: members of Administrators', code: 'Get-LocalGroupMember -Group Administrators' }] },
     { kind: 'process', title: 'New services, scheduled tasks and listening programs', detail: 'Services installed recently (System log event 7045), scheduled tasks outside Microsoft\'s folder, and programs listening on ports you cannot explain.' },
   ] },
-  web: { label: 'Web server on Linux', port: web, checks: [
+  web: { label: 'Web server', port: web, checks: [
     { kind: 'web', title: 'New script files in the web folders', detail: 'Web shells are small .php, .jsp or .jspx files dropped where the web server serves files.',
       commands: [{ label: 'Script files changed in the last 30 days', code: "sudo find /var/www /srv -type f \\( -name '*.php' -o -name '*.jsp' \\) -mtime -30 -ls 2>/dev/null" }] },
     ...LINUX,
@@ -55,39 +55,40 @@ const IF_FOUND = [
   'Get help: your incident response provider or your national CERT.',
 ]
 
-function guides(ip: string, ports: Port[], software: string, has: (v: string) => boolean): FirewallGuide[] {
+function guides(cve: string, ip: string, ports: Port[], has: (v: string) => boolean): FirewallGuide[] {
   const tcp = ports.filter((p) => p.proto === 'tcp').map((p) => p.port)
   const all = tcp.length === 0
-  const slug = ip.replaceAll('.', '-')
+  const slug = `${cve.toLowerCase()}-${ip.replaceAll('.', '-')}`
   const intro = all
-    ? `Vedette has not seen which port ${software} answers on at ${ip}, so this config blocks every new connection to the device except from your admin network. A firewall only filters what passes through it: computers in the same network segment as the device still reach it directly.`
-    : `Vedette saw ${software} answer on ${ports.map((p) => `${p.port}/${p.proto}${p.service ? ` (${p.service})` : ''}`).join(', ')} of ${ip}. This config lets only your admin network reach those ports; the rest of the device is unchanged. A firewall only filters what passes through it: computers in the same network segment as the device still reach it directly.`
-  const side = all
-    ? 'Everything else the device serves (shared folders, web pages, printing, remote desktop) stops for computers outside the admin network that reach it through this firewall.'
-    : 'Computers outside the admin network can no longer reach these ports of the device through this firewall.'
-  const svc = all ? '"ALL"' : `"vedette-ports-${slug}"`
+    ? `Vedette has not seen services of this kind open on ${ip}, so this config blocks every new connection to the device except from your admin network. A firewall only filters what passes through it: computers in the same network segment as the device still reach it directly.`
+    : `Vedette saw these services open on ${ip}: ${ports.map((p) => `${p.port}/${p.proto}${p.service ? ` (${p.service})` : ''}`).join(', ')}. This config lets only your admin network reach them; the rest of the device is unchanged. A firewall only filters what passes through it: computers in the same network segment as the device still reach it directly.`
+  const scans = " Vedette's own scans stop reaching them as well: allow the Vedette box's address too, or the device looks closed to Vedette."
+  const side = (all
+    ? 'Everything the device serves (shared folders, web pages, printing, remote desktop) stops for computers outside the admin network that reach it through this firewall.'
+    : 'Computers outside the admin network can no longer reach these ports of the device through this firewall.') + scans
+  const svc = all ? '"ALL"' : `"vedette-${slug}-ports"`
   const fortigate = [
-    `config firewall address\n    edit "vedette-admin-net"\n        set subnet ${NET}\n    next\n    edit "vedette-host-${slug}"\n        set subnet ${ip}/32\n    next\nend`,
-    all ? '' : `config firewall service custom\n    edit "vedette-ports-${slug}"\n        set tcp-portrange ${tcp.join(' ')}\n    next\nend`,
-    `config firewall policy\n    edit 0\n        set name "vedette-restrict-${slug}"\n        set srcintf "any"\n        set dstintf "any"\n        set srcaddr "vedette-admin-net"\n        set srcaddr-negate enable\n        set dstaddr "vedette-host-${slug}"\n        set action deny\n        set service ${svc}\n        set schedule "always"\n        set logtraffic all\n    next\nend`,
+    `config firewall address\n    edit "vedette-admin-net"\n        set subnet ${NET}\n    next\n    edit "vedette-${slug}"\n        set subnet ${ip}/32\n    next\nend`,
+    all ? '' : `config firewall service custom\n    edit "vedette-${slug}-ports"\n        set tcp-portrange ${tcp.join(' ')}\n    next\nend`,
+    `config firewall policy\n    edit 0\n        set name "vedette-${cve.toLowerCase()}"\n        set srcintf "any"\n        set dstintf "any"\n        set srcaddr "vedette-admin-net"\n        set srcaddr-negate enable\n        set dstaddr "vedette-${slug}"\n        set action deny\n        set service ${svc}\n        set schedule "always"\n        set match-vip enable\n        set logtraffic all\n    next\nend`,
   ].filter(Boolean).join('\n')
-  const match = all ? 'connection-state=new' : `protocol=tcp dst-port=${tcp.join(',')}`
+  const mtRule = `/ip firewall filter add chain=forward action=drop dst-address=${ip} src-address-list=!vedette-admin ${all ? 'connection-state=new' : `protocol=tcp dst-port=${tcp.join(',')}`} comment="Vedette ${cve}: restrict ${ip}"`
   const rule = all ? 'ct state new drop' : `tcp dport { ${tcp.join(', ')} } drop`
-  const table = `vedette_${ip.replaceAll('.', '_')}`
-  const chain = (name: string) => `    chain ${name} {\n        type filter hook ${name} priority 0; policy accept;\n${all && name === 'input' ? '        iifname "lo" accept\n' : ''}        ip daddr ${ip} ip saddr != ${NET} ${rule}\n    }\n`
+  const table = `vedette_${slug.replaceAll('-', '_')}`
+  const chain = (name: string) => `    chain ${name} {\n        type filter hook ${name} priority 0; policy accept;\n${name === 'input' ? '        iifname "lo" accept\n' : ''}        ip daddr ${ip} ip saddr != ${NET} ${name === 'input' && !all ? rule.replace(' drop', ' ct state new drop') : rule}\n    }\n`
   return [
     { vendor: 'fortigate', label: 'FortiGate', detected: has('fortinet'), intro,
       steps: [
         { title: 'FortiGate CLI: deny the device\'s ports to everyone but the admin network', code: fortigate, side_effect: side, note: 'Paste it in the CLI console (the >_ icon at the top of the FortiGate page) or over SSH. FortiGate adds the policy at the bottom of the list.' },
-        { title: 'Move the policy to the top', code: `show firewall policy | grep -f vedette-host-${slug}\nconfig firewall policy\n    move <ID> before <FIRST-ID>\nend`, note: 'The show command prints the policy with its ID. Until it is above your allow policies it does nothing.' },
+        { title: 'Move the policy to the top', code: `show firewall policy | grep -f vedette-${cve.toLowerCase()}\nconfig firewall policy\n    move <ID> before <FIRST-ID>\nend`, note: 'The show command prints the policy with its ID. Until it is above your allow policies it does nothing.' },
       ],
-      verify: [{ title: 'Show the policy', code: `show firewall policy | grep -f vedette-host-${slug}` }],
+      verify: [{ title: 'Show the policy', code: `show firewall policy | grep -f vedette-${cve.toLowerCase()}` }],
       undo: [{ title: 'Remove the policy and its objects', code: `config firewall policy\n    delete <ID>\nend` }] },
     { vendor: 'mikrotik', label: 'MikroTik', detected: has('mikrotik'), intro,
       steps: [{ title: 'RouterOS terminal: drop the ports for everyone but the admin network', side_effect: side,
-        code: `/ip firewall address-list add list=vedette-admin address=${NET} comment="Vedette admin network"\n/ip firewall filter add chain=forward action=drop dst-address=${ip} src-address-list=!vedette-admin ${match} place-before=0 comment="Vedette: restrict ${ip}"` }],
-      verify: [{ title: 'Show the rules and their counters', code: `/ip firewall filter print stats where comment="Vedette: restrict ${ip}"` }],
-      undo: [{ title: 'Remove the rules', code: `/ip firewall filter remove [find comment="Vedette: restrict ${ip}"]` }] },
+        code: `/ip firewall address-list add list=vedette-admin address=${NET} comment="Vedette admin network"\n{\n    :if ([:len [/ip firewall address-list find list=vedette-admin]] = 0) do={ :error "The vedette-admin list is empty: nothing was added." }\n    :local first [:pick [/ip firewall filter find where dynamic=no] 0]\n    :if ([:len $first] > 0) do={ ${mtRule} place-before=$first } else={ ${mtRule} }\n}` }],
+      verify: [{ title: 'Show the rules and their counters', code: `/ip firewall filter print stats where comment="Vedette ${cve}: restrict ${ip}"` }],
+      undo: [{ title: 'Remove the rules', code: `/ip firewall filter remove [find comment="Vedette ${cve}: restrict ${ip}"]` }] },
     { vendor: 'generic', label: 'Linux (nftables)', detected: false, intro: `${intro} The same config works on a Linux firewall or router and on the device itself when it runs Linux.`,
       steps: [{ title: 'nftables: drop the ports for everyone but the admin network', side_effect: side, code: `sudo nft -f - <<'EOF'\ntable inet ${table} {\n${chain('forward')}${chain('input')}}\nEOF` }],
       verify: [{ title: 'Show the table', code: `sudo nft list table inet ${table}` }],
@@ -106,5 +107,5 @@ export function mockHardening(cve: string, kev: KevInfo | null, view: FindingAss
     indicators: [...fam.checks, OUTBOUND], if_found: IF_FOUND,
   }
   return { software, family: fam.label, target: ip, self: false, ports_from: ports.length ? 'seen' : 'all', ports, admin_example: '192.168.1.0/24',
-    firewall: guides(ip, ports, software, has), checks }
+    firewall: guides(cve, ip, ports, has), checks }
 }

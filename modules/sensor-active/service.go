@@ -1735,7 +1735,8 @@ func (s *Service) SettingsChanged(ctx context.Context) error {
 	return s.checkRun(ctx, asset)
 }
 
-// AssetChanged reacts to inventory.asset.updated and .deleted: if the device being scanned now no longer passes
+// AssetChanged reacts to inventory.asset.updated and .deleted: if the device being scanned now left the address the run probes
+// (it moved, or another device took the address: #874) or no longer passes
 // the inventory's policy (marked fragile, regular scan never, declared by hand, deleted, out of scope), or the
 // run is heavier than the policy now allows, the run is stopped; that is not an attempt (the queue keeps it
 // only if the policy still lets it be scanned later). Other devices are not the run's business.
@@ -1753,13 +1754,26 @@ func (s *Service) checkRun(ctx context.Context, assetID string) error {
 	var gentle, picked, weekly bool
 	var rate int
 	var kind nmapargv.Kind
+	var targets []netip.Addr
 	match := cur != nil && cur.asset == assetID && assetID != ""
 	if match {
-		gentle, rate, picked, kind, weekly = cur.gentle, cur.rate, cur.picked, cur.kind, cur.weekly
+		gentle, rate, picked, kind, weekly, targets = cur.gentle, cur.rate, cur.picked, cur.kind, cur.weekly, cur.targets
 	}
 	s.mu.Unlock()
 	if !match {
 		return nil
+	}
+	// The device left the address the run probes (it moved, or another device took the address: #874): the run would probe whatever
+	// is there now.
+	if len(targets) > 0 {
+		a, err := s.inv.Asset(ctx, assetID)
+		if err != nil || !slices.Contains(targets, a.IP) {
+			cur.cancel() // fail closed
+			if err != nil && !errors.Is(err, ErrNotFound) {
+				return err
+			}
+			return nil
+		}
 	}
 	dec, err := s.inv.ScanPolicy(ctx, assetID)
 	if picked && err == nil { // a picked identification is held to its own plan (D-501): refused now, or gentler or slower than it runs

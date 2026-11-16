@@ -29,7 +29,16 @@ For a real box: a fresh **Ubuntu 24.04, Ubuntu 26.04 or Debian 13** (amd64 or ar
 curl -fsSL https://github.com/KNT048/vedette/releases/download/v<version>/install.sh | sudo sh
 ```
 
-Use the `install.sh` of the release you want (the Releases page of this repository; it carries that release's version and package checksum inside it, which is why you do not get it from the source tree). To read it before running it, download it with `-o install.sh` and run `sudo sh install.sh`. At the end it prints `https://<address of the box>:8443` and a **one-time setup code**; open the address (the certificate is self-signed: accept it once), enter the code and follow the setup wizard.
+Use the `install.sh` of the release you want (the Releases page of this repository; it carries that release's version and package checksum inside it, which is why you do not get it from the source tree). To read and check it before running it, download it with its signature and verify it with [minisign](https://jedisct1.github.io/minisign/) against the release key (key ID `7B78764E550D48D0`, also listed in `docs/RELEASE_KEYS.md` and built into `vedette-host`), then run it:
+
+```
+curl -fsSLO https://github.com/KNT048/vedette/releases/download/v<version>/install.sh
+curl -fsSLO https://github.com/KNT048/vedette/releases/download/v<version>/install.sh.minisig
+minisign -Vm install.sh -P RWTQSA1VTnZ4e4eM2iBmUKE1/t5l9pmrScK2+wR/EohjSfFEZQ8VwT/m
+sudo sh install.sh
+```
+
+The check must print `Trusted comment: file:install.sh version:<version>`. At the end it prints `https://<address of the box>:8443` and a **one-time setup code**; open the address (the certificate is self-signed: accept it once), enter the code and follow the setup wizard.
 
 What it does, in order, and it stops at the first thing it cannot do (a refusal in the first step changes nothing): checks the OS, architecture, systemd, disk, the two ports, that no other Vedette is there and that the clock is set; installs with `apt` the packages Vedette needs that are **missing** (podman, chrony, netplan.io, nftables, iptables, unattended-upgrades and what they depend on); a package that is already installed is not upgraded and an existing chrony configuration is not touched; downloads the `vedette-host` package of that release and refuses it unless its SHA-256 is the one written into the script; writes `/etc/vedette/host.conf` and the container network `vedette-int` (a `172.30.x.0/24` that clashes with nothing on the box); runs `vedette-host -bootstrap`, which checks the signed release (the signing keys are built into `vedette-host`, not into the script) and pulls the signed container images by digest; starts Vedette and waits up to 5 minutes for it to be healthy.
 
@@ -45,7 +54,7 @@ sudo sh install.sh --uninstall --yes            # --keep-data keeps /var/lib/ved
 
 Your own containers are safe: the uninstall removes only Vedette's containers, images, volumes and network from podman. If podman holds anything that is not Vedette's (containers, stopped ones too, pods, networks, volumes, named images), or podman cannot be asked, or you used `--keep-data`, podman, the packages it runs with and `/var/lib/containers` stay, and the last lines say what was kept and why (D-508). A Vedette network, volume or image that one of your containers uses is left in place too. Podman is removed only when the installer added it and nothing else is in it.
 
-Until the first release exists, the script in this repository stops with "not tied to a release". To try the installer before that, see `docs/INSTALL-TEST.md` (a test install signed with throwaway keys; not for customers).
+The `install.sh` in this repository (not a release asset) stops with "not tied to a release": always take it from a release. To try an unreleased build, see `docs/INSTALL-TEST.md` (a test install signed with throwaway keys; not for customers).
 
 ## What leaves your machine
 

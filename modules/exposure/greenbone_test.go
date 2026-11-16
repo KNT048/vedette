@@ -1814,10 +1814,10 @@ func TestContract_INV25_StartUpStopsWhatARestartCutOff(t *testing.T) {
 func TestContract_INV25_FeedDateFromGvmd(t *testing.T) {
 	t.Parallel()
 	e, h := gbEnv(t)
-	on := e.enable()
-	if on.Feed != nil {
-		t.Fatalf("feed before gvmd was asked = %+v", on.Feed)
+	if v := e.gbState(); v.State != GBOff || v.Feed != nil {
+		t.Fatalf("off before the first enable: %s %+v", v.State, v.Feed)
 	}
+	e.enable()
 	h.gvm.with(func(g *fakeGVM) { g.syncing = true })
 	v := e.gbState()
 	if v.State != GBLoading || v.Feed == nil || str(v.Feed.NVTVersion) != "202611140611" {

@@ -767,6 +767,8 @@
     "answersLabel": "Answers",
     "scopeLabel": "Sent to",
     "lastAnswered": "Last answered {{when}}",
+    "secretLost": "The saved community or password was not restored",
+    "secretLostBody": "The backup was restored without its decryption key, or the box key changed. This credential is sent nowhere until you open Edit, enter it again and save.",
     "answeredBy_one": "answered by {{count}} device",
     "answeredBy_other": "answered by {{count}} devices",
     "never": "No device has answered yet",

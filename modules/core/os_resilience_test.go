@@ -2,6 +2,7 @@ package core_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -566,6 +567,116 @@ func TestBackupDownloadsAreOneAtATimeAndOnePerMinute(t *testing.T) {
 	e.clock.Advance(61 * time.Second)
 	if r := e.admin.get("/core/data/backup"); r.Code != 200 {
 		t.Errorf("download a minute later = %d %s", r.Code, r.Raw)
+	}
+}
+
+// otherWrite starts a write command on the real host (os.check stands in for a module's container starting, #866) and
+// answers backup.create the way the host does while it runs: 409 busy naming it.
+func otherWrite(ctx context.Context, t *testing.T, hh *hookHost, n int64) error {
+	t.Helper()
+	run, err := hh.h().OSCheck(ctx, fmt.Sprintf("00000000-0000-4000-8000-%012d", n), "test")
+	if err != nil {
+		t.Errorf("os.check: %v", err)
+	}
+	return &hostclient.Error{Status: 409, Code: api.CodeBusy, Message: "Another write command is already running.", RunID: run.RunID}
+}
+
+// #866: a download asked for while the host finishes another write command follows that command to its end and asks
+// again under a new request id: the backup is made, with one intent row and no failure.
+func TestBackupDownloadWaitsWhileTheHostFinishesAnotherCommand(t *testing.T) {
+	t.Parallel()
+	e, hh := newHookEnv(t)
+	var mu sync.Mutex
+	var ids []string
+	hh.onBackupCreate = func(ctx context.Context, args api.BackupCreateArgs, id, actor string) (api.Run, error) {
+		mu.Lock()
+		ids = append(ids, id)
+		n := len(ids)
+		mu.Unlock()
+		if n <= 2 {
+			return api.Run{}, otherWrite(ctx, t, hh, int64(n))
+		}
+		return hh.h().BackupCreate(ctx, args, id, actor)
+	}
+	r := e.admin.get("/core/data/backup")
+	if r.Code != 200 || !strings.HasPrefix(r.Raw, "\x1f\x8b") {
+		t.Fatalf("download = %d %.80q", r.Code, r.Raw)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(ids) != 3 || ids[0] == ids[1] || ids[1] == ids[2] || ids[0] == ids[2] {
+		t.Errorf("request ids of the tries = %q, want three different ones", ids)
+	}
+	if got := e.actions(); slices.Contains(got, "data.backup_failed") || countOf(got, "data.backup") != 1 {
+		t.Errorf("audit rows: %v, want one data.backup and no failure", got)
+	}
+	if d := e.snapshotDirs(); len(d) != 0 {
+		t.Errorf("snapshot directories left: %v", d)
+	}
+}
+
+// #866: an update or a restore of this core that starts while the host is busy is not waited for: the download is
+// refused at once with its own sentence.
+func TestBackupDownloadDoesNotWaitForAnUpdateRun(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct{ name, key, value, says string }{
+		{"update", "core_update_run", `{"id":"u1","action":"update","component":"software","to":"1.4.0","status":"running","steps":[],"started_at":"2026-11-09T12:00:00Z","user":"admin@acme.example"}`, "update run is in progress"},
+		{"restore", "data.restore", `{"run_id":"rn_r1","backup_id":"b1","backup_created_at":"2026-11-01T00:00:00Z","user":"admin@acme.example","started_at":"2026-11-09T12:00:00Z","status":""}`, "being restored"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			e, hh := newHookEnv(t)
+			hh.onBackupCreate = func(ctx context.Context, _ api.BackupCreateArgs, _, _ string) (api.Run, error) {
+				err := e.env.DB.Write(ctx, func(tx *sql.Tx) error { // the run of this core has just started
+					_, err := tx.ExecContext(ctx, `INSERT INTO core_setting (key, value, updated_at, updated_by) VALUES (?, ?, '2026-11-09T12:00:00.000Z', 'test')`, c.key, c.value)
+					return err
+				})
+				if err != nil {
+					t.Error(err)
+				}
+				return api.Run{}, otherWrite(ctx, t, hh, 1)
+			}
+			r := e.admin.get("/core/data/backup")
+			wantStatus(t, r, 409, "busy")
+			if msg := r.str("error", "message"); !strings.Contains(msg, c.says) {
+				t.Errorf("message = %q", msg)
+			}
+			if n := hh.backupCalls.Load(); n != 1 {
+				t.Errorf("%d backup.create calls, want 1", n)
+			}
+			if d := e.snapshotDirs(); len(d) != 0 {
+				t.Errorf("snapshot directories left: %v", d)
+			}
+			// Asked again while it runs: refused before any snapshot or host call.
+			wantStatus(t, e.admin.get("/core/data/backup"), 409, "busy")
+			if n := hh.backupCalls.Load(); n != 1 {
+				t.Errorf("%d backup.create calls after the second download, want 1", n)
+			}
+		})
+	}
+}
+
+// #866: the wait is bounded: a host that stays busy past it gets the busy refusal, worded for what it is (not an update).
+func TestBackupDownloadGivesUpWhenTheHostStaysBusy(t *testing.T) {
+	t.Parallel()
+	e, hh := newHookEnv(t)
+	hh.onBackupCreate = func(ctx context.Context, _ api.BackupCreateArgs, _, _ string) (api.Run, error) {
+		e.clock.Advance(61 * time.Second)
+		return api.Run{}, otherWrite(ctx, t, hh, hh.backupCalls.Load())
+	}
+	r := e.admin.get("/core/data/backup")
+	wantStatus(t, r, 409, "busy")
+	if msg := r.str("error", "message"); strings.Contains(msg, "update") || !strings.Contains(msg, "busy with another task") {
+		t.Errorf("message = %q", msg)
+	}
+	if n := hh.backupCalls.Load(); n != 2 {
+		t.Errorf("%d backup.create calls, want 2 (the second is past the two minutes)", n)
+	}
+	if got := e.actions(); !slices.Contains(got, "data.backup_failed") {
+		t.Errorf("audit rows: %v", got)
+	}
+	if d := e.snapshotDirs(); len(d) != 0 {
+		t.Errorf("snapshot directories left: %v", d)
 	}
 }
 

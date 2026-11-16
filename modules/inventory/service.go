@@ -300,8 +300,8 @@ func (s *Service) now() string { return store.FormatTS(s.clock()) }
 // outbox collects the events of one transaction; they go out only after it commits.
 type outbox struct {
 	events []Event
-	// readdressed are the devices whose address this write took away or changed (claimIP). write announces each one that the write
-	// does not already announce updated, discovered or deleted: a job holding the old address (an SNMP batch, an nmap run) stops when
+	// readdressed are the devices whose address this write took away or changed (claimIP). write announces each one updated first
+	// (readdressedEvents): a job holding the old address (an SNMP batch, an nmap run) stops when
 	// its device leaves it, so a device that took the address mid-run is never sent a credential (#874, D-512 (3)).
 	readdressed []string
 	// after run once the transaction has committed, to compute events that need data from other modules
@@ -320,17 +320,21 @@ func (o *outbox) readdress(id string) {
 	}
 }
 
-// announceReaddressed adds inventory.asset.updated for each readdressed device the write announces no other way.
-func (o *outbox) announceReaddressed() {
+// readdressedEvents is inventory.asset.updated for each readdressed device the write does not announce discovered (created in it: no job
+// holds it) or deleted. They go out before the write's other events (review r1 L2 of #881): a job holding the old address stops before
+// the newcomer's discovered handlers and the post-commit reads run. A device the write also announces updated gets both.
+func (o *outbox) readdressedEvents() []Event {
+	var out []Event
 	for _, id := range o.readdressed {
 		told := slices.ContainsFunc(o.events, func(e Event) bool {
 			a, ok := e.Data.(AssetEvent)
-			return ok && a.AssetID == id && (e.Name == EventAssetUpdated || e.Name == EventAssetDiscovered || e.Name == EventAssetDeleted)
+			return ok && a.AssetID == id && (e.Name == EventAssetDiscovered || e.Name == EventAssetDeleted)
 		})
 		if !told {
-			o.add(EventAssetUpdated, AssetEvent{AssetID: id})
+			out = append(out, Event{Name: EventAssetUpdated, Data: AssetEvent{AssetID: id}})
 		}
 	}
+	return out
 }
 
 // write runs fn in one write transaction and announces its events after the commit.
@@ -339,8 +343,7 @@ func (s *Service) write(ctx context.Context, fn func(tx *sql.Tx, o *outbox) erro
 	if err := s.db.Write(ctx, func(tx *sql.Tx) error { return fn(tx, &o) }); err != nil {
 		return err
 	}
-	o.announceReaddressed()
-	events := o.events
+	events := append(o.readdressedEvents(), o.events...)
 	for _, f := range o.after {
 		events = append(events, f(ctx)...)
 	}

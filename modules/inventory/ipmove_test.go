@@ -496,6 +496,9 @@ func TestContract_874_LosingOrChangingTheAddressIsAnnounced(t *testing.T) {
 	if got := e.updatedFor(a); got != 1 {
 		t.Errorf("the device that lost its address was announced updated %d times, want 1", got)
 	}
+	if first := e.ev.events[0]; first.Name != inventory.EventAssetUpdated || first.Data.(inventory.AssetEvent).AssetID != a {
+		t.Errorf("the first event is %s %+v; the switch's update goes before the newcomer's discovery (r1 L2 of #881)", first.Name, first.Data)
+	}
 	if len(e.ev.named(inventory.EventAssetDiscovered)) != 1 || e.updatedFor(c) != 0 {
 		t.Errorf("the newcomer: %d discovered, %d updated; want 1 and 0", len(e.ev.named(inventory.EventAssetDiscovered)), e.updatedFor(c))
 	}

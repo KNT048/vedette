@@ -44999,6 +44999,10 @@
                         "string",
                         "null"
                       ]
+                    },
+                    "version": {
+                      "type": "string",
+                      "description": "Version of the shared safety block (the same as GET /scanning safety.version, inventory INV-32): send it back on PUT to be refused with 409 safety_changed instead of replacing a change made since the page loaded"
                     }
                   },
                   "required": [
@@ -45007,7 +45011,8 @@
                     "fragile_kinds",
                     "regular_scan_kinds",
                     "scope_confirmed_at",
-                    "scope_confirmed_by"
+                    "scope_confirmed_by",
+                    "version"
                   ],
                   "additionalProperties": false
                 }
@@ -45028,7 +45033,7 @@
       },
       "put": {
         "operationId": "inventory_put_inventory_settings",
-        "summary": "Save the scan scope; enabling active scanning requires scope attestation",
+        "summary": "Save the scan scope; enabling active scanning requires scope attestation. 409 safety_changed when the version sent is not the stored one",
         "tags": [
           "inventory"
         ],
@@ -45160,6 +45165,11 @@
                       "string",
                       "null"
                     ]
+                  },
+                  "version": {
+                    "description": "The version this page read. Given and not the stored one: 409 safety_changed, nothing stored (review #860 M1). Left out: no check, so a range or exclusion added since the page loaded is replaced; this page is being replaced by Settings › Scanning (#850)",
+                    "type": "string",
+                    "maxLength": 64
                   },
                   "scope_confirmed": {
                     "type": "boolean",
@@ -45306,6 +45316,10 @@
                         "null"
                       ]
                     },
+                    "version": {
+                      "type": "string",
+                      "description": "Version of the shared safety block (the same as GET /scanning safety.version, inventory INV-32): send it back on PUT to be refused with 409 safety_changed instead of replacing a change made since the page loaded"
+                    },
                     "adjusted": {
                       "type": "array",
                       "items": {
@@ -45334,6 +45348,7 @@
                     "regular_scan_kinds",
                     "scope_confirmed_at",
                     "scope_confirmed_by",
+                    "version",
                     "adjusted"
                   ],
                   "additionalProperties": false
@@ -71142,6 +71157,10 @@
                             "devices"
                           ],
                           "additionalProperties": false
+                        },
+                        "version": {
+                          "type": "string",
+                          "description": "Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the version it was built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every answer that changed the block carries the new one. The same values give the same version"
                         }
                       },
                       "required": [
@@ -71149,7 +71168,8 @@
                         "window",
                         "speed",
                         "exclusions",
-                        "fragile"
+                        "fragile",
+                        "version"
                       ],
                       "additionalProperties": false
                     },
@@ -71850,6 +71870,10 @@
                             "devices"
                           ],
                           "additionalProperties": false
+                        },
+                        "version": {
+                          "type": "string",
+                          "description": "Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the version it was built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every answer that changed the block carries the new one. The same values give the same version"
                         }
                       },
                       "required": [
@@ -71857,7 +71881,8 @@
                         "window",
                         "speed",
                         "exclusions",
-                        "fragile"
+                        "fragile",
+                        "version"
                       ],
                       "additionalProperties": false
                     },
@@ -72571,7 +72596,7 @@
     "/scanning/safety": {
       "put": {
         "operationId": "scanning_put_scanning_safety",
-        "summary": "Save the shared safety settings every LAN engine obeys (one writer; GET/PUT /inventory/settings and the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days, no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20), bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on). Publishes inventory.settings.changed: a run that the new values no longer allow stops",
+        "summary": "Save the shared safety settings every LAN engine obeys (one writer; GET/PUT /inventory/settings and the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days, no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20), bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on); 409 safety_changed (with error.safety, the current block) when version is not the stored one: re-read, merge, save again. Publishes inventory.settings.changed: a run that the new values no longer allow stops",
         "tags": [
           "scanning"
         ],
@@ -72723,6 +72748,11 @@
                       "regular_scan_kinds"
                     ],
                     "additionalProperties": false
+                  },
+                  "version": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "The version of GET /scanning (safety.version) this page was built on. Not the stored one: 409 safety_changed with the current block (error.safety), nothing stored"
                   }
                 },
                 "required": [
@@ -72730,7 +72760,8 @@
                   "window",
                   "speed",
                   "exclusions",
-                  "fragile"
+                  "fragile",
+                  "version"
                 ],
                 "additionalProperties": false
               }
@@ -72909,6 +72940,10 @@
                       ],
                       "additionalProperties": false
                     },
+                    "version": {
+                      "type": "string",
+                      "description": "Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the version it was built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every answer that changed the block carries the new one. The same values give the same version"
+                    },
                     "adjusted": {
                       "type": "array",
                       "items": {
@@ -72936,6 +72971,528 @@
                     "speed",
                     "exclusions",
                     "fragile",
+                    "version",
+                    "adjusted"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scanning/safety/exclusions": {
+      "post": {
+        "operationId": "scanning_post_scanning_safety_exclusions",
+        "summary": "Add one exclusion where the person is (\"+ New exclusion\" in a dialog, #842), without sending the whole block: read, append and save in one transaction. 400 bad_exclusion as PUT /scanning/safety, and too_many_exclusions when the list would grow past 200. An entry an exclusion already covers is 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the entry) and publishes inventory.settings.changed: a run that may no longer touch it stops. Returns the whole safety block with its new version",
+        "tags": [
+          "scanning"
+        ],
+        "x-stories": [
+          "S-SCAN-4",
+          "S-INV-1"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "entry": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "One IPv4 address or IPv4 CIDR without host bits that no engine on the LAN may touch, e.g. 192.168.18.9 or 192.168.18.64/28"
+                  }
+                },
+                "required": [
+                  "entry"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "scope": {
+                      "type": "object",
+                      "properties": {
+                        "lan_ranges": {
+                          "maxItems": 16,
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges"
+                        },
+                        "confirmed_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "confirmed_by": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "lan_ranges",
+                        "confirmed_at",
+                        "confirmed_by"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "window": {
+                      "type": "object",
+                      "properties": {
+                        "days": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 7,
+                            "description": "1 = Monday … 7 = Sunday (D-57 (9))"
+                          },
+                          "description": "Empty only on a box whose discovery was saved off without a day; a save needs one"
+                        },
+                        "from": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                          "description": "HH:MM"
+                        },
+                        "to": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                          "description": "Earlier than from: crosses midnight"
+                        },
+                        "time_zone": {
+                          "type": "string",
+                          "description": "IANA zone the window is read in (the organization time zone); read-only"
+                        }
+                      },
+                      "required": [
+                        "days",
+                        "from",
+                        "to",
+                        "time_zone"
+                      ],
+                      "additionalProperties": false,
+                      "description": "One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now, Check this device now and external scans are not bound by it"
+                    },
+                    "speed": {
+                      "type": "object",
+                      "properties": {
+                        "packets_per_s": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 1000,
+                          "description": "nmap and SNMP (inventory active.rate)"
+                        },
+                        "requests_per_s": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 20,
+                          "description": "nuclei on LAN devices (was scan config rate)"
+                        }
+                      },
+                      "required": [
+                        "packets_per_s",
+                        "requests_per_s"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "exclusions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the 200 a save accepts)"
+                    },
+                    "fragile": {
+                      "type": "object",
+                      "properties": {
+                        "kinds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "firewall",
+                              "router",
+                              "switch",
+                              "ap",
+                              "nas",
+                              "server",
+                              "pc",
+                              "printer",
+                              "camera",
+                              "nvr",
+                              "iot",
+                              "web",
+                              "unknown"
+                            ]
+                          },
+                          "description": "Types scanned once, gently, when first seen; passive-only after that (D-45, D-511)"
+                        },
+                        "regular_scan_kinds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "firewall",
+                              "router",
+                              "switch",
+                              "ap",
+                              "nas",
+                              "server",
+                              "pc",
+                              "printer",
+                              "camera",
+                              "nvr",
+                              "iot",
+                              "web",
+                              "unknown"
+                            ]
+                          },
+                          "description": "Subset of kinds that may still get regular scans"
+                        },
+                        "devices": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter; read-only"
+                        }
+                      },
+                      "required": [
+                        "kinds",
+                        "regular_scan_kinds",
+                        "devices"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "version": {
+                      "type": "string",
+                      "description": "Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the version it was built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every answer that changed the block carries the new one. The same values give the same version"
+                    }
+                  },
+                  "required": [
+                    "scope",
+                    "window",
+                    "speed",
+                    "exclusions",
+                    "fragile",
+                    "version"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scanning/safety/ranges": {
+      "post": {
+        "operationId": "scanning_post_scanning_safety_ranges",
+        "summary": "Add one LAN range to the scope where the person is (\"+ New range\" in a dialog, #842), without sending the whole block: read, append and save in one transaction, so it never overwrites another edit. The dialog lists the current ranges and whether they are confirmed with the confirmation tick, and sends both back (shown_ranges, shown_confirmed_at): the tick confirms those ranges and the new one only. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range, too_many_ranges (16), and scope_not_confirmed when confirm is not true; 409 scope_changed (with error.safety, the current block) when the stored ranges are not shown_ranges or the stored confirmation is not shown_confirmed_at. A range the confirmed scope already covers is 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the range, and saying when the add confirmed a scope that was not confirmed) and publishes inventory.settings.changed. Returns the whole safety block with its new version, and adjusted when the range was normalized",
+        "tags": [
+          "scanning"
+        ],
+        "x-stories": [
+          "S-SCAN-4",
+          "S-INV-1"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "range": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "One internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461) to add to the scope, e.g. 192.168.20.0/24; host bits are dropped and reported in adjusted"
+                  },
+                  "confirm": {
+                    "type": "boolean",
+                    "description": "The attestation of PUT /scanning/safety (scope.confirmed): the ranges shown, and this one, belong to the company and scanning them is permitted. Must be true (400 scope_not_confirmed); recorded as confirmed_at/confirmed_by"
+                  },
+                  "shown_ranges": {
+                    "maxItems": 16,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 64
+                    },
+                    "description": "The ranges the dialog showed next to the tick (safety.scope.lan_ranges as read; order does not matter, compared as networks). The tick confirms exactly these and the new range: when the stored list is another one (an admin changed the ranges since), 409 scope_changed with the current block (error.safety) and nothing stored (review #860 H1)"
+                  },
+                  "shown_confirmed_at": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 64
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "The confirmation the dialog showed (safety.scope.confirmed_at as read, compared to the second; null: shown as not confirmed). When the stored one is another (an admin unconfirmed the scope, or confirmed it again, since), 409 scope_changed with the current block, nothing stored (review #860 r2 M1)"
+                  }
+                },
+                "required": [
+                  "range",
+                  "confirm",
+                  "shown_ranges",
+                  "shown_confirmed_at"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "scope": {
+                      "type": "object",
+                      "properties": {
+                        "lan_ranges": {
+                          "maxItems": 16,
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges"
+                        },
+                        "confirmed_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "confirmed_by": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "lan_ranges",
+                        "confirmed_at",
+                        "confirmed_by"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "window": {
+                      "type": "object",
+                      "properties": {
+                        "days": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 7,
+                            "description": "1 = Monday … 7 = Sunday (D-57 (9))"
+                          },
+                          "description": "Empty only on a box whose discovery was saved off without a day; a save needs one"
+                        },
+                        "from": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                          "description": "HH:MM"
+                        },
+                        "to": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                          "description": "Earlier than from: crosses midnight"
+                        },
+                        "time_zone": {
+                          "type": "string",
+                          "description": "IANA zone the window is read in (the organization time zone); read-only"
+                        }
+                      },
+                      "required": [
+                        "days",
+                        "from",
+                        "to",
+                        "time_zone"
+                      ],
+                      "additionalProperties": false,
+                      "description": "One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now, Check this device now and external scans are not bound by it"
+                    },
+                    "speed": {
+                      "type": "object",
+                      "properties": {
+                        "packets_per_s": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 1000,
+                          "description": "nmap and SNMP (inventory active.rate)"
+                        },
+                        "requests_per_s": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 20,
+                          "description": "nuclei on LAN devices (was scan config rate)"
+                        }
+                      },
+                      "required": [
+                        "packets_per_s",
+                        "requests_per_s"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "exclusions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the 200 a save accepts)"
+                    },
+                    "fragile": {
+                      "type": "object",
+                      "properties": {
+                        "kinds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "firewall",
+                              "router",
+                              "switch",
+                              "ap",
+                              "nas",
+                              "server",
+                              "pc",
+                              "printer",
+                              "camera",
+                              "nvr",
+                              "iot",
+                              "web",
+                              "unknown"
+                            ]
+                          },
+                          "description": "Types scanned once, gently, when first seen; passive-only after that (D-45, D-511)"
+                        },
+                        "regular_scan_kinds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "firewall",
+                              "router",
+                              "switch",
+                              "ap",
+                              "nas",
+                              "server",
+                              "pc",
+                              "printer",
+                              "camera",
+                              "nvr",
+                              "iot",
+                              "web",
+                              "unknown"
+                            ]
+                          },
+                          "description": "Subset of kinds that may still get regular scans"
+                        },
+                        "devices": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter; read-only"
+                        }
+                      },
+                      "required": [
+                        "kinds",
+                        "regular_scan_kinds",
+                        "devices"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "version": {
+                      "type": "string",
+                      "description": "Names the stored values of this block (review #860 M1): PUT /scanning/safety must send back the version it was built on (409 safety_changed otherwise), so a page opened before an inline add never drops it. Every answer that changed the block carries the new one. The same values give the same version"
+                    },
+                    "adjusted": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "from": {
+                            "type": "string"
+                          },
+                          "to": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "from",
+                          "to"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Ranges and exclusions normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24"
+                    }
+                  },
+                  "required": [
+                    "scope",
+                    "window",
+                    "speed",
+                    "exclusions",
+                    "fragile",
+                    "version",
                     "adjusted"
                   ],
                   "additionalProperties": false
@@ -73148,6 +73705,10 @@
                       "type": "boolean",
                       "const": false
                     },
+                    "version": {
+                      "type": "string",
+                      "description": "Version of the shared safety block (window, rate, exclusions live in inventory INV-32; the same as GET /scanning safety.version); \"\" when this module keeps its own copy"
+                    },
                     "schedule_blocked_reason": {
                       "description": "Set while the schedule is on but nothing automated can start because the organization time zone cannot be read; next_run is null then (D-261 (3))",
                       "type": [
@@ -73163,6 +73724,7 @@
                     "can_scan",
                     "block_reason",
                     "dangerous_checks",
+                    "version",
                     "schedule_blocked_reason"
                   ],
                   "additionalProperties": false
@@ -73184,7 +73746,7 @@
       },
       "put": {
         "operationId": "scan_put_scans_config",
-        "summary": "Save scan settings (partial update); dangerous checks are always rejected",
+        "summary": "Save scan settings (partial update); dangerous checks are always rejected. 409 safety_changed when the version sent is not the stored one",
         "tags": [
           "scan"
         ],
@@ -73282,6 +73844,11 @@
                     "type": "boolean",
                     "const": false,
                     "description": "Rejected when true: no exploitation, no DoS"
+                  },
+                  "version": {
+                    "type": "string",
+                    "maxLength": 64,
+                    "description": "The version of the shared safety block this page read (version of GET /scans/config). Given and not the stored one: 409 safety_changed, nothing stored (review #860 M1). Left out: no check, so an exclusion added since the page loaded is replaced when exclusions are sent; this page is being replaced by Settings › Scanning (#850)"
                   }
                 },
                 "additionalProperties": false
@@ -73469,6 +74036,10 @@
                       "type": "boolean",
                       "const": false
                     },
+                    "version": {
+                      "type": "string",
+                      "description": "Version of the shared safety block (window, rate, exclusions live in inventory INV-32; the same as GET /scanning safety.version); \"\" when this module keeps its own copy"
+                    },
                     "schedule_blocked_reason": {
                       "description": "Set while the schedule is on but nothing automated can start because the organization time zone cannot be read; next_run is null then (D-261 (3))",
                       "type": [
@@ -73484,6 +74055,7 @@
                     "can_scan",
                     "block_reason",
                     "dangerous_checks",
+                    "version",
                     "schedule_blocked_reason"
                   ],
                   "additionalProperties": false

@@ -85,6 +85,7 @@ func patchOf(r *oas.ScanPutScansConfigReq) Patch {
 		UnresponsiveAfter:  opt(r.UnresponsiveAfter.Set, r.UnresponsiveAfter.Value),
 		AutoRescan:         opt(r.AutoRescan.Set, r.AutoRescan.Value),
 		DangerousChecks:    opt(r.DangerousChecks.Set, r.DangerousChecks.Value),
+		Version:            r.Version.Or(""),
 	}
 	if w, ok := r.Window.Get(); ok {
 		p.Days = w.Days

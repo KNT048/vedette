@@ -646,7 +646,9 @@ func (d *Dispatcher) JobResult(_ context.Context, id string, res *sensorlink.Job
 // being cancelled, or whose probe has no Sink, is accepted and dropped, and so is one that comes sooner than progressMin after the
 // last one of the job (the worker sends one every sensorlink.ProgressEvery; review r1 #2). The Sink is called under mu, so a report
 // can never land after the job's result (JobResult takes mu too and the job is then no longer running; review r1 #1). A Sink is a
-// progress.Tracker: a short lock of its own, never a call back into the Dispatcher. The Tracker checks every field again.
+// progress.Tracker or the job's part of a progress.Series: a short lock of its own, never a call back into the Dispatcher. The
+// Tracker checks every field again. The first report of a job opens a new pass of its phase (a second nmap run of a device starts
+// from 0 again, whatever the previous run's last word was); the jobs of a Series are one pass, which the Series keeps.
 func (d *Dispatcher) JobProgress(_ context.Context, id string, p *sensorlink.JobProgress) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -659,8 +661,9 @@ func (d *Dispatcher) JobProgress(_ context.Context, id string, p *sensorlink.Job
 	if j.sink == nil || j.cancelled || (!j.progressAt.IsZero() && now.Sub(j.progressAt) < progressMin) {
 		return nil
 	}
+	first := j.progressAt.IsZero()
 	j.progressAt = now
-	u := progress.Update{Phase: p.Phase, Percent: p.Percent, Done: p.Done, Total: p.Total, Remaining: time.Duration(p.RemainingS) * time.Second, Message: passNote[j.spec.Shape]}
+	u := progress.Update{Phase: p.Phase, Percent: p.Percent, Done: p.Done, Total: p.Total, Remaining: time.Duration(p.RemainingS) * time.Second, Message: passNote[j.spec.Shape], NewPass: first}
 	if s.kind == sensorlink.KindNuclei {
 		u.Unit = progress.UnitChecks
 	}

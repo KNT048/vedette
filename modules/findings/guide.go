@@ -214,6 +214,7 @@ type Row struct {
 	History        []historyDoc `json:"history"`
 	Asset          *AssetView   `json:"asset"`
 	Kev            *KevInfo     `json:"kev"`
+	CVSS           *CVSS        `json:"cvss"` // nil: no score known ("No score", never 0; INV-22)
 	// Fix is the one update that fixes this finding together with the device's other open findings of the same software (D-545):
 	// set on the list only, for an open finding; nil when Vedette cannot name one.
 	Fix *RowFix `json:"fix"`
@@ -233,11 +234,11 @@ type Detail struct {
 	FixedIn *FixedIn `json:"fixed_in"` // null when NVD's ranges do not say which release fixes it (D-488)
 }
 
-func newRow(r Record, a *AssetView, k *KevInfo) Row {
+func newRow(r Record, a *AssetView, k *KevInfo, c *CVSS) Row {
 	row := Row{
 		ID: r.ID, AssetID: r.AssetID, CVE: r.CVE, Status: r.Status, Severity: r.Severity, Confidence: r.Confidence, Basis: r.Basis,
 		Evidence: newEvidenceDoc(r.Evidence), FirstSeen: r.FirstSeen.UTC(), LastSeen: r.LastSeen.UTC(),
-		History: make([]historyDoc, 0, len(r.History)), Asset: a, Kev: k,
+		History: make([]historyDoc, 0, len(r.History)), Asset: a, Kev: k, CVSS: c,
 	}
 	if r.ResolvedBy != "" {
 		row.ResolvedBy = &r.ResolvedBy

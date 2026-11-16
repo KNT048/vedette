@@ -40,7 +40,9 @@
     "page": "Page {{page}} of {{pages}}",
     "prev": "Previous",
     "next": "Next",
-    "emptyFiltered": "No rows match these filters."
+    "emptyFiltered": "No rows match these filters.",
+    "sortBy": "Sort by",
+    "sortOption": "Sort by {{column}}"
   },
   "status": {
     "confirmed": "Confirmed",

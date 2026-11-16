@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -13,6 +13,8 @@ import { feature } from './index'
 import { accepted, fixes } from './mocks'
 import { FixedInNote } from './Recommendation'
 import { dayAfter, untilBounds, untilOk } from './accept'
+import { cvssBand } from './basis'
+import { CvssScore } from './Cvss'
 import type { FindingDetail } from './types'
 
 const FORTI = 'show firewall vip | grep -f 192.168.10.21'
@@ -441,6 +443,82 @@ describe('findings: Mark as handled form matrix (docs/QA.md §2, QA walk 2026-11
     })
     expect(within(dlg).getByRole('radio', { name: /Patched/ })).toBeChecked()
     expect(within(dlg).getByRole('textbox')).toHaveValue('')
+  })
+})
+
+describe('findings: CVSS score (#825)', () => {
+  const cves = (table: HTMLElement) => within(table).getAllByRole('row').slice(1).map((r) => within(r).getByRole('link', { name: /^CVE-/ }).textContent)
+
+  it('FIRST bands for 3.x and 4.0 (0.0 None … 9.0–10.0 Critical); NVD\'s v2 bands for 2.0 (Low, Medium, High; no Critical)', () => {
+    expect([0, 0.1, 3.9, 4, 6.9, 7, 8.9, 9, 10].map((s) => cvssBand(s, '3.1'))).toEqual(['none', 'low', 'low', 'medium', 'medium', 'high', 'high', 'critical', 'critical'])
+    expect([0, 3.9, 4, 6.9, 7, 9.3, 10].map((s) => cvssBand(s, '2.0'))).toEqual(['low', 'low', 'medium', 'medium', 'high', 'high', 'high'])
+  })
+
+  it('a CVSS 2.0 score (only score NVD has) shows its v2 band and says "2.0" behind the ⓘ', async () => {
+    render(<MemoryRouter><CvssScore cvss={{ score: 9.3, version: '2.0', source: 'nvd', vector: 'AV:N/AC:M/Au:N/C:C/I:C/A:C' }} prefix /></MemoryRouter>)
+    await userEvent.click(screen.getByRole('button', { name: 'About CVSS 9.3 High' }))
+    const tip = await screen.findByRole('dialog', { name: 'About CVSS 9.3 High' })
+    expect(tip).toHaveTextContent('CVSS 2.0 base score. Source: NVD.')
+    expect(tip).toHaveTextContent('AV:N/AC:M/Au:N/C:C/I:C/A:C')
+  })
+
+  it('the list shows "CVSS 9.8 Critical" under the exploited risk in the Severity column (no extra column), "No CVSS score" never 0; "Sort by CVSS" puts the highest first and no score last', async () => {
+    renderApp('/findings')
+    const table = await screen.findByRole('table', { name: 'Findings list' })
+    // the default order stays the exploited risk (KEV signal first): CVSS is next to it, not instead of it
+    expect(cves(table)).toEqual(['CVE-2022-27593', 'CVE-2026-96951', 'CVE-2026-119977'])
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent?.trim())).not.toContain('CVSS')
+    const first = within(table).getAllByRole('row')[1]!
+    expect(within(first).getAllByText('Critical')).toHaveLength(2) // the risk chip and the CVSS band, one cell
+    expect(within(first).getByRole('button', { name: 'About CVSS 9.8 Critical' })).toBeInTheDocument()
+    expect(within(table).getByRole('button', { name: 'About CVSS 8.5 High' })).toBeInTheDocument()
+    expect(within(table).getByText('No CVSS score')).toBeInTheDocument()
+    expect(within(table).queryByText('0.0')).toBeNull()
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'Sort by CVSS')
+    await waitFor(() => expect(cves(screen.getByRole('table'))).toEqual(['CVE-2022-27593', 'CVE-2026-119977', 'CVE-2026-96951']))
+    // review r1 L5: "Sort by Last seen" puts the newest first
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'Sort by Last seen')
+    await waitFor(() => expect(cves(screen.getByRole('table'))[0]).toBe('CVE-2022-27593'))
+    expect(within(screen.getByRole('table')).getByRole('columnheader', { name: /Last seen/ })).toHaveAttribute('aria-sort', 'descending')
+    // the header still sorts by the exploited risk, and the box follows it
+    await userEvent.click(within(screen.getByRole('table')).getByRole('button', { name: 'Severity' }))
+    expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('severity')
+    // version and source behind the ⓘ (#824: one short line visible); axe passes with it open
+    await userEvent.click(within(screen.getByRole('table')).getByRole('button', { name: 'About CVSS 8.5 High' }))
+    expect(await screen.findByRole('dialog', { name: 'About CVSS 8.5 High' })).toHaveTextContent('CVSS 4.0 base score. Source: Another scorer (CNA or CISA ADP).')
+    await expectNoA11yViolations()
+  })
+
+  it('phone: the list sorts by CVSS from the "Sort by" box (no column headers to click)', async () => {
+    vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('max-width'), media: q, addEventListener: () => {}, removeEventListener: () => {} }))
+    try {
+      renderApp('/findings')
+      const list = await screen.findByRole('list', { name: 'Findings list' })
+      const order = () => within(screen.getByRole('list', { name: 'Findings list' })).getAllByRole('link', { name: /^CVE-/ }).map((a) => a.textContent)
+      expect(within(list).getByRole('button', { name: 'About CVSS 9.8 Critical' })).toBeInTheDocument()
+      expect(within(list).getByText('No CVSS score')).toBeInTheDocument()
+      await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'Sort by CVSS')
+      await waitFor(() => expect(order()).toEqual(['CVE-2022-27593', 'CVE-2026-119977', 'CVE-2026-96951']))
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('the finding page shows "CVSS 9.8 Critical" in its first line, with the version and source behind the ⓘ; no score says so', async () => {
+    renderApp('/findings/f-1')
+    const about = await screen.findByRole('button', { name: 'About CVSS 9.8 Critical' })
+    await userEvent.click(about)
+    const tip = await screen.findByRole('dialog', { name: 'About CVSS 9.8 Critical' })
+    expect(tip).toHaveTextContent('CVSS 3.1 base score. Source: NVD.')
+    // FIRST's terms of use: the vector with the score, and the attribution
+    expect(tip).toHaveTextContent('CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H')
+    expect(tip).toHaveTextContent('CVSS is owned by FIRST and used by permission.')
+    await expectNoA11yViolations()
+    cleanup()
+    renderApp('/findings/f-3')
+    expect(await screen.findByText('No CVSS score')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'About No CVSS score' }))
+    expect(await screen.findByRole('dialog')).toHaveTextContent('No CVSS score in the data this box has.')
   })
 })
 

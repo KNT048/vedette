@@ -240,6 +240,10 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: notSafetyRead})
 		return c, nil
 	}
+	if ip.IsValid() && sf.excluded(ip) { // excluded while the scan ran (review L3): nothing more goes to it
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: clipText(fmt.Sprintf(notDeepExcluded, ip), maxLineText)})
+		return c, nil
+	}
 	for i := range jobs {
 		jobs[i].RPS = sf.rps(jobs[i].RPS)
 	}

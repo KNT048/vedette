@@ -1,5 +1,10 @@
 # Sensor-active — Change Impact Map
 
+## Modifying: manual runs and the engine view (`StartManual`, `Manual`, `WaitManual`, `Engine`, `manualUntil`; #850, INV-21)
+- **core** (`POST /scanning/engines/nmap-discovery/run`, `GET /scanning` `running[]` and the nmap-discovery, nmap-versions and snmp cards) reaches them through `cmd/vedette/scanning.go`: `TargetError` reasons and the `Err*` refusals map to the API's codes there; renaming one changes what a person reads.
+- **The window rule** (`windowNow`) now also opens for `manualUntil`: a change to it changes the first pass, the queue drain and `SettingsChanged`.
+- **`DiscoverRanges`** runs its batches without the context's progress sink and reports the sweep's own count instead (#830 FAIL 2): a caller that wants a batch's own nmap percent must not rely on the sink.
+
 ## Modifying: hai mẫu sâu `external_full`/`external_disruptive`, `ScanExternal(ctx, ip, kind, own)`, `DeepGate`, `ExternalScript` (D-526, INV-19)
 - **cmd/vedette** `exposureservices.go`: chọn mẫu từ `exposure.ScanTarget.Mode` (`shapeOf`), `ownGate` cài `DeepGate` qua `exposure.ModeNow`, đổi `ErrNotDeep`/`ErrFullUnsupported` thành dòng của trang, chuyển `External.Scripts` → `exposure.ScriptRow`. Đổi `nmapargv.FullHostTimeout` thì đổi cả `exposure.FullHostLimit` và xem lại `exposure.FullServicesTimeout` (`TestExposureServiceShapeFollowsTheMode` giữ ba số cùng nhau).
 - **exposure** (module của Mlee): bước dịch vụ của lượt quét sâu, dòng "did not finish within …", cột `exp_snapshot.scripts` (migration 0010 của exposure), `modules/core/export_policy.go`.
@@ -67,6 +72,11 @@
 - **core/sensorlink**: lý do kết quả `not_own_ip` và `egress_unverified` (`resultCode`); `Dispatcher.outcome` đổi chúng thành `ErrWorkerRefused` + `ErrNotOwnIP` / `ErrEgressUnverified`. **Image `scan` base** mang `/etc/ssl/certs/ca-certificates.crt` (sao từ image Go): bỏ nó thì rào worker luôn trả `egress_unverified`. Không tăng proto (D-514 (5)).
 - **Migration 0005** dựng lại `sa_job` và `sa_probe` như 0003/0004 (giữ id, bộ đếm AUTOINCREMENT, mọi kind/shape cũ): thêm mẫu sau này cũng phải dựng lại cả hai và giữ `TestMigration000{3,4,5}KeepsTheProbeCounter` (mỗi test chạy các migration trước số của nó).
 - `SettingsChanged` bỏ qua lượt `external` (`running.external`): sửa chỗ đó thì một đổi cài đặt LAN sẽ dừng hay để lọt lượt của exposure.
+
+## Modifying: nmap on a terminal, the worker's own phase, a pass per job (#830 FAIL 1 on the N100)
+- The scan container: nmap now opens `/dev/ptmx` and gets a `/dev/pts` peer (a new session it leads). The container's AppArmor profile (`deploy/deb/vedette-container.apparmor`) has a bare `file,` rule, so no rule changes; Podman mounts a private devpts in every container, `ReadOnly=true` included. Without a terminal nmap runs as before (one warning in the worker's log, no live percent).
+- The worker posts the first phase as a job starts (one more request a job) and moves to `ports` on nmap's `<hosthint>`.
+- `Dispatcher.JobProgress` sets `progress.Update.NewPass` on a job's first report: a consumer that keeps a Tracker sees each nmap run as a pass of its own.
 
 ## Modifying: progress of a running job (#830: `nmapargv.StatsEvery`, `worker/progress.go`, `Dispatcher.JobProgress`)
 - `nmapargv.Build`/`BuildFor`/`Validate`/`ParseFor`: `--stats-every 5s` sits before `-oX -` in every shape; every test that spells an argv carries it (`cmd/vedette` `sensoractive_test.go` too). The probe log row of a run stores it after the shape's flags (`StatsFlags`, INV-9); rows from before have none.

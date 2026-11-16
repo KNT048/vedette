@@ -17,6 +17,7 @@ const prefixOverrides: ReadonlyArray<readonly [string, string]> = [
   ['/auth', 'core'],
   ['/me', 'core'],
   ['/modules', 'core'],
+  ['/scanning', 'core'], // #850: Settings › Scanning (core/server/modules.go)
   ['/setup', 'core'],
 ]
 

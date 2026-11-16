@@ -50,6 +50,7 @@ type fakeGVM struct {
 	cmds        []string // command names in the order they came
 	authFail    bool
 	syncing     bool       // get_feeds reports a feed that is still loading
+	nvtVersion  string     // the NVT feed's <version> in get_feeds; "" is the default 202611140611
 	dataSync    bool       // gvmd's own feed lock is taken: its GVMD_DATA feed is syncing (the lock is one for every feed of gvmd)
 	noFAF       bool       // "Full and fast" is not there yet (404)
 	states      []string   // get_tasks answers in turn; the last repeats
@@ -167,8 +168,13 @@ func (f *fakeGVM) answer(cmd string, body string) string {
 		if f.dataSync {
 			lock = "<currently_syncing><timestamp>x</timestamp></currently_syncing>"
 		}
+		ver := f.nvtVersion
+		if ver == "" {
+			ver = "202611140611"
+		}
 		// as gvmd answers without the SCAP and CERT data (D-593): a feed whose feed.xml is missing is left out
-		return ok("<feed><type>NVT</type><name>Greenbone Community Feed</name>" + sync + "</feed><feed><type>GVMD_DATA</type><name>Greenbone Community gvmd Data Feed</name>" + lock + "</feed>")
+		return ok("<feed><type>NVT</type><name>Greenbone Community Feed</name><version>" + ver + "</version>" + sync +
+			"</feed><feed><type>GVMD_DATA</type><name>Greenbone Community gvmd Data Feed</name><version>202611130507</version>" + lock + "</feed>")
 	case "get_info", "get_resource_names": // gvmd 26.43.0 without SCAP/CERT (gmp.c)
 		return "<" + cmd + `_response status="400" status_text="The SCAP database is required"/>`
 	case "get_configs":
@@ -1799,5 +1805,109 @@ func TestContract_INV25_StartUpStopsWhatARestartCutOff(t *testing.T) {
 	}
 	if state != GBRunStopped || !strings.Contains(lines, notGBCutOff) || strings.Contains(lines, gbPending) {
 		t.Fatalf("state %q, lines %s", state, lines)
+	}
+}
+
+// T10 (J6): the setting shows the date of the vulnerability tests OpenVAS has loaded, read from gvmd's get_feeds, from the first feed
+// load at Enable on (also while it loads), so a working OpenVAS before its first weekly update never reads as "never updated". The
+// weekly update stays due a week after Enable.
+func TestContract_INV25_FeedDateFromGvmd(t *testing.T) {
+	t.Parallel()
+	e, h := gbEnv(t)
+	if v := e.gbState(); v.State != GBOff || v.Feed != nil {
+		t.Fatalf("off before the first enable: %s %+v", v.State, v.Feed)
+	}
+	e.enable()
+	h.gvm.with(func(g *fakeGVM) { g.syncing = true })
+	v := e.gbState()
+	if v.State != GBLoading || v.Feed == nil || str(v.Feed.NVTVersion) != "202611140611" {
+		t.Fatalf("while loading: %s %+v", v.State, v.Feed)
+	}
+	h.gvm.with(func(g *fakeGVM) { g.syncing = false })
+	v = e.gbState()
+	if v.State != GBReady || v.Feed == nil || str(v.Feed.NVTVersion) != "202611140611" || str(v.Feed.NVTDate) != "2026-11-14T06:11:00.000Z" ||
+		v.Feed.CheckedAt != store.FormatTS(e.clock.Now()) {
+		t.Fatalf("ready: %s %+v", v.State, v.Feed)
+	}
+	if v.FeedSync.LastAt != nil || v.FeedSync.NextAt == nil || *v.FeedSync.NextAt != store.FormatTS(parseTSMust(t, *v.ChangedAt).Add(GreenboneSyncEvery)) {
+		t.Fatalf("weekly update = %+v (changed %s)", v.FeedSync, str(v.ChangedAt))
+	}
+	if _, err := into[oas.ExposureGetExposureGreenboneOK](v); err != nil {
+		t.Fatal(err)
+	}
+	// a version gvmd sends in another shape is shown without a date; one Vedette would not print is not shown at all
+	h.gvm.with(func(g *fakeGVM) { g.nvtVersion = "20261114" })
+	if v = e.gbState(); v.Feed == nil || str(v.Feed.NVTVersion) != "20261114" || v.Feed.NVTDate != nil {
+		t.Fatalf("8 digits: %+v", v.Feed)
+	}
+	h.gvm.with(func(g *fakeGVM) { g.nvtVersion = "&lt;b&gt;x" })
+	if v = e.gbState(); v.State != GBReady || v.Feed == nil || v.Feed.NVTVersion != nil || v.Feed.NVTDate != nil {
+		t.Fatalf("markup: %s %+v", v.State, v.Feed)
+	}
+	// get_feeds refused: the state says so; the last feed read is kept, never replaced by a guess
+	h.gvm.with(func(g *fakeGVM) { g.nvtVersion = ""; g.fail = map[string]bool{"get_feeds": true} })
+	if v = e.gbState(); v.State != GBError || v.Feed == nil || v.Feed.NVTVersion != nil {
+		t.Fatalf("refused: %s %+v", v.State, v.Feed)
+	}
+	// off: no feed line
+	if _, err := e.svc.SetGreenbone(e.ctx(), "admin@acme.example", false); err != nil {
+		t.Fatal(err)
+	}
+	if v = e.gbState(); v.State != GBOff || v.Feed != nil {
+		t.Fatalf("off: %s %+v", v.State, v.Feed)
+	}
+}
+
+func parseTSMust(t *testing.T, s string) time.Time {
+	t.Helper()
+	at, err := parseTS(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return at
+}
+
+// T10: gvmd's get_feeds answer is untrusted. The NVT version is read only in the shape Vedette prints and its date only from
+// "YYYYMMDDhhmm" (UTC); a feed list without an NVT feed gives nothing; an answer that is not GMP is refused (fail closed).
+func TestGMPFeedsNVTVersion(t *testing.T) {
+	t.Parallel()
+	const head = `<get_feeds_response status="200" status_text="OK"><feed_owner_set>0</feed_owner_set><feed_roles_set>0</feed_roles_set><feed_resources_access>1</feed_resources_access>`
+	feed := func(typ, ver string) string {
+		return `<feed><type>` + typ + `</type><name>Greenbone Community Feed</name><version>` + ver + `</version><description>x</description></feed>`
+	}
+	cases := []struct {
+		name, raw, version, date string
+	}{
+		{"gvmd 26 without SCAP/CERT", head + feed("NVT", "202611140611") + feed("GVMD_DATA", "202611130507") + `</get_feeds_response>`, "202611140611", "2026-11-14T06:11:00.000Z"},
+		{"spaces around", head + feed("NVT", " 202611140611\n") + `</get_feeds_response>`, "202611140611", "2026-11-14T06:11:00.000Z"},
+		{"only gvmd data", head + feed("GVMD_DATA", "202611130507") + `</get_feeds_response>`, "<nil>", ""},
+		{"no feed", head + `</get_feeds_response>`, "<nil>", ""},
+		{"8 digits", head + feed("NVT", "20261114") + `</get_feeds_response>`, "20261114", ""},
+		{"not a month", head + feed("NVT", "202613140611") + `</get_feeds_response>`, "202613140611", ""},
+		{"last century", head + feed("NVT", "199911140611") + `</get_feeds_response>`, "199911140611", ""},
+		{"too long", head + feed("NVT", strings.Repeat("1", 41)) + `</get_feeds_response>`, "<nil>", ""},
+		{"markup", head + feed("NVT", "&lt;script&gt;") + `</get_feeds_response>`, "<nil>", ""},
+		{"empty", head + feed("NVT", "") + `</get_feeds_response>`, "<nil>", ""},
+	}
+	for _, tc := range cases {
+		var f gmpFeeds
+		if _, err := decodeGMP(&capReader{r: strings.NewReader(tc.raw), n: gmpMaxAnswer}, "get_feeds", &f); err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		v, at := f.nvtFeed()
+		gotDate := ""
+		if at != nil {
+			gotDate = store.FormatTS(*at)
+		}
+		if str(v) != tc.version || gotDate != tc.date {
+			t.Errorf("%s: version %q date %q, want %q %q", tc.name, str(v), gotDate, tc.version, tc.date)
+		}
+	}
+	for _, raw := range []string{``, `HTTP/1.1 502 Bad Gateway`, `<get_feeds_response status="200"><feed><type>NVT</type>`, `<get_configs_response status="200"/>`,
+		`<get_feeds_response status="503" status_text="Service unavailable"/>`, `<get_feeds_response status="200"><feed><version>` + strings.Repeat("9", gmpMaxAnswer) + `</version></feed></get_feeds_response>`} {
+		var f gmpFeeds
+		if _, err := decodeGMP(&capReader{r: strings.NewReader(raw), n: gmpMaxAnswer}, "get_feeds", &f); err == nil {
+			t.Errorf("accepted %.60q", raw)
+		}
 	}
 }

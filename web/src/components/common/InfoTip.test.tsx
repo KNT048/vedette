@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { expectNoA11yViolations } from '@/test/render'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { InfoTip } from './InfoTip'
 
@@ -13,6 +14,17 @@ describe('InfoTip (#824)', () => {
     expect(btn).toHaveAccessibleDescription('Scan the QR code with the Zalo app on a phone.')
     expect(btn).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('the open popover is a dialog named like its button, so axe passes with it open (aria-dialog-name, #825)', async () => {
+    const user = userEvent.setup()
+    render(<><InfoTip topic="Zalo sign-in">Scan the QR code.</InfoTip><InfoTip topic="2 users sign in with email codes and will be locked out.">b</InfoTip></>)
+    await user.click(screen.getByRole('button', { name: 'About Zalo sign-in' }))
+    expect(screen.getByRole('dialog', { name: 'About Zalo sign-in' })).toHaveTextContent('Scan the QR code.')
+    await expectNoA11yViolations()
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'More about this' }))
+    expect(screen.getByRole('dialog', { name: 'More about this' })).toBeInTheDocument()
   })
 
   it('opens on click and closes on a click outside', async () => {

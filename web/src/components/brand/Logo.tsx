@@ -11,7 +11,7 @@ export const LOGO = {
 } as const
 
 /** The amber of the signal dot, the same in both themes (dark --warn). */
-export const SIGNAL = '#e7a748'
+export const SIGNAL = '#e7a748' // ui-guard: the logo's signal dot, the one colour outside the theme (docs/UI.md §1)
 
 export type LogoVariant = keyof typeof LOGO
 

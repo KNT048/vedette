@@ -21,7 +21,7 @@ export function ScopeLine({ scope, turnOff, module, className }: { scope: Scope;
   if (scope !== 'preview' && scope !== 'leaving') return null
   const line = t(scope === 'preview' ? 'scope.previewLine' : 'scope.leavingLine')
   return (
-    <div className={cn('flex flex-wrap items-center gap-x-1 text-[13px]', scope === 'leaving' ? 'text-warn' : 'text-muted', className)}>
+    <div className={cn('flex flex-wrap items-center gap-x-1 text-meta', scope === 'leaving' ? 'text-warn' : 'text-muted', className)}>
       <span>{line}</span>
       <InfoTip topic={t(scope === 'preview' ? 'scope.preview' : 'scope.leaving')}>{t(scope === 'preview' ? 'scope.previewInfo' : 'scope.leavingInfo')}</InfoTip>
       {turnOff && scope === 'leaving' ? <Link to={module ? `/settings/modules#module-${module}` : '/settings/modules'} className="text-accent underline-offset-4 hover:underline">{t('scope.turnOff')}</Link> : null}

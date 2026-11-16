@@ -43,7 +43,7 @@ export function ImportForm({ onClose }: { onClose: () => void }) {
       <div className="grid gap-1.5">
         <Label htmlFor="import-file">{t('import.file')}</Label>
         <input id="import-file" ref={input} type="file" accept=".csv,text/csv" className="text-sm file:mr-3 file:h-9 file:cursor-pointer file:rounded-md file:border file:border-rule file:bg-surface file:px-3 file:text-sm" onChange={(e) => void onFile(e.target.files?.[0])} />
-        <p className="text-[13px] text-muted">{t('import.fileHint', { kb: MAX_BYTES / 1000 })}</p>
+        <p className="text-meta text-muted">{t('import.fileHint', { kb: MAX_BYTES / 1000 })}</p>
       </div>
       {imp.isPending ? <p role="status" className="text-sm"><Upload className="mr-1 inline size-4" aria-hidden />{t('import.working')}</p> : null}
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
@@ -52,7 +52,7 @@ export function ImportForm({ onClose }: { onClose: () => void }) {
           <p className="font-medium">{t('import.summary', { added: t('import.added', { count: result.created }), skipped: t('import.skipped', { count: result.skipped }) })}</p>
           {result.errors.length ? (
             <>
-              <p className="text-[13px] text-muted">{t('import.errorsHint')}</p>
+              <p className="text-meta text-muted">{t('import.errorsHint')}</p>
               <ul className="grid max-h-48 gap-1 overflow-y-auto">
                 {result.errors.map((e) => <li key={e.line}><span className="font-medium">{t('import.line', { line: e.line })}</span> {e.message}</li>)}
               </ul>
@@ -60,7 +60,7 @@ export function ImportForm({ onClose }: { onClose: () => void }) {
           ) : null}
           {result.notes.length ? (
             <>
-              <p className="text-[13px] text-muted">{t('import.notesHint')}</p>
+              <p className="text-meta text-muted">{t('import.notesHint')}</p>
               <ul className="grid max-h-48 gap-1 overflow-y-auto">
                 {result.notes.map((e) => <li key={e.line}><span className="font-medium">{t('import.line', { line: e.line })}</span> {e.message}</li>)}
               </ul>

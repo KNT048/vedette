@@ -43,20 +43,20 @@ export function DeepSection({ s }: { s: Snapshot }) {
   const rows = deepAddrs(s)
   if (rows.length === 0) return null
   const cols: ColumnDef<DeepAddr>[] = [
-    { id: 'ip', header: t('col.ip'), accessorFn: (r) => r.ip, cell: ({ row }) => <span className="font-mono text-[13px]">{row.original.ip}</span> },
-    { id: 'names', header: t('deep.col.names'), accessorFn: (r) => r.names.join(' '), cell: ({ row }) => <span className="grid gap-0.5 break-all text-[13px]">{row.original.names.map((n) => <span key={n}>{n}</span>)}</span> },
+    { id: 'ip', header: t('col.ip'), accessorFn: (r) => r.ip, cell: ({ row }) => <span className="font-mono text-meta">{row.original.ip}</span> },
+    { id: 'names', header: t('deep.col.names'), accessorFn: (r) => r.names.join(' '), cell: ({ row }) => <span className="grid gap-0.5 break-all text-meta">{row.original.names.map((n) => <span key={n}>{n}</span>)}</span> },
     { id: 'deep', header: t('deep.col.state'), accessorFn: (r) => r.deep, cell: ({ row }) => {
       const r = row.original
       return (
         <span className="grid gap-1">
           <Chip tone={TONE[r.deep]}>{t(`deep.state.${r.deep}`)}</Chip>
-          <span className="text-[12px] text-muted">{r.deep === 'waiting' ? t('deep.next', { n: r.next ?? 1 }) + ' ' : ''}{r.last ? t('deep.last', { time: dateTimeText(r.last) }) : t('deep.never')}</span>
+          <span className="text-caption text-muted">{r.deep === 'waiting' ? t('deep.next', { n: r.next ?? 1 }) + ' ' : ''}{r.last ? t('deep.last', { time: dateTimeText(r.last) }) : t('deep.never')}</span>
         </span>
       )
     } },
     { id: 'found', header: t('deep.col.found'), enableSorting: false, cell: ({ row }) => {
       const r = row.original
-      return r.deep === 'scanned' ? <span className="text-[13px]">{t('deep.found', { services: r.services, vulns: r.vulns, web: r.web, openvas: r.openvas })}</span> : <span className="text-[13px] text-muted">{t(`deep.why.${r.deep}`)}</span>
+      return r.deep === 'scanned' ? <span className="text-meta">{t('deep.found', { services: r.services, vulns: r.vulns, web: r.web, openvas: r.openvas })}</span> : <span className="text-meta text-muted">{t(`deep.why.${r.deep}`)}</span>
     } },
   ]
   return (

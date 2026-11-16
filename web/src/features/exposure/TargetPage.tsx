@@ -43,7 +43,7 @@ function TargetLoader() {
   const q = useTarget(id)
   return (
     <>
-      <Link to="/exposure" className="mb-3 inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink"><ArrowLeft className="size-3.5" />{t('target.back')}</Link>
+      <Link to="/exposure" className="mb-3 inline-flex items-center gap-1 text-meta text-muted hover:text-ink"><ArrowLeft className="size-3.5" />{t('target.back')}</Link>
       <QueryState query={q}>{(tg) => <TargetView target={tg} />}</QueryState>
     </>
   )
@@ -101,7 +101,7 @@ function TargetView({ target }: { target: Target }) {
         </>} />
       <ScanProgress />
       {needTwoStep ? <p role="alert" className="-mt-3 mb-6 max-w-3xl text-sm text-warn">{t('scan.needTwoStep', { value: target.value })} <Link to="/settings/account?tab=sign-in#two-step" className="underline">{t('scan.needTwoStepLink')}</Link></p> : null}
-      {blocked ? <p id="scan-reason" className="-mt-3 mb-6 max-w-3xl text-sm text-warn">{blocked}</p> : (scopeInfo ? <InfoLine className="-mt-3 mb-6 max-w-3xl text-[13px] text-muted" topic={t('scan.scopeTopic')} info={scopeInfo}>{scopeText}</InfoLine>
+      {blocked ? <p id="scan-reason" className="-mt-3 mb-6 max-w-3xl text-sm text-warn">{blocked}</p> : (scopeInfo ? <InfoLine className="-mt-3 mb-6 max-w-3xl text-meta text-muted" topic={t('scan.scopeTopic')} info={scopeInfo}>{scopeText}</InfoLine>
         : <p className="-mt-3 mb-6 max-w-3xl text-meta text-muted">{scopeText}{!target.full_scan && admin ? <> <Link to="?tab=ownership#step-terms" className="font-medium text-accent underline underline-offset-4">{t('scan.acceptTerms')}</Link></> : null}</p>)}
       {notice ? (
         <div id="scan-notice" role="note" aria-label={t('scan.noticeTitle')} className="-mt-3 mb-6 max-w-3xl rounded-md border border-line p-3 text-sm">
@@ -109,11 +109,11 @@ function TargetView({ target }: { target: Target }) {
             <p className="font-medium">{t('scan.noticeTitle')}</p>
             <InfoTip topic={t('scan.noticeTitle')}>{target.commitment ? <p>{t('scan.noticeChangedInfo')}</p> : null}<p>{t('scan.noticeWho')}</p></InfoTip>
           </div>
-          {target.commitment ? <p className="mb-1 text-[13px] text-muted">{t('scan.noticeChanged')}</p> : null}
+          {target.commitment ? <p className="mb-1 text-meta text-muted">{t('scan.noticeChanged')}</p> : null}
           <p>{notice.text}</p>
         </div>
       ) : null}
-      {!operator ? <InfoLine className="-mt-3 mb-6 max-w-3xl text-[13px] text-muted" topic={t('target.accessTopic')} info={t('target.viewOnlyInfo')}>{t('target.viewOnly')}</InfoLine> : null}
+      {!operator ? <InfoLine className="-mt-3 mb-6 max-w-3xl text-meta text-muted" topic={t('target.accessTopic')} info={t('target.viewOnlyInfo')}>{t('target.viewOnly')}</InfoLine> : null}
       {stateNotice ? <Notice tone={target.validity === 'expired' && target.kind === 'ip' ? 'danger' : 'warn'} role="alert" title={stateNotice} info={t(`${stateKey}Info`)}
         actions={<Button onClick={() => { const p = new URLSearchParams(params); p.set('tab', 'ownership'); setParams(p, { replace: true }) }}>{t('verify.goOwnership')}</Button>} /> : null}
       <AnchorRedirect map={target.kind === 'ip' ? ANCHOR_TAB : { ...ANCHOR_TAB, outside: 'results' }} />

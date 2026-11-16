@@ -28,7 +28,7 @@ export function RouteError() {
     <StandalonePage title={t('routeError.title')} size="md">
       <div role="alert" className="grid gap-3">
         <p className="text-sm text-muted">{t('routeError.body')}</p>
-        <pre className="overflow-x-auto rounded-md bg-sunken p-3 font-mono text-[12px]">{msg}</pre>
+        <pre className="overflow-x-auto rounded-md bg-sunken p-3 font-mono text-caption">{msg}</pre>
         <div className="flex flex-wrap items-center gap-4">
           <a href="/" className="text-accent underline-offset-4 hover:underline">{t('notFound.home')}</a>
           <Button onClick={() => setBug(true)}>{t('routeError.report')}</Button>

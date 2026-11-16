@@ -43,7 +43,7 @@ export function Section({ title, description, info, actions, children, id, stori
             <h2 className="text-base font-semibold" id={id ? `${id}-title` : undefined}>{title}</h2>
             {info ? <InfoTip topic={typeof title === 'string' ? title : undefined}>{info}</InfoTip> : null}
           </div>
-          {description ? <p className="max-w-3xl text-[13px] text-muted">{description}</p> : null}
+          {description ? <p className="max-w-3xl text-meta text-muted">{description}</p> : null}
           {stories ? <StoryTag ids={stories} /> : null}
         </div>
         {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
@@ -92,7 +92,7 @@ export function KeyValue({ items }: { items: { label: string; value: ReactNode }
     <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-[minmax(140px,max-content)_1fr]">
       {items.map((it) => (
         <div key={it.label} className="contents">
-          <dt className="text-[13px] text-muted">{it.label}</dt>
+          <dt className="text-meta text-muted">{it.label}</dt>
           <dd className="text-sm">{it.value}</dd>
         </div>
       ))}

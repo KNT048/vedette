@@ -22,23 +22,23 @@ export function WebSection({ s }: { s: Snapshot }) {
     { id: 'alert', header: t('web.col.alert'), accessorFn: (r) => r.name, cell: ({ row }) => (
       <span className="grid gap-1">
         <span className="font-medium">{row.original.name}</span>
-        <span className="text-[12px] text-muted">{row.original.description}</span>
+        <span className="text-caption text-muted">{row.original.description}</span>
         {row.original.software.map((w) => (
-          <span key={`${w.product}/${w.version}`} className="text-[12px]">{t('web.software', { product: w.product, version: w.version })}{w.cves.length > 0 ? ` · ${w.cves.join(', ')}` : ''}</span>
+          <span key={`${w.product}/${w.version}`} className="text-caption">{t('web.software', { product: w.product, version: w.version })}{w.cves.length > 0 ? ` · ${w.cves.join(', ')}` : ''}</span>
         ))}
         {row.original.cwe > 0 ? (
-          <a className="w-fit text-[12px] text-accent underline underline-offset-4" href={`https://cwe.mitre.org/data/definitions/${row.original.cwe}.html`} target="_blank" rel="noopener noreferrer" aria-label={t('web.cweLink', { id: row.original.cwe })}>{t('web.cwe', { id: row.original.cwe })}</a>
+          <a className="w-fit text-caption text-accent underline underline-offset-4" href={`https://cwe.mitre.org/data/definitions/${row.original.cwe}.html`} target="_blank" rel="noopener noreferrer" aria-label={t('web.cweLink', { id: row.original.cwe })}>{t('web.cwe', { id: row.original.cwe })}</a>
         ) : null}
       </span>
     ) },
     { id: 'confidence', header: t('web.col.confidence'), accessorFn: (r) => r.confidence, cell: ({ row }) => t(`web.confidence.${row.original.confidence}`) },
     { id: 'pages', header: t('web.col.pages'), enableSorting: false, accessorFn: (r) => r.urls.join(' '), cell: ({ row }) => (
-      <span className="grid gap-0.5 text-[12px]">
+      <span className="grid gap-0.5 text-caption">
         {row.original.urls.map((u) => <span key={u} className="break-all">{u}</span>)}
         {row.original.count > row.original.urls.length ? <span className="text-muted">{t('web.pagesMore', { count: row.original.count })}</span> : null}
       </span>
     ) },
-    { id: 'fix', header: t('web.col.fix'), enableSorting: false, accessorFn: (r) => r.solution, cell: ({ row }) => <span className="text-[13px]">{row.original.solution}</span> },
+    { id: 'fix', header: t('web.col.fix'), enableSorting: false, accessorFn: (r) => r.solution, cell: ({ row }) => <span className="text-meta">{row.original.solution}</span> },
   ]
   return (
     <Section id="web" title={t('web.title')} description={rows.length > 0 || scanned ? t('web.description') : undefined} info={rows.length > 0 || scanned ? t('web.descriptionInfo') : undefined}>

@@ -66,7 +66,7 @@ export function ProductPicker({ value, onChange, label, listOpenRef }: { value: 
           <Label htmlFor={`${uid}-product`}>{t('picker.product')}</Label>
           <Input id={`${uid}-product`} value={product} maxLength={64} placeholder={t('picker.productPlaceholder')} autoComplete="off" onChange={(e) => setCustomValue(vendor, e.target.value)} />
         </div>
-        <div className="flex items-center gap-1"><p className="text-[13px] text-muted" role="status">{t('picker.customNote')}</p><InfoTip>{t('picker.customNoteInfo')}</InfoTip></div>
+        <div className="flex items-center gap-1"><p className="text-meta text-muted" role="status">{t('picker.customNote')}</p><InfoTip>{t('picker.customNoteInfo')}</InfoTip></div>
         <div><Button size="sm" onClick={() => { setCustom(false); setVendor(''); setProduct(''); onChange(null) }}>{t('picker.backToList')}</Button></div>
       </div>
     )
@@ -93,25 +93,25 @@ export function ProductPicker({ value, onChange, label, listOpenRef }: { value: 
                 return (
                   <li key={it.id} id={`${uid}-opt-${i}`} role="option" aria-selected={i === active}
                     onMouseDown={(e) => e.preventDefault()} onClick={() => pick(it)} onMouseEnter={() => setActive(i)}
-                    className={cn('flex cursor-pointer items-center gap-3 rounded-[4px] px-2 py-2 text-sm', i === active && 'bg-sunken')}>
+                    className={cn('flex cursor-pointer items-center gap-3 rounded-sm px-2 py-2 text-sm', i === active && 'bg-sunken')}>
                     <Icon className="size-4 shrink-0 text-muted" aria-hidden />
                     <span className="grid min-w-0">
                       <span className="font-medium [overflow-wrap:anywhere]">{it.display}</span>
-                      <span className="text-[12px] text-muted [overflow-wrap:anywhere]">{it.category}, {it.vendor}</span>
-                      {it.kev_cves > 0 ? <span className="text-[12px] text-warn">{t('picker.kev', { count: it.kev_cves })}</span> : null}
+                      <span className="text-caption text-muted [overflow-wrap:anywhere]">{it.category}, {it.vendor}</span>
+                      {it.kev_cves > 0 ? <span className="text-caption text-warn">{t('picker.kev', { count: it.kev_cves })}</span> : null}
                     </span>
                   </li>
                 )
               })}
             </ul>
             <div className="grid gap-0.5 border-t border-rule px-2 py-1">
-              {total > items.length ? <span className="text-[12px] text-muted">{t('picker.more', { count: total - items.length })}</span> : null}
+              {total > items.length ? <span className="text-caption text-muted">{t('picker.more', { count: total - items.length })}</span> : null}
               <div><Button size="sm" variant="link" className="h-auto whitespace-normal text-left" onMouseDown={(e) => e.preventDefault()} onClick={() => { setCustom(true); setOpen(false) }}>{t('picker.notListed')}</Button></div>
             </div>
           </div>
         ) : null}
       </div>
-      <div className="text-[13px] text-muted" role="status">
+      <div className="text-meta text-muted" role="status">
         {value ? t('picker.chosen', { hint: value.hint }) : open && typed && !res.isPending && items.length === 0 ? t('picker.none') : t('picker.hint')}
       </div>
       {value || listVisible ? null : <div><Button size="sm" variant="link" className="h-auto whitespace-normal text-left" onClick={() => { setCustom(true); setOpen(false) }}>{t('picker.notListed')}</Button></div>}

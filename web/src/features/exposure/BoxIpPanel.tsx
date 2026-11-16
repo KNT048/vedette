@@ -54,7 +54,7 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
     { id: 'status', header: t('boxIp.col.status'), accessorFn: (r) => r.status, cell: ({ row }) => <OwnerChip target={row.original} /> },
     { id: 'seen', header: t('boxIp.col.seen'), accessorFn: (r) => r.verified_at ?? '', cell: ({ row }) => <span title={dateTimeText(row.original.verified_at)}>{fmtRelative(row.original.verified_at)}</span> },
     { id: 'expires', header: t('boxIp.col.expires'), accessorFn: (r) => r.expires_at ?? '', cell: ({ row }) => <span>{dateText(row.original.expires_at)}</span> },
-    { id: 'scan', header: t('boxIp.col.scan'), enableSorting: false, cell: ({ row }) => (row.original.blocked_reason ? <span className="text-[13px] text-warn">{t(`blocked.${blockedKey(row.original)}`)}</span> : <span className="text-[13px]">{t('targets.ready')}</span>) },
+    { id: 'scan', header: t('boxIp.col.scan'), enableSorting: false, cell: ({ row }) => (row.original.blocked_reason ? <span className="text-meta text-warn">{t(`blocked.${blockedKey(row.original)}`)}</span> : <span className="text-meta">{t('targets.ready')}</span>) },
     { id: 'remove', header: t('boxIp.col.remove'), enableSorting: false, cell: ({ row }) => <RemoveButton target={row.original} onRemove={setRemoving} /> },
   ]
 
@@ -82,17 +82,17 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
               <RefreshCw className={detect.isPending ? 'animate-spin motion-reduce:animate-none' : undefined} />{detect.isPending ? t('boxIp.detecting') : t('boxIp.detect')}
             </Button>
           </div>
-          {waitText ? <p className="max-w-3xl text-[13px] text-warn">{waitText}</p> : null}
-          {!can ? <p className="text-[13px] text-muted">{locked}</p> : null}
+          {waitText ? <p className="max-w-3xl text-meta text-warn">{waitText}</p> : null}
+          {!can ? <p className="text-meta text-muted">{locked}</p> : null}
           {run ? (
             <div role="status" className={`rounded-md border px-3 py-2 text-sm ${run.ok ? 'border-ok/40 bg-ok-soft' : 'border-warn/50 bg-warn-soft/60'}`}>
               <p className="mb-1 flex flex-wrap items-center gap-2">
                 <Chip tone={run.ok ? 'ok' : 'warn'}>{run.ok ? t('boxIp.last.ok') : t('boxIp.last.failed')}</Chip>
-                <span className="text-[12px] text-muted">{t('boxIp.last.title')} {t('boxIp.last.at', { time: dateTimeText(run.at) })}</span>
+                <span className="text-caption text-muted">{t('boxIp.last.title')} {t('boxIp.last.at', { time: dateTimeText(run.at) })}</span>
               </p>
               <p>{run.message}</p>
             </div>
-          ) : <InfoLine className="text-[13px] text-muted" topic={t('boxIp.last.title')} info={t('boxIp.last.neverInfo')}>{t('boxIp.last.never')}</InfoLine>}
+          ) : <InfoLine className="text-meta text-muted" topic={t('boxIp.last.title')} info={t('boxIp.last.neverInfo')}>{t('boxIp.last.never')}</InfoLine>}
         </Panel>
         <DataTable caption={t('boxIp.caption')} data={items} columns={columns} pageSize={20}
           mobileRow={(r) => (
@@ -102,8 +102,8 @@ export function BoxIpPanel({ items, settings, ignored }: { items: Target[]; sett
                 <RemoveButton target={r} onRemove={setRemoving} />
               </div>
               <div className="flex flex-wrap items-center gap-2"><OwnerChip target={r} /></div>
-              <p className="text-[13px] text-muted">{t('boxIp.col.seen')}: {fmtRelative(r.verified_at)}. {t('boxIp.col.expires')}: {dateText(r.expires_at)}.</p>
-              <p className="text-[13px] text-muted">{r.blocked_reason ? t(`blocked.${blockedKey(r)}`) : t('targets.ready')}</p>
+              <p className="text-meta text-muted">{t('boxIp.col.seen')}: {fmtRelative(r.verified_at)}. {t('boxIp.col.expires')}: {dateText(r.expires_at)}.</p>
+              <p className="text-meta text-muted">{r.blocked_reason ? t(`blocked.${blockedKey(r)}`) : t('targets.ready')}</p>
             </div>
           )}
           empty={<EmptyState title={t('boxIp.empty.title')}>{settings.auto ? <InfoLine topic={t('boxIp.empty.title')} info={t('boxIp.empty.onInfo', { every: every(settings.interval_min) })}>{t('boxIp.empty.on')}</InfoLine> : t('boxIp.empty.off')}</EmptyState>} />
@@ -140,7 +140,7 @@ function IgnoredList({ ignored }: { ignored: IgnoredIp[] }) {
         mobileRow={(r) => (
           <div className="grid gap-1.5">
             <div className="flex items-center justify-between gap-2"><span className="font-medium">{r.value}</span>{btn(r)}</div>
-            <p className="text-[13px] text-muted">{t('boxIp.ignored.col.by')}: {r.ignored_by}. {t('boxIp.ignored.col.at')}: {dateText(r.ignored_at)}.</p>
+            <p className="text-meta text-muted">{t('boxIp.ignored.col.by')}: {r.ignored_by}. {t('boxIp.ignored.col.at')}: {dateText(r.ignored_at)}.</p>
           </div>
         )}
         empty={<EmptyState title={t('boxIp.ignored.emptyTitle')}>{t('boxIp.ignored.emptyBody')}</EmptyState>} />

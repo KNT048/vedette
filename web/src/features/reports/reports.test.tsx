@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -265,7 +267,7 @@ describe('reports: print pages (print / save as PDF)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Weekly report, print view' })).toBeInTheDocument()
     const doc = await screen.findByRole('article', { name: 'Weekly security report' })
     expect(doc.closest('.print-doc')).not.toBeNull()
-    expect([...document.querySelectorAll('style')].some((x) => /@media print/.test(x.textContent ?? ''))).toBe(true)
+    expect(readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8')).toMatch(/:where\(body:has\(\.print-doc\)\) \* \{ visibility: hidden/) // the print rules live in index.css (docs/UI.md §12)
     await userEvent.click(screen.getByRole('button', { name: 'Print / Save PDF' }))
     expect(print).toHaveBeenCalledTimes(1)
     await expectNoA11yViolations()

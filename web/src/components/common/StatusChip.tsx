@@ -19,7 +19,7 @@ const soft: Record<Tone, string> = {
   accent: 'border border-accent/40 bg-accent-soft text-accent',
 }
 // docs/UI.md §7: solid only for danger (Confirmed), dashed only for warn (Suspected); the types allow nothing else.
-const SOLID_DANGER = 'border border-danger bg-danger text-white dark:text-paper'
+const SOLID_DANGER = 'border border-danger bg-danger text-paper'
 const DASHED_WARN = 'border border-dashed border-warn bg-warn-soft/60 text-warn'
 
 type ChipBase = { children: React.ReactNode; className?: string; title?: string }

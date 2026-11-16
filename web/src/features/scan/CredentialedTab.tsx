@@ -30,12 +30,12 @@ function Prepare() {
     <details className="rounded-md border border-rule bg-surface px-4 py-3">
       <summary className="cursor-pointer text-sm font-medium">{t('cred.prepare')}</summary>
       <div className="mt-3 grid gap-3">
-        <p className="text-[13px] text-muted">{t('cred.prepareIntro')}</p>
+        <p className="text-meta text-muted">{t('cred.prepareIntro')}</p>
         <CodeBlock label={t('cred.step1')} code={'ssh-keygen -t ed25519 -f vedette_scan_key -C "vedette-scan" -N ""'} />
         <CodeBlock label={t('cred.step2')} code={'sudo adduser --disabled-password --gecos "" vedette-scan'} />
         <CodeBlock label={t('cred.step3')} code={'scp vedette_scan_key.pub <ADMIN-USER>@<TARGET-IP>:/tmp/vedette_scan_key.pub'} />
         <CodeBlock label={t('cred.step4')} code={'sudo mkdir -p /home/vedette-scan/.ssh\nsudo install -m 600 -o vedette-scan -g vedette-scan /tmp/vedette_scan_key.pub /home/vedette-scan/.ssh/authorized_keys\nsudo chown vedette-scan:vedette-scan /home/vedette-scan/.ssh\nsudo chmod 700 /home/vedette-scan/.ssh'} />
-        <p className="text-[13px] text-muted">{t('cred.prepareEnd')}</p>
+        <p className="text-meta text-muted">{t('cred.prepareEnd')}</p>
       </div>
     </details>
   )
@@ -95,12 +95,12 @@ function AddForm({ options }: { options: ScanTarget[] }) {
       <div className="flex flex-wrap items-center gap-3">
         <input ref={file} type="file" className="sr-only" tabIndex={-1} aria-label={t('cred.fileInput')} onChange={(e) => void pick(e.target.files?.[0])} />
         <Button size="sm" disabled={!can} onClick={() => file.current?.click()}><Upload />{t('cred.pickFile')}</Button>
-        {fileName ? <span className="text-[13px] text-muted">{t('cred.fileChosen', { name: fileName })}</span> : null}
+        {fileName ? <span className="text-meta text-muted">{t('cred.fileChosen', { name: fileName })}</span> : null}
       </div>
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" variant="primary" disabled={!can || add.isPending}>{t('cred.save')}</Button>
-        {!can ? <span className="text-[13px] text-muted">{t('common:needRole', { role: t('common:role.admin') })}</span> : null}
+        {!can ? <span className="text-meta text-muted">{t('common:needRole', { role: t('common:role.admin') })}</span> : null}
       </div>
     </form>
   )
@@ -120,10 +120,10 @@ function List({ items }: { items: CredTarget[] }) {
   // Cột ổn định để nút không bị gắn lại (mất focus) mỗi lần render.
   const askRemove = useCallback((e: React.MouseEvent<HTMLElement>, r: CredTarget) => { opener.current = e.currentTarget; setRm(r) }, [])
   const columns = useMemo<ColumnDef<CredTarget>[]>(() => [
-    { id: 'host', header: t('cred.col.host'), accessorFn: (r) => r.label, cell: ({ row: { original: r } }) => <div className="grid"><span className="font-medium">{r.label}</span><span className="text-[12px] text-muted">{r.username}@{r.host}:{r.port}</span></div> },
+    { id: 'host', header: t('cred.col.host'), accessorFn: (r) => r.label, cell: ({ row: { original: r } }) => <div className="grid"><span className="font-medium">{r.label}</span><span className="text-caption text-muted">{r.username}@{r.host}:{r.port}</span></div> },
     { id: 'key', header: t('cred.col.key'), accessorFn: (r) => r.key_last4, cell: ({ row: { original: r } }) => <span>{t('cred.keyEnds', { last4: r.key_last4 })}</span> },
     { id: 'test', header: t('cred.col.test'), enableSorting: false, cell: ({ row: { original: r } }) => (r.last_test ? (
-      <div className="grid gap-1"><span><Chip tone={r.last_test.ok ? 'ok' : 'warn'}>{r.last_test.ok ? t('cred.testOk') : t('cred.testFail')}</Chip> <span className="text-[12px] text-muted">{fmtDateTime(r.last_test.ts)}</span></span><span className="max-w-md text-[13px]">{r.last_test.message}</span></div>
+      <div className="grid gap-1"><span><Chip tone={r.last_test.ok ? 'ok' : 'warn'}>{r.last_test.ok ? t('cred.testOk') : t('cred.testFail')}</Chip> <span className="text-caption text-muted">{fmtDateTime(r.last_test.ts)}</span></span><span className="max-w-md text-meta">{r.last_test.message}</span></div>
     ) : <span className="text-muted">{t('cred.notTested')}</span>) },
     { id: 'actions', header: () => <span className="sr-only">{t('hist.actions')}</span>, enableSorting: false, cell: ({ row: { original: r } }) => (
       <div className="flex gap-2">

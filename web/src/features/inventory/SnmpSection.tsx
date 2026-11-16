@@ -36,7 +36,7 @@ type Errors = Partial<Record<'name' | 'community' | 'username' | 'auth_password'
 
 function SecretMask({ last4 }: { last4: string }) {
   const { t } = useTranslation('inventory')
-  return <span className="whitespace-nowrap font-mono text-[13px]">{t('agents.tokenMask', { last4 })}</span>
+  return <span className="whitespace-nowrap font-mono text-meta">{t('agents.tokenMask', { last4 })}</span>
 }
 
 /** Add or edit a credential. scope pre-fills the scope (a device page's address, D-598); widen: the scope given reaches a new address, so
@@ -163,7 +163,7 @@ export function CredentialForm({ current, scope, widen = false, onCancel, onSave
           <Field label={t('snmp.form.scope')} htmlFor={`${idPrefix}-scope`} hint={t('snmp.form.scopeHint')} info={t('snmp.form.scopeHintInfo')} error={errors.scope}>
             <Textarea id={`${idPrefix}-scope`} rows={3} value={scopeText} placeholder={'192.168.10.0/24\n192.168.20.5'} spellCheck={false} onChange={(e) => setScopeText(e.target.value)} aria-invalid={!!errors.scope} aria-describedby={described(`${idPrefix}-scope`, errors.scope)} className="font-mono text-meta" />
           </Field>
-          <p className="text-[12px] text-muted">{t('snmp.form.insecure')}</p>
+          <p className="text-caption text-muted">{t('snmp.form.insecure')}</p>
           {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
           <DialogFooter>
             <Button onClick={onCancel}>{t('common:cancel')}</Button>
@@ -191,15 +191,15 @@ export function SnmpAnswer({ r, ip }: { r: SnmpTestResult; ip: string }) {
     <div role="status" className="grid min-w-0 gap-2 rounded-md border border-ok/40 bg-ok-soft px-3 py-2 text-sm">
       <p className="font-medium">{t('snmp.run.answered', { ip })}</p>
       <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-[max-content_1fr]">
-        {rows.map(([k, v]) => <div key={k} className="contents"><dt className="text-[13px] text-muted">{t(`snmp.run.${k}`)}</dt><dd className="[overflow-wrap:anywhere]">{v}</dd></div>)}
+        {rows.map(([k, v]) => <div key={k} className="contents"><dt className="text-meta text-muted">{t(`snmp.run.${k}`)}</dt><dd className="[overflow-wrap:anywhere]">{v}</dd></div>)}
       </dl>
       {a.sys_descr ? (
         <div className="grid min-w-0 gap-1">
-          <p className="text-[13px] text-muted">{t('snmp.run.descr')}</p>
-          <pre tabIndex={0} className="max-h-40 overflow-auto whitespace-pre-wrap rounded-md border border-rule bg-surface p-2 font-mono text-[12px] leading-5 [overflow-wrap:anywhere]">{a.sys_descr}</pre>
+          <p className="text-meta text-muted">{t('snmp.run.descr')}</p>
+          <pre tabIndex={0} className="max-h-40 overflow-auto whitespace-pre-wrap rounded-md border border-rule bg-surface p-2 font-mono text-caption leading-5 [overflow-wrap:anywhere]">{a.sys_descr}</pre>
         </div>
       ) : null}
-      <p className="text-[13px]">{t('snmp.run.recorded')}{device ? <> {device}</> : null}</p>
+      <p className="text-meta">{t('snmp.run.recorded')}{device ? <> {device}</> : null}</p>
     </div>
   )
 }
@@ -231,7 +231,7 @@ function TestPanel({ cred, onClose }: { cred: SnmpCredential; onClose: () => voi
           <Button size="sm" onClick={onClose}>{t('snmp.run.close')}</Button>
         </div>
       </form>
-      {test.isPending ? <p role="status" aria-live="polite" className="text-[13px] text-muted">{t('snmp.run.pending', { ip: ip.trim() })}</p> : null}
+      {test.isPending ? <p role="status" aria-live="polite" className="text-meta text-muted">{t('snmp.run.pending', { ip: ip.trim() })}</p> : null}
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       {result && !test.isPending ? <SnmpAnswer r={result.r} ip={result.ip} /> : null}
     </div>
@@ -245,7 +245,7 @@ function CredentialRow({ c, index, onEdit, onDelete }: { c: SnmpCredential; inde
     <li className="grid min-w-0 gap-3 rounded-md border border-rule bg-surface p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="text-[13px] tabular-nums text-muted">{index + 1}.</span>
+          <span className="text-meta tabular-nums text-muted">{index + 1}.</span>
           <h3 className="text-sm font-semibold [overflow-wrap:anywhere]">{c.name}</h3>
           <Chip tone="off">{t(`snmp.version.${c.version}`)}</Chip>
         </div>
@@ -258,22 +258,22 @@ function CredentialRow({ c, index, onEdit, onDelete }: { c: SnmpCredential; inde
       {c.secret_lost ? <Notice tone="danger" role="alert" className="mb-0" title={t('snmp.secretLost')}>{t('snmp.secretLostBody')}</Notice> : null}
       {c.moved_out.map((m) => (
         <Notice key={m.device_id} tone="warn" role="status" className="mb-0" title={t('snmp.movedOut', { name: m.name, ip: m.ip })}
-          actions={<Link to={`/devices/${encodeURIComponent(m.device_id)}`} className="text-[13px] underline">{t('snmp.movedOutDevice')}</Link>}>{m.message}</Notice>
+          actions={<Link to={`/devices/${encodeURIComponent(m.device_id)}`} className="text-meta underline">{t('snmp.movedOutDevice')}</Link>}>{m.message}</Notice>
       ))}
       <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
         {c.version === 'v2c' ? (
-          <><dt className="text-[13px] text-muted">{t('snmp.form.community')}</dt><dd><SecretMask last4={c.secret_last4} /></dd></>
+          <><dt className="text-meta text-muted">{t('snmp.form.community')}</dt><dd><SecretMask last4={c.secret_last4} /></dd></>
         ) : (
           <>
-            <dt className="text-[13px] text-muted">{t('snmp.form.user')}</dt><dd className="[overflow-wrap:anywhere]">{c.username}</dd>
-            <dt className="text-[13px] text-muted">{t('snmp.form.auth')}</dt><dd>{c.auth ? t(`snmp.authName.${c.auth}`) : '—'}, <SecretMask last4={c.secret_last4} /></dd>
-            <dt className="text-[13px] text-muted">{t('snmp.privLabel')}</dt>
+            <dt className="text-meta text-muted">{t('snmp.form.user')}</dt><dd className="[overflow-wrap:anywhere]">{c.username}</dd>
+            <dt className="text-meta text-muted">{t('snmp.form.auth')}</dt><dd>{c.auth ? t(`snmp.authName.${c.auth}`) : '—'}, <SecretMask last4={c.secret_last4} /></dd>
+            <dt className="text-meta text-muted">{t('snmp.privLabel')}</dt>
             <dd>{c.priv === 'aes128' ? <>{t('snmp.privName.aes128')}, <SecretMask last4={c.priv_last4} /></> : t('snmp.privName.none')}</dd>
           </>
         )}
-        <dt className="text-[13px] text-muted">{t('snmp.scopeLabel')}</dt>
+        <dt className="text-meta text-muted">{t('snmp.scopeLabel')}</dt>
         <dd className="[overflow-wrap:anywhere]">{c.scope.join(', ')}</dd>
-        <dt className="text-[13px] text-muted">{t('snmp.answersLabel')}</dt>
+        <dt className="text-meta text-muted">{t('snmp.answersLabel')}</dt>
         <dd>{c.last_answer_at
           ? <><time dateTime={c.last_answer_at} title={fmtDateTime(c.last_answer_at)}>{t('snmp.lastAnswered', { when: fmtRelative(c.last_answer_at) })}</time>, {t('snmp.answeredBy', { count: c.answered })}</>
           : <span className="text-muted">{t('snmp.never')}</span>}</dd>
@@ -311,7 +311,7 @@ export function SnmpSection() {
             {d.ready ? null : <Notice tone="warn" role="status" className="mb-0 max-w-3xl" title={d.message ?? t('snmp.notReady')} />}
             {d.credentials.length ? (
               <>
-                <p className="text-[13px] text-muted">{t('snmp.order')}{full ? ` ${t('snmp.max')}` : ''}</p>
+                <p className="text-meta text-muted">{t('snmp.order')}{full ? ` ${t('snmp.max')}` : ''}</p>
                 <ol aria-label={t('snmp.caption')} className="grid gap-3">
                   {d.credentials.map((c, i) => <CredentialRow key={c.id} c={c} index={i} onEdit={() => setEditing(c)} onDelete={() => setDeleting(c)} />)}
                 </ol>

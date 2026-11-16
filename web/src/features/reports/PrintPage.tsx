@@ -9,22 +9,11 @@ import { useHistoryEntry, usePdpl, useWeekly } from './api'
 import { PdplDocument } from './PdplDocument'
 import { WeeklyDocument } from './WeeklyDocument'
 
-// Chỉ vùng .print-doc được in; thanh bên, thanh công cụ, toast bị ẩn. Người dùng chọn "Lưu thành PDF" trong hộp thoại in của trình duyệt.
-const PRINT_CSS = `
-@media print {
-  body * { visibility: hidden !important; }
-  .print-doc, .print-doc * { visibility: visible !important; }
-  .print-doc { position: absolute; left: 0; top: 0; width: 100%; background: white; color: black; padding: 0 !important; border: 0 !important; }
-  .print-doc * { color: black !important; border-color: silver !important; background-color: transparent !important; }
-  .no-print { display: none !important; }
-  @page { size: A4; margin: 16mm; }
-}`
-
+// Only .print-doc is printed (the print rules are in index.css, @media print); the person picks "Save as PDF" in the print dialog.
 function Shell({ back, title, children }: { back: string; title: string; children: React.ReactNode }) {
   const { t } = useTranslation('reports')
   return (
     <>
-      <style>{PRINT_CSS}</style>
       {/* docs/UI.md §3: the parent above the title; the one primary action on the right of the header */}
       <div className="no-print">
         <PageHeader breadcrumbs={[{ label: t('nav.reports'), to: back }]} title={title} meta={t('print.hint')}

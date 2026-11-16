@@ -22,7 +22,7 @@ export function KpiStrip({ items: all, label }: { items: Kpi[]; label: string })
           {/* Cả ô là liên kết (không phải chữ trong đoạn văn): không gạch chân cả số lẫn nhãn; di chuột → nền và gạch chân nhãn. */}
           <Link to={k.to} className="group grid h-full gap-0.5 px-3 py-2 no-underline hover:bg-sunken focus-visible:-outline-offset-2">
             <span className="text-lg font-semibold leading-tight tabular-nums">{k.value}</span>{' '}
-            <span className="text-[13px] text-muted underline-offset-4 group-hover:underline">{k.label}</span>
+            <span className="text-meta text-muted underline-offset-4 group-hover:underline">{k.label}</span>
           </Link>
         </li>
       ))}
@@ -58,7 +58,7 @@ export function PageTabs({ tabs, label }: { tabs: PageTab[]; label: string }) {
       onValueChange={(v) => { const p = new URLSearchParams(params); p.set('tab', v); setParams(p, { replace: true }) }}
     >
       {/* Hàng tab cuộn ngang (overflow) cắt mọi thứ vẽ ra ngoài nó, nên: đường kẻ dưới là bóng inset (không phải border mà gạch chân -mb-px đè lên),
-          viền focus vẽ vào trong tab (-outline-offset-2), thanh cuộn ẩn (mép tab bị cắt là dấu hiệu còn tab; mũi tên trái/phải tự cuộn tới tab). */}
+          viền focus vẽ vào trong tab (-outline-offset-2), thanh cuộn ẩn (mép tab bị cắt là dấu hiệu còn tab; mũi tên trái/phải tự cuộn tới tab). ui-guard: the inset rule under the row. */}
       <TabsList ref={list} aria-label={label} className="flex-nowrap overflow-x-auto overscroll-x-contain border-b-0 shadow-[inset_0_-1px_0_var(--color-rule)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((x) => (
           <TabsTrigger key={x.id} value={x.id} className="mb-0 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap focus-visible:-outline-offset-2">

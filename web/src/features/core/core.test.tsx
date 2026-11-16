@@ -1456,7 +1456,7 @@ describe('core: tài khoản', () => {
     const qr = screen.getByRole('img', { name: 'QR code for your authenticator app' })
     const size = encode(otpauth, { ecc: 'M', border: 0 }).size
     expect(qr.getAttribute('viewBox')).toBe(`0 0 ${size + 8} ${size + 8}`)
-    expect(qr.querySelector('rect')).toHaveAttribute('fill', '#fff')
+    expect(qr.querySelector('rect')).toHaveAttribute('fill', 'white')
     const d = qr.querySelector('path')!.getAttribute('d')!
     const xs = [...d.matchAll(/M(\d+) (\d+)h/g)].map((m) => [Number(m[1]), Number(m[2])] as const)
     expect(xs.length).toBeGreaterThan(100)

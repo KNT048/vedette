@@ -28,7 +28,7 @@ export function UnderlineNav({ items, label, verticalFrom }: { items: UnderlineN
     isActive && v && 'lg:bg-accent-soft lg:nav-current',
   )
   return (
-    // The rule under the row is an inset shadow: the scroll box clips anything drawn outside it (same as PageTabs).
+    // ui-guard: the rule under the row is an inset shadow: the scroll box clips anything drawn outside it (same as PageTabs).
     <nav ref={row} aria-label={label} className={cn('flex flex-nowrap overflow-x-auto overscroll-x-contain shadow-[inset_0_-1px_0_var(--color-rule)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden', v && 'lg:grid lg:gap-0.5 lg:overflow-visible lg:shadow-none')}>
       {items.map((x) => (
         <NavLink key={x.to} to={x.to} end={x.end} className={link}>

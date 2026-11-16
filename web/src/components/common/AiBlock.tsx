@@ -10,7 +10,7 @@ export function AiBlock({ children, model, tokens, origin = 'customer', citation
   const { t } = useTranslation()
   return (
     <div className="rounded-md border border-dotted border-muted/70 bg-surface p-4" data-ai="true">
-      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
+      <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted">
         <span className="font-medium text-ink">{t('ai.label')}</span>
         <span>{origin === 'customer' ? t('ai.originCustomer') : t('ai.originProject')}</span>
         {model ? <span>{t('ai.model', { model })}</span> : null}
@@ -19,14 +19,14 @@ export function AiBlock({ children, model, tokens, origin = 'customer', citation
       <div className="grid gap-3 text-sm leading-relaxed">{children}</div>
       {citations ? (
         citations.length ? (
-          <div className="mt-3 border-t border-rule pt-2 text-[12px] text-muted">
+          <div className="mt-3 border-t border-rule pt-2 text-caption text-muted">
             {t('ai.sources')}{' '}
             {citations.map((c, i) => (
               <span key={`${c.url ?? c.title}-${i}`}>{i > 0 ? ', ' : ''}{c.url ? <a className="underline" href={c.url} target="_blank" rel="noopener noreferrer">{c.title}</a> : c.title}</span>
             ))}
           </div>
         ) : (
-          <div className="mt-3 border-t border-rule pt-2 text-[12px] text-warn">{t('ai.noSources')}</div>
+          <div className="mt-3 border-t border-rule pt-2 text-caption text-warn">{t('ai.noSources')}</div>
         )
       ) : null}
     </div>

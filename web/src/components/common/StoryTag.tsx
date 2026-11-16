@@ -18,5 +18,5 @@ const subscribe = (l: () => void) => { window.addEventListener('popstate', l); r
 export function StoryTag({ ids }: { ids: string[] }) {
   const on = useSyncExternalStore(subscribe, read, () => false)
   if (!on) return null
-  return <span className="w-fit rounded-[3px] bg-sunken px-1.5 py-0.5 font-mono text-[11px] text-muted" data-story={ids.join(',')}>{ids.join(', ')}</span>
+  return <span className="w-fit rounded-sm bg-sunken px-1.5 py-0.5 font-mono text-caption text-muted" data-story={ids.join(',')}>{ids.join(', ')}</span>
 }

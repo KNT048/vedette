@@ -48,7 +48,7 @@ function ListEditor({ id, label, listLabel, hint, info, items, onChange, validat
             </li>
           ))}
         </ul>
-      ) : <p className="text-[13px] text-muted">{emptyText}</p>}
+      ) : <p className="text-meta text-muted">{emptyText}</p>}
     </div>
   )
 }
@@ -87,7 +87,7 @@ function RangeEditor({ items, onChange }: { items: string[]; onChange: (v: strin
           <Button onClick={add}><Plus />{t('network.addRange')}</Button>
         </div>
       </Field>
-      {note ? <p role="status" className="max-w-2xl text-[13px] text-ok">{note}</p> : null}
+      {note ? <p role="status" className="max-w-2xl text-meta text-ok">{note}</p> : null}
       {items.length ? (
         <ul className="grid max-w-2xl gap-2" aria-label={t('network.rangeList')}>
           {items.map((it) => {
@@ -101,12 +101,12 @@ function RangeEditor({ items, onChange }: { items: string[]; onChange: (v: strin
                     <Button size="sm" variant="ghost" aria-label={t('network.removeRange', { value: it })} onClick={() => onChange(items.filter((x) => x !== it))}><X />{t('network.remove')}</Button>
                   </span>
                 </div>
-                {err ? <p role="alert" className="text-[13px] text-danger">{err}</p> : null}
+                {err ? <p role="alert" className="text-meta text-danger">{err}</p> : null}
               </li>
             )
           })}
         </ul>
-      ) : <p className="text-[13px] text-muted">{t('network.noRanges')}</p>}
+      ) : <p className="text-meta text-muted">{t('network.noRanges')}</p>}
     </div>
   )
 }
@@ -189,7 +189,7 @@ export function NetworkForm({ settings }: { settings: InventorySettings }) {
                     <span className="ml-6 inline-flex items-center gap-2">
                       <Switch id={`regular-${k}`} aria-label={t('fragile.allowRegularFor', { kind: kindLabel(k) })} checked={draft.regular_scan_kinds.includes(k)}
                         onCheckedChange={(v) => set({ regular_scan_kinds: v ? [...draft.regular_scan_kinds, k] : draft.regular_scan_kinds.filter((x) => x !== k) })} />
-                      <span className="text-[13px] text-muted" aria-hidden>{t('fragile.allowRegular')}</span>
+                      <span className="text-meta text-muted" aria-hidden>{t('fragile.allowRegular')}</span>
                     </span>
                   ) : null}
                 </span>
@@ -206,15 +206,15 @@ export function NetworkForm({ settings }: { settings: InventorySettings }) {
           <Checkbox id="scope-confirm" className="mt-0.5" checked={confirmed} aria-describedby="scope-status" onCheckedChange={(v) => setConfirmed(v === true)} />
           <Label htmlFor="scope-confirm" className="font-normal">{t('scope.confirm')}</Label>
         </div>
-        <p id="scope-status" role="status" className={!confirmed && (rangesChanged || draft.active.enabled) ? 'text-[13px] text-warn' : 'text-[13px] text-muted'}>
+        <p id="scope-status" role="status" className={!confirmed && (rangesChanged || draft.active.enabled) ? 'text-meta text-warn' : 'text-meta text-muted'}>
           {confirmed
             ? (settings.scope_confirmed_at && !rangesChanged ? t('scope.confirmedAt', { when: fmtDateTime(settings.scope_confirmed_at), who: settings.scope_confirmed_by ?? '' }) : t('scope.willConfirm'))
             : rangesChanged ? t('scope.rangesChanged') : t('scope.notConfirmed')}
         </p>
-        <p className="text-[13px] text-muted">{t('scope.asIs')}</p>
+        <p className="text-meta text-muted">{t('scope.asIs')}</p>
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" variant="primary" disabled={!dirty || save.isPending || badRanges > 0}>{t('network.save')}</Button>
-          {badRanges > 0 ? <span role="status" className="text-[13px] text-danger">{t('network.fixFirst', { count: badRanges })}</span> : dirty ? <span className="text-[13px] text-muted">{t('network.unsaved')}</span> : null}
+          {badRanges > 0 ? <span role="status" className="text-meta text-danger">{t('network.fixFirst', { count: badRanges })}</span> : dirty ? <span className="text-meta text-muted">{t('network.unsaved')}</span> : null}
         </div>
       </div>
     </form>

@@ -36,7 +36,7 @@ export function Pager({ page, pages, onPage, label }: { page: number; pages: num
   const { t } = useTranslation()
   if (pages <= 1) return null
   return (
-    <nav aria-label={label} className="flex items-center justify-end gap-2 text-[13px] text-muted">
+    <nav aria-label={label} className="flex items-center justify-end gap-2 text-meta text-muted">
       <span>{t('table.page', { page: page + 1, pages })}</span>
       <Button size="sm" onClick={() => onPage(page - 1)} disabled={page === 0}>{t('table.prev')}</Button>
       <Button size="sm" onClick={() => onPage(page + 1)} disabled={page >= pages - 1}>{t('table.next')}</Button>

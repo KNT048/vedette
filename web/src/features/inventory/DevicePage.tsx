@@ -44,11 +44,11 @@ function Overview({ d }: { d: DeviceDetail }) {
   const guess = a.kind === 'unknown' ? a.guess : null
   const setKind = (kind: AssetKind) => act.patch.mutate({ kind }, { onSuccess: () => toast.success(t('detail.kindSaved', { kind: kindLabel(kind) })), onError: fail })
   const row = (label: string, value: React.ReactNode) => (
-    <div className="contents"><dt className="text-[13px] text-muted">{label}</dt><dd className="text-sm">{value}</dd></div>
+    <div className="contents"><dt className="text-meta text-muted">{label}</dt><dd className="text-sm">{value}</dd></div>
   )
   return (
     <dl className="grid grid-cols-1 items-center gap-x-6 gap-y-3 sm:grid-cols-[minmax(160px,max-content)_1fr]">
-      <dt className="text-[13px] text-muted"><Label htmlFor="device-kind" className="text-[13px] font-normal text-muted">{t('detail.kind')}</Label></dt>
+      <dt className="text-meta text-muted"><Label htmlFor="device-kind" className="text-meta font-normal text-muted">{t('detail.kind')}</Label></dt>
       <dd>
         <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <Select id="device-kind" className="max-w-xs" value={a.kind} disabled={!can || act.patch.isPending} title={needRole}
@@ -58,8 +58,8 @@ function Overview({ d }: { d: DeviceDetail }) {
               return listed.length ? <optgroup key={category.id} label={category.label}>{listed.map((ty) => <option key={ty.id} value={ty.id}>{ty.label}</option>)}</optgroup> : null
             })}
           </Select>
-          {a.kind !== 'unknown' ? <span className="text-[13px] text-muted">{categoryLabel(categoryOf(a.kind))}</span> : null}
-          {a.kind_source ? <span className="text-[12px] text-muted">{t('detail.kindFrom')} <SourceBadge source={a.kind_source} /></span> : null}
+          {a.kind !== 'unknown' ? <span className="text-meta text-muted">{categoryLabel(categoryOf(a.kind))}</span> : null}
+          {a.kind_source ? <span className="text-caption text-muted">{t('detail.kindFrom')} <SourceBadge source={a.kind_source} /></span> : null}
         </span>
         {guess ? (
           <div className="mt-2 grid max-w-2xl gap-1.5 rounded-md border border-border p-3" data-testid="kind-guess">
@@ -70,8 +70,8 @@ function Overview({ d }: { d: DeviceDetail }) {
               </p>
               <InfoTip topic={t('guess.topic')}><p>{t('guess.hint')}</p>{guess.alternatives?.length ? <p>{t('guess.alternativesInfo')}</p> : null}</InfoTip>
             </div>
-            <p className="text-[13px] text-muted [overflow-wrap:anywhere]">{guess.evidence}</p>
-            {guess.alternatives?.length ? <p className="text-[12px] text-muted">{t('guess.alternatives', { list: guess.alternatives.map(kindLabel).join(', ') })}</p> : null}
+            <p className="text-meta text-muted [overflow-wrap:anywhere]">{guess.evidence}</p>
+            {guess.alternatives?.length ? <p className="text-caption text-muted">{t('guess.alternatives', { list: guess.alternatives.map(kindLabel).join(', ') })}</p> : null}
             <span className="flex flex-wrap gap-2">
               <Button size="sm" disabled={!can || act.patch.isPending} title={needRole} onClick={() => setKind(guess.kind)}>{t('guess.confirm', { kind: kindLabel(guess.kind) })}</Button>
               {(guess.alternatives ?? []).map((k) => <Button key={k} size="sm" variant="ghost" disabled={!can || act.patch.isPending} title={needRole} onClick={() => setKind(k)}>{t('guess.instead', { kind: kindLabel(k) })}</Button>)}
@@ -79,15 +79,15 @@ function Overview({ d }: { d: DeviceDetail }) {
           </div>
         ) : null}
       </dd>
-      <dt className="flex items-center gap-1 text-[13px] text-muted"><Label htmlFor="device-fragile" className="text-[13px] font-normal text-muted">{t('detail.fragile')}</Label><InfoTip topic={t('detail.fragile')}>{t('detail.fragileInfo')}</InfoTip></dt>
+      <dt className="flex items-center gap-1 text-meta text-muted"><Label htmlFor="device-fragile" className="text-meta font-normal text-muted">{t('detail.fragile')}</Label><InfoTip topic={t('detail.fragile')}>{t('detail.fragileInfo')}</InfoTip></dt>
       <dd className="flex flex-wrap items-center gap-3">
         <Switch id="device-fragile" checked={a.fragile} disabled={!can || act.patch.isPending} title={needRole}
           onCheckedChange={(v) => act.patch.mutate({ fragile: v }, { onSuccess: () => toast.success(v ? t('detail.fragileOn') : t('detail.fragileOff')), onError: fail })} />
-        <span className="max-w-xl text-[13px] text-muted">{a.fragile ? t('detail.fragileOnHint') : t('detail.fragileOffHint')}</span>
+        <span className="max-w-xl text-meta text-muted">{a.fragile ? t('detail.fragileOnHint') : t('detail.fragileOffHint')}</span>
       </dd>
       {a.fragile ? (
         <>
-          <dt className="flex items-center gap-1 text-[13px] text-muted"><Label htmlFor="device-regular" className="text-[13px] font-normal text-muted">{t('detail.regularScan')}</Label><InfoTip topic={t('detail.regularScan')}>{t('detail.regularScanHint')}</InfoTip></dt>
+          <dt className="flex items-center gap-1 text-meta text-muted"><Label htmlFor="device-regular" className="text-meta font-normal text-muted">{t('detail.regularScan')}</Label><InfoTip topic={t('detail.regularScan')}>{t('detail.regularScanHint')}</InfoTip></dt>
           <dd className="flex flex-wrap items-center gap-3">
             <Select id="device-regular" className="max-w-xs" value={a.regular_scan} disabled={!can || act.patch.isPending} title={needRole}
               onChange={(e) => act.patch.mutate({ regular_scan: e.target.value as RegularScan }, { onSuccess: () => toast.success(t('detail.regularScanSaved')), onError: fail })}>
@@ -112,8 +112,8 @@ function Observations({ list }: { list: Observation[] }) {
     { id: 'field', header: t('obs.field'), accessorFn: (o) => t(`obs.fields.${o.field}`), cell: ({ getValue }) => <span className="whitespace-nowrap font-medium">{getValue() as string}</span> },
     { id: 'value', header: t('obs.value'), accessorFn: (o) => (o.field === 'kind' ? kindLabel(o.value) : o.value) },
     { id: 'source', header: t('obs.source'), accessorFn: (o) => o.confidence, cell: ({ row }) => <SourceBadge source={row.original.source} confidence={row.original.confidence} /> },
-    { id: 'at', header: t('obs.at'), accessorFn: (o) => new Date(o.seen_at).getTime(), cell: ({ row }) => <time dateTime={row.original.seen_at} className="whitespace-nowrap text-[13px] text-muted">{fmtDateTime(row.original.seen_at)}</time> },
-    { id: 'current', header: t('obs.state'), enableSorting: false, accessorFn: (o) => Number(o.current), cell: ({ row }) => (row.original.current ? <Chip tone="ok">{t('obs.current')}</Chip> : <span className="text-[13px] text-muted">{t('obs.kept')}</span>) },
+    { id: 'at', header: t('obs.at'), accessorFn: (o) => new Date(o.seen_at).getTime(), cell: ({ row }) => <time dateTime={row.original.seen_at} className="whitespace-nowrap text-meta text-muted">{fmtDateTime(row.original.seen_at)}</time> },
+    { id: 'current', header: t('obs.state'), enableSorting: false, accessorFn: (o) => Number(o.current), cell: ({ row }) => (row.original.current ? <Chip tone="ok">{t('obs.current')}</Chip> : <span className="text-meta text-muted">{t('obs.kept')}</span>) },
   ]
   return (
     <DataTable caption={t('obs.caption')} data={list} columns={columns} pageSize={100}
@@ -123,7 +123,7 @@ function Observations({ list }: { list: Observation[] }) {
             <span className="min-w-0 text-sm [overflow-wrap:anywhere]"><span className="font-medium">{t(`obs.fields.${o.field}`)}:</span> {o.field === 'kind' ? kindLabel(o.value) : o.value}</span>
             {o.current ? <Chip tone="ok">{t('obs.current')}</Chip> : null}
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted">
             <SourceBadge source={o.source} confidence={o.confidence} />
             <time dateTime={o.seen_at}>{fmtDateTime(o.seen_at)}</time>
             {o.current ? null : <span>{t('obs.kept')}</span>}
@@ -141,7 +141,7 @@ function Services({ list, fragile }: { list: Service[]; fragile: boolean }) {
     { id: 'name', header: t('services.name'), accessorFn: (s) => s.name },
     { id: 'product', header: t('services.product'), accessorFn: (s) => s.product ?? '', cell: ({ getValue }) => (getValue() as string) || <span className="text-muted">–</span> },
     { id: 'version', header: t('services.version'), accessorFn: (s) => s.version ?? '', cell: ({ getValue }) => (getValue() as string) || <span className="text-muted">–</span> },
-    { id: 'detail', header: t('services.detail'), accessorFn: (s) => s.detail ?? '', cell: ({ getValue }) => <span className="text-[13px] [overflow-wrap:anywhere]">{(getValue() as string) || <span className="text-muted">–</span>}</span> },
+    { id: 'detail', header: t('services.detail'), accessorFn: (s) => s.detail ?? '', cell: ({ getValue }) => <span className="text-meta [overflow-wrap:anywhere]">{(getValue() as string) || <span className="text-muted">–</span>}</span> },
     { id: 'source', header: t('obs.source'), accessorFn: (s) => s.confidence, cell: ({ row }) => <SourceBadge source={row.original.source} confidence={row.original.confidence} /> },
   ]
   return (
@@ -149,9 +149,9 @@ function Services({ list, fragile }: { list: Service[]; fragile: boolean }) {
       mobileRow={(sv) => (
         <div className="grid gap-1">
           <span className="text-sm font-medium">{sv.port}/{sv.proto} {sv.name}</span>
-          {sv.product || sv.version ? <span className="text-[13px] [overflow-wrap:anywhere]">{[sv.product, sv.version].filter(Boolean).join(' ')}</span> : null}
-          {sv.detail ? <span className="text-[13px] text-muted [overflow-wrap:anywhere]">{sv.detail}</span> : null}
-          <span className="text-[12px] text-muted"><SourceBadge source={sv.source} confidence={sv.confidence} /></span>
+          {sv.product || sv.version ? <span className="text-meta [overflow-wrap:anywhere]">{[sv.product, sv.version].filter(Boolean).join(' ')}</span> : null}
+          {sv.detail ? <span className="text-meta text-muted [overflow-wrap:anywhere]">{sv.detail}</span> : null}
+          <span className="text-caption text-muted"><SourceBadge source={sv.source} confidence={sv.confidence} /></span>
         </div>
       )} />
   )
@@ -174,11 +174,11 @@ function seenVersion(sw: SoftwareView, list: SoftwareView[]) {
  */
 function OpenCves({ sw, open }: { sw: SoftwareView; open: Map<string, string> | 'off' | 'pending' | 'error' }) {
   const { t } = useTranslation('inventory')
-  if (open === 'off') return <span className="text-[13px] text-muted">{t('software.kevOff')}</span>
-  if (open === 'pending') return <span className="text-[13px] text-muted">{t('software.kevPending')}</span>
-  if (open === 'error') return <span className="text-[13px] text-muted">{t('software.kevError')}</span>
+  if (open === 'off') return <span className="text-meta text-muted">{t('software.kevOff')}</span>
+  if (open === 'pending') return <span className="text-meta text-muted">{t('software.kevPending')}</span>
+  if (open === 'error') return <span className="text-meta text-muted">{t('software.kevError')}</span>
   const cves = sw.kev_cves.filter((c) => open.has(c))
-  if (!cves.length) return <span className="text-[13px] text-muted">{t('software.noKev')}</span>
+  if (!cves.length) return <span className="text-meta text-muted">{t('software.noKev')}</span>
   return <div className="flex flex-wrap gap-x-2">{cves.map((c) => <Link key={c} to={`/findings/${encodeURIComponent(open.get(c)!)}`} className="whitespace-nowrap text-accent underline-offset-4 hover:underline">{c}</Link>)}</div>
 }
 
@@ -209,7 +209,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
       <div className="grid gap-1">
         <span>{sw.version || <span className="text-muted">{t('software.noVersion')}</span>}</span>
         {seen ? (
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-warn">
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-warn">
             {t('software.seen', { version: v, source: t(`common:source.${seen.source}`) })}
             {VERSION_RE.test(v) ? (
               <Button size="sm" variant="secondary" disabled={!can || act.setVersion.isPending} title={needRole} aria-label={t('software.acceptLabel', { version: v, name: sw.display })}
@@ -232,11 +232,11 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
   const columns: ColumnDef<SoftwareView>[] = [
     { id: 'name', header: t('software.name'), accessorFn: (s) => s.display, cell: ({ row }) => {
       const raw = rawProductLine(row.original.display, row.original.vendor, row.original.product)
-      return <div className="grid"><span className="font-medium">{row.original.display}</span>{raw ? <span className="text-[12px] text-muted">{raw}</span> : null}</div>
+      return <div className="grid"><span className="font-medium">{row.original.display}</span>{raw ? <span className="text-caption text-muted">{raw}</span> : null}</div>
     } },
     { id: 'version', header: t('software.version'), accessorFn: (s) => s.version ?? '', cell: ({ row }) => version(row.original) },
     { id: 'kev', header: t('software.kev'), accessorFn: openCount, cell: ({ row }) => <OpenCves sw={row.original} open={open} /> },
-    { id: 'source', header: t('obs.source'), accessorFn: (s) => s.confidence, cell: ({ row }) => (d.asset.is_box ? <span className="text-[12px] text-muted">{t('box.source')}</span> : <SourceBadge source={row.original.source} confidence={row.original.confidence} />) },
+    { id: 'source', header: t('obs.source'), accessorFn: (s) => s.confidence, cell: ({ row }) => (d.asset.is_box ? <span className="text-caption text-muted">{t('box.source')}</span> : <SourceBadge source={row.original.source} confidence={row.original.confidence} />) },
     { id: 'actions', header: () => <span className="sr-only">{t('software.actions')}</span>, enableSorting: false, cell: ({ row }) => actions(row.original) },
   ]
   return (
@@ -246,10 +246,10 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
           <div className="flex items-start justify-between gap-3">
             <div className="grid min-w-0 gap-1">
               <span className="text-sm font-medium [overflow-wrap:anywhere]">{sw.display}</span>
-              {rawProductLine(sw.display, sw.vendor, sw.product) ? <span className="text-[12px] text-muted">{rawProductLine(sw.display, sw.vendor, sw.product)}</span> : null}
-              <div className="text-[13px]">{version(sw)}</div>
-              <div className="text-[13px]"><OpenCves sw={sw} open={open} /></div>
-              <span className="text-[12px] text-muted">{d.asset.is_box ? t('box.source') : <SourceBadge source={sw.source} confidence={sw.confidence} />}</span>
+              {rawProductLine(sw.display, sw.vendor, sw.product) ? <span className="text-caption text-muted">{rawProductLine(sw.display, sw.vendor, sw.product)}</span> : null}
+              <div className="text-meta">{version(sw)}</div>
+              <div className="text-meta"><OpenCves sw={sw} open={open} /></div>
+              <span className="text-caption text-muted">{d.asset.is_box ? t('box.source') : <SourceBadge source={sw.source} confidence={sw.confidence} />}</span>
             </div>
             {actions(sw)}
           </div>
@@ -305,7 +305,7 @@ function BoxNotice({ findings }: { findings: number }) {
       <p>{t('box.matched')}</p>
       <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-ink">
         <Link to="/settings/updates" className="font-medium text-accent underline-offset-4 hover:underline">{t('box.fix')}</Link>
-        <span className="text-[13px] text-muted">{t('box.noDelete')}</span>
+        <span className="text-meta text-muted">{t('box.noDelete')}</span>
         {findings ? <Link to="/findings" className="text-accent underline-offset-4 hover:underline">{t('box.findings', { count: findings })}</Link> : null}
       </p>
     </Notice>

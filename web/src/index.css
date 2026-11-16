@@ -82,13 +82,26 @@
   --color-off-soft: var(--off-soft);
   --color-focus: var(--focus);
   --color-control: var(--control);
-  /* docs/UI.md §1: the two named sizes between xs and sm; the codemod PR resets --text-* to the six names. */
+  --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
+/* docs/UI.md §1: six named sizes and no others (text-xs, text-2xl… stop existing); the style guard (src/test/styleGuard.test.ts)
+   refuses hand-typed sizes. sm…xl keep Tailwind's values. */
+@theme {
+  --text-*: initial;
   --text-caption: 12px;
   --text-caption--line-height: 16px;
   --text-meta: 13px;
   --text-meta--line-height: 20px;
-  --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: calc(1.25 / 0.875);
+  --text-base: 1rem;
+  --text-base--line-height: calc(1.5 / 1);
+  --text-lg: 1.125rem;
+  --text-lg--line-height: calc(1.75 / 1.125);
+  --text-xl: 1.25rem;
+  --text-xl--line-height: calc(1.75 / 1.25);
 }
 
 @layer base {
@@ -100,6 +113,19 @@
   a { color: inherit; text-underline-offset: 3px; }
   /* Link nằm trong đoạn văn/ô bảng phải nhận ra được không chỉ nhờ màu (WCAG 1.4.1). */
   :where(p, li, dd, td, label) a[href] { text-decoration-line: underline; }
+}
+
+/* Print pages (reports/PrintPage.tsx, docs/UI.md §12): only .print-doc is printed, black on white; the sidebar, toolbars and toasts
+   are hidden. Scoped to a page that has a .print-doc, so printing any other page prints it as it is. */
+@media print {
+  /* :where() keeps this rule at zero weight, so the .print-doc rule below wins (review r1 H1 of #893: with :has(.print-doc) the
+     hide rule outweighed it and the report printed blank) */
+  :where(body:has(.print-doc)) * { visibility: hidden !important; }
+  .print-doc, .print-doc * { visibility: visible !important; }
+  .print-doc { page: report; position: absolute; left: 0; top: 0; width: 100%; background: white; color: black; padding: 0 !important; border: 0 !important; }
+  .print-doc * { color: black !important; border-color: silver !important; background-color: transparent !important; }
+  .no-print { display: none !important; }
+  @page report { size: A4; margin: 16mm; } /* the report's named page only: other pages print with the browser's settings */
 }
 
 @media (prefers-reduced-motion: reduce) {

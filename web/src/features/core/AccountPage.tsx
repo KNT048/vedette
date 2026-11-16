@@ -21,7 +21,7 @@ import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useAccount, useAccountMutations } from './api'
 import { PreviewCode, errMsg } from './parts'
 import { useCountdown } from './useCountdown'
-import { QrCode } from './QrCode'
+import { QrCode } from '@/components/common/QrCode'
 import { deviceLabel, MIN_PASSWORD, shellQuote } from './util'
 import type { Account, AccountSession, TotpStart } from './types'
 

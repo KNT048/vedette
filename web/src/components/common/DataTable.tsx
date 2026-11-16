@@ -12,6 +12,8 @@ import { cn } from '@/lib/utils'
 export type { ColumnDef }
 
 const NARROW = '(max-width: 767px)'
+/** A row that needs a look carries a 3 px bar of its tone at the leading edge (docs/UI.md §5). */
+const TONE_BAR = { danger: 'shadow-[inset_3px_0_0_var(--danger)]', warn: 'shadow-[inset_3px_0_0_var(--warn)]' } as const // ui-guard: an inset bar, not a shadow
 function useNarrow() {
   return useSyncExternalStore(
     (l) => { if (typeof matchMedia === 'undefined') return () => {}; const m = matchMedia(NARROW); m.addEventListener('change', l); return () => m.removeEventListener('change', l) },
@@ -95,7 +97,7 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
         <ul aria-label={caption} className="grid divide-y divide-rule rounded-md border border-rule bg-surface">
           {rows.length === 0 ? <li className="px-4 py-6 text-center text-muted">{none}</li> : rows.map((r) => {
             const tone = rowTone?.(r.original)
-            return <li key={r.id} className={cn('px-4 py-3', tone === 'danger' && 'shadow-[inset_3px_0_0_var(--danger)]', tone === 'warn' && 'shadow-[inset_3px_0_0_var(--warn)]')}>{mobileRow(r.original)}</li>
+            return <li key={r.id} className={cn('px-4 py-3', tone && TONE_BAR[tone])}>{mobileRow(r.original)}</li>
           })}
         </ul>
       ) : (
@@ -130,7 +132,7 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
                 <tr
                   key={r.id}
                   onClick={onRowClick ? () => onRowClick(r.original) : undefined}
-                  className={cn('h-10 border-b border-rule last:border-b-0', onRowClick && 'cursor-pointer hover:bg-sunken', tone === 'danger' && 'shadow-[inset_3px_0_0_var(--danger)]', tone === 'warn' && 'shadow-[inset_3px_0_0_var(--warn)]')}
+                  className={cn('h-10 border-b border-rule last:border-b-0', onRowClick && 'cursor-pointer hover:bg-sunken', tone && TONE_BAR[tone])}
                 >
                   {r.getVisibleCells().map((c) => <td key={c.id} className="px-3 py-2 align-middle">{flexRender(c.column.columnDef.cell, c.getContext())}</td>)}
                 </tr>

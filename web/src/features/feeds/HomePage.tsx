@@ -68,7 +68,7 @@ function HotBoard({ noDevices }: { noDevices: boolean }) {
       return (
         <div className="grid">
           <span className="font-medium">{row.original.display}</span>
-          {raw ? <span className="text-[12px] text-muted">{raw}</span> : null}
+          {raw ? <span className="text-caption text-muted">{raw}</span> : null}
         </div>
       )
     } },
@@ -80,7 +80,7 @@ function HotBoard({ noDevices }: { noDevices: boolean }) {
     { id: 'epss', header: t('hot.col.epss'), accessorFn: (r) => r.max_epss ?? -1, cell: ({ row }) => {
       const d = row.original.max_epss_delta
       return (
-        <span className="whitespace-nowrap">{fmtPercent(row.original.max_epss)}{d !== null && d > 0.0005 ? <span className="ml-1.5 text-[12px] text-warn">{t('hot.delta', { delta: fmtPercent(d) })}</span> : null}</span>
+        <span className="whitespace-nowrap">{fmtPercent(row.original.max_epss)}{d !== null && d > 0.0005 ? <span className="ml-1.5 text-caption text-warn">{t('hot.delta', { delta: fmtPercent(d) })}</span> : null}</span>
       )
     } },
     { id: 'template', header: t('hot.col.template'), accessorFn: (r) => Number(r.has_template), cell: ({ row }) => (row.original.has_template ? t('hot.yes') : <span className="text-muted">–</span>) },
@@ -101,10 +101,10 @@ function HotBoard({ noDevices }: { noDevices: boolean }) {
                   <span className="font-medium">{r.display}</span>
                   <YouHaveCell value={r.you_have} noDevices={noDevices} />
                 </div>
-                <div className="flex flex-wrap gap-x-3 gap-y-1 text-[13px]">
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-meta">
                   {r.cves.map((c) => <Link key={c.cve} to={`/cve/${c.cve}`} className="text-accent">{c.cve}</Link>)}
                 </div>
-                <div className="flex flex-wrap gap-x-4 text-[12px] text-muted">
+                <div className="flex flex-wrap gap-x-4 text-caption text-muted">
                   <span>{t('hot.col.epss')}: {fmtPercent(r.max_epss)}</span>
                   {r.ransomware ? <span className="font-medium text-danger">{t('hot.col.ransomware')}</span> : null}
                   {r.has_template ? <span>{t('hot.col.template')}</span> : null}
@@ -143,9 +143,9 @@ function Weekly() {
           <ol className="grid divide-y divide-rule rounded-md border border-rule bg-surface">
             {d.items.filter((i) => i.answer !== 'not_relevant').map((i) => (
               <li key={i.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_auto] md:items-center">
-                <p className="max-w-[72ch] text-[15px] leading-relaxed">{i.text} <Link to={`/cve/${i.cve}`} className="text-[13px] text-accent underline-offset-4 hover:underline">{i.cve}</Link></p>
+                <p className="max-w-[72ch] text-sm leading-relaxed">{i.text} <Link to={`/cve/${i.cve}`} className="text-meta text-accent underline-offset-4 hover:underline">{i.cve}</Link></p>
                 <div className="flex gap-2">
-                  {i.answer === 'have' ? <span className="text-[13px] text-ok">{t('weekly.added')}</span> : (
+                  {i.answer === 'have' ? <span className="text-meta text-ok">{t('weekly.added')}</span> : (
                     <>
                       <Button size="sm" variant="primary" disabled={!canAct || answer.isPending} title={canAct ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={() => send(i.id, 'have')}>{t('weekly.have')}</Button>
                       <Button size="sm" disabled={!canAct || answer.isPending} onClick={() => send(i.id, 'not_relevant')}>{t('weekly.notRelevant')}</Button>

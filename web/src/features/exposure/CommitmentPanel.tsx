@@ -12,7 +12,7 @@ export function CommitmentPanel({ target }: { target: Target }) {
   return (
     <Panel className="grid gap-2 p-4 text-sm">
       <p>{t('commit.doneBody', { user: c.by, time: dateTimeText(c.at) })}</p>
-      {c.sentence ? <p className="text-[13px] text-muted"><span className="font-medium">{t('commit.sentence')}</span> {c.sentence}</p> : <InfoLine className="text-[13px] text-muted" topic={t('step.commit')} info={t('commit.olderInfo')}>{t('commit.older')}</InfoLine>}
+      {c.sentence ? <p className="text-meta text-muted"><span className="font-medium">{t('commit.sentence')}</span> {c.sentence}</p> : <InfoLine className="text-meta text-muted" topic={t('step.commit')} info={t('commit.olderInfo')}>{t('commit.older')}</InfoLine>}
     </Panel>
   )
 }

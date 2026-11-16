@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"strings"
 	"time"
 )
 
@@ -74,11 +75,31 @@ func ValidField(f Field) bool {
 	return false
 }
 
-// AssetHint identifies the device an observation is about: the MAC first, then the IP. At least one
+// AssetHint identifies the device an observation is about: the agent first, then the MAC, then the IP. A MAC or an IP
 // must be set. A hint that matches no device creates one (unapproved, DATA_MODEL 5.1).
 type AssetHint struct {
 	IP  netip.Addr // IPv4 only; the zero value means unknown
 	MAC string     // any common notation; stored lower-case aa:bb:cc:dd:ee:ff
+	// Agent is the identity the box gave the reporting agent ("osquery:<node id>"), never a value the agent
+	// chose; only an Agent source may set it (D-598). The device it is bound to keeps receiving that agent's reports when its
+	// address changes. Lower-case letters, then ':', then 1 to 64 of [A-Za-z0-9._-].
+	Agent string
+}
+
+// ValidAgentKey reports whether k has the shape of AssetHint.Agent.
+func ValidAgentKey(k string) bool {
+	prefix, id, ok := strings.Cut(k, ":")
+	if !ok || prefix == "" || len(prefix) > 16 || id == "" || len(id) > 64 {
+		return false
+	}
+	for _, r := range prefix {
+		if r < 'a' || r > 'z' {
+			return false
+		}
+	}
+	return strings.IndexFunc(id, func(r rune) bool {
+		return (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '.' && r != '_' && r != '-'
+	}) < 0
 }
 
 // Observation is one thing seen about one field of one device.
@@ -129,6 +150,13 @@ type Software struct {
 // seen with no MAC, is never approved.
 type Approver interface {
 	ApproveEnrolled(ctx context.Context, hint AssetHint, mac, reason string, agentSaw bool) (found bool, err error)
+}
+
+// AgentReleaser is told the agents (AssetHint.Agent) that no longer exist: a node replaced by a re-enrolment, revoked with its token, or
+// pruned. The devices bound to them can then be bound by the next agent that reports on them (D-598). Optional: the inventory
+// implements it next to Approver.
+type AgentReleaser interface {
+	ReleaseAgents(ctx context.Context, agents []string) error
 }
 
 // SoftwareSink receives the full software list of one device from one source. The list replaces the

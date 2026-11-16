@@ -92,7 +92,8 @@ func (s *Service) IssueToken(ctx context.Context, actor, name string, ttlDays in
 // RevokeToken deletes a token and, with it, its nodes: their next call gets node_invalid (POST-3). What they already delivered stays in
 // the inventory.
 func (s *Service) RevokeToken(ctx context.Context, actor, id string) error {
-	return s.db.Write(ctx, func(tx *sql.Tx) error {
+	var nodes []string
+	err := s.db.Write(ctx, func(tx *sql.Tx) error {
 		var name string
 		err := tx.QueryRowContext(ctx, `SELECT name FROM intake_agent_tokens WHERE id = ?`, id).Scan(&name)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -101,11 +102,37 @@ func (s *Service) RevokeToken(ctx context.Context, actor, id string) error {
 		if err != nil {
 			return fmt.Errorf("agentintake: read token: %w", err)
 		}
+		var err2 error
+		if nodes, err2 = nodeIDs(ctx, tx, `SELECT id FROM intake_osquery_nodes WHERE token_id = ?`, id); err2 != nil {
+			return err2
+		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM intake_agent_tokens WHERE id = ?`, id); err != nil { // the foreign key cascades to the nodes
 			return fmt.Errorf("agentintake: delete token: %w", err)
 		}
 		return s.auditTx(ctx, tx, actor, "inventory.agent_token_revoke", name, "")
 	})
+	if err == nil {
+		s.releaseNodes(ctx, nodes) // D-598: their devices may be bound by the next node
+	}
+	return err
+}
+
+// nodeIDs lists node ids by a query.
+func nodeIDs(ctx context.Context, tx *sql.Tx, q string, args ...any) ([]string, error) {
+	rows, err := tx.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("agentintake: read nodes: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("agentintake: read nodes: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 
 // ListTokens returns the tokens, newest first, with the number of nodes each has.

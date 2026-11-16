@@ -103,6 +103,10 @@ func (s *Service) services(ctx context.Context, hint observe.AssetHint, source o
 	if !observe.ValidSource(source) || source == observe.Manual {
 		return invalid("service source %q is not allowed", source)
 	}
+	agent, err := checkAgent(hint, source)
+	if err != nil {
+		return err
+	}
 	clean, err := s.checkServices(ctx, items)
 	if err != nil {
 		return err
@@ -113,7 +117,7 @@ func (s *Service) services(ctx context.Context, hint observe.AssetHint, source o
 	}
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		now := s.seen(s.clock())
-		id, err := s.deviceFor(ctx, tx, o, ip, mac, source, now)
+		id, err := s.deviceFor(ctx, tx, o, cleanObs{ip: ip, mac: mac, agent: agent, source: string(source), seenAt: now})
 		if err != nil {
 			return err
 		}

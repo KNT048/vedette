@@ -48,6 +48,7 @@ func (s *Service) Prune(ctx context.Context) error {
 	cutoff := store.FormatTS(silent)
 	expired := store.FormatTS(now.Add(-expiredTokenGrace))
 	var nodes, tokens int64
+	var gone []string // the pruned nodes, released in the inventory after the commit (D-598)
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
 		var last string
 		err := tx.QueryRowContext(ctx, `SELECT last_run FROM intake_prune_clock WHERE id = 1`).Scan(&last)
@@ -70,6 +71,10 @@ func (s *Service) Prune(ctx context.Context) error {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO intake_prune_clock (id, last_run) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET last_run = excluded.last_run`, store.FormatTS(now)); err != nil {
 			return fmt.Errorf("agentintake: write the prune clock: %w", err)
 		}
+		var err2 error
+		if gone, err2 = nodeIDs(ctx, tx, `SELECT id FROM intake_osquery_nodes WHERE last_seen < ?`, cutoff); err2 != nil {
+			return err2
+		}
 		r, err := tx.ExecContext(ctx, `DELETE FROM intake_osquery_nodes WHERE last_seen < ?`, cutoff)
 		if err != nil {
 			return fmt.Errorf("agentintake: prune nodes: %w", err)
@@ -86,6 +91,7 @@ func (s *Service) Prune(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	s.releaseNodes(ctx, gone) // D-598
 	if nodes+tokens > 0 {
 		s.cfg.Log.InfoContext(ctx, "agent-intake: pruned", "nodes", nodes, "tokens", tokens)
 	}

@@ -22,7 +22,7 @@ import { AddWays } from './AddWays'
 import { useDevices, useSettings } from './api'
 import { ImportDialog } from './ImportDialog'
 import { errMsg, kindIcon, shownKind } from './kinds'
-import { nameOf } from './nameOf'
+import { declaredSoftwareOnly, nameOf } from './nameOf'
 import { PendingPanel } from './PendingPanel'
 import type { DeviceRow, DevicesResponse } from './types'
 
@@ -69,6 +69,7 @@ function DevicesTable({ items, filter, category, now }: { items: DeviceRow[]; fi
           {!d.approved ? <Chip tone="warn">{t('chip.pending')}</Chip> : null}
           {d.suspicious ? <Chip tone="warn">{t('chip.suspicious')}</Chip> : null}
           {d.fragile ? <Chip tone="off" title={t('chip.fragileHint')}>{t('chip.fragile')}</Chip> : null}
+          {declaredSoftwareOnly(d) ? <Chip tone="off" title={t('chip.declaredHint')}>{t('chip.declared')}</Chip> : null}
         </div>
       )
     } },
@@ -93,6 +94,7 @@ function DevicesTable({ items, filter, category, now }: { items: DeviceRow[]; fi
               {!d.approved ? <Chip tone="warn">{t('chip.pending')}</Chip> : null}
               {d.suspicious ? <Chip tone="warn">{t('chip.suspicious')}</Chip> : null}
               {d.fragile ? <Chip tone="off" title={t('chip.fragileHint')}>{t('chip.fragile')}</Chip> : null}
+              {declaredSoftwareOnly(d) ? <Chip tone="off">{t('chip.declared')}</Chip> : null}
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
               <TypeCell d={d} />

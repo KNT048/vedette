@@ -40,10 +40,12 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 			"node", n.id, "src", src.String(), "declared_interfaces", len(in.snaps["interfaces"]))
 		return nil
 	}
-	// The hint is the TCP address only. The MAC is the node's own claim, and the inventory resolves a device by MAC first: with it in
-	// the hint a node could write onto any device whose MAC it names. It goes in as a 0.9 observation only, which the inventory
-	// refuses when another device owns that MAC (D-265 (4)).
-	hint := observe.AssetHint{IP: ip}
+	// The hint is the TCP address and the node (D-598), never the MAC. The MAC is the node's own claim, and the inventory resolves a
+	// device by MAC: with it in the hint a node could write onto any device whose MAC it names. It goes in as a 0.9 observation only,
+	// which the inventory refuses when another device owns that MAC (D-265 (4)). The node is the id this box gave it at enrolment:
+	// the inventory binds it to the device its report reached by address, and a later report finds that device by it when the
+	// machine's address changed (a laptop on DHCP), instead of making a second device.
+	hint := observe.AssetHint{IP: ip, Agent: nodeAgent(n.id)}
 	kernel, err := s.nodeKernel(ctx, n, in)
 	if err != nil {
 		return err
@@ -66,6 +68,9 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 	}
 	return s.firstReport(ctx, n, hint, mac, taken)
 }
+
+// nodeAgent is the inventory's name of an osquery node (core/observe AssetHint.Agent, D-598).
+func nodeAgent(id string) string { return "osquery:" + id }
 
 // enrolHostname gives the device the host name the node enrolled with while its system_info answer has not reached the inventory (W-2,
 // D-548): without it a machine whose system_info is late or never taken is named after its network card's maker ("QEMU virtual NIC")
@@ -289,7 +294,7 @@ func (s *Service) ApproveBound(ctx context.Context) error {
 		if err != nil {
 			continue // not written by markResult; nothing to approve
 		}
-		done, err := s.approve(ctx, b.id, observe.AssetHint{IP: ip}, b.mac, ", approved from its earlier reports after an upgrade", true)
+		done, err := s.approve(ctx, b.id, observe.AssetHint{IP: ip, Agent: nodeAgent(b.id)}, b.mac, ", approved from its earlier reports after an upgrade", true)
 		switch {
 		case errors.Is(err, errNodeInvalid): // revoked since the list was read
 			continue

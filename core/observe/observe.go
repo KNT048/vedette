@@ -97,12 +97,9 @@ func ValidAgentKey(k string) bool {
 			return false
 		}
 	}
-	for _, r := range id {
-		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '.' || r == '_' || r == '-') {
-			return false
-		}
-	}
-	return true
+	return strings.IndexFunc(id, func(r rune) bool {
+		return (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '.' && r != '_' && r != '-'
+	}) < 0
 }
 
 // Observation is one thing seen about one field of one device.

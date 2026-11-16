@@ -35,13 +35,13 @@ func byAddress(ip, name string) []observe.Observation {
 	return []observe.Observation{{AssetHint: observe.AssetHint{IP: netip.MustParseAddr(ip)}, Field: observe.Hostname, Value: name, Source: observe.Nmap, Confidence: 0.6}}
 }
 
-// osq is what agent-intake sends for one osquery report from ip: its host name and the MAC of its card at ip, hinted by address and node.
-func osq(node, ip, name, mac string) []observe.Observation {
-	h := observe.AssetHint{IP: netip.MustParseAddr(ip), Agent: "osquery:" + node}
+// osq is what agent-intake sends for one report of osquery node node-a (host build01, card burnt1) from ip: its host name, OS and the MAC of its card, hinted by address and node.
+func osq(ip string) []observe.Observation {
+	h := observe.AssetHint{IP: netip.MustParseAddr(ip), Agent: "osquery:node-a"}
 	return []observe.Observation{
-		{AssetHint: h, Field: observe.Hostname, Value: name, Source: observe.Agent, Confidence: 0.9},
+		{AssetHint: h, Field: observe.Hostname, Value: "build01", Source: observe.Agent, Confidence: 0.9},
 		{AssetHint: h, Field: observe.OS, Value: "Ubuntu 24.04", Source: observe.Agent, Confidence: 0.95},
-		{AssetHint: h, Field: observe.MAC, Value: mac, Source: observe.Agent, Confidence: 0.9},
+		{AssetHint: h, Field: observe.MAC, Value: burnt1, Source: observe.Agent, Confidence: 0.9},
 	}
 }
 
@@ -167,12 +167,12 @@ func TestContract_D598_AnAgentFollowsItsDevice(t *testing.T) {
 	e.record(dhcp(burnt1, "192.168.18.20", "")...)
 	id := e.idOf("192.168.18.20")
 	e.tick(time.Minute)
-	e.record(osq("node-a", "192.168.18.20", "build01", burnt1)...)
+	e.record(osq("192.168.18.20")...)
 	if e.devices() != 1 || e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_key = 'osquery:node-a'`, id) != 1 {
 		t.Fatalf("after the first report: %d devices, agent bound %d", e.devices(), e.count(`SELECT count(*) FROM inv_asset WHERE agent_key IS NOT NULL`))
 	}
 	e.tick(time.Hour)
-	e.record(osq("node-a", "192.168.18.30", "build01", burnt1)...)
+	e.record(osq("192.168.18.30")...)
 	d := e.only()
 	if d.ID != id || d.IP != "192.168.18.30" {
 		t.Errorf("after the move: id %s ip %s, want %s at .30", d.ID, d.IP, id)
@@ -190,7 +190,7 @@ func TestContract_D598_AnAgentIsNotBoundToAnotherMachinesRow(t *testing.T) {
 	e := newEnv(t)
 	e.record(dhcp(burnt2, "192.168.18.20", "")...)
 	e.tick(time.Minute)
-	e.record(osq("node-a", "192.168.18.20", "build01", burnt1)...)
+	e.record(osq("192.168.18.20")...)
 	if n := e.count(`SELECT count(*) FROM inv_asset WHERE agent_key IS NOT NULL`); n != 0 {
 		t.Errorf("%d rows bound to the node, want none", n)
 	}
@@ -204,7 +204,7 @@ func TestContract_D598_AnAgentsRowJoinsItsMachine(t *testing.T) {
 	e.record(dhcp(burnt1, "192.168.18.20", "")...)
 	id := e.idOf("192.168.18.20")
 	e.tick(time.Hour)
-	e.record(osq("node-a", "192.168.18.40", "build01", burnt1)...)
+	e.record(osq("192.168.18.40")...)
 	if e.devices() != 2 {
 		t.Fatalf("%d devices before a sensor sees the move, want 2", e.devices())
 	}
@@ -215,7 +215,7 @@ func TestContract_D598_AnAgentsRowJoinsItsMachine(t *testing.T) {
 		t.Errorf("device: id %s ip %s name %v", d.ID, d.IP, d.Hostname)
 	}
 	e.tick(time.Minute)
-	e.record(osq("node-a", "192.168.18.40", "build01", burnt1)...)
+	e.record(osq("192.168.18.40")...)
 	if d := e.only(); d.ID != id {
 		t.Errorf("the next report went to %s, want %s", d.ID, id)
 	}

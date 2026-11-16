@@ -164,7 +164,7 @@ func (p *fakePub) take() []published {
 
 // env is a real database with core and findings migrated, the service on it and fakes for the rest.
 type env struct {
-	t     *testing.T
+	t     testing.TB
 	db    *store.DB
 	svc   *Service
 	inv   *fakeInv
@@ -173,7 +173,7 @@ type env struct {
 	clock *time.Time
 }
 
-func newEnv(t *testing.T) *env {
+func newEnv(t testing.TB) *env {
 	t.Helper()
 	db := storetest.New(t)
 	for _, m := range []storetest.Migration{{Module: "core", FS: core.Migrations}, {Module: "findings", FS: Migrations}} {

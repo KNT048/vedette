@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { renderApp, expectNoA11yViolations } from '@/test/render'
+import { renderApp, expectNoA11yViolations, mainNavLink } from '@/test/render'
 import { modulesStore } from '@/mocks/stores'
 import { MOCK_SETUP_CODE } from './mocks'
 
@@ -16,7 +16,7 @@ describe('D-624: preview modules (#818)', () => {
     renderApp('/honeypot')
     const traps = await within(await screen.findByRole('navigation', { name: 'Main navigation' })).findByRole('link', { name: 'Internal traps Preview' })
     expect(within(traps).getByText('Preview')).toBeInTheDocument()
-    expect(within(mainNav()).getByRole('link', { name: 'Devices' })).toBeInTheDocument() // v1: no badge in its name
+    expect(await mainNavLink(/^Devices( \d+ to review)?$/)).toBeInTheDocument() // v1: no Preview badge in its name (a count may follow)
     const header = (await screen.findByRole('heading', { level: 1 })).closest('header')!
     expect(within(header).getByText('Preview')).toBeInTheDocument()
     expect(within(header).getByText('Not part of the v1 promise yet.')).toBeInTheDocument()
@@ -73,7 +73,7 @@ describe('D-624: modules left out of v1 (#819)', () => {
     const row = (await screen.findByRole('switch', { name: 'Turn off module AI response' })).closest('tr')!
     expect(within(row).getByText('Not in v1')).toBeInTheDocument()
     expect(within(row).getByText(LEAVING)).toBeInTheDocument()
-    const nav = within(mainNav()).getByRole('link', { name: 'Response Not in v1' })
+    const nav = await mainNavLink('Response Not in v1')
     expect(nav).toHaveAttribute('href', '/response')
     expect(within(settingsNav()).getByRole('link', { name: 'AI response (high risk)' })).toBeInTheDocument()
 

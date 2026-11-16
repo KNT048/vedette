@@ -87,5 +87,5 @@ function Content() {
 export default function ResponsePage() {
   const incident = new URLSearchParams(useLocation().search).get('incident')
   // Respond on an incident while response is off (the default): the manual steps still help (W7-1, S-RESP-3)
-  return <RequireModule module="response" fallback={incident ? <IncidentRespondOff id={incident} /> : undefined}><Content /></RequireModule>
+  return <RequireModule module="response" page fallback={incident ? <IncidentRespondOff id={incident} /> : undefined}><Content /></RequireModule>
 }

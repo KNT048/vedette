@@ -34,7 +34,7 @@ const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
 // N49-1 (modules.md): the module's API is read only while the module is on.
 export default function TargetPage() {
-  return <RequireModule module="exposure"><TargetLoader /></RequireModule>
+  return <RequireModule module="exposure" page><TargetLoader /></RequireModule>
 }
 
 function TargetLoader() {

@@ -101,6 +101,12 @@ describe('findings: danh sách (S-MIT-1)', () => {
     modulesStore.update((l) => l.map((m) => (m.id === 'findings' ? { ...m, enabled: false } : m)))
     renderApp('/findings')
     expect(await screen.findByText('Findings module is off')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Findings' })).toBeInTheDocument() // #892: the page keeps its h1
+    expect(screen.getByRole('link', { name: 'Open module settings' })).toHaveAttribute('href', '/settings/modules#module-findings')
+    cleanup()
+    renderApp('/findings/f-1')
+    expect(await screen.findByText('Findings module is off')).toBeInTheDocument()
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   })
 
   it('module mitigation tắt: phát hiện vẫn còn, chỉ phần "What to do" báo module tắt (D-57 (6))', async () => {

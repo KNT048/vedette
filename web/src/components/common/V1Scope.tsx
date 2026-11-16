@@ -16,7 +16,7 @@ export function ScopeBadge({ scope, className }: { scope: Scope; className?: str
 }
 
 /** The one line under a preview or leaving module's name; `turnOff` adds the link to the only action left (D-403's way out). */
-export function ScopeLine({ scope, turnOff, className }: { scope: Scope; turnOff?: boolean; className?: string }) {
+export function ScopeLine({ scope, turnOff, module, className }: { scope: Scope; turnOff?: boolean; module?: ModuleId; className?: string }) {
   const { t } = useTranslation()
   if (scope !== 'preview' && scope !== 'leaving') return null
   const line = t(scope === 'preview' ? 'scope.previewLine' : 'scope.leavingLine')
@@ -24,7 +24,7 @@ export function ScopeLine({ scope, turnOff, className }: { scope: Scope; turnOff
     <div className={cn('flex flex-wrap items-center gap-x-1 text-meta', scope === 'leaving' ? 'text-warn' : 'text-muted', className)}>
       <span>{line}</span>
       <InfoTip topic={t(scope === 'preview' ? 'scope.preview' : 'scope.leaving')}>{t(scope === 'preview' ? 'scope.previewInfo' : 'scope.leavingInfo')}</InfoTip>
-      {turnOff && scope === 'leaving' ? <Link to="/settings/modules" className="text-accent underline-offset-4 hover:underline">{t('scope.turnOff')}</Link> : null}
+      {turnOff && scope === 'leaving' ? <Link to={module ? `/settings/modules#module-${module}` : '/settings/modules'} className="text-accent underline-offset-4 hover:underline">{t('scope.turnOff')}</Link> : null}
     </div>
   )
 }
@@ -35,5 +35,5 @@ export function ModuleBadge({ id, className }: { id: ModuleId; className?: strin
   return <ScopeBadge scope={useScope(id)} className={className} />
 }
 export function ModuleLine({ id, turnOff }: { id: ModuleId; turnOff?: boolean }) {
-  return <ScopeLine scope={useScope(id)} turnOff={turnOff} />
+  return <ScopeLine scope={useScope(id)} turnOff={turnOff} module={id} /> // the link lands on the module's own switch (UI.md §0.2)
 }

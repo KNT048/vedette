@@ -6,6 +6,7 @@ import { useModuleEnabled, useModules, type ModuleId } from '@/lib/modules'
 import { notOffered } from '@/lib/v1'
 import { ApiError, api } from '@/lib/api'
 import { InfoTip } from './InfoTip'
+import { PageHeader } from './PageHeader'
 import { useQuery } from '@tanstack/react-query'
 import { Illustration, type IllustrationName } from './Illustration'
 
@@ -80,8 +81,15 @@ export function QueryState<T>({ query, children }: { query: { data: T | undefine
   return <>{children(data)}</>
 }
 
-/** S-CORE-1: module tắt thì nói rõ vì sao thiếu dữ liệu và chỗ bật. */
-export function ModuleOff({ module, children }: { module: ModuleId; children?: ReactNode }) {
+/** S-CORE-1: module tắt thì nói rõ vì sao thiếu dữ liệu và chỗ bật. `page`: it stands in for a whole page, so it carries the page's
+ *  h1 (the module's name), as every page has one (docs/UI.md §3; n72: /settings/mcp and the module-off pages had none). */
+export function ModuleOff({ module, children, page }: { module: ModuleId; children?: ReactNode; page?: boolean }) {
+  const { t } = useTranslation()
+  const box = <ModuleOffBox module={module}>{children}</ModuleOffBox>
+  return page ? <><PageHeader title={t(`modules.${module}.name`)} />{box}</> : box
+}
+
+function ModuleOffBox({ module, children }: { module: ModuleId; children?: ReactNode }) {
   const { t } = useTranslation()
   // A module this install cannot run (available false: needs vedette-host on a container-only install, D-381) cannot be
   // turned on, so the box says so instead of inviting the user to switch it on (S-CORE-9 G5, D-420 (4)).
@@ -110,16 +118,16 @@ export function ModuleOff({ module, children }: { module: ModuleId; children?: R
     <div className="rounded-md border border-rule bg-off-soft px-4 py-3 text-sm">
       <p className="font-medium">{t('moduleOff.title', { name: t(`modules.${module}.name`) })}</p>
       <p className="mt-1 text-muted">{children ?? t('moduleOff.body')}</p>
-      <Link to="/settings/modules" className="mt-2 inline-block text-accent underline-offset-4 hover:underline">{t('moduleOff.enable')}</Link>
+      <Link to={`/settings/modules#module-${module}`} className="mt-2 inline-block text-accent underline-offset-4 hover:underline">{t('moduleOff.enable')}</Link>
     </div>
   )
 }
 
 /** Bọc nội dung phụ thuộc một module: tắt → ModuleOff; đang tải → không hiện gì. */
-export function RequireModule({ module, children, fallback }: { module: ModuleId; children: ReactNode; fallback?: ReactNode }) {
+export function RequireModule({ module, children, fallback, page }: { module: ModuleId; children: ReactNode; fallback?: ReactNode; page?: boolean }) {
   const on = useModuleEnabled(module)
   if (on === undefined) return null
-  if (!on) return <>{fallback ?? <ModuleOff module={module} />}</>
+  if (!on) return <>{fallback ?? <ModuleOff module={module} page={page} />}</>
   return <>{children}</>
 }
 

@@ -32,7 +32,7 @@ const ANCHOR_TAB: Record<string, string> = { targets: 'targets', 'box-ip': 'targ
 
 // N49-1 (modules.md): the module's API is read only while the module is on; off, the page says so and calls nothing.
 export default function ExposurePage() {
-  return <RequireModule module="exposure"><ExposureView /></RequireModule>
+  return <RequireModule module="exposure" page><ExposureView /></RequireModule>
 }
 
 function ExposureView() {

@@ -77,5 +77,5 @@ function Page() {
 }
 
 export default function PlanPage() {
-  return <RequireModule module="findings"><Page /></RequireModule>
+  return <RequireModule module="findings" page><Page /></RequireModule>
 }

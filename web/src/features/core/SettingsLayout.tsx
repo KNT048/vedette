@@ -64,8 +64,8 @@ export function SettingsRoute() {
   if (RANK[a.role] < RANK[s.minRole]) {
     return <EmptyState title={t('settings.needRole.title', { name: t(s.label) })}>{t('settings.needRole.body', { role: t(`common:role.${s.minRole}`) })}</EmptyState>
   }
-  if (!a.on.has(s.module)) return <ModuleOff module={s.module} />
-  if (a.hidden(s)) return <ModuleOff module={ownerOf(s)} />
+  if (!a.on.has(s.module)) return <ModuleOff module={s.module} page />
+  if (a.hidden(s)) return <ModuleOff module={ownerOf(s)} page />
   return <PageModule.Provider value={ownerOf(s)}>{s.element}</PageModule.Provider>
 }
 

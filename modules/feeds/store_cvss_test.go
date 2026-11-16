@@ -121,9 +121,9 @@ func TestStoreRecentPage_KeepsCVSSVersionAndSource(t *testing.T) {
 	}
 }
 
-// Migration 0015 on a box that has data: nvd-kev gets its one-time full-pull mark and nvd-recent loads its 12 months again once, so
-// every stored record gets its CVSS pick (review r1 M1, L1).
-func TestMigration0015MarksAFullPullAndRefillsNVDRecent(t *testing.T) {
+// Migration 0015 on a box that has data: nvd-kev gets its one-time full-pull mark and pulls at the next check (not a day after its last
+// success, review r2 M1); nvd-recent keeps its cursor (no refill, review r2 M2).
+func TestMigration0015MarksAFullPullOnly(t *testing.T) {
 	t.Parallel()
 	before := fstest.MapFS{}
 	entries, err := fs.ReadDir(Migrations, ".")
@@ -157,7 +157,62 @@ func TestMigration0015MarksAFullPullAndRefillsNVDRecent(t *testing.T) {
 	if due, _ := s.fullDue(t.Context(), recentFeedID); due {
 		t.Fatal("only nvd-kev is marked")
 	}
-	if c, err := s.recentCursor(t.Context()); err != nil || c != nil {
-		t.Fatalf("cursor %+v %v", c, err)
+	if c, err := s.recentCursor(t.Context()); err != nil || c == nil || c.Mode != modeDone {
+		t.Fatalf("nvd-recent's cursor must stay: %+v %v", c, err)
+	}
+}
+
+// Review r2 M1: while the mark is set, nvd-kev is due at the next check even a few minutes after a good pull; a failing feed keeps its
+// back-off; once the full pull is stored the feed is back on its 24-hour schedule.
+func TestRunPull_FullDuePullsNVDKevAtTheNextCheck(t *testing.T) {
+	t.Parallel()
+	e, o := pullEnv(t)
+	e.only("nvd-kev")
+	e.mirror("nvd-kev", o.url("/nvd"))
+	nvdOrigin(o, 3, "2.0")
+	if err := e.svc.Fetch(t.Context(), "nvd-kev"); err != nil {
+		t.Fatal(err)
+	}
+	n := o.count("/nvd")
+	e.setNow(e.clock().Add(10 * time.Minute))
+	if err := e.svc.RunPull(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if o.count("/nvd") != n {
+		t.Fatal("nvd-kev pulled again 10 minutes after a good pull without the mark")
+	}
+	write(t, e.db, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET full_due = 1 WHERE id = 'nvd-kev'`)
+		return err
+	})
+	e.setNow(e.clock().Add(5 * time.Minute))
+	if err := e.svc.RunPull(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if o.count("/nvd") == n {
+		t.Fatal("the mark did not make nvd-kev due at the next check")
+	}
+	if due, _ := e.svc.st.fullDue(t.Context(), nvdFeedID); due {
+		t.Fatal("the mark stayed after the full pull")
+	}
+	n = o.count("/nvd")
+	e.setNow(e.clock().Add(5 * time.Minute))
+	if err := e.svc.RunPull(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if o.count("/nvd") != n {
+		t.Fatal("nvd-kev pulled again after the mark was cleared")
+	}
+	// a failing feed with the mark waits out its back-off
+	write(t, e.db, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET full_due = 1, failures = 3, status = 'error', last_fetch = ? WHERE id = 'nvd-kev'`, store.FormatTS(e.clock()))
+		return err
+	})
+	e.setNow(e.clock().Add(5 * time.Minute))
+	if err := e.svc.RunPull(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if o.count("/nvd") != n {
+		t.Fatal("a failing nvd-kev skipped its back-off")
 	}
 }

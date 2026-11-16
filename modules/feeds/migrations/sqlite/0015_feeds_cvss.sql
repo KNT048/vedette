@@ -5,11 +5,11 @@
 -- the CNA or CISA's ADP); an entry counts only with a valid vector of its version (FIRST: a score is shown with its vector), else the
 -- next one is tried. A CVE without a score has no row ("No CVSS score", never 0).
 -- feeds_cvss: the score of each CVE of the exploited lists, written by nvd-kev. feeds_source.full_due = 1 asks for one full pull of
--- nvd-kev (so every KEV CVE gets its score; about 20 requests), cleared by the first full pull that is stored: a one-time mark, not
--- "the table is empty" (review r1 L1).
+-- nvd-kev at the next 5-minute check (so every KEV CVE gets its score; about 20 requests), cleared by the first full pull that is
+-- stored: a one-time mark, not "the table is empty" (review r1 L1, r2 M1).
 -- feeds_recent_cve.cvss_*: the same pick for nvd-recent (a CVE not on the exploited lists), kept apart from severity/score, which tier 3
--- reads by its own rule (INV-24). The cursor goes, so the next pull of nvd-recent loads the 12 months again once (about 105 requests in
--- the background, as migration 0013 did) and every row gets its score; meanwhile the feed says it is loading. Forward-only.
+-- reads by its own rule (INV-24). No refill (review r2 M2): a row stored before gets them when NVD changes the record, or at the next
+-- full fill; until then it has no CVSS score. Forward-only.
 CREATE TABLE feeds_cvss (
     cve     TEXT NOT NULL PRIMARY KEY CHECK (cve GLOB 'CVE-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]*' AND length(cve) <= 32),
     score   REAL NOT NULL CHECK (score BETWEEN 0 AND 10),
@@ -23,4 +23,3 @@ ALTER TABLE feeds_recent_cve ADD COLUMN cvss_score REAL CHECK (cvss_score IS NUL
 ALTER TABLE feeds_recent_cve ADD COLUMN cvss_version TEXT CHECK (cvss_version IS NULL OR cvss_version IN ('4.0', '3.1', '3.0', '2.0'));
 ALTER TABLE feeds_recent_cve ADD COLUMN cvss_source TEXT CHECK (cvss_source IS NULL OR cvss_source IN ('nvd', 'cna'));
 ALTER TABLE feeds_recent_cve ADD COLUMN cvss_vector TEXT CHECK (cvss_vector IS NULL OR (length(cvss_vector) <= 200 AND (cvss_vector GLOB 'CVSS:[34].[01]/*' OR cvss_vector GLOB 'AV:[LAN]/*')));
-DELETE FROM feeds_recent_cursor;

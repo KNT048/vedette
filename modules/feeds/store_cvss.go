@@ -43,7 +43,8 @@ ON CONFLICT(cve) DO UPDATE SET score = excluded.score, version = excluded.versio
 	return nil
 }
 
-// fullDue says a migration asked for one full pull of the feed (feeds_source.full_due, migration 0015 for nvd-kev, INV-28).
+// fullDue says a migration asked for one full pull of the feed (feeds_source.full_due, migration 0015 for nvd-kev, INV-28). Read on
+// its own, not with sourceCols, so code reading feeds on a schema from before the column still works.
 func (s *Store) fullDue(ctx context.Context, id string) (bool, error) {
 	var due bool
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT full_due FROM feeds_source WHERE id = ?`, id).Scan(&due)

@@ -68,6 +68,15 @@ func (s *Service) RunPull(ctx context.Context) error {
 				due = st.Due(now, r.IntervalHours)
 			}
 		}
+		if r.ID == nvdFeedID && r.Enabled { // review r2 M1 of #825: the full pull migration 0015 asked for runs at the next check, not a day later
+			if full, err := s.st.fullDue(ctx, r.ID); err != nil {
+				s.Log.ErrorContext(ctx, "reading whether the NVD affected versions need a full pull failed", "error", err)
+			} else if full {
+				st := r.state()
+				st.LastSuccess = time.Time{} // only the back-off after failures holds it back (as N55-2)
+				due = st.Due(now, r.IntervalHours)
+			}
+		}
 		if at, paused := s.nvdResumeAt(); paused && r.ID == nvdFeedID {
 			due = !now.Before(at) // a paused NVD pull goes on when it said it would (W3-1)
 		}

@@ -988,7 +988,7 @@ func evalUpdate(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) Tri {
 	if pv.tail != "" {
 		return Unknown
 	}
-	if c.Update.Kind == NA && !hasSW { // "1.9.17:-" is the release with no update: "1.9.17p2" is not it (D-500)
+	if c.Update.Kind == NA && (!hasSW || naCovers(c.Update, sw.Update)) { // "1.9.17:-" is the release with no update: "1.9.17p2" is not it (D-500, #901)
 		if pv.q.class != 0 {
 			return No
 		}
@@ -1026,6 +1026,8 @@ func evalUpdate(c CPE, r VersionRange, ver string, sw CPE, hasSW bool) Tri {
 // pinnedAttrs checks the attributes the software side rarely carries (edition,
 // language, software edition, target software/hardware, other). A pinned value
 // the software contradicts gives No; one it does not carry lowers Yes to Unknown.
+// NA ("-") is not a value: it covers the software's NA or unstated attribute and
+// leaves the answer as it is, and a value the software states gives No (#901).
 func pinnedAttrs(c, sw CPE, hasSW bool, t Tri) Tri {
 	cfa := c.fields()
 	cf := cfa[5:]
@@ -1036,6 +1038,12 @@ func pinnedAttrs(c, sw CPE, hasSW bool, t Tri) Tri {
 	}
 	for i, a := range cf {
 		if a.Kind == Any {
+			continue
+		}
+		if a.Kind == NA { // #901: NA covers NA and an unstated attribute, never a value (naCovers)
+			if hasSW && !naCovers(*a, *sf[i]) {
+				return No
+			}
 			continue
 		}
 		if hasSW {

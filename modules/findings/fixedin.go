@@ -141,7 +141,7 @@ func fixedPartsOf(in swInfo, v Vuln, key []identity) fixedParts {
 	// usable are the entries that carry a range with readable bounds: the only ones a fix can be read from.
 	var usable []fixedEntry
 	for _, e := range ents {
-		if !e.r.IsZero() && e.c.Version.Kind == Any && e.c.Update.Kind == Any && boundsReadable(e.r) {
+		if !e.r.IsZero() && e.c.Version.Kind == Any && (e.c.Update.Kind == Any || e.c.Update.Kind == NA) && boundsReadable(e.r) {
 			usable = append(usable, e)
 		}
 	}

@@ -254,9 +254,11 @@ func TestGolden_KEVWithNVDRanges(t *testing.T) {
 		{name: "FortiOS without a version", sw: fortiGate(vulns, ""), need: 21},
 		{name: "Office without a version", sw: office(vulns, ""), need: 32},
 		{name: "Office 16.0 build", sw: office(vulns, "16.0.17928.20114"), product: office16},
+		// #901: CVE-2015-2545 lists "office:2016:*:-:*:-:*:-:*"; its NA ("-") attributes cover a row that states none, so it is a
+		// version match (it was a product one while NA read as a value the row does not carry).
 		{name: "Office typed as 2016", sw: office(vulns, "2016"),
-			version: "CVE-2016-7193 CVE-2017-0261 CVE-2017-0262 CVE-2017-11774 CVE-2017-11826 CVE-2017-11882 CVE-2018-0798 CVE-2018-0802 CVE-2023-23397",
-			product: "CVE-2015-2545 CVE-2016-3235 CVE-2017-0199 CVE-2017-8570 CVE-2021-27059 CVE-2021-38646 CVE-2021-42292 CVE-2023-21715 CVE-2024-21413 CVE-2026-124194 CVE-2026-21509 CVE-2026-21514"},
+			version: "CVE-2015-2545 CVE-2016-7193 CVE-2017-0261 CVE-2017-0262 CVE-2017-11774 CVE-2017-11826 CVE-2017-11882 CVE-2018-0798 CVE-2018-0802 CVE-2023-23397",
+			product: "CVE-2016-3235 CVE-2017-0199 CVE-2017-8570 CVE-2021-27059 CVE-2021-38646 CVE-2021-42292 CVE-2023-21715 CVE-2024-21413 CVE-2026-124194 CVE-2026-21509 CVE-2026-21514"},
 		// Citrix builds: "13.1-49.13" is inside "13.1 or later, before 13.1-49.15" (Citrix Bleed, CVE-2023-4966).
 		{name: "NetScaler 13.1-49.13", sw: netScaler(vulns, "13.1-49.13"),
 			version: "CVE-2023-4966 CVE-2023-6548 CVE-2023-6549 CVE-2025-5777 CVE-2025-6543 CVE-2025-7775 CVE-2026-19490 CVE-2026-3055 CVE-2026-8452 CVE-2026-88771 CVE-2026-88772 CVE-2026-88779",

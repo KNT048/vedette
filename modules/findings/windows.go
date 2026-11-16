@@ -42,6 +42,7 @@ type winDev struct {
 	rev    int    // the same as a number
 	target string // "x64", "x86", "arm64"; "" when not known
 	ltsc   bool   // the device's OS name says LTSC or LTSB
+	cpe    CPE    // the row's own CPE: an NVD row's NA covers only what it leaves unstated (winUnpinned, #901)
 }
 
 // ended says Microsoft no longer services the device's release (core/winrel Ended), unless an LTSC/LTSB edition of it still is and
@@ -70,7 +71,7 @@ func winDevice(in swInfo) (winDev, bool) {
 	}
 	n, _ := strconv.Atoi(m[2])
 	os := strings.ToLower(in.osName)
-	d := winDev{rel: rel, ubr: m[2], rev: n, ltsc: strings.Contains(os, "ltsc") || strings.Contains(os, "ltsb")}
+	d := winDev{rel: rel, ubr: m[2], rev: n, ltsc: strings.Contains(os, "ltsc") || strings.Contains(os, "ltsb"), cpe: in.cpe}
 	if t, ok := in.cpe.TargetHW.Literal(); ok && in.cpe.TargetHW.Kind == Value {
 		d.target = t
 	}
@@ -437,13 +438,12 @@ func winRows(rows []fixedEntry, d winDev, v Vuln) winVerdict {
 // winEval reads one row of the device's release line with its update revision. The bounds must be builds of that line
 // ("10.0.22631.5189" for a 22621 or 22631 device): the device's revision is compared at the bound's build, and the range that
 // matched is given at the device's build, with the bound's build. Anything else the row pins or bounds (another build, a bound
-// without the revision, "-", an update) is Unknown, and so is a release row of every version with no range: for a Windows release
-// that means NVD recorded no fixed build, not that no update fixes it (review r1 LOW-1).
+// without the revision, "-" as the version, an update) is Unknown, and so is a release row of every version with no range: for a
+// Windows release that means NVD recorded no fixed build, not that no update fixes it (review r1 LOW-1). An attribute NA ("-": the
+// software edition of "windows_server_2025:*:*:*:*:-:*:x64:*") pins nothing the device states, so it reads (winUnpinned, #901).
 func winEval(c CPE, r VersionRange, d winDev) (Tri, VersionRange, int) {
-	for _, a := range []Attr{c.Update, c.Edition, c.Language, c.SWEdition, c.TargetSW, c.Other} {
-		if a.Kind != Any {
-			return Unknown, r, 0
-		}
+	if !winUnpinned(c, d) {
+		return Unknown, r, 0
 	}
 	if r.IsZero() {
 		lit, ok := c.Version.Literal()
@@ -668,10 +668,8 @@ func winKinship(l winListed, d winDev) (same, other bool) {
 // a build on the device's line, or exactly the device's build for a row of the other kind), nothing else is pinned and a start bound is
 // of the same build. false otherwise.
 func winFixRev(c CPE, r VersionRange, d winDev, other bool) (int, bool) {
-	for _, a := range []Attr{c.Version, c.Update, c.Edition, c.Language, c.SWEdition, c.TargetSW, c.Other} {
-		if a.Kind != Any {
-			return 0, false
-		}
+	if c.Version.Kind != Any || !winUnpinned(c, d) {
+		return 0, false
 	}
 	m := winBoundRE.FindStringSubmatch(r.EndExcl)
 	if m == nil || r.EndIncl != "" {
@@ -688,6 +686,22 @@ func winFixRev(c CPE, r VersionRange, d winDev, other bool) (int, bool) {
 	}
 	rev, _ := strconv.Atoi(m[2])
 	return rev, rev > 0
+}
+
+// winUnpinned says whether row c pins nothing after its version but target hardware (winRows reads that). Update and edition must
+// be ANY: on a Windows row they name a service pack or an edition ("windows_7:-:sp1"), and "-" there is "the release without one", a
+// restriction the device's build does not settle. Language, software edition, target software and other may also be NA where the
+// device's row states no value (naCovers, #901): NVD writes "windows_server_2025:*:*:*:*:-:*:x64:*" for every install of the release.
+func winUnpinned(c CPE, d winDev) bool {
+	if c.Update.Kind != Any || c.Edition.Kind != Any {
+		return false
+	}
+	for _, p := range [...][2]Attr{{c.Language, d.cpe.Language}, {c.SWEdition, d.cpe.SWEdition}, {c.TargetSW, d.cpe.TargetSW}, {c.Other, d.cpe.Other}} {
+		if p[0].Kind != Any && !naCovers(p[0], p[1]) {
+			return false
+		}
+	}
+	return true
 }
 
 // winBuildMonth reads from the list which month's update the device's build carries (D-618). Each row of the device's numbering whose

@@ -255,6 +255,14 @@ func attrMatch(c, t Attr) bool {
 	return wildMatch(c.Value, t.Value)
 }
 
+// naCovers reports whether a configuration attribute c of NA ("not applicable", written "-") covers the software's attribute t
+// (#901). NISTIR 7696 matches NA only to NA or ANY, never to a value. A software row's ANY means "not stated": inventory never
+// knows an edition, a language or a target software, and NA says the attribute does not apply to the product at all, so no
+// install of it carries a value there. So NA covers NA and an unstated attribute; a concrete value ("enterprise", "x86") never.
+// Only for the attributes after the version (update, edition, language, software edition, target software and hardware, other):
+// part, vendor, product and version go by attrMatch and the version rules.
+func naCovers(c, t Attr) bool { return c.Kind == NA && t.Kind != Value }
+
 // Matches reports whether configuration cpe c covers every attribute of the
 // target cpe t. The target is normally a CPE of installed software.
 func (c CPE) Matches(t CPE) bool {

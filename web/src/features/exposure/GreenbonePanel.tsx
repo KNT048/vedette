@@ -67,8 +67,9 @@ function GreenboneBody({ g }: { g: Greenbone }) {
             { label: t('greenbone.memory'), value: gb(p.memory_bytes) ?? t('common:unknown') },
             { label: t('greenbone.disk'), value: gb(p.disk_free_bytes) ?? t('common:unknown') },
             // T10: the date of the tests OpenVAS itself reports (get_feeds), there from the first load at Enable on.
-            // N45-4: a ready scanner whose feed was not read yet has its feed all the same (never "not yet").
-            ...(on ? [{ label: t('greenbone.feedTests'), value: <FeedTests g={g} /> }] : []),
+            // N45-4: a ready scanner whose feed was not read yet has its feed all the same (never "not yet"); before the first read
+            // after a start the line is left out (review L2).
+            ...(on && (g.feed?.nvt_version || g.state === 'ready') ? [{ label: t('greenbone.feedTests'), value: <FeedTests g={g} /> }] : []),
             // D-564 G6: the weekly feed update, its last outcome (only once one ran) and when the next one is due
             ...(f.last_at ? [{ label: t('greenbone.feedLast'), value: `${dateTimeText(f.last_at)}. ${f.note ?? ''}` }] : []),
             ...(f.next_at ? [{ label: t('greenbone.feedNext'), value: dateTimeText(f.next_at) }] : []),
@@ -98,8 +99,7 @@ function FeedTests({ g }: { g: Greenbone }) {
   if (feed?.nvt_version) {
     return <InfoLine topic={t('greenbone.feedTests')} info={t('greenbone.feedTestsInfo', { version: feed.nvt_version })}>{feed.nvt_date ? dateText(feed.nvt_date) : feed.nvt_version}</InfoLine>
   }
-  if (g.state === 'ready') return <>{g.changed_at ? t('greenbone.feedFirstDoneAt', { time: dateTimeText(g.changed_at) }) : t('greenbone.feedFirstDone')}</>
-  return <span className="text-muted">{t('greenbone.feedTestsPending')}</span>
+  return <>{g.changed_at ? t('greenbone.feedFirstDoneAt', { time: dateTimeText(g.changed_at) }) : t('greenbone.feedFirstDone')}</>
 }
 
 /** A snapshot read from a box older than greenbone_run (or the mock's stored days) has none: the lines say what happened. */

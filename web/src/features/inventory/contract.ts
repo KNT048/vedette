@@ -70,13 +70,29 @@ export const DevicesResponse = z.object({
   notify_available: z.boolean().describe('false when the notify module is off'),
 })
 export const SoftwareView = Software.omit({ kev: true }).extend({ kev_cves: z.array(z.string()) })
+/** D-599 (#829, J2): when the inventory cannot be sure two rows are one machine (a phone or laptop with a new private Wi-Fi address and a
+ * generic name, an older MAC two rows share), a person decides: "Possibly the same device as X" with Merge and Keep separate. */
+export const PossibleSame = z.object({
+  id: z.string(), name: z.string().describe('The other device, named as every page names it (D-471)'),
+  why: z.string().describe('What the two share, in plain words to show as is, e.g. Same name "iPhone", never online at the same time, and a private Wi-Fi address (phones and laptops change it).'),
+  approved: z.boolean(), last_seen: dt,
+})
+export const SameRef = PossibleSame.omit({ why: true })
 export const DeviceDetail = z.object({
   asset: Asset.omit({ software: true }).extend(ScanInfo.shape).extend({ software: z.array(SoftwareView) }),
   suspicious: z.boolean(),
   findings_count: z.number().int().describe('Number of findings attached to the device; deleting the device also deletes these findings'),
   observations: z.array(Observation),
   kinds: z.array(AssetKind),
+  possible_same: z.array(PossibleSame).describe('Devices that may be this same machine (D-599), the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was'),
 })
+export const SamePairs = z.object({
+  items: z.array(z.object({
+    a: SameRef.describe('The approved device when one is, else the one seen first: the one a merge most likely keeps'), b: SameRef, why: PossibleSame.shape.why,
+  })).describe('Every pair of devices that may be one machine (D-599), the pair seen last first'),
+})
+export const MergeInput = z.object({ from: z.string().min(1).max(96).describe('The device that goes into the device of the path') })
+export const KeepSeparateInput = z.object({ other: z.string().min(1).max(96).describe('The other device of the pair') })
 export const CatalogItem = z.object({
   id: z.string().describe('Stable: curated entries have fixed ids, entries from CISA KEV have id "kev:<vendor>:<product>"'), display: z.string().describe('Name the user recognizes'), hint: z.string(),
   category: z.string(), vendor: z.string(), product: z.string(), kind: AssetKind, version_hint: z.string(),
@@ -243,6 +259,9 @@ export const endpoints = defineEndpoints([
     body: z.object({ kind: AssetKind.optional(), fragile: z.boolean().optional(), regular_scan: RegularScan.optional(), notes: z.string().max(2000).optional() }), response: ok },
   { method: 'delete', path: '/inventory/devices/{id}', summary: 'Delete a device from the inventory, along with its findings (409 for the Vedette box itself, which is always the first device)', stories: ['S-INV-3'], role: 'operator', params: id, response: null },
   { method: 'post', path: '/inventory/devices/{id}/approve', summary: 'Approve a new device', stories: ['S-INV-3'], role: 'operator', params: id, response: ok },
+  { method: 'get', path: '/inventory/possible-same', summary: 'Every pair of devices that may be the same machine, for a person to merge or keep separate (D-599)', stories: ['S-INV-3'], role: 'viewer', response: SamePairs },
+  { method: 'post', path: '/inventory/devices/{id}/merge', summary: 'The same machine: device `from` joins this device and is gone (D-599). This device keeps its id, approval (it becomes approved when `from` was, and loses a suspicious mark as on Approve), notes (both kept), findings and settings; the MACs, sources, software and open ports of `from` move to it, and its address when it was seen later and this device was found by a sensor (a device added by hand keeps the address typed). 400 invalid: the same device twice. 404 not_found: either device. 409 box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in MACs, say two machines', stories: ['S-INV-3'], role: 'admin', params: id, body: MergeInput, response: id },
+  { method: 'post', path: '/inventory/devices/{id}/keep-separate', summary: 'Two machines: the pair is never offered as possibly the same device again, until either is deleted or merged (D-599). Saying it again changes nothing. 400 invalid, 404 not_found, 409 box_device as for merge', stories: ['S-INV-3'], role: 'admin', params: id, body: KeepSeparateInput, response: ok },
   { method: 'post', path: '/inventory/devices/{id}/suspicious', summary: 'Mark or unmark a device as suspicious', stories: ['S-INV-3'], role: 'operator', params: id, body: z.object({ suspicious: z.boolean() }), response: ok },
   { method: 'post', path: '/inventory/devices/{id}/software', status: 201, summary: 'Declare additional software running on a device', stories: ['S-INV-2'], role: 'operator', params: id,
     body: AddDeviceInput.omit({ name: true, ip: true }), response: z.object({ kev_cves: z.number().int() }) },

@@ -611,6 +611,9 @@ func handHolder(ctx context.Context, tx *sql.Tx, c cleanObs, other, cutoff strin
 	} else if err != nil {
 		return "", fmt.Errorf("inventory: find the hand-added device at the address: %w", err)
 	}
+	if apart, err := keptApart(ctx, tx, id, other); err != nil || apart { // a person said they are two devices (D-599)
+		return "", err
+	}
 	return id, nil
 }
 

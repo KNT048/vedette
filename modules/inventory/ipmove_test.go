@@ -355,6 +355,19 @@ func TestContract_829_AWaitingDuplicateJoinsTheHandAddedDevice(t *testing.T) {
 	if d := e.only(); d.ID != id || d.IP != "192.168.18.202" {
 		t.Errorf("after the move: id %s ip %s", d.ID, d.IP)
 	}
+	// A pair a person kept separate (D-599) is never folded.
+	{
+		e := newEnv(t)
+		hand := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201"})
+		e.record(arp(xenMAC, "192.168.18.201")[:1]...)
+		if err := e.svc.KeepSeparate(e.ctx(), "kien", hand, e.idByMAC(xenMAC)); err != nil {
+			t.Fatal(err)
+		}
+		e.record(dhcp(xenMAC, "192.168.18.201", "")...)
+		if e.devices() != 2 || e.count(`SELECT count(*) FROM inv_observation WHERE asset_id = ? AND field = 'mac'`, hand) != 0 {
+			t.Errorf("kept separate: %d devices, or the sighting went to the hand-added device", e.devices())
+		}
+	}
 	// A private MAC, or an approved device, is never folded by an address alone.
 	for _, approved := range []bool{false, true} {
 		e := newEnv(t)

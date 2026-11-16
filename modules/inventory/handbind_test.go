@@ -239,3 +239,93 @@ func TestContract_829_TwoMACsInOneBatchBindNothing(t *testing.T) {
 		t.Errorf("the hand-added device: mac %v ip %s; %d devices, want no MAC, .201, 3", d.MAC, d.IP, e.devices())
 	}
 }
+
+// The card an agent claims at a shared hand-added address is never a lookup key (review r2 H-new-1 of the n71 fix): a node there that
+// names the MAC of an approved device elsewhere (osquery, or a Wazuh report with no key) writes nothing on that device, binds nothing
+// to it, and moves nothing; it is a device of its own. With no card at all (a tun interface) the same holds, and the enrolment does
+// not approve or type the hand-added device by its address (M-new-1); a Wazuh report with neither a key nor a card is held.
+func TestContract_829_AClaimedCardAtASharedHandAddedAddressIsNoKey(t *testing.T) {
+	at := netip.MustParseAddr("192.168.18.201")
+	report := func(agent, card string) []observe.Observation {
+		h := observe.AssetHint{IP: at, Agent: agent}
+		out := []observe.Observation{{AssetHint: h, Field: observe.Hostname, Value: "evil", Source: observe.Agent, Confidence: 0.9},
+			{AssetHint: h, Field: observe.OS, Value: "Microsoft Windows 11 Pro", Source: observe.Agent, Confidence: 0.95}}
+		if card != "" {
+			out = append(out, observe.Observation{AssetHint: h, Field: observe.MAC, Value: card, Source: observe.Agent, Confidence: 0.9})
+		}
+		return out
+	}
+	for _, tc := range []struct{ name, agent, card string }{
+		{"osquery naming dc01", "osquery:evil", burnt2},
+		{"wazuh naming dc01", "", burnt2},
+		{"osquery with no card", "osquery:evil", ""},
+		{"wazuh with no card: held", "", ""},
+	} {
+		e := newEnv(t)
+		e.record(dhcp(burnt2, "192.168.18.50", "dc01")...)
+		dc := e.idByMAC(burnt2)
+		if err := e.svc.Approve(e.ctx(), admin, dc); err != nil {
+			t.Fatal(err)
+		}
+		id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201", Name: "nas"})
+		e.tick(time.Minute)
+		e.record(dhcp(privMac1, "192.168.18.201", "")...)
+		e.tick(time.Minute)
+		e.ev.reset()
+		e.record(report(tc.agent, tc.card)...)
+		if tc.agent != "" {
+			if _, err := e.svc.ApproveEnrolled(e.ctx(), observe.AssetHint{IP: at, Agent: tc.agent}, tc.card, "osquery enrolment", false); err != nil {
+				t.Fatal(err)
+			}
+		}
+		e.tick(time.Minute)
+		again := "aa:00:00:00:00:77" // the same node again (osquery: another card; Wazuh, keyless: the same), then from elsewhere
+		if tc.agent == "" {
+			again = tc.card
+		}
+		e.record(report(tc.agent, again)...)
+		e.tick(time.Minute)
+		if tc.agent != "" {
+			h := observe.AssetHint{IP: netip.MustParseAddr("192.168.18.77"), Agent: tc.agent}
+			e.record(observe.Observation{AssetHint: h, Field: observe.MAC, Value: "aa:00:00:00:00:77", Source: observe.Agent, Confidence: 0.9})
+		}
+		d := e.device(dc)
+		if d.IP != "192.168.18.50" || d.MAC == nil || *d.MAC != burnt2 || d.Hostname == nil || *d.Hostname != "dc01" || d.OS != nil ||
+			e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_key IS NOT NULL`, dc) != 0 {
+			t.Errorf("%s: dc01 changed: ip %s mac %v host %v os %v", tc.name, d.IP, d.MAC, d.Hostname, d.OS)
+		}
+		h := e.device(id)
+		if h.MAC != nil || h.OS != nil || h.Hostname == nil || *h.Hostname != "nas" || h.Kind != "unknown" || len(h.Software) != 1 ||
+			e.count(`SELECT count(*) FROM inv_asset WHERE id = ? AND agent_key IS NOT NULL`, id) != 0 {
+			t.Errorf("%s: the hand-added device changed: mac %v os %v host %v kind %s", tc.name, h.MAC, h.OS, h.Hostname, h.Kind)
+		}
+		want := 1 // the node's own device; a report with no key and no card is held (nothing would find its device again)
+		if tc.agent == "" && tc.card == "" {
+			want = 0
+		}
+		if got := len(e.ev.named(inventory.EventAssetDiscovered)); got != want {
+			t.Errorf("%s: %d announced; want %d", tc.name, got, want)
+		}
+	}
+}
+
+// A binding keyHit dropped as a spoof stays dropped when the node then reports from a shared hand-added address (review r2 H-new-1).
+func TestContract_829_ADroppedBindingStaysDroppedAtASharedHandAddedAddress(t *testing.T) {
+	e := newEnv(t)
+	e.record(dhcp(burnt1, "192.168.18.20", "")...)
+	x := e.idOf("192.168.18.20")
+	e.tick(time.Minute)
+	e.record(osq("192.168.18.20")...)
+	e.tick(time.Minute)
+	e.record(osq("192.168.18.30")...)
+	e.tick(time.Minute)
+	e.record(dhcp(burnt1, "192.168.18.20", "")...)
+	id := e.addDevice(inventory.AddInput{Vendor: "Synology", Product: "DiskStation Manager", IP: "192.168.18.201", Name: "nas"})
+	e.tick(time.Minute)
+	e.record(dhcp(privMac1, "192.168.18.201", "")...)
+	e.tick(time.Minute)
+	e.record(osq("192.168.18.201")...)
+	if e.count(`SELECT count(*) FROM inv_asset WHERE id IN (?, ?) AND agent_key IS NOT NULL`, x, id) != 0 || e.device(x).IP != "192.168.18.20" {
+		t.Errorf("the dropped binding came back, or the hand-added device took the node: x at %s", e.device(x).IP)
+	}
+}

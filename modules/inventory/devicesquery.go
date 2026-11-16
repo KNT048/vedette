@@ -98,24 +98,26 @@ func clipText(s string, n int) string {
 }
 
 var (
-	macDotted = regexp.MustCompile(`^([0-9a-f]{4}\.)+[0-9a-f]{1,4}$`)          // Cisco: aabb.ccdd.eeff
-	macColons = regexp.MustCompile(`^[0-9a-f]{1,2}([:-][0-9a-f]{1,2})+[:-]?$`) // aa:bb:cc, aa-bb-cc
-	macPlain  = regexp.MustCompile(`^[0-9a-f]{4,12}$`)                         // aabbcc
-	hexLetter = regexp.MustCompile(`[a-f]`)
+	macColons = regexp.MustCompile(`^[0-9a-f]{2}([:-][0-9a-f]{2})+$`)             // aa:bb, AA-BB-CC: two bytes or more
+	macDotted = regexp.MustCompile(`^([0-9a-f]{4}\.)+[0-9a-f]{2}([0-9a-f]{2})?$`) // Cisco: aabb.ccdd.eeff, aabb.cc
+	macPlain  = regexp.MustCompile(`^([0-9a-f]{2}){3,6}$`)                        // aabbcc (an OUI) up to the whole MAC
 )
 
-// macFragment is the search text as the hex digits of a piece of MAC, when it is written like one: with colons or dashes, Cisco's
-// dotted groups of four, or plain hex of at least 6 digits (4 when it has a letter). "192.168" and "10" are not MAC pieces: they find
-// addresses only.
+// macFragment is the search text as whole bytes of a MAC in the stored form ("aa:bb:cc"), when it is written like at least two bytes
+// of one: colons or dashes between pairs of digits, Cisco's dotted groups of four, or 6 to 12 plain hex digits. Matched against the
+// stored aa:bb:cc:dd:ee:ff, the colons line the bytes up, so "bc:c0" never matches aa:bb:cc:00 across a byte boundary. "1-2", "10-20",
+// "192.168" and "cafe" are not MAC pieces (#855 r1 L4).
 func macFragment(q string) (string, bool) {
 	q = strings.ToLower(q)
-	switch {
-	case macDotted.MatchString(q), macColons.MatchString(q):
-	case macPlain.MatchString(q) && (len(q) >= 6 || hexLetter.MatchString(q)):
-	default:
+	if !macColons.MatchString(q) && !macDotted.MatchString(q) && !macPlain.MatchString(q) {
 		return "", false
 	}
-	return strings.NewReplacer(":", "", "-", "", ".", "").Replace(q), true
+	hex := strings.NewReplacer(":", "", "-", "", ".", "").Replace(q)
+	bytes := make([]string, 0, len(hex)/2)
+	for i := 0; i+1 < len(hex); i += 2 {
+		bytes = append(bytes, hex[i:i+2])
+	}
+	return strings.Join(bytes, ":"), true
 }
 
 // where is the WHERE clause on inv_asset a that keeps the devices of f, and its arguments. sources and counts are every device's
@@ -173,7 +175,7 @@ func (f DeviceFilter) where(sources map[string][]string, counts map[string]int) 
 		}
 		qa := []any{f.Q, f.Q, f.Q, f.Q, f.Q}
 		if hex, ok := macFragment(f.Q); ok {
-			parts, qa = append(parts, "instr(replace(coalesce(a.mac, ''), ':', ''), ?) > 0"), append(qa, hex)
+			parts, qa = append(parts, "instr(coalesce(a.mac, ''), ?) > 0"), append(qa, hex) // a.mac is stored lower case aa:bb:…
 		}
 		conds, args = append(conds, "("+strings.Join(parts, " OR ")+")"), append(args, qa...)
 	}

@@ -238,8 +238,8 @@ const scanInfo = (a: Asset) => ({
 // Hộp luôn "vừa thấy": nó là máy đang chạy Vedette.
 /** The wire shape adds the source of the kind and the rules' guess, only while the kind is unknown (D-511). */
 const live = (a: Asset) => ({ ...a, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null })
-/** #849: what feeds a device, in the words of the Devices search. Agent data is osquery's, or Wazuh's while a Wazuh connection is saved
- * (the box tells them apart by the node's binding and by the addresses its Wazuh pulls delivered to). */
+/** #849: what feeds a device, in the words of the Devices search. Agent data is osquery's when osquery reports the device (its node is
+ * bound to it), Wazuh's when only the saved Wazuh connection delivered it, and neither once that connection is deleted. */
 const DEVICE_SOURCES: readonly DeviceSource[] = ['manual', 'passive', 'scan', 'snmp', 'osquery', 'wazuh']
 function sourcesOf(a: Asset): DeviceSource[] {
   const has = new Set<DeviceSource>()
@@ -247,7 +247,10 @@ function sourcesOf(a: Asset): DeviceSource[] {
   for (const src of [...obsOf(a).map((o) => o.source), ...a.software.map((x) => x.source), ...a.services.map((x) => x.source)]) {
     if (src === 'passive' || src === 'snmp') has.add(src)
     else if (src === 'nmap' || src === 'scan') has.add('scan')
-    else if (src === 'agent' && a.id !== BOX_ID) has.add(wazuhStore.get() ? 'wazuh' : 'osquery')
+    else if (src === 'agent' && a.id !== BOX_ID) {
+      if (agentFeedStore.get()[a.id] !== 'wazuh') has.add('osquery')
+      else if (wazuhStore.get()) has.add('wazuh')
+    }
   }
   return DEVICE_SOURCES.filter((x) => has.has(x))
 }
@@ -268,8 +271,9 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
   if (badSource) return fail(400, 'bad_filter', `"${badSource}" is not a source. Use one of: ${DEVICE_SOURCES.join(', ')}.`)
   const q = (p.get('q') ?? '').trim().toLowerCase()
   if (q.length > 80) return fail(400, 'invalid', 'The parameter "q" is not valid.')
-  const hex = q.replace(/[:.-]/g, '')
-  const macLike = /^([0-9a-f]{4}\.)+[0-9a-f]{1,4}$/.test(q) || /^[0-9a-f]{1,2}([:-][0-9a-f]{1,2})+[:-]?$/.test(q) || (/^[0-9a-f]{4,12}$/.test(q) && (q.length >= 6 || /[a-f]/.test(q)))
+  // Whole bytes of a MAC, in the stored aa:bb:cc form, so a piece never matches across a byte boundary (as the backend's macFragment).
+  const macLike = /^[0-9a-f]{2}([:-][0-9a-f]{2})+$/.test(q) || /^([0-9a-f]{4}\.)+[0-9a-f]{2}([0-9a-f]{2})?$/.test(q) || /^([0-9a-f]{2}){3,6}$/.test(q)
+  const macBytes = (q.replace(/[:.-]/g, '').match(/../g) ?? []).join(':')
   return (r) =>
     (approved === null || r.approved === approved)
     && (fragile === null || r.fragile === fragile)
@@ -277,7 +281,7 @@ function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
     && (!types.length || types.includes(r.kind) || types.includes(actsAs(r.kind)))
     && (!sources.length || r.sources.some((x) => sources.includes(x)))
     && (!q || [r.hostname, r.ip, r.vendor?.value, r.model?.value, r.origin === 'manual' ? r.software.map((x) => x.display).join(' ') : ''].some((x) => (x ?? '').toLowerCase().includes(q))
-      || (macLike && (r.mac ?? '').replace(/:/g, '').includes(hex)))
+      || (macLike && (r.mac ?? '').toLowerCase().includes(macBytes)))
 }
 const find = (id: string) => allAssets().find((x) => x.id === id)
 const notFound = (_request?: Request) => fail(404, 'not_found', 'No such device. It may have been removed; go back to the list to see the remaining devices.')
@@ -417,7 +421,11 @@ function checkWazuhInput(b: Partial<WazuhInput>, prev: StoredWazuh | null): { st
   return null
 }
 /** Mô phỏng một lần agent/Wazuh báo về: tới 3 máy chủ hoặc máy tính nhận phần mềm nguồn "agent" (tin cậy cao) và một quan sát hệ điều hành. */
-function injectSample(): { devices: number; software: number } | { err: string } {
+/** #849: which agent reports each device. osquery binds its node to the device (agent_key), so a device osquery reports says osquery
+ * whatever Wazuh does; Wazuh only marks the devices its pull delivered to (the box's intake_wazuh_agent). Agent data of the sample
+ * fixtures is osquery's. */
+const agentFeedStore = collection<Record<string, 'osquery' | 'wazuh'>>('agent_feed', () => ({}), () => ({}))
+function injectSample(feed: 'osquery' | 'wazuh'): { devices: number; software: number } | { err: string } {
   const targets = allAssets().filter((a) => a.id !== BOX_ID && a.approved && (a.kind === 'server' || a.kind === 'pc')).slice(0, 3)
   if (!targets.length) return { err: 'There is no server or computer in the device list to match yet. Add a device first, then send sample data.' }
   let added = 0
@@ -430,6 +438,7 @@ function injectSample(): { devices: number; software: number } | { err: string }
     matchAssetToKev(a.id)
     addObs(a, 'os', a.os?.value ?? (windows ? 'Windows Server 2019 (build 17763)' : 'Ubuntu 22.04.4 LTS'), 'agent', 0.95)
     added += sw.length
+    agentFeedStore.update((m) => (m[a.id] === 'osquery' ? m : { ...m, [a.id]: feed })) // a bound osquery node is never overridden
   }
   return { devices: targets.length, software: added }
 }
@@ -957,7 +966,7 @@ export const handlers = [
     const t = agentsStore.get().find((x) => x.id === params.id)
     if (!t) return fail(404, 'not_found', 'No such token.')
     if (expired(t)) return fail(403, 'token_expired', 'This enrollment token has expired. Create a new one and run the install command again.')
-    const r = injectSample()
+    const r = injectSample('osquery')
     if ('err' in r) return fail(409, 'no_devices', r.err)
     agentsStore.update((l) => l.map((x) => (x.id === t.id ? { ...x, last_received: nowIso(), hosts: r.devices } : x)))
     audit('inventory.agent_enroll', t.name, `sample data: ${r.devices} devices, ${r.software} software`)
@@ -1001,7 +1010,7 @@ export const handlers = [
     const denied = guard('admin'); if (denied) return denied
     const w = wazuhStore.get()
     if (!w) return fail(404, 'not_found', 'Connect Wazuh first.')
-    const r = injectSample()
+    const r = injectSample('wazuh')
     if ('err' in r) return fail(409, 'no_devices', r.err)
     wazuhStore.set({ ...w, status: 'connected', last_sync: nowIso(), agents: r.devices, packages: r.software * 40 + 120, error: null })
     audit('inventory.wazuh_sample_data', w.url, `${r.devices} devices, ${r.software} software`)

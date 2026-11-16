@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import { collection } from '@/mocks/db'
 import { sessionStore } from '@/mocks/stores'
 import { ensureBox } from './mocks'
 
@@ -28,6 +29,18 @@ describe('Devices search (#849)', () => {
     const byIP = (await call('GET', `/devices?q=${encodeURIComponent(box.ip)}`)).json!
     expect(byIP.items.map((d: { id: string }) => d.id)).toContain(box.id)
     expect((await call('GET', '/devices?approved=true&approved=true&q=nothing-like-this')).json!.items).toEqual([])
+  })
+
+  it('says wazuh only for what Wazuh alone reports; an osquery-bound device stays osquery (r1 L2)', async () => {
+    collection<unknown>('intake_wazuh', () => null).set({ url: 'https://wazuh.example:55000', username: 'vedette', password: 'x', password_last4: '', interval_minutes: 60, status: 'never', last_sync: null, agents: 0, packages: 0, error: null })
+    expect((await call('POST', '/agents/wazuh/sample-data')).status).toBe(200)
+    const wz = (await call('GET', '/devices?source=wazuh')).json!.items as { id: string; sources: string[] }[]
+    expect(wz.length).toBeGreaterThan(0)
+    expect(wz.every((d) => !d.sources.includes('osquery'))).toBe(true)
+    expect((await call('POST', '/agents/tokens/tk-osquery/sample-data')).status).toBe(200) // the same machines enrol osquery
+    const all = (await call('GET', '/devices')).json!.items as { id: string; sources: string[] }[]
+    for (const d of wz) expect(all.find((x) => x.id === d.id)!.sources).toContain('osquery')
+    expect(all.some((d) => d.sources.includes('osquery') && d.sources.includes('wazuh'))).toBe(false)
   })
 
   it('refuses unknown words like the backend', async () => {

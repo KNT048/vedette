@@ -310,6 +310,10 @@ func (s *Service) SaveWazuh(ctx context.Context, actor string, in WazuhInput) (W
 				c.origin, c.user, id, last4, c.interval, pin, ts, ts, ts); err != nil {
 				return fmt.Errorf("agentintake: insert wazuh: %w", err)
 			}
+			// A new connection starts again at generation 1: no row of an earlier one may count as its agent (#855 r1 M1).
+			if _, err := tx.ExecContext(ctx, `DELETE FROM intake_wazuh_agent`); err != nil {
+				return fmt.Errorf("agentintake: forget wazuh agents: %w", err)
+			}
 		default:
 			last4 := cur.PasswordLast4
 			if c.typed {
@@ -358,6 +362,10 @@ func (s *Service) DeleteWazuh(ctx context.Context, actor string) error {
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM intake_wazuh WHERE id = 1`); err != nil {
 			return fmt.Errorf("agentintake: delete wazuh: %w", err)
+		}
+		// Where the deleted connection's agents were is kept no longer: it names no device and has no other use (#855 r1 M1).
+		if _, err := tx.ExecContext(ctx, `DELETE FROM intake_wazuh_agent`); err != nil {
+			return fmt.Errorf("agentintake: forget wazuh agents: %w", err)
 		}
 		if err := s.cfg.Secrets.Delete(ctx, tx, cur.secretID); err != nil {
 			return fmt.Errorf("agentintake: delete wazuh password: %w", err)

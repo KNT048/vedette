@@ -785,4 +785,18 @@ func TestWazuh_AgentAddressesFollowTheServer(t *testing.T) {
 	if ips, macs, err := r.svc.WazuhAgentAddresses(r.t.Context()); err != nil || len(ips)+len(macs) != 0 {
 		t.Fatalf("after the connection was deleted: %v %v %v", ips, macs, err)
 	}
+	if n := r.count(`SELECT count(*) FROM intake_wazuh_agent`); n != 0 {
+		t.Fatalf("%d rows of a deleted connection are kept", n)
+	}
+	// A new connection starts again at generation 1: before its first pull it names no device, never the old connection's (r1 M1).
+	if err := r.db.Write(r.t.Context(), func(tx *sql.Tx) error { // a row an older build left behind at generation 1
+		_, err := tx.ExecContext(r.t.Context(), `INSERT INTO intake_wazuh_agent (agent_id, generation, ip, mac, seen_at) VALUES ('009', 1, '192.0.2.99', '', '2026-11-11T08:00:00.000Z')`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	r.save()
+	if ips, macs, err := r.svc.WazuhAgentAddresses(r.t.Context()); err != nil || len(ips)+len(macs) != 0 {
+		t.Fatalf("a new connection before its first pull lists %v %v %v", ips, macs, err)
+	}
 }

@@ -413,7 +413,7 @@ func ipOwner(ctx context.Context, q querier, ip string) (string, error) {
 // ExportCSV writes the devices f keeps (the Devices search, #849; the zero filter: all) as CSV, UTF-8 with a BOM so Excel opens it
 // right (INV-13). Values that start like a formula are defused (csvCell).
 func (s *Service) ExportCSV(ctx context.Context, actor string, f DeviceFilter) (io.Reader, error) {
-	items, err := s.filtered(ctx, s.db.Reader(), f, 0)
+	items, err := s.filtered(ctx, s.db.Reader(), f, 0, false) // the CSV has no sources column
 	if err != nil {
 		return nil, err
 	}

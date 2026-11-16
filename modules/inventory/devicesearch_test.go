@@ -135,6 +135,11 @@ func TestDevicesSearchEachFilter(t *testing.T) {
 		{name: "MAC with dashes, capitals", text: "AA-BB-CC-00-00-02", want: set(f.sw)},
 		{name: "MAC in Cisco notation", text: "aabb.cc00.0002", want: set(f.sw)},
 		{name: "MAC plain", text: "aabbcc", want: set(f.sw)},
+		{name: "MAC bytes never match across a byte boundary", text: "bc:c0", want: []string{}},
+		{name: "plain hex across a byte boundary", text: "abbcc0", want: []string{}},
+		{name: "a range is not a MAC", text: "10-20", want: []string{}},
+		{name: "one byte is not a MAC", text: "aa:bb:c", want: []string{}},
+		{name: "a hex word is not a MAC", text: "cafe", want: []string{}},
 		{name: "vendor", text: "juniper", want: set(f.sw)},
 		{name: "model", text: "ex4200", want: set(f.sw)},
 		{name: "the product of a device added manually is its name", text: "fortigate", want: set(f.fw)},
@@ -164,9 +169,13 @@ func TestDevicesSearchCombinesFilters(t *testing.T) {
 func TestDevicesListSaysEverySourceOfADevice(t *testing.T) {
 	t.Parallel()
 	e, f := newSearchFleet(t)
-	l, err := e.svc.Devices(e.ctx())
+	l, err := e.svc.DevicesPage(e.ctx(), inventory.DeviceFilter{})
 	if err != nil {
 		t.Fatal(err)
+	}
+	// The other modules' list does not read the sources (r1 L3).
+	if internal, err := e.svc.Devices(e.ctx()); err != nil || len(internal.Items) != 6 || internal.Items[0].Sources != nil {
+		t.Fatalf("Devices for the other modules: %v %+v", err, internal.Items)
 	}
 	want := map[string][]string{
 		f.fw: {"manual"}, f.sw: {"passive", "snmp"}, f.srv: {"osquery"}, f.hv: {"scan"}, f.wz: {"wazuh"}, f.prn: {"scan"},
@@ -181,7 +190,7 @@ func TestDevicesListSaysEverySourceOfADevice(t *testing.T) {
 	if err := e2.svc.Record(e2.ctx(), []observe.Observation{{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.1.30")}, Field: observe.Hostname, Value: "win-files", Source: observe.Agent, Confidence: 1}}); err != nil {
 		t.Fatal(err)
 	}
-	l2, err := e2.svc.Devices(e2.ctx())
+	l2, err := e2.svc.DevicesPage(e2.ctx(), inventory.DeviceFilter{})
 	if err != nil || len(l2.Items) != 1 || l2.Items[0].Sources == nil || len(l2.Items[0].Sources) != 0 {
 		t.Fatalf("no Wazuh: %v %+v", err, l2.Items)
 	}

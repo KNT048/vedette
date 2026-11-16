@@ -60,6 +60,9 @@ func (r *SNMPRead) clone() SNMPRead {
 // ReadSNMP starts a Read now of credential id (POST /inventory/snmp/{id}/read) and answers at once with the run. 409 when nothing can
 // be sent (scanning off, the scope not confirmed, SNMP unavailable) or another SNMP job runs (busy).
 func (s *Service) ReadSNMP(ctx context.Context, actor, id string) (SNMPRead, error) {
+	// The module's stop generation before anything else: a Stop (module off) at any point from here on stops the read before a
+	// packet leaves, even one that came while snmpCur was still empty and had nothing to cancel (#855 r1 M2, SYS-5).
+	stops := s.stops.Load()
 	if s.secrets == nil {
 		return SNMPRead{}, snmpOff()
 	}
@@ -98,7 +101,7 @@ func (s *Service) ReadSNMP(ctx context.Context, actor, id string) (SNMPRead, err
 		return SNMPRead{}, busy
 	}
 	targets, skipped, err := s.snmpReadTargets(ctx, *cred)
-	if err == nil && len(targets) > 0 {
+	if err == nil { // every Read now is audited, one that finds no approved device too (S-INV-1, #855 r1 L1)
 		err = s.db.Write(ctx, func(tx *sql.Tx) error {
 			return s.auditTx(ctx, tx, actor, "inventory.snmp_read", cred.Name, fmt.Sprintf("%d approved devices, %d skipped", len(targets), skipped))
 		})
@@ -106,6 +109,10 @@ func (s *Service) ReadSNMP(ctx context.Context, actor, id string) (SNMPRead, err
 	jobID := ""
 	if err == nil {
 		jobID, err = s.startJob(ctx, KindSNMP, snmpReasonRead, len(targets))
+	}
+	if err == nil && s.stops.Load() != stops {
+		s.closeSNMPJob(ctx, jobID, 0, ErrStopped)
+		err = apierr.New(409, "stopped", "The read was stopped before anything was sent: active discovery was turned off.")
 	}
 	if err != nil {
 		s.snmpMu.Unlock()
@@ -122,7 +129,7 @@ func (s *Service) ReadSNMP(ctx context.Context, actor, id string) (SNMPRead, err
 	out := run.clone()
 	s.mu.Unlock()
 	// The read outlives the request; the module turned off (Stop) stops its batch, and the read before the next one.
-	go s.runSNMPRead(context.WithoutCancel(ctx), run, *cred, targets, s.stops.Load(), done)
+	go s.runSNMPRead(context.WithoutCancel(ctx), run, *cred, targets, stops, done)
 	return out, nil
 }
 

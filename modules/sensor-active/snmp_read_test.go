@@ -107,6 +107,41 @@ func TestSNMPReadNowWithNothingApprovedSendsNothing(t *testing.T) {
 	if len(r.sent()) != 0 || w.count(`SELECT count(*) FROM sa_probe`) != 0 {
 		t.Fatal("something was sent")
 	}
+	// Who pressed it is on record even when nothing was read (S-INV-1, r1 L1).
+	if w.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.snmp_read' AND detail = '0 approved devices, 1 skipped'`) != 1 {
+		t.Fatal("no audit row for a read with no approved device")
+	}
+}
+
+// SYS-5 (r1 M2): the module turned off while a Read now is being prepared (after the checks, before the read is registered, when
+// there is no batch to cancel yet) stops it: nothing is sent, the job is closed as stopped, and the person reads why.
+func TestSNMPReadNowStoppedWhileItStartsSendsNothing(t *testing.T) {
+	t.Parallel()
+	r := &fakeReader{}
+	w := newSNMPWorld(t, r)
+	c := w.add(v2cInput("all", "s3cret-community"))
+	w.inv.mu.Lock()
+	w.inv.onAddresses = w.svc.Stop // snmpReadTargets reads the addresses: the module goes off right there
+	w.inv.mu.Unlock()
+	if _, err := w.svc.ReadSNMP(t.Context(), "a", c.ID); apiCode(err) != "stopped" {
+		t.Fatalf("a read the module stopped while it started: %v", err)
+	}
+	if len(r.sent()) != 0 || w.count(`SELECT count(*) FROM sa_probe`) != 0 || w.svc.SNMPReadDone(c.ID) != nil {
+		t.Fatal("a read stopped while it started sent something or was left running")
+	}
+	if w.count(`SELECT count(*) FROM sa_job WHERE reason = 'snmp_read' AND status = 'stopped'`) != 1 {
+		t.Fatal("the job is not closed as stopped")
+	}
+	// The module back on: the next read runs (the lock and the busy flag were given back).
+	w.inv.mu.Lock()
+	w.inv.onAddresses = nil
+	w.inv.mu.Unlock()
+	if _, err := w.svc.ReadSNMP(t.Context(), "a", c.ID); err != nil {
+		t.Fatal(err)
+	}
+	if got := w.waitRead(c.ID); got.Status != "done" || got.Answered != 2 {
+		t.Fatalf("the next read %+v", got)
+	}
 }
 
 func TestSNMPReadNowRefusesWhenNothingCanBeSent(t *testing.T) {

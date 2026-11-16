@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/api/routes"
+	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/server"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/notify"
@@ -424,5 +427,38 @@ func TestWiringNotifySkipsAnUnlinkedEmailApprover(t *testing.T) {
 	msgs := sink.messages()
 	if len(msgs) != 2 || !approveLinkRE.MatchString(mailBody(t, msgs[1])) {
 		t.Fatalf("after linking, %d mails; the second has no approval link", len(msgs))
+	}
+}
+
+// #847 (J7 #812): after a backup is restored without its decryption key, the approval key that signed a link mailed before is sealed
+// under another master key. That link gets the normal "not valid" page (GET unknown, POST 404 unknown), never a 500, and decides
+// nothing (the next approval request makes a new key, #846).
+func TestWiringApprovalLinkSignedWithALostKeyIsNotValid(t *testing.T) {
+	t.Parallel()
+	s, _, a, token := linkSetup(t)
+	ctx := t.Context()
+	other, err := secrets.New(bytes.Repeat([]byte{7}, secrets.KeySize))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error {
+		var id string
+		if err := tx.QueryRowContext(ctx, `SELECT id FROM core_secret WHERE purpose = 'approval.hmac_key'`).Scan(&id); err != nil {
+			return err
+		}
+		_, err := other.Replace(ctx, tx, id, "approval.hmac_key", bytes.Repeat([]byte{1}, 32), false)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	h := map[string]string{"Sec-Fetch-Site": "same-origin", "Origin": "http://example.com"}
+	if code, v := s.public("GET", token, "", h); code != 200 || v["state"] != "unknown" || v["title"] != nil {
+		t.Fatalf("GET of a link signed with a key the box cannot open: %d %v", code, v)
+	}
+	if code, v := s.public("POST", token, `{"decision":"approve"}`, h); code != 404 || at(v, "error", "code") != "unknown" {
+		t.Fatalf("POST of a link signed with a key the box cannot open: %d %v", code, v)
+	}
+	if got, _ := s.d.Response.Actions(ctx); got[0].ID != a.ID || got[0].Status != response.StatusPending || s.count(`SELECT count(*) FROM resp_tokens WHERE used_at IS NOT NULL`) != 0 {
+		t.Fatal("a link signed with a lost key decided or burned something")
 	}
 }

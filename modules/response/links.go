@@ -17,6 +17,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/apierr"
+	"github.com/knt048/vedette/core/secrets"
 )
 
 // Approval links and sending approval requests (INV-3, INV-4, POST-5; slice 13b-7, D-96, docs/specs/approval-tokens.md).
@@ -252,6 +253,13 @@ func (s *Service) linkRecord(ctx context.Context, token string) (rec tokenRow, o
 	b := LinkBinding{RequestID: rec.action, UserID: rec.user, Channel: rec.channel, ExpiresAt: rec.expires}
 	if err := s.cfg.Links.Verify(ctx, token, b, rec.keyID); err != nil {
 		if errors.Is(err, ErrLinkInvalid) {
+			return rec, false, nil
+		}
+		// The key that signed the link is sealed under another master key (a backup restored without its decryption key, or the box
+		// key changed, #847): no link it signed can ever be checked again, so the link is not valid, never a 500. The next approval
+		// request makes a new key (secrets.OpenOrCreate) and its links work.
+		if errors.Is(err, secrets.ErrDecrypt) {
+			s.cfg.Log.WarnContext(ctx, "response: an approval link was signed with a key this box cannot open (restored without the decryption key, or the box key changed); it is answered as not valid")
 			return rec, false, nil
 		}
 		return rec, false, fmt.Errorf("response: check an approval link: %w", err)

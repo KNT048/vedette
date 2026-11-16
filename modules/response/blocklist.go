@@ -15,6 +15,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/knt048/vedette/core/secrets"
 )
 
 // The block list the customer's firewall pulls (INV-17, docs/specs/blocklist-format.md): plain text, one address per line,
@@ -52,6 +54,9 @@ func (s *Service) ensureToken(ctx context.Context, tx *sql.Tx) (token, last4 str
 	err = tx.QueryRowContext(ctx, `SELECT secret_id, token_last4 FROM resp_blocklist WHERE id = 1`).Scan(&secretID, &last4)
 	if err == nil {
 		pt, oerr := s.cfg.Secrets.Open(ctx, tx, secretID, tokenPurpose)
+		if errors.Is(oerr, secrets.ErrDecrypt) {
+			return s.replaceLostToken(ctx, tx, secretID)
+		}
 		if oerr != nil {
 			return "", "", fmt.Errorf("response: open the block list token: %w", oerr)
 		}
@@ -61,6 +66,26 @@ func (s *Service) ensureToken(ctx context.Context, tx *sql.Tx) (token, last4 str
 		return "", "", fmt.Errorf("response: read the block list token: %w", err)
 	}
 	return s.newTokenRow(ctx, tx, "")
+}
+
+// lostTokenMsg is the log line of a block list token the box could not open and replaced.
+const lostTokenMsg = "The block list address could not be read on this box (it was restored without the decryption key, or the box key changed), " +
+	"so a new address was made. Paste the new address into your firewall: the old one no longer works."
+
+// replaceLostToken replaces a token sealed under another master key (a backup restored without its decryption key, or a key file
+// made again: #847). The box made the token, nobody typed it, and nobody can read it again, so it is replaced in the same transaction as
+// any box key is (secrets.OpenOrCreate, #846): one WARN, one audit row box-key.replace (actor system) and one line in the response log
+// that tells the administrator to paste the new address into the firewall. tx is a write transaction.
+func (s *Service) replaceLostToken(ctx context.Context, tx *sql.Tx, oldSecret string) (string, string, error) {
+	token, last4, err := s.newTokenRow(ctx, tx, oldSecret)
+	if err != nil {
+		return "", "", err
+	}
+	if err := s.step(ctx, tx, "box-key.replace", tokenPurpose, LogBlocklistToken, lostTokenMsg, "system"); err != nil {
+		return "", "", err
+	}
+	s.cfg.Log.WarnContext(ctx, "response: the block list token could not be opened with this box's master key and was replaced (restored without the decryption key, or the key file was made again)")
+	return token, last4, nil
 }
 
 // newTokenRow makes a token and stores it, replacing the old secret when oldSecret is set.

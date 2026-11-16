@@ -36,6 +36,14 @@ const (
 	pinSystem       = "system"         // tls_pin when a public authority vouched for the certificate
 )
 
+// wazuhLostMsg is the card's error and the Test/Save answer when the saved password is sealed under another master key: a backup
+// restored without its decryption key, or a key file made again (#847). The password is gone for good; typing it again seals it
+// under this box's key and the pull starts again.
+const wazuhLostMsg = "The saved Wazuh password was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter the password again and press Save. Nothing is pulled until then."
+
+// wazuhNever is the next_pull of a connection whose password cannot be opened: no tick is due until a Save sets it to now.
+var wazuhNever = time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
+
 // WazuhIntervals are the pull intervals of the GUI, in minutes.
 var WazuhIntervals = []int{5, 15, 60, 360, 1440}
 
@@ -193,6 +201,9 @@ func (s *Service) checkWazuh(ctx context.Context, in WazuhInput) (checked, error
 	}
 	if !c.typed {
 		raw, err := s.cfg.Secrets.Open(ctx, tx, prev.secretID, wazuhPurpose)
+		if errors.Is(err, secrets.ErrDecrypt) {
+			return checked{}, apierr.New(409, conn.CodeSecretLost, wazuhLostMsg)
+		}
 		if err != nil {
 			return checked{}, fmt.Errorf("agentintake: open wazuh password: %w", err)
 		}
@@ -385,7 +396,7 @@ func (s *Service) WazuhPull(ctx context.Context) error {
 	now := s.now()
 	var w *savedWazuh
 	var raw []byte
-	var due bool
+	var due, lost bool
 	// One write transaction: read the row, claim the tick (next_pull) and open the password, so the password is always the one of the
 	// row whose address and pin the pull uses, even when a Save commits a moment later (round 1, MEDIUM-2).
 	err := s.db.Write(ctx, func(tx *sql.Tx) error {
@@ -397,12 +408,24 @@ func (s *Service) WazuhPull(ctx context.Context) error {
 		if _, err := tx.ExecContext(ctx, `UPDATE intake_wazuh SET next_pull = ? WHERE id = 1`, store.FormatTS(next)); err != nil {
 			return fmt.Errorf("agentintake: wazuh next pull: %w", err)
 		}
-		if raw, err = s.cfg.Secrets.Open(ctx, tx, w.secretID, wazuhPurpose); err != nil {
+		raw, err = s.cfg.Secrets.Open(ctx, tx, w.secretID, wazuhPurpose)
+		if errors.Is(err, secrets.ErrDecrypt) {
+			// Sealed under another master key (#847): no pull can ever sign in with it. The card says so and the pull waits for the
+			// password to be typed again (Save sets next_pull to now), instead of failing at every tick.
+			lost = true
+			_, err = tx.ExecContext(ctx, `UPDATE intake_wazuh SET status = 'error', error = ?, next_pull = ?, resume_after = NULL, pass_packages = 0 WHERE id = 1`,
+				wazuhLostMsg, store.FormatTS(wazuhNever))
+			return err
+		}
+		if err != nil {
 			return fmt.Errorf("agentintake: open wazuh password: %w", err)
 		}
 		due = true
 		return nil
 	})
+	if lost && err == nil {
+		s.cfg.Log.WarnContext(ctx, "agent-intake: the saved Wazuh password cannot be opened with this box's master key (restored without the decryption key, or the key file was made again); the pull waits until it is typed again")
+	}
 	if err != nil || !due {
 		return err
 	}

@@ -460,6 +460,12 @@ func TestMatchAsset_904_OwnOSIsNotAnotherProduct(t *testing.T) {
 	if r := MatchAsset(host("Debian GNU/Linux 13 (trixie)", "6.12.57"), []Vuln{v}, nil, t0); len(r.Aged) != 1 || len(r.New) != 0 {
 		t.Errorf("Debian 13: %+v", r)
 	}
+	// review r2 M1: a distribution the OS check does not read may be the one NVD names (Mint 20 runs Ubuntu 20.04's kernel): never aged
+	for _, os := range []string{"Linux Mint 20.3", "Pop!_OS 20.04 LTS", "Ubuntu", ""} {
+		if r := MatchAsset(host(os, "5.4.0-42-generic"), []Vuln{v}, nil, t0); len(r.Aged) != 0 || len(r.New) != 1 {
+			t.Errorf("%q: %+v", os, r)
+		}
+	}
 }
 
 // Review r1 M2 of #909: when neither match is confirmed (NVD lists only other products), the agent's row still wins the tie whatever

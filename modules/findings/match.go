@@ -771,6 +771,9 @@ func nvdOthersOnly(in swInfo, v Vuln) string {
 		if slices.ContainsFunc(ids, func(i identity) bool { return i.ok() && i.vendor == norm(cv) && strings.HasPrefix(norm(cp), i.product) }) {
 			return ""
 		}
+		if distroRelease(c) && !in.os.ok() { // a distribution's row on a device whose distribution is not read (Mint, Pop!_OS, "Ubuntu", none) may be its own (review r2 M1 of #909)
+			return ""
+		}
 		if in.os.ok() && in.os.matches(norm(cv), norm(cp)) { // the device's own OS (osRulesOut's identity): CVE-2021-3493 lists Ubuntu releases for a kernel flaw (review r1 M1 of #909)
 			return ""
 		}

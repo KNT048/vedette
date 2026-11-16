@@ -61,7 +61,7 @@ type moduleContainer struct {
 	// unsureSince is when ensureOn first found the state unreadable since the last good read (zero: it was readable). Reset
 	// by a good read, a start the host confirmed and ensureOff, so a later switch-on waits its own unsureFor again.
 	unsureSince time.Time
-	// watch records how the start goes for GET /inventory/sensors (W2-6); nil: nobody asks (scan, tests).
+	// watch records how the start goes for GET /inventory/sensors (W2-6) and, for scan, GET /scanning (#889); nil: nobody asks (tests).
 	watch *startWatch
 }
 
@@ -72,6 +72,10 @@ type moduleContainer struct {
 // that has not reported startSettle after it started, is a failure the admin should see. Safe on a nil *startWatch.
 type startWatch struct {
 	now func() time.Time // nil: time.Now
+	// busyOnly (the scan container, #889): only a host that answered busy or rate_limited is "starting", for at most startBusyFor;
+	// another error, a confirmed start or a unit that runs is not, so the cards show the worker's own health (review r1 M1).
+	busyOnly bool
+	failed   bool // busyOnly: an attempt failed otherwise since the last success; a busy answer after it is not "starting" either
 
 	mu            sync.Mutex
 	retryingSince time.Time // zero: the last attempt did not fail
@@ -81,6 +85,9 @@ type startWatch struct {
 const (
 	startSettle = 3 * time.Minute  // a started sensor sends its first heartbeat within seconds; its health start period is 60 s
 	startGiveUp = 10 * time.Minute // modreg.OffBackoff tries at 10 s, 40 s and 2 min 40 s, then every 10 min: past that it is a failure
+	// startBusyFor bounds "starting" on a busy host for the scan cards, as the honeypot's own bound (#889): an update keeps the host
+	// busy for about two minutes.
+	startBusyFor = 5 * time.Minute
 )
 
 func (w *startWatch) clock() time.Time {
@@ -99,6 +106,17 @@ func (w *startWatch) done(err error, sent bool) {
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	if w.busyOnly {
+		switch {
+		case err == nil:
+			w.retryingSince, w.failed = time.Time{}, false
+		case !hostBusy(err) || w.failed:
+			w.retryingSince, w.failed = time.Time{}, true
+		case w.retryingSince.IsZero():
+			w.retryingSince = w.clock()
+		}
+		return
+	}
 	switch {
 	case err != nil:
 		if w.retryingSince.IsZero() {
@@ -118,7 +136,7 @@ func (w *startWatch) reset() {
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	w.retryingSince, w.confirmedAt = time.Time{}, time.Time{}
+	w.retryingSince, w.confirmedAt, w.failed = time.Time{}, time.Time{}, false
 }
 
 // Starting is sensorpassive.Config.Starting.
@@ -129,6 +147,9 @@ func (w *startWatch) Starting() bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	now := w.clock()
+	if w.busyOnly {
+		return !w.retryingSince.IsZero() && now.Sub(w.retryingSince) < startBusyFor
+	}
 	if !w.retryingSince.IsZero() {
 		return now.Sub(w.retryingSince) < startGiveUp
 	}
@@ -339,6 +360,7 @@ func newModuleContainers(d deps) map[string]*moduleContainer {
 		out[m.module] = &moduleContainer{h: h, reg: d.Reg, module: m.module, service: m.service, version: version}
 	}
 	out["sensor-passive"].watch = d.SensorStart // W2-6: GET /inventory/sensors reads it (nil when buildServices did not run: tests)
+	out["sensor-active"].watch = d.ScanStart    // #889: GET /scanning reads it
 	return out
 }
 

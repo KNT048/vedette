@@ -70,6 +70,7 @@ type scanRun struct {
 	mode        ScanMode          // what this run may do (D-566): set when it starts; withdrawing or lowering the terms stops a run above them
 	gbSnap      string            // the snapshot whose OpenVAS step runs now (set under runMu): its "running" is real (N49-3, D-595)
 	prog        *progress.Tracker // #830: the progress of the run; its context carries it to the jobs that report
+	steps       *stepLog          // #861 (INV-30): what nuclei, ZAP and OpenVAS did in this run; its context carries it to the steps
 }
 
 // stoppedBy is the cause of a run's context when someone stopped it or the module was switched off.
@@ -122,8 +123,9 @@ func (s *Service) begin(ctx context.Context, user string, t Target, reason Block
 	run := &scanRun{
 		view:   ScanRun{ID: store.NewID("sr"), TargetID: t.ID, TargetValue: t.Value, By: user, StartedAt: store.FormatTS(now), Status: RunRunning, Phase: PhaseQueued},
 		cancel: cancel, done: make(chan struct{}), prevLast: last, hadPrevLast: had, mode: fresh.mode(), prog: progress.NewTracker(s.clock),
+		steps: &stepLog{},
 	}
-	rctx = progress.WithSink(rctx, run.prog)
+	rctx = withSteps(progress.WithSink(rctx, run.prog), run.steps)
 	s.run = run
 	go s.execute(rctx, run, r, user, t)
 	return run, nil
@@ -200,6 +202,9 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 		s.runMu.Unlock()
 		run.snap, err = s.saveScan(ctx, user, t, content, id, gbRun)
 	}
+	if err == nil { // INV-30: nuclei's and ZAP's last runs are on the cards while OpenVAS still runs
+		s.saveSteps(ctx, run, false)
+	}
 	if err == nil && gb { // a stop now keeps the snapshot above; Greenbone's outcome (or that it was stopped) is added to it
 		s.setPhase(run, PhaseGreenbone)
 		var o gbOutcome
@@ -221,6 +226,8 @@ func (s *Service) execute(ctx context.Context, run *scanRun, r Runner, user stri
 			o.state = GBRunStopped
 			err = gerr
 		}
+		outcome, text := openVASStep(o.state, len(o.rows))
+		run.steps.set(StepOpenVAS, outcome, text, s.clock())
 		s.addGreenbone(ctx, user, t, &run.snap, o)
 	}
 	if err != nil && ctx.Err() != nil && (errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)) { // the run was cut short; any other error is the real one
@@ -286,7 +293,8 @@ func (s *Service) saveScan(ctx context.Context, user string, t Target, content C
 
 // finish records the end of a run: the audit row of one that ended without a snapshot, and the final state the page reads.
 func (s *Service) finish(ctx context.Context, run *scanRun, user string, t Target, err error) {
-	kept := run.snap.ID != "" // stopped during the Greenbone step: the snapshot of the other steps is stored and already audited
+	kept := run.snap.ID != ""   // stopped during the Greenbone step: the snapshot of the other steps is stored and already audited
+	s.saveSteps(ctx, run, true) // INV-30: before the run reads as ended, so its steps are on the cards when it does
 	if err != nil && !kept {
 		s.auditFailedScan(ctx, user, t, err)
 	}

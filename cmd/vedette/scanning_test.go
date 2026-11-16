@@ -586,3 +586,66 @@ func TestScanningInlineExclusionStopsTheRunningScan(t *testing.T) {
 		t.Fatal("the scan of the device went on after it was excluded")
 	}
 }
+
+// #861 (exposure INV-30): the zap and openvas cards take their last run from the external scans in which their step ran, through
+// exposure's own read; nuclei's is the newer of its LAN runs and the external scans' template step. Those scans run on Scan now only,
+// so zap and openvas have no next run. With no scan, every last run is null.
+func TestScanningExternalLastRuns(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	s.module("scan", true)
+	s.module("exposure", true)
+	exec := func(q string, args ...any) {
+		t.Helper()
+		if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error { _, err := tx.ExecContext(ctx, q, args...); return err }); err != nil {
+			t.Fatal(err)
+		}
+	}
+	card := func(id string) map[string]any {
+		t.Helper()
+		code, page := s.do("GET", "/scanning", "viewer", "")
+		if code != http.StatusOK {
+			t.Fatalf("GET /scanning = %d %v", code, page)
+		}
+		return s.engine(page, id)
+	}
+	for _, id := range []string{"nuclei", "zap", "openvas"} {
+		if e := card(id); e["last_run"] != nil || (id != "nuclei" && e["next_run_at"] != nil) {
+			t.Fatalf("%s before any scan: last %v, next %v", id, e["last_run"], e["next_run_at"])
+		}
+	}
+
+	// What an external deep scan of the box's IP stores (exposure's saveSteps): every step ran; ZAP lost a page, OpenVAS found 3.
+	const ins = `INSERT INTO exp_engine_run (engine, run_id, target, at, outcome, text) VALUES (?, 'sr-1', '203.0.113.10', ?, ?, ?)`
+	exec(ins, "nuclei", "2026-11-16T06:30:00.000Z", "ok", "External scan of 203.0.113.10: safe templates ran, 0 matched")
+	exec(ins, "zap", "2026-11-16T06:40:00.000Z", "partial", "External scan of 203.0.113.10: ZAP scanned 1 of 2 pages, 4 alerts")
+	exec(ins, "openvas", "2026-11-16T07:55:00.000Z", "ok", "External scan of 203.0.113.10: OpenVAS found 3 results")
+	want := map[string]map[string]any{
+		"nuclei":  {"at": "2026-11-16T06:30:00Z", "outcome": "ok", "text": "External scan of 203.0.113.10: safe templates ran, 0 matched"},
+		"zap":     {"at": "2026-11-16T06:40:00Z", "outcome": "partial", "text": "External scan of 203.0.113.10: ZAP scanned 1 of 2 pages, 4 alerts"},
+		"openvas": {"at": "2026-11-16T07:55:00Z", "outcome": "ok", "text": "External scan of 203.0.113.10: OpenVAS found 3 results"},
+	}
+	for id, w := range want {
+		e := card(id)
+		last, _ := e["last_run"].(map[string]any)
+		if fmt.Sprint(last) != fmt.Sprint(w) || (id != "nuclei" && e["next_run_at"] != nil) {
+			t.Errorf("%s: last %v, next %v; want last %v and no next run", id, e["last_run"], e["next_run_at"], w)
+		}
+	}
+
+	// A LAN run of the vulnerability checks after the external scan is nuclei's last run; one before it is not.
+	lan := func(id, ended string) {
+		t.Helper()
+		exec(`INSERT INTO scan_run (id, trigger, started_at, started_by, ended_at, status, target_ids, total, done, matched) VALUES (?, 'manual', ?, 'admin@acme.example', ?, 'done', '["a"]', 1, 1, 0)`,
+			id, ended, ended)
+	}
+	lan("run-old", "2026-11-16T05:00:00.000Z")
+	if last, _ := card("nuclei")["last_run"].(map[string]any); last["at"] != "2026-11-16T06:30:00Z" {
+		t.Fatalf("nuclei with an older LAN run: %v", last)
+	}
+	lan("run-new", "2026-11-16T08:18:00.000Z")
+	if last, _ := card("nuclei")["last_run"].(map[string]any); last["at"] != "2026-11-16T08:18:00Z" || last["text"] != "Checked 1 of 1 devices, 0 confirmed" {
+		t.Fatalf("nuclei with a newer LAN run: %v", last)
+	}
+}

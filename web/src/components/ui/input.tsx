@@ -8,13 +8,13 @@ const field = 'w-full min-w-0 rounded-md border border-control bg-surface px-3 t
 /** What a Field tells its control (docs/UI.md §8, review r1 M6): the id it labels, the id of its error or hint, and whether it is invalid. */
 const FieldCtx = createContext<{ htmlFor: string; describedBy?: string; invalid: boolean } | null>(null)
 
-/** aria-describedby and aria-invalid for the control a Field labels (the one whose id is the Field's htmlFor). The call site wins
- *  when it sets them itself. */
+/** aria-describedby and aria-invalid for the control a Field labels (the one whose id is the Field's htmlFor). The call site's own
+ *  aria-describedby is kept and the Field's error or hint is added to it; the call site's aria-invalid wins. */
 function useFieldAria(id: string | undefined, props: { 'aria-describedby'?: string; 'aria-invalid'?: ComponentProps<'input'>['aria-invalid'] }) {
   const f = useContext(FieldCtx)
   if (!f || !id || id !== f.htmlFor) return {}
   return {
-    'aria-describedby': props['aria-describedby'] ?? f.describedBy,
+    'aria-describedby': [...new Set([...(props['aria-describedby']?.split(/\s+/) ?? []), ...(f.describedBy ? [f.describedBy] : [])])].filter(Boolean).join(' ') || undefined,
     'aria-invalid': props['aria-invalid'] ?? (f.invalid ? true : undefined),
   }
 }

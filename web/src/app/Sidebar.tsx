@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils'
 
 type Entry = { item: NavItem; scope: Scope; badge: NavBadge | null }
 
-function useEntries(): { pinned: Entry[]; groups: { id: ShellGroup; entries: Entry[] }[] } {
+function useEntries(): { pinned: Entry[]; groups: { id: ShellGroup; entries: Entry[] }[]; ready: boolean } {
   const { data } = useModules()
   const enabled = new Set(data?.modules.filter((m) => m.enabled).map((m) => m.id))
   const summary: NavSummary | undefined = useNavSummary(!!data && enabled.has('findings'))
@@ -34,14 +34,15 @@ function useEntries(): { pinned: Entry[]; groups: { id: ShellGroup; entries: Ent
   const scope = (n: NavItem) => scopeOf(n.module, data ? enabled.has(n.module) : undefined)
   const all = navItems.filter((n) => (!data || enabled.has(n.module)) && scope(n) !== 'hidden').map((item) => ({ item, scope: scope(item), badge: badgeOf(item.to, summary) }))
   const pinned = all.filter((e) => placeOf(e.item) === 'pinned')
-  return { pinned, groups: GROUPS.map((id) => ({ id, entries: all.filter((e) => placeOf(e.item) === id) })) }
+  return { pinned, ready: !!data, groups: GROUPS.map((id) => ({ id, entries: all.filter((e) => placeOf(e.item) === id) })) }
 }
 
 const itemClass = (rail: boolean, drawer: boolean) => ({ isActive }: { isActive: boolean }) => cn(
-  'relative flex items-center rounded-md text-sm text-muted hover:bg-sunken hover:text-ink [&_svg]:size-4 [&_svg]:shrink-0',
+  // -outline-offset-2: the ring is drawn inside, so a group's overflow (its open/close animation) never clips it (as PageTabs).
+  'relative flex items-center rounded-md text-sm text-muted hover:bg-sunken hover:text-ink focus-visible:-outline-offset-2 [&_svg]:size-4 [&_svg]:shrink-0',
   rail ? 'size-10 justify-center' : cn('gap-2.5 px-2.5 py-1.5 leading-tight', drawer ? 'min-h-10' : 'min-h-9'),
   // UI.md §1: the fill alone is 1.2:1, so the current entry also has a 3 px accent bar (8:1) and aria-current (NavLink).
-  isActive && 'bg-accent-soft font-medium text-ink shadow-[inset_3px_0_0_var(--color-accent)] [&_svg]:text-accent',
+  isActive && 'nav-current bg-accent-soft font-medium text-ink [&_svg]:text-accent',
 )
 
 /** A rail link under a Tooltip trigger. Radix's Slot joins a child's className as a string, and NavLink's className is a function, so
@@ -89,11 +90,12 @@ function Group({ id, entries, nav, current, drawer, onNavigate }: { id: ShellGro
         aria-expanded={open}
         aria-controls={region}
         aria-label={!open && total ? t('layout.groupWaiting', { group: name, parts }) : undefined}
-        // The group holding the current page stays open: closing it would hide where you are.
+        // The group holding the current page stays open (closing it would hide where you are), so its header says so and does nothing.
+        aria-disabled={current || undefined}
         onClick={() => { if (!current) nav.toggle(id, !open) }}
         className={cn('flex h-8 items-center gap-1.5 rounded-md px-2.5 text-left text-caption text-muted hover:text-ink', current && 'cursor-default hover:text-muted')}
       >
-        <span className="min-w-0 flex-1 truncate">{name}</span>
+        <span className="min-w-0 flex-1 truncate">{name}{current ? <span className="sr-only">, {t('layout.groupHere')}</span> : null}</span>
         {!open && total ? <Counter count={total} tone="danger" /> : null}
         <ChevronDown aria-hidden className={cn('size-3.5 shrink-0 transition-transform duration-150', open ? 'rotate-0' : '-rotate-90')} />
       </button>
@@ -112,7 +114,7 @@ function Group({ id, entries, nav, current, drawer, onNavigate }: { id: ShellGro
 export function NavList({ nav, rail = false, drawer = false, onNavigate }: { nav: NavState; rail?: boolean; drawer?: boolean; onNavigate?: () => void }) {
   const { t } = useTranslation()
   const { pathname } = useLocation()
-  const { pinned, groups } = useEntries()
+  const { pinned, groups, ready } = useEntries()
   const here = navItemOf(pathname)
   const hereGroup = here ? placeOf(here) : null
   const list = (entries: Entry[], label?: string) => (
@@ -123,7 +125,8 @@ export function NavList({ nav, rail = false, drawer = false, onNavigate }: { nav
   return (
     <nav aria-label={t('layout.nav')} className={cn('grid gap-3', !rail && 'grid-cols-[minmax(0,1fr)]')}>
       {list(pinned)}
-      {groups.filter((g) => g.entries.length).map((g) => (
+      {/* The groups wait for /modules: before it, every entry would show and a one-entry group would flip from header to item. */}
+      {(ready ? groups : []).filter((g) => g.entries.length).map((g) => (
         <div key={g.id} className={cn(rail && 'border-t border-rule pt-3')}>
           {rail || g.entries.length === 1
             ? list(g.entries, rail ? t(`layout.group.${g.id}`) : undefined)
@@ -143,7 +146,8 @@ export function NavList({ nav, rail = false, drawer = false, onNavigate }: { nav
   )
 }
 
-export function UserMenu({ rail = false }: { rail?: boolean }) {
+/** `onNavigate`: the drawer closes when an entry leaves the page. */
+export function UserMenu({ rail = false, onNavigate }: { rail?: boolean; onNavigate?: () => void }) {
   const { t } = useTranslation()
   const { data: me } = useMe()
   const theme = useTheme()
@@ -183,18 +187,19 @@ export function UserMenu({ rail = false }: { rail?: boolean }) {
             <DropdownMenuRadioItem value="dark">{t('layout.themeDark')}</DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={() => navigate('/settings/account')}><UserCog />{t('layout.myAccount')}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => { onNavigate?.(); navigate('/settings/account') }}><UserCog />{t('layout.myAccount')}</DropdownMenuItem>
+          {/* Not onNavigate: the bug dialog lives in this menu, so closing the drawer would close it too; it opens over the drawer. */}
           <DropdownMenuItem onSelect={() => setBug(true)}><Bug />{t('layout.reportProblem')}</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => void logout()}><LogOut />{t('layout.logout')}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => { onNavigate?.(); void logout() }}><LogOut />{t('layout.logout')}</DropdownMenuItem>
           {/* In the rail the version has no footer line of its own (UI.md §2): it is the last entry here. */}
-          {rail && version ? <><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => navigate('/settings/updates')}>{t('core:updates.footerVersion', { version })}</DropdownMenuItem></> : null}
+          {rail && version ? <><DropdownMenuSeparator /><DropdownMenuItem onSelect={() => { onNavigate?.(); navigate('/settings/updates') }}>{t('core:updates.footerVersion', { version })}</DropdownMenuItem></> : null}
         </DropdownMenuContent>
       </DropdownMenu>
     </>
   )
 }
 
-function Brand({ rail }: { rail: boolean }) {
+export function Brand({ rail = false }: { rail?: boolean }) {
   const { data: me } = useMe()
   if (rail) return <div className="grid justify-items-center"><Logo variant="mark" className="h-6" /></div>
   return (
@@ -209,8 +214,9 @@ function Brand({ rail }: { rail: boolean }) {
 export function Sidebar({ nav }: { nav: NavState }) {
   const { t } = useTranslation()
   const rail = nav.rail
+  // The name says what a press does ("Collapse menu" / "Expand menu") and equals the rail tooltip (WCAG 2.5.3).
   const collapse = (
-    <Button variant="ghost" size={rail ? 'icon' : 'sm'} aria-pressed={rail} aria-label={t('layout.collapse')} onClick={() => nav.setRail(!rail)} className={cn('text-muted', !rail && 'justify-start gap-2.5 px-2.5')}>
+    <Button variant="ghost" size={rail ? 'icon' : 'sm'} aria-label={rail ? t('layout.expand') : t('layout.collapse')} onClick={() => nav.setRail(!rail)} className={cn('text-muted', !rail && 'justify-start gap-2.5 px-2.5')}>
       {rail ? <PanelLeftOpen aria-hidden /> : <PanelLeftClose aria-hidden />}{rail ? null : <span>{t('layout.collapse')}</span>}
     </Button>
   )

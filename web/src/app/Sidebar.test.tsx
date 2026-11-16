@@ -20,8 +20,9 @@ describe('sidebar groups (docs/UI.md §2)', () => {
     renderApp('/devices')
     const nav = within(await mainNav())
     for (const name of ['Home', 'Findings', 'Updates to plan']) expect(await nav.findByRole('link', { name })).toBeInTheDocument()
-    const assets = await nav.findByRole('button', { name: 'Assets' })
-    expect(assets).toHaveAttribute('aria-expanded', 'true') // holds /devices
+    const assets = await nav.findByRole('button', { name: 'Assets, holds this page' })
+    expect(assets).toHaveAttribute('aria-expanded', 'true') // holds /devices: open, and its header does nothing
+    expect(assets).toHaveAttribute('aria-disabled', 'true')
     expect(region(assets)).not.toHaveAttribute('inert')
     const detect = nav.getByRole('button', { name: 'Intrusion detection' })
     expect(detect).toHaveAttribute('aria-expanded', 'false')
@@ -57,11 +58,12 @@ describe('sidebar groups (docs/UI.md §2)', () => {
 
 describe('badges from one summary read', () => {
   it('Findings and Devices carry their counts; a closed group shows the urgent total and names its parts', async () => {
-    server.use(http.get(`${API}/findings/summary`, () => HttpResponse.json({ open: { total: 9, confirmed: 3, devices: 2, ransomware: 0 }, top: [], trend: [], devices: { total: 30, pending: 15 }, alerts: null, generated_at: '2026-11-16T00:00:00Z' })))
+    server.use(http.get(`${API}/findings/summary`, () => HttpResponse.json({ open: { total: 9, confirmed: 3, devices: 2, ransomware: 0 }, top: [], trend: [], devices: { total: 30, pending: 15 }, incidents: { open: 4, urgent: 2 }, alerts: null, generated_at: '2026-11-16T00:00:00Z' })))
     renderApp('/')
     const nav = within(await mainNav())
     expect(await nav.findByRole('button', { name: 'Assets: Devices 15 to review' }, { timeout: 3000 })).toHaveAttribute('aria-expanded', 'false')
     expect(nav.getByRole('link', { name: /^Findings/ })).toHaveAccessibleName('Findings 3 confirmed to handle')
+    expect(nav.getByRole('button', { name: /^Intrusion detection/ })).toHaveAccessibleName('Intrusion detection: Incidents 2 high or critical open')
   })
 })
 
@@ -69,17 +71,45 @@ describe('icon rail', () => {
   it('"Collapse menu" turns the list into named icons and is remembered', async () => {
     const u = userEvent.setup()
     const first = renderApp('/')
-    const collapse = await screen.findByRole('button', { name: 'Collapse menu' })
-    expect(collapse).toHaveAttribute('aria-pressed', 'false')
-    await u.click(collapse)
-    expect(screen.getByRole('button', { name: 'Collapse menu' })).toHaveAttribute('aria-pressed', 'true')
+    await u.click(await screen.findByRole('button', { name: 'Collapse menu' }))
+    expect(screen.getByRole('button', { name: 'Expand menu' })).toBeInTheDocument()
     const nav = within(await mainNav())
     expect(nav.queryByRole('button', { name: 'Assets' })).toBeNull() // groups flatten
     expect(nav.getByRole('group', { name: 'Assets' })).toBeInTheDocument()
     expect(nav.getByRole('link', { name: 'Devices' })).toBeInTheDocument()
     first.unmount()
     renderApp('/')
-    expect(await screen.findByRole('button', { name: 'Collapse menu' })).toHaveAttribute('aria-pressed', 'true')
+    expect(await screen.findByRole('button', { name: 'Expand menu' })).toBeInTheDocument()
     await expectNoA11yViolations()
+  })
+
+  it('a rail link focused by keyboard shows its tooltip but is not described by it (its name already says it)', async () => {
+    localStorage.setItem('vedette.nav.u-admin', JSON.stringify({ rail: true, open: [] }))
+    const u = userEvent.setup()
+    renderApp('/')
+    const nav = within(await mainNav())
+    const home = await nav.findByRole('link', { name: 'Home' })
+    home.focus()
+    await u.keyboard('{Shift>}{Tab}{/Shift}{Tab}') // a keyboard focus, as Radix opens tooltips on focus-visible
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Home')
+    expect(home).not.toHaveAttribute('aria-describedby')
+  })
+})
+
+describe('phone drawer', () => {
+  it('Esc gives focus back to "Open menu"; a link closes it', async () => {
+    const u = userEvent.setup()
+    renderApp('/')
+    const open = await screen.findByRole('button', { name: 'Open menu' })
+    await u.click(open)
+    const drawer = await screen.findByRole('dialog', { name: 'Main navigation' })
+    expect(within(drawer).getByRole('link', { name: 'Home' })).toBeInTheDocument()
+    await u.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Main navigation' })).toBeNull()
+    expect(open).toHaveFocus()
+    await u.click(open)
+    await u.click(within(await screen.findByRole('dialog', { name: 'Main navigation' })).getByRole('link', { name: 'Findings' }))
+    expect(screen.queryByRole('dialog', { name: 'Main navigation' })).toBeNull()
+    expect(await screen.findByRole('heading', { level: 1 })).toBeInTheDocument()
   })
 })

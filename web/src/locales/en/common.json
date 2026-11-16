@@ -40,7 +40,8 @@
     "page": "Page {{page}} of {{pages}}",
     "prev": "Previous",
     "next": "Next",
-    "emptyFiltered": "No rows match these filters."
+    "emptyFiltered": "No rows match these filters.",
+    "clearFilters": "Clear filters"
   },
   "status": {
     "confirmed": "Confirmed",
@@ -206,9 +207,11 @@
     "version": "Version",
     "badge": {
       "findings": "confirmed to handle",
-      "devices": "to review"
+      "devices": "to review",
+      "incidents": "high or critical open"
     },
-    "groupWaiting": "{{group}}: {{parts}}"
+    "groupWaiting": "{{group}}: {{parts}}",
+    "groupHere": "holds this page"
   },
   "login": {
     "subtitle": "Sign in to see exploited vulnerabilities that match your devices.",

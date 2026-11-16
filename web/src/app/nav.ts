@@ -22,7 +22,7 @@ export function placeOf(n: NavItem): 'pinned' | ShellGroup {
 }
 
 /** The part of GET /findings/summary (#825) the nav reads. Optional fields: an older box, or one whose summary lacks a count, shows no badge. */
-export type NavSummary = { open?: { confirmed?: number }; devices?: { pending?: number } }
+export type NavSummary = { open?: { confirmed?: number }; devices?: { pending?: number }; incidents?: { open?: number; urgent?: number } }
 
 /** The badge of one entry: count and the words read after it. `urgent`: work waits for the user (red, and summed on a closed group). */
 export type NavBadge = { count: number; key: string; urgent: boolean }
@@ -30,6 +30,8 @@ export type NavBadge = { count: number; key: string; urgent: boolean }
 const BADGES: Record<string, (s: NavSummary) => NavBadge | null> = {
   '/findings': (s) => (s.open?.confirmed ? { count: s.open.confirmed, key: 'layout.badge.findings', urgent: true } : null),
   '/devices': (s) => (s.devices?.pending ? { count: s.devices.pending, key: 'layout.badge.devices', urgent: true } : null),
+  // J3: the open high and critical incidents (#825 adds `incidents.urgent` to the summary for this badge).
+  '/incidents': (s) => (s.incidents?.urgent ? { count: s.incidents.urgent, key: 'layout.badge.incidents', urgent: true } : null),
 }
 
 export function badgeOf(to: string, s: NavSummary | undefined): NavBadge | null {
@@ -44,7 +46,8 @@ export function useNavSummary(enabled: boolean) {
     queryFn: () => api.get<NavSummary>('/findings/summary'),
     enabled,
     staleTime: 60_000,
-    refetchInterval: 60_000,
+    // An error (a box without the endpoint yet, a 5xx) stops the polling instead of asking every minute.
+    refetchInterval: (q) => (q.state.status === 'error' ? false : 60_000),
     refetchIntervalInBackground: false,
     retry: false,
   }).data

@@ -16,10 +16,11 @@ describe('Field aria', () => {
     expect(box).toHaveAccessibleDescription('Use a number')
     expect(box).toHaveAttribute('aria-invalid', 'true')
   })
-  it('the call site wins, and a second control inside the Field is left alone', () => {
-    render(<Field label="IP" htmlFor="ip" error="Bad"><Input id="ip" aria-describedby="own" aria-invalid={false} /><Input id="other" aria-label="Other" /><p id="own">Own words</p></Field>)
+  it("the call site's description is kept and the error added (once), its aria-invalid wins; a second control is left alone", () => {
+    render(<Field label="IP" htmlFor="ip" error="Bad"><Input id="ip" aria-describedby="own ip-error" aria-invalid={false} /><Input id="other" aria-label="Other" /><p id="own">Own words</p></Field>)
     const ip = screen.getByRole('textbox', { name: 'IP' })
-    expect(ip).toHaveAccessibleDescription('Own words')
+    expect(ip).toHaveAttribute('aria-describedby', 'own ip-error')
+    expect(ip).toHaveAccessibleDescription('Own words Bad')
     expect(ip).toHaveAttribute('aria-invalid', 'false')
     expect(screen.getByRole('textbox', { name: 'Other' })).not.toHaveAttribute('aria-describedby')
   })

@@ -109,7 +109,8 @@
     "on": "up to {{size}} while on",
     "running": "up to {{size}} while it runs",
     "shared": "(shared {{name}} container)",
-    "unknown": "not known"
+    "unknown": "not known",
+    "none": "none of its own (runs inside the box's core)"
   },
   "facts": {
     "memory": "Memory",

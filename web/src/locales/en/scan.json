@@ -249,7 +249,8 @@
       "refused": "Refused, nothing sent"
     },
     "empty": "No probe requests yet.",
-    "emptyHelp": "Each scan is recorded here."
+    "emptyHelp": "Each scan is recorded here.",
+    "noMatch": "No probe request matches."
   },
   "cred": {
     "noHosts": "No server can be added yet.",

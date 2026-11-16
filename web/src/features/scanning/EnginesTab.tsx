@@ -97,7 +97,7 @@ function Facts({ e }: { e: Engine }) {
   const { t } = useTranslation('scanning')
   const last = e.last_run
   const always = e.id === 'passive' || e.id === 'osquery' || e.id === 'honeypot'
-  const cost = e.cost.ram_mb === null ? t('cost.unknown') : t(`cost.${e.cost.while}`, { size: mb(e.cost.ram_mb) }) + (e.cost.container ? ` ${t('cost.shared', { name: e.cost.container })}` : '')
+  const cost = e.cost.ram_mb === null ? t('cost.unknown') : e.cost.ram_mb === 0 ? t('cost.none') : t(`cost.${e.cost.while}`, { size: mb(e.cost.ram_mb) }) + (e.cost.container ? ` ${t('cost.shared', { name: e.cost.container })}` : '')
   return (
     <dl className="flex flex-wrap gap-x-6 gap-y-1 text-meta">
       <div className="flex gap-1.5"><dt className="whitespace-nowrap text-muted">{t('facts.memory')}</dt><dd className="tabular-nums">{cost}</dd></div>

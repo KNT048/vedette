@@ -8,7 +8,7 @@ import { collection, newId, nowIso } from '@/mocks/db'
 import { assetsStore, installStore, isOn, modulesStore } from '@/mocks/stores'
 import type { ModuleId } from '@/lib/modules'
 import { mockDeviceProgress } from '@/lib/progress'
-import { inventorySettingsStore } from '@/features/inventory/mocks'
+import { BOX_ID, inventorySettingsStore } from '@/features/inventory/mocks'
 import { exposureMockRun, greenboneMock } from '@/features/exposure/mocks'
 import { lastScanRun, liveScanRuns } from '@/features/scan/mocks'
 import type { DiscoveryRunInput, Engine, EngineId, EnginePatch, RunningJob, Scanning, SafetyInput } from './contract'
@@ -210,6 +210,7 @@ export const handlers = [
       const a = assets.find((x) => x.id === t || x.ip === t)
       if (!a) return fail(400, 'unknown_device', `No device has the address or id ${t.slice(0, 40)}. Let discovery find it first, or add it under Devices.`, { target: t })
       if (!a.ip || a.ip === '—') return fail(400, 'not_scannable', `${a.hostname ?? a.id} has no IP address, so it cannot be checked.`, { target: t })
+      if (a.id === BOX_ID) return fail(400, 'out_of_scope', 'The Vedette box itself is never part of a scan.', { target: t })
       if (st.active.exclusions.includes(a.ip)) return fail(400, 'out_of_scope', `${a.ip} is outside the confirmed scope or excluded.`, { target: t })
       picked.push(a)
     }

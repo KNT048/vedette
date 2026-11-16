@@ -1,6 +1,7 @@
 // QA như người dùng thật cho module scan (D-23, UI chỉ tiếng Anh D-28), trang Settings › Scanning (#850): IT operator watches and stops scans,
 // admin turns engines on and off and sets the shared safety block, director (viewer), clean install. Scan now sits where the person is:
-// the Devices list and the device page place it with #849, so a LAN run is started here the way that button starts it (POST /scans/runs).
+// Check this device now is /scans?target=<device> (where a finding's Rescan lands); Scan the LAN now is on the Network discovery card;
+// the Devices list's Scan selected and the device page's button come with #849.
 // Chạy: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/scan.spec.ts
 import { expect, test, type Page } from '@playwright/test'
 import { collectErrors, expectAccessible, shot, turnOnModules } from '../helpers'
@@ -72,38 +73,40 @@ async function enableCred(page: Page) {
 }
 const KEY = '-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW\nQyNTUxOQAAACBXAMPLEKEYAMPLEKEYAMPLEKEYAMPLEKEYWXYZ\n-----END OPENSSH PRIVATE KEY-----'
 
-/** Start a LAN run the way ScanNowButton does (the Devices list "Scan selected" and the device page "Check this device now", #849). */
-async function startRun(page: Page, targets: string[] | 'lan') {
+/** Start a LAN vulnerability check (Nuclei, POST /scans/runs) as its schedule or a KEV rescan would: its history, progress and Stop. */
+async function startChecks(page: Page, targets: string[]) {
   await page.goto('/settings/scanning?tab=history') // the app (and its mock API) is up before the request
   await expect(page.getByRole('heading', { level: 1, name: 'Scanning' })).toBeVisible()
-  return page.evaluate(async (want) => {
-    let ids = want as string[] | 'lan'
-    if (ids === 'lan') {
-      const t = (await (await fetch('/api/v1/scans/targets')).json()) as { items: { id: string; kind: string; selectable: boolean; pick_only: boolean; box: boolean }[] }
-      ids = t.items.filter((x) => x.kind === 'internal' && x.selectable && !x.pick_only && !x.box).map((x) => x.id)
-    }
-    const r = await fetch('/api/v1/scans/runs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targets: ids }) })
-    return r.status
-  }, targets)
+  return page.evaluate(async (ids) => (await fetch('/api/v1/scans/runs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targets: ids }) })).status, targets)
 }
 const engine = (page: Page, name: RegExp) => page.getByRole('listitem', { name })
+/** The only 404 allowed: GET /findings/summary, the shell's nav badges, whose mock comes with #825 (w-summary). Any other 404 fails. */
+function notFound(page: Page) {
+  const seen: string[] = []
+  page.on('response', (r) => { if (r.status() === 404) seen.push(new URL(r.url()).pathname) })
+  return () => seen.filter((p) => p !== '/api/v1/findings/summary')
+}
+const only404Summary = (errors: string[], unexpected: () => string[]) => { expect(unexpected()).toEqual([]); return errors.filter((e) => !/status of 404/.test(e)) }
 
 test.describe('scan: IT operator', () => {
   test.beforeEach(async ({ page }) => { await sample(page); await loginAs(page, 'u-op') })
 
-  test('Settings › Scanning: every engine by group, its cost and runs, Preview labels; the menu has no Vulnerability scans', async ({ page }) => {
+  test('Settings › Scanning: every engine by group, its memory and runs, Preview labels; the menu has no Vulnerability scans', async ({ page }) => {
     const errors = collectErrors(page)
+    const nf = notFound(page)
     await page.goto('/settings/scanning')
     await expect(page.getByRole('heading', { level: 1, name: 'Scanning' })).toBeVisible()
     for (const g of ['Discover', 'Identify', 'Check vulnerabilities', 'Traps']) await expect(page.getByRole('heading', { level: 2, name: g })).toBeVisible()
     const nuclei = engine(page, /Vulnerability checks \(Nuclei\)/)
     await expect(nuclei.getByText('Preview')).toBeVisible()
-    await expect(nuclei.getByText('400 MB memory, medium CPU')).toBeVisible()
+    await expect(nuclei.getByText(/up to 1\.0 GB while on \(shared scan container\)/)).toBeVisible()
     await expect(nuclei.getByText(/devices checked/)).toBeVisible() // the last run, in words
+    await expect(engine(page, /Service versions \(nmap\)/).getByText('Follows Network discovery (nmap)')).toBeVisible()
     await expect(nuclei.getByRole('switch')).toBeDisabled() // turning engines on or off is an administrator's
+    await expect(page.getByText('Only an administrator can turn engines on or off.')).toBeVisible()
     await expect(page.getByRole('link', { name: /Vulnerability scans/ })).toHaveCount(0)
     await english(page, 'scanning')
-    expect(errors.filter((e) => !/status of 404/.test(e))).toEqual([])
+    expect(only404Summary(errors, nf)).toEqual([])
   })
 
   test('old links land on their new place; ?tab= opens the tab; reload keeps it; an unknown tab falls back', async ({ page }) => {
@@ -111,8 +114,9 @@ test.describe('scan: IT operator', () => {
     await expect(page).toHaveURL(/\/settings\/scanning\?tab=engines$/)
     await page.goto('/scans?tab=safety')
     await expect(page.getByRole('tab', { name: 'Safety' })).toHaveAttribute('aria-selected', 'true')
-    await page.goto('/scans?target=a-web01')
-    await expect(page).toHaveURL(/\/devices\/a-web01$/) // its page has "Check this device now"
+    await page.goto('/scans?target=a-web01') // a finding's "Rescan this device": the device with its button, never a page without one
+    await expect(page.getByRole('heading', { level: 1, name: 'Check WEB01 now' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Check this device now' })).toBeVisible()
     await page.goto('/settings/scanning?tab=probes')
     await expect(page.getByRole('tab', { name: 'Probe log' })).toHaveAttribute('aria-selected', 'true')
     await page.reload()
@@ -123,15 +127,15 @@ test.describe('scan: IT operator', () => {
     await expect(page.getByRole('tab', { name: 'Engines' })).toHaveAttribute('aria-selected', 'true')
   })
 
-  test.fixme('#849: the Devices list "Scan selected" and "Scan the LAN now", and the device page "Check this device now", start a run and show its progress there', async () => {})
+  test.fixme('#849: the Devices list "Scan selected" and the device page "Check this device now" start a run and show its progress there', async () => {})
 
-  test('scan one device to the end: progress on the Nuclei card and in History, per-device results, link to the finding', async ({ page }) => {
-    expect(await startRun(page, ['a-nas02'])).toBe(201) // fragile: only a person's own pick (the device page's button) scans it (D-126)
+  test('a vulnerability check to the end: progress on the Nuclei card and in History, the shell indicator, per-device results, link to the finding', async ({ page }) => {
+    expect(await startChecks(page, ['a-nas02'])).toBe(201) // fragile: only a person's own pick scans it (D-126)
     await page.goto('/settings/scanning')
     const nuclei = engine(page, /Vulnerability checks \(Nuclei\)/)
     await expect(nuclei.getByText('Running')).toBeVisible()
     await expect(nuclei.getByRole('progressbar').first()).toBeVisible()
-    await expect(page.getByRole('link', { name: '1 scan running' }).first()).toBeVisible() // the shell's indicator
+    await expect(page.getByRole('link', { name: '1 scan running' }).first()).toHaveAttribute('href', /\/settings\/scanning\?tab=history&run=/)
     await page.getByRole('tab', { name: 'History' }).click()
     await expect(page.getByRole('heading', { level: 2, name: 'Device 1 of 1' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Stop now' })).toBeVisible()
@@ -147,11 +151,11 @@ test.describe('scan: IT operator', () => {
   })
 
   test('"Stop now": Stopping then Stopped within 5 seconds, unscanned devices untouched, one scan at a time', async ({ page }) => {
-    expect(await startRun(page, 'lan')).toBe(201)
-    expect(await startRun(page, ['a-nas02'])).toBe(409) // one scan at a time on the box
+    expect(await startChecks(page, ['a-web01', 'a-srvad'])).toBe(201)
+    expect(await startChecks(page, ['a-nas02'])).toBe(409) // one scan at a time on the box
     await page.goto('/settings/scanning?tab=history')
     await expect(page.getByRole('button', { name: 'Stop now' })).toBeVisible()
-    await page.waitForTimeout(2500)
+    await page.waitForTimeout(2500) // let the first device start, so "untouched" is about the second one
     const t0 = Date.now()
     await page.getByRole('button', { name: 'Stop now' }).click()
     await expect(page.getByText(/^Last scan was stopped/)).toBeVisible({ timeout: 5000 })
@@ -164,7 +168,7 @@ test.describe('scan: IT operator', () => {
   })
 
   test('reload in the middle of a scan still shows progress and Stop now', async ({ page }) => {
-    expect(await startRun(page, 'lan')).toBe(201)
+    expect(await startChecks(page, ['a-web01', 'a-srvad'])).toBe(201)
     await page.goto('/settings/scanning?tab=history')
     await expect(page.getByRole('button', { name: 'Stop now' })).toBeVisible()
     await page.reload()
@@ -178,7 +182,7 @@ test.describe('scan: IT operator', () => {
     const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download CSV' }).click()])
     expect(dl.suggestedFilename()).toBe('vedette-probe-log.csv')
     await page.getByLabel('Filter by target, template, result', { exact: true }).fill('nothing-matches-this')
-    await expect(page.getByText('No probe requests yet.').first()).toBeVisible()
+    await expect(page.getByText('No probe request matches.').first()).toBeVisible()
     await page.goto('/settings/scanning?tab=engines#nuclei')
     await expect(page.getByRole('switch', { name: /Rescan automatically/ })).toBeDisabled()
     await expect(page.getByText(/Requires Admin role/).first()).toBeVisible()
@@ -198,63 +202,74 @@ test.describe('scan: IT operator', () => {
 test.describe('scan: admin sets engines and the shared safety block', () => {
   test.beforeEach(async ({ page }) => { await sample(page); await loginAs(page, 'u-admin') })
 
-  test('turn an engine off and on; turning off a running Nuclei asks, then stops its scan', async ({ page }) => {
+  test('turning off Network discovery names what stops with it; on again from the same switch', async ({ page }) => {
     await page.goto('/settings/scanning')
-    const versions = engine(page, /Service versions \(nmap\)/)
-    await versions.getByRole('switch').click()
-    await expect(page.getByText('Service versions (nmap) is off').first()).toBeVisible()
-    await expect(versions.getByText('Off').first()).toBeVisible()
+    const disc = engine(page, /Network discovery \(nmap\)/)
+    await disc.getByRole('switch').click()
+    const dlg = page.getByRole('dialog', { name: 'Turn off Network discovery (nmap)?' })
+    await expect(dlg).toContainText('This also stops: Service versions (nmap), SNMP reading.')
+    await dlg.getByRole('button', { name: 'Turn off' }).click()
+    await expect(disc.getByRole('switch')).not.toBeChecked()
     await page.reload()
-    await expect(versions.getByRole('switch')).not.toBeChecked()
-    await versions.getByRole('switch').click()
-    await expect(versions.getByRole('switch')).toBeChecked()
-    expect(await startRun(page, 'lan')).toBe(201)
-    await page.goto('/settings/scanning')
-    const nuclei = engine(page, /Vulnerability checks \(Nuclei\)/)
-    await expect(nuclei.getByText('Running')).toBeVisible()
-    await nuclei.getByRole('switch').click()
-    const dlg = page.getByRole('dialog', { name: /Turn off Vulnerability checks \(Nuclei\) and stop its scan\?/ })
-    await dlg.getByRole('button', { name: 'Turn off and stop the scan' }).click()
-    await page.getByRole('tab', { name: 'History' }).click()
-    await expect(page.getByText(/^Last scan was stopped/)).toBeVisible({ timeout: 6000 })
+    await expect(disc.getByRole('switch')).not.toBeChecked()
+    await disc.getByRole('switch').click()
+    await expect(disc.getByRole('switch')).toBeChecked()
   })
 
-  test('a deep link opens the engine\'s own settings: SNMP credentials, OpenVAS needs', async ({ page }) => {
+  test('Scan the LAN now from the Network discovery card; one at a time: another check is locked with the reason and a link', async ({ page }) => {
+    await page.goto('/settings/scanning')
+    const disc = engine(page, /Network discovery \(nmap\)/)
+    await disc.getByRole('button', { name: 'Scan the LAN now' }).click()
+    await expect(disc.getByRole('progressbar').first()).toBeVisible()
+    await page.goto('/scans?target=a-web01')
+    await expect(page.getByRole('button', { name: 'Check this device now' })).toBeDisabled()
+    await expect(page.getByText('Another scan is running.')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Open the run' })).toBeVisible()
+  })
+
+  test('the box itself is never part of a scan, and an excluded device is refused with the reason', async ({ page }) => {
+    await page.goto('/scans?target=a-box')
+    await page.getByRole('button', { name: 'Check this device now' }).click()
+    await expect(page.getByText('The Vedette box itself is never part of a scan.').first()).toBeVisible()
+  })
+
+  test('a deep link opens the engine\'s own settings: SNMP credentials, OpenVAS needs; OpenVAS also on External exposure', async ({ page }) => {
     await page.goto('/settings/scanning#snmp')
     await expect(engine(page, /SNMP reading/).getByRole('heading', { name: 'SNMP credentials' })).toBeVisible()
     await page.goto('/settings/scanning#openvas')
     await expect(engine(page, /OpenVAS deep scan/).getByText(/Memory of this box/)).toBeVisible()
+    await page.goto('/exposure')
+    await expect(page.getByRole('button', { name: 'Enable OpenVAS' })).toBeVisible()
   })
 
-  test('safety: scope and commitment, fragile devices; bad input shows the error in the right place, typed data kept; good input saves and persists', async ({ page }) => {
+  test('safety: scope and commitment, fragile types; bad input shows the error, typed data kept; good input saves and persists', async ({ page }) => {
     await page.goto('/settings/scanning?tab=safety')
-    await expect(page.getByText(/^Confirmed scope: 192\.168\.10\.0\/24/)).toBeVisible()
-    await expect(page.getByText(/Scan scope commitment ticked on/)).toBeVisible()
-    await expect(page.getByRole('link', { name: /Change ranges or the commitment/ })).toHaveAttribute('href', '/devices/setup')
-    await expect(page.getByRole('list', { name: 'Fragile devices' }).getByRole('link', { name: 'NAS-PHOTOS' })).toHaveAttribute('href', '/devices/a-nas02')
+    await expect(page.getByLabel('Network ranges, one per line')).toHaveValue(/192\.168\.10\.0\/24/)
+    await expect(page.getByText(/^Confirmed on .* by admin@acme\.example\.$/)).toBeVisible()
+    await expect(page.getByText(/Scans of your public targets follow their own testing terms and are not covered here yet/)).toBeVisible()
+    await expect(page.getByRole('link', { name: /fragile devices? today/ })).toHaveAttribute('href', '/devices?show=fragile')
     const excl = page.getByLabel('One IP or network per line', { exact: true })
     const save = page.getByRole('button', { name: 'Save settings' })
-    await excl.fill('192.168.10.250\nabc\n999.1.1.1')
+    await excl.fill('192.168.10.250\nabc')
     await save.click()
-    await expect(page.getByRole('alert')).toContainText('Line 2')
-    await expect(excl).toHaveValue('192.168.10.250\nabc\n999.1.1.1')
-    await excl.fill('192.168.10.250\n192.168.20.0/24')
+    await expect(page.getByRole('alert')).toContainText('Exclusion "abc" is not valid')
+    await expect(excl).toHaveValue('192.168.10.250\nabc')
+    await excl.fill('192.168.10.250\n192.168.20.0/28')
     await page.getByLabel('From', { exact: true }).fill('05:00')
     await page.getByLabel('Until', { exact: true }).fill('05:00')
     await save.click()
-    await expect(page.getByRole('alert')).toContainText('must differ')
+    await expect(page.getByRole('alert')).toContainText('cannot be the same')
     await page.getByLabel('From', { exact: true }).fill('22:00')
-    await page.getByLabel('Until', { exact: true }).fill('05:00')
     for (const d of [1, 2, 3, 4, 5, 6, 7]) await page.locator(`#day-${d}`).click()
     await save.click()
     await expect(page.getByRole('alert')).toContainText('at least one day')
     for (const d of [1, 2, 3, 4, 5, 6, 7]) await page.locator(`#day-${d}`).click()
-    await page.locator('#rate').selectOption('10')
+    await page.locator('#speed-rps').selectOption('10')
     await save.click()
-    await expect(page.getByText('Scan settings saved').first()).toBeVisible()
+    await expect(page.getByText('Safety settings saved').first()).toBeVisible()
     await page.reload()
-    await expect(page.getByLabel('One IP or network per line', { exact: true })).toHaveValue('192.168.10.250\n192.168.20.0/24')
-    await expect(page.locator('#rate')).toHaveValue('10')
+    await expect(page.getByLabel('One IP or network per line', { exact: true })).toHaveValue('192.168.10.250\n192.168.20.0/28')
+    await expect(page.locator('#speed-rps')).toHaveValue('10')
     await expect(page.getByText('No changes, no denial of service')).toBeVisible()
   })
 
@@ -332,16 +347,12 @@ test.describe('scan: director (viewer)', () => {
 })
 
 test.describe('scan: clean install', () => {
-  test('no history or sample numbers; the page says what to set up first: the scope commitment on the Devices setup page', async ({ page }) => {
+  test('no history or sample numbers; what is missing is fixed where it is: the ranges and the commitment in a dialog', async ({ page }) => {
     const errors = collectErrors(page)
+    const nf = notFound(page)
     await clean(page)
-    await page.goto('/settings/scanning')
-    const nuclei = engine(page, /Vulnerability checks \(Nuclei\)/)
-    await expect(nuclei.getByText('Needs setup')).toBeVisible()
-    await expect(nuclei.getByText(/The scan scope commitment is not ticked yet/)).toBeVisible()
     await page.goto('/settings/scanning?tab=safety')
-    await expect(page.getByText('The scan scope commitment is not ticked yet.')).toBeVisible()
-    await expect(page.getByRole('link', { name: /Change ranges or the commitment/ })).toHaveAttribute('href', '/devices/setup')
+    await expect(page.getByText('Not confirmed yet: nothing on the LAN is scanned until you tick it.')).toBeVisible()
     await expect(page.getByText(/Never plants a file/)).toBeVisible() // the never-do list is shown before anything runs
     await page.goto('/settings/scanning?tab=history')
     await expect(page.getByText('No scans yet.').first()).toBeVisible()
@@ -352,24 +363,19 @@ test.describe('scan: clean install', () => {
     }
     await page.goto('/settings/scanning?tab=engines#nuclei')
     await expect(page.getByText(/nothing runs until the scan scope commitment is ticked/)).toBeVisible()
-    await expect(page.getByText(/Next scan:/)).toHaveCount(0)
+    await page.goto('/scans?target=a-box')
+    await expect(page.getByText('The network ranges are not confirmed yet.')).toBeVisible()
+    await page.getByRole('button', { name: 'Set the network ranges' }).click()
+    const dlg = page.getByRole('dialog', { name: 'Network ranges you may scan' })
+    await expect(dlg.getByLabel('Network ranges, one per line')).toHaveValue('10.20.0.0/24')
+    await dlg.getByRole('checkbox', { name: /I confirm these ranges belong to my company/ }).click()
+    await dlg.getByRole('button', { name: 'Save and confirm' }).click()
+    await expect(page.getByText('Network ranges saved and confirmed').first()).toBeVisible()
     await english(page, 'clean scanning')
-    expect(errors.filter((e) => !/status of 404/.test(e))).toEqual([])
+    expect(only404Summary(errors, nf)).toEqual([])
   })
 
-  test('with the commitment ticked, a LAN sweep never takes the box itself: the box is scanned only when picked (D-470)', async ({ page }) => {
-    await clean(page, true)
-    await page.goto('/settings/scanning?tab=history')
-    await expect(page.getByRole('heading', { level: 1, name: 'Scanning' })).toBeVisible()
-    const status = await page.evaluate(async () => {
-      const t = (await (await fetch('/api/v1/scans/targets')).json()) as { items: { id: string; box: boolean; pick_only: boolean; selectable: boolean }[] }
-      const box = t.items.find((x) => x.box)
-      return { box: box ? { pick_only: box.pick_only, selectable: box.selectable } : null }
-    })
-    expect(status.box).toEqual({ pick_only: true, selectable: true })
-  })
-
-  test('when the scanner is not available, the Nuclei card says why', async ({ page }) => {
+  test('when the scanner is not available, the Nuclei schedule says why nothing runs', async ({ page }) => {
     await clean(page, true)
     // Set before the app loads: a clean install keeps writing its store (public IP detection), which can overwrite a patch made while it runs.
     await page.addInitScript((k) => {
@@ -377,10 +383,8 @@ test.describe('scan: clean install', () => {
       db.scan_scanner = { available: false }
       localStorage.setItem(k, JSON.stringify(db))
     }, DB)
-    await page.goto('/settings/scanning')
-    const nuclei = engine(page, /Vulnerability checks \(Nuclei\)/)
-    await expect(nuclei.getByText('Error')).toBeVisible()
-    await expect(nuclei.getByText(/The vulnerability scanner is not available: the scan container or its scanner is missing/)).toBeVisible()
+    await page.goto('/settings/scanning?tab=engines#nuclei')
+    await expect(page.getByText(/nothing runs while the vulnerability scanner is not available/)).toBeVisible()
   })
 })
 
@@ -389,6 +393,7 @@ test.describe('scan: screenshots and accessibility', () => {
     test(`screens in ${t}`, async ({ page }, info) => {
       test.setTimeout(150_000)
       const errors = collectErrors(page)
+      const nf = notFound(page)
       await sample(page)
       await loginAs(page, 'u-admin')
       await theme(page, t)
@@ -403,7 +408,7 @@ test.describe('scan: screenshots and accessibility', () => {
         await expectAccessible(page, `${tab} ${tag}`)
       }
       // D-417: no Credentialed scan tab in v1, so no shot of it.
-      expect(errors.filter((e) => !/status of 404/.test(e))).toEqual([])
+      expect(only404Summary(errors, nf)).toEqual([])
     })
   }
 })

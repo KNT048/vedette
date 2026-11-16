@@ -56,22 +56,22 @@ test('first-run setup: mistakes at every step, fixes, finish on Home', async ({ 
   // step 1: empty, weak password, mismatch, bad email
   await next(page)
   await expect(page.getByText('Enter the organization name (at least 2 characters).')).toBeVisible()
-  await page.getByLabel('Setup code').fill(box().setup_code)
-  await page.getByLabel('Organization name').fill('QA Company')
-  await page.getByLabel('Administrator name').fill(ACCOUNTS.admin.name)
-  await page.getByLabel('Sign-in email').fill('not-an-email')
+  await page.getByLabel('Setup code', { exact: true }).fill(box().setup_code)
+  await page.getByLabel('Organization name', { exact: true }).fill('QA Company')
+  await page.getByLabel('Administrator name', { exact: true }).fill(ACCOUNTS.admin.name)
+  await page.getByLabel('Sign-in email', { exact: true }).fill('not-an-email')
   await page.getByLabel('Password', { exact: true }).fill('short')
   await next(page)
   await expect(page.getByText(/The email does not look right/)).toBeVisible()
   await expect(page.getByText(/The password needs at least 12 characters, it has 5 so far/)).toBeVisible()
-  await page.getByLabel('Sign-in email').fill(ACCOUNTS.admin.email)
+  await page.getByLabel('Sign-in email', { exact: true }).fill(ACCOUNTS.admin.email)
   await page.getByLabel('Password', { exact: true }).fill(password())
-  await page.getByLabel('Repeat password').fill(password() + 'x')
+  await page.getByLabel('Repeat password', { exact: true }).fill(password() + 'x')
   await next(page)
   await expect(page.getByText('The two entries do not match.')).toBeVisible()
-  await expect(page.getByLabel('Organization name')).toHaveValue('QA Company') // typed data is kept
-  await page.getByLabel('Repeat password').fill(password())
-  await page.getByLabel('Repeat password').press('Enter') // Enter submits the step
+  await expect(page.getByLabel('Organization name', { exact: true })).toHaveValue('QA Company') // typed data is kept
+  await page.getByLabel('Repeat password', { exact: true }).fill(password())
+  await page.getByLabel('Repeat password', { exact: true }).press('Enter') // Enter submits the step
   await expect(page.getByRole('heading', { level: 2, name: 'Network to watch' })).toBeVisible()
 
   // step 2: empty, public range, /0, malformed, bare address, host bits, duplicates, add/remove rows

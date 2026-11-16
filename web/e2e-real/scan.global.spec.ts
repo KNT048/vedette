@@ -133,7 +133,7 @@ test('the settings page: a bad value is refused in place and keeps what was type
   const c = await as('admin')
   try {
     await page.goto('/scans?tab=safety')
-    const excl = page.getByLabel('One IP or network per line')
+    const excl = page.getByLabel('One IP or network per line', { exact: true })
     const save = page.getByRole('button', { name: 'Save settings' })
     await excl.fill('10.1.200.1\nabc\n999.1.1.1')
     await save.click()
@@ -157,7 +157,7 @@ test('the settings page: a bad value is refused in place and keeps what was type
     const saved = (await cfg(c)).config
     expect(saved).toMatchObject({ exclusions: ['10.1.200.1', '10.1.201.0/24'], rate: 2, unresponsive_after: 5, window: { from: '21:30', to: '04:15' } })
     await page.reload()
-    await expect(page.getByLabel('One IP or network per line')).toHaveValue('10.1.200.1\n10.1.201.0/24')
+    await expect(page.getByLabel('One IP or network per line', { exact: true })).toHaveValue('10.1.200.1\n10.1.201.0/24')
     await expect(page.getByLabel('From', { exact: true })).toHaveValue('21:30')
     const last = (await audit(c, 'scan.config'))[0]
     expect(last).toMatchObject({ action: 'scan.config' })

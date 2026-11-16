@@ -162,7 +162,7 @@ test.describe('findings: IT operator', () => {
 
   test('links: device, CVE page, rescan; a missing finding says so', async ({ page }) => {
     await page.goto('/findings/f-1')
-    await expect(page.getByRole('link', { name: 'Rescan this device' })).toHaveAttribute('href', '/scans?target=a-nas02')
+    await expect(page.getByRole('link', { name: 'Rescan this device' })).toHaveAttribute('href', '/devices/a-nas02')
     await page.getByRole('link', { name: /Open CVE-2022-27593 page/ }).click()
     await expect(page).toHaveURL(/\/cve\/CVE-2022-27593/)
     await page.goto('/devices/a-nas02')
@@ -218,7 +218,7 @@ test.describe('findings: clean install', () => {
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('No unresolved findings')
     await expect(page.locator('body')).not.toContainText('NAS')
     await expect(page.getByRole('link', { name: 'Open Devices' }).first()).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Open Vulnerability scans' }).first()).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Open Settings, Scanning' }).first()).toBeVisible()
     await english(page, 'clean findings')
     await page.goto('/findings/f-1')
     await expect(page.getByText(/No such finding/)).toBeVisible()

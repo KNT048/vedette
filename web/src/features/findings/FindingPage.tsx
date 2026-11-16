@@ -18,6 +18,7 @@ import { Field, Textarea } from '@/components/ui/input'
 import { RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { fmtDate, fmtDateTime, fmtPercent } from '@/lib/format'
 import { useCan } from '@/lib/session'
+import { useModuleEnabled } from '@/lib/modules'
 import { AcceptUntil, FindingStatusChip } from './AcceptRisk'
 import { untilOk } from './accept'
 import { useFinding, useSetStatus } from './api'
@@ -80,6 +81,8 @@ function StatusDialog({ f, open, onOpenChange, opener }: { f: FindingDetail; ope
 }
 
 function Evidence({ f }: { f: FindingDetail }) {
+  // #850 r2 N4: with the vulnerability checks on, the device page re-runs them; off, it only identifies the device again (said so)
+  const scanOn = useModuleEnabled('scan') === true
   const { t } = useTranslation('findings')
   const ev = f.evidence
   return (
@@ -103,7 +106,7 @@ function Evidence({ f }: { f: FindingDetail }) {
           <ol className="grid list-decimal gap-1 pl-5 text-sm">{f.recheck.steps.map((s) => <li key={s}>{s}</li>)}</ol>
           {f.recheck.code ? <CodeBlock code={f.recheck.code} label={t('evidence.recheckCode')} wrapOnPhone /> : null}
           {f.asset && hasIp(f.asset) ? (
-            <Button asChild className="w-fit"><Link to={`/scans?target=${f.asset.id}`}><ScanSearch />{t('evidence.rescan')}</Link></Button>
+            <Button asChild className="w-fit"><Link to={`/devices/${encodeURIComponent(f.asset.id)}`}><ScanSearch />{t(scanOn ? 'evidence.rescan' : 'evidence.rescanIdentify')}</Link></Button>
           ) : f.asset ? (
             <div className="flex flex-wrap items-center gap-x-1 text-meta text-muted">
               <span className="inline-flex items-center gap-1">{t('evidence.noIpScan')}<InfoTip topic={t('evidence.recheck')}>{t('evidence.noIpScanInfo')}</InfoTip></span>

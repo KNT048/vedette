@@ -1,0 +1,329 @@
+{
+  "nav": "Scanning",
+  "page": {
+    "title": "Scanning",
+    "meta": "{{on}} of {{total}} engines on. Next run {{time}}.",
+    "metaNoNext": "{{on}} of {{total}} engines on. Nothing scheduled.",
+    "metaRunning_one": "{{count}} scan running now.",
+    "metaRunning_other": "{{count}} scans running now.",
+    "info": "Every way the box finds devices, identifies them and checks them for vulnerabilities, with the memory each takes and when it runs. The scope, window, speed, exclusions and fragile types are set once, under Safety, for every engine on your LAN.",
+    "infoContext": "To scan now: Scan the LAN now on the Network discovery card or the Devices list, Scan selected on the Devices list, Check this device now on a device, Deep scan now on a public target.",
+    "tabs": "Sections of Scanning",
+    "tab": {
+      "engines": "Engines",
+      "safety": "Safety",
+      "history": "History",
+      "probes": "Probe log",
+      "credentialed": "Credentialed scan"
+    }
+  },
+  "group": {
+    "discover": {
+      "title": "Discover",
+      "description": "Find which devices are on your network.",
+      "info": "Passive listening hears devices that talk; network discovery asks each address of your LAN ranges, gently, inside the time window."
+    },
+    "identify": {
+      "title": "Identify",
+      "description": "Learn what each device is: maker, model, software and versions.",
+      "info": "Versions are what Vedette matches with the list of vulnerabilities exploited in the wild, so the better a device is identified, the fewer vulnerabilities are missed or wrongly reported."
+    },
+    "vuln": {
+      "title": "Check vulnerabilities",
+      "description": "Confirm known vulnerabilities with safe checks.",
+      "info": "Checks only read or confirm; none is meant to change anything. On your LAN they follow the shared safety settings. Scans of your public IPs and domains follow each target's own testing terms instead."
+    },
+    "traps": {
+      "title": "Traps",
+      "description": "Decoys that raise an alert when anyone touches them.",
+      "info": "A decoy has no real use, so any touch is suspicious. Traps send nothing to your devices."
+    }
+  },
+  "engines": {
+    "passive": {
+      "name": "Passive listening",
+      "finds": "Devices that talk on your network, without sending anything to them.",
+      "where": "Sensor and its card: Devices, Scope and sensors, Sensor"
+    },
+    "nmap-discovery": {
+      "name": "Network discovery (nmap)",
+      "finds": "Devices that answer on your LAN ranges."
+    },
+    "nmap-versions": {
+      "name": "Service versions (nmap)",
+      "finds": "Open ports, services and their versions on each device.",
+      "where": "Which device types get them: Safety, Fragile devices"
+    },
+    "snmp": {
+      "name": "SNMP reading",
+      "finds": "Model, firmware and serial number of switches, printers and UPS."
+    },
+    "osquery": {
+      "name": "osquery agents",
+      "finds": "Installed software and versions on your servers.",
+      "where": "Install osquery and its token: Devices, Scope and sensors, Agents"
+    },
+    "wazuh": {
+      "name": "Wazuh",
+      "finds": "The software list your Wazuh server already keeps.",
+      "where": "Your Wazuh server: Devices, Scope and sensors, Agents"
+    },
+    "nuclei": {
+      "name": "Vulnerability checks (Nuclei)",
+      "finds": "Exploited vulnerabilities, confirmed with safe templates a person read."
+    },
+    "zap": {
+      "name": "Web checks (ZAP baseline)",
+      "finds": "Weaknesses of your public websites, read without sending forms.",
+      "where": "Testing terms per target: External exposure, Targets"
+    },
+    "openvas": {
+      "name": "OpenVAS deep scan",
+      "finds": "Thousands of network vulnerability checks on your public IPs."
+    },
+    "honeypot": {
+      "name": "Decoys (honeypot)",
+      "finds": "Anyone who touches a decoy device or a honey token.",
+      "where": "Trap IPs: Internal traps, Trap IPs"
+    }
+  },
+  "state": {
+    "off": "Off",
+    "needs_setup": "Needs setup",
+    "starting": "Starting",
+    "ready": "Ready",
+    "running": "Running",
+    "error": "Error",
+    "unavailable": "Not available"
+  },
+  "on": "On",
+  "off": "Off",
+  "follows": "Follows {{name}}",
+  "noSwitch": "Runs with each scan of a public target",
+  "settings": "Settings",
+  "settingsOf": "Settings of {{name}}",
+  "adminOnly": "Only an administrator can turn engines on or off.",
+  "box": {
+    "memory": "The engines that are on hold up to {{used}} of this box's {{total}} of memory."
+  },
+  "cost": {
+    "on": "up to {{size}} while on",
+    "running": "up to {{size}} while it runs",
+    "shared": "(shared {{name}} container)",
+    "unknown": "not known",
+    "none": "none of its own (runs inside the box's core)"
+  },
+  "facts": {
+    "memory": "Memory",
+    "last": "Last run",
+    "next": "Next run",
+    "never": "Never",
+    "onDemand": "Only when you start it"
+  },
+  "outcome": {
+    "ok": "{{time}}.",
+    "partial": "{{time}}, partly.",
+    "failed": "{{time}}, failed.",
+    "stopped": "{{time}}, stopped."
+  },
+  "toast": {
+    "on": "{{name}} is on",
+    "off": "{{name}} is off"
+  },
+  "ask": {
+    "offTitle": "Turn off {{name}}?",
+    "affects": "This also stops: {{list}}.",
+    "stops": "The scan running now stops; what it found so far is kept.",
+    "offConfirm": "Turn off",
+    "depsTitle": "Turn on {{name}} and what it needs?",
+    "depsConfirm": "Turn on together",
+    "needs": "It also needs: {{list}}."
+  },
+  "run": {
+    "stop": "Stop now",
+    "stopTitle": "Stop this scan now?",
+    "stopBody": "It stops within seconds; devices not reached yet are not touched. What it found so far is kept.",
+    "stopConfirm": "Stop the scan"
+  },
+  "fix": {
+    "newSnmp": "Add an SNMP credential",
+    "target": "Add and verify a public target: External exposure, Targets",
+    "trapIp": "Add a Trap IP: Internal traps, Trap IPs",
+    "osqueryTitle": "Install osquery on a server",
+    "osqueryDescription": "Create a token, then run the command on the server. The token is shown once.",
+    "newOsquery": "Create an osquery token",
+    "newWazuh": "Connect your Wazuh server",
+    "wazuhTitle": "Connect your Wazuh server",
+    "wazuhDescription": "Vedette reads the software list your Wazuh server keeps.",
+    "wazuhSaved": "Wazuh connected",
+    "loading": "Loading…",
+    "nucleiWindow": "The schedule needs a time inside the shared window.",
+    "nucleiWindowLink": "Check the window: Safety, Time window",
+    "noDays": "The shared window has no day yet.",
+    "noDaysLink": "Choose its days: Safety, Time window"
+  },
+  "own": {
+    "snmpAdmin": "SNMP credentials need the Admin role."
+  },
+  "alerts": {
+    "sentTo": "Matches alert you through: {{list}}.",
+    "none": "No alert channel is on: matches only show on the pages.",
+    "new": "New channel",
+    "chooseTitle": "New alert channel",
+    "chooseBody": "Matches of every engine alert through the channels that are on.",
+    "kind": "Kind of channel",
+    "continue": "Continue",
+    "added": "{{name}} saved",
+    "notifyOff": "Alerts need the Notifications module.",
+    "askAdmin": "Matches are sent through your alert channels; an administrator sets them up."
+  },
+  "nucleiOff": "History and the probe log are those of the vulnerability checks (Nuclei, Preview), which are off.",
+  "nucleiOffLink": "Turn them on: Engines, Vulnerability checks",
+  "scope": {
+    "open": "Set the network ranges",
+    "dialogTitle": "Network ranges you may scan",
+    "dialogDescription": "Vedette scans nothing outside these ranges.",
+    "dialogInfo": "Internal IPv4 ranges only (RFC 1918 or 100.64.0.0/10). They stay editable under Settings, Scanning, Safety and Devices, Scope and sensors.",
+    "rangesHint": "For example 192.168.10.0/24.",
+    "save": "Add and confirm",
+    "saved": "Network ranges saved and confirmed",
+    "current": "Ranges now",
+    "noneYet": "No range yet.",
+    "confirmedBy": "Confirmed by {{by}}.",
+    "notConfirmed": "Not confirmed yet.",
+    "add": "Network range to add",
+    "addOptional": "Another range to add (optional)",
+    "confirmOnly": "Confirm these ranges",
+    "changed": "The ranges changed since this dialog opened (another admin or tab). The current list is shown: check it and tick again.",
+    "ranges": "Network ranges, one per line"
+  },
+  "module": {
+    "turnOn": "Turn on {{name}}",
+    "on": "{{name}} is on",
+    "depsTitle": "Turn on {{name}} and what it needs?",
+    "depsBody": "It also needs: {{list}}.",
+    "depsConfirm": "Turn on together"
+  },
+  "safety": {
+    "adminOnly": "Only an administrator can change these settings. You can still read them.",
+    "appliesTo": "Set once for every engine on your LAN: network discovery, service versions, SNMP and the vulnerability checks. Scans of your public targets follow their own testing terms and are not covered here yet.",
+    "scopeTitle": "Where the box may scan",
+    "scopeDescription": "Your LAN ranges and your confirmation that you may scan them.",
+    "scopeInfo": "Nothing outside these ranges is ever scanned. Changing the ranges asks for the confirmation again.",
+    "confirmedBy": "Confirmed on {{date}} by {{by}}.",
+    "confirmAgain": "The ranges changed: tick the confirmation again to save.",
+    "notConfirmed": "Not confirmed yet: nothing on the LAN is scanned until you tick it.",
+    "windowTitle": "Time window",
+    "windowDescription": "Discovery, version scans, SNMP rounds and scheduled checks run only inside it.",
+    "windowInfo": "Read in the organization time zone ({{zone}}). A window that crosses midnight (22:00 to 05:00) counts by its start day. Scan now and scans of public targets are not bound by it.",
+    "days": "Days the window starts",
+    "from": "From",
+    "to": "Until",
+    "speedTitle": "Speed",
+    "speedDescription": "Lower is gentler on old devices.",
+    "pps": "Discovery and SNMP",
+    "ppsHint": "nmap and SNMP, in packets per second.",
+    "ppsOption_one": "{{count}} packet per second",
+    "ppsOption_other": "{{count}} packets per second",
+    "rps": "Vulnerability checks on the LAN",
+    "rpsHint": "Nuclei, in requests per second.",
+    "rpsOption_one": "{{count}} request per second",
+    "rpsOption_other": "{{count}} requests per second",
+    "exclTitle": "Exclusions",
+    "exclDescription": "Addresses no engine touches on your LAN.",
+    "exclLabel": "One IP or network per line",
+    "exclHint": "For example 192.168.10.5 or 192.168.20.0/28.",
+    "exclInfo": "The Vedette box needs no line here: it is never part of a sweep.",
+    "fragileTitle": "Fragile device types",
+    "fragileDescription": "Scanned once, gently, when first seen; listened to only after that.",
+    "fragileInfo": "Every type acting as one of these counts. \"Allow regular scans\" keeps that type in the regular scans.",
+    "regular": "Allow regular scans",
+    "regularFor": "Allow regular scans of {{kind}}",
+    "fragileDevices_one": "{{count}} fragile device today: see it on Devices",
+    "fragileDevices_other": "{{count}} fragile devices today: see them on Devices",
+    "save": "Save settings",
+    "saved": "Safety settings saved",
+    "savedAdjusted": "Safety settings saved. Adjusted: {{list}}",
+    "changedElsewhere": "Someone else saved these settings after you opened this page, so nothing was saved yet.",
+    "merge": {
+      "taken": "{{part}}: changed by them, now {{value}}. Shown below.",
+      "bothChanged": "{{part}}: you both changed it. Your edit is kept below; theirs is {{value}}.",
+      "saveAgain": "Everything you typed is still in the form. Check it, then save again.",
+      "none": "none"
+    }
+  },
+  "scanNow": {
+    "device": "Check this device now",
+    "selected_one": "Scan selected ({{count}})",
+    "selected_other": "Scan selected ({{count}})",
+    "lan": "Scan the LAN now",
+    "deep": "Deep scan now",
+    "running": "Scanning…",
+    "started": "Scan started",
+    "otherRunning": "Another scan is running.",
+    "openRun": "Open the run",
+    "none": "Select at least one device.",
+    "needsScope": "The network ranges are not confirmed yet.",
+    "discoveryOff": "Network discovery is off.",
+    "turnOnDiscovery": "Turn it on: Engines, Network discovery",
+    "tooMany": "One run takes at most {{max}} devices; {{count}} are selected.",
+    "finished": "Finished.",
+    "seeDevices": "See the devices",
+    "seeDevice": "See the device"
+  },
+  "running": {
+    "count_one": "{{count}} scan running",
+    "count_other": "{{count}} scans running"
+  },
+  "check": {
+    "title": "Check {{name}} now",
+    "devices": "Devices",
+    "body": "Vedette identifies the device again now (open ports, services and their versions), inside your scope and safety settings, then compares it with the exploited vulnerabilities.",
+    "open": "Open {{name}}"
+  },
+  "selection": {
+    "nmap": {
+      "leftOut": "Not in Scan selected: {{list}}.",
+      "box_one": "the Vedette box",
+      "box_other": "the Vedette box",
+      "no_ip_one": "{{count}} without an IP address",
+      "no_ip_other": "{{count}} without an IP address",
+      "manual_one": "{{count}} added by hand",
+      "manual_other": "{{count}} added by hand",
+      "never_one": "{{count}} set to never scan",
+      "never_other": "{{count}} set to never scan",
+      "out_of_scope_one": "{{count}} outside the network ranges or excluded",
+      "out_of_scope_other": "{{count}} outside the network ranges or excluded"
+    },
+    "vuln": {
+      "leftOut": "Not in the vulnerability checks: {{list}}.",
+      "button_one": "Run vulnerability checks on selected ({{count}})",
+      "button_other": "Run vulnerability checks on selected ({{count}})",
+      "handPick_one": "{{count}} selected device is checked only if you tick it here (fragile, not classified yet, added by hand, or the box itself):",
+      "handPick_other": "{{count}} selected devices are checked only if you tick them here (fragile, not classified yet, added by hand, or the box itself):",
+      "unapproved_one": "{{count}} not approved yet",
+      "unapproved_other": "{{count}} not approved yet",
+      "excluded_one": "{{count}} excluded",
+      "excluded_other": "{{count}} excluded",
+      "out_of_scope_one": "{{count}} outside the confirmed scope",
+      "out_of_scope_other": "{{count}} outside the confirmed scope",
+      "no_ip_one": "{{count}} without an IP address",
+      "no_ip_other": "{{count}} without an IP address",
+      "regular_scan_never_one": "{{count}} set to never scan",
+      "regular_scan_never_other": "{{count}} set to never scan",
+      "unverified_one": "{{count}} not verified",
+      "unverified_other": "{{count}} not verified",
+      "expired_one": "{{count}} with an expired verification",
+      "expired_other": "{{count}} with an expired verification",
+      "not_supported_one": "{{count}} not supported",
+      "not_supported_other": "{{count}} not supported"
+    },
+    "device": {
+      "box": "The Vedette box itself is never part of a network scan.",
+      "no_ip": "No IP address yet, so network discovery cannot check it. Add its IP on this page.",
+      "manual": "Added by hand: network discovery does not check it. Its details are edited on this page.",
+      "never": "Set to never scan: network discovery does not check it.",
+      "out_of_scope": "Outside the network ranges or excluded: network discovery does not check it. Settings, Scanning, Safety holds the ranges."
+    }
+  }
+}

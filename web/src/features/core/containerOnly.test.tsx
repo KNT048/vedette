@@ -259,7 +259,7 @@ describe('container-only install (D-381)', () => {
 
   it('Scans: v1 offers no Credentialed scan tab, so nothing on this install invites it either (D-417, S-SCAN-5)', async () => {
     renderApp('/scans?tab=credentialed')
-    expect(await screen.findByRole('tab', { name: 'Scans and history' })).toBeInTheDocument()
+    expect(await screen.findByRole('tab', { name: 'Engines' })).toBeInTheDocument() // #850: /scans lands on Settings › Scanning
     expect(screen.queryByRole('tab', { name: 'Credentialed scan' })).toBeNull()
     expect(screen.queryByText(/Credentialed scan is not on this install/)).toBeNull()
   })

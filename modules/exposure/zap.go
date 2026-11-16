@@ -445,6 +445,28 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		return c, nil
 	}
 	pages, left := webPages(st, c)
+	// INV-31: no page goes to an address on the shared exclusion list; a list that cannot be read sends no page at all
+	sf, err := s.safety(ctx)
+	if err != nil {
+		if ctx.Err() != nil {
+			return c, ctx.Err()
+		}
+		s.cfg.Log.ErrorContext(ctx, "exposure: reading the shared safety settings failed", "target", st.Value, "error", err)
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: notSafetyRead})
+		return c, nil
+	}
+	kept, said := pages[:0], map[netip.Addr]bool{}
+	for _, p := range pages {
+		if sf.excluded(p.IP) {
+			if !said[p.IP] {
+				said[p.IP] = true
+				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(fmt.Sprintf(notDeepExcluded, p.IP), maxLineText)})
+			}
+			continue
+		}
+		kept = append(kept, p)
+	}
+	pages = kept
 	if len(pages) == 0 {
 		text := notWebNone
 		if gap, why := identificationIncomplete(c); gap && st.Kind == KindIP {

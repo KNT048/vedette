@@ -118,7 +118,7 @@ func (a exposureTemplateScan) baselineInstead(ctx context.Context, t exposure.Sc
 	var base []exposure.TemplateJob
 	for _, j := range jobs {
 		if j.Depth == exposure.DepthFull && len(j.CVEs) > 0 {
-			j.Depth, j.RPS, j.Service, j.Product, j.CPE = "", exposure.TemplateRPS, "", "", ""
+			j.Depth, j.RPS, j.Service, j.Product, j.CPE = "", min(j.RPS, exposure.TemplateRPS), "", "", "" // #850 review M1: a lower shared speed stays lower
 			base = append(base, j)
 		}
 	}

@@ -2,6 +2,9 @@
 
 > Mã Go có từ WP-26 lát 2 (package `modules/agent-intake`, tên Go `agentintake`): osquery `enroll`/`config`/`log`/`status`, token ở mức dịch vụ, ánh xạ gói. Lát 4: Wazuh. Lát 3: đường admin, script cài, `ca.pem`, kho gói. Kế hoạch: `docs/plans/2026-11-11-wp26-agent-intake.md`.
 
+## Modifying: the device hint of a report (`hint` in `Log`, `nodeAgent`, D-598, INV-12)
+- **inventory** binds `AssetHint.Agent` to a device (INV-31) and finds the device by it before the address: a key that changes per report (or names something other than this box's node id) makes every report a candidate for a second device; never put a value the machine sends (host_identifier, MAC) in it.
+
 ## Modifying: `IssueToken(ctx, actor, name, ttlDays) (Token, secret string, error)` — 1 người gọi: `AdminHandlers.InventoryPostInventoryAgentsTokens` (lát 3)
 - **web/features/inventory/AgentsSection**: `CreateTokenResult` hiện secret một lần; đổi định dạng token (`vdt_osquery_` + 32 ký tự) → regex trong `parse.go`, script cài và `/intake/osquery/status` vỡ.
 - Mã lỗi `bad_name`, `bad_expiry`, `too_many_tokens` (409) là của GUI tạo token.

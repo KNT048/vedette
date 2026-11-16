@@ -13,6 +13,6 @@ export function RiskChip({ f }: { f: Pick<Finding, 'basis' | 'severity'> & { evi
   if (!unverified(f)) return <SeverityChip severity={f.severity} />
   // N52-2: the agent reported the installed version; Vedette could not compare it, so "add the version" does not apply.
   const label = t('risk.unverifiedChip', { severity: t(`common:severity.${f.severity}`) })
-  // #824: the explanation is behind an ⓘ, not a hover-only title; the click stays off a clickable row.
-  return <span className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}><Chip tone="off">{label}</Chip><InfoTip topic={label} className="print:hidden">{t(f.evidence?.agent_row ? 'risk.unverifiedAgentHint' : 'risk.unverifiedHint')}</InfoTip></span>
+  // #824: the explanation is behind an ⓘ, not a hover-only title.
+  return <span className="inline-flex items-center gap-1"><Chip tone="off">{label}</Chip><InfoTip topic={label} className="print:hidden">{t(f.evidence?.agent_row ? 'risk.unverifiedAgentHint' : 'risk.unverifiedHint')}</InfoTip></span>
 }

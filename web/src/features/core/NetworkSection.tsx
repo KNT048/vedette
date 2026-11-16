@@ -47,7 +47,8 @@ function Interfaces({ d }: { d: NetworkState }) {
   // card is never offered Management; with SPAN hidden (D-403) a card that is not the SPAN port has one possible role, shown as text.
   const roleControl = (row: { original: NetInterface }) => {
     const r = row.original.role
-    if (r === 'management') return <span title={t('network.interfaces.mgmtLocked')}><Chip tone="accent">{t('network.role.management')}</Chip></span>
+    // #824: the why is behind ⓘ (reachable by keyboard and touch), not a hover-only title.
+    if (r === 'management') return <span className="flex items-center gap-1"><Chip tone="accent">{t('network.role.management')}</Chip><InfoTip topic={t('network.role.management')}>{t('network.interfaces.mgmtLocked')}</InfoTip></span>
     if (!SPAN_IN_UI && r !== 'span') return <Chip tone="off">{t('network.role.unused')}</Chip>
     return (
       <Select aria-label={t('network.interfaces.roleOf', { name: row.original.name })} value={r} disabled={gate.disabled || roles.isPending} title={gate.title} className="w-44" onChange={(e) => setRole(row.original.name, e.target.value as IfaceRole)}>
@@ -162,7 +163,10 @@ function ManagementForm({ d }: { d: NetworkState }) {
           </Select>
         </Field>
         {mode === 'dhcp' ? (
-          <p className="max-w-lg rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">{t('network.management.dhcpNote')}{m.mode === 'dhcp' && m.address ? ` ${t('network.management.dhcpNow', { ip: `${m.address}/${m.prefix ?? '?'}`, gateway: m.gateway ?? '–', dns: m.dns.join(', ') || '–' })}` : ''}</p>
+          <div className="flex max-w-lg items-start gap-1 rounded-md border border-rule bg-sunken px-3 py-2 text-[13px]">
+            <p className="min-w-0 flex-1">{t('network.management.dhcpNote')}{m.mode === 'dhcp' && m.address ? ` ${t('network.management.dhcpNow', { ip: `${m.address}/${m.prefix ?? '?'}`, gateway: m.gateway ?? '–', dns: m.dns.join(', ') || '–' })}` : ''}</p>
+            <InfoTip topic={t('network.management.dhcp')}>{t('network.management.dhcpNoteInfo')}</InfoTip>
+          </div>
         ) : (
           <>
             <div className="grid grid-cols-[minmax(0,1fr)_96px] gap-3">

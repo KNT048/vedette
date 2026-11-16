@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"net/netip"
 	"regexp"
 	"slices"
 	"strings"
@@ -314,6 +313,10 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 	if !observe.ValidSource(source) || source == observe.Manual {
 		return invalid("software source %q is not allowed", source)
 	}
+	agent, err := checkAgent(hint, source)
+	if err != nil {
+		return err
+	}
 	conv := make([]SoftwareItem, len(items))
 	cat := s.cpeCatalog(ctx, items)
 	for i, it := range items {
@@ -333,7 +336,7 @@ func (s *Service) ReplaceSoftware(ctx context.Context, hint observe.AssetHint, s
 	}
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		now := s.seen(s.clock())
-		id, err := s.deviceFor(ctx, tx, o, ip, mac, source, now)
+		id, err := s.deviceFor(ctx, tx, o, cleanObs{ip: ip, mac: mac, agent: agent, source: string(source), seenAt: now})
 		if err != nil {
 			return err
 		}
@@ -357,14 +360,20 @@ func (s *Service) cpeCatalog(ctx context.Context, items []observe.Software) *Cat
 
 // deviceFor finds the device of a sensor's list (software, services) by its MAC or IP, or creates it unapproved and announces it.
 // Every call is a contact of the source (D-474), whether or not it creates a device.
-func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, ip netip.Addr, mac string, source observe.Source, now string) (string, error) {
+func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs) (string, error) {
+	ip, mac, source, now := c.ip, c.mac, observe.Source(c.source), c.seenAt
 	learning, err := s.learning(ctx, tx, string(source))
 	if err != nil {
 		return "", err
 	}
-	id, isNew, err := s.resolve(ctx, tx, cleanObs{ip: ip, mac: mac, seenAt: now})
-	if err != nil || !isNew {
-		return id, err
+	find := c
+	find.source = ""                           // a list moves no address by its source (as before D-598); the agent bound to a device does, in resolve
+	id, isNew, err := s.resolve(ctx, tx, find) // binds no agent: the observation batch of the same report does (Record)
+	if err != nil {
+		return "", err
+	}
+	if !isNew {
+		return s.settle(ctx, tx, o, id, false)
 	}
 	notify, err := notifyNew(ctx, tx)
 	if err != nil {
@@ -385,6 +394,39 @@ func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, ip netip
 	if err := s.auditTx(ctx, tx, systemActor, "inventory.discover", target, id); err != nil {
 		return "", err
 	}
+	kept, err := s.settle(ctx, tx, o, id, true)
+	if err != nil || kept != id { // joined into a known device in the same write: never announced
+		return kept, err
+	}
 	o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify, Learning: learning})
+	return id, nil
+}
+
+// settle runs the join rules (joinSame) on the device a list reached, as Record does for its batch (D-598, review #831 L6): finding
+// the device may have taken an address from another row (claimIP), which a join then resolves. It returns the device the list
+// belongs to: the one a joined row went into. A device that received another is folded again and announced updated.
+func (s *Service) settle(ctx context.Context, tx *sql.Tx, o *outbox, id string, isNew bool) (string, error) {
+	view, err := matchView(ctx, tx, id)
+	if err != nil {
+		return "", err
+	}
+	before := map[string]string{id: view}
+	created := map[string]string{}
+	if isNew {
+		created[id] = "list"
+	}
+	gone, joined, err := s.joinSame(ctx, tx, o, []string{id}, created, before)
+	if err != nil {
+		return "", err
+	}
+	for _, j := range joined {
+		if _, err := s.RecomputeAsset(ctx, tx, j); err != nil {
+			return "", err
+		}
+		o.add(EventAssetUpdated, AssetEvent{AssetID: j, Match: true})
+	}
+	if gone[id] && len(joined) > 0 {
+		return joined[len(joined)-1], nil
+	}
 	return id, nil
 }

@@ -44046,6 +44046,10 @@ type ExposureGetExposureScanOK struct {
 	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
 	// the snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposureGetExposureScanOKPhase `json:"phase"`
+	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
+	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
+	// greenbone phase. Set while status is running; null otherwise.
+	Progress NilExposureGetExposureScanOKProgress `json:"progress"`
 	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
 	// earlier results are kept.
 	SnapshotID NilString                       `json:"snapshot_id"`
@@ -44081,6 +44085,11 @@ func (s *ExposureGetExposureScanOK) GetID() string {
 // GetPhase returns the value of Phase.
 func (s *ExposureGetExposureScanOK) GetPhase() ExposureGetExposureScanOKPhase {
 	return s.Phase
+}
+
+// GetProgress returns the value of Progress.
+func (s *ExposureGetExposureScanOK) GetProgress() NilExposureGetExposureScanOKProgress {
+	return s.Progress
 }
 
 // GetSnapshotID returns the value of SnapshotID.
@@ -44136,6 +44145,11 @@ func (s *ExposureGetExposureScanOK) SetID(val string) {
 // SetPhase sets the value of Phase.
 func (s *ExposureGetExposureScanOK) SetPhase(val ExposureGetExposureScanOKPhase) {
 	s.Phase = val
+}
+
+// SetProgress sets the value of Progress.
+func (s *ExposureGetExposureScanOK) SetProgress(val NilExposureGetExposureScanOKProgress) {
+	s.Progress = val
 }
 
 // SetSnapshotID sets the value of SnapshotID.
@@ -44253,6 +44267,264 @@ func (s *ExposureGetExposureScanOKPhase) UnmarshalText(data []byte) error {
 		return nil
 	case ExposureGetExposureScanOKPhaseDone:
 		*s = ExposureGetExposureScanOKPhaseDone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureScanOKProgress struct {
+	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
+	Done NilInt `json:"done"`
+	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
+	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
+	Eta NilDateTime `json:"eta"`
+	// A short English note on the pass, e.g. "Second pass: administration and alternative ports"; null
+	// when none.
+	Message NilString `json:"message"`
+	// How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the
+	// phase without a bar).
+	Percent NilFloat64 `json:"percent"`
+	// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+	// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+	// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+	// result is being stored.
+	Phase ExposureGetExposureScanOKProgressPhase `json:"phase"`
+	// When the current phase (or the current pass of it: a device gets a second nmap pass over admin
+	// ports) started.
+	PhaseStartedAt time.Time `json:"phase_started_at"`
+	// When the job (the device, or the public IP scan) started: elapsed time is now minus this.
+	StartedAt time.Time `json:"started_at"`
+	Total     NilInt    `json:"total"`
+	// Checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch.
+	Unit NilExposureGetExposureScanOKProgressUnit `json:"unit"`
+	// The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is
+	// quiet, not that the box hangs.
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// GetDone returns the value of Done.
+func (s *ExposureGetExposureScanOKProgress) GetDone() NilInt {
+	return s.Done
+}
+
+// GetEta returns the value of Eta.
+func (s *ExposureGetExposureScanOKProgress) GetEta() NilDateTime {
+	return s.Eta
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposureGetExposureScanOKProgress) GetMessage() NilString {
+	return s.Message
+}
+
+// GetPercent returns the value of Percent.
+func (s *ExposureGetExposureScanOKProgress) GetPercent() NilFloat64 {
+	return s.Percent
+}
+
+// GetPhase returns the value of Phase.
+func (s *ExposureGetExposureScanOKProgress) GetPhase() ExposureGetExposureScanOKProgressPhase {
+	return s.Phase
+}
+
+// GetPhaseStartedAt returns the value of PhaseStartedAt.
+func (s *ExposureGetExposureScanOKProgress) GetPhaseStartedAt() time.Time {
+	return s.PhaseStartedAt
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposureGetExposureScanOKProgress) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetTotal returns the value of Total.
+func (s *ExposureGetExposureScanOKProgress) GetTotal() NilInt {
+	return s.Total
+}
+
+// GetUnit returns the value of Unit.
+func (s *ExposureGetExposureScanOKProgress) GetUnit() NilExposureGetExposureScanOKProgressUnit {
+	return s.Unit
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ExposureGetExposureScanOKProgress) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetDone sets the value of Done.
+func (s *ExposureGetExposureScanOKProgress) SetDone(val NilInt) {
+	s.Done = val
+}
+
+// SetEta sets the value of Eta.
+func (s *ExposureGetExposureScanOKProgress) SetEta(val NilDateTime) {
+	s.Eta = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposureGetExposureScanOKProgress) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetPercent sets the value of Percent.
+func (s *ExposureGetExposureScanOKProgress) SetPercent(val NilFloat64) {
+	s.Percent = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *ExposureGetExposureScanOKProgress) SetPhase(val ExposureGetExposureScanOKProgressPhase) {
+	s.Phase = val
+}
+
+// SetPhaseStartedAt sets the value of PhaseStartedAt.
+func (s *ExposureGetExposureScanOKProgress) SetPhaseStartedAt(val time.Time) {
+	s.PhaseStartedAt = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposureGetExposureScanOKProgress) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ExposureGetExposureScanOKProgress) SetTotal(val NilInt) {
+	s.Total = val
+}
+
+// SetUnit sets the value of Unit.
+func (s *ExposureGetExposureScanOKProgress) SetUnit(val NilExposureGetExposureScanOKProgressUnit) {
+	s.Unit = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ExposureGetExposureScanOKProgress) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+// result is being stored.
+type ExposureGetExposureScanOKProgressPhase string
+
+const (
+	ExposureGetExposureScanOKProgressPhaseDiscovery ExposureGetExposureScanOKProgressPhase = "discovery"
+	ExposureGetExposureScanOKProgressPhasePorts     ExposureGetExposureScanOKProgressPhase = "ports"
+	ExposureGetExposureScanOKProgressPhaseServices  ExposureGetExposureScanOKProgressPhase = "services"
+	ExposureGetExposureScanOKProgressPhaseScripts   ExposureGetExposureScanOKProgressPhase = "scripts"
+	ExposureGetExposureScanOKProgressPhaseVulns     ExposureGetExposureScanOKProgressPhase = "vulns"
+	ExposureGetExposureScanOKProgressPhaseWeb       ExposureGetExposureScanOKProgressPhase = "web"
+	ExposureGetExposureScanOKProgressPhaseOpenvas   ExposureGetExposureScanOKProgressPhase = "openvas"
+	ExposureGetExposureScanOKProgressPhaseSaving    ExposureGetExposureScanOKProgressPhase = "saving"
+)
+
+// AllValues returns all ExposureGetExposureScanOKProgressPhase values.
+func (ExposureGetExposureScanOKProgressPhase) AllValues() []ExposureGetExposureScanOKProgressPhase {
+	return []ExposureGetExposureScanOKProgressPhase{
+		ExposureGetExposureScanOKProgressPhaseDiscovery,
+		ExposureGetExposureScanOKProgressPhasePorts,
+		ExposureGetExposureScanOKProgressPhaseServices,
+		ExposureGetExposureScanOKProgressPhaseScripts,
+		ExposureGetExposureScanOKProgressPhaseVulns,
+		ExposureGetExposureScanOKProgressPhaseWeb,
+		ExposureGetExposureScanOKProgressPhaseOpenvas,
+		ExposureGetExposureScanOKProgressPhaseSaving,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureScanOKProgressPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureScanOKProgressPhaseDiscovery:
+		return []byte(s), nil
+	case ExposureGetExposureScanOKProgressPhasePorts:
+		return []byte(s), nil
+	case ExposureGetExposureScanOKProgressPhaseServices:
+		return []byte(s), nil
+	case ExposureGetExposureScanOKProgressPhaseScripts:
+		return []byte(s), nil
+	case ExposureGetExposureScanOKProgressPhaseVulns:
+		return []byte(s), nil
+	case ExposureGetExposureScanOKProgressPhaseWeb:
+		return []byte(s), nil
+	case ExposureGetExposureScanOKProgressPhaseOpenvas:
+		return []byte(s), nil
+	case ExposureGetExposureScanOKProgressPhaseSaving:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureScanOKProgressPhase) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureScanOKProgressPhase(data) {
+	case ExposureGetExposureScanOKProgressPhaseDiscovery:
+		*s = ExposureGetExposureScanOKProgressPhaseDiscovery
+		return nil
+	case ExposureGetExposureScanOKProgressPhasePorts:
+		*s = ExposureGetExposureScanOKProgressPhasePorts
+		return nil
+	case ExposureGetExposureScanOKProgressPhaseServices:
+		*s = ExposureGetExposureScanOKProgressPhaseServices
+		return nil
+	case ExposureGetExposureScanOKProgressPhaseScripts:
+		*s = ExposureGetExposureScanOKProgressPhaseScripts
+		return nil
+	case ExposureGetExposureScanOKProgressPhaseVulns:
+		*s = ExposureGetExposureScanOKProgressPhaseVulns
+		return nil
+	case ExposureGetExposureScanOKProgressPhaseWeb:
+		*s = ExposureGetExposureScanOKProgressPhaseWeb
+		return nil
+	case ExposureGetExposureScanOKProgressPhaseOpenvas:
+		*s = ExposureGetExposureScanOKProgressPhaseOpenvas
+		return nil
+	case ExposureGetExposureScanOKProgressPhaseSaving:
+		*s = ExposureGetExposureScanOKProgressPhaseSaving
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposureGetExposureScanOKProgressUnit string
+
+const (
+	ExposureGetExposureScanOKProgressUnitChecks ExposureGetExposureScanOKProgressUnit = "checks"
+	ExposureGetExposureScanOKProgressUnitHosts  ExposureGetExposureScanOKProgressUnit = "hosts"
+)
+
+// AllValues returns all ExposureGetExposureScanOKProgressUnit values.
+func (ExposureGetExposureScanOKProgressUnit) AllValues() []ExposureGetExposureScanOKProgressUnit {
+	return []ExposureGetExposureScanOKProgressUnit{
+		ExposureGetExposureScanOKProgressUnitChecks,
+		ExposureGetExposureScanOKProgressUnitHosts,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposureGetExposureScanOKProgressUnit) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposureGetExposureScanOKProgressUnitChecks:
+		return []byte(s), nil
+	case ExposureGetExposureScanOKProgressUnitHosts:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposureGetExposureScanOKProgressUnit) UnmarshalText(data []byte) error {
+	switch ExposureGetExposureScanOKProgressUnit(data) {
+	case ExposureGetExposureScanOKProgressUnitChecks:
+		*s = ExposureGetExposureScanOKProgressUnitChecks
+		return nil
+	case ExposureGetExposureScanOKProgressUnitHosts:
+		*s = ExposureGetExposureScanOKProgressUnitHosts
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -50091,6 +50363,10 @@ type ExposurePostExposureScanStopOK struct {
 	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
 	// the snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposurePostExposureScanStopOKPhase `json:"phase"`
+	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
+	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
+	// greenbone phase. Set while status is running; null otherwise.
+	Progress NilExposurePostExposureScanStopOKProgress `json:"progress"`
 	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
 	// earlier results are kept.
 	SnapshotID NilString                            `json:"snapshot_id"`
@@ -50126,6 +50402,11 @@ func (s *ExposurePostExposureScanStopOK) GetID() string {
 // GetPhase returns the value of Phase.
 func (s *ExposurePostExposureScanStopOK) GetPhase() ExposurePostExposureScanStopOKPhase {
 	return s.Phase
+}
+
+// GetProgress returns the value of Progress.
+func (s *ExposurePostExposureScanStopOK) GetProgress() NilExposurePostExposureScanStopOKProgress {
+	return s.Progress
 }
 
 // GetSnapshotID returns the value of SnapshotID.
@@ -50181,6 +50462,11 @@ func (s *ExposurePostExposureScanStopOK) SetID(val string) {
 // SetPhase sets the value of Phase.
 func (s *ExposurePostExposureScanStopOK) SetPhase(val ExposurePostExposureScanStopOKPhase) {
 	s.Phase = val
+}
+
+// SetProgress sets the value of Progress.
+func (s *ExposurePostExposureScanStopOK) SetProgress(val NilExposurePostExposureScanStopOKProgress) {
+	s.Progress = val
 }
 
 // SetSnapshotID sets the value of SnapshotID.
@@ -50298,6 +50584,264 @@ func (s *ExposurePostExposureScanStopOKPhase) UnmarshalText(data []byte) error {
 		return nil
 	case ExposurePostExposureScanStopOKPhaseDone:
 		*s = ExposurePostExposureScanStopOKPhaseDone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureScanStopOKProgress struct {
+	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
+	Done NilInt `json:"done"`
+	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
+	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
+	Eta NilDateTime `json:"eta"`
+	// A short English note on the pass, e.g. "Second pass: administration and alternative ports"; null
+	// when none.
+	Message NilString `json:"message"`
+	// How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the
+	// phase without a bar).
+	Percent NilFloat64 `json:"percent"`
+	// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+	// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+	// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+	// result is being stored.
+	Phase ExposurePostExposureScanStopOKProgressPhase `json:"phase"`
+	// When the current phase (or the current pass of it: a device gets a second nmap pass over admin
+	// ports) started.
+	PhaseStartedAt time.Time `json:"phase_started_at"`
+	// When the job (the device, or the public IP scan) started: elapsed time is now minus this.
+	StartedAt time.Time `json:"started_at"`
+	Total     NilInt    `json:"total"`
+	// Checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch.
+	Unit NilExposurePostExposureScanStopOKProgressUnit `json:"unit"`
+	// The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is
+	// quiet, not that the box hangs.
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// GetDone returns the value of Done.
+func (s *ExposurePostExposureScanStopOKProgress) GetDone() NilInt {
+	return s.Done
+}
+
+// GetEta returns the value of Eta.
+func (s *ExposurePostExposureScanStopOKProgress) GetEta() NilDateTime {
+	return s.Eta
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposurePostExposureScanStopOKProgress) GetMessage() NilString {
+	return s.Message
+}
+
+// GetPercent returns the value of Percent.
+func (s *ExposurePostExposureScanStopOKProgress) GetPercent() NilFloat64 {
+	return s.Percent
+}
+
+// GetPhase returns the value of Phase.
+func (s *ExposurePostExposureScanStopOKProgress) GetPhase() ExposurePostExposureScanStopOKProgressPhase {
+	return s.Phase
+}
+
+// GetPhaseStartedAt returns the value of PhaseStartedAt.
+func (s *ExposurePostExposureScanStopOKProgress) GetPhaseStartedAt() time.Time {
+	return s.PhaseStartedAt
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposurePostExposureScanStopOKProgress) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetTotal returns the value of Total.
+func (s *ExposurePostExposureScanStopOKProgress) GetTotal() NilInt {
+	return s.Total
+}
+
+// GetUnit returns the value of Unit.
+func (s *ExposurePostExposureScanStopOKProgress) GetUnit() NilExposurePostExposureScanStopOKProgressUnit {
+	return s.Unit
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ExposurePostExposureScanStopOKProgress) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetDone sets the value of Done.
+func (s *ExposurePostExposureScanStopOKProgress) SetDone(val NilInt) {
+	s.Done = val
+}
+
+// SetEta sets the value of Eta.
+func (s *ExposurePostExposureScanStopOKProgress) SetEta(val NilDateTime) {
+	s.Eta = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposurePostExposureScanStopOKProgress) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetPercent sets the value of Percent.
+func (s *ExposurePostExposureScanStopOKProgress) SetPercent(val NilFloat64) {
+	s.Percent = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *ExposurePostExposureScanStopOKProgress) SetPhase(val ExposurePostExposureScanStopOKProgressPhase) {
+	s.Phase = val
+}
+
+// SetPhaseStartedAt sets the value of PhaseStartedAt.
+func (s *ExposurePostExposureScanStopOKProgress) SetPhaseStartedAt(val time.Time) {
+	s.PhaseStartedAt = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposurePostExposureScanStopOKProgress) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ExposurePostExposureScanStopOKProgress) SetTotal(val NilInt) {
+	s.Total = val
+}
+
+// SetUnit sets the value of Unit.
+func (s *ExposurePostExposureScanStopOKProgress) SetUnit(val NilExposurePostExposureScanStopOKProgressUnit) {
+	s.Unit = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ExposurePostExposureScanStopOKProgress) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+// result is being stored.
+type ExposurePostExposureScanStopOKProgressPhase string
+
+const (
+	ExposurePostExposureScanStopOKProgressPhaseDiscovery ExposurePostExposureScanStopOKProgressPhase = "discovery"
+	ExposurePostExposureScanStopOKProgressPhasePorts     ExposurePostExposureScanStopOKProgressPhase = "ports"
+	ExposurePostExposureScanStopOKProgressPhaseServices  ExposurePostExposureScanStopOKProgressPhase = "services"
+	ExposurePostExposureScanStopOKProgressPhaseScripts   ExposurePostExposureScanStopOKProgressPhase = "scripts"
+	ExposurePostExposureScanStopOKProgressPhaseVulns     ExposurePostExposureScanStopOKProgressPhase = "vulns"
+	ExposurePostExposureScanStopOKProgressPhaseWeb       ExposurePostExposureScanStopOKProgressPhase = "web"
+	ExposurePostExposureScanStopOKProgressPhaseOpenvas   ExposurePostExposureScanStopOKProgressPhase = "openvas"
+	ExposurePostExposureScanStopOKProgressPhaseSaving    ExposurePostExposureScanStopOKProgressPhase = "saving"
+)
+
+// AllValues returns all ExposurePostExposureScanStopOKProgressPhase values.
+func (ExposurePostExposureScanStopOKProgressPhase) AllValues() []ExposurePostExposureScanStopOKProgressPhase {
+	return []ExposurePostExposureScanStopOKProgressPhase{
+		ExposurePostExposureScanStopOKProgressPhaseDiscovery,
+		ExposurePostExposureScanStopOKProgressPhasePorts,
+		ExposurePostExposureScanStopOKProgressPhaseServices,
+		ExposurePostExposureScanStopOKProgressPhaseScripts,
+		ExposurePostExposureScanStopOKProgressPhaseVulns,
+		ExposurePostExposureScanStopOKProgressPhaseWeb,
+		ExposurePostExposureScanStopOKProgressPhaseOpenvas,
+		ExposurePostExposureScanStopOKProgressPhaseSaving,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureScanStopOKProgressPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureScanStopOKProgressPhaseDiscovery:
+		return []byte(s), nil
+	case ExposurePostExposureScanStopOKProgressPhasePorts:
+		return []byte(s), nil
+	case ExposurePostExposureScanStopOKProgressPhaseServices:
+		return []byte(s), nil
+	case ExposurePostExposureScanStopOKProgressPhaseScripts:
+		return []byte(s), nil
+	case ExposurePostExposureScanStopOKProgressPhaseVulns:
+		return []byte(s), nil
+	case ExposurePostExposureScanStopOKProgressPhaseWeb:
+		return []byte(s), nil
+	case ExposurePostExposureScanStopOKProgressPhaseOpenvas:
+		return []byte(s), nil
+	case ExposurePostExposureScanStopOKProgressPhaseSaving:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureScanStopOKProgressPhase) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureScanStopOKProgressPhase(data) {
+	case ExposurePostExposureScanStopOKProgressPhaseDiscovery:
+		*s = ExposurePostExposureScanStopOKProgressPhaseDiscovery
+		return nil
+	case ExposurePostExposureScanStopOKProgressPhasePorts:
+		*s = ExposurePostExposureScanStopOKProgressPhasePorts
+		return nil
+	case ExposurePostExposureScanStopOKProgressPhaseServices:
+		*s = ExposurePostExposureScanStopOKProgressPhaseServices
+		return nil
+	case ExposurePostExposureScanStopOKProgressPhaseScripts:
+		*s = ExposurePostExposureScanStopOKProgressPhaseScripts
+		return nil
+	case ExposurePostExposureScanStopOKProgressPhaseVulns:
+		*s = ExposurePostExposureScanStopOKProgressPhaseVulns
+		return nil
+	case ExposurePostExposureScanStopOKProgressPhaseWeb:
+		*s = ExposurePostExposureScanStopOKProgressPhaseWeb
+		return nil
+	case ExposurePostExposureScanStopOKProgressPhaseOpenvas:
+		*s = ExposurePostExposureScanStopOKProgressPhaseOpenvas
+		return nil
+	case ExposurePostExposureScanStopOKProgressPhaseSaving:
+		*s = ExposurePostExposureScanStopOKProgressPhaseSaving
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureScanStopOKProgressUnit string
+
+const (
+	ExposurePostExposureScanStopOKProgressUnitChecks ExposurePostExposureScanStopOKProgressUnit = "checks"
+	ExposurePostExposureScanStopOKProgressUnitHosts  ExposurePostExposureScanStopOKProgressUnit = "hosts"
+)
+
+// AllValues returns all ExposurePostExposureScanStopOKProgressUnit values.
+func (ExposurePostExposureScanStopOKProgressUnit) AllValues() []ExposurePostExposureScanStopOKProgressUnit {
+	return []ExposurePostExposureScanStopOKProgressUnit{
+		ExposurePostExposureScanStopOKProgressUnitChecks,
+		ExposurePostExposureScanStopOKProgressUnitHosts,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureScanStopOKProgressUnit) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureScanStopOKProgressUnitChecks:
+		return []byte(s), nil
+	case ExposurePostExposureScanStopOKProgressUnitHosts:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureScanStopOKProgressUnit) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureScanStopOKProgressUnit(data) {
+	case ExposurePostExposureScanStopOKProgressUnitChecks:
+		*s = ExposurePostExposureScanStopOKProgressUnitChecks
+		return nil
+	case ExposurePostExposureScanStopOKProgressUnitHosts:
+		*s = ExposurePostExposureScanStopOKProgressUnitHosts
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -51372,6 +51916,10 @@ type ExposurePostExposureTargetsIDScanAccepted struct {
 	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
 	// the snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposurePostExposureTargetsIDScanAcceptedPhase `json:"phase"`
+	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
+	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
+	// greenbone phase. Set while status is running; null otherwise.
+	Progress NilExposurePostExposureTargetsIDScanAcceptedProgress `json:"progress"`
 	// The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose
 	// earlier results are kept.
 	SnapshotID NilString                                       `json:"snapshot_id"`
@@ -51407,6 +51955,11 @@ func (s *ExposurePostExposureTargetsIDScanAccepted) GetID() string {
 // GetPhase returns the value of Phase.
 func (s *ExposurePostExposureTargetsIDScanAccepted) GetPhase() ExposurePostExposureTargetsIDScanAcceptedPhase {
 	return s.Phase
+}
+
+// GetProgress returns the value of Progress.
+func (s *ExposurePostExposureTargetsIDScanAccepted) GetProgress() NilExposurePostExposureTargetsIDScanAcceptedProgress {
+	return s.Progress
 }
 
 // GetSnapshotID returns the value of SnapshotID.
@@ -51462,6 +52015,11 @@ func (s *ExposurePostExposureTargetsIDScanAccepted) SetID(val string) {
 // SetPhase sets the value of Phase.
 func (s *ExposurePostExposureTargetsIDScanAccepted) SetPhase(val ExposurePostExposureTargetsIDScanAcceptedPhase) {
 	s.Phase = val
+}
+
+// SetProgress sets the value of Progress.
+func (s *ExposurePostExposureTargetsIDScanAccepted) SetProgress(val NilExposurePostExposureTargetsIDScanAcceptedProgress) {
+	s.Progress = val
 }
 
 // SetSnapshotID sets the value of SnapshotID.
@@ -51579,6 +52137,264 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedPhase) UnmarshalText(data []by
 		return nil
 	case ExposurePostExposureTargetsIDScanAcceptedPhaseDone:
 		*s = ExposurePostExposureTargetsIDScanAcceptedPhaseDone
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTargetsIDScanAcceptedProgress struct {
+	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
+	Done NilInt `json:"done"`
+	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
+	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
+	Eta NilDateTime `json:"eta"`
+	// A short English note on the pass, e.g. "Second pass: administration and alternative ports"; null
+	// when none.
+	Message NilString `json:"message"`
+	// How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the
+	// phase without a bar).
+	Percent NilFloat64 `json:"percent"`
+	// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+	// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+	// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+	// result is being stored.
+	Phase ExposurePostExposureTargetsIDScanAcceptedProgressPhase `json:"phase"`
+	// When the current phase (or the current pass of it: a device gets a second nmap pass over admin
+	// ports) started.
+	PhaseStartedAt time.Time `json:"phase_started_at"`
+	// When the job (the device, or the public IP scan) started: elapsed time is now minus this.
+	StartedAt time.Time `json:"started_at"`
+	Total     NilInt    `json:"total"`
+	// Checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch.
+	Unit NilExposurePostExposureTargetsIDScanAcceptedProgressUnit `json:"unit"`
+	// The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is
+	// quiet, not that the box hangs.
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// GetDone returns the value of Done.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) GetDone() NilInt {
+	return s.Done
+}
+
+// GetEta returns the value of Eta.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) GetEta() NilDateTime {
+	return s.Eta
+}
+
+// GetMessage returns the value of Message.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) GetMessage() NilString {
+	return s.Message
+}
+
+// GetPercent returns the value of Percent.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) GetPercent() NilFloat64 {
+	return s.Percent
+}
+
+// GetPhase returns the value of Phase.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) GetPhase() ExposurePostExposureTargetsIDScanAcceptedProgressPhase {
+	return s.Phase
+}
+
+// GetPhaseStartedAt returns the value of PhaseStartedAt.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) GetPhaseStartedAt() time.Time {
+	return s.PhaseStartedAt
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetTotal returns the value of Total.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) GetTotal() NilInt {
+	return s.Total
+}
+
+// GetUnit returns the value of Unit.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) GetUnit() NilExposurePostExposureTargetsIDScanAcceptedProgressUnit {
+	return s.Unit
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetDone sets the value of Done.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) SetDone(val NilInt) {
+	s.Done = val
+}
+
+// SetEta sets the value of Eta.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) SetEta(val NilDateTime) {
+	s.Eta = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetPercent sets the value of Percent.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) SetPercent(val NilFloat64) {
+	s.Percent = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) SetPhase(val ExposurePostExposureTargetsIDScanAcceptedProgressPhase) {
+	s.Phase = val
+}
+
+// SetPhaseStartedAt sets the value of PhaseStartedAt.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) SetPhaseStartedAt(val time.Time) {
+	s.PhaseStartedAt = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) SetTotal(val NilInt) {
+	s.Total = val
+}
+
+// SetUnit sets the value of Unit.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) SetUnit(val NilExposurePostExposureTargetsIDScanAcceptedProgressUnit) {
+	s.Unit = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgress) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+// result is being stored.
+type ExposurePostExposureTargetsIDScanAcceptedProgressPhase string
+
+const (
+	ExposurePostExposureTargetsIDScanAcceptedProgressPhaseDiscovery ExposurePostExposureTargetsIDScanAcceptedProgressPhase = "discovery"
+	ExposurePostExposureTargetsIDScanAcceptedProgressPhasePorts     ExposurePostExposureTargetsIDScanAcceptedProgressPhase = "ports"
+	ExposurePostExposureTargetsIDScanAcceptedProgressPhaseServices  ExposurePostExposureTargetsIDScanAcceptedProgressPhase = "services"
+	ExposurePostExposureTargetsIDScanAcceptedProgressPhaseScripts   ExposurePostExposureTargetsIDScanAcceptedProgressPhase = "scripts"
+	ExposurePostExposureTargetsIDScanAcceptedProgressPhaseVulns     ExposurePostExposureTargetsIDScanAcceptedProgressPhase = "vulns"
+	ExposurePostExposureTargetsIDScanAcceptedProgressPhaseWeb       ExposurePostExposureTargetsIDScanAcceptedProgressPhase = "web"
+	ExposurePostExposureTargetsIDScanAcceptedProgressPhaseOpenvas   ExposurePostExposureTargetsIDScanAcceptedProgressPhase = "openvas"
+	ExposurePostExposureTargetsIDScanAcceptedProgressPhaseSaving    ExposurePostExposureTargetsIDScanAcceptedProgressPhase = "saving"
+)
+
+// AllValues returns all ExposurePostExposureTargetsIDScanAcceptedProgressPhase values.
+func (ExposurePostExposureTargetsIDScanAcceptedProgressPhase) AllValues() []ExposurePostExposureTargetsIDScanAcceptedProgressPhase {
+	return []ExposurePostExposureTargetsIDScanAcceptedProgressPhase{
+		ExposurePostExposureTargetsIDScanAcceptedProgressPhaseDiscovery,
+		ExposurePostExposureTargetsIDScanAcceptedProgressPhasePorts,
+		ExposurePostExposureTargetsIDScanAcceptedProgressPhaseServices,
+		ExposurePostExposureTargetsIDScanAcceptedProgressPhaseScripts,
+		ExposurePostExposureTargetsIDScanAcceptedProgressPhaseVulns,
+		ExposurePostExposureTargetsIDScanAcceptedProgressPhaseWeb,
+		ExposurePostExposureTargetsIDScanAcceptedProgressPhaseOpenvas,
+		ExposurePostExposureTargetsIDScanAcceptedProgressPhaseSaving,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsIDScanAcceptedProgressPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsIDScanAcceptedProgressPhaseDiscovery:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDScanAcceptedProgressPhasePorts:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDScanAcceptedProgressPhaseServices:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDScanAcceptedProgressPhaseScripts:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDScanAcceptedProgressPhaseVulns:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDScanAcceptedProgressPhaseWeb:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDScanAcceptedProgressPhaseOpenvas:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDScanAcceptedProgressPhaseSaving:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgressPhase) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsIDScanAcceptedProgressPhase(data) {
+	case ExposurePostExposureTargetsIDScanAcceptedProgressPhaseDiscovery:
+		*s = ExposurePostExposureTargetsIDScanAcceptedProgressPhaseDiscovery
+		return nil
+	case ExposurePostExposureTargetsIDScanAcceptedProgressPhasePorts:
+		*s = ExposurePostExposureTargetsIDScanAcceptedProgressPhasePorts
+		return nil
+	case ExposurePostExposureTargetsIDScanAcceptedProgressPhaseServices:
+		*s = ExposurePostExposureTargetsIDScanAcceptedProgressPhaseServices
+		return nil
+	case ExposurePostExposureTargetsIDScanAcceptedProgressPhaseScripts:
+		*s = ExposurePostExposureTargetsIDScanAcceptedProgressPhaseScripts
+		return nil
+	case ExposurePostExposureTargetsIDScanAcceptedProgressPhaseVulns:
+		*s = ExposurePostExposureTargetsIDScanAcceptedProgressPhaseVulns
+		return nil
+	case ExposurePostExposureTargetsIDScanAcceptedProgressPhaseWeb:
+		*s = ExposurePostExposureTargetsIDScanAcceptedProgressPhaseWeb
+		return nil
+	case ExposurePostExposureTargetsIDScanAcceptedProgressPhaseOpenvas:
+		*s = ExposurePostExposureTargetsIDScanAcceptedProgressPhaseOpenvas
+		return nil
+	case ExposurePostExposureTargetsIDScanAcceptedProgressPhaseSaving:
+		*s = ExposurePostExposureTargetsIDScanAcceptedProgressPhaseSaving
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ExposurePostExposureTargetsIDScanAcceptedProgressUnit string
+
+const (
+	ExposurePostExposureTargetsIDScanAcceptedProgressUnitChecks ExposurePostExposureTargetsIDScanAcceptedProgressUnit = "checks"
+	ExposurePostExposureTargetsIDScanAcceptedProgressUnitHosts  ExposurePostExposureTargetsIDScanAcceptedProgressUnit = "hosts"
+)
+
+// AllValues returns all ExposurePostExposureTargetsIDScanAcceptedProgressUnit values.
+func (ExposurePostExposureTargetsIDScanAcceptedProgressUnit) AllValues() []ExposurePostExposureTargetsIDScanAcceptedProgressUnit {
+	return []ExposurePostExposureTargetsIDScanAcceptedProgressUnit{
+		ExposurePostExposureTargetsIDScanAcceptedProgressUnitChecks,
+		ExposurePostExposureTargetsIDScanAcceptedProgressUnitHosts,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ExposurePostExposureTargetsIDScanAcceptedProgressUnit) MarshalText() ([]byte, error) {
+	switch s {
+	case ExposurePostExposureTargetsIDScanAcceptedProgressUnitChecks:
+		return []byte(s), nil
+	case ExposurePostExposureTargetsIDScanAcceptedProgressUnitHosts:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ExposurePostExposureTargetsIDScanAcceptedProgressUnit) UnmarshalText(data []byte) error {
+	switch ExposurePostExposureTargetsIDScanAcceptedProgressUnit(data) {
+	case ExposurePostExposureTargetsIDScanAcceptedProgressUnitChecks:
+		*s = ExposurePostExposureTargetsIDScanAcceptedProgressUnitChecks
+		return nil
+	case ExposurePostExposureTargetsIDScanAcceptedProgressUnitHosts:
+		*s = ExposurePostExposureTargetsIDScanAcceptedProgressUnitHosts
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -108170,6 +108986,96 @@ func (o NilExposureGetExposureScanOKError) Or(d ExposureGetExposureScanOKError) 
 	return d
 }
 
+// NewNilExposureGetExposureScanOKProgress returns new NilExposureGetExposureScanOKProgress with value set to v.
+func NewNilExposureGetExposureScanOKProgress(v ExposureGetExposureScanOKProgress) NilExposureGetExposureScanOKProgress {
+	return NilExposureGetExposureScanOKProgress{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureScanOKProgress is nullable ExposureGetExposureScanOKProgress.
+type NilExposureGetExposureScanOKProgress struct {
+	Value ExposureGetExposureScanOKProgress
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureScanOKProgress) SetTo(v ExposureGetExposureScanOKProgress) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureScanOKProgress) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureScanOKProgress) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureScanOKProgress
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureScanOKProgress) Get() (v ExposureGetExposureScanOKProgress, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureScanOKProgress) Or(d ExposureGetExposureScanOKProgress) ExposureGetExposureScanOKProgress {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposureGetExposureScanOKProgressUnit returns new NilExposureGetExposureScanOKProgressUnit with value set to v.
+func NewNilExposureGetExposureScanOKProgressUnit(v ExposureGetExposureScanOKProgressUnit) NilExposureGetExposureScanOKProgressUnit {
+	return NilExposureGetExposureScanOKProgressUnit{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureScanOKProgressUnit is nullable ExposureGetExposureScanOKProgressUnit.
+type NilExposureGetExposureScanOKProgressUnit struct {
+	Value ExposureGetExposureScanOKProgressUnit
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureScanOKProgressUnit) SetTo(v ExposureGetExposureScanOKProgressUnit) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureScanOKProgressUnit) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureScanOKProgressUnit) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureScanOKProgressUnit
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureScanOKProgressUnit) Get() (v ExposureGetExposureScanOKProgressUnit, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureScanOKProgressUnit) Or(d ExposureGetExposureScanOKProgressUnit) ExposureGetExposureScanOKProgressUnit {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureTargetsIDOKBlockedReason returns new NilExposureGetExposureTargetsIDOKBlockedReason with value set to v.
 func NewNilExposureGetExposureTargetsIDOKBlockedReason(v ExposureGetExposureTargetsIDOKBlockedReason) NilExposureGetExposureTargetsIDOKBlockedReason {
 	return NilExposureGetExposureTargetsIDOKBlockedReason{
@@ -109430,6 +110336,96 @@ func (o NilExposurePostExposureScanStopOKError) Or(d ExposurePostExposureScanSto
 	return d
 }
 
+// NewNilExposurePostExposureScanStopOKProgress returns new NilExposurePostExposureScanStopOKProgress with value set to v.
+func NewNilExposurePostExposureScanStopOKProgress(v ExposurePostExposureScanStopOKProgress) NilExposurePostExposureScanStopOKProgress {
+	return NilExposurePostExposureScanStopOKProgress{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureScanStopOKProgress is nullable ExposurePostExposureScanStopOKProgress.
+type NilExposurePostExposureScanStopOKProgress struct {
+	Value ExposurePostExposureScanStopOKProgress
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureScanStopOKProgress) SetTo(v ExposurePostExposureScanStopOKProgress) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureScanStopOKProgress) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureScanStopOKProgress) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureScanStopOKProgress
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureScanStopOKProgress) Get() (v ExposurePostExposureScanStopOKProgress, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureScanStopOKProgress) Or(d ExposurePostExposureScanStopOKProgress) ExposurePostExposureScanStopOKProgress {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureScanStopOKProgressUnit returns new NilExposurePostExposureScanStopOKProgressUnit with value set to v.
+func NewNilExposurePostExposureScanStopOKProgressUnit(v ExposurePostExposureScanStopOKProgressUnit) NilExposurePostExposureScanStopOKProgressUnit {
+	return NilExposurePostExposureScanStopOKProgressUnit{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureScanStopOKProgressUnit is nullable ExposurePostExposureScanStopOKProgressUnit.
+type NilExposurePostExposureScanStopOKProgressUnit struct {
+	Value ExposurePostExposureScanStopOKProgressUnit
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureScanStopOKProgressUnit) SetTo(v ExposurePostExposureScanStopOKProgressUnit) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureScanStopOKProgressUnit) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureScanStopOKProgressUnit) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureScanStopOKProgressUnit
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureScanStopOKProgressUnit) Get() (v ExposurePostExposureScanStopOKProgressUnit, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureScanStopOKProgressUnit) Or(d ExposurePostExposureScanStopOKProgressUnit) ExposurePostExposureScanStopOKProgressUnit {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePostExposureTargetsCreatedBlockedReason returns new NilExposurePostExposureTargetsCreatedBlockedReason with value set to v.
 func NewNilExposurePostExposureTargetsCreatedBlockedReason(v ExposurePostExposureTargetsCreatedBlockedReason) NilExposurePostExposureTargetsCreatedBlockedReason {
 	return NilExposurePostExposureTargetsCreatedBlockedReason{
@@ -109829,6 +110825,96 @@ func (o NilExposurePostExposureTargetsIDScanAcceptedError) Get() (v ExposurePost
 
 // Or returns value if set, or given parameter if does not.
 func (o NilExposurePostExposureTargetsIDScanAcceptedError) Or(d ExposurePostExposureTargetsIDScanAcceptedError) ExposurePostExposureTargetsIDScanAcceptedError {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTargetsIDScanAcceptedProgress returns new NilExposurePostExposureTargetsIDScanAcceptedProgress with value set to v.
+func NewNilExposurePostExposureTargetsIDScanAcceptedProgress(v ExposurePostExposureTargetsIDScanAcceptedProgress) NilExposurePostExposureTargetsIDScanAcceptedProgress {
+	return NilExposurePostExposureTargetsIDScanAcceptedProgress{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsIDScanAcceptedProgress is nullable ExposurePostExposureTargetsIDScanAcceptedProgress.
+type NilExposurePostExposureTargetsIDScanAcceptedProgress struct {
+	Value ExposurePostExposureTargetsIDScanAcceptedProgress
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsIDScanAcceptedProgress) SetTo(v ExposurePostExposureTargetsIDScanAcceptedProgress) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsIDScanAcceptedProgress) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsIDScanAcceptedProgress) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsIDScanAcceptedProgress
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsIDScanAcceptedProgress) Get() (v ExposurePostExposureTargetsIDScanAcceptedProgress, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsIDScanAcceptedProgress) Or(d ExposurePostExposureTargetsIDScanAcceptedProgress) ExposurePostExposureTargetsIDScanAcceptedProgress {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilExposurePostExposureTargetsIDScanAcceptedProgressUnit returns new NilExposurePostExposureTargetsIDScanAcceptedProgressUnit with value set to v.
+func NewNilExposurePostExposureTargetsIDScanAcceptedProgressUnit(v ExposurePostExposureTargetsIDScanAcceptedProgressUnit) NilExposurePostExposureTargetsIDScanAcceptedProgressUnit {
+	return NilExposurePostExposureTargetsIDScanAcceptedProgressUnit{
+		Value: v,
+	}
+}
+
+// NilExposurePostExposureTargetsIDScanAcceptedProgressUnit is nullable ExposurePostExposureTargetsIDScanAcceptedProgressUnit.
+type NilExposurePostExposureTargetsIDScanAcceptedProgressUnit struct {
+	Value ExposurePostExposureTargetsIDScanAcceptedProgressUnit
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePostExposureTargetsIDScanAcceptedProgressUnit) SetTo(v ExposurePostExposureTargetsIDScanAcceptedProgressUnit) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePostExposureTargetsIDScanAcceptedProgressUnit) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePostExposureTargetsIDScanAcceptedProgressUnit) SetToNull() {
+	o.Null = true
+	var v ExposurePostExposureTargetsIDScanAcceptedProgressUnit
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePostExposureTargetsIDScanAcceptedProgressUnit) Get() (v ExposurePostExposureTargetsIDScanAcceptedProgressUnit, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePostExposureTargetsIDScanAcceptedProgressUnit) Or(d ExposurePostExposureTargetsIDScanAcceptedProgressUnit) ExposurePostExposureTargetsIDScanAcceptedProgressUnit {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -118689,6 +119775,96 @@ func (o NilScanGetScansRunsOKItemsItemIdentificationItemReason) Or(d ScanGetScan
 	return d
 }
 
+// NewNilScanGetScansRunsOKItemsItemProgress returns new NilScanGetScansRunsOKItemsItemProgress with value set to v.
+func NewNilScanGetScansRunsOKItemsItemProgress(v ScanGetScansRunsOKItemsItemProgress) NilScanGetScansRunsOKItemsItemProgress {
+	return NilScanGetScansRunsOKItemsItemProgress{
+		Value: v,
+	}
+}
+
+// NilScanGetScansRunsOKItemsItemProgress is nullable ScanGetScansRunsOKItemsItemProgress.
+type NilScanGetScansRunsOKItemsItemProgress struct {
+	Value ScanGetScansRunsOKItemsItemProgress
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanGetScansRunsOKItemsItemProgress) SetTo(v ScanGetScansRunsOKItemsItemProgress) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanGetScansRunsOKItemsItemProgress) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanGetScansRunsOKItemsItemProgress) SetToNull() {
+	o.Null = true
+	var v ScanGetScansRunsOKItemsItemProgress
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanGetScansRunsOKItemsItemProgress) Get() (v ScanGetScansRunsOKItemsItemProgress, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanGetScansRunsOKItemsItemProgress) Or(d ScanGetScansRunsOKItemsItemProgress) ScanGetScansRunsOKItemsItemProgress {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanGetScansRunsOKItemsItemProgressUnit returns new NilScanGetScansRunsOKItemsItemProgressUnit with value set to v.
+func NewNilScanGetScansRunsOKItemsItemProgressUnit(v ScanGetScansRunsOKItemsItemProgressUnit) NilScanGetScansRunsOKItemsItemProgressUnit {
+	return NilScanGetScansRunsOKItemsItemProgressUnit{
+		Value: v,
+	}
+}
+
+// NilScanGetScansRunsOKItemsItemProgressUnit is nullable ScanGetScansRunsOKItemsItemProgressUnit.
+type NilScanGetScansRunsOKItemsItemProgressUnit struct {
+	Value ScanGetScansRunsOKItemsItemProgressUnit
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanGetScansRunsOKItemsItemProgressUnit) SetTo(v ScanGetScansRunsOKItemsItemProgressUnit) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanGetScansRunsOKItemsItemProgressUnit) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanGetScansRunsOKItemsItemProgressUnit) SetToNull() {
+	o.Null = true
+	var v ScanGetScansRunsOKItemsItemProgressUnit
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanGetScansRunsOKItemsItemProgressUnit) Get() (v ScanGetScansRunsOKItemsItemProgressUnit, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanGetScansRunsOKItemsItemProgressUnit) Or(d ScanGetScansRunsOKItemsItemProgressUnit) ScanGetScansRunsOKItemsItemProgressUnit {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilScanGetScansTargetsOKItemsItemDeviceKind returns new NilScanGetScansTargetsOKItemsItemDeviceKind with value set to v.
 func NewNilScanGetScansTargetsOKItemsItemDeviceKind(v ScanGetScansTargetsOKItemsItemDeviceKind) NilScanGetScansTargetsOKItemsItemDeviceKind {
 	return NilScanGetScansTargetsOKItemsItemDeviceKind{
@@ -118959,6 +120135,96 @@ func (o NilScanPostScansRunsCreatedIdentificationItemReason) Or(d ScanPostScansR
 	return d
 }
 
+// NewNilScanPostScansRunsCreatedProgress returns new NilScanPostScansRunsCreatedProgress with value set to v.
+func NewNilScanPostScansRunsCreatedProgress(v ScanPostScansRunsCreatedProgress) NilScanPostScansRunsCreatedProgress {
+	return NilScanPostScansRunsCreatedProgress{
+		Value: v,
+	}
+}
+
+// NilScanPostScansRunsCreatedProgress is nullable ScanPostScansRunsCreatedProgress.
+type NilScanPostScansRunsCreatedProgress struct {
+	Value ScanPostScansRunsCreatedProgress
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanPostScansRunsCreatedProgress) SetTo(v ScanPostScansRunsCreatedProgress) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanPostScansRunsCreatedProgress) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanPostScansRunsCreatedProgress) SetToNull() {
+	o.Null = true
+	var v ScanPostScansRunsCreatedProgress
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanPostScansRunsCreatedProgress) Get() (v ScanPostScansRunsCreatedProgress, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanPostScansRunsCreatedProgress) Or(d ScanPostScansRunsCreatedProgress) ScanPostScansRunsCreatedProgress {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanPostScansRunsCreatedProgressUnit returns new NilScanPostScansRunsCreatedProgressUnit with value set to v.
+func NewNilScanPostScansRunsCreatedProgressUnit(v ScanPostScansRunsCreatedProgressUnit) NilScanPostScansRunsCreatedProgressUnit {
+	return NilScanPostScansRunsCreatedProgressUnit{
+		Value: v,
+	}
+}
+
+// NilScanPostScansRunsCreatedProgressUnit is nullable ScanPostScansRunsCreatedProgressUnit.
+type NilScanPostScansRunsCreatedProgressUnit struct {
+	Value ScanPostScansRunsCreatedProgressUnit
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanPostScansRunsCreatedProgressUnit) SetTo(v ScanPostScansRunsCreatedProgressUnit) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanPostScansRunsCreatedProgressUnit) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanPostScansRunsCreatedProgressUnit) SetToNull() {
+	o.Null = true
+	var v ScanPostScansRunsCreatedProgressUnit
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanPostScansRunsCreatedProgressUnit) Get() (v ScanPostScansRunsCreatedProgressUnit, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanPostScansRunsCreatedProgressUnit) Or(d ScanPostScansRunsCreatedProgressUnit) ScanPostScansRunsCreatedProgressUnit {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilScanPostScansRunsIDStopOKCurrent returns new NilScanPostScansRunsIDStopOKCurrent with value set to v.
 func NewNilScanPostScansRunsIDStopOKCurrent(v ScanPostScansRunsIDStopOKCurrent) NilScanPostScansRunsIDStopOKCurrent {
 	return NilScanPostScansRunsIDStopOKCurrent{
@@ -119043,6 +120309,96 @@ func (o NilScanPostScansRunsIDStopOKIdentificationItemReason) Get() (v ScanPostS
 
 // Or returns value if set, or given parameter if does not.
 func (o NilScanPostScansRunsIDStopOKIdentificationItemReason) Or(d ScanPostScansRunsIDStopOKIdentificationItemReason) ScanPostScansRunsIDStopOKIdentificationItemReason {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanPostScansRunsIDStopOKProgress returns new NilScanPostScansRunsIDStopOKProgress with value set to v.
+func NewNilScanPostScansRunsIDStopOKProgress(v ScanPostScansRunsIDStopOKProgress) NilScanPostScansRunsIDStopOKProgress {
+	return NilScanPostScansRunsIDStopOKProgress{
+		Value: v,
+	}
+}
+
+// NilScanPostScansRunsIDStopOKProgress is nullable ScanPostScansRunsIDStopOKProgress.
+type NilScanPostScansRunsIDStopOKProgress struct {
+	Value ScanPostScansRunsIDStopOKProgress
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanPostScansRunsIDStopOKProgress) SetTo(v ScanPostScansRunsIDStopOKProgress) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanPostScansRunsIDStopOKProgress) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanPostScansRunsIDStopOKProgress) SetToNull() {
+	o.Null = true
+	var v ScanPostScansRunsIDStopOKProgress
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanPostScansRunsIDStopOKProgress) Get() (v ScanPostScansRunsIDStopOKProgress, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanPostScansRunsIDStopOKProgress) Or(d ScanPostScansRunsIDStopOKProgress) ScanPostScansRunsIDStopOKProgress {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilScanPostScansRunsIDStopOKProgressUnit returns new NilScanPostScansRunsIDStopOKProgressUnit with value set to v.
+func NewNilScanPostScansRunsIDStopOKProgressUnit(v ScanPostScansRunsIDStopOKProgressUnit) NilScanPostScansRunsIDStopOKProgressUnit {
+	return NilScanPostScansRunsIDStopOKProgressUnit{
+		Value: v,
+	}
+}
+
+// NilScanPostScansRunsIDStopOKProgressUnit is nullable ScanPostScansRunsIDStopOKProgressUnit.
+type NilScanPostScansRunsIDStopOKProgressUnit struct {
+	Value ScanPostScansRunsIDStopOKProgressUnit
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilScanPostScansRunsIDStopOKProgressUnit) SetTo(v ScanPostScansRunsIDStopOKProgressUnit) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilScanPostScansRunsIDStopOKProgressUnit) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilScanPostScansRunsIDStopOKProgressUnit) SetToNull() {
+	o.Null = true
+	var v ScanPostScansRunsIDStopOKProgressUnit
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilScanPostScansRunsIDStopOKProgressUnit) Get() (v ScanPostScansRunsIDStopOKProgressUnit, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilScanPostScansRunsIDStopOKProgressUnit) Or(d ScanPostScansRunsIDStopOKProgressUnit) ScanPostScansRunsIDStopOKProgressUnit {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -172354,14 +173710,17 @@ type ScanGetScansRunsOKItemsItem struct {
 	// (D-501). Empty for scheduled scans and KEV rescans, and while the run is going.
 	Identification []ScanGetScansRunsOKItemsItemIdentificationItem `json:"identification"`
 	Matched        int                                             `json:"matched"`
-	Results        []ScanGetScansRunsOKItemsItemResultsItem        `json:"results"`
-	StartedAt      time.Time                                       `json:"started_at"`
-	StartedBy      string                                          `json:"started_by"`
-	Status         ScanGetScansRunsOKItemsItemStatus               `json:"status"`
-	StopReason     NilString                                       `json:"stop_reason"`
-	Total          int                                             `json:"total"`
-	Trigger        ScanGetScansRunsOKItemsItemTrigger              `json:"trigger"`
-	TriggerNote    NilString                                       `json:"trigger_note"`
+	// How far the current device is (#830): its phase, how far into it, an estimate of its end. Set while
+	// the run is running or stopping in this process; null otherwise.
+	Progress    NilScanGetScansRunsOKItemsItemProgress   `json:"progress"`
+	Results     []ScanGetScansRunsOKItemsItemResultsItem `json:"results"`
+	StartedAt   time.Time                                `json:"started_at"`
+	StartedBy   string                                   `json:"started_by"`
+	Status      ScanGetScansRunsOKItemsItemStatus        `json:"status"`
+	StopReason  NilString                                `json:"stop_reason"`
+	Total       int                                      `json:"total"`
+	Trigger     ScanGetScansRunsOKItemsItemTrigger       `json:"trigger"`
+	TriggerNote NilString                                `json:"trigger_note"`
 }
 
 // GetCurrent returns the value of Current.
@@ -172392,6 +173751,11 @@ func (s *ScanGetScansRunsOKItemsItem) GetIdentification() []ScanGetScansRunsOKIt
 // GetMatched returns the value of Matched.
 func (s *ScanGetScansRunsOKItemsItem) GetMatched() int {
 	return s.Matched
+}
+
+// GetProgress returns the value of Progress.
+func (s *ScanGetScansRunsOKItemsItem) GetProgress() NilScanGetScansRunsOKItemsItemProgress {
+	return s.Progress
 }
 
 // GetResults returns the value of Results.
@@ -172462,6 +173826,11 @@ func (s *ScanGetScansRunsOKItemsItem) SetIdentification(val []ScanGetScansRunsOK
 // SetMatched sets the value of Matched.
 func (s *ScanGetScansRunsOKItemsItem) SetMatched(val int) {
 	s.Matched = val
+}
+
+// SetProgress sets the value of Progress.
+func (s *ScanGetScansRunsOKItemsItem) SetProgress(val NilScanGetScansRunsOKItemsItemProgress) {
+	s.Progress = val
 }
 
 // SetResults sets the value of Results.
@@ -172773,6 +174142,264 @@ func (s *ScanGetScansRunsOKItemsItemIdentificationItemReason) UnmarshalText(data
 		return nil
 	case ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned:
 		*s = ScanGetScansRunsOKItemsItemIdentificationItemReasonNotScanned
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanGetScansRunsOKItemsItemProgress struct {
+	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
+	Done NilInt `json:"done"`
+	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
+	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
+	Eta NilDateTime `json:"eta"`
+	// A short English note on the pass, e.g. "Second pass: administration and alternative ports"; null
+	// when none.
+	Message NilString `json:"message"`
+	// How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the
+	// phase without a bar).
+	Percent NilFloat64 `json:"percent"`
+	// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+	// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+	// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+	// result is being stored.
+	Phase ScanGetScansRunsOKItemsItemProgressPhase `json:"phase"`
+	// When the current phase (or the current pass of it: a device gets a second nmap pass over admin
+	// ports) started.
+	PhaseStartedAt time.Time `json:"phase_started_at"`
+	// When the job (the device, or the public IP scan) started: elapsed time is now minus this.
+	StartedAt time.Time `json:"started_at"`
+	Total     NilInt    `json:"total"`
+	// Checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch.
+	Unit NilScanGetScansRunsOKItemsItemProgressUnit `json:"unit"`
+	// The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is
+	// quiet, not that the box hangs.
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// GetDone returns the value of Done.
+func (s *ScanGetScansRunsOKItemsItemProgress) GetDone() NilInt {
+	return s.Done
+}
+
+// GetEta returns the value of Eta.
+func (s *ScanGetScansRunsOKItemsItemProgress) GetEta() NilDateTime {
+	return s.Eta
+}
+
+// GetMessage returns the value of Message.
+func (s *ScanGetScansRunsOKItemsItemProgress) GetMessage() NilString {
+	return s.Message
+}
+
+// GetPercent returns the value of Percent.
+func (s *ScanGetScansRunsOKItemsItemProgress) GetPercent() NilFloat64 {
+	return s.Percent
+}
+
+// GetPhase returns the value of Phase.
+func (s *ScanGetScansRunsOKItemsItemProgress) GetPhase() ScanGetScansRunsOKItemsItemProgressPhase {
+	return s.Phase
+}
+
+// GetPhaseStartedAt returns the value of PhaseStartedAt.
+func (s *ScanGetScansRunsOKItemsItemProgress) GetPhaseStartedAt() time.Time {
+	return s.PhaseStartedAt
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ScanGetScansRunsOKItemsItemProgress) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetTotal returns the value of Total.
+func (s *ScanGetScansRunsOKItemsItemProgress) GetTotal() NilInt {
+	return s.Total
+}
+
+// GetUnit returns the value of Unit.
+func (s *ScanGetScansRunsOKItemsItemProgress) GetUnit() NilScanGetScansRunsOKItemsItemProgressUnit {
+	return s.Unit
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ScanGetScansRunsOKItemsItemProgress) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetDone sets the value of Done.
+func (s *ScanGetScansRunsOKItemsItemProgress) SetDone(val NilInt) {
+	s.Done = val
+}
+
+// SetEta sets the value of Eta.
+func (s *ScanGetScansRunsOKItemsItemProgress) SetEta(val NilDateTime) {
+	s.Eta = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ScanGetScansRunsOKItemsItemProgress) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetPercent sets the value of Percent.
+func (s *ScanGetScansRunsOKItemsItemProgress) SetPercent(val NilFloat64) {
+	s.Percent = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *ScanGetScansRunsOKItemsItemProgress) SetPhase(val ScanGetScansRunsOKItemsItemProgressPhase) {
+	s.Phase = val
+}
+
+// SetPhaseStartedAt sets the value of PhaseStartedAt.
+func (s *ScanGetScansRunsOKItemsItemProgress) SetPhaseStartedAt(val time.Time) {
+	s.PhaseStartedAt = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ScanGetScansRunsOKItemsItemProgress) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ScanGetScansRunsOKItemsItemProgress) SetTotal(val NilInt) {
+	s.Total = val
+}
+
+// SetUnit sets the value of Unit.
+func (s *ScanGetScansRunsOKItemsItemProgress) SetUnit(val NilScanGetScansRunsOKItemsItemProgressUnit) {
+	s.Unit = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ScanGetScansRunsOKItemsItemProgress) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+// result is being stored.
+type ScanGetScansRunsOKItemsItemProgressPhase string
+
+const (
+	ScanGetScansRunsOKItemsItemProgressPhaseDiscovery ScanGetScansRunsOKItemsItemProgressPhase = "discovery"
+	ScanGetScansRunsOKItemsItemProgressPhasePorts     ScanGetScansRunsOKItemsItemProgressPhase = "ports"
+	ScanGetScansRunsOKItemsItemProgressPhaseServices  ScanGetScansRunsOKItemsItemProgressPhase = "services"
+	ScanGetScansRunsOKItemsItemProgressPhaseScripts   ScanGetScansRunsOKItemsItemProgressPhase = "scripts"
+	ScanGetScansRunsOKItemsItemProgressPhaseVulns     ScanGetScansRunsOKItemsItemProgressPhase = "vulns"
+	ScanGetScansRunsOKItemsItemProgressPhaseWeb       ScanGetScansRunsOKItemsItemProgressPhase = "web"
+	ScanGetScansRunsOKItemsItemProgressPhaseOpenvas   ScanGetScansRunsOKItemsItemProgressPhase = "openvas"
+	ScanGetScansRunsOKItemsItemProgressPhaseSaving    ScanGetScansRunsOKItemsItemProgressPhase = "saving"
+)
+
+// AllValues returns all ScanGetScansRunsOKItemsItemProgressPhase values.
+func (ScanGetScansRunsOKItemsItemProgressPhase) AllValues() []ScanGetScansRunsOKItemsItemProgressPhase {
+	return []ScanGetScansRunsOKItemsItemProgressPhase{
+		ScanGetScansRunsOKItemsItemProgressPhaseDiscovery,
+		ScanGetScansRunsOKItemsItemProgressPhasePorts,
+		ScanGetScansRunsOKItemsItemProgressPhaseServices,
+		ScanGetScansRunsOKItemsItemProgressPhaseScripts,
+		ScanGetScansRunsOKItemsItemProgressPhaseVulns,
+		ScanGetScansRunsOKItemsItemProgressPhaseWeb,
+		ScanGetScansRunsOKItemsItemProgressPhaseOpenvas,
+		ScanGetScansRunsOKItemsItemProgressPhaseSaving,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanGetScansRunsOKItemsItemProgressPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanGetScansRunsOKItemsItemProgressPhaseDiscovery:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemProgressPhasePorts:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemProgressPhaseServices:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemProgressPhaseScripts:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemProgressPhaseVulns:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemProgressPhaseWeb:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemProgressPhaseOpenvas:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemProgressPhaseSaving:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanGetScansRunsOKItemsItemProgressPhase) UnmarshalText(data []byte) error {
+	switch ScanGetScansRunsOKItemsItemProgressPhase(data) {
+	case ScanGetScansRunsOKItemsItemProgressPhaseDiscovery:
+		*s = ScanGetScansRunsOKItemsItemProgressPhaseDiscovery
+		return nil
+	case ScanGetScansRunsOKItemsItemProgressPhasePorts:
+		*s = ScanGetScansRunsOKItemsItemProgressPhasePorts
+		return nil
+	case ScanGetScansRunsOKItemsItemProgressPhaseServices:
+		*s = ScanGetScansRunsOKItemsItemProgressPhaseServices
+		return nil
+	case ScanGetScansRunsOKItemsItemProgressPhaseScripts:
+		*s = ScanGetScansRunsOKItemsItemProgressPhaseScripts
+		return nil
+	case ScanGetScansRunsOKItemsItemProgressPhaseVulns:
+		*s = ScanGetScansRunsOKItemsItemProgressPhaseVulns
+		return nil
+	case ScanGetScansRunsOKItemsItemProgressPhaseWeb:
+		*s = ScanGetScansRunsOKItemsItemProgressPhaseWeb
+		return nil
+	case ScanGetScansRunsOKItemsItemProgressPhaseOpenvas:
+		*s = ScanGetScansRunsOKItemsItemProgressPhaseOpenvas
+		return nil
+	case ScanGetScansRunsOKItemsItemProgressPhaseSaving:
+		*s = ScanGetScansRunsOKItemsItemProgressPhaseSaving
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanGetScansRunsOKItemsItemProgressUnit string
+
+const (
+	ScanGetScansRunsOKItemsItemProgressUnitChecks ScanGetScansRunsOKItemsItemProgressUnit = "checks"
+	ScanGetScansRunsOKItemsItemProgressUnitHosts  ScanGetScansRunsOKItemsItemProgressUnit = "hosts"
+)
+
+// AllValues returns all ScanGetScansRunsOKItemsItemProgressUnit values.
+func (ScanGetScansRunsOKItemsItemProgressUnit) AllValues() []ScanGetScansRunsOKItemsItemProgressUnit {
+	return []ScanGetScansRunsOKItemsItemProgressUnit{
+		ScanGetScansRunsOKItemsItemProgressUnitChecks,
+		ScanGetScansRunsOKItemsItemProgressUnitHosts,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanGetScansRunsOKItemsItemProgressUnit) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanGetScansRunsOKItemsItemProgressUnitChecks:
+		return []byte(s), nil
+	case ScanGetScansRunsOKItemsItemProgressUnitHosts:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanGetScansRunsOKItemsItemProgressUnit) UnmarshalText(data []byte) error {
+	switch ScanGetScansRunsOKItemsItemProgressUnit(data) {
+	case ScanGetScansRunsOKItemsItemProgressUnitChecks:
+		*s = ScanGetScansRunsOKItemsItemProgressUnitChecks
+		return nil
+	case ScanGetScansRunsOKItemsItemProgressUnitHosts:
+		*s = ScanGetScansRunsOKItemsItemProgressUnitHosts
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -174345,14 +175972,17 @@ type ScanPostScansRunsCreated struct {
 	// (D-501). Empty for scheduled scans and KEV rescans, and while the run is going.
 	Identification []ScanPostScansRunsCreatedIdentificationItem `json:"identification"`
 	Matched        int                                          `json:"matched"`
-	Results        []ScanPostScansRunsCreatedResultsItem        `json:"results"`
-	StartedAt      time.Time                                    `json:"started_at"`
-	StartedBy      string                                       `json:"started_by"`
-	Status         ScanPostScansRunsCreatedStatus               `json:"status"`
-	StopReason     NilString                                    `json:"stop_reason"`
-	Total          int                                          `json:"total"`
-	Trigger        ScanPostScansRunsCreatedTrigger              `json:"trigger"`
-	TriggerNote    NilString                                    `json:"trigger_note"`
+	// How far the current device is (#830): its phase, how far into it, an estimate of its end. Set while
+	// the run is running or stopping in this process; null otherwise.
+	Progress    NilScanPostScansRunsCreatedProgress   `json:"progress"`
+	Results     []ScanPostScansRunsCreatedResultsItem `json:"results"`
+	StartedAt   time.Time                             `json:"started_at"`
+	StartedBy   string                                `json:"started_by"`
+	Status      ScanPostScansRunsCreatedStatus        `json:"status"`
+	StopReason  NilString                             `json:"stop_reason"`
+	Total       int                                   `json:"total"`
+	Trigger     ScanPostScansRunsCreatedTrigger       `json:"trigger"`
+	TriggerNote NilString                             `json:"trigger_note"`
 }
 
 // GetCurrent returns the value of Current.
@@ -174383,6 +176013,11 @@ func (s *ScanPostScansRunsCreated) GetIdentification() []ScanPostScansRunsCreate
 // GetMatched returns the value of Matched.
 func (s *ScanPostScansRunsCreated) GetMatched() int {
 	return s.Matched
+}
+
+// GetProgress returns the value of Progress.
+func (s *ScanPostScansRunsCreated) GetProgress() NilScanPostScansRunsCreatedProgress {
+	return s.Progress
 }
 
 // GetResults returns the value of Results.
@@ -174453,6 +176088,11 @@ func (s *ScanPostScansRunsCreated) SetIdentification(val []ScanPostScansRunsCrea
 // SetMatched sets the value of Matched.
 func (s *ScanPostScansRunsCreated) SetMatched(val int) {
 	s.Matched = val
+}
+
+// SetProgress sets the value of Progress.
+func (s *ScanPostScansRunsCreated) SetProgress(val NilScanPostScansRunsCreatedProgress) {
+	s.Progress = val
 }
 
 // SetResults sets the value of Results.
@@ -174770,6 +176410,264 @@ func (s *ScanPostScansRunsCreatedIdentificationItemReason) UnmarshalText(data []
 	}
 }
 
+type ScanPostScansRunsCreatedProgress struct {
+	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
+	Done NilInt `json:"done"`
+	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
+	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
+	Eta NilDateTime `json:"eta"`
+	// A short English note on the pass, e.g. "Second pass: administration and alternative ports"; null
+	// when none.
+	Message NilString `json:"message"`
+	// How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the
+	// phase without a bar).
+	Percent NilFloat64 `json:"percent"`
+	// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+	// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+	// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+	// result is being stored.
+	Phase ScanPostScansRunsCreatedProgressPhase `json:"phase"`
+	// When the current phase (or the current pass of it: a device gets a second nmap pass over admin
+	// ports) started.
+	PhaseStartedAt time.Time `json:"phase_started_at"`
+	// When the job (the device, or the public IP scan) started: elapsed time is now minus this.
+	StartedAt time.Time `json:"started_at"`
+	Total     NilInt    `json:"total"`
+	// Checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch.
+	Unit NilScanPostScansRunsCreatedProgressUnit `json:"unit"`
+	// The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is
+	// quiet, not that the box hangs.
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// GetDone returns the value of Done.
+func (s *ScanPostScansRunsCreatedProgress) GetDone() NilInt {
+	return s.Done
+}
+
+// GetEta returns the value of Eta.
+func (s *ScanPostScansRunsCreatedProgress) GetEta() NilDateTime {
+	return s.Eta
+}
+
+// GetMessage returns the value of Message.
+func (s *ScanPostScansRunsCreatedProgress) GetMessage() NilString {
+	return s.Message
+}
+
+// GetPercent returns the value of Percent.
+func (s *ScanPostScansRunsCreatedProgress) GetPercent() NilFloat64 {
+	return s.Percent
+}
+
+// GetPhase returns the value of Phase.
+func (s *ScanPostScansRunsCreatedProgress) GetPhase() ScanPostScansRunsCreatedProgressPhase {
+	return s.Phase
+}
+
+// GetPhaseStartedAt returns the value of PhaseStartedAt.
+func (s *ScanPostScansRunsCreatedProgress) GetPhaseStartedAt() time.Time {
+	return s.PhaseStartedAt
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ScanPostScansRunsCreatedProgress) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetTotal returns the value of Total.
+func (s *ScanPostScansRunsCreatedProgress) GetTotal() NilInt {
+	return s.Total
+}
+
+// GetUnit returns the value of Unit.
+func (s *ScanPostScansRunsCreatedProgress) GetUnit() NilScanPostScansRunsCreatedProgressUnit {
+	return s.Unit
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ScanPostScansRunsCreatedProgress) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetDone sets the value of Done.
+func (s *ScanPostScansRunsCreatedProgress) SetDone(val NilInt) {
+	s.Done = val
+}
+
+// SetEta sets the value of Eta.
+func (s *ScanPostScansRunsCreatedProgress) SetEta(val NilDateTime) {
+	s.Eta = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ScanPostScansRunsCreatedProgress) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetPercent sets the value of Percent.
+func (s *ScanPostScansRunsCreatedProgress) SetPercent(val NilFloat64) {
+	s.Percent = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *ScanPostScansRunsCreatedProgress) SetPhase(val ScanPostScansRunsCreatedProgressPhase) {
+	s.Phase = val
+}
+
+// SetPhaseStartedAt sets the value of PhaseStartedAt.
+func (s *ScanPostScansRunsCreatedProgress) SetPhaseStartedAt(val time.Time) {
+	s.PhaseStartedAt = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ScanPostScansRunsCreatedProgress) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ScanPostScansRunsCreatedProgress) SetTotal(val NilInt) {
+	s.Total = val
+}
+
+// SetUnit sets the value of Unit.
+func (s *ScanPostScansRunsCreatedProgress) SetUnit(val NilScanPostScansRunsCreatedProgressUnit) {
+	s.Unit = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ScanPostScansRunsCreatedProgress) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+// result is being stored.
+type ScanPostScansRunsCreatedProgressPhase string
+
+const (
+	ScanPostScansRunsCreatedProgressPhaseDiscovery ScanPostScansRunsCreatedProgressPhase = "discovery"
+	ScanPostScansRunsCreatedProgressPhasePorts     ScanPostScansRunsCreatedProgressPhase = "ports"
+	ScanPostScansRunsCreatedProgressPhaseServices  ScanPostScansRunsCreatedProgressPhase = "services"
+	ScanPostScansRunsCreatedProgressPhaseScripts   ScanPostScansRunsCreatedProgressPhase = "scripts"
+	ScanPostScansRunsCreatedProgressPhaseVulns     ScanPostScansRunsCreatedProgressPhase = "vulns"
+	ScanPostScansRunsCreatedProgressPhaseWeb       ScanPostScansRunsCreatedProgressPhase = "web"
+	ScanPostScansRunsCreatedProgressPhaseOpenvas   ScanPostScansRunsCreatedProgressPhase = "openvas"
+	ScanPostScansRunsCreatedProgressPhaseSaving    ScanPostScansRunsCreatedProgressPhase = "saving"
+)
+
+// AllValues returns all ScanPostScansRunsCreatedProgressPhase values.
+func (ScanPostScansRunsCreatedProgressPhase) AllValues() []ScanPostScansRunsCreatedProgressPhase {
+	return []ScanPostScansRunsCreatedProgressPhase{
+		ScanPostScansRunsCreatedProgressPhaseDiscovery,
+		ScanPostScansRunsCreatedProgressPhasePorts,
+		ScanPostScansRunsCreatedProgressPhaseServices,
+		ScanPostScansRunsCreatedProgressPhaseScripts,
+		ScanPostScansRunsCreatedProgressPhaseVulns,
+		ScanPostScansRunsCreatedProgressPhaseWeb,
+		ScanPostScansRunsCreatedProgressPhaseOpenvas,
+		ScanPostScansRunsCreatedProgressPhaseSaving,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanPostScansRunsCreatedProgressPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanPostScansRunsCreatedProgressPhaseDiscovery:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedProgressPhasePorts:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedProgressPhaseServices:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedProgressPhaseScripts:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedProgressPhaseVulns:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedProgressPhaseWeb:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedProgressPhaseOpenvas:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedProgressPhaseSaving:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanPostScansRunsCreatedProgressPhase) UnmarshalText(data []byte) error {
+	switch ScanPostScansRunsCreatedProgressPhase(data) {
+	case ScanPostScansRunsCreatedProgressPhaseDiscovery:
+		*s = ScanPostScansRunsCreatedProgressPhaseDiscovery
+		return nil
+	case ScanPostScansRunsCreatedProgressPhasePorts:
+		*s = ScanPostScansRunsCreatedProgressPhasePorts
+		return nil
+	case ScanPostScansRunsCreatedProgressPhaseServices:
+		*s = ScanPostScansRunsCreatedProgressPhaseServices
+		return nil
+	case ScanPostScansRunsCreatedProgressPhaseScripts:
+		*s = ScanPostScansRunsCreatedProgressPhaseScripts
+		return nil
+	case ScanPostScansRunsCreatedProgressPhaseVulns:
+		*s = ScanPostScansRunsCreatedProgressPhaseVulns
+		return nil
+	case ScanPostScansRunsCreatedProgressPhaseWeb:
+		*s = ScanPostScansRunsCreatedProgressPhaseWeb
+		return nil
+	case ScanPostScansRunsCreatedProgressPhaseOpenvas:
+		*s = ScanPostScansRunsCreatedProgressPhaseOpenvas
+		return nil
+	case ScanPostScansRunsCreatedProgressPhaseSaving:
+		*s = ScanPostScansRunsCreatedProgressPhaseSaving
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanPostScansRunsCreatedProgressUnit string
+
+const (
+	ScanPostScansRunsCreatedProgressUnitChecks ScanPostScansRunsCreatedProgressUnit = "checks"
+	ScanPostScansRunsCreatedProgressUnitHosts  ScanPostScansRunsCreatedProgressUnit = "hosts"
+)
+
+// AllValues returns all ScanPostScansRunsCreatedProgressUnit values.
+func (ScanPostScansRunsCreatedProgressUnit) AllValues() []ScanPostScansRunsCreatedProgressUnit {
+	return []ScanPostScansRunsCreatedProgressUnit{
+		ScanPostScansRunsCreatedProgressUnitChecks,
+		ScanPostScansRunsCreatedProgressUnitHosts,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanPostScansRunsCreatedProgressUnit) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanPostScansRunsCreatedProgressUnitChecks:
+		return []byte(s), nil
+	case ScanPostScansRunsCreatedProgressUnitHosts:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanPostScansRunsCreatedProgressUnit) UnmarshalText(data []byte) error {
+	switch ScanPostScansRunsCreatedProgressUnit(data) {
+	case ScanPostScansRunsCreatedProgressUnitChecks:
+		*s = ScanPostScansRunsCreatedProgressUnitChecks
+		return nil
+	case ScanPostScansRunsCreatedProgressUnitHosts:
+		*s = ScanPostScansRunsCreatedProgressUnitHosts
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type ScanPostScansRunsCreatedResultsItem struct {
 	FindingID NilString                                 `json:"finding_id"`
 	IP        string                                    `json:"ip"`
@@ -175038,14 +176936,17 @@ type ScanPostScansRunsIDStopOK struct {
 	// (D-501). Empty for scheduled scans and KEV rescans, and while the run is going.
 	Identification []ScanPostScansRunsIDStopOKIdentificationItem `json:"identification"`
 	Matched        int                                           `json:"matched"`
-	Results        []ScanPostScansRunsIDStopOKResultsItem        `json:"results"`
-	StartedAt      time.Time                                     `json:"started_at"`
-	StartedBy      string                                        `json:"started_by"`
-	Status         ScanPostScansRunsIDStopOKStatus               `json:"status"`
-	StopReason     NilString                                     `json:"stop_reason"`
-	Total          int                                           `json:"total"`
-	Trigger        ScanPostScansRunsIDStopOKTrigger              `json:"trigger"`
-	TriggerNote    NilString                                     `json:"trigger_note"`
+	// How far the current device is (#830): its phase, how far into it, an estimate of its end. Set while
+	// the run is running or stopping in this process; null otherwise.
+	Progress    NilScanPostScansRunsIDStopOKProgress   `json:"progress"`
+	Results     []ScanPostScansRunsIDStopOKResultsItem `json:"results"`
+	StartedAt   time.Time                              `json:"started_at"`
+	StartedBy   string                                 `json:"started_by"`
+	Status      ScanPostScansRunsIDStopOKStatus        `json:"status"`
+	StopReason  NilString                              `json:"stop_reason"`
+	Total       int                                    `json:"total"`
+	Trigger     ScanPostScansRunsIDStopOKTrigger       `json:"trigger"`
+	TriggerNote NilString                              `json:"trigger_note"`
 }
 
 // GetCurrent returns the value of Current.
@@ -175076,6 +176977,11 @@ func (s *ScanPostScansRunsIDStopOK) GetIdentification() []ScanPostScansRunsIDSto
 // GetMatched returns the value of Matched.
 func (s *ScanPostScansRunsIDStopOK) GetMatched() int {
 	return s.Matched
+}
+
+// GetProgress returns the value of Progress.
+func (s *ScanPostScansRunsIDStopOK) GetProgress() NilScanPostScansRunsIDStopOKProgress {
+	return s.Progress
 }
 
 // GetResults returns the value of Results.
@@ -175146,6 +177052,11 @@ func (s *ScanPostScansRunsIDStopOK) SetIdentification(val []ScanPostScansRunsIDS
 // SetMatched sets the value of Matched.
 func (s *ScanPostScansRunsIDStopOK) SetMatched(val int) {
 	s.Matched = val
+}
+
+// SetProgress sets the value of Progress.
+func (s *ScanPostScansRunsIDStopOK) SetProgress(val NilScanPostScansRunsIDStopOKProgress) {
+	s.Progress = val
 }
 
 // SetResults sets the value of Results.
@@ -175457,6 +177368,264 @@ func (s *ScanPostScansRunsIDStopOKIdentificationItemReason) UnmarshalText(data [
 		return nil
 	case ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned:
 		*s = ScanPostScansRunsIDStopOKIdentificationItemReasonNotScanned
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanPostScansRunsIDStopOKProgress struct {
+	// With total: the count behind percent (unit says what is counted); null when the phase has no count.
+	Done NilInt `json:"done"`
+	// Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the
+	// vulnerability checks (after 10 s and 1 %); null until it can be estimated.
+	Eta NilDateTime `json:"eta"`
+	// A short English note on the pass, e.g. "Second pass: administration and alternative ports"; null
+	// when none.
+	Message NilString `json:"message"`
+	// How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the
+	// phase without a bar).
+	Percent NilFloat64 `json:"percent"`
+	// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+	// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+	// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+	// result is being stored.
+	Phase ScanPostScansRunsIDStopOKProgressPhase `json:"phase"`
+	// When the current phase (or the current pass of it: a device gets a second nmap pass over admin
+	// ports) started.
+	PhaseStartedAt time.Time `json:"phase_started_at"`
+	// When the job (the device, or the public IP scan) started: elapsed time is now minus this.
+	StartedAt time.Time `json:"started_at"`
+	Total     NilInt    `json:"total"`
+	// Checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch.
+	Unit NilScanPostScansRunsIDStopOKProgressUnit `json:"unit"`
+	// The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is
+	// quiet, not that the box hangs.
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// GetDone returns the value of Done.
+func (s *ScanPostScansRunsIDStopOKProgress) GetDone() NilInt {
+	return s.Done
+}
+
+// GetEta returns the value of Eta.
+func (s *ScanPostScansRunsIDStopOKProgress) GetEta() NilDateTime {
+	return s.Eta
+}
+
+// GetMessage returns the value of Message.
+func (s *ScanPostScansRunsIDStopOKProgress) GetMessage() NilString {
+	return s.Message
+}
+
+// GetPercent returns the value of Percent.
+func (s *ScanPostScansRunsIDStopOKProgress) GetPercent() NilFloat64 {
+	return s.Percent
+}
+
+// GetPhase returns the value of Phase.
+func (s *ScanPostScansRunsIDStopOKProgress) GetPhase() ScanPostScansRunsIDStopOKProgressPhase {
+	return s.Phase
+}
+
+// GetPhaseStartedAt returns the value of PhaseStartedAt.
+func (s *ScanPostScansRunsIDStopOKProgress) GetPhaseStartedAt() time.Time {
+	return s.PhaseStartedAt
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ScanPostScansRunsIDStopOKProgress) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetTotal returns the value of Total.
+func (s *ScanPostScansRunsIDStopOKProgress) GetTotal() NilInt {
+	return s.Total
+}
+
+// GetUnit returns the value of Unit.
+func (s *ScanPostScansRunsIDStopOKProgress) GetUnit() NilScanPostScansRunsIDStopOKProgressUnit {
+	return s.Unit
+}
+
+// GetUpdatedAt returns the value of UpdatedAt.
+func (s *ScanPostScansRunsIDStopOKProgress) GetUpdatedAt() time.Time {
+	return s.UpdatedAt
+}
+
+// SetDone sets the value of Done.
+func (s *ScanPostScansRunsIDStopOKProgress) SetDone(val NilInt) {
+	s.Done = val
+}
+
+// SetEta sets the value of Eta.
+func (s *ScanPostScansRunsIDStopOKProgress) SetEta(val NilDateTime) {
+	s.Eta = val
+}
+
+// SetMessage sets the value of Message.
+func (s *ScanPostScansRunsIDStopOKProgress) SetMessage(val NilString) {
+	s.Message = val
+}
+
+// SetPercent sets the value of Percent.
+func (s *ScanPostScansRunsIDStopOKProgress) SetPercent(val NilFloat64) {
+	s.Percent = val
+}
+
+// SetPhase sets the value of Phase.
+func (s *ScanPostScansRunsIDStopOKProgress) SetPhase(val ScanPostScansRunsIDStopOKProgressPhase) {
+	s.Phase = val
+}
+
+// SetPhaseStartedAt sets the value of PhaseStartedAt.
+func (s *ScanPostScansRunsIDStopOKProgress) SetPhaseStartedAt(val time.Time) {
+	s.PhaseStartedAt = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ScanPostScansRunsIDStopOKProgress) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetTotal sets the value of Total.
+func (s *ScanPostScansRunsIDStopOKProgress) SetTotal(val NilInt) {
+	s.Total = val
+}
+
+// SetUnit sets the value of Unit.
+func (s *ScanPostScansRunsIDStopOKProgress) SetUnit(val NilScanPostScansRunsIDStopOKProgressUnit) {
+	s.Unit = val
+}
+
+// SetUpdatedAt sets the value of UpdatedAt.
+func (s *ScanPostScansRunsIDStopOKProgress) SetUpdatedAt(val time.Time) {
+	s.UpdatedAt = val
+}
+
+// Discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection;
+// scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei
+// templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the
+// result is being stored.
+type ScanPostScansRunsIDStopOKProgressPhase string
+
+const (
+	ScanPostScansRunsIDStopOKProgressPhaseDiscovery ScanPostScansRunsIDStopOKProgressPhase = "discovery"
+	ScanPostScansRunsIDStopOKProgressPhasePorts     ScanPostScansRunsIDStopOKProgressPhase = "ports"
+	ScanPostScansRunsIDStopOKProgressPhaseServices  ScanPostScansRunsIDStopOKProgressPhase = "services"
+	ScanPostScansRunsIDStopOKProgressPhaseScripts   ScanPostScansRunsIDStopOKProgressPhase = "scripts"
+	ScanPostScansRunsIDStopOKProgressPhaseVulns     ScanPostScansRunsIDStopOKProgressPhase = "vulns"
+	ScanPostScansRunsIDStopOKProgressPhaseWeb       ScanPostScansRunsIDStopOKProgressPhase = "web"
+	ScanPostScansRunsIDStopOKProgressPhaseOpenvas   ScanPostScansRunsIDStopOKProgressPhase = "openvas"
+	ScanPostScansRunsIDStopOKProgressPhaseSaving    ScanPostScansRunsIDStopOKProgressPhase = "saving"
+)
+
+// AllValues returns all ScanPostScansRunsIDStopOKProgressPhase values.
+func (ScanPostScansRunsIDStopOKProgressPhase) AllValues() []ScanPostScansRunsIDStopOKProgressPhase {
+	return []ScanPostScansRunsIDStopOKProgressPhase{
+		ScanPostScansRunsIDStopOKProgressPhaseDiscovery,
+		ScanPostScansRunsIDStopOKProgressPhasePorts,
+		ScanPostScansRunsIDStopOKProgressPhaseServices,
+		ScanPostScansRunsIDStopOKProgressPhaseScripts,
+		ScanPostScansRunsIDStopOKProgressPhaseVulns,
+		ScanPostScansRunsIDStopOKProgressPhaseWeb,
+		ScanPostScansRunsIDStopOKProgressPhaseOpenvas,
+		ScanPostScansRunsIDStopOKProgressPhaseSaving,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanPostScansRunsIDStopOKProgressPhase) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanPostScansRunsIDStopOKProgressPhaseDiscovery:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKProgressPhasePorts:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKProgressPhaseServices:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKProgressPhaseScripts:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKProgressPhaseVulns:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKProgressPhaseWeb:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKProgressPhaseOpenvas:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKProgressPhaseSaving:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanPostScansRunsIDStopOKProgressPhase) UnmarshalText(data []byte) error {
+	switch ScanPostScansRunsIDStopOKProgressPhase(data) {
+	case ScanPostScansRunsIDStopOKProgressPhaseDiscovery:
+		*s = ScanPostScansRunsIDStopOKProgressPhaseDiscovery
+		return nil
+	case ScanPostScansRunsIDStopOKProgressPhasePorts:
+		*s = ScanPostScansRunsIDStopOKProgressPhasePorts
+		return nil
+	case ScanPostScansRunsIDStopOKProgressPhaseServices:
+		*s = ScanPostScansRunsIDStopOKProgressPhaseServices
+		return nil
+	case ScanPostScansRunsIDStopOKProgressPhaseScripts:
+		*s = ScanPostScansRunsIDStopOKProgressPhaseScripts
+		return nil
+	case ScanPostScansRunsIDStopOKProgressPhaseVulns:
+		*s = ScanPostScansRunsIDStopOKProgressPhaseVulns
+		return nil
+	case ScanPostScansRunsIDStopOKProgressPhaseWeb:
+		*s = ScanPostScansRunsIDStopOKProgressPhaseWeb
+		return nil
+	case ScanPostScansRunsIDStopOKProgressPhaseOpenvas:
+		*s = ScanPostScansRunsIDStopOKProgressPhaseOpenvas
+		return nil
+	case ScanPostScansRunsIDStopOKProgressPhaseSaving:
+		*s = ScanPostScansRunsIDStopOKProgressPhaseSaving
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type ScanPostScansRunsIDStopOKProgressUnit string
+
+const (
+	ScanPostScansRunsIDStopOKProgressUnitChecks ScanPostScansRunsIDStopOKProgressUnit = "checks"
+	ScanPostScansRunsIDStopOKProgressUnitHosts  ScanPostScansRunsIDStopOKProgressUnit = "hosts"
+)
+
+// AllValues returns all ScanPostScansRunsIDStopOKProgressUnit values.
+func (ScanPostScansRunsIDStopOKProgressUnit) AllValues() []ScanPostScansRunsIDStopOKProgressUnit {
+	return []ScanPostScansRunsIDStopOKProgressUnit{
+		ScanPostScansRunsIDStopOKProgressUnitChecks,
+		ScanPostScansRunsIDStopOKProgressUnitHosts,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanPostScansRunsIDStopOKProgressUnit) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanPostScansRunsIDStopOKProgressUnitChecks:
+		return []byte(s), nil
+	case ScanPostScansRunsIDStopOKProgressUnitHosts:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanPostScansRunsIDStopOKProgressUnit) UnmarshalText(data []byte) error {
+	switch ScanPostScansRunsIDStopOKProgressUnit(data) {
+	case ScanPostScansRunsIDStopOKProgressUnitChecks:
+		*s = ScanPostScansRunsIDStopOKProgressUnitChecks
+		return nil
+	case ScanPostScansRunsIDStopOKProgressUnitHosts:
+		*s = ScanPostScansRunsIDStopOKProgressUnitHosts
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

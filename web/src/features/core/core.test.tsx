@@ -1822,7 +1822,8 @@ describe('core: turning off Notifications warns about email-code users (D-35)', 
     await u.click(screen.getByRole('switch', { name: 'Turn off module Notifications' }))
     const dlg = await screen.findByRole('dialog', { name: 'Turn off Notifications?' })
     expect(await within(dlg).findByText('2 users sign in with email codes and will be locked out.')).toBeInTheDocument()
-    expect(within(dlg).getByRole('button', { name: 'About 2 users sign in with email codes and will be locked out.' })).toHaveAccessibleDescription('They will not be able to sign in until the email channel is back on or an administrator resets their two-step sign-in.')
+    // A sentence title is not repeated in the ⓘ's name (#824 L1): the ⓘ next to it reads "More about this".
+    expect(within(within(dlg).getByText('2 users sign in with email codes and will be locked out.').parentElement!).getByRole('button', { name: 'More about this' })).toHaveAccessibleDescription('They will not be able to sign in until the email channel is back on or an administrator resets their two-step sign-in.')
   })
 })
 

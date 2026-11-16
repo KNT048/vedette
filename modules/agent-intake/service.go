@@ -239,13 +239,15 @@ func (s *Service) Enroll(ctx context.Context, src netip.Addr, in enrollIn) (stri
 		return "", err
 	}
 	invalid := false
+	var replaced string
 	err = s.db.Write(ctx, func(tx *sql.Tx) error {
 		t, err := s.tokenBySecret(ctx, tx, in.secret) // again under the writer: a revoke may have come in between
 		if err != nil || t.expired(s.now()) {
 			invalid = true
 			return nil
 		}
-		return s.enrollTx(ctx, tx, t, in, nodeKey)
+		replaced, err = s.enrollTx(ctx, tx, t, in, nodeKey)
+		return err
 	})
 	switch {
 	case err != nil:
@@ -253,45 +255,65 @@ func (s *Service) Enroll(ctx context.Context, src netip.Addr, in enrollIn) (stri
 	case invalid:
 		return bad()
 	}
+	if replaced != "" {
+		s.releaseNodes(ctx, []string{replaced})
+	}
 	return nodeKey, nil
 }
 
-func (s *Service) enrollTx(ctx context.Context, tx *sql.Tx, t tokenRow, in enrollIn, nodeKey string) error {
+// enrollTx stores the node; it returns the id of the node it replaced (the same token and host_identifier), "" when none.
+func (s *Service) enrollTx(ctx context.Context, tx *sql.Tx, t tokenRow, in enrollIn, nodeKey string) (string, error) {
 	now := s.now()
 	var oldID, oldEnrolled string
 	err := tx.QueryRowContext(ctx, `SELECT id, enrolled_at FROM intake_osquery_nodes WHERE token_id = ? AND host_identifier = ?`, t.id, in.hostIdentifier).Scan(&oldID, &oldEnrolled)
 	replaced := err == nil
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("agentintake: read node: %w", err)
+		return "", fmt.Errorf("agentintake: read node: %w", err)
 	}
 	var oldAt time.Time
 	if replaced {
 		oldAt, _ = time.Parse(time.RFC3339Nano, oldEnrolled)
 		if wait := enrollCooldown - now.Sub(oldAt); wait > 0 {
-			return rateLimited(wait)
+			return "", rateLimited(wait)
 		}
 	}
 	var perToken, total int
 	if err := tx.QueryRowContext(ctx, `SELECT count(*) FILTER (WHERE token_id = ?), count(*) FROM intake_osquery_nodes WHERE id <> ?`, t.id, oldID).Scan(&perToken, &total); err != nil {
-		return fmt.Errorf("agentintake: count nodes: %w", err)
+		return "", fmt.Errorf("agentintake: count nodes: %w", err)
 	}
 	if perToken >= MaxNodesPerToken || total >= MaxNodes {
-		return apierr.New(429, "too_many_nodes", "This enrollment token already has the most machines it can have. Revoke it and make a new one.").With("retry_after", 3600)
+		return "", apierr.New(429, "too_many_nodes", "This enrollment token already has the most machines it can have. Revoke it and make a new one.").With("retry_after", 3600)
 	}
 	if replaced {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM intake_osquery_nodes WHERE id = ?`, oldID); err != nil {
-			return fmt.Errorf("agentintake: replace node: %w", err)
+			return "", fmt.Errorf("agentintake: replace node: %w", err)
 		}
 	}
 	ts := store.FormatTS(now)
 	if _, err := tx.ExecContext(ctx, `INSERT INTO intake_osquery_nodes (id, token_id, node_key_hash, host_identifier, hostname, platform, osquery_version, enrolled_at, last_seen) VALUES (?, ?, ?, ?, NULLIF(?, ''), NULLIF(?, ''), NULLIF(?, ''), ?, ?)`,
 		store.NewID("node"), t.id, hashHex(nodeKey), in.hostIdentifier, in.hostname, in.platform, in.osqueryVersion, ts, ts); err != nil {
-		return fmt.Errorf("agentintake: insert node: %w", err)
+		return "", fmt.Errorf("agentintake: insert node: %w", err)
 	}
 	if replaced && now.Sub(oldAt) < auditEnrollEvery { // one audit row per node per day (a flapping client must not fill core_audit)
-		return nil
+		return oldID, nil
 	}
-	return s.auditTx(ctx, tx, systemActor, "inventory.agent_enroll", in.hostIdentifier, fmt.Sprintf("token %q, host %q", t.name, in.hostname))
+	return oldID, s.auditTx(ctx, tx, systemActor, "inventory.agent_enroll", in.hostIdentifier, fmt.Sprintf("token %q, host %q", t.name, in.hostname))
+}
+
+// releaseNodes tells the inventory these nodes are gone (D-598): the devices bound to them may be bound by the next node. It runs after
+// the deleting transaction committed; a failure is logged, never returned: the device then stays found by address until a later release.
+func (s *Service) releaseNodes(ctx context.Context, ids []string) {
+	r, ok := s.cfg.Approver.(observe.AgentReleaser)
+	if !ok || len(ids) == 0 {
+		return
+	}
+	keys := make([]string, len(ids))
+	for i, id := range ids {
+		keys[i] = nodeAgent(id)
+	}
+	if err := r.ReleaseAgents(context.WithoutCancel(ctx), keys); err != nil {
+		s.cfg.Log.WarnContext(ctx, "agent-intake: the inventory did not release deleted nodes", "nodes", len(ids), "error", err.Error())
+	}
 }
 
 // logReject is the server-side line of a refused credential: a reason code and the source address, never the secret or the key.

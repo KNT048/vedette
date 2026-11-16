@@ -646,7 +646,8 @@
       "dev": "Development build"
     },
     "host": {
-      "how": "Updated together with Vedette. If a new version does not start, the box goes back to the one before by itself.",
+      "how": "Updated together with Vedette.",
+      "howInfo": "If a new version does not start, the box goes back to the one before by itself.",
       "includes": "Includes system helper {{version}}."
     },
     "latest": "Up to date",
@@ -1722,7 +1723,8 @@
       "mode": "How the box gets its address",
       "static": "Fixed address (static)",
       "dhcp": "From a DHCP server",
-      "dhcpNote": "The address, gateway and DNS come from your DHCP server. Reserve the address on the server so it does not change.",
+      "dhcpNote": "The address, gateway and DNS come from your DHCP server.",
+      "dhcpNoteInfo": "Reserve the address on the server so it does not change.",
       "dhcpNow": "Now: address {{ip}}, gateway {{gateway}}, DNS {{dns}}.",
       "address": "IP address",
       "prefix": "Prefix length",
@@ -2084,7 +2086,8 @@
   },
   "container": {
     "updates": {
-      "meta": "This is a container-only install on your own Docker or Podman, without the helper vedette-host, so you update Vedette and this machine yourself.",
+      "meta": "You update Vedette and this machine yourself.",
+      "metaInfo": "This is a container-only install on your own Docker or Podman, without the helper vedette-host.",
       "title": "Update Vedette",
       "desc": "You update Vedette on the machine that runs it.",
       "descInfo": "Vedette looks for a new release by itself and says so here. To update, keep the files you run now, download the four files of the new release and check their signatures, then pull the new images and start them.",
@@ -2142,7 +2145,8 @@
       "descInfo": "Vedette only updates its own images here."
     },
     "data": {
-      "meta": "Export, log downloads and deleting the data work from here. A backup of this container-only install is a copy of its Docker volume, made on the machine that runs it."
+      "meta": "Export, log downloads and deleting the data work from here.",
+      "metaInfo": "A backup of this container-only install is a copy of its Docker volume, made on the machine that runs it."
     },
     "backup": {
       "title": "Backup",

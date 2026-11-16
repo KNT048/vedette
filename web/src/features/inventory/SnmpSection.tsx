@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 import { Notice, Section } from '@/components/common/PageHeader'
@@ -40,7 +40,9 @@ function SecretMask({ last4 }: { last4: string }) {
   return <span className="whitespace-nowrap font-mono text-[13px]">{t('agents.tokenMask', { last4 })}</span>
 }
 
-function CredentialDialog({ current, onClose }: { current: SnmpCredential | null; onClose: () => void }) {
+/** Add or edit a credential. scope pre-fills the scope (a device page's address, D-598); widen: the scope given reaches a new address, so
+ *  the saved secrets cannot be kept (the server answers secret_required otherwise, D-512) and the form asks for them again. */
+export function CredentialDialog({ current, scope, widen = false, onClose }: { current: SnmpCredential | null; scope?: string; widen?: boolean; onClose: () => void }) {
   const { t } = useTranslation('inventory')
   const { create, update } = useSnmpActions()
   const [name, setName] = useState(current?.name ?? '')
@@ -51,11 +53,11 @@ function CredentialDialog({ current, onClose }: { current: SnmpCredential | null
   const [authPassword, setAuthPassword] = useState('')
   const [priv, setPriv] = useState<Priv>(current?.priv ?? 'aes128')
   const [privPassword, setPrivPassword] = useState('')
-  const [scopeText, setScopeText] = useState(current?.scope.join('\n') ?? '')
+  const [scopeText, setScopeText] = useState(scope ?? current?.scope.join('\n') ?? '')
   const [errors, setErrors] = useState<Errors>({})
   const [error, setError] = useState<string | null>(null)
   // A blank secret keeps the saved one, but only when there is a saved one of that kind (same version; privacy already on).
-  const sameVersion = current?.version === version
+  const sameVersion = !widen && current?.version === version
   const keepCommunity = sameVersion && version === 'v2c'
   const keepAuth = sameVersion && version === 'v3'
   const keepPriv = keepAuth && current?.priv === 'aes128'
@@ -162,7 +164,8 @@ function CredentialDialog({ current, onClose }: { current: SnmpCredential | null
   )
 }
 
-function Answer({ r, ip }: { r: SnmpTestResult; ip: string }) {
+/** What one SNMP read answered, or why not; also on the device page (DeviceSources). */
+export function SnmpAnswer({ r, ip }: { r: SnmpTestResult; ip: string }) {
   const { t } = useTranslation('inventory')
   const a = r.answer
   const device = r.device_id ? <Link to={`/devices/${encodeURIComponent(r.device_id)}`} className="font-medium text-accent underline-offset-4 hover:underline">{t('snmp.run.openDevice')}</Link> : null
@@ -221,7 +224,7 @@ function TestPanel({ cred, onClose }: { cred: SnmpCredential; onClose: () => voi
       </form>
       {test.isPending ? <p role="status" aria-live="polite" className="text-[13px] text-muted">{t('snmp.run.pending', { ip: ip.trim() })}</p> : null}
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-      {result && !test.isPending ? <Answer r={result.r} ip={result.ip} /> : null}
+      {result && !test.isPending ? <SnmpAnswer r={result.r} ip={result.ip} /> : null}
     </div>
   )
 }
@@ -272,10 +275,19 @@ export function SnmpSection() {
   const on = useModuleEnabled('sensor-active') === true
   const q = useSnmp(on)
   const { remove } = useSnmpActions()
+  // A device page's "Add SNMP for <ip>" opens the add form with that address as the scope (D-598, issue #829).
+  const [params, setParams] = useSearchParams()
+  const forIp = params.get('snmp_ip') ?? ''
   const [editing, setEditing] = useState<SnmpCredential | 'new' | null>(null)
+  const close = () => {
+    setEditing(null)
+    if (forIp) { const p = new URLSearchParams(params); p.delete('snmp_ip'); setParams(p, { replace: true }) }
+  }
   const [deleting, setDeleting] = useState<SnmpCredential | null>(null)
   if (!on) return null
   const full = (q.data?.credentials.length ?? 0) >= SNMP_MAX
+  // ?snmp_ip= opens the add form once the list is read and has room (review #831 L8); at 8 credentials the button says why not.
+  const autoAdd = !editing && IPV4_RE_UI.test(forIp) && !!q.data && !full
   return (
     <Section id="snmp" title={t('snmp.title')} description={t('snmp.description')} info={<><p>{t('snmp.descriptionInfo')}</p><p>{t('snmp.descriptionInfo2')}</p></>} stories={['S-INV-1']}
       actions={<Button onClick={() => setEditing('new')} disabled={!q.data || full} title={full ? t('snmp.max') : undefined}><Plus />{t('snmp.add')}</Button>}>
@@ -294,7 +306,8 @@ export function SnmpSection() {
           </div>
         )}
       </QueryState>
-      {editing ? <CredentialDialog key={editing === 'new' ? 'new' : editing.id} current={editing === 'new' ? null : editing} onClose={() => setEditing(null)} /> : null}
+      {editing || autoAdd ? <CredentialDialog key={!editing || editing === 'new' ? 'new' : editing.id} current={!editing || editing === 'new' ? null : editing}
+        scope={(!editing || editing === 'new') && IPV4_RE_UI.test(forIp) ? forIp : undefined} onClose={close} /> : null}
       <Dialog open={!!deleting} onOpenChange={(o) => { if (!o) setDeleting(null) }}>
         <DialogContent title={t('snmp.deleteTitle', { name: deleting?.name ?? '' })} description={t('snmp.deleteBody')}>
           <DialogFooter>

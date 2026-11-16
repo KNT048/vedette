@@ -22,3 +22,7 @@ export function nameOf(a: Named, fallback: string) {
   const name = displayName(a)
   return name && name === a.ip ? `${fallback} ${a.ip}` : name || fallback
 }
+
+/** A product someone said they run, with no address and no name (the add form's software path, CSV, the weekly "I have this"; D-515
+ *  W9-1, D-598): declared software, not a device; nothing scans it, it is matched against exploited CVEs by its product. */
+export const declaredSoftwareOnly = (a: Named) => a.origin === 'manual' && !a.hostname && !hasIp(a)

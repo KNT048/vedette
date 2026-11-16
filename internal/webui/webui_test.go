@@ -18,12 +18,13 @@ const indexHTML = `<!doctype html><div id="root"></div>`
 // dist is a built interface; "outside.txt" is a sibling of it that no request may reach.
 func distFS() http.Handler {
 	m := fstest.MapFS{
-		"dist/index.html":          {Data: []byte(indexHTML)},
-		"dist/favicon.svg":         {Data: []byte("<svg/>")},
-		"dist/assets/app-1a2b.js":  {Data: []byte("export{}")},
-		"dist/assets/app-1a2b.css": {Data: []byte("a{}")},
-		"dist/assets/f-9z.woff2":   {Data: []byte("wOF2")},
-		"outside.txt":              {Data: []byte("SECRET")},
+		"dist/index.html":           {Data: []byte(indexHTML)},
+		"dist/favicon.svg":          {Data: []byte("<svg/>")},
+		"dist/manifest.webmanifest": {Data: []byte("{}")},
+		"dist/assets/app-1a2b.js":   {Data: []byte("export{}")},
+		"dist/assets/app-1a2b.css":  {Data: []byte("a{}")},
+		"dist/assets/f-9z.woff2":    {Data: []byte("wOF2")},
+		"outside.txt":               {Data: []byte("SECRET")},
 	}
 	sub, err := fs.Sub(m, "dist")
 	if err != nil {
@@ -66,10 +67,11 @@ func TestFilesAndContentTypes(t *testing.T) {
 	t.Parallel()
 	h := distFS()
 	for p, want := range map[string]string{
-		"/assets/app-1a2b.js":  "text/javascript",
-		"/assets/app-1a2b.css": "text/css",
-		"/assets/f-9z.woff2":   "font/woff2",
-		"/favicon.svg":         "image/svg+xml",
+		"/assets/app-1a2b.js":   "text/javascript",
+		"/assets/app-1a2b.css":  "text/css",
+		"/assets/f-9z.woff2":    "font/woff2",
+		"/favicon.svg":          "image/svg+xml",
+		"/manifest.webmanifest": "application/manifest+json",
 	} {
 		rec := do(t, h, http.MethodGet, p)
 		if rec.Code != 200 || !strings.HasPrefix(rec.Header().Get("Content-Type"), want) {

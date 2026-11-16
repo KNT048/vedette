@@ -38,8 +38,8 @@ const stubPage = `<!doctype html>
 `
 
 func init() {
-	// A base image with no /etc/mime.types (distroless) knows no font types; Go's own table has the rest.
-	for ext, typ := range map[string]string{".woff": "font/woff", ".woff2": "font/woff2"} {
+	// A base image with no /etc/mime.types (distroless) knows no font or web manifest types; Go's own table has the rest.
+	for ext, typ := range map[string]string{".woff": "font/woff", ".woff2": "font/woff2", ".webmanifest": "application/manifest+json"} {
 		_ = mime.AddExtensionType(ext, typ)
 	}
 }

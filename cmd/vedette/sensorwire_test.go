@@ -213,6 +213,9 @@ func TestTypeAssertedOptionalMethodsSurviveTheComposition(t *testing.T) {
 	if _, ok := be.(sensorlink.ResultRejector); !ok {
 		t.Fatal("the composed Backend hides JobResultRejected: a refused result would not fail the job at once")
 	}
+	if _, ok := be.(sensorlink.ProgressReceiver); !ok {
+		t.Fatal("the composed Backend hides JobProgress: a scan would show no progress (#830)")
+	}
 	var pr sensoractive.Prober = s.d.SensorDispatcher
 	if _, ok := pr.(interface{ NmapHealth() string }); !ok {
 		t.Fatal("the Prober of the service hides NmapHealth")

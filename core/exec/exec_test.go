@@ -562,3 +562,21 @@ func TestMaxStderrKeepsTruncatedForStdout(t *testing.T) {
 		t.Error("a negative MaxStderr was accepted")
 	}
 }
+
+// #830: a Watch sees a copy of what Run keeps, never more than the capture limit, and Run's result is unchanged.
+func TestRunWatchSeesWhatIsKept(t *testing.T) {
+	t.Parallel()
+	r := newRunner(t, testBinary(t, nil, 3000))
+	var out, errOut bytes.Buffer
+	res, err := r.RunWatch(deadline(t, 30*time.Second), "helper", helperArgs("flood", "5000"), nil, vexec.Watch{Stdout: &out, Stderr: &errOut})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(out.Bytes(), res.Stdout) || !bytes.Equal(errOut.Bytes(), res.Stderr) || out.Len() != 3000 || !res.Truncated {
+		t.Fatalf("watched %d/%d bytes, kept %d/%d, truncated %v", out.Len(), errOut.Len(), len(res.Stdout), len(res.Stderr), res.Truncated)
+	}
+	var only bytes.Buffer // one stream watched, the other not
+	if _, err := r.RunWatch(deadline(t, 30*time.Second), "helper", helperArgs("echo", "a"), nil, vexec.Watch{Stdout: &only}); err != nil || only.String() != "[\"a\"]\n" {
+		t.Fatalf("watched %q, err %v", only.String(), err)
+	}
+}

@@ -122,7 +122,7 @@ describe('exposure: list (S-EXP-1)', () => {
     renderApp('/exposure?tab=open')
     const note = await screen.findByTestId('gateway-note')
     expect(within(note).getByText(text)).toBeInTheDocument()
-    expect(within(note).getByRole('button', { name: `About ${text}` })).toHaveAccessibleDescription(info) // #824: the explanation is behind ⓘ
+    expect(within(note).getByRole('button', { name: 'More about this' })).toHaveAccessibleDescription(info) // #824: the explanation is behind ⓘ
     if (href) expect(within(note).getByRole('link')).toHaveAttribute('href', href)
     else expect(within(note).queryByRole('link')).toBeNull()
   })

@@ -23,7 +23,7 @@ import { AddWays } from './AddWays'
 import { useDevices, useSettings } from './api'
 import { ImportDialog } from './ImportDialog'
 import { errMsg, kindIcon, shownKind } from './kinds'
-import { nameOf } from './nameOf'
+import { declaredSoftwareOnly, nameOf } from './nameOf'
 import { PendingPanel } from './PendingPanel'
 import type { DeviceRow, DevicesResponse } from './types'
 
@@ -66,10 +66,11 @@ function DevicesTable({ items, filter, category, now }: { items: DeviceRow[]; fi
       return (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <Link to={`/devices/${d.id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-accent underline-offset-4 hover:underline">{nameOf(d, kindLabel(d.kind))}</Link>
-          {d.is_box ? <span className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}><Chip tone="accent">{t('box.badge')}</Chip><InfoTip topic={t('box.badge')}>{t('box.noDelete')}</InfoTip></span> : null}
+          {d.is_box ? <span className="inline-flex items-center gap-1"><Chip tone="accent">{t('box.badge')}</Chip><InfoTip topic={t('box.badge')}>{t('box.noDelete')}</InfoTip></span> : null}
           {!d.approved ? <Chip tone="warn">{t('chip.pending')}</Chip> : null}
           {d.suspicious ? <Chip tone="warn">{t('chip.suspicious')}</Chip> : null}
-          {d.fragile ? <span className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}><Chip tone="off">{t('chip.fragile')}</Chip><InfoTip topic={t('chip.fragile')}>{t('chip.fragileHint')}</InfoTip></span> : null}
+          {d.fragile ? <span className="inline-flex items-center gap-1"><Chip tone="off">{t('chip.fragile')}</Chip><InfoTip topic={t('chip.fragile')}>{t('chip.fragileHint')}</InfoTip></span> : null}
+          {declaredSoftwareOnly(d) ? <span className="inline-flex items-center gap-1"><Chip tone="off">{t('chip.declared')}</Chip><InfoTip topic={t('chip.declared')}>{t('chip.declaredHint')}</InfoTip></span> : null}
         </div>
       )
     } },
@@ -93,7 +94,8 @@ function DevicesTable({ items, filter, category, now }: { items: DeviceRow[]; fi
               {d.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}
               {!d.approved ? <Chip tone="warn">{t('chip.pending')}</Chip> : null}
               {d.suspicious ? <Chip tone="warn">{t('chip.suspicious')}</Chip> : null}
-              {d.fragile ? <span className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}><Chip tone="off">{t('chip.fragile')}</Chip><InfoTip topic={t('chip.fragile')}>{t('chip.fragileHint')}</InfoTip></span> : null}
+              {d.fragile ? <span className="inline-flex items-center gap-1"><Chip tone="off">{t('chip.fragile')}</Chip><InfoTip topic={t('chip.fragile')}>{t('chip.fragileHint')}</InfoTip></span> : null}
+              {declaredSoftwareOnly(d) ? <span className="inline-flex items-center gap-1"><Chip tone="off">{t('chip.declared')}</Chip><InfoTip topic={t('chip.declared')}>{t('chip.declaredHint')}</InfoTip></span> : null}
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
               <TypeCell d={d} />

@@ -20,6 +20,7 @@ import { collection, newId, nowIso, type Collection } from '@/mocks/db'
 import { BOX_EGRESS_IP, BOX_EGRESS_IP_2, boxGreenbone, DEFAULT_INTERVAL, outsideAnswer, seedOutside, EXPIRING_DAYS, makeSnapshot, MAX_INTERVAL, MIN_INTERVAL, randomToken, scanContent, seedBoxIp, seedIgnored, seedSnapshots, seedTargets, VERIFY_DAYS, withDeep, type Content, type StoredTarget } from './data'
 import { NOTICE_TEMPLATE, NOTICE_VERSION, PORT_NOT_SEEN, TERMS_DISRUPTIVE, TERMS_TEMPLATE, TERMS_TEMPLATE_DOMAIN, TERMS_VERSION, VERSION_NOT_READ } from './contract'
 import { dateText, dateTimeText } from './dates'
+import { mockDeviceProgress } from '@/lib/progress'
 import type { BoxIpSettings, Commitment, Terms, Diff, DiffChange, DiffItem, Greenbone, IgnoredIp, OutsideView, ScanRun, Snapshot, Target } from './types'
 
 const targets = collection<StoredTarget[]>('exp_targets', seedTargets, () => [])
@@ -161,7 +162,9 @@ function settledRun(): ScanRun | null {
   if (r.status !== 'running') return r
   const ms = Date.now() - m.startedMs
   if (ms < PHASE_AT_MS.done) {
-    const next: ScanRun = { ...r, phase: ms >= PHASE_AT_MS.saving ? 'saving' : ms >= PHASE_AT_MS.probing ? 'probing' : 'queued' }
+    const phase = ms >= PHASE_AT_MS.saving ? 'saving' : ms >= PHASE_AT_MS.probing ? 'probing' : 'queued'
+    const progress = phase === 'probing' ? mockDeviceProgress(m.startedMs + PHASE_AT_MS.probing, (ms - PHASE_AT_MS.probing) / (PHASE_AT_MS.saving - PHASE_AT_MS.probing), Date.now()) : null // #830
+    const next: ScanRun = { ...r, phase, progress }
     mockRunStore.set({ ...m, run: next })
     return next
   }
@@ -169,7 +172,7 @@ function settledRun(): ScanRun | null {
   snapshots.update((all) => ({ ...all, [r.target_id]: [...(all[r.target_id] ?? []).filter((x) => x.date !== snap.date), snap] }))
   targets.update((l) => l.map((x) => (x.id === r.target_id ? { ...x, last_scan_at: snap.scanned_at } : x)))
   audit('exposure.scan', r.target_value, `${snap.counts.subdomains} subdomains, ${snap.counts.ports} ports`)
-  const next: ScanRun = { ...r, status: 'done', phase: 'done', finished_at: nowIso(), snapshot_id: snap.id }
+  const next: ScanRun = { ...r, status: 'done', phase: 'done', finished_at: nowIso(), snapshot_id: snap.id, progress: null }
   mockRunStore.set({ ...m, run: next })
   return next
 }
@@ -585,7 +588,7 @@ export const handlers = [
     for (const sn of snapshots.get()[t.id] ?? []) for (const h of sn.hosts) for (const a of h.ips ?? []) if (a.last_deep && a.last_deep > (lastDeep[a.ip] ?? '')) lastDeep[a.ip] = a.last_deep
     const content = t.kind === 'ip' ? { ...scanContent(t), ...greenboneFor(t.value, v.full_scan) } : v.full_scan ? withDeep(scanContent(t), at, lastDeep) : scanContent(t)
     const snap = makeSnapshot(newId('sn'), at, content, t.kind === 'ip' ? t.value : undefined)
-    const run: ScanRun = { id: newId('sr'), target_id: t.id, target_value: t.value, by: currentUser()?.email ?? '', started_at: at, finished_at: null, status: 'running', phase: 'queued', snapshot_id: null, error: null }
+    const run: ScanRun = { id: newId('sr'), target_id: t.id, target_value: t.value, by: currentUser()?.email ?? '', started_at: at, finished_at: null, status: 'running', phase: 'queued', snapshot_id: null, error: null, progress: null }
     mockRunStore.set({ run, startedMs: Date.now(), snap })
     return HttpResponse.json(run, { status: 202 })
   }),
@@ -601,7 +604,7 @@ export const handlers = [
     const r = settledRun()
     const m = mockRunStore.get()
     if (!m || !r || r.status !== 'running') return fail(409, 'not_running', 'No scan is running now.')
-    const stopped: ScanRun = { ...r, status: 'stopped', finished_at: nowIso() }
+    const stopped: ScanRun = { ...r, status: 'stopped', finished_at: nowIso(), progress: null }
     mockRunStore.set({ ...m, run: stopped })
     audit('exposure.scan', r.target_value, `stopped by ${currentUser()?.email ?? ''}`)
     return HttpResponse.json(stopped)

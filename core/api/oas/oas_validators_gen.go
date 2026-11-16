@@ -35904,6 +35904,8 @@ func (s FindingsGetFindingsIDOKCvssVersion) Validate() error {
 		return nil
 	case "3.0":
 		return nil
+	case "2.0":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -36991,6 +36993,8 @@ func (s FindingsGetFindingsOKItemsItemCvssVersion) Validate() error {
 	case "3.1":
 		return nil
 	case "3.0":
+		return nil
+	case "2.0":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -38870,6 +38874,8 @@ func (s FindingsPostFindingsIDAiOKCvssVersion) Validate() error {
 		return nil
 	case "3.0":
 		return nil
+	case "2.0":
+		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
 	}
@@ -40371,6 +40377,8 @@ func (s FindingsPostFindingsIDAppliedOKCvssVersion) Validate() error {
 	case "3.1":
 		return nil
 	case "3.0":
+		return nil
+	case "2.0":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)
@@ -41879,6 +41887,8 @@ func (s FindingsPostFindingsIDStatusOKCvssVersion) Validate() error {
 	case "3.1":
 		return nil
 	case "3.0":
+		return nil
+	case "2.0":
 		return nil
 	default:
 		return errors.Errorf("invalid value: %v", s)

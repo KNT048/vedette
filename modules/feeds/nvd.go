@@ -56,9 +56,9 @@ type NVDPage struct {
 // before the CNA's ("Secondary"). The band (Low … Critical) follows from Score by FIRST's table, so it is not kept.
 type CVSS struct {
 	Score   float64 // 0.0 … 10.0
-	Version string  // "4.0", "3.1" or "3.0"; "" for a row nvd-recent stored before migration 0015
+	Version string  // "4.0", "3.1", "3.0" or "2.0" (only when NVD has nothing newer); "" for a row nvd-recent stored before migration 0015
 	Source  string  // "nvd" (Primary) or "cna" (Secondary); "" as Version
-	Vector  string  // NVD's vector string of that score ("CVSS:3.1/AV:N/…"); "" when it gave none usable or as Version (FIRST asks that a
+	Vector  string  // NVD's vector string of that score ("CVSS:3.1/AV:N/…", v2 "AV:N/AC:L/…"); "" when none usable or as Version (FIRST asks that a
 	// score be shown with its vector)
 }
 

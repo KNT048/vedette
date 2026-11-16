@@ -105,11 +105,12 @@ type KevInfo struct {
 }
 
 // CVSS is the CVSS base score shown with a finding (FindingRow.cvss, INV-22, #825): feeds' newest CVSS version, NVD's own score
-// before the CNA's. The band (Low … Critical) follows from Score by FIRST's table; the pages compute it.
+// before the other scorer's (CNA or CISA ADP), CVSS 2.0 only when NVD has nothing newer. The band follows from Score and Version (FIRST's
+// table for 3.x and 4.0, NVD's v2 table for 2.0); the pages compute it.
 type CVSS struct {
 	Score   float64 `json:"score"`
-	Version *string `json:"version"` // "4.0", "3.1" or "3.0"; nil when feeds did not keep it (an nvd-recent row stored before it did)
-	Source  *string `json:"source"`  // "nvd" (NVD's Primary) or "cna" (Secondary); nil as Version
+	Version *string `json:"version"` // "4.0", "3.1", "3.0" or "2.0"; nil when feeds did not keep it (an nvd-recent row stored before it did)
+	Source  *string `json:"source"`  // "nvd" (NVD's Primary) or "cna" (Secondary: the CNA or CISA ADP); nil as Version
 	Vector  *string `json:"vector"`  // NVD's vector string ("CVSS:3.1/AV:N/…"); nil when feeds kept none
 }
 

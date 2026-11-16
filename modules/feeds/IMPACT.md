@@ -167,6 +167,6 @@
 ## Modifying: điểm CVSS (`severityOf`, `NVDPage.CVSS`, `applyCVSS`, `Store.CVSSOf`, bảng `feeds_cvss`, cột `feeds_recent_cve.cvss_*`; INV-28, #825)
 - **findings** (qua `cmd/vedette/wiring.go` `findingsFeeds.CVSS`): `FindingRow.cvss` trên `GET /findings`, `GET /findings/{id}` và các câu trả lời `FindingDetail` của `mitigation` (findings INV-22); đổi luật chọn (phiên bản, Primary/Secondary) = đổi điểm khách thấy trên mọi finding và trên trang chủ (phần dashboard của #825 đọc cùng trường).
 - **nvd-kev**: `buildNVD` kéo đầy đủ khi `feeds_cvss` trống (thêm `cvssCount` vào điều kiện cập nhật); test giả NVD (`nvdBody`, `nvdOrigin`) phải có `metrics` có điểm, không thì mọi lượt sau là kéo đầy đủ.
-- **nvd-recent** (INV-24): `severityOf` nay trả `cvssPick` (mức, điểm, phiên bản, nguồn, vector); `TierRecords`/`TierCVEOf` vẫn đọc `severity`/`score` như cũ.
+- **nvd-recent** (INV-24): `severityOf` nay trả `cvssPick` (mức, điểm, phiên bản, nguồn, vector) và lấy CVSS 2.0 sau cùng (CVE 12 tháng gần đây thực tế không có điểm chỉ v2); `TierRecords`/`TierCVEOf` vẫn đọc `severity`/`score` như cũ.
 - **core** (`modules/core/export_policy.go`): `feeds_cvss` xuất; ba cột mới của `feeds_recent_cve` bỏ; `cmd/vedette` `TestExport_PolicyClassifiesEveryColumn`.
 - **THIRD_PARTY_NOTICES.md** hàng NVD (điểm CVSS, vector) và hàng FIRST CVSS (ghi công "CVSS is owned by FIRST and used by permission", cũng trong ⓘ của điểm). Không đổi PRIVACY.md: không luồng ra mới.

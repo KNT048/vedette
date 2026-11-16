@@ -44,8 +44,9 @@ func TestParseNVD_RealAnswer(t *testing.T) {
 	}
 }
 
-// INV-28: the newest CVSS version present wins, NVD's own ("Primary") before the CNA's ("Secondary") within it; CVSS 2.0 only, an
-// unknown severity or a score outside 0..10 is no score (absent, never 0). The vector is kept only when it is one of the entry's version.
+// INV-28: the newest CVSS version present wins, NVD's own ("Primary") before the other scorer's ("Secondary") within it; CVSS 2.0 only
+// when there is nothing newer (its severity is beside cvssData); an unknown or missing severity or a score outside 0..10 is no score
+// (absent, never 0). The vector is kept only when it is one of the entry's version.
 func TestParseNVD_CVSS(t *testing.T) {
 	t.Parallel()
 	rec := func(id, metrics string) string {
@@ -60,6 +61,9 @@ func TestParseNVD_CVSS(t *testing.T) {
 		rec("CVE-2026-0002", `"cvssMetricV31":[{"type":"Secondary","cvssData":{"baseScore":6.1,"baseSeverity":"MEDIUM","vectorString":"CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"}}],"cvssMetricV30":[`+e("Primary", 5.0, "MEDIUM")+`]`),
 		rec("CVE-2026-0003", `"cvssMetricV30":[`+e("Primary", 0, "NONE")+`]`),
 		rec("CVE-2026-0004", `"cvssMetricV2":[{"type":"Primary","cvssData":{"baseScore":7.5}}]`),
+		rec("CVE-2014-0005", `"cvssMetricV2":[{"type":"Secondary","baseSeverity":"MEDIUM","cvssData":{"version":"2.0","baseScore":5.0,"vectorString":"AV:N/AC:L/Au:N/C:P/I:N/A:N"}},`+
+			`{"type":"Primary","baseSeverity":"HIGH","cvssData":{"version":"2.0","baseScore":9.3,"vectorString":"AV:N/AC:M/Au:N/C:C/I:C/A:C"}}]`),
+		rec("CVE-2014-0006", `"cvssMetricV2":[{"type":"Primary","baseSeverity":"HIGH","cvssData":{"baseScore":7.5,"vectorString":"CVSS:3.1/AV:N"}}],"cvssMetricV30":[`+e("Secondary", 9.8, "CRITICAL")+`]`),
 		rec("CVE-2026-0005", `"cvssMetricV31":[`+e("Primary", 11, "CRITICAL")+`,`+e("Secondary", 7.0, "BOGUS")+`]`),
 		rec("CVE-2026-0006", ``),
 	}
@@ -71,6 +75,8 @@ func TestParseNVD_CVSS(t *testing.T) {
 		"CVE-2026-0001": {Score: 8.5, Version: "4.0", Source: "cna", Vector: v4},
 		"CVE-2026-0002": {Score: 6.1, Version: "3.1", Source: "cna"},
 		"CVE-2026-0003": {Score: 0, Version: "3.0", Source: "nvd"},
+		"CVE-2014-0005": {Score: 9.3, Version: "2.0", Source: "nvd", Vector: "AV:N/AC:M/Au:N/C:C/I:C/A:C"},
+		"CVE-2014-0006": {Score: 9.8, Version: "3.0", Source: "cna"},
 	}
 	if d.Accepted != len(recs) || !maps.Equal(d.CVSS, want) {
 		t.Fatalf("accepted %d, cvss %+v", d.Accepted, d.CVSS)

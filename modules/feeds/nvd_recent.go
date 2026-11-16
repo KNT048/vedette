@@ -55,7 +55,7 @@ type RecentCVE struct {
 	Status                  string   // NVD's vulnStatus; "Rejected" records are dropped
 	Severity                string   // CVSS base severity of the newest CVSS version NVD gives (NVD's own first), "" when none
 	Score                   *float64 // its base score
-	CVSSVersion, CVSSSource string   // the version ("4.0", "3.1", "3.0") and source ("nvd", "cna") of that score, "" when none (INV-28)
+	CVSSVersion, CVSSSource string   // the version ("4.0", "3.1", "3.0", "2.0") and source ("nvd", "cna") of that score, "" when none (INV-28)
 	CVSSVector              string   // its vector string, "" when none or not a valid one
 	Affected                []AffectedRow
 	// Platforms is, per entry of Affected, the operating systems ("microsoft:windows", vendor and product of the CPE) of NVD's "running
@@ -89,23 +89,41 @@ func RecentPageURL(base string, byPublished bool, from, to time.Time, start, siz
 }
 
 type cvssEntry struct {
-	Type     string `json:"type"`
-	CVSSData struct {
+	Type         string `json:"type"`
+	BaseSeverity string `json:"baseSeverity"` // CVSS 2.0 only: NVD writes v2's severity beside cvssData, not in it
+	CVSSData     struct {
 		BaseScore    *float64 `json:"baseScore"`
 		BaseSeverity string   `json:"baseSeverity"`
 		VectorString string   `json:"vectorString"`
 	} `json:"cvssData"`
 }
 
-// cvssVectorRE is a CVSS 3.x or 4.0 vector string as NVD writes it ("CVSS:3.1/AV:N/AC:L/…"); anything else is not kept (INV-28).
-var cvssVectorRE = regexp.MustCompile(`^CVSS:(3\.0|3\.1|4\.0)(/[A-Za-z]{1,3}:[A-Za-z]{1,5}){1,40}$`)
+// cvssVectorRE is a CVSS 3.x or 4.0 vector string as NVD writes it ("CVSS:3.1/AV:N/AC:L/…"), cvss2VectorRE a CVSS 2.0 base vector
+// ("AV:N/AC:L/Au:N/C:P/I:P/A:P", no prefix); anything else is not kept (INV-28).
+var (
+	cvssVectorRE  = regexp.MustCompile(`^CVSS:(3\.0|3\.1|4\.0)(/[A-Za-z]{1,3}:[A-Za-z]{1,5}){1,40}$`)
+	cvss2VectorRE = regexp.MustCompile(`^AV:[LAN]/AC:[HML]/Au:[MSN]/C:[NPC]/I:[NPC]/A:[NPC]$`)
+)
 
-// cvssMetrics is the `metrics` of an NVD CVE API 2.0 record, read by nvd-recent and nvd-kev alike (CVSS 2.0 is left out: its bands
-// are not those of 3.x and 4.0).
+// cvssMetrics is the `metrics` of an NVD CVE API 2.0 record, read by nvd-recent and nvd-kev alike. CVSS 2.0 comes last: only a CVE NVD
+// scored with nothing newer (many old KEV CVEs) shows it, with v2's own bands (the pages; no Critical).
 type cvssMetrics struct {
 	V40 []cvssEntry `json:"cvssMetricV40"`
 	V31 []cvssEntry `json:"cvssMetricV31"`
 	V30 []cvssEntry `json:"cvssMetricV30"`
+	V2  []cvssEntry `json:"cvssMetricV2"`
+}
+
+// vectorOf is e's vector string when it is a vector of version, else "".
+func vectorOf(e cvssEntry, version string) string {
+	v := strings.TrimSpace(e.CVSSData.VectorString)
+	switch {
+	case len(v) > 200:
+		return ""
+	case version == "2.0" && cvss2VectorRE.MatchString(v), version != "2.0" && cvssVectorRE.MatchString(v) && strings.HasPrefix(v, "CVSS:"+version+"/"):
+		return v
+	}
+	return ""
 }
 
 // recentAnswer is one NVD answer; each record is decoded on its own (recentRecord), so one record of the wrong shape is rejected
@@ -151,20 +169,24 @@ func nvdTime(s string) (time.Time, bool) {
 type cvssPick struct {
 	Severity        string   // "CRITICAL" … "NONE", "" when none
 	Score           *float64 // nil when the entry has no usable score
-	Version, Source string   // "4.0" | "3.1" | "3.0", "nvd" (NVD's "Primary") | "cna" (NVD's "Secondary"); "" when none
+	Version, Source string   // "4.0" | "3.1" | "3.0" | "2.0", "nvd" (NVD's "Primary") | "cna" (NVD's "Secondary"); "" when none
 	Vector          string   // the entry's vector string when it is one of its version ("CVSS:3.1/AV:N/…"), else ""
 }
 
-// severityOf picks the CVSS score Vedette shows (tier 3, and every finding: INV-24, INV-28): the newest CVSS version present,
-// NVD's own score ("Primary") before the CNA's ("Secondary"). An unknown severity or a score outside 0..10 is ignored.
+// severityOf picks the CVSS score Vedette shows (tier 3, and every finding: INV-24, INV-28): the newest CVSS version present (4.0,
+// 3.1, 3.0, then 2.0), NVD's own score ("Primary") before the other scorer's ("Secondary": the CNA or CISA's ADP). An unknown
+// severity or a score outside 0..10 is ignored.
 func severityOf(m cvssMetrics) cvssPick {
 	for _, l := range []struct {
 		version string
 		list    []cvssEntry
-	}{{"4.0", m.V40}, {"3.1", m.V31}, {"3.0", m.V30}} {
+	}{{"4.0", m.V40}, {"3.1", m.V31}, {"3.0", m.V30}, {"2.0", m.V2}} {
 		for _, want := range []string{"Primary", "Secondary"} {
 			for _, e := range l.list {
 				sev := strings.ToUpper(strings.TrimSpace(e.CVSSData.BaseSeverity))
+				if l.version == "2.0" {
+					sev = strings.ToUpper(strings.TrimSpace(e.BaseSeverity))
+				}
 				if e.Type != want || !cvssSeverities[sev] {
 					continue
 				}
@@ -172,9 +194,7 @@ func severityOf(m cvssMetrics) cvssPick {
 				if want == "Secondary" {
 					p.Source = "cna"
 				}
-				if v := strings.TrimSpace(e.CVSSData.VectorString); len(v) <= 200 && cvssVectorRE.MatchString(v) && strings.HasPrefix(v, "CVSS:"+l.version+"/") {
-					p.Vector = v
-				}
+				p.Vector = vectorOf(e, l.version)
 				if sc := e.CVSSData.BaseScore; sc != nil && *sc >= 0 && *sc <= 10 {
 					v := *sc
 					p.Score = &v

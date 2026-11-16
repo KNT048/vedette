@@ -36,13 +36,14 @@ const DISPLAY: Record<string, string> = {
 }
 
 /** #825: the CVSS base score the box reads from NVD's records (feeds INV-28), for the sample CVEs. A CVE not here has no score ("No score"):
- *  CVE-2026-96951 (f-3) on purpose, as NVD answers for a CVE it has not scored yet; CVE-2015-5477 has only CVSS 2.0, which Vedette does not show. */
+ *  CVE-2026-96951 (f-3) on purpose, as NVD answers for a CVE it has not scored yet. CVE-2015-5477 has only CVSS 2.0 (v2 bands: High). */
 const CVSS: Record<string, Cvss> = {
   'CVE-2022-27593': { score: 9.8, version: '3.1', source: 'nvd', vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H' },
   'CVE-2026-119977': { score: 8.5, version: '4.0', source: 'cna', vector: 'CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:L/VA:N/SC:N/SI:N/SA:N' },
   'CVE-2024-27834': { score: 8.8, version: '3.1', source: 'nvd', vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H' },
   'CVE-2025-61624': { score: 6.5, version: '3.1', source: 'cna', vector: 'CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N' },
   'CVE-2026-21589': { score: 7.5, version: '3.1', source: 'nvd', vector: 'CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N' },
+  'CVE-2015-5477': { score: 7.8, version: '2.0', source: 'nvd', vector: 'AV:N/AC:L/Au:N/C:N/I:N/A:C' },
   'CVE-2023-22894': { score: 7.7, version: '3.1', source: 'nvd', vector: 'CVSS:3.1/AV:N/AC:H/PR:H/UI:N/S:C/C:H/I:H/A:H' },
 }
 const cvssOf = (cve: string): Cvss | null => CVSS[cve] ?? null

@@ -63510,16 +63510,17 @@ func (s *FindingsGetFindingsIDOKCompromiseIndicatorsItemKind) UnmarshalText(data
 // #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
 // reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
 type FindingsGetFindingsIDOKCvss struct {
-	// The CVSS base score (0.0 to 10.0); its band follows from FIRST's table.
+	// The CVSS base score (0.0 to 10.0); its band follows from FIRST's table (3.x, 4.0) or NVD's v2 table
+	// (2.0: Low, Medium, High; no Critical).
 	Score float64 `json:"score"`
-	// Nvd = NVD's own score ("Primary"), cna = the score of the CVE Numbering Authority NVD lists as
-	// "Secondary", used only when NVD gives none for that version; null as version.
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version; null as version.
 	Source NilFindingsGetFindingsIDOKCvssSource `json:"source"`
-	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"): FIRST asks that a score be shown with
-	// its vector; null when feeds kept none.
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector; null when feeds kept none.
 	Vector NilString `json:"vector"`
-	// The newest CVSS version NVD lists for the CVE; null for a score feeds stored before it kept the
-	// version (nvd-recent).
+	// The newest CVSS version NVD lists for the CVE (2.0 only when NVD has nothing newer); null for a
+	// score feeds stored before it kept the version (nvd-recent).
 	Version NilFindingsGetFindingsIDOKCvssVersion `json:"version"`
 }
 
@@ -63610,6 +63611,7 @@ const (
 	FindingsGetFindingsIDOKCvssVersion40 FindingsGetFindingsIDOKCvssVersion = "4.0"
 	FindingsGetFindingsIDOKCvssVersion31 FindingsGetFindingsIDOKCvssVersion = "3.1"
 	FindingsGetFindingsIDOKCvssVersion30 FindingsGetFindingsIDOKCvssVersion = "3.0"
+	FindingsGetFindingsIDOKCvssVersion20 FindingsGetFindingsIDOKCvssVersion = "2.0"
 )
 
 // AllValues returns all FindingsGetFindingsIDOKCvssVersion values.
@@ -63618,6 +63620,7 @@ func (FindingsGetFindingsIDOKCvssVersion) AllValues() []FindingsGetFindingsIDOKC
 		FindingsGetFindingsIDOKCvssVersion40,
 		FindingsGetFindingsIDOKCvssVersion31,
 		FindingsGetFindingsIDOKCvssVersion30,
+		FindingsGetFindingsIDOKCvssVersion20,
 	}
 }
 
@@ -63629,6 +63632,8 @@ func (s FindingsGetFindingsIDOKCvssVersion) MarshalText() ([]byte, error) {
 	case FindingsGetFindingsIDOKCvssVersion31:
 		return []byte(s), nil
 	case FindingsGetFindingsIDOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKCvssVersion20:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -63646,6 +63651,9 @@ func (s *FindingsGetFindingsIDOKCvssVersion) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsGetFindingsIDOKCvssVersion30:
 		*s = FindingsGetFindingsIDOKCvssVersion30
+		return nil
+	case FindingsGetFindingsIDOKCvssVersion20:
+		*s = FindingsGetFindingsIDOKCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -66181,16 +66189,17 @@ func (s *FindingsGetFindingsOKItemsItemBasis) UnmarshalText(data []byte) error {
 // #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
 // reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
 type FindingsGetFindingsOKItemsItemCvss struct {
-	// The CVSS base score (0.0 to 10.0); its band follows from FIRST's table.
+	// The CVSS base score (0.0 to 10.0); its band follows from FIRST's table (3.x, 4.0) or NVD's v2 table
+	// (2.0: Low, Medium, High; no Critical).
 	Score float64 `json:"score"`
-	// Nvd = NVD's own score ("Primary"), cna = the score of the CVE Numbering Authority NVD lists as
-	// "Secondary", used only when NVD gives none for that version; null as version.
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version; null as version.
 	Source NilFindingsGetFindingsOKItemsItemCvssSource `json:"source"`
-	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"): FIRST asks that a score be shown with
-	// its vector; null when feeds kept none.
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector; null when feeds kept none.
 	Vector NilString `json:"vector"`
-	// The newest CVSS version NVD lists for the CVE; null for a score feeds stored before it kept the
-	// version (nvd-recent).
+	// The newest CVSS version NVD lists for the CVE (2.0 only when NVD has nothing newer); null for a
+	// score feeds stored before it kept the version (nvd-recent).
 	Version NilFindingsGetFindingsOKItemsItemCvssVersion `json:"version"`
 }
 
@@ -66281,6 +66290,7 @@ const (
 	FindingsGetFindingsOKItemsItemCvssVersion40 FindingsGetFindingsOKItemsItemCvssVersion = "4.0"
 	FindingsGetFindingsOKItemsItemCvssVersion31 FindingsGetFindingsOKItemsItemCvssVersion = "3.1"
 	FindingsGetFindingsOKItemsItemCvssVersion30 FindingsGetFindingsOKItemsItemCvssVersion = "3.0"
+	FindingsGetFindingsOKItemsItemCvssVersion20 FindingsGetFindingsOKItemsItemCvssVersion = "2.0"
 )
 
 // AllValues returns all FindingsGetFindingsOKItemsItemCvssVersion values.
@@ -66289,6 +66299,7 @@ func (FindingsGetFindingsOKItemsItemCvssVersion) AllValues() []FindingsGetFindin
 		FindingsGetFindingsOKItemsItemCvssVersion40,
 		FindingsGetFindingsOKItemsItemCvssVersion31,
 		FindingsGetFindingsOKItemsItemCvssVersion30,
+		FindingsGetFindingsOKItemsItemCvssVersion20,
 	}
 }
 
@@ -66300,6 +66311,8 @@ func (s FindingsGetFindingsOKItemsItemCvssVersion) MarshalText() ([]byte, error)
 	case FindingsGetFindingsOKItemsItemCvssVersion31:
 		return []byte(s), nil
 	case FindingsGetFindingsOKItemsItemCvssVersion30:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemCvssVersion20:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -66317,6 +66330,9 @@ func (s *FindingsGetFindingsOKItemsItemCvssVersion) UnmarshalText(data []byte) e
 		return nil
 	case FindingsGetFindingsOKItemsItemCvssVersion30:
 		*s = FindingsGetFindingsOKItemsItemCvssVersion30
+		return nil
+	case FindingsGetFindingsOKItemsItemCvssVersion20:
+		*s = FindingsGetFindingsOKItemsItemCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -70198,16 +70214,17 @@ func (s *FindingsPostFindingsIDAiOKCompromiseIndicatorsItemKind) UnmarshalText(d
 // #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
 // reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
 type FindingsPostFindingsIDAiOKCvss struct {
-	// The CVSS base score (0.0 to 10.0); its band follows from FIRST's table.
+	// The CVSS base score (0.0 to 10.0); its band follows from FIRST's table (3.x, 4.0) or NVD's v2 table
+	// (2.0: Low, Medium, High; no Critical).
 	Score float64 `json:"score"`
-	// Nvd = NVD's own score ("Primary"), cna = the score of the CVE Numbering Authority NVD lists as
-	// "Secondary", used only when NVD gives none for that version; null as version.
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version; null as version.
 	Source NilFindingsPostFindingsIDAiOKCvssSource `json:"source"`
-	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"): FIRST asks that a score be shown with
-	// its vector; null when feeds kept none.
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector; null when feeds kept none.
 	Vector NilString `json:"vector"`
-	// The newest CVSS version NVD lists for the CVE; null for a score feeds stored before it kept the
-	// version (nvd-recent).
+	// The newest CVSS version NVD lists for the CVE (2.0 only when NVD has nothing newer); null for a
+	// score feeds stored before it kept the version (nvd-recent).
 	Version NilFindingsPostFindingsIDAiOKCvssVersion `json:"version"`
 }
 
@@ -70298,6 +70315,7 @@ const (
 	FindingsPostFindingsIDAiOKCvssVersion40 FindingsPostFindingsIDAiOKCvssVersion = "4.0"
 	FindingsPostFindingsIDAiOKCvssVersion31 FindingsPostFindingsIDAiOKCvssVersion = "3.1"
 	FindingsPostFindingsIDAiOKCvssVersion30 FindingsPostFindingsIDAiOKCvssVersion = "3.0"
+	FindingsPostFindingsIDAiOKCvssVersion20 FindingsPostFindingsIDAiOKCvssVersion = "2.0"
 )
 
 // AllValues returns all FindingsPostFindingsIDAiOKCvssVersion values.
@@ -70306,6 +70324,7 @@ func (FindingsPostFindingsIDAiOKCvssVersion) AllValues() []FindingsPostFindingsI
 		FindingsPostFindingsIDAiOKCvssVersion40,
 		FindingsPostFindingsIDAiOKCvssVersion31,
 		FindingsPostFindingsIDAiOKCvssVersion30,
+		FindingsPostFindingsIDAiOKCvssVersion20,
 	}
 }
 
@@ -70317,6 +70336,8 @@ func (s FindingsPostFindingsIDAiOKCvssVersion) MarshalText() ([]byte, error) {
 	case FindingsPostFindingsIDAiOKCvssVersion31:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAiOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKCvssVersion20:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -70334,6 +70355,9 @@ func (s *FindingsPostFindingsIDAiOKCvssVersion) UnmarshalText(data []byte) error
 		return nil
 	case FindingsPostFindingsIDAiOKCvssVersion30:
 		*s = FindingsPostFindingsIDAiOKCvssVersion30
+		return nil
+	case FindingsPostFindingsIDAiOKCvssVersion20:
+		*s = FindingsPostFindingsIDAiOKCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -73596,16 +73620,17 @@ func (s *FindingsPostFindingsIDAppliedOKCompromiseIndicatorsItemKind) UnmarshalT
 // #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
 // reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
 type FindingsPostFindingsIDAppliedOKCvss struct {
-	// The CVSS base score (0.0 to 10.0); its band follows from FIRST's table.
+	// The CVSS base score (0.0 to 10.0); its band follows from FIRST's table (3.x, 4.0) or NVD's v2 table
+	// (2.0: Low, Medium, High; no Critical).
 	Score float64 `json:"score"`
-	// Nvd = NVD's own score ("Primary"), cna = the score of the CVE Numbering Authority NVD lists as
-	// "Secondary", used only when NVD gives none for that version; null as version.
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version; null as version.
 	Source NilFindingsPostFindingsIDAppliedOKCvssSource `json:"source"`
-	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"): FIRST asks that a score be shown with
-	// its vector; null when feeds kept none.
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector; null when feeds kept none.
 	Vector NilString `json:"vector"`
-	// The newest CVSS version NVD lists for the CVE; null for a score feeds stored before it kept the
-	// version (nvd-recent).
+	// The newest CVSS version NVD lists for the CVE (2.0 only when NVD has nothing newer); null for a
+	// score feeds stored before it kept the version (nvd-recent).
 	Version NilFindingsPostFindingsIDAppliedOKCvssVersion `json:"version"`
 }
 
@@ -73696,6 +73721,7 @@ const (
 	FindingsPostFindingsIDAppliedOKCvssVersion40 FindingsPostFindingsIDAppliedOKCvssVersion = "4.0"
 	FindingsPostFindingsIDAppliedOKCvssVersion31 FindingsPostFindingsIDAppliedOKCvssVersion = "3.1"
 	FindingsPostFindingsIDAppliedOKCvssVersion30 FindingsPostFindingsIDAppliedOKCvssVersion = "3.0"
+	FindingsPostFindingsIDAppliedOKCvssVersion20 FindingsPostFindingsIDAppliedOKCvssVersion = "2.0"
 )
 
 // AllValues returns all FindingsPostFindingsIDAppliedOKCvssVersion values.
@@ -73704,6 +73730,7 @@ func (FindingsPostFindingsIDAppliedOKCvssVersion) AllValues() []FindingsPostFind
 		FindingsPostFindingsIDAppliedOKCvssVersion40,
 		FindingsPostFindingsIDAppliedOKCvssVersion31,
 		FindingsPostFindingsIDAppliedOKCvssVersion30,
+		FindingsPostFindingsIDAppliedOKCvssVersion20,
 	}
 }
 
@@ -73715,6 +73742,8 @@ func (s FindingsPostFindingsIDAppliedOKCvssVersion) MarshalText() ([]byte, error
 	case FindingsPostFindingsIDAppliedOKCvssVersion31:
 		return []byte(s), nil
 	case FindingsPostFindingsIDAppliedOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion20:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -73732,6 +73761,9 @@ func (s *FindingsPostFindingsIDAppliedOKCvssVersion) UnmarshalText(data []byte) 
 		return nil
 	case FindingsPostFindingsIDAppliedOKCvssVersion30:
 		*s = FindingsPostFindingsIDAppliedOKCvssVersion30
+		return nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion20:
+		*s = FindingsPostFindingsIDAppliedOKCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -77015,16 +77047,17 @@ func (s *FindingsPostFindingsIDStatusOKCompromiseIndicatorsItemKind) UnmarshalTe
 // #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
 // reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
 type FindingsPostFindingsIDStatusOKCvss struct {
-	// The CVSS base score (0.0 to 10.0); its band follows from FIRST's table.
+	// The CVSS base score (0.0 to 10.0); its band follows from FIRST's table (3.x, 4.0) or NVD's v2 table
+	// (2.0: Low, Medium, High; no Critical).
 	Score float64 `json:"score"`
-	// Nvd = NVD's own score ("Primary"), cna = the score of the CVE Numbering Authority NVD lists as
-	// "Secondary", used only when NVD gives none for that version; null as version.
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version; null as version.
 	Source NilFindingsPostFindingsIDStatusOKCvssSource `json:"source"`
-	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"): FIRST asks that a score be shown with
-	// its vector; null when feeds kept none.
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector; null when feeds kept none.
 	Vector NilString `json:"vector"`
-	// The newest CVSS version NVD lists for the CVE; null for a score feeds stored before it kept the
-	// version (nvd-recent).
+	// The newest CVSS version NVD lists for the CVE (2.0 only when NVD has nothing newer); null for a
+	// score feeds stored before it kept the version (nvd-recent).
 	Version NilFindingsPostFindingsIDStatusOKCvssVersion `json:"version"`
 }
 
@@ -77115,6 +77148,7 @@ const (
 	FindingsPostFindingsIDStatusOKCvssVersion40 FindingsPostFindingsIDStatusOKCvssVersion = "4.0"
 	FindingsPostFindingsIDStatusOKCvssVersion31 FindingsPostFindingsIDStatusOKCvssVersion = "3.1"
 	FindingsPostFindingsIDStatusOKCvssVersion30 FindingsPostFindingsIDStatusOKCvssVersion = "3.0"
+	FindingsPostFindingsIDStatusOKCvssVersion20 FindingsPostFindingsIDStatusOKCvssVersion = "2.0"
 )
 
 // AllValues returns all FindingsPostFindingsIDStatusOKCvssVersion values.
@@ -77123,6 +77157,7 @@ func (FindingsPostFindingsIDStatusOKCvssVersion) AllValues() []FindingsPostFindi
 		FindingsPostFindingsIDStatusOKCvssVersion40,
 		FindingsPostFindingsIDStatusOKCvssVersion31,
 		FindingsPostFindingsIDStatusOKCvssVersion30,
+		FindingsPostFindingsIDStatusOKCvssVersion20,
 	}
 }
 
@@ -77134,6 +77169,8 @@ func (s FindingsPostFindingsIDStatusOKCvssVersion) MarshalText() ([]byte, error)
 	case FindingsPostFindingsIDStatusOKCvssVersion31:
 		return []byte(s), nil
 	case FindingsPostFindingsIDStatusOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKCvssVersion20:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -77151,6 +77188,9 @@ func (s *FindingsPostFindingsIDStatusOKCvssVersion) UnmarshalText(data []byte) e
 		return nil
 	case FindingsPostFindingsIDStatusOKCvssVersion30:
 		*s = FindingsPostFindingsIDStatusOKCvssVersion30
+		return nil
+	case FindingsPostFindingsIDStatusOKCvssVersion20:
+		*s = FindingsPostFindingsIDStatusOKCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)

@@ -136,6 +136,6 @@
 
 ## Modifying: điểm CVSS của finding (`Row.CVSS`, `CVSS`, `Feeds.CVSS`; INV-22, #825)
 - **feeds**: `Store.CVSSOf` qua `cmd/vedette/wiring.go` `findingsFeeds.CVSS`; mọi cài đặt giả của `Feeds` phải có `CVSS` (`service_test.go`, `modules/mitigation/mitigation_test.go`).
-- **API/GUI**: `contract.ts` `Cvss`, `FindingRow.cvss` → `api/openapi.json` → `core/api/oas` (`make generate`); `web/src/features/findings/{Cvss.tsx,basis.ts (cvssBand),FindingsPage.tsx,FindingPage.tsx,mocks.ts}`; `DataTable` thêm `mobileSort` (ô "Sort by" trên điện thoại, chỉ trang bật nó).
+- **API/GUI**: `contract.ts` `Cvss`, `FindingRow.cvss` → `api/openapi.json` → `core/api/oas` (`make generate`); `web/src/features/findings/{Cvss.tsx,basis.ts (cvssBand),FindingsPage.tsx,FindingPage.tsx,mocks.ts}`; `DataTable` thêm `sortSelect` (ô "Sort by" mọi độ rộng, chỉ trang bật nó) và `hiddenColumns` (cột chỉ để sắp xếp); `InfoTip` đặt tên cho popover (`aria-label` như nút) nên axe qua khi ⓘ mở: mọi màn có ⓘ.
 - **mitigation**: `POST /findings/{id}/applied|ai` trả `FindingDetail` qua `FindingHandlers.Detail`, nên có `cvss` không cần sửa gì.
 - **Trang chủ** (phần dashboard của #825, PR sau): đọc cùng trường `cvss` của `GET /findings` cho mục hàng đầu; đổi hình trường = đổi cả hai.

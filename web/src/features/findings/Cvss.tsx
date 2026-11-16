@@ -22,10 +22,10 @@ export function CvssScore({ cvss, prefix }: { cvss: Cvss | null | undefined; pre
       </span>
     )
   }
-  const band = cvssBand(cvss.score)
+  const band = cvssBand(cvss.score, cvss.version)
   const text = t('cvss.value', { score: cvss.score.toFixed(1), band: t(`cvss.band.${band}`) })
   const label = prefix ? t('cvss.label', { value: text }) : text
-  const from = cvss.source === 'nvd' ? t('cvss.fromNvd') : cvss.source === 'cna' ? t('cvss.fromCna') : t('cvss.fromUnknown')
+  const from = cvss.source === 'nvd' ? t('cvss.fromNvd') : cvss.source === 'cna' ? t('cvss.fromOther') : t('cvss.fromUnknown')
   return (
     <span className="inline-flex items-center gap-1 whitespace-nowrap text-[13px]">
       {prefix ? <span className="text-muted">CVSS</span> : null}

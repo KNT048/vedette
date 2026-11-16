@@ -166,9 +166,12 @@ function List() {
     { id: 'cve', header: t('col.cve'), accessorFn: (r) => r.cve, cell: ({ row: { original: r } }) => <Link to={`/findings/${r.id}`} className="whitespace-nowrap font-medium text-accent underline-offset-4 hover:underline">{r.cve}</Link> },
     { id: 'product', header: t('col.product'), accessorFn: (r) => r.kev?.display ?? '', cell: ({ row: { original: r } }) => <span>{r.kev?.display ?? '–'}</span> },
     { id: 'status', header: t('col.status'), accessorFn: (r) => r.status, cell: ({ row: { original: r } }) => <StatusCell r={r} /> },
-    { id: 'severity', header: t('col.severity'), accessorFn: riskRank, cell: ({ row: { original: r } }) => <RiskChip f={r} /> },
-    // #825: next to the exploited status, never instead of it; highest first on the first click, no score last both ways
-    { id: 'cvss', header: t('col.cvss'), accessorFn: (r) => r.cvss?.score, sortUndefined: 'last', sortDescFirst: true, cell: ({ row: { original: r } }) => <CvssScore cvss={r.cvss} /> },
+    // #825: the CVSS score sits under the exploited risk, never instead of it, in the same cell (no extra column: the table fits 1280 px as before)
+    { id: 'severity', header: t('col.severity'), accessorFn: riskRank, cell: ({ row: { original: r } }) => (
+      <span className="grid justify-items-start gap-1"><RiskChip f={r} /><CvssScore cvss={r.cvss} prefix /></span>
+    ) },
+    // hidden, sorted from "Sort by": highest first, no score last both ways
+    { id: 'cvss', header: t('col.cvss'), accessorFn: (r) => r.cvss?.score, sortUndefined: 'last', sortDescFirst: true },
     { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row: { original: r } }) => <span className={unverified(r) ? 'text-[13px] text-muted' : 'text-[13px]'}>{t(basisKey(r.basis))}</span> },
     { id: 'seen', header: t('col.lastSeen'), accessorFn: (r) => r.last_seen, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap text-[13px] text-muted" title={fmtDateTime(r.last_seen)}>{fmtRelative(r.last_seen)}</span> },
   ]
@@ -225,7 +228,8 @@ function List() {
             data={rows}
             columns={columns}
             initialSort={[{ id: 'severity', desc: true }]}
-            mobileSort
+            sortSelect
+            hiddenColumns={['cvss']}
             onRowClick={(r) => navigate(`/findings/${r.id}`)}
             mobileRow={(r) => (
               <div className="flex items-start gap-3">

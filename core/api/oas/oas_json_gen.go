@@ -125549,6 +125549,8 @@ func (s *FindingsGetFindingsIDOKCvssVersion) Decode(d *jx.Decoder) error {
 		*s = FindingsGetFindingsIDOKCvssVersion31
 	case FindingsGetFindingsIDOKCvssVersion30:
 		*s = FindingsGetFindingsIDOKCvssVersion30
+	case FindingsGetFindingsIDOKCvssVersion20:
+		*s = FindingsGetFindingsIDOKCvssVersion20
 	default:
 		*s = FindingsGetFindingsIDOKCvssVersion(v)
 	}
@@ -130072,6 +130074,8 @@ func (s *FindingsGetFindingsOKItemsItemCvssVersion) Decode(d *jx.Decoder) error 
 		*s = FindingsGetFindingsOKItemsItemCvssVersion31
 	case FindingsGetFindingsOKItemsItemCvssVersion30:
 		*s = FindingsGetFindingsOKItemsItemCvssVersion30
+	case FindingsGetFindingsOKItemsItemCvssVersion20:
+		*s = FindingsGetFindingsOKItemsItemCvssVersion20
 	default:
 		*s = FindingsGetFindingsOKItemsItemCvssVersion(v)
 	}
@@ -135852,6 +135856,8 @@ func (s *FindingsPostFindingsIDAiOKCvssVersion) Decode(d *jx.Decoder) error {
 		*s = FindingsPostFindingsIDAiOKCvssVersion31
 	case FindingsPostFindingsIDAiOKCvssVersion30:
 		*s = FindingsPostFindingsIDAiOKCvssVersion30
+	case FindingsPostFindingsIDAiOKCvssVersion20:
+		*s = FindingsPostFindingsIDAiOKCvssVersion20
 	default:
 		*s = FindingsPostFindingsIDAiOKCvssVersion(v)
 	}
@@ -142333,6 +142339,8 @@ func (s *FindingsPostFindingsIDAppliedOKCvssVersion) Decode(d *jx.Decoder) error
 		*s = FindingsPostFindingsIDAppliedOKCvssVersion31
 	case FindingsPostFindingsIDAppliedOKCvssVersion30:
 		*s = FindingsPostFindingsIDAppliedOKCvssVersion30
+	case FindingsPostFindingsIDAppliedOKCvssVersion20:
+		*s = FindingsPostFindingsIDAppliedOKCvssVersion20
 	default:
 		*s = FindingsPostFindingsIDAppliedOKCvssVersion(v)
 	}
@@ -148820,6 +148828,8 @@ func (s *FindingsPostFindingsIDStatusOKCvssVersion) Decode(d *jx.Decoder) error 
 		*s = FindingsPostFindingsIDStatusOKCvssVersion31
 	case FindingsPostFindingsIDStatusOKCvssVersion30:
 		*s = FindingsPostFindingsIDStatusOKCvssVersion30
+	case FindingsPostFindingsIDStatusOKCvssVersion20:
+		*s = FindingsPostFindingsIDStatusOKCvssVersion20
 	default:
 		*s = FindingsPostFindingsIDStatusOKCvssVersion(v)
 	}

@@ -77,17 +77,21 @@ func TestContract_INV28_CVSSFromNVD(t *testing.T) {
 		if r.URL.Query().Get("lastModStartDate") != "" {
 			t.Errorf("an update while no score is stored: %s", r.URL.RawQuery)
 		}
-		_, _ = fmt.Fprint(w, `{"totalResults":1,"vulnerabilities":[{"cve":{"id":"CVE-2024-0001","metrics":{"cvssMetricV31":[{"type":"Primary","cvssData":{"baseScore":9.8,"baseSeverity":"CRITICAL"}}]},"configurations":[]}}]}`)
+		_, _ = fmt.Fprint(w, `{"totalResults":2,"vulnerabilities":[{"cve":{"id":"CVE-2024-0001","metrics":{"cvssMetricV31":[{"type":"Primary","cvssData":{"baseScore":9.8,"baseSeverity":"CRITICAL"}}]},"configurations":[]}},
+		 {"cve":{"id":"CVE-2024-0002","metrics":{"cvssMetricV2":[{"type":"Primary","baseSeverity":"HIGH","cvssData":{"version":"2.0","baseScore":10.0,"vectorString":"AV:N/AC:L/Au:N/C:C/I:C/A:C"}}]},"configurations":[]}}]}`)
 	})
 	e.setNow(e.clock().Add(25 * time.Hour))
 	if err := e.svc.Fetch(t.Context(), "nvd-kev"); err != nil {
 		t.Fatal(err)
 	}
-	if n, _ := e.svc.st.cvssCount(t.Context()); n != 1 {
+	if n, _ := e.svc.st.cvssCount(t.Context()); n != 2 {
 		t.Fatalf("scores after the full pull: %d", n)
 	}
 	if got := read()["CVE-2024-0001"]; got != (CVSS{Score: 9.8, Version: "3.1", Source: "nvd"}) {
 		t.Fatalf("CVE-2024-0001 = %+v", got)
+	}
+	if got := read()["CVE-2024-0002"]; got != (CVSS{Score: 10, Version: "2.0", Source: "nvd", Vector: "AV:N/AC:L/Au:N/C:C/I:C/A:C"}) {
+		t.Fatalf("CVE-2024-0002 (CVSS 2.0 only) = %+v", got)
 	}
 }
 

@@ -78,19 +78,36 @@ func (s *Store) KevPublished(ctx context.Context) (map[string]time.Time, error) 
 }
 
 // PublishedOf returns the day NVD published each of these CVEs ("2017-03-14", D-615); a CVE NVD has not answered for is absent.
+// One query per publishedChunk CVEs (the CVEs as one JSON array parameter, json_each), not one per CVE: GET /findings and Home's
+// GET /findings/summary ask for every open CVE, and 2 000 point reads cost about 40 ms where one read per chunk costs about 1 ms (#825).
 func (s *Store) PublishedOf(ctx context.Context, cves []string) (map[string]string, error) {
 	out := make(map[string]string, len(cves))
-	for _, c := range cves {
-		d, err := s.publishedOf(ctx, c)
+	for chunk := range slices.Chunk(cves, publishedChunk) {
+		part, err := json.Marshal(chunk)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("feeds: read published: %w", err)
 		}
-		if d != nil {
-			out[c] = *d
+		rows, err := s.db.Reader().QueryContext(ctx, `SELECT p.cve, p.published FROM json_each(?) j JOIN feeds_published p ON p.cve = j.value`, string(part))
+		if err != nil {
+			return nil, fmt.Errorf("feeds: read published: %w", err)
+		}
+		for rows.Next() {
+			var c, d string
+			if err := rows.Scan(&c, &d); err != nil {
+				_ = rows.Close()
+				return nil, fmt.Errorf("feeds: read published: %w", err)
+			}
+			out[c] = d
+		}
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+			return nil, fmt.Errorf("feeds: read published: %w", err)
 		}
 	}
 	return out, nil
 }
+
+// publishedChunk is the most CVEs of one PublishedOf query.
+const publishedChunk = 500
 
 // publishedOf is the day NVD published one CVE ("2017-03-14"), nil when it has not answered for it.
 func (s *Store) publishedOf(ctx context.Context, cve string) (*string, error) {

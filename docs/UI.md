@@ -114,7 +114,8 @@ groups ([Primer NavList](https://primer.style/product/components/nav-list/)), ic
   items: Findings ← `open.confirmed` ("confirmed to handle"), Devices ← `devices.pending` ("to review"), Incidents ←
   `incidents.urgent` ("high or critical open", J3); all urgent (red), as work waits for the user. An error stops the polling.
   The summary API PR (#825) merges before the shell PR. No per-item hook and no list fetch in the shell. A closed group shows only the **urgent** total
-  of its items; its accessible name lists the parts ("Assets: Devices 15 to review"). No summary (findings off, error): no badges.
+  of its items; its accessible name starts with the visible text and then lists the parts ("Assets 15 waiting: Devices 15 to review"; no
+  `aria-label` that would hide the visible label, WCAG 2.5.3). No summary (findings off, error): no badges.
 - **Rail**: from `lg`, "Collapse menu" at the foot shrinks 240 px to 56 px (then "Expand menu"; the name always equals the tooltip); groups flatten into icons,
   each group a `role=group` with its own `aria-label` (not a `ul`: page tests query their page's one list), split by a rule. Every nav icon is unique (Internal traps moves from
   `ShieldAlert` to `Radar`). Each icon has a `Tooltip` (**build** `components/ui/tooltip.tsx`, Radix, in `radix-ui`) with the

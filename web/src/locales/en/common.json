@@ -212,7 +212,7 @@
       "devices": "to review",
       "incidents": "high or critical open"
     },
-    "groupWaiting": "{{group}}: {{parts}}",
+    "groupWaiting": "waiting: {{parts}}",
     "groupHere": "holds this page"
   },
   "login": {

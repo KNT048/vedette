@@ -1,12 +1,14 @@
 import { expect, test } from '@playwright/test'
 import { axeViolations, collectErrors, expectAccessible, startWithSample } from './helpers'
+import { POST_V1_IN_UI } from '../src/lib/postV1'
 
 // Mọi trang trong thanh bên + các trang chi tiết chính. Kiểm: có tiêu đề, không lỗi console, axe sạch (gồm tương phản).
+// D-624: a page of a module left out of v1 (MCP server) is not offered while POST_V1_IN_UI is false, so it is not in the list.
 const PAGES = [
   '/', '/lookup?q=185.220.101.47', '/cve/CVE-2022-27593', '/findings', '/findings/f-1', '/findings/f-2', '/incidents',
   '/devices', '/devices/a-nas02', '/devices/setup', '/exposure', '/scans', '/honeypot', '/logs', '/assistant', '/reports',
   '/settings/general', '/settings/modules', '/settings/channels', '/settings/ai', '/settings/connections', '/settings/siem', '/settings/users',
-  '/settings/audit', '/settings/updates', '/settings/privacy', '/settings/mcp', '/settings/data', '/account', '/honeypot/hits/hit-seed-1', '/incidents/al-4',
+  '/settings/audit', '/settings/updates', '/settings/privacy', ...(POST_V1_IN_UI ? ['/settings/mcp'] : []), '/settings/data', '/account', '/honeypot/hits/hit-seed-1', '/incidents/al-4',
 ]
 
 test('first open: set up with sample data, then the home page', async ({ page, isMobile }) => {
@@ -39,14 +41,14 @@ test('người dùng làm việc trong GUI: khai thiết bị, xử lý phát hi
   await startWithSample(page)
   // "Tôi có" từ bảng "Tuần này" thêm thiết bị khai tay
   await page.getByRole('button', { name: 'I have this' }).first().click()
-  await expect(page.getByText('Added to your devices').first()).toBeVisible()
+  await expect(page.getByText(/^Done\. This flaw is now a finding/).first()).toBeVisible() // feeds weekly.addedToast
   // Phát hiện xác nhận có hướng dẫn "BYN đã xác nhận" và đoạn cấu hình FortiGate
   await page.goto('/findings/f-1')
-  await expect(page.getByText(/Confirmed by Vedette/).first()).toBeVisible()
+  await expect(page.getByText('Confirmed by scan', { exact: true }).first()).toBeVisible()
   await expect(page.getByText(/192\.168\.10\.21/).first()).toBeVisible()
   // dữ liệu còn sau khi tải lại trang
   await page.reload()
-  await expect(page.getByText(/Confirmed by Vedette/).first()).toBeVisible()
+  await expect(page.getByText('Confirmed by scan', { exact: true }).first()).toBeVisible()
   // đăng xuất, đăng nhập bằng tài khoản chỉ xem
   await page.goto('/')
   await page.getByRole('button', { name: /Account/ }).first().click()

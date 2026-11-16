@@ -69,7 +69,7 @@ func currentOf(d inventory.Detail, field string) (inventory.ObservationRow, bool
 
 var rank = map[string]int{"manual": 5, "agent": 4, "snmp": 3, "nmap": 2, "scan": 2, "passive": 1}
 
-// foldWinner is the specification of DATA_MODEL 5.1 (2), written again here on purpose (INV1 (i)).
+// foldWinner is the specification of DATA_MODEL 5.1 (2), written again here on purpose (INV1 (i)), with its MAC exception (D-598 (4)).
 func foldWinner(list []inventory.ObservationRow, field string) (inventory.ObservationRow, bool) {
 	var best inventory.ObservationRow
 	found := false
@@ -80,6 +80,8 @@ func foldWinner(list []inventory.ObservationRow, field string) (inventory.Observ
 		win := !found
 		if found {
 			switch {
+			case field == "mac" && o.Source != "manual" && best.Source != "manual" && o.SeenAt != best.SeenAt: // D-598 (4): the MAC seen last
+				win = o.SeenAt > best.SeenAt
 			case rank[o.Source] != rank[best.Source]:
 				win = rank[o.Source] > rank[best.Source]
 			case o.Confidence != best.Confidence:

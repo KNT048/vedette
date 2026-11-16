@@ -60,7 +60,7 @@ func TestExternalJobRunsOnlyOnTheBoxsOwnIP(t *testing.T) {
 	if n := eg.count(); n != 3 {
 		t.Fatalf("%d rounds, want 3 (stop at the first that names the address)", n)
 	}
-	want := strings.Join(append([]string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", nmapargv.ExternalPorts, "-oX", "-", "8.8.8.8"}, ""), "\n")
+	want := strings.Join(append([]string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", nmapargv.ExternalPorts, "--stats-every", "5s", "-oX", "-", "8.8.8.8"}, ""), "\n")
 	if nm.argvLog() != want {
 		t.Fatalf("argv:\n%s\nwant:\n%s", nm.argvLog(), want)
 	}

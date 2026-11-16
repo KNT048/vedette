@@ -293,6 +293,15 @@ Trên dây **không** có argv, cờ, đường dẫn, URL hay phạm vi (D-111 
 - `config` long-poll: `core` đọc lại cài đặt (bộ lọc của trang network) mỗi 5 s trong lúc giữ request, và `SetInterface` đánh thức ngay. Bộ lọc `core` không đọc được cho `interface ""` (cùng ETag với cấu hình "không bắt gói" thường).
 - `Client.PostObservations` là một lần thử, không lùi, không ngủ, và là đường duy nhất gửi quan sát (không còn `SendObservations`).
 
+### 6.6 `POST /sensor/v1/jobs/{id}/progress` (active, #830)
+
+How far a running nmap or nuclei job is, so the scan page shows a phase, a bar and an estimate instead of "0/1 devices done" until the device ends. Added to protocol 5 before its first release, like D-520 (no new number: the latest release speaks 4); optional on both sides.
+
+- Body (`JobProgress`, ≤ 1 KiB, strict decoding): `{phase, percent, done, total, remaining_s}`. `phase` ∈ `discovery`, `ports`, `services`, `scripts`, `vulns`; `percent` is `-1` (none) or 0 … 100; `0 ≤ done ≤ total ≤ 2^20` (nuclei's template × target checks; `0`/`0` = no count); `remaining_s` 0 … 86400 (the tool's own estimate, 0 = none). Anything else is `400`.
+- Source, no extra work asked of the tools: nmap gets `--stats-every 5s` (part of every shape in `nmapargv`, before `-oX -`), which writes `<taskprogress task percent remaining etc/>` into the XML on stdout; the worker reads those lines while nmap runs (task names map to phases; an unknown task, a malformed line or one over 512 bytes is ignored) and `core`'s XML parser skips them. nuclei: no new flag. Its `-ms` lines (one per template and target that ran) are counted while it runs, through the same `nucleiout` reader `core` uses; a line over 64 KiB is not counted. nuclei's own `-stats` is not used: it starts a `/metrics` HTTP listener (clistats) inside the scan container.
+- Throttle: the worker keeps only the latest state of a job and posts it at most every `ProgressEvery` (5 s), one attempt, never retried, never after the job's result (the reporter is joined before the result is posted). It takes no body slot of §9 (a heartbeat or a result never waits for it).
+- `core`: answered before the body is read like a result (`404 unknown_job` for a job that is not running; a `core` without the receiver answers `404` too, which the worker logs at debug). The `Dispatcher` passes the report to the `progress.Sink` the probe's context carried (the scan run or the exposure scan waiting for that job) and stores nothing; a report of a job being cancelled is dropped. Advisory only: nothing is decided from it.
+
 ## 7. Bảng lỗi
 
 | HTTP | `code` | Khi nào | Sensor làm gì |
@@ -359,6 +368,7 @@ sequenceDiagram
 | Cửa sổ `seen_at` | 24 giờ trước … 5 phút sau giờ `core` |
 | Thân `heartbeat` | 64 KiB; ≤ 32 card, ≤ 8 tiền tố IPv4 mỗi card, ≤ 64 khoá `drops` |
 | Thân kết quả job | 11 MiB; XML ≤ 8 MiB, JSONL ≤ 4 MiB sau giải mã base64 |
+| Thân `progress` (§6.6) | 1 KiB; at most one per job every 5 s; no body slot |
 | Job nmap | 1 … 64 đích, `rate` 1 … 1000, `timeout_s` 1 … 7200 |
 | Job nuclei (bản 2) | 1 … 32 id mẫu, 1 … 16 đích IPv4 riêng, `rate` 1 … 20, `max_host_errors` 2 … 20, `timeout_s` 1 … 3600; JSONL ≤ 1024 dòng |
 | Job chạy cùng lúc | một nmap và một nuclei (`running` ≤ 2 id); một job mỗi loại trong một reply |

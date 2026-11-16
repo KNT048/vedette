@@ -65,6 +65,8 @@ type Link interface {
 	Jobs(ctx context.Context, running []string, wait time.Duration) (sensorlink.JobsReply, error)
 	ActiveHeartbeat(ctx context.Context, hb *sensorlink.ActiveHeartbeat) (string, error)
 	PostResult(ctx context.Context, id string, res *sensorlink.JobResult) error
+	// PostProgress reports how far a running job is (#830); one attempt, never retried.
+	PostProgress(ctx context.Context, id string, p *sensorlink.JobProgress) error
 }
 
 // Config configures a Worker. The time fields are for tests; zero means the protocol's value.
@@ -104,6 +106,8 @@ type Config struct {
 	Wait      time.Duration // long-poll wait (default 25 s)
 	Heartbeat time.Duration // default 30 s
 	Tick      time.Duration // how often the lease is looked at (default 1 s)
+	// ProgressEvery is the shortest time between two progress reports of a job (default sensorlink.ProgressEvery; tests make it short).
+	ProgressEvery time.Duration
 }
 
 // Worker runs jobs. Create it with New and call Run.
@@ -121,6 +125,8 @@ type Worker struct {
 	wait      time.Duration
 	heartbeat time.Duration
 	tick      time.Duration
+
+	progressEvery time.Duration
 
 	egress      EgressProber
 	egressTicks <-chan time.Time // the re-check of a running full job; nil: every EgressRecheck
@@ -177,6 +183,7 @@ func New(c Config) (*Worker, error) {
 	if w.tick <= 0 {
 		w.tick = time.Second
 	}
+	w.progressEvery = cmp.Or(max(c.ProgressEvery, 0), sensorlink.ProgressEvery)
 	bins := []exec.Binary{
 		{Name: "nmap", Path: c.NmapPath, Validate: nmapargv.Validate, MaxOutput: nmapargv.MaxOutput},
 		{Name: versionBin, Path: c.NmapPath, Validate: validVersionArgs, MaxOutput: 64 << 10},
@@ -447,7 +454,7 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 		}
 	}
 	if !kind.IsFull() {
-		out, err := w.runner.Run(rctx, "nmap", argv, nil)
+		out, err := w.runNmap(rctx, cur.job.ID, argv)
 		return w.finish(ctx, jctx, rctx, cur, out, err, "nmap_missing", (*sensorlink.JobResult).SetXML)
 	}
 	// A full job runs up to an hour: the fence is asked again every EgressRecheck while nmap runs (D-526, review r1 H1). The first
@@ -468,13 +475,19 @@ func (w *Worker) execute(ctx, jctx context.Context, cur *activeJob) *sensorlink.
 	} else {
 		go func() { lost <- w.watchEgress(nctx, netip.MustParseAddr(cur.job.Targets[0]), ticks, kill) }()
 	}
-	out, err := w.runner.Run(nctx, "nmap", argv, nil)
+	out, err := w.runNmap(nctx, cur.job.ID, argv)
 	kill()
 	if reason := <-lost; reason != "" && context.Cause(jctx) == nil {
 		w.log.WarnContext(ctx, "sensor_active_external_job_stopped", "id", cur.job.ID, "reason", reason)
 		return &sensorlink.JobResult{Status: "stopped", Reason: reason, ExitCode: -1} // stopped, not refused: nmap had run (review r2 LOW-5)
 	}
 	return w.finish(ctx, jctx, rctx, cur, out, err, "nmap_missing", (*sensorlink.JobResult).SetXML)
+}
+
+// runNmap runs nmap with its progress reported (#830).
+func (w *Worker) runNmap(ctx context.Context, id string, argv []string) (exec.Result, error) {
+	rep := &reporter{}
+	return w.runReporting(ctx, id, "nmap", argv, nmapWatch(rep), rep)
 }
 
 // finish turns the end of a run into the result to post. setOut puts the program's stdout where the kind of job keeps it (xml_b64,

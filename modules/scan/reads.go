@@ -58,6 +58,9 @@ func (s *Service) Run(ctx context.Context, id string) (RunView, error) {
 	if err != nil {
 		return RunView{}, fmt.Errorf("scan: reading run %s: %w", id, err)
 	}
+	if v.Status == "running" || v.Status == "stopping" {
+		v.Progress = s.progressOf(v.ID)
+	}
 	return v, nil
 }
 
@@ -73,6 +76,9 @@ func (s *Service) Runs(ctx context.Context) ([]RunView, error) {
 		v, err := scanRun(rows)
 		if err != nil {
 			return nil, fmt.Errorf("scan: listing runs: %w", err)
+		}
+		if v.Status == "running" || v.Status == "stopping" {
+			v.Progress = s.progressOf(v.ID)
 		}
 		out = append(out, v)
 	}

@@ -68,6 +68,11 @@
 - **Migration 0005** dựng lại `sa_job` và `sa_probe` như 0003/0004 (giữ id, bộ đếm AUTOINCREMENT, mọi kind/shape cũ): thêm mẫu sau này cũng phải dựng lại cả hai và giữ `TestMigration000{3,4,5}KeepsTheProbeCounter` (mỗi test chạy các migration trước số của nó).
 - `SettingsChanged` bỏ qua lượt `external` (`running.external`): sửa chỗ đó thì một đổi cài đặt LAN sẽ dừng hay để lọt lượt của exposure.
 
+## Modifying: progress of a running job (#830: `nmapargv.StatsEvery`, `worker/progress.go`, `Dispatcher.JobProgress`)
+- `nmapargv.Build`/`BuildFor`/`Validate`/`ParseFor`: `--stats-every 5s` sits before `-oX -` in every shape; every test that spells an argv carries it (`cmd/vedette` `sensoractive_test.go` too). The probe log row keeps the shape's flags without it.
+- The worker's `Link` gained `PostProgress`; `*sensorlink.Client` implements it. A `core` of before #830 answers `404`, which the worker ignores.
+- Readers of progress: `modules/scan` (`RunView.progress`) and `modules/exposure` (`ScanRun.progress`) through `core/progress`; they put a Tracker in the context they probe with.
+
 ## Disabling this module
 - exposure không nhận dạng dịch vụ trên IP công khai của hộp (khi đã nối: "the Active discovery module is off…" dưới "Not checked").
 - Devices không còn OS/dịch vụ/phiên bản mới; thiết bị mong manh mới không được quét lần đầu; không đọc SNMP (thông tin xác thực giữ nguyên, route 404).

@@ -206,6 +206,7 @@ const (
 	flagTiming        = "-T2"
 	flagHostTimeout   = "--host-timeout" // bounds the time one host may take, which --max-rate does not
 	flagXML           = "-oX"
+	flagStats         = "--stats-every" // #830: nmap adds a <taskprogress> element to its XML this often; no packet more is sent
 	flagScript        = "--script"
 	flagScriptTimeout = "--script-timeout"
 )
@@ -226,6 +227,10 @@ const TitleScripts = "http-title,ssl-cert"
 
 // titleScriptTimeout caps each script of GentleTitles, so a device that answers slowly cannot stretch the gentle scan (D-511).
 const titleScriptTimeout = "20s"
+
+// StatsEvery is how often nmap writes its progress into the XML (--stats-every, #830): the phase it is in, how far, and its own
+// estimate of the time left. The worker reads those lines while nmap runs (sensor protocol 6.6); core's parser skips them.
+const StatsEvery = "5s"
 
 // Host time limits (D-84 (7)): a gentle scan is slow by design, a normal one has -sV and -O to finish.
 const (
@@ -397,7 +402,7 @@ func BuildFor(kind Kind, rate int, ports []int, targets []netip.Addr) ([]string,
 	if err != nil {
 		return nil, err
 	}
-	args = append(args, flagXML, "-")
+	args = append(args, flagStats, StatsEvery, flagXML, "-")
 	for _, t := range targets {
 		if !valid(t) {
 			return nil, fmt.Errorf("nmapargv: target %q is not allowed in the %s shape", t, kind.Name())
@@ -461,7 +466,7 @@ func shapeOf(flags []string) (Kind, int, []int, bool) {
 }
 
 // Build builds an nmap command line only from private IPv4 addresses (the external shape: one public one), an integer rate and
-// the fixed flags above (INV-4, FORBID-3). The shape is: the flags of the kind, -oX -, then the targets.
+// the fixed flags above (INV-4, FORBID-3). The shape is: the flags of the kind, --stats-every StatsEvery -oX -, then the targets.
 func Build(kind Kind, rate int, targets []netip.Addr) ([]string, error) {
 	valid, err := targetRule(kind, len(targets))
 	if err != nil {
@@ -471,7 +476,7 @@ func Build(kind Kind, rate int, targets []netip.Addr) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	args = append(args, flagXML, "-")
+	args = append(args, flagStats, StatsEvery, flagXML, "-")
 	for _, t := range targets {
 		if !valid(t) {
 			return nil, fmt.Errorf("nmapargv: target %q is not allowed in the %s shape", t, kind.Name())
@@ -485,16 +490,16 @@ func Build(kind Kind, rate int, targets []netip.Addr) ([]string, error) {
 // starts, independently of how Build made it (SYS-2). It accepts exactly the eleven shapes of FlagsFor
 // (sweep, normal, gentle, versions, gentle_titles, external, external_full, external_disruptive, all_ports, extra_ports,
 // port_versions), where only the rate of sweep, normal, versions, all_ports (at most AllPortsMaxRate), extra_ports and
-// port_versions varies, and the -p list of port_versions (1..MaxPortVersions ascending ports), then "-oX -", then 1 to MaxBatch
+// port_versions varies, and the -p list of port_versions (1..MaxPortVersions ascending ports), then "--stats-every 5s -oX -", then 1 to MaxBatch
 // canonical, unique, private IPv4 addresses (port_versions: exactly one; the three external shapes: exactly one canonical public
 // IPv4 address).
 // Everything else is rejected.
 func Validate(args []string) error {
 	i := slices.Index(args, flagXML)
-	if i < 0 || i+1 >= len(args) || args[i+1] != "-" {
-		return errors.New("argv must contain -oX -")
+	if i < 2 || i+1 >= len(args) || args[i+1] != "-" || args[i-2] != flagStats || args[i-1] != StatsEvery {
+		return errors.New("argv must contain --stats-every " + StatsEvery + " -oX -")
 	}
-	flags := args[:i]
+	flags := args[:i-2]
 	kind, _, _, ok := shapeOf(flags)
 	if !ok {
 		return fmt.Errorf("flags %q are not one of the eleven allowed command shapes", flags)
@@ -545,7 +550,7 @@ func ParseFor(args []string) (Kind, int, []int, []netip.Addr, error) {
 		return 0, 0, nil, nil, err
 	}
 	i := slices.Index(args, flagXML)
-	k, rate, ports, ok := shapeOf(args[:i])
+	k, rate, ports, ok := shapeOf(args[:i-2])
 	if !ok {
 		return 0, 0, nil, nil, errors.New("nmapargv: argv matches no shape") // unreachable after Validate
 	}

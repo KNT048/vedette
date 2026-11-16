@@ -30,15 +30,15 @@ func TestBuild(t *testing.T) {
 		want    []string
 	}{
 		{"sweep", Sweep, 50, addrs(t, "192.168.10.1", "192.168.10.2"),
-			[]string{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "50", "-oX", "-", "192.168.10.1", "192.168.10.2"}},
+			[]string{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "50", "--stats-every", "5s", "-oX", "-", "192.168.10.1", "192.168.10.2"}},
 		{"normal", Normal, 100, one,
-			[]string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}},
+			[]string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}},
 		{"versions: no -O, the same two scripts (D-504)", Versions, 25, one,
-			[]string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "25", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}},
+			[]string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "25", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}},
 		{"gentle ignores the rate given: 1 packet per second, no -sV", Gentle, 500, one,
-			[]string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.20"}},
+			[]string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}},
 		{"gentle with titles (D-511): the gentle line plus http-title and ssl-cert, each capped at 20 s", GentleTitles, 500, one,
-			[]string{"--privileged", "-sS", "--script", "http-title,ssl-cert", "--script-timeout", "20s", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.20"}},
+			[]string{"--privileged", "-sS", "--script", "http-title,ssl-cert", "--script-timeout", "20s", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -95,27 +95,27 @@ func TestBuildRefuses(t *testing.T) {
 
 // The six shapes written out apart from the code under test (INV-4, SYS-2; versions: D-501; external: D-514).
 var (
-	shapeSweep    = []string{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "50", "-oX", "-", "192.168.10.1"}
-	shapeNormal   = []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}
-	shapeGentle   = []string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.30"}
-	shapeVersions = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "25", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.40"}
-	shapeTitles   = []string{"--privileged", "-sS", "--script", "http-title,ssl-cert", "--script-timeout", "20s", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.50"}
+	shapeSweep    = []string{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "50", "--stats-every", "5s", "-oX", "-", "192.168.10.1"}
+	shapeNormal   = []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
+	shapeGentle   = []string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.30"}
+	shapeVersions = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "25", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.40"}
+	shapeTitles   = []string{"--privileged", "-sS", "--script", "http-title,ssl-cert", "--script-timeout", "20s", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.50"}
 	// D-514: the ports written out here are those of modules/scan/commonports (TestExternalPortsAreTheSurfaceList).
 	externalPorts = "21,22,23,25,53,80,81,88,102,110,111,135,139,143,179,389,443,445,465,502,515,554,587,631,636,873,993,995,1080,1194,1433,1521,1723,1883,2049,2082,2083,2086,2087,2222,2375,2376,2379,3000,3128,3306,3389,4443,4899,5000,5001,5060,5061,5432,5601,5672,5900,5901,5938,5984,5985,5986,6379,6443,7001,7002,7547,8000,8006,8008,8009,8080,8081,8088,8089,8090,8123,8291,8443,8728,8729,8834,8880,8883,8888,9000,9042,9090,9100,9200,9443,10000,10250,10443,11211,27017,34567,37777"
-	shapeExternal = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", externalPorts, "-oX", "-", "8.8.8.8"}
+	shapeExternal = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", externalPorts, "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
 	// D-592: the run after a normal or versions scan over the surface list and the reviewed admin ports.
 	shapeExtra = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100",
-		"--max-retries", "3", "-p", ExtraPorts, "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}
+		"--max-retries", "3", "-p", ExtraPorts, "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
 	// D-592: the weekly scan of every port of a LAN device that is not fragile.
-	shapeAllPorts = []string{"--privileged", "-sS", "-n", "--max-rate", "100", "--max-retries", "1", "-p-", "--host-timeout", "90m", "-oX", "-", "192.168.10.20"}
+	shapeAllPorts = []string{"--privileged", "-sS", "-n", "--max-rate", "100", "--max-retries", "1", "-p-", "--host-timeout", "90m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
 	// D-592 (review r1 H2): the -sV follow-up of the weekly scan on the open ports the normal scan does not cover.
 	shapePortVersions = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "50",
-		"--max-retries", "3", "-p", "22222,40000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}
+		"--max-retries", "3", "-p", "22222,40000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
 	// D-526: the two full shapes of a target whose testing terms are accepted.
 	shapeFull = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "-p-", "--script", FullScripts,
-		"--script-timeout", "5m", "--max-rate", "300", "--max-retries", "2", "--host-timeout", "60m", "-oX", "-", "8.8.8.8"}
+		"--script-timeout", "5m", "--max-rate", "300", "--max-retries", "2", "--host-timeout", "60m", "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
 	shapeDisruptive = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "-p-", "--script", DisruptiveScripts,
-		"--script-timeout", "5m", "--max-rate", "300", "--max-retries", "2", "--host-timeout", "60m", "-oX", "-", "8.8.8.8"}
+		"--script-timeout", "5m", "--max-rate", "300", "--max-retries", "2", "--host-timeout", "60m", "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
 )
 
 // INV-4, SYS-2: the validator accepts exactly three command shapes, with only the rate (of sweep and normal)
@@ -136,19 +136,19 @@ func TestValidate(t *testing.T) {
 	bad := map[string][]string{
 		"empty":                                {},
 		"no privileged":                        drop(shapeNormal, "--privileged"),
-		"aggressive":                           with(shapeNormal[:len(shapeNormal)-3], "-A", "-oX", "-", "192.168.10.20"),
-		"script":                               {"--privileged", "-sS", "--script", "vuln", "-oX", "-", "192.168.10.1"},
-		"script=":                              {"--privileged", "-sS", "--script=vuln", "-oX", "-", "192.168.10.1"},
-		"default scripts":                      {"--privileged", "-sS", "-sC", "-oX", "-", "192.168.10.1"},
+		"aggressive":                           with(shapeNormal[:len(shapeNormal)-3], "-A", "--stats-every", "5s", "-oX", "-", "192.168.10.20"),
+		"script":                               {"--privileged", "-sS", "--script", "vuln", "--stats-every", "5s", "-oX", "-", "192.168.10.1"},
+		"script=":                              {"--privileged", "-sS", "--script=vuln", "--stats-every", "5s", "-oX", "-", "192.168.10.1"},
+		"default scripts":                      {"--privileged", "-sS", "-sC", "--stats-every", "5s", "-oX", "-", "192.168.10.1"},
 		"another script list":                  swap(shapeNormal, "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "rdp-ntlm-info,smb-os-discovery"),
 		"script list reordered":                swap(shapeNormal, "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "http-ntlm-info,rdp-ntlm-info,http-title,ssl-cert"),
 		"script category":                      swap(shapeVersions, "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "safe"),
 		"script wildcard":                      swap(shapeVersions, "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "*-ntlm-info"),
 		"script list without the flag":         drop(shapeNormal, "--script"),
 		"normal without its scripts":           drop(shapeNormal, "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert"),
-		"output to a file":                     {"--privileged", "-sS", "-oN", "/tmp/x", "-oX", "-", "192.168.10.1"},
+		"output to a file":                     {"--privileged", "-sS", "-oN", "/tmp/x", "--stats-every", "5s", "-oX", "-", "192.168.10.1"},
 		"xml to a file":                        swap(shapeNormal, "-", "/tmp/x"),
-		"input list":                           {"--privileged", "-sS", "-iL", "/etc/hosts", "-oX", "-", "192.168.10.1"},
+		"input list":                           {"--privileged", "-sS", "-iL", "/etc/hosts", "--stats-every", "5s", "-oX", "-", "192.168.10.1"},
 		"no xml":                               {"--privileged", "-sn", "-n", "--max-rate", "50", "192.168.10.1"},
 		"sweep without -n (reverse DNS)":       drop(shapeSweep, "-n"),
 		"sweep without --max-rate":             drop(shapeSweep, "--max-rate", "50"),
@@ -181,15 +181,15 @@ func TestValidate(t *testing.T) {
 		"sweep with the default probes only":   drop(shapeSweep, "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443"),
 		"sweep with a SYN port added":          swap(shapeSweep, "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100,502"),
 		"sweep with a UDP probe":               with(shapeSweep[:2], append([]string{"-PU53"}, shapeSweep[2:]...)...),
-		"sweep with service detection":         with(shapeSweep[:4], "-sV", "--max-rate", "50", "-oX", "-", "192.168.10.1"),
-		"sweep with the normal flags added":    {"--privileged", "-sn", "-sV", "-O", "-n", "--max-rate", "50", "-oX", "-", "192.168.10.1"},
-		"gentle with -sV (version scripts)":    {"--privileged", "-sS", "-sV", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.30"},
-		"gentle with --version-intensity":      {"--privileged", "-sS", "--version-intensity", "0", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "-oX", "-", "192.168.10.30"},
-		"gentle flags mixed with -O at 1000":   {"--privileged", "-sS", "-sV", "-O", "--version-intensity", "0", "-n", "-T2", "--max-retries", "1", "--max-rate", "1000", "--top-ports", "1000", "-oX", "-", "192.168.10.30"},
+		"sweep with service detection":         with(shapeSweep[:4], "-sV", "--max-rate", "50", "--stats-every", "5s", "-oX", "-", "192.168.10.1"),
+		"sweep with the normal flags added":    {"--privileged", "-sn", "-sV", "-O", "-n", "--max-rate", "50", "--stats-every", "5s", "-oX", "-", "192.168.10.1"},
+		"gentle with -sV (version scripts)":    {"--privileged", "-sS", "-sV", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.30"},
+		"gentle with --version-intensity":      {"--privileged", "-sS", "--version-intensity", "0", "-n", "-T2", "--max-retries", "1", "--max-rate", "1", "--host-timeout", "15m", "--top-ports", "100", "--stats-every", "5s", "-oX", "-", "192.168.10.30"},
+		"gentle flags mixed with -O at 1000":   {"--privileged", "-sS", "-sV", "-O", "--version-intensity", "0", "-n", "-T2", "--max-retries", "1", "--max-rate", "1000", "--top-ports", "1000", "--stats-every", "5s", "-oX", "-", "192.168.10.30"},
 		"gentle at a rate above 1":             swap(swap(shapeGentle, "--max-rate", "--max-rate"), "1", "5"),
 		"gentle with -O":                       with([]string{"--privileged", "-sS", "-O"}, shapeGentle[2:]...),
 		"duplicate flag":                       with([]string{"--privileged", "-sn", "-sn"}, shapeSweep[2:]...),
-		"flags in another order":               {"--privileged", "-n", "-sn", "--max-rate", "50", "-oX", "-", "192.168.10.1"},
+		"flags in another order":               {"--privileged", "-n", "-sn", "--max-rate", "50", "--stats-every", "5s", "-oX", "-", "192.168.10.1"},
 		"rate 0":                               swap(shapeSweep, "50", "0"),
 		"rate 1001":                            swap(shapeSweep, "50", "1001"),
 		"rate with a sign":                     swap(shapeSweep, "50", "+5"),
@@ -216,7 +216,7 @@ func TestValidate(t *testing.T) {
 		"gentle titles with a longer timeout":  swap(shapeTitles, "20s", "5m"),
 		"gentle titles at a rate above 1":      func() []string { a := slices.Clone(shapeTitles); a[slices.Index(a, "--max-rate")+1] = "5"; return a }(),
 		"gentle titles with -sV":               with([]string{"--privileged", "-sS", "-sV"}, shapeTitles[2:]...),
-		"versions with -O after -sV":           {"--privileged", "-sS", "-sV", "-n", "-O", "--max-rate", "25", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.40"},
+		"versions with -O after -sV":           {"--privileged", "-sS", "-sV", "-n", "-O", "--max-rate", "25", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.40"},
 	}
 	for name, argv := range bad {
 		if err := Validate(argv); err == nil {
@@ -268,7 +268,7 @@ var private = regexp.MustCompile(`^(10\.([0-9]{1,3}\.){2}[0-9]{1,3}|192\.168\.[0
 func shapeOracle(flags []string) bool {
 	rate := regexp.MustCompile(`^([1-9][0-9]{0,2}|1000)$`)
 	withRate := func(shape []string, at int) bool {
-		want := shape[:slices.Index(shape, "-oX")]
+		want := shape[:slices.Index(shape, "--stats-every")]
 		return len(flags) == len(want) && rate.MatchString(flags[at]) &&
 			slices.Equal(flags[:at], want[:at]) && slices.Equal(flags[at+1:], want[at+1:])
 	}
@@ -280,13 +280,13 @@ func shapeOracle(flags []string) bool {
 	if portVersionsOracle(flags) {
 		return true
 	}
-	return withRate(shapeSweep, at(shapeSweep)) || withRate(shapeExtra, at(shapeExtra)) || withRate(shapeNormal, at(shapeNormal)) || withRate(shapeVersions, at(shapeVersions)) || slices.Equal(flags, shapeGentle[:slices.Index(shapeGentle, "-oX")]) ||
-		slices.Equal(flags, shapeTitles[:slices.Index(shapeTitles, "-oX")]) || externalOracle(flags)
+	return withRate(shapeSweep, at(shapeSweep)) || withRate(shapeExtra, at(shapeExtra)) || withRate(shapeNormal, at(shapeNormal)) || withRate(shapeVersions, at(shapeVersions)) || slices.Equal(flags, shapeGentle[:slices.Index(shapeGentle, "--stats-every")]) ||
+		slices.Equal(flags, shapeTitles[:slices.Index(shapeTitles, "--stats-every")]) || externalOracle(flags)
 }
 
 // portVersionsOracle: the port_versions shape with any rate 1..1000 and 1..20 ascending ports written as plain decimals.
 func portVersionsOracle(flags []string) bool {
-	want := shapePortVersions[:slices.Index(shapePortVersions, "-oX")]
+	want := shapePortVersions[:slices.Index(shapePortVersions, "--stats-every")]
 	if len(flags) != len(want) {
 		return false
 	}
@@ -312,7 +312,7 @@ func portVersionsOracle(flags []string) bool {
 
 // externalOracle: the flags are one of the three shapes whose target is public (external, external_full, external_disruptive).
 func externalOracle(flags []string) bool {
-	return slices.ContainsFunc([][]string{shapeExternal, shapeFull, shapeDisruptive}, func(s []string) bool { return slices.Equal(flags, s[:slices.Index(s, "-oX")]) })
+	return slices.ContainsFunc([][]string{shapeExternal, shapeFull, shapeDisruptive}, func(s []string) bool { return slices.Equal(flags, s[:slices.Index(s, "--stats-every")]) })
 }
 
 // public is the oracle's own idea of a public IPv4 address: dotted decimal without leading zeros, outside 0/8, 10/8, 100.64/10,
@@ -349,9 +349,9 @@ func FuzzValidate(f *testing.F) {
 		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles, shapeExternal, shapeFull, shapeDisruptive, shapeAllPorts, shapeExtra, shapePortVersions,
 		append(slices.Clone(shapeExternal[:len(shapeExternal)-1]), "192.168.1.1"),
 		append(slices.Clone(shapeExternal), "1.1.1.1"),
-		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "1000", "-oX", "-", "10.0.0.1", "10.0.0.2"},
-		{"--privileged", "-A", "-oX", "-", "10.0.0.1"},
-		{"--privileged", "-sS", "--script", "vuln", "-oX", "-", "10.0.0.1"},
+		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "1000", "--stats-every", "5s", "-oX", "-", "10.0.0.1", "10.0.0.2"},
+		{"--privileged", "-A", "--stats-every", "5s", "-oX", "-", "10.0.0.1"},
+		{"--privileged", "-sS", "--script", "vuln", "--stats-every", "5s", "-oX", "-", "10.0.0.1"},
 	} {
 		f.Add(strings.Join(s, "\n"))
 	}
@@ -360,11 +360,11 @@ func FuzzValidate(f *testing.F) {
 		if Validate(argv) != nil {
 			return
 		}
-		i := slices.Index(argv, "-oX")
-		if i < 0 || i+1 >= len(argv) || argv[i+1] != "-" || !shapeOracle(argv[:i]) {
+		i := slices.Index(argv, "--stats-every") // #830: the progress flag and -oX - end the flag part, in that order
+		if i < 0 || i+3 >= len(argv) || argv[i+1] != StatsEvery || argv[i+2] != "-oX" || argv[i+3] != "-" || !shapeOracle(argv[:i]) {
 			t.Fatalf("accepted an argv that is not one of the six shapes: %q", argv)
 		}
-		targets := argv[i+2:]
+		targets := argv[i+4:]
 		if portVersionsOracle(argv[:i]) && len(targets) != 1 {
 			t.Fatalf("accepted port_versions with targets %q", targets)
 		}
@@ -411,7 +411,7 @@ func TestParseInvertsBuild(t *testing.T) {
 			t.Errorf("KindOf(%q) = %v %v", c.kind.Name(), kk, ok)
 		}
 	}
-	if _, _, _, err := Parse([]string{"-A", "-oX", "-", "10.0.0.1"}); err == nil {
+	if _, _, _, err := Parse([]string{"-A", "--stats-every", "5s", "-oX", "-", "10.0.0.1"}); err == nil {
 		t.Error("Parse accepted an argv Validate refuses")
 	}
 	if _, ok := KindOf("aggressive"); ok {
@@ -425,8 +425,8 @@ func TestParseInvertsBuild(t *testing.T) {
 func FuzzParseBuild(f *testing.F) {
 	for _, s := range [][]string{
 		shapeSweep, shapeNormal, shapeGentle, shapeVersions, shapeTitles, shapeExternal, shapeFull, shapeDisruptive, shapeAllPorts, shapeExtra, shapePortVersions,
-		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "1000", "-oX", "-", "10.0.0.1", "10.0.0.2"},
-		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "1", "-oX", "-", "172.16.0.1"},
+		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "1000", "--stats-every", "5s", "-oX", "-", "10.0.0.1", "10.0.0.2"},
+		{"--privileged", "-sn", "-PE", "-PP", "-PS21,22,23,80,135,139,443,445,554,3389,8000,8080,9100", "-PA80,443", "-n", "--max-rate", "1", "--stats-every", "5s", "-oX", "-", "172.16.0.1"},
 	} {
 		f.Add(strings.Join(s, "\n"))
 	}
@@ -630,5 +630,26 @@ func TestNoShapeWidensScripts(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// #830: every shape ends with --stats-every StatsEvery -oX -; another interval, the flag missing, moved or doubled is refused.
+func TestStatsEveryIsFixed(t *testing.T) {
+	i := slices.Index(shapeNormal, "--stats-every")
+	flags, tail := shapeNormal[:i], shapeNormal[i+4:]
+	for name, argv := range map[string][]string{
+		"missing":       slices.Concat(flags, []string{"-oX", "-"}, tail),
+		"faster":        slices.Concat(flags, []string{"--stats-every", "1ms", "-oX", "-"}, tail),
+		"after -oX":     slices.Concat(flags, []string{"-oX", "-", "--stats-every", "5s"}, tail),
+		"twice":         slices.Concat(flags, []string{"--stats-every", "5s", "--stats-every", "5s", "-oX", "-"}, tail),
+		"among flags":   slices.Concat([]string{"--stats-every", "5s"}, flags, []string{"-oX", "-"}, tail),
+		"with -v added": slices.Concat(flags, []string{"-v", "--stats-every", "5s", "-oX", "-"}, tail),
+	} {
+		if Validate(argv) == nil {
+			t.Errorf("%s: accepted %q", name, argv)
+		}
+	}
+	if err := Validate(shapeNormal); err != nil {
+		t.Fatal(err)
 	}
 }

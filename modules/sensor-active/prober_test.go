@@ -48,7 +48,7 @@ func TestProbeGoesThroughProber(t *testing.T) {
 	if err := svc.ScanDevice(e.ctx(), "a-web", "discovered"); err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "-oX", "-", "192.168.10.20"}
+	want := []string{"--privileged", "-sS", "-sV", "-O", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "100", "--max-retries", "3", "--top-ports", "1000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
 	if len(fp.argv) != 2 || !slices.Equal(fp.argv[0], want) || !slices.Contains(fp.argv[1], nmapargv.ExtraPorts) {
 		t.Fatalf("Prober got %q, want a call with %q, then the extra ports (D-592)", fp.argv, want)
 	}

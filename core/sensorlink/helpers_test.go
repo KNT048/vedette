@@ -200,6 +200,8 @@ type fakeBackend struct {
 	obs    func(ctx context.Context, r *sensorlink.ObservationsRequest) (sensorlink.ObservationsReply, error)
 	jobs   func(ctx context.Context, wait time.Duration, running []string) (sensorlink.JobsReply, error)
 	result func(ctx context.Context, id string, r *sensorlink.JobResult) error
+	// progress receives the progress reports (#830); nil accepts them.
+	progress func(ctx context.Context, id string, p *sensorlink.JobProgress) error
 	// running says which jobs are running; nil means every job is.
 	running func(id string) bool
 }
@@ -264,6 +266,14 @@ func (b *fakeBackend) JobResult(ctx context.Context, id string, r *sensorlink.Jo
 	return nil
 }
 
+func (b *fakeBackend) JobProgress(ctx context.Context, id string, p *sensorlink.JobProgress) error {
+	b.called("progress")
+	if b.progress != nil {
+		return b.progress(ctx, id, p)
+	}
+	return nil
+}
+
 // rig is a running sensor listener: the real tls.Config of the server on an httptest server.
 type rig struct {
 	ca  *testCA
@@ -282,6 +292,8 @@ type rigOpt struct {
 	bodyTimeout time.Duration
 	hdrTimeout  time.Duration
 	http2       bool
+	// noProgress serves a Backend without JobProgress (a core of before #830 that a newer worker reports to).
+	noProgress bool
 }
 
 func newRig(t *testing.T, o rigOpt) *rig {
@@ -290,7 +302,11 @@ func newRig(t *testing.T, o rigOpt) *rig {
 	r.id = newIdentity(t, r.ca)
 	r.id.allow(sensorlink.Passive, 100, 101)
 	r.id.allow(sensorlink.Active, 200, 201)
-	srv, err := sensorlink.NewServer(sensorlink.Options{Identity: r.id, Backend: r.be, ModuleOn: o.moduleOn, Now: r.clk.Now, BodyTimeout: o.bodyTimeout})
+	var be sensorlink.Backend = r.be
+	if o.noProgress {
+		be = struct{ sensorlink.Backend }{r.be}
+	}
+	srv, err := sensorlink.NewServer(sensorlink.Options{Identity: r.id, Backend: be, ModuleOn: o.moduleOn, Now: r.clk.Now, BodyTimeout: o.bodyTimeout})
 	if err != nil {
 		t.Fatal(err)
 	}

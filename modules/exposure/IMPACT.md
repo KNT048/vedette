@@ -1,5 +1,8 @@
 # Exposure — Change Impact Map
 
+## Modifying: `ScanRun.progress`, `scanRun.prog`, `reportOpenVAS` (#830, INV-29)
+- **SPA**: the exposure page (web part of #830; contract `web/src/lib/progress.ts`). **sensor-active**/**scan**: the nmap and nuclei jobs of the runner report into the run's context; an adapter that drops the context's values loses them.
+
 ## Modifying: bước dịch vụ của lượt quét sâu (`FullServicesTimeout`, `FullHostLimit`, `ServiceScan.Scripts`, `ScriptRow`, `exp_snapshot.scripts`) (FULL-4 (Trưởng), for Mlee: D-526)
 - **cmd/vedette** `exposureservices.go` đọc `ScanTarget.Mode` để chọn mẫu nmap và hạn, gọi `ModeNow` ngay trước job (`DeepGate` của sensor-active), đổ `External.Scripts` vào `ScriptRow`. `TestExposureServiceShapeFollowsTheMode` giữ `FullHostLimit` = `nmapargv.FullHostTimeout` và `FullServicesTimeout` ≥ nó + chờ khe + hai rào: đổi một số thì đổi cả ba.
 - **modules/core** `export_policy.go`: cột `scripts` là JSON của `exp_snapshot`.

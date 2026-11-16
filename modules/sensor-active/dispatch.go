@@ -14,6 +14,7 @@ import (
 
 	"github.com/knt048/vedette/core/domainfence"
 	"github.com/knt048/vedette/core/exec"
+	"github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/core/sensorlink"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
 )
@@ -118,6 +119,7 @@ type djob struct {
 	cancelled bool // the probe stopped after the worker had the job: cancel it
 	cancelOut bool // a poll reply has carried the cancel
 
+	sink        progress.Sink   // of the probe's context (#830): where the worker's progress reports of this job go; nil: nowhere
 	ctxDone     <-chan struct{} // of the probe's context: a pending job whose probe is over is dropped
 	ctxErr      func() error
 	deliveredAt time.Time // when the worker fetched it
@@ -340,6 +342,7 @@ func (d *Dispatcher) await(ctx context.Context, s *slot, j *djob) error {
 	j.done = make(chan struct{})
 	j.deadline, _ = ctx.Deadline()
 	j.ctxDone, j.ctxErr = ctx.Done(), ctx.Err
+	j.sink = progress.SinkFrom(ctx)
 
 	d.mu.Lock()
 	if j.exclusive && (s.pending != nil || s.running != nil && !s.running.finished) { // under the same lock as the hand-over (#review L4)
@@ -635,6 +638,42 @@ func (d *Dispatcher) JobResult(_ context.Context, id string, res *sensorlink.Job
 	s.running = nil
 	d.finishLocked(s, j, res, nil)
 	return nil
+}
+
+// JobProgress implements sensorlink.ProgressReceiver (#830): the worker's report of how far a running job is goes to the Sink the
+// probe's context carried (the scan run or the exposure scan that waits for it). Nothing is stored here; a report of a job that is
+// being cancelled, or whose probe has no Sink, is accepted and dropped. The Tracker behind the Sink checks every field again.
+func (d *Dispatcher) JobProgress(_ context.Context, id string, p *sensorlink.JobProgress) error {
+	d.mu.Lock()
+	s := d.runningSlot(id)
+	if s == nil {
+		d.mu.Unlock()
+		return sensorlink.NewError(sensorlink.CodeUnknownJob)
+	}
+	j := s.running
+	sink, shape := j.sink, j.spec.Shape
+	if j.cancelled {
+		sink = nil
+	}
+	d.mu.Unlock()
+	if sink == nil {
+		return nil
+	}
+	u := progress.Update{Phase: p.Phase, Percent: p.Percent, Done: p.Done, Total: p.Total, Remaining: time.Duration(p.RemainingS) * time.Second, Message: passNote[shape]}
+	if s.kind == sensorlink.KindNuclei {
+		u.Unit = progress.UnitChecks
+	}
+	sink.Report(u)
+	return nil
+}
+
+// passNote says which nmap run of a device a report is about, when a device gets more than one (D-592) or a slower one (D-126).
+var passNote = map[string]string{
+	nmapargv.Extra.Name():        "Second pass: administration and alternative ports",
+	nmapargv.PortVersions.Name(): "Reading the services on the extra open ports",
+	nmapargv.AllPorts.Name():     "Every TCP port (weekly)",
+	nmapargv.Gentle.Name():       "Gentle scan of a fragile device",
+	nmapargv.GentleTitles.Name(): "Gentle scan",
 }
 
 // JobResultRejected implements sensorlink.ResultRejector: the server refused the body of the result (413 or 400). The

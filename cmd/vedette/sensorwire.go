@@ -30,8 +30,9 @@ type sensorBackend struct {
 }
 
 var (
-	_ sensorlink.Backend        = sensorBackend{}
-	_ sensorlink.ResultRejector = sensorBackend{}
+	_ sensorlink.Backend          = sensorBackend{}
+	_ sensorlink.ResultRejector   = sensorBackend{}
+	_ sensorlink.ProgressReceiver = sensorBackend{}
 )
 
 // sensorModule is the module a role talks to: the switch behind module_off (D-111 (4)).

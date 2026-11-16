@@ -30,11 +30,15 @@ const (
 	MaxObservationsBody = 1 << 20
 	MaxHeartbeatBody    = 64 << 10
 	MaxResultBody       = 11 << 20
-	MaxResultXML        = 8 << 20
-	MaxResultJSONL      = 4 << 20 // the cap of a nuclei run's stdout (nucleiargv.MaxOutput; a test in sensoractive checks they agree)
-	MaxHostErrors       = 16      // entries of host_errors on a nuclei result: one per target (nucleiargv.MaxTargets; a test in the worker checks they agree)
-	MaxItems            = 500
-	MaxRunning          = 3 // jobs a worker runs at once: one nmap, one nuclei (D-125 (3)) and one snmp (D-512)
+	MaxProgressBody     = 1 << 10 // a JobProgress (#830): a few numbers
+	// ProgressEvery is the shortest time between two progress reports of one job (#830): the worker keeps only the latest state
+	// in between, so a tool that prints often costs core one small request every few seconds at most.
+	ProgressEvery  = 5 * time.Second
+	MaxResultXML   = 8 << 20
+	MaxResultJSONL = 4 << 20 // the cap of a nuclei run's stdout (nucleiargv.MaxOutput; a test in sensoractive checks they agree)
+	MaxHostErrors  = 16      // entries of host_errors on a nuclei result: one per target (nucleiargv.MaxTargets; a test in the worker checks they agree)
+	MaxItems       = 500
+	MaxRunning     = 3 // jobs a worker runs at once: one nmap, one nuclei (D-125 (3)) and one snmp (D-512)
 
 	// What a sensor reads back from core.
 	MaxConfigReply = 64 << 10

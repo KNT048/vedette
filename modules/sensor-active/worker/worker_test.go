@@ -43,6 +43,12 @@ type fakeCore struct {
 	pushBusy      bool // hand out a job even to a busy worker (the busy test)
 	results       chan result
 	beats         chan sensorlink.ActiveHeartbeat
+	progress      chan progressReport // #830: what the worker reported while a job ran
+}
+
+type progressReport struct {
+	id string
+	p  sensorlink.JobProgress
 }
 
 type result struct {
@@ -52,7 +58,7 @@ type result struct {
 }
 
 func newCore() *fakeCore {
-	return &fakeCore{instance: strings.Repeat("a", 32), results: make(chan result, 64), beats: make(chan sensorlink.ActiveHeartbeat, 64)}
+	return &fakeCore{instance: strings.Repeat("a", 32), results: make(chan result, 64), beats: make(chan sensorlink.ActiveHeartbeat, 64), progress: make(chan progressReport, 64)}
 }
 
 func (c *fakeCore) push(j sensorlink.Job) {
@@ -133,6 +139,14 @@ func (c *fakeCore) JobResult(_ context.Context, id string, r *sensorlink.JobResu
 	c.handed = ""
 	c.mu.Unlock()
 	c.results <- result{id: id, res: *r, xml: r.XML()}
+	return nil
+}
+
+func (c *fakeCore) JobProgress(_ context.Context, id string, p *sensorlink.JobProgress) error {
+	select {
+	case c.progress <- progressReport{id: id, p: *p}:
+	default:
+	}
 	return nil
 }
 
@@ -391,7 +405,7 @@ func TestRunsAJobWithTheFixedGrammar(t *testing.T) {
 	if got.id != id1 || got.res.Status != "done" || got.res.ExitCode != 0 || got.res.Truncated || !strings.Contains(string(got.xml), "192.168.10.20") {
 		t.Fatalf("result = %+v xml %q", got.res, got.xml)
 	}
-	want := "--privileged\n-sS\n-sV\n-O\n--script\nrdp-ntlm-info,http-ntlm-info,http-title,ssl-cert\n-n\n--max-rate\n100\n--max-retries\n3\n--top-ports\n1000\n--host-timeout\n30m\n-oX\n-\n192.168.10.20\n10.0.0.7\n"
+	want := "--privileged\n-sS\n-sV\n-O\n--script\nrdp-ntlm-info,http-ntlm-info,http-title,ssl-cert\n-n\n--max-rate\n100\n--max-retries\n3\n--top-ports\n1000\n--host-timeout\n30m\n--stats-every\n5s\n-oX\n-\n192.168.10.20\n10.0.0.7\n"
 	if nm.argvLog() != want {
 		t.Fatalf("argv:\n%s\nwant:\n%s", nm.argvLog(), want)
 	}
@@ -456,7 +470,7 @@ func TestRunsAPortVersionsJob(t *testing.T) {
 	if got.res.Status != "done" {
 		t.Fatalf("result = %+v", got.res)
 	}
-	want := "--privileged\n-sS\n-sV\n--script\nrdp-ntlm-info,http-ntlm-info,http-title,ssl-cert\n-n\n--max-rate\n50\n--max-retries\n3\n-p\n22222,40000\n--host-timeout\n30m\n-oX\n-\n192.168.10.20\n"
+	want := "--privileged\n-sS\n-sV\n--script\nrdp-ntlm-info,http-ntlm-info,http-title,ssl-cert\n-n\n--max-rate\n50\n--max-retries\n3\n-p\n22222,40000\n--host-timeout\n30m\n--stats-every\n5s\n-oX\n-\n192.168.10.20\n"
 	if nm.argvLog() != want {
 		t.Fatalf("argv:\n%s\nwant:\n%s", nm.argvLog(), want)
 	}

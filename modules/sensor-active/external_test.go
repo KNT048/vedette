@@ -98,7 +98,7 @@ func TestScanExternalThroughTheWorker(t *testing.T) {
 		t.Fatalf("the fence was asked %d times", own.asked)
 	}
 	calls := e.nm.calls(t)
-	if len(calls) != 1 || !slices.Equal(calls[0], []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", nmapargv.ExternalPorts, "-oX", "-", "8.8.8.8"}) {
+	if len(calls) != 1 || !slices.Equal(calls[0], []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "--max-rate", "100", "--max-retries", "2", "--host-timeout", "3m", "-p", nmapargv.ExternalPorts, "--stats-every", "5s", "-oX", "-", "8.8.8.8"}) {
 		t.Fatalf("nmap argv = %q", calls)
 	}
 	if s := e.str(`SELECT shape || '|' || rate || '|' || hosts || '|' || targets || '|' || result FROM sa_probe`); s != "external|100|1|8.8.8.8|ok: 4 open ports" {

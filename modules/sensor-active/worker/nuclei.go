@@ -293,7 +293,7 @@ func (w *Worker) executeNuclei(ctx, jctx context.Context, cur *activeJob) *senso
 		}
 		return res
 	}
-	out, err := w.runner.Run(rctx, nucleiBin, argv, nil)
+	out, err := w.runNuclei(rctx, cur, argv)
 	res = w.finish(ctx, jctx, rctx, cur, out, err, "nuclei_missing", (*sensorlink.JobResult).SetJSONL)
 	if res.Status == "done" {
 		res.HostErrors = hostErrors(out.Stderr, cur.job.Nuclei)
@@ -316,7 +316,7 @@ func (w *Worker) runWatched(ctx, jctx, rctx context.Context, cur *activeJob, arg
 	ch := make(chan string, 1)
 	dj := w.domainJob(cur.job)
 	go func() { ch <- w.watchDomain(nctx, dj, ticks, kill) }()
-	out, err := w.runner.Run(nctx, nucleiBin, argv, nil)
+	out, err := w.runNuclei(nctx, cur, argv)
 	kill()
 	if reason := <-ch; reason != "" && context.Cause(jctx) == nil {
 		return reason, nil
@@ -330,6 +330,12 @@ func (w *Worker) runWatched(ctx, jctx, rctx context.Context, cur *activeJob, arg
 
 // hostErrors is what the result says about targets that stopped answering (INV-6, D-165): the timeouts per target that
 // nuclei's error log (-elog on stderr) holds, counted by nucleiout.ParseHostErrors. Stderr itself is never posted.
+// runNuclei runs nuclei with its progress reported (#830).
+func (w *Worker) runNuclei(ctx context.Context, cur *activeJob, argv []string) (exec.Result, error) {
+	rep := &reporter{}
+	return w.runReporting(ctx, cur.job.ID, nucleiBin, argv, nucleiWatch(cur.job.Nuclei, rep), rep)
+}
+
 func hostErrors(stderr []byte, nj *sensorlink.NucleiJob) []sensorlink.HostError {
 	targets := make([]string, len(nj.Targets))
 	for i, t := range nj.Targets {

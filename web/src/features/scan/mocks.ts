@@ -9,6 +9,7 @@ import type { Asset, Finding } from '@/lib/types'
 import { BOX_ID, inventorySettingsStore } from '@/features/inventory/mocks'
 import { displayName } from '@/features/inventory/nameOf'
 import { exposureSnapshotsStore, exposureTargetsStore } from '@/features/exposure/mocks'
+import { mockDeviceProgress } from '@/lib/progress'
 import type { CredTarget, IdentReason, ProbeEntry, RescanEvent, RunIdentRow, RunResultRow, ScanConfig, ScanConfigResponse, ScanRun, ScanScope, ScanTarget } from './types'
 
 
@@ -94,7 +95,7 @@ function seedRuns(): StoredRun[] {
   const mk = (id: string, trigger: ScanRun['trigger'], note: string | null, started: string, mins: number, list: ScanTarget[], done: number, status: ScanRun['status'], reason: string | null): StoredRun => {
     const rows = [...rowsOf(list.slice(0, done)), ...list.slice(done).map((x) => row(x, null, 'skipped', null, SKIPPED))]
     const identification = trigger === 'manual' ? list.map((x, i) => (i < done ? identOne(x) : identRow(x, [], 'not_scanned', SKIPPED))) : []
-    return { id, trigger, trigger_note: note, started_at: started, started_by: trigger === 'manual' ? 'it@acme.example' : 'system', ended_at: new Date(Date.parse(started) + mins * 60_000).toISOString(), status, total: list.length, done, current: null, results: rows, matched: rows.filter((x) => x.result === 'matched').length, stop_reason: reason, target_ids: list.map((x) => x.id), stop_requested_at: null, identification }
+    return { id, trigger, trigger_note: note, started_at: started, started_by: trigger === 'manual' ? 'it@acme.example' : 'system', ended_at: new Date(Date.parse(started) + mins * 60_000).toISOString(), status, total: list.length, done, current: null, progress: null, results: rows, matched: rows.filter((x) => x.result === 'matched').length, stop_reason: reason, target_ids: list.map((x) => x.id), stop_requested_at: null, identification }
   }
   // A scheduled run and a KEV rescan never touch a device that needs a hand pick (D-126 (2)); a manual run may, it was picked.
   const auto = t.filter((x) => !x.pick_only)
@@ -313,7 +314,7 @@ function finalize(r: StoredRun, status: ScanRun['status'], reason: string | null
   applyToFindings(rows)
   probes.update((l) => [...newProbes.reverse(), ...l])
   if (status === 'stopped') engineStore.set({ busyUntil: Date.now() + timing.engineMs }) // the worker is still finishing the request on its way
-  const done: StoredRun = { ...r, status, ended_at: nowIso(), current: null, results: rows, matched: rows.filter((x) => x.result === 'matched').length, stop_reason: reason, identification: idents }
+  const done: StoredRun = { ...r, status, ended_at: nowIso(), current: null, progress: null, results: rows, matched: rows.filter((x) => x.result === 'matched').length, stop_reason: reason, identification: idents }
   saveRun(done)
   return done
 }
@@ -337,14 +338,16 @@ function advance(r: StoredRun): StoredRun {
   }
   if (idx >= r.total) return finalize({ ...r, done: r.total }, 'done', null)
   const cur = all.find((x) => x.id === r.target_ids[idx])
-  const next: StoredRun = { ...r, done: idx, current: cur ? { label: cur.label, ip: cur.ip } : null }
+  const deviceStart = Date.parse(r.started_at) + idx * timing.stepMs // #830: how far the current device is, as the box reports it
+  const progress = cur ? mockDeviceProgress(deviceStart, (now - deviceStart) / timing.stepMs, now) : null
+  const next: StoredRun = { ...r, done: idx, current: cur ? { label: cur.label, ip: cur.ip } : null, progress }
   saveRun(next)
   return next
 }
 
 function startRun(ids: string[], trigger: ScanRun['trigger'], note: string | null, user: string): StoredRun {
   const all = targets()
-  const r: StoredRun = { id: newId('run'), trigger, trigger_note: note, started_at: nowIso(), started_by: user, ended_at: null, status: 'running', total: ids.length, done: 0, current: null, results: [], matched: 0, stop_reason: null, target_ids: ids, stop_requested_at: null, identification: [] }
+  const r: StoredRun = { id: newId('run'), trigger, trigger_note: note, started_at: nowIso(), started_by: user, ended_at: null, status: 'running', total: ids.length, done: 0, current: null, progress: null, results: [], matched: 0, stop_reason: null, target_ids: ids, stop_requested_at: null, identification: [] }
   const t0 = all.find((x) => x.id === ids[0])
   r.current = t0 ? { label: t0.label, ip: t0.ip } : null
   runs.update((l) => [r, ...l].slice(0, 100))

@@ -22,7 +22,7 @@ func TestValidatorCannotBeBypassed(t *testing.T) {
 		return []string{"--privileged", "-sS", "-n", "-T2", "--max-retries", "1", "--max-rate", r, "--host-timeout", "15m", "--top-ports", "100"}
 	}
 	with := func(flags []string, targets ...string) []string {
-		return append(append(slices.Clone(flags), "-oX", "-"), targets...)
+		return append(append(slices.Clone(flags), "--stats-every", "5s", "-oX", "-"), targets...)
 	}
 	many := func(n int) []string {
 		var out []string
@@ -64,9 +64,9 @@ func TestValidatorCannotBeBypassed(t *testing.T) {
 		"flag duplicated":           with(append(sweep("5"), "-n"), "10.0.0.1"),
 		"max-rate twice":            with(append(sweep("5"), "--max-rate", "5"), "10.0.0.1"),
 		"script appended":           with(append(normal("5"), "--script", "vuln"), "10.0.0.1"),
-		"-oX first":                 append([]string{"-oX", "-"}, append(sweep("5"), "10.0.0.1")...),
+		"-oX first":                 append([]string{"--stats-every", "5s", "-oX", "-"}, append(sweep("5"), "10.0.0.1")...),
 		"-oX to a file":             append(sweep("5"), "-oX", "/tmp/x", "10.0.0.1"),
-		"-oX - twice":               with(sweep("5"), "-oX", "-", "10.0.0.1"),
+		"-oX - twice":               with(sweep("5"), "--stats-every", "5s", "-oX", "-", "10.0.0.1"),
 		"flag among targets":        with(sweep("5"), "10.0.0.1", "-iL", "/etc/passwd"),
 		"no target":                 with(sweep("5")),
 		"65 targets":                with(sweep("5"), many(65)...),

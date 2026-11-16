@@ -2,6 +2,7 @@
 // Hard rule (LEGAL §3): POST .../scan returns 409 unless ownership is verified (IPs: not more than 30 days since the box last saw them) and the DNS TXT record is still there, and 400 `commitment_required` (D-57) until the commitment is recorded.
 import { z } from 'zod'
 import { defineEndpoints } from '@/lib/contract'
+import { JobProgress } from '@/lib/progress'
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const day = (ago: number) => {
@@ -198,6 +199,7 @@ export const ScanRun = z.object({
   snapshot_id: z.string().nullable().describe('The new snapshot when status is done; also when a run was stopped during its Greenbone step, whose earlier results are kept'),
   error: z.object({ code: z.string(), message: z.string() }).nullable().describe('Why the run failed, in the same codes and texts the synchronous scan used (unreachable, too_many, module_off ...); null otherwise'),
   stop_reason: z.string().nullable().optional().describe('Why the box stopped this run when it was not a person\'s Stop, e.g. "the testing terms of this target were withdrawn" (D-566)'),
+  progress: JobProgress.nullable().describe('How far the step that runs now is (#830): the port scan, service detection and vulnerability checks as the scan worker reports them, the passive web checks, and OpenVAS\'s own percent during the greenbone phase. Set while status is running; null otherwise'),
 })
 
 /** D-558: what Shodan InternetDB says about one of the box's own verified public IPs, next to Vedette's own scan. It is Shodan's claim, never Vedette's finding. */

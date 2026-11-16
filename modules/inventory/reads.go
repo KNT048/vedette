@@ -189,7 +189,9 @@ func (s *Service) findingCounts(ctx context.Context) (map[string]int, error) {
 }
 
 // Devices lists the devices for GET /inventory/devices: at most MaxListed rows, the counts over all of them.
-func (s *Service) Devices(ctx context.Context) (DeviceList, error) { return s.devices(ctx, DeviceFilter{}) }
+func (s *Service) Devices(ctx context.Context) (DeviceList, error) {
+	return s.devices(ctx, DeviceFilter{})
+}
 
 // devices is Devices narrowed by the Devices search (#849): at most MaxListed of the devices f keeps, each with its sources; the counts
 // stay over the whole inventory (the tabs).

@@ -2,6 +2,7 @@ package sensoractive_test
 
 import (
 	"context"
+	"fmt"
 	"net/netip"
 	"slices"
 	"sync"
@@ -48,7 +49,7 @@ func rangeIPs(from, to int, skip ...int) []string {
 	var out []string
 	for i := from; i <= to; i++ {
 		if !slices.Contains(skip, i) {
-			out = append(out, netip.AddrFrom4([4]byte{192, 168, 10, byte(i)}).String())
+			out = append(out, fmt.Sprintf("192.168.10.%d", i))
 		}
 	}
 	return out

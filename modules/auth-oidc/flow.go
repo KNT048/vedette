@@ -43,14 +43,14 @@ func oidcOff() *apierr.Error {
 // secretLost refuses SSO sign-in while the client secret is sealed under another box key: a backup restored without its
 // decryption key (the restore page warns that SSO accounts cannot sign in then). An administrator enters the secret again.
 func secretLost() *apierr.Error {
-	return apierr.New(409, "sso_secret_lost", "SSO sign-in cannot be used: this box was restored without the decryption key, so the SSO client secret was not restored. An administrator signs in with a password and enters the client secret again in Settings, Users, SSO sign-in.")
+	return apierr.New(409, "sso_secret_lost", "SSO sign-in cannot be used: the SSO client secret could not be read on this box (it was restored without the decryption key, or the box key changed). An administrator signs in with a password and enters the client secret again in Settings, Users, SSO sign-in.")
 }
 
 // clientSecret opens the stored client secret; one sealed under another box key is secretLost.
 func (s *Service) clientSecret(ctx context.Context, c Config) ([]byte, error) {
 	secret, err := s.secrets.Open(ctx, s.db.Reader(), c.secretID, secretPurpose)
 	if errors.Is(err, secrets.ErrDecrypt) {
-		s.log.WarnContext(ctx, "the SSO client secret cannot be opened with this box's key (restored without the decryption key?); an administrator must enter it again", "issuer", c.Issuer)
+		s.log.WarnContext(ctx, "the SSO client secret cannot be opened with this box's key (restored without the decryption key, or the key file was made again); an administrator must enter it again", "issuer", c.Issuer)
 		return nil, secretLost()
 	}
 	if err != nil {

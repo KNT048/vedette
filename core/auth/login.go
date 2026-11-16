@@ -381,18 +381,19 @@ func (s *Service) loginKeyLost(ctx context.Context, row coredb.CoreUser, err err
 	if !errors.Is(err, secrets.ErrDecrypt) {
 		return err
 	}
-	s.log.WarnContext(ctx, "the authenticator key of a user cannot be opened with this box's key (restored without the decryption key?); an administrator must reset the user's two-step sign-in", "user_id", row.ID)
-	if aerr := s.auditFailure(ctx, row.Email, row.Email, "two-step key cannot be opened (restored without the decryption key)"); aerr != nil {
+	s.log.WarnContext(ctx, "the authenticator key of a user cannot be opened with this box's master key (restored without the decryption key, or the key file was made again); an administrator must reset the user's two-step sign-in", "user_id", row.ID)
+	if aerr := s.auditFailure(ctx, row.Email, row.Email, "two-step key cannot be opened (restored without the decryption key, or the box key changed)"); aerr != nil {
 		return aerr
 	}
 	return twofaKeyLost()
 }
 
-// twofaKeyLost refuses an account whose authenticator key is sealed under another box key: a backup restored without its
-// decryption key (the restore page says so beforehand, and that an administrator resets it in Settings, Users). The key is
+// twofaKeyLost refuses an account whose authenticator key is sealed under another master key: a backup restored without its
+// decryption key (the restore page says so beforehand, and that an administrator resets it in Settings, Users), or a key file
+// made again on a box that lost it. The message names both causes: the box cannot tell them apart. The key is
 // gone for good, so a code can never be checked, and the account never signs in on its password alone.
 func twofaKeyLost() *apierr.Error {
-	return apierr.New(403, CodeTwofaReset, "Your two-step sign-in did not survive the restore of this box (it was restored without the decryption key). Ask an administrator to reset your two-step sign-in in Settings, Users, then sign in and set it up again.")
+	return apierr.New(403, CodeTwofaReset, "Your two-step sign-in key could not be read on this box (it was restored without the decryption key, or the box key changed). Ask an administrator to reset your two-step sign-in in Settings, Users, then sign in and set it up again.")
 }
 
 // totpKey reads the confirmed authenticator key of a user and the last accepted step. ok is false for a user without a

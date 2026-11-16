@@ -283,7 +283,8 @@
       "notify": "Notifications",
       "sensor-ca": "Sensor CA",
       "sensor-cert": "Sensor certificates",
-      "box-ca": "Box CA"
+      "box-ca": "Box CA",
+      "box-key": "Box keys"
     },
     "action": {
       "auth": {
@@ -571,6 +572,7 @@
       "box-ca.create": "Create box certificate authority",
       "box-ca.migrate": "Move box certificate authority into the database",
       "box-ca.replace": "Replace box certificate authority (enrolled agents must run the install command again)",
+      "box-key.replace": "Replace a box key that could not be read (restored without the decryption key, or the box key changed)",
       "notify.retention": "Old alert history deleted",
       "sensor-ca.create": "Create sensor certificate authority",
       "sensor-ca.replace": "Replace sensor certificate authority",

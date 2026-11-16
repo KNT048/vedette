@@ -7,8 +7,8 @@ import { http, HttpResponse } from 'msw'
 import { renderApp } from '@/test/render'
 import { server } from '@/test/server'
 
-const TWOFA_LOST = 'Your two-step sign-in did not survive the restore of this box (it was restored without the decryption key). Ask an administrator to reset your two-step sign-in in Settings, Users, then sign in and set it up again.'
-const SSO_LOST = 'SSO sign-in cannot be used: this box was restored without the decryption key, so the SSO client secret was not restored. An administrator signs in with a password and enters the client secret again in Settings, Users, SSO sign-in.'
+const TWOFA_LOST = 'Your two-step sign-in key could not be read on this box (it was restored without the decryption key, or the box key changed). Ask an administrator to reset your two-step sign-in in Settings, Users, then sign in and set it up again.'
+const SSO_LOST = 'SSO sign-in cannot be used: the SSO client secret could not be read on this box (it was restored without the decryption key, or the box key changed). An administrator signs in with a password and enters the client secret again in Settings, Users, SSO sign-in.'
 
 describe('sign-in after a restore without the decryption key', () => {
   it('twofa_reset_required: the sentence shows under the password, no code is asked for', async () => {

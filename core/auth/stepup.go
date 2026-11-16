@@ -203,7 +203,7 @@ func (s *Service) stepUpTOTP(ctx context.Context, row coredb.CoreUser, code, pur
 		if !errors.Is(err, secrets.ErrDecrypt) {
 			return err
 		}
-		return s.stepUpFailed(ctx, row.Email, row.Email, "two-step key cannot be opened (restored without the decryption key)", purpose, "app", twofaKeyLost())
+		return s.stepUpFailed(ctx, row.Email, row.Email, "two-step key cannot be opened (restored without the decryption key, or the box key changed)", purpose, "app", twofaKeyLost())
 	}
 	if code == "" {
 		if e := s.limit.check(twofaKey, row.Email); e != nil {

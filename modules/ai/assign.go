@@ -63,6 +63,15 @@ func (s *Service) SetAssignments(ctx context.Context, who string, in Assignments
 	if err := next.check(); err != nil {
 		return AssignmentsView{}, mapErr(err)
 	}
+	// A profile whose key is lost (#847) stays where it was assigned, but is not given a new job: it could not answer it.
+	for j, slot := range asg.Jobs {
+		was := cur.assign.Jobs[j]
+		for _, id := range []string{slot.Primary, slot.Fallback} {
+			if p, ok := cur.find(id); ok && p.KeyLost && id != was.Primary && id != was.Fallback {
+				return AssignmentsView{}, profileKeyLostFor(p.Name, j.Name())
+			}
+		}
+	}
 	for _, j := range Jobs() { // all ten, so the saved rows and the router agree
 		if _, ok := asg.Jobs[j]; !ok {
 			asg.Jobs[j] = Slot{}

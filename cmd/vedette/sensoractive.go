@@ -136,6 +136,21 @@ func newSensorActive(ctx context.Context, d deps, prober sensoractive.Prober) (*
 			return svc.AssetChanged(ctx, ev.AssetID)
 		}))
 	}
+	// Which device answered which SNMP credential goes with the device, and moves with a merged one (#829 C4).
+	d.Bus.Subscribe(inventory.EventAssetDeleted, on(func(ctx context.Context, data any) error {
+		ev, ok := data.(inventory.AssetEvent)
+		if !ok {
+			return fmt.Errorf("unexpected payload %T", data)
+		}
+		return svc.AssetDeleted(ctx, ev.AssetID)
+	}))
+	d.Bus.Subscribe(inventory.EventAssetMerged, on(func(ctx context.Context, data any) error {
+		ev, ok := data.(inventory.MergeEvent)
+		if !ok {
+			return fmt.Errorf("unexpected payload %T", data)
+		}
+		return svc.AssetMerged(ctx, ev.From, ev.Into)
+	}))
 	d.Bus.Subscribe(inventory.EventSettingsChanged, on(func(ctx context.Context, _ any) error {
 		return svc.SettingsChanged(ctx)
 	}))
@@ -243,7 +258,8 @@ func (a sensorInventory) Asset(ctx context.Context, assetID string) (sensoractiv
 		return sensoractive.Asset{}, sensoractive.ErrNotFound
 	}
 	ip, _ := netip.ParseAddr(r.IP) // "—" (no IP known) gives the zero Addr
-	name := r.Display
+	// A host name, else the model, else the vendor; else none ("a device"): Display may be a software or a kind.
+	name := r.Vendor
 	switch {
 	case r.Hostname != nil && *r.Hostname != "":
 		name = *r.Hostname

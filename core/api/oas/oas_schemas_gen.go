@@ -96861,8 +96861,9 @@ type InventoryGetInventorySnmpIDReadOK struct {
 	// skipped, and is not read (#829 C4).
 	Results []InventoryGetInventorySnmpIDReadOKResultsItem `json:"results"`
 	// Devices of the inventory in the credential's scope that are not read: not approved yet (approve them
-	// under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is
-	// sent to them, nor to an address with no device.
+	// under To review first), added manually, set to never, the box, or outside the scan scope; and
+	// devices that answered it and moved out of its scope (#829 C4). Nothing is sent to them, nor to an
+	// address with no device.
 	Skipped   int                                     `json:"skipped"`
 	StartedAt time.Time                               `json:"started_at"`
 	Status    InventoryGetInventorySnmpIDReadOKStatus `json:"status"`
@@ -97632,10 +97633,10 @@ type InventoryGetInventorySnmpOKCredentialsItemMovedOutItem struct {
 	DeviceID string `json:"device_id"`
 	// Its address now, outside the credential's scope.
 	IP string `json:"ip"`
-	// Plain words, e.g. "ipchg-c4 moved to 192.168.18.206, outside the scope of this credential: add the
-	// address to the scope to keep reading it. Nothing is sent there until then.".
+	// Plain words, e.g. "ipchg-c4 moved to 192.168.18.206, outside the scope of this credential. If it is
+	// still ipchg-c4, add the address to the scope to keep reading it. Nothing is sent there until then.".
 	Message string `json:"message"`
-	// How a person knows the device: host name, else model, else what the inventory shows.
+	// How a person knows the device: host name, else model, else vendor; empty when none.
 	Name string `json:"name"`
 }
 
@@ -100289,10 +100290,10 @@ type InventoryPostInventorySnmpCreatedMovedOutItem struct {
 	DeviceID string `json:"device_id"`
 	// Its address now, outside the credential's scope.
 	IP string `json:"ip"`
-	// Plain words, e.g. "ipchg-c4 moved to 192.168.18.206, outside the scope of this credential: add the
-	// address to the scope to keep reading it. Nothing is sent there until then.".
+	// Plain words, e.g. "ipchg-c4 moved to 192.168.18.206, outside the scope of this credential. If it is
+	// still ipchg-c4, add the address to the scope to keep reading it. Nothing is sent there until then.".
 	Message string `json:"message"`
-	// How a person knows the device: host name, else model, else what the inventory shows.
+	// How a person knows the device: host name, else model, else vendor; empty when none.
 	Name string `json:"name"`
 }
 
@@ -100434,8 +100435,9 @@ type InventoryPostInventorySnmpIDReadAccepted struct {
 	// skipped, and is not read (#829 C4).
 	Results []InventoryPostInventorySnmpIDReadAcceptedResultsItem `json:"results"`
 	// Devices of the inventory in the credential's scope that are not read: not approved yet (approve them
-	// under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is
-	// sent to them, nor to an address with no device.
+	// under To review first), added manually, set to never, the box, or outside the scan scope; and
+	// devices that answered it and moved out of its scope (#829 C4). Nothing is sent to them, nor to an
+	// address with no device.
 	Skipped   int                                            `json:"skipped"`
 	StartedAt time.Time                                      `json:"started_at"`
 	Status    InventoryPostInventorySnmpIDReadAcceptedStatus `json:"status"`
@@ -102807,10 +102809,10 @@ type InventoryPutInventorySnmpIDOKMovedOutItem struct {
 	DeviceID string `json:"device_id"`
 	// Its address now, outside the credential's scope.
 	IP string `json:"ip"`
-	// Plain words, e.g. "ipchg-c4 moved to 192.168.18.206, outside the scope of this credential: add the
-	// address to the scope to keep reading it. Nothing is sent there until then.".
+	// Plain words, e.g. "ipchg-c4 moved to 192.168.18.206, outside the scope of this credential. If it is
+	// still ipchg-c4, add the address to the scope to keep reading it. Nothing is sent there until then.".
 	Message string `json:"message"`
-	// How a person knows the device: host name, else model, else what the inventory shows.
+	// How a person knows the device: host name, else model, else vendor; empty when none.
 	Name string `json:"name"`
 }
 

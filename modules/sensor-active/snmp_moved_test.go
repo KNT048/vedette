@@ -65,7 +65,7 @@ func TestSNMPADeviceThatMovedOutOfTheScopeIsNamedAndNeverSentTo(t *testing.T) {
 
 	got := w.movedOf("ipchg-c4")
 	if len(got) != 1 || got[0].DeviceID != "a-sw" || got[0].Name != "device a-sw" || got[0].IP != "192.168.10.30" ||
-		!strings.Contains(got[0].Message, "device a-sw moved to 192.168.10.30, outside the scope of this credential: add the address to the scope") {
+		!strings.Contains(got[0].Message, "device a-sw moved to 192.168.10.30, outside the scope of this credential. If it is still device a-sw, add the address to the scope") {
 		t.Fatalf("moved out %+v", got)
 	}
 	if o := w.movedOf("printers"); len(o) != 0 {
@@ -150,6 +150,7 @@ func TestSNMPMovedOutFollowsTheNewestAnswerAndGoesWithTheCredential(t *testing.T
 	// A device the inventory no longer has is not named; a deleted credential takes its rows with it.
 	w.inv.mu.Lock()
 	delete(w.inv.assets, "a-sw")
+	delete(w.inv.addrs, netip.MustParseAddr("192.168.10.30"))
 	w.inv.mu.Unlock()
 	if got := w.movedOf("old"); len(got) != 0 {
 		t.Fatalf("a deleted device %+v", got)
@@ -159,5 +160,79 @@ func TestSNMPMovedOutFollowsTheNewestAnswerAndGoesWithTheCredential(t *testing.T
 	}
 	if w.count(`SELECT count(*) FROM sa_snmp_answer WHERE credential_id = '`+c.ID+`'`) != 0 {
 		t.Fatal("the deleted credential's answers stayed")
+	}
+}
+
+// Review r1 M1: a scope narrowed on purpose is not a move: the device did not change address, so nothing is said, and the answers
+// the new scope no longer holds are dropped.
+func TestSNMPANarrowedScopeIsNotAMove(t *testing.T) {
+	t.Parallel()
+	w := newSNMPWorld(t, &fakeReader{})
+	ctx := t.Context()
+	c := w.add(v2cInput("c", "community-1", "192.168.10.20", "192.168.10.24"))
+	for _, ip := range []string{"192.168.10.20", "192.168.10.24"} {
+		if res, err := w.svc.TestSNMP(ctx, "admin@example.com", c.ID, ip); err != nil || !res.OK {
+			t.Fatalf("%s: %v %+v", ip, err, res)
+		}
+	}
+	if _, err := w.svc.EditSNMP(ctx, "admin@example.com", c.ID, v2cInput("c", "", "192.168.10.24")); err != nil {
+		t.Fatal(err)
+	}
+	if got := w.movedOf("c"); len(got) != 0 {
+		t.Fatalf("a narrowed scope reported as a move: %+v", got)
+	}
+	if w.count(`SELECT count(*) FROM sa_snmp_answer WHERE asset_id = 'a-sw'`) != 0 || w.count(`SELECT count(*) FROM sa_snmp_answer WHERE asset_id = 'a-printer'`) != 1 {
+		t.Fatal("the answers outside the narrowed scope stayed, or the others went")
+	}
+	// The printer moving out afterwards is still a move.
+	w.inv.mu.Lock()
+	delete(w.inv.addrs, netip.MustParseAddr("192.168.10.24"))
+	w.inv.assets["a-printer"], w.inv.addrs[netip.MustParseAddr("192.168.10.31")] = netip.MustParseAddr("192.168.10.31"), "a-printer"
+	w.inv.mu.Unlock()
+	if got := w.movedOf("c"); len(got) != 1 || got[0].DeviceID != "a-printer" || got[0].IP != "192.168.10.31" {
+		t.Fatalf("the printer moved: %+v", got)
+	}
+}
+
+// Review r1 M2: the answers go with a deleted device, move with a merged one, and the round drops those of devices the inventory no
+// longer has (an event missed while the module was off).
+func TestSNMPAnswersFollowDeletedAndMergedDevices(t *testing.T) {
+	t.Parallel()
+	w := newSNMPWorld(t, &fakeReader{})
+	ctx := t.Context()
+	c := w.add(v2cInput("c", "community-1", "192.168.10.20", "192.168.10.24"))
+	for _, ip := range []string{"192.168.10.20", "192.168.10.24"} {
+		if res, err := w.svc.TestSNMP(ctx, "admin@example.com", c.ID, ip); err != nil || !res.OK {
+			t.Fatalf("%s: %v %+v", ip, err, res)
+		}
+	}
+	// The switch's row was merged into another row of the same device, which now has a new address outside the scope.
+	if err := w.svc.AssetMerged(ctx, "a-sw", "a-sw2"); err != nil {
+		t.Fatal(err)
+	}
+	w.inv.mu.Lock()
+	delete(w.inv.assets, "a-sw")
+	delete(w.inv.addrs, netip.MustParseAddr("192.168.10.20"))
+	w.inv.assets["a-sw2"], w.inv.addrs[netip.MustParseAddr("192.168.10.30")] = netip.MustParseAddr("192.168.10.30"), "a-sw2"
+	w.inv.mu.Unlock()
+	if got := w.movedOf("c"); len(got) != 1 || got[0].DeviceID != "a-sw2" || got[0].IP != "192.168.10.30" {
+		t.Fatalf("after the merge: %+v", got)
+	}
+	if err := w.svc.AssetDeleted(ctx, "a-sw2"); err != nil {
+		t.Fatal(err)
+	}
+	if w.count(`SELECT count(*) FROM sa_snmp_answer WHERE asset_id IN ('a-sw', 'a-sw2')`) != 0 {
+		t.Fatal("the answers of a deleted device stayed")
+	}
+	// The printer is deleted while no event reaches the module: the window's round drops its answers.
+	w.inv.mu.Lock()
+	delete(w.inv.assets, "a-printer")
+	delete(w.inv.addrs, netip.MustParseAddr("192.168.10.24"))
+	w.inv.mu.Unlock()
+	if err := w.svc.Tick(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if w.count(`SELECT count(*) FROM sa_snmp_answer`) != 0 {
+		t.Fatal("the round kept the answers of a device the inventory no longer has")
 	}
 }

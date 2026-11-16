@@ -184,7 +184,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
   })
 
   it('#829 C4: a device that moved out of a credential\'s scope is named on the credential, in Read now and on the device page; nothing is read there', async () => {
-    const message = 'nas02 moved to 192.168.10.21, outside the scope of this credential: add the address to the scope to keep reading it. Nothing is sent there until then.'
+    const message = 'nas02 moved to 192.168.10.21, outside the scope of this credential. If it is still nas02, add the address to the scope to keep reading it. Nothing is sent there until then.'
     snmpStore.update((l) => l.map((x) => (x.id === 'snmp-1' ? { ...x, scope: ['192.168.10.200/32'], moved_out: [{ device_id: 'a-nas02', name: 'nas02', ip: '192.168.10.21', message }] } : x)))
     expect((await call('GET', '/snmp')).json!.credentials[0].moved_out).toEqual([{ device_id: 'a-nas02', name: 'nas02', ip: '192.168.10.21', message }])
     const run = await call('POST', '/snmp/snmp-1/read')

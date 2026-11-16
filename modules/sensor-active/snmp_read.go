@@ -110,6 +110,11 @@ func (s *Service) ReadSNMP(ctx context.Context, actor, id string) (SNMPRead, err
 		return SNMPRead{}, busy
 	}
 	targets, skipped, err := s.snmpReadTargets(ctx, *cred)
+	// A device that answered this credential and moved out of its scope is not read (D-512): it is a skipped row that says so
+	// (#829 C4), so a read of nothing says why.
+	movedAll, _ := s.snmpMovedOut(ctx, []snmpRow{*cred})
+	moved := movedAll[id]
+	skipped += len(moved)
 	if err == nil { // every Read now is audited, one that finds no approved device too (S-INV-1, #855 r1 L1)
 		err = s.db.Write(ctx, func(tx *sql.Tx) error {
 			return s.auditTx(ctx, tx, actor, "inventory.snmp_read", cred.Name, fmt.Sprintf("%d approved devices, %d skipped", len(targets), skipped))
@@ -129,10 +134,7 @@ func (s *Service) ReadSNMP(ctx context.Context, actor, id string) (SNMPRead, err
 		return SNMPRead{}, err
 	}
 	run := &SNMPRead{ID: jobID, CredentialID: id, By: actor, StartedAt: s.clock(), Status: StatusRunning, Total: len(targets), Skipped: skipped, Results: []SNMPReadResult{}}
-	// A device that answered this credential and moved out of its scope is not read (D-512): it is a skipped row that says so
-	// (#829 C4), so a read of nothing says why.
-	for _, m := range s.snmpMovedOut(ctx, []snmpRow{*cred})[id] {
-		run.Skipped++
+	for _, m := range moved {
 		run.Results = append(run.Results, SNMPReadResult{IP: m.IP, SNMPTestResult: SNMPTestResult{Reason: SNMPNotForThisCredential, Message: m.Message, DeviceID: m.DeviceID}})
 	}
 	done := make(chan struct{})

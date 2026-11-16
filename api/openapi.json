@@ -45499,7 +45499,7 @@
                                 },
                                 "name": {
                                   "type": "string",
-                                  "description": "How a person knows the device: host name, else model, else what the inventory shows"
+                                  "description": "How a person knows the device: host name, else model, else vendor; empty when none"
                                 },
                                 "ip": {
                                   "type": "string",
@@ -45507,7 +45507,7 @@
                                 },
                                 "message": {
                                   "type": "string",
-                                  "description": "Plain words, e.g. \"ipchg-c4 moved to 192.168.18.206, outside the scope of this credential: add the address to the scope to keep reading it. Nothing is sent there until then.\""
+                                  "description": "Plain words, e.g. \"ipchg-c4 moved to 192.168.18.206, outside the scope of this credential. If it is still ipchg-c4, add the address to the scope to keep reading it. Nothing is sent there until then.\""
                                 }
                               },
                               "required": [
@@ -45774,7 +45774,7 @@
                           },
                           "name": {
                             "type": "string",
-                            "description": "How a person knows the device: host name, else model, else what the inventory shows"
+                            "description": "How a person knows the device: host name, else model, else vendor; empty when none"
                           },
                           "ip": {
                             "type": "string",
@@ -45782,7 +45782,7 @@
                           },
                           "message": {
                             "type": "string",
-                            "description": "Plain words, e.g. \"ipchg-c4 moved to 192.168.18.206, outside the scope of this credential: add the address to the scope to keep reading it. Nothing is sent there until then.\""
+                            "description": "Plain words, e.g. \"ipchg-c4 moved to 192.168.18.206, outside the scope of this credential. If it is still ipchg-c4, add the address to the scope to keep reading it. Nothing is sent there until then.\""
                           }
                         },
                         "required": [
@@ -46076,7 +46076,7 @@
                           },
                           "name": {
                             "type": "string",
-                            "description": "How a person knows the device: host name, else model, else what the inventory shows"
+                            "description": "How a person knows the device: host name, else model, else vendor; empty when none"
                           },
                           "ip": {
                             "type": "string",
@@ -46084,7 +46084,7 @@
                           },
                           "message": {
                             "type": "string",
-                            "description": "Plain words, e.g. \"ipchg-c4 moved to 192.168.18.206, outside the scope of this credential: add the address to the scope to keep reading it. Nothing is sent there until then.\""
+                            "description": "Plain words, e.g. \"ipchg-c4 moved to 192.168.18.206, outside the scope of this credential. If it is still ipchg-c4, add the address to the scope to keep reading it. Nothing is sent there until then.\""
                           }
                         },
                         "required": [
@@ -46225,7 +46225,7 @@
                           "type": "integer",
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991,
-                          "description": "Devices of the inventory in the credential's scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is sent to them, nor to an address with no device"
+                          "description": "Devices of the inventory in the credential's scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope; and devices that answered it and moved out of its scope (#829 C4). Nothing is sent to them, nor to an address with no device"
                         },
                         "results": {
                           "type": "array",
@@ -46470,7 +46470,7 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991,
-                      "description": "Devices of the inventory in the credential's scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is sent to them, nor to an address with no device"
+                      "description": "Devices of the inventory in the credential's scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope; and devices that answered it and moved out of its scope (#829 C4). Nothing is sent to them, nor to an address with no device"
                     },
                     "results": {
                       "type": "array",

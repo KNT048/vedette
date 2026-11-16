@@ -157,7 +157,7 @@ func (s *Service) SNMPCredentials(ctx context.Context) ([]SNMPCredential, error)
 		}
 		out[i].SecretLost = lost
 	}
-	moved := s.snmpMovedOut(ctx, rows)
+	moved, _ := s.snmpMovedOut(ctx, rows)
 	for i := range out {
 		out[i].MovedOut = moved[out[i].ID]
 	}
@@ -516,6 +516,9 @@ func (s *Service) EditSNMP(ctx context.Context, actor, id string, in SNMPCredent
 		if _, err := tx.ExecContext(ctx, `UPDATE sa_snmp SET name = ?, version = ?, username = ?, auth = ?, priv = ?, secret_last4 = ?, priv_secret_id = ?, priv_last4 = ?, scope = ?, updated_at = ? WHERE id = ?`,
 			f.name, f.version, nullable(f.user), nullable(f.auth), nullable(f.priv), last4, privID, privLast4, string(scope), s.now(), id); err != nil {
 			return nameTaken(err)
+		}
+		if err := forgetOutside(ctx, tx, id, f.scopeText); err != nil {
+			return err
 		}
 		return s.auditTx(ctx, tx, actor, "inventory.snmp_edit", f.name, f.words())
 	})
@@ -1147,7 +1150,10 @@ func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 	creds = usable
 	// A device that answered a credential and moved out of its scope is not read (D-512); the credential, the device page and the
 	// Scanning card name it (#829 C4), and the log says it once per round.
-	moved := s.snmpMovedOut(ctx, creds)
+	moved, gone := s.snmpMovedOut(ctx, creds)
+	if err := s.forgetSNMPAnswers(ctx, gone); err != nil {
+		s.log.WarnContext(ctx, "sensoractive: forgetting the snmp answers of deleted devices failed", "error", err)
+	}
 	for _, c := range creds {
 		for _, m := range moved[c.ID] {
 			s.log.InfoContext(ctx, "sensoractive: snmp device skipped: it moved out of the credential's scope", "credential", c.Name, "device", m.DeviceID, "ip", m.IP)

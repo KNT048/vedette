@@ -185,9 +185,9 @@ export const SnmpAuth = z.enum(['sha', 'sha256']).describe('v3 authentication: H
 export const SnmpPriv = z.enum(['aes128', 'none']).describe('v3 privacy: AES-128 (authPriv) or none (authNoPriv); no DES')
 /** #829 C4: a device that answered this credential and has since moved to an address outside its scope. It is not read there (the scope is the safety line, D-512) until a person adds the address. */
 export const SnmpMoved = z.object({
-  device_id: z.string(), name: z.string().describe('How a person knows the device: host name, else model, else what the inventory shows'),
+  device_id: z.string(), name: z.string().describe('How a person knows the device: host name, else model, else vendor; empty when none'),
   ip: z.string().describe('Its address now, outside the credential\'s scope'),
-  message: z.string().describe('Plain words, e.g. "ipchg-c4 moved to 192.168.18.206, outside the scope of this credential: add the address to the scope to keep reading it. Nothing is sent there until then."'),
+  message: z.string().describe('Plain words, e.g. "ipchg-c4 moved to 192.168.18.206, outside the scope of this credential. If it is still ipchg-c4, add the address to the scope to keep reading it. Nothing is sent there until then."'),
 })
 export const SnmpCredential = z.object({
   id: z.string(), name: z.string(), version: SnmpVersion,
@@ -236,7 +236,7 @@ export const SnmpRead = z.object({
   status: z.enum(['running', 'done', 'stopped', 'failed']),
   message: z.string().nullable().describe('Why the read stopped or failed, in plain words; null while running and when done'),
   total: z.number().int().describe('Approved devices of the scope that get one read'), done: z.number().int(), answered: z.number().int(),
-  skipped: z.number().int().describe('Devices of the inventory in the credential\'s scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is sent to them, nor to an address with no device'),
+  skipped: z.number().int().describe('Devices of the inventory in the credential\'s scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope; and devices that answered it and moved out of its scope (#829 C4). Nothing is sent to them, nor to an address with no device'),
   results: z.array(SnmpTestResult.extend({ ip: z.string() })).describe('One row per device read so far, as Test answers it; a device that answered this credential and moved out of its scope is a row with reason not_for_this_credential at its new address, counted in skipped, and is not read (#829 C4)'),
 })
 

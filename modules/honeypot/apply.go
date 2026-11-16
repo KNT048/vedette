@@ -36,6 +36,9 @@ type hostCache struct {
 	// MACs read. links are what the host says of each address it holds: MAC, link, parent card (when the host says).
 	placed map[netip.Addr]bool
 	links  map[netip.Addr]DecoyLink
+	// busySince: the container start (or, with no address placed, the first address) waits only on a host that answered
+	// busy since then (ErrHostBusy); the next Apply asks again. Zero otherwise. Read as "starting" for startBusyFor (#889).
+	busySince time.Time
 	// openPorts: the host cannot keep each address to its own ports (an older vedette-host without decoy_ip.set_ports,
 	// host-api §13): every address answers every service that runs, and the Trap IPs say so.
 	openPorts bool
@@ -81,16 +84,35 @@ type linkReporter interface {
 	DecoyLinks(ctx context.Context) map[netip.Addr]DecoyLink
 }
 
+// startBusyFor bounds how long a start that waits only on a busy host reads "starting". An update keeps the host busy for
+// about two minutes (#889: N100, the host's install and core's restart); past this bound it is a failure the admin should see.
+const startBusyFor = 5 * time.Minute
+
+// busyReason is the reason once a start has waited on a busy host for longer than startBusyFor.
+const busyReason = "the honeypot container did not start: the host has been busy with another operation for more than 5 minutes; the box keeps trying"
+
 // hostView is the host cache with whether a change is still waiting for the host: one consistent read for the overview.
+// starting: the last Apply stopped only on a busy host, less than startBusyFor ago (#889).
 type hostView struct {
 	hostCache
-	pending bool
+	pending  bool
+	starting bool
 }
 
 func (s *Service) hostView() hostView {
+	now := s.now()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return hostView{hostCache: s.host, pending: s.kickGen > s.doneGen}
+	return hostView{hostCache: s.host, pending: s.kickGen > s.doneGen,
+		starting: !s.host.busySince.IsZero() && now.Sub(s.host.busySince) < startBusyFor}
+}
+
+// waitBusy records that this Apply stopped only on a busy host and returns since when it has (guarded by applyMu).
+func (s *Service) waitBusy() time.Time {
+	if s.busySince.IsZero() {
+		s.busySince = s.now()
+	}
+	return s.busySince
 }
 
 // TrapConflicts lists the Trap IP addresses the last Apply left out of the host and why (a device or the box has the
@@ -405,6 +427,7 @@ func (s *Service) Apply(ctx context.Context) error {
 			reason = "this machine is not an appliance"
 		}
 		s.setHost(hostCache{reason: reason, conflicts: conflicts})
+		s.busySince = time.Time{} // a definite answer: nothing waits on a busy host
 		s.cfg.Log.InfoContext(ctx, "honeypot: traps cannot listen", "reason", reason)
 		return errors.Join(errs...)
 	}
@@ -415,6 +438,13 @@ func (s *Service) Apply(ctx context.Context) error {
 	if parent.Err() != nil { // core is stopping: what the host did not answer is not a refusal; change nothing more
 		return errors.Join(append(errs, err, parent.Err())...)
 	}
+	ipsBusy := errors.Is(err, ErrHostBusy)
+	busy := false // set by a case below that stops only on a busy host; anything else ends the wait (#889)
+	defer func() {
+		if !busy {
+			s.busySince = time.Time{}
+		}
+	}()
 	if err != nil {
 		errs = append(errs, err)
 	}
@@ -467,13 +497,23 @@ func (s *Service) Apply(ctx context.Context) error {
 		case len(refused) < len(ask): // not every address asked for was refused: an answer is missing (busy, lost)
 			reason = notConfirmed
 		}
-		set(hostCache{available: true, reason: reason, conflicts: conflicts, hostFailed: hostFailed})
+		h := hostCache{available: true, reason: reason, conflicts: conflicts, hostFailed: hostFailed}
+		if filesOK && ipsBusy && len(refused) < len(ask) { // the host did not say no: it was busy; the next Apply asks again
+			busy = true
+			h.busySince, h.reason = s.waitBusy(), busyReason
+		}
+		set(h)
 		errs = append(errs, errors.New("honeypot: the host did not take any decoy address"))
 	case !filesOK:
 		set(hostCache{available: true, reason: "the trap configuration could not be written", conflicts: conflicts, hostFailed: hostFailed})
 	default:
 		if err := s.cfg.Host.StartContainer(parent, s.restartDue); err != nil { // not the budget: a restart plus its health wait can take 4 minutes, and a cut-off start would restart again next Apply
-			set(hostCache{available: true, reason: "the honeypot container did not start", conflicts: conflicts, hostFailed: hostFailed})
+			h := hostCache{available: true, reason: "the honeypot container did not start", conflicts: conflicts, hostFailed: hostFailed}
+			if errors.Is(err, ErrHostBusy) { // not a failure yet: "starting" while the host stays busy for less than startBusyFor (#889)
+				busy = true
+				h.busySince, h.reason = s.waitBusy(), busyReason
+			}
+			set(h)
 			errs = append(errs, fmt.Errorf("honeypot: start container: %w", err))
 			break
 		}
@@ -718,6 +758,7 @@ func (s *Service) disable(ctx context.Context) error {
 		s.kickGen++
 		s.mu.Unlock()
 		clear(s.refusals)
+		s.busySince = time.Time{} // a later switch-on waits its own startBusyFor
 		s.sig = ""
 	}()
 	st, err := s.cfg.Host.Status(ctx)

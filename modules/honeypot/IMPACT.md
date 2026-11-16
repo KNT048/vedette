@@ -50,6 +50,7 @@
 - **`Host` tuỳ chọn `DecoyLinks(ctx) map[netip.Addr]DecoyLink`** (S-HP-1, D-466 B2; thay `DecoyMACs`): `cmd/vedette/honeypothost.go` đọc từ cùng lần `state/net` với `held` (MAC, link `vdh<8 hex>`, card quản trị); bỏ đi thì GUI không hiện MAC/hãng/link, không gì khác đổi. **`Host` tuỳ chọn `KeepsPorts(ctx) bool`** (`portKeeper`): false → Trap IP đang nghe ghi chú host cũ và `open_services` = mọi dịch vụ đang chạy.
 - **content/oui** (bảng D-83, dữ liệu): module đọc nó để ra `mac_vendor`; đổi bảng → hãng hiện khác (test `TestVendorOUIsBelongToTheVendor` giữ OUI của vendor đúng hãng).
 - `Trap.state`/`TrapIP.state` có thêm `starting|stopping|failed`: GUI (`TrapStateChip`), mock (`features/honeypot/mocks.ts`) và `api/openapi.json` phải đổi cùng lượt.
+- **`ErrHostBusy`** (#889): bộ chuyển host (`cmd/vedette/honeypothost.go` `errHostBusy`) phải bọc nó cho `busy`/`rate_limited`/host bận; không bọc thì sau mỗi lần cập nhật bẫy hiện `failed` "the honeypot container did not start" ~2 phút. **cmd/vedette `GET /scanning`** (`honeypotState`) đọc `Trap.state` `starting` khi chưa Trap IP nào nghe → thẻ honeypot `starting`, không `error`.
 
 ## Modifying: `Service.AddToken` từ chối `type=dns` (D-468)
 - **web/features/honeypot** (`Tokens.tsx`, `mocks.ts`): form không đưa DNS (`TOKEN_TYPES`), mock trả cùng 409 `dns_unavailable` và câu chữ; đổi câu ở `msgDNSUnavailable` thì đổi cả mock và bảng mã lỗi `docs/API_CONVENTIONS.md`. Mẫu token (`presets.ts` `TOKEN_PRESETS`) chỉ điền các trường đã có, không đụng API.

@@ -19,7 +19,9 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/exec/exectest"
+	"github.com/knt048/vedette/modules/core"
 	"github.com/knt048/vedette/modules/exposure"
+	"github.com/knt048/vedette/modules/honeypot"
 	"github.com/knt048/vedette/modules/inventory"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
@@ -731,5 +733,46 @@ func TestScanningShowsARealExternalRun(t *testing.T) {
 	s.module("exposure", false)
 	if e := card("zap"); e["enabled"] != false || e["last_run"] == nil {
 		t.Fatalf("zap with the module off: enabled %v, last %v", e["enabled"], e["last_run"])
+	}
+}
+
+// #889: the honeypot card says "starting" while the traps wait for a start the host has not confirmed (a busy host right after an
+// update), "error" only with the module's problem, and "ready" once a trap listens.
+func TestScanningHoneypotStarting(t *testing.T) {
+	t.Parallel()
+	problem := "the honeypot container did not start"
+	for name, c := range map[string]struct {
+		o     honeypot.Overview
+		state string
+	}{
+		"no Trap IP": {honeypot.Overview{}, core.EngineNeedsSetup},
+		"starting": {honeypot.Overview{TrapIPs: honeypot.TrapIPCounts{Enabled: 1},
+			Traps: []honeypot.Trap{{Enabled: true, State: honeypot.StateStarting}, {State: honeypot.StateOff}}}, core.EngineStarting},
+		"failed": {honeypot.Overview{TrapIPs: honeypot.TrapIPCounts{Enabled: 1}, Problem: &problem,
+			Traps: []honeypot.Trap{{Enabled: true, State: honeypot.StateFailed}}}, core.EngineError},
+		"one listens, a new one starts": {honeypot.Overview{TrapIPs: honeypot.TrapIPCounts{Enabled: 2, Listening: 1},
+			Traps: []honeypot.Trap{{Enabled: true, State: honeypot.StateListening}, {Enabled: true, State: honeypot.StateStarting}}}, core.EngineReady},
+	} {
+		if st, reason := honeypotState(c.o); st != c.state || (st != core.EngineReady) == (reason == "") {
+			t.Errorf("%s: %s %q, want %s", name, st, reason, c.state)
+		}
+	}
+}
+
+// #889: the active-discovery cards say "starting", not "unavailable", while the box brings the scan container up and its worker
+// has not reported yet (a busy host after an update).
+func TestScanningScanContainerStarting(t *testing.T) {
+	t.Parallel()
+	s := newStackWith(t, func(d *deps) {
+		d.ScanStart = &startWatch{}
+		d.ScanStart.done(errors.New("the host is busy"), false) // the guard's start is being retried
+	})
+	s.module("sensor-active", true)
+	s.saveScope(t)
+	_, page := s.do("GET", "/scanning", "viewer", "")
+	for _, id := range []string{"nmap-discovery", "nmap-versions", "snmp"} {
+		if e := s.engine(page, id); e["state"] != core.EngineStarting || e["reason"] != "The box is starting the scan container." {
+			t.Errorf("%s: %v (%v)", id, e["state"], e["reason"])
+		}
 	}
 }

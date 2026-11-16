@@ -61,7 +61,7 @@ type moduleContainer struct {
 	// unsureSince is when ensureOn first found the state unreadable since the last good read (zero: it was readable). Reset
 	// by a good read, a start the host confirmed and ensureOff, so a later switch-on waits its own unsureFor again.
 	unsureSince time.Time
-	// watch records how the start goes for GET /inventory/sensors (W2-6); nil: nobody asks (scan, tests).
+	// watch records how the start goes for GET /inventory/sensors (W2-6) and, for scan, GET /scanning (#889); nil: nobody asks (tests).
 	watch *startWatch
 }
 
@@ -339,6 +339,7 @@ func newModuleContainers(d deps) map[string]*moduleContainer {
 		out[m.module] = &moduleContainer{h: h, reg: d.Reg, module: m.module, service: m.service, version: version}
 	}
 	out["sensor-passive"].watch = d.SensorStart // W2-6: GET /inventory/sensors reads it (nil when buildServices did not run: tests)
+	out["sensor-active"].watch = d.ScanStart    // #889: GET /scanning reads it
 	return out
 }
 

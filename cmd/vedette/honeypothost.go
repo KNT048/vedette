@@ -520,7 +520,7 @@ func (h *honeypotHost) outcome(ctx context.Context, command, code, hostMsg strin
 }
 
 var (
-	errHostBusy    = errors.New("the host is busy with another operation or rate-limiting core; will try again at the next apply")
+	errHostBusy    = fmt.Errorf("%w; will try again at the next apply", honeypot.ErrHostBusy) // the module shows "starting" while it lasts (#889)
 	errHostTooLong = errors.New("the host did not finish in time; outcome unknown, will check again at the next apply")
 )
 

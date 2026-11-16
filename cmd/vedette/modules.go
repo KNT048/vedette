@@ -128,6 +128,9 @@ type deps struct {
 	// SensorStart is the start of the sensor container as its guard sees it (W2-6): the guard (addContainerGuards) writes it and
 	// GET /inventory/sensors reads it to say "starting". Set by buildServices when there is a host; nil otherwise.
 	SensorStart *startWatch
+	// ScanStart is the same for the scan container (sensor-active): Settings › Scanning says "starting", not "unavailable", while the
+	// box brings it up and its worker has not reported yet (#889, after an update). Set by buildServices when there is a host.
+	ScanStart *startWatch
 	// SensorDispatcher is the Prober of sensor-active and the active half of the sensor link's Backend (D-113): one instance, so the
 	// job the service queues is the job the worker polls. Authority and SensorCreds exist only when -sensor-listen is set (D-141).
 	SensorDispatcher *sensoractive.Dispatcher

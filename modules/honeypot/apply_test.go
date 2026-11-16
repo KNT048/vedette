@@ -556,3 +556,91 @@ func TestAddressWithADeviceIsNotOwnedByTheBox(t *testing.T) {
 		t.Fatalf("an address with a device on it is listed as owned: %v", got)
 	}
 }
+
+// busyLook is what the overview and the Trap IP say: the state of the enabled traps, the Trap IP's state and the problem ("" = none).
+func busyLook(t *testing.T, e *env) (traps []string, trapIP, problem string) {
+	t.Helper()
+	o, err := e.svc.Overview(e.ctx())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tr := range o.Traps {
+		if tr.Enabled {
+			traps = append(traps, tr.State)
+		}
+	}
+	if o.Problem != nil {
+		problem = *o.Problem
+	}
+	return traps, e.trapIP(e.main).State, problem
+}
+
+// #889: right after an update the host answers busy (its install, core's own restart) and the container start is retried at the
+// next Apply. That reads "starting", not a failure, for up to 5 minutes since the first busy answer (the clock, not the number of
+// Applies); past that it is a failure that says why. A start the host takes ends the wait, the next busy spell waits its own 5
+// minutes, and a start that really failed is a failure at once.
+func TestBusyHostStartReadsStartingForABoundedTime(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.setup()
+	busy := fmt.Errorf("container.start: %w; will try again at the next apply", honeypot.ErrHostBusy)
+	want := func(step, state, problem string) {
+		t.Helper()
+		traps, ip, p := busyLook(t, e)
+		if ip != state || len(traps) != 2 || traps[0] != state || traps[1] != state || !strings.Contains(p, problem) || (problem == "") != (p == "") {
+			t.Fatalf("%s: traps %v, Trap IP %s, problem %q; want %s, %q", step, traps, ip, p, state, problem)
+		}
+	}
+	e.host.failStart = busy
+	if err := e.svc.Apply(e.ctx()); !errors.Is(err, honeypot.ErrHostBusy) {
+		t.Fatalf("the busy start is not reported to the run loop: %v", err)
+	}
+	want("busy", honeypot.StateStarting, "")
+	e.now = e.now.Add(4*time.Minute + 59*time.Second)
+	_ = e.svc.Apply(e.ctx())
+	want("busy for 4 min 59 s", honeypot.StateStarting, "")
+	e.now = e.now.Add(time.Second) // no Apply in between: the bound is read at the time of the read
+	want("busy for 5 min", honeypot.StateFailed, "busy with another operation for more than 5 minutes")
+
+	e.host.failStart = nil
+	if err := e.svc.Apply(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	want("the host took the start", honeypot.StateListening, "")
+	e.host.failStart = busy
+	_ = e.svc.Apply(e.ctx())
+	want("busy again", honeypot.StateStarting, "")
+	e.host.failStart = errStart
+	_ = e.svc.Apply(e.ctx())
+	want("a real failure", honeypot.StateFailed, "the honeypot container did not start")
+	e.host.failStart = busy
+	e.now = e.now.Add(time.Hour)
+	_ = e.svc.Apply(e.ctx())
+	want("a failure ends the old wait", honeypot.StateStarting, "")
+}
+
+// #889: the first address of the traps that the host does not take only because it is busy is "starting" too, within the same
+// bound; a refusal stays what it is.
+func TestBusyHostFirstAddressReadsStarting(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.host.failAdd = map[netip.Addr]error{addr("192.168.10.240"): fmt.Errorf("decoy_ip.add: %w", honeypot.ErrHostBusy)}
+	e.setup()
+	_ = e.svc.Apply(e.ctx())
+	if traps, ip, p := busyLook(t, e); ip != honeypot.StateStarting || p != "" || traps[0] != honeypot.StateStarting {
+		t.Fatalf("busy on the first address: traps %v, Trap IP %s, problem %q", traps, ip, p)
+	}
+	e.now = e.now.Add(5 * time.Minute)
+	if _, ip, p := busyLook(t, e); ip != honeypot.StateFailed || !strings.Contains(p, "more than 5 minutes") {
+		t.Fatalf("busy for 5 min: Trap IP %s, problem %q", ip, p)
+	}
+	e.host.mu.Lock()
+	e.host.failAdd = nil
+	e.host.mu.Unlock()
+	if err := e.svc.Apply(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if _, ip, p := busyLook(t, e); ip != honeypot.StateListening || p != "" {
+		t.Fatalf("the host took it: Trap IP %s, problem %q", ip, p)
+	}
+}

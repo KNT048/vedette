@@ -1,0 +1,76 @@
+import { useEffect, useState } from 'react'
+import { InfoTip } from '@/components/common/InfoTip'
+import type { JobProgress as Progress } from '@/lib/progress'
+import { cn } from '@/lib/utils'
+import { PROGRESS_STRINGS_EN, say, sayDuration, type ProgressStrings } from './strings'
+import './JobProgress.css'
+
+/** A report older than this reads "Last report N s ago": the box reports every 5 s at most, and some checks are silent until they end. */
+export const QUIET_AFTER_MS = 30_000
+
+/** The clock of the elapsed time and the estimate: one tick a second, local only (no request). */
+function useNow(stepMs = 1000) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), stepMs)
+    return () => clearInterval(id)
+  }, [stepMs])
+  return now
+}
+
+/**
+ * How far a long job is (#830, S-INV-1 / S-EXP-1): the step in words, a bar (determinate with the tool's percent, indeterminate without),
+ * the count behind it ("3 of 8 checks"), the elapsed time, and "about N min left" once the box has an estimate of the step.
+ * `progress` null = the job runs but nothing was reported yet: "Starting" and an indeterminate bar.
+ * Screen readers: the bar is a progressbar named by the step (no aria-valuenow when indeterminate); only a change of step (or of its note)
+ * is announced, never the ticking time or the percent.
+ */
+export function JobProgress({ progress, strings, className }: { progress: Progress | null; strings?: Partial<ProgressStrings>; className?: string }) {
+  const s: ProgressStrings = { ...PROGRESS_STRINGS_EN, ...strings }
+  const now = useNow()
+  const step = progress ? say(s, `phase.${progress.phase}`) : say(s, 'starting')
+  const percent = progress?.percent == null ? null : Math.round(Math.min(100, Math.max(0, progress.percent)))
+  const counted = progress?.done != null && progress.total != null && progress.total > 0
+  const count = counted ? say(s, progress.unit ? `count.${progress.unit}` : 'count', { done: progress.done!, total: progress.total! }, progress.total!) : null
+  const elapsed = progress ? now - Date.parse(progress.started_at) : null
+  const etaMs = progress?.eta ? Date.parse(progress.eta) - now : null
+  const left = etaMs === null || etaMs <= 0 ? null : etaMs < 60_000 ? say(s, 'leftSoon') : say(s, 'left', { time: sayDuration(s, Math.ceil(etaMs / 60_000) * 60_000) })
+  const quietMs = progress ? now - Date.parse(progress.updated_at) : 0
+  const quiet = quietMs >= QUIET_AFTER_MS
+  return (
+    <div className={cn('grid gap-1.5', className)}>
+      <div className="flex items-baseline justify-between gap-3">
+        {/* The live region holds the step and its note only: they change a few times per job, the time every second. */}
+        <p aria-live="polite" aria-atomic="true" className="min-w-0 text-sm">
+          <span className="font-medium">{step}</span>
+          {progress?.message ? <span className="block text-[13px] text-muted">{progress.message}</span> : null}
+        </p>
+        {percent !== null ? <span aria-hidden className="shrink-0 text-sm tabular-nums text-muted">{say(s, 'percent', { percent })}</span> : null}
+      </div>
+      <div
+        role="progressbar"
+        aria-label={step}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent ?? undefined}
+        aria-valuetext={percent === null ? undefined : [say(s, 'percent', { percent }), count].filter(Boolean).join(', ')}
+        className="relative h-2 overflow-hidden rounded-full bg-rule"
+      >
+        {percent === null
+          ? <div data-indeterminate className="vp-job-indeterminate absolute inset-y-0 left-0 rounded-full bg-accent" />
+          : <div className="h-full rounded-full bg-accent transition-[width] duration-700 ease-out" style={{ width: `${percent}%` }} />}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[13px] text-muted tabular-nums">
+        {count ? <span className="text-ink">{count}</span> : null}
+        {elapsed !== null ? <span>{say(s, 'elapsed', { time: sayDuration(s, elapsed) })}</span> : null}
+        {left ? <span>{left}</span> : null}
+        {quiet ? (
+          <span className="inline-flex items-center gap-1">
+            {say(s, 'quiet', { time: sayDuration(s, quietMs) })}
+            <InfoTip topic={say(s, 'quietTopic')}>{say(s, 'quietHelp')}</InfoTip>
+          </span>
+        ) : null}
+      </div>
+    </div>
+  )
+}

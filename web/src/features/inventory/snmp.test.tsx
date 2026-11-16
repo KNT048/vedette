@@ -170,7 +170,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     const kept = await call('PUT', '/snmp/snmp-1', { name: 'Core switches (v3)', version: 'v3', username: 'vedette-ro', auth: 'sha256', priv: 'aes128', scope: ['192.168.10.0/24'] })
     expect(kept.status).toBe(409)
     const user = userEvent.setup()
-    renderApp('/devices/setup?tab=snmp')
+    renderSnmp()
     const li = await row('Core switches (v3)')
     expect(within(li).getByRole('alert')).toHaveTextContent('The saved community or password was not restored')
     await clickUntil(user, () => within(li).getByRole('button', { name: 'Edit Core switches (v3)' }), () => screen.getByRole('dialog'))

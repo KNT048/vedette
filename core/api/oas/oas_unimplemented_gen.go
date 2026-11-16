@@ -3219,6 +3219,63 @@ func (UnimplementedHandler) ScanPutScansConfig(ctx context.Context, req *ScanPut
 	return r, ht.ErrNotImplemented
 }
 
+// ScanningGetScanning implements scanning_get_scanning operation.
+//
+// Every scanning engine with its switch, state, memory cost, last and next run, the jobs running now,
+// and the shared safety settings (scope, window, speed, exclusions, fragile types).
+//
+// GET /scanning
+func (UnimplementedHandler) ScanningGetScanning(ctx context.Context) (r *ScanningGetScanningOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ScanningPatchScanningEnginesID implements scanning_patch_scanning_engines_id operation.
+//
+// Turn an engine on or off: its module switch (passive, osquery, wazuh, nuclei, honeypot), active
+// discovery (nmap-discovery: on turns sensor-active on first when with_dependencies is set, off never
+// turns the module off) or the OpenVAS flag (openvas). Audited by the switch it moves. 409
+// not_toggleable (nmap-versions, snmp, zap), missing_dependencies, not_appliance, module_off (openvas
+// while External exposure is off), low_memory, low_disk; 400 no_ranges, no_days, scope_not_confirmed
+// (nmap-discovery on, checked before anything moves), core_module. Returns the whole page, since one
+// switch can change several engines.
+//
+// PATCH /scanning/engines/{id}
+func (UnimplementedHandler) ScanningPatchScanningEnginesID(ctx context.Context, req *ScanningPatchScanningEnginesIDReq, params ScanningPatchScanningEnginesIDParams) (r *ScanningPatchScanningEnginesIDOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ScanningPostScanningEnginesNmapDiscoveryRun implements scanning_post_scanning_engines_nmap_discovery_run operation.
+//
+// Scan the LAN now (no targets: a sweep of the whole scope, then the scans of the devices it queued)
+// or check these devices now (targets), whatever the window, for at most one hour (devices not reached
+// by then wait for the window). Audited before anything is sent (scanning.run: the run id and the
+// ranges or devices; no audit row, no run). Runs in the background: the answer is the run, which GET
+// /scanning lists in running[] with its progress until it ends. Works while the Vulnerability scans
+// module is off. 400 unknown_device, out_of_scope (outside the ranges, excluded, or the box),
+// scope_not_confirmed, not_scannable (the device's safety rules refuse it); 409 module_off
+// (sensor-active off), engine_off (active discovery off), already_running (a run a person started),
+// busy (discovery is running nmap now), too_soon (a sweep less than 10 minutes ago; retry_after in
+// seconds); 503 scanner_unavailable (nmap is not available).
+//
+// POST /scanning/engines/nmap-discovery/run
+func (UnimplementedHandler) ScanningPostScanningEnginesNmapDiscoveryRun(ctx context.Context, req *ScanningPostScanningEnginesNmapDiscoveryRunReq) (r *ScanningPostScanningEnginesNmapDiscoveryRunAccepted, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ScanningPutScanningSafety implements scanning_put_scanning_safety operation.
+//
+// Save the shared safety settings every LAN engine obeys (one writer; GET/PUT /inventory/settings and
+// the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT
+// /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days,
+// no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20),
+// bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on).
+// Publishes inventory.settings.changed: a run that the new values no longer allow stops.
+//
+// PUT /scanning/safety
+func (UnimplementedHandler) ScanningPutScanningSafety(ctx context.Context, req *ScanningPutScanningSafetyReq) (r *ScanningPutScanningSafetyOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
 // NewError creates *ErrorStatusCode from error returned by handler.
 //
 // Used for common default response.

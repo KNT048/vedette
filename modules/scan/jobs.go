@@ -285,7 +285,7 @@ func (s *Service) rescan(ctx context.Context, ev pendingEvent, room int) (*ready
 		}
 		return nil, s.closeEvent(ctx, ev.id, result, nil)
 	}
-	st, err := loadSettings(ctx, s.cfg.DB.Reader())
+	st, err := s.settings(ctx, s.cfg.DB.Reader())
 	if err != nil {
 		return nil, err
 	}
@@ -450,7 +450,7 @@ func (s *Service) RunSchedule(ctx context.Context) error {
 	if err := row.Scan(&last, &saved); err != nil {
 		return fmt.Errorf("scan: reading the schedule: %w", err)
 	}
-	st, err := loadSettings(ctx, s.cfg.DB.Reader())
+	st, err := s.settings(ctx, s.cfg.DB.Reader())
 	if err != nil {
 		return err
 	}
@@ -597,7 +597,7 @@ type EventView struct {
 
 // Events is the rescan log, newest first (S-SCAN-2). Events still waiting or running are not listed yet.
 func (s *Service) Events(ctx context.Context) ([]EventView, bool, error) {
-	st, err := loadSettings(ctx, s.cfg.DB.Reader())
+	st, err := s.settings(ctx, s.cfg.DB.Reader())
 	if err != nil {
 		return nil, false, err
 	}

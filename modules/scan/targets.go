@@ -165,7 +165,7 @@ func targetReason(r string) string {
 
 // Targets lists every device and external target with whether it can be picked in Scan now and why not (S-SCAN-1).
 func (s *Service) Targets(ctx context.Context) ([]TargetView, error) {
-	st, err := loadSettings(ctx, s.cfg.DB.Reader())
+	st, err := s.settings(ctx, s.cfg.DB.Reader())
 	if err != nil {
 		return nil, err
 	}

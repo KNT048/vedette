@@ -4,6 +4,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { modulesStore } from '@/mocks/stores'
+import { MOCK_SETUP_CODE } from './mocks'
 
 const setModule = (id: string, enabled: boolean) => modulesStore.update((l) => l.map((m) => (m.id === id ? { ...m, enabled } : m)))
 const mainNav = () => screen.getByRole('navigation', { name: 'Main navigation' })
@@ -112,5 +113,38 @@ describe('D-624: modules left out of v1 (#819)', () => {
     await u.click(within(dlg).getByRole('button', { name: 'Turn off SSO' }))
     await waitFor(() => expect(modulesStore.get().find((m) => m.id === 'auth-oidc')!.enabled).toBe(false))
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'SSO sign-in (OIDC)' })).toBeNull())
+  })
+})
+
+describe('D-624: setup bundles turn on v1 modules only (supervisor 2026-11-16)', () => {
+  it('the bundle step lists only v1 modules; the custom list labels preview modules and offers no hidden one; Small business leaves every preview module off', async () => {
+    const u = userEvent.setup()
+    renderApp('/setup', { role: null, setupComplete: false })
+    await u.click(await screen.findByRole('checkbox', { name: 'I have read, understood and agree to the terms of use' }))
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    await u.type(await screen.findByLabelText('Setup code'), MOCK_SETUP_CODE)
+    await u.type(screen.getByLabelText('Organization name'), 'ABC Company')
+    await u.type(screen.getByLabelText('Administrator name'), 'Lan')
+    await u.type(screen.getByLabelText('Sign-in email'), 'lan@abc.example')
+    await u.type(screen.getByLabelText('Password'), 'a long enough sentence')
+    await u.type(screen.getByLabelText('Repeat password'), 'a long enough sentence')
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    const range = await screen.findByLabelText('Range 1')
+    await u.clear(range) // the box's own network may be offered there (D-405)
+    await u.type(range, '192.168.10.0/24')
+    await u.click(screen.getByRole('checkbox', { name: /I confirm these ranges belong to my company/ }))
+    await u.click(screen.getByRole('button', { name: 'Continue' }))
+    const small = (await screen.findByRole('radio', { name: /Small business/ })).closest('div')!
+    const mid = screen.getByRole('radio', { name: /Mid-size business/ }).closest('div')!
+    for (const box of [small, mid]) for (const name of [/Internal traps/, /Reports/, /Vulnerability scan/, /Logs/, /AI assistant/]) expect(within(box).queryByText(name)).toBeNull()
+    expect(within(mid).getByText(/External exposure/)).toBeInTheDocument()
+    await u.click(screen.getByRole('radio', { name: /Custom/ }))
+    expect(await screen.findByRole('checkbox', { name: /^Internal traps Preview/ })).not.toBeChecked()
+    for (const hidden of [/AI response/, /MCP server/, /SSO sign-in/, /Credentialed scan/]) expect(screen.queryByRole('checkbox', { name: hidden })).toBeNull()
+    await u.click(screen.getByRole('radio', { name: /Small business/ }))
+    await u.click(screen.getByRole('button', { name: 'Finish setup' }))
+    expect(await screen.findByRole('heading', { level: 1, name: /^Today/ })).toBeInTheDocument()
+    const on = new Set(modulesStore.get().filter((m) => m.enabled).map((m) => m.id))
+    expect([...on].sort()).toEqual(['core', 'feeds', 'findings', 'inventory', 'mitigation', 'notify', 'sensor-passive'])
   })
 })

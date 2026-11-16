@@ -22,6 +22,15 @@ test('accounts and one storageState per role', async () => {
   // Public-IP auto-detect would call checkip/icanhazip/ifconfig.me during the run: turn it off right after the wizard (no internet dependence).
   const noAuto = await api(admin, 'PUT', '/exposure/box-ip/settings', { auto: false, interval_min: 60 })
   expect(noAuto.status, `exposure auto-detect off: ${JSON.stringify(noAuto.body)}`).toBe(200)
+  // D-624 (supervisor 2026-11-16): a bundle turns on v1 modules only. The specs of the preview modules (scan, honeypot, logs, ai,
+  // reports) need them on, so the seed turns each on as a customer would from its own row in Settings → Modules (same PATCH).
+  // A module this install cannot run (the honeypot on a container-only box, D-381) stays off.
+  const mods = await api<{ modules: { id: string; available: boolean }[] }>(admin, 'GET', '/modules')
+  for (const id of ['ai', 'scan', 'logs', 'honeypot', 'reports']) {
+    if (mods.body.modules.find((m) => m.id === id)?.available === false) continue
+    const r = await api(admin, 'PATCH', `/modules/${id}`, { enabled: true, with_dependencies: true })
+    expect(r.status, `enable ${id}: ${JSON.stringify(r.body)}`).toBe(200)
+  }
   const on = await api(admin, 'PATCH', '/modules/response', { enabled: true, with_dependencies: true })
   expect(on.status, `enable response: ${JSON.stringify(on.body)}`).toBe(200)
   for (const role of ['operator', 'viewer'] as const) {

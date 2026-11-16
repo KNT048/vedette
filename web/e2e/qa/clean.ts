@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test'
+import { PREVIEW_NAMES, turnOnModules } from '../helpers'
 
 /** Open the app as a new user who picks the sample data. */
 export async function sampleStart(page: Page) {
@@ -30,6 +31,10 @@ export async function finishClean(page: Page) {
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('radio', { name: /Mid-size business/ }).click()
   await page.getByRole('button', { name: 'Finish setup' }).click()
+  await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
+  // D-624: a bundle turns on v1 modules only; the specs that start here use the preview modules, so turn them on from their rows
+  await turnOnModules(page, PREVIEW_NAMES)
+  await page.goto('/')
   await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible()
 }
 

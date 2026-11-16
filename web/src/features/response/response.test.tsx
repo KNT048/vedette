@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -23,6 +23,11 @@ import { RuleDialog } from './RuleEditor'
 import { actionsStore, buildChange, catalogStore, identityStore } from './state'
 import { newLinkToken } from './identity'
 import { telegramMessagesForTest } from '@/features/notify/mocks'
+
+// D-624 (#819): AI response is hidden in the GUI for v1 (POST_V1_IN_UI false); its screens are kept, so this file runs them as
+// offered, and the D-624 test at the end runs the read-only v1 view of a box that already has it on.
+const postV1 = vi.hoisted(() => ({ POST_V1_IN_UI: true }))
+vi.mock('@/lib/postV1', () => postV1)
 
 const USER: Record<Role, string> = { admin: 'u-admin', operator: 'u-op', viewer: 'u-view' }
 const PROPOSAL = 'pr-f-1-nas-photo-443'
@@ -2044,5 +2049,41 @@ describe('response: Respond from an incident (S-RESP-3, D-509)', () => {
     const panel = await screen.findByRole('region', { name: 'Respond to this incident' })
     const row = (await within(panel).findByText('FortiGate: add an IP to the Vedette-Blocked address group: 192.168.10.107')).closest('li')!
     expect(within(row as HTMLElement).getByRole('button', { name: 'Ask for approval' })).toBeDisabled()
+  })
+})
+
+describe('D-624 (#819): a box that had AI response on before v1', () => {
+  it('sees the page and its settings read-only with the note; the only action is turning the module off', async () => {
+    postV1.POST_V1_IN_UI = false
+    try {
+      const u = userEvent.setup()
+      renderApp('/response')
+      const header = (await screen.findByRole('heading', { level: 1, name: 'Response' })).closest('header')!
+      expect(within(header).getByText('Not part of v1: you can turn it off; once off it is hidden.')).toBeInTheDocument()
+      expect(within(header).queryByRole('button', { name: 'Emergency stop' })).toBeNull()
+      const main = screen.getByRole('main')
+      // a control inside a disabled fieldset matches :disabled (its own `disabled` property stays false)
+      const live = () => within(main).getAllByRole('button').filter((b) => !b.matches(':disabled') && !b.closest('[role="tablist"]')).map((b) => b.getAttribute('aria-label') ?? b.textContent?.trim())
+      expect(live().filter((n) => !n?.startsWith('About ') && n !== 'More about this')).toEqual(['Turn off AI response'])
+      await u.click(within(main).getByRole('tab', { name: /Rules/ }))
+      expect(live().filter((n) => !n?.startsWith('About ') && n !== 'More about this')).toEqual(['Turn off AI response'])
+
+      await u.click(within(header).getByRole('button', { name: 'Turn off AI response' }))
+      const dlg = await screen.findByRole('dialog', { name: 'Turn off AI response?' })
+      await u.click(within(dlg).getByRole('button', { name: 'Turn off AI response' }))
+      await waitFor(() => expect(modulesStore.get().find((m) => m.id === 'response')!.enabled).toBe(false))
+      expect(await screen.findByText('AI response is not part of v1')).toBeInTheDocument()
+    } finally { postV1.POST_V1_IN_UI = true }
+  })
+
+  it('Settings, AI response: every control is locked; the execution switch cannot be turned on', async () => {
+    postV1.POST_V1_IN_UI = false
+    try {
+      renderApp('/settings/response')
+      expect(await screen.findByRole('switch', { name: /^Let the AI carry out actions I approve/ })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Turn off AI response' })).toBeEnabled()
+      expect(screen.getByText('Not part of v1: you can turn it off; once off it is hidden.')).toBeInTheDocument()
+    } finally { postV1.POST_V1_IN_UI = true }
   })
 })

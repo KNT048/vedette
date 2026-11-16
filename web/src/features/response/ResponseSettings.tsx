@@ -20,6 +20,8 @@ import { CatalogEditor } from './CatalogEditor'
 import { EmergencyStop } from './parts'
 import { NeverTouch } from './NeverTouch'
 import type { SettingsView, Window } from './types'
+import { Frozen, TurnOffResponse } from './Leaving'
+import { useScope } from '@/lib/v1'
 
 /** The only way to turn execution on (D-41): admin, two-step sign-in, the exact phrase. Also opened by the guided setup of the inbox (D-513). */
 export function EnableDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
@@ -146,12 +148,14 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
   const set = useSetExecution()
   const reset = useResetBreaker()
   const [open, setOpen] = useState(false)
+  const leaving = useScope('response') === 'leaving' // D-624 (#819): read-only; the way out is turning the module off
   if (q.isPending) return <Loading />
   if (q.error) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
   const s = q.data
   return (
     <>
-      {embedded ? <div className="mb-4 flex max-w-3xl items-center gap-1 text-[13px] text-muted"><p>{t('settings.description')}</p><InfoTip topic={t('settings.title')}>{t('settings.descriptionInfo')}</InfoTip></div> : <PageHeader title={t('settings.title')} meta={t('settings.description')} info={t('settings.descriptionInfo')} stories={['S-RESP-2', 'S-RESP-4']} />}
+      {embedded ? <div className="mb-4 flex max-w-3xl items-center gap-1 text-[13px] text-muted"><p>{t('settings.description')}</p><InfoTip topic={t('settings.title')}>{t('settings.descriptionInfo')}</InfoTip></div> : <PageHeader title={t('settings.title')} meta={t('settings.description')} info={t('settings.descriptionInfo')} stories={['S-RESP-2', 'S-RESP-4']} actions={leaving ? <TurnOffResponse /> : undefined} />}
+      <Frozen on={leaving}>
       <section>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <Notice tone="danger" className="mb-0" title={t('risk.banner')} info={t('risk.bannerInfo')} />
@@ -174,6 +178,7 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
           {embedded ? null : <><NeverTouch /><CatalogEditor /></>}
         </div>
       </section>
+      </Frozen>
       <EnableDialog open={open} onOpenChange={setOpen} />
     </>
   )

@@ -198,12 +198,13 @@ func TestContract_INV15_SetupHappyPath(t *testing.T) {
 		mm := m.(map[string]any)
 		on[mm["id"].(string)] = mm["enabled"] == true
 	}
-	for _, id := range []string{"core", "feeds", "inventory", "notify", "sensor-passive", "findings", "mitigation", "honeypot", "reports"} {
+	for _, id := range []string{"core", "feeds", "inventory", "notify", "sensor-passive", "findings", "mitigation"} {
 		if !on[id] {
 			t.Errorf("%s should be on in the small bundle", id)
 		}
 	}
-	for _, id := range []string{"sensor-active", "scan", "exposure", "logs", "ai", "response", "mcp-server"} {
+	// D-624: a bundle turns on v1 modules only; preview and post-v1 modules stay off.
+	for _, id := range []string{"sensor-active", "scan", "exposure", "logs", "ai", "honeypot", "reports", "response", "mcp-server"} {
 		if on[id] {
 			t.Errorf("%s should be off in the small bundle", id)
 		}
@@ -296,7 +297,7 @@ func TestContract_INV15_SetupBundles(t *testing.T) {
 		mods    []string
 		on, off []string
 	}{
-		"medium": {"mid", nil, []string{"scan", "ai", "logs", "exposure", "sensor-active", "feeds"}, []string{"response", "scan-credentialed", "mcp-server"}},
+		"medium": {"mid", nil, []string{"exposure", "sensor-active", "feeds", "mitigation"}, []string{"scan", "ai", "logs", "honeypot", "reports", "response", "scan-credentialed", "mcp-server", "auth-oidc"}},
 		"custom": {"custom", []string{"feeds", "notify", "inventory", "reports"}, []string{"feeds", "notify", "inventory", "reports", "core"}, []string{"findings", "honeypot", "sensor-passive"}},
 	} {
 		t.Run(name, func(t *testing.T) {

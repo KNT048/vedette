@@ -243,8 +243,8 @@ describe('container-only install (D-381)', () => {
     await u.click(screen.getByRole('checkbox', { name: /I confirm these ranges belong to my company/ }))
     await u.click(screen.getByRole('button', { name: 'Continue' }))
     const small = (await screen.findByRole('radio', { name: /Small business/ })).closest('div')!
-    expect(within(small).getByText(/Reports/)).toBeInTheDocument()
-    expect(within(small).queryByText(/internal traps/i)).toBeNull()
+    expect(within(small).getByText(/Mitigation/)).toBeInTheDocument()
+    expect(within(small).queryByText(/internal traps/i)).toBeNull() // D-624: no bundle has a preview module, on any install
     expect(screen.getByText(/Not on this install: .*Internal traps/)).toBeInTheDocument()
   })
   it('module-off notice of a module this install cannot run: not on this install, never invites turning it on (S-CORE-9 G5, D-420)', async () => {

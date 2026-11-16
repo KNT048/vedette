@@ -10,6 +10,7 @@ import { expect, request, test, type Page } from '@playwright/test'
 import { api, authFile, box } from './box'
 import { expectAccessible, h1, noErrors, noVietnamese } from './ui'
 import { collectErrors, shot } from '../e2e/helpers'
+import { POST_V1_IN_UI } from '../src/lib/postV1'
 
 test.use({ storageState: authFile('admin'), actionTimeout: 10_000 })
 
@@ -95,6 +96,7 @@ test('turn a module off: the page says so, its routes answer 404, its data is ke
 })
 
 test('turning on a module whose dependency is off asks to turn both on', async ({ page }) => {
+  test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819)')
   test.setTimeout(120_000)
   const errors = collectErrors(page)
   const admin = await request.newContext({ baseURL: box().base_url, storageState: authFile('admin') })

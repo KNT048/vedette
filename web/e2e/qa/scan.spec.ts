@@ -1,7 +1,7 @@
 // QA như người dùng thật cho module scan (D-23, UI chỉ tiếng Anh D-28): IT operator starts/stops scans, admin sets safety and SSH keys, director (viewer), clean install.
 // Chạy: pnpm exec playwright test -c playwright.qa.config.ts e2e/qa/scan.spec.ts
 import { expect, test, type Page } from '@playwright/test'
-import { collectErrors, expectAccessible, shot } from '../helpers'
+import { collectErrors, expectAccessible, shot, turnOnModules } from '../helpers'
 import { manyAssets } from '../../src/mocks/seed/assets'
 
 const DB = 'vedette-mock-db-v4'
@@ -35,9 +35,10 @@ async function clean(page: Page, commit = false) {
   await page.getByLabel(/^Range 1/).fill('10.20.0.0/24')
   if (commit) await page.getByRole('checkbox', { name: /I confirm these ranges belong to my company/ }).check()
   await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByRole('radio', { name: /Mid-size business/ }).click() // gói nhỏ không có module quét
+  await page.getByRole('radio', { name: /Mid-size business/ }).click()
   await page.getByRole('button', { name: 'Finish setup' }).click()
   await expect(page).not.toHaveURL(/\/setup/)
+  await turnOnModules(page, ['Vulnerability scan']) // D-624: no bundle turns on the scan module, a preview one
 }
 async function patchDb(page: Page, patch: Record<string, unknown>) {
   await page.evaluate(([k, p]) => {

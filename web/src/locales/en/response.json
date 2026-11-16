@@ -967,5 +967,12 @@
     },
     "rules": "Rules you turn on also send requests here when their trigger happens.",
     "toRules": "Open Rules"
+  },
+  "leaving": {
+    "turnOff": "Turn off AI response",
+    "title": "Turn off AI response?",
+    "body": "Rules, requests and the log are kept. This build does not offer AI response, so it cannot be turned on again here.",
+    "done": "AI response is off",
+    "needAdmin": "Only an administrator can turn it off."
   }
 }

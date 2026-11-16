@@ -4,6 +4,7 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test'
 import { collectErrors, expectAccessible, shot } from '../helpers'
 import { DIACRITICS, finishClean } from './clean'
+import { POST_V1_IN_UI } from '../../src/lib/postV1'
 
 test.describe.configure({ retries: 1 })
 test.use({ actionTimeout: 10_000 })
@@ -62,6 +63,7 @@ async function configureViaApi(page: Page, roleMap: { group: string; role: strin
 }
 
 test('A-C, E: admin sets up SSO, a person signs in, admin sees them, admin turns SSO off', async ({ page }, info) => {
+  test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819)')
   test.setTimeout(240_000)
   const errors = collectErrors(page)
   await finishClean(page)

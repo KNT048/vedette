@@ -330,7 +330,7 @@ function ModulesStep({ s, set, error }: { s: State; set: (p: Partial<State>) => 
               <span className="text-[13px] text-muted">{t(`setup.modules.${b}.desc`)}</span>
               {b !== 'custom' ? <span className="text-[13px] text-muted">{bundle(b).filter((m) => m !== 'core').map(name).join(', ')}</span> : null}
             </label>
-            {b !== 'custom' ? <InfoTip topic={t(`setup.modules.${b}.name`)}>{t(b === 'smb' && !here('honeypot') ? 'setup.modules.smb.descNoTrapsInfo' : `setup.modules.${b}.descInfo`)}</InfoTip> : null}
+            {b !== 'custom' ? <InfoTip topic={t(`setup.modules.${b}.name`)}>{t(`setup.modules.${b}.descInfo`)}</InfoTip> : null}
           </div>
         ))}
       </RadioGroup>

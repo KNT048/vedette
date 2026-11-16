@@ -13,14 +13,14 @@ import { linuxInstallScript, NO_BOX_ADDRESS, OSQUERY_VERSION, windowsInstallScri
 import { sha256Hex } from './kinds'
 import { customEntry, findById, findCatalog, searchCatalog, type CatalogEntry } from './catalog'
 import type {
-  AddDeviceInput, AddDeviceResult, AgentToken, DeviceDetail, DeviceRow, DevicesResponse, ImportResult,
-  InventorySettings, ObsField, Observation, OsqueryPackage, RegularScan, Sensor, SettingsInput, SnmpCredential, SnmpCredentialInput, SnmpTestReason, SnmpTestResult,
+  AddDeviceInput, AddDeviceResult, AgentToken, DeviceDetail, DeviceRow, DeviceSource, DevicesResponse, ImportResult,
+  InventorySettings, ObsField, Observation, OsqueryPackage, RegularScan, Sensor, SettingsInput, SnmpCredential, SnmpCredentialInput, SnmpRead, SnmpTestReason, SnmpTestResult,
   SoftwareView, WazuhConnection, WazuhInput,
 } from './types'
 import { KINDS } from './types'
 import { cidrRange, hasHostBits, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, overlapping } from './validate'
 import { nameOf } from './nameOf'
-import { actsAs, lookupType } from '@/lib/deviceTypes'
+import { actsAs, lookupType, TYPE_IDS } from '@/lib/deviceTypes'
 
 // Địa chỉ hộp Vedette đưa vào cấu hình agent: Vedette phục vụ cả giao diện lẫn API trên https://<IP hộp>:8443 (TLS). Không biết IP thì để chỗ trống rõ ràng, không bịa.
 const serverUrl = () => `https://${boxAddress() ?? NO_BOX_ADDRESS}:8443` // D-465: the Box address
@@ -238,7 +238,52 @@ const scanInfo = (a: Asset) => ({
 // Hộp luôn "vừa thấy": nó là máy đang chạy Vedette.
 /** The wire shape adds the source of the kind and the rules' guess, only while the kind is unknown (D-511). */
 const live = (a: Asset) => ({ ...a, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null })
-const toRow = (a: Asset): DeviceRow => ({ ...live(a), ...scanInfo(a), suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), summary: summaryOf(a) })
+/** #849: what feeds a device, in the words of the Devices search. Agent data is osquery's when osquery reports the device (its node is
+ * bound to it) and Wazuh's when the saved Wazuh connection delivered it (both when both do); not Wazuh's once that connection is gone. */
+const DEVICE_SOURCES: readonly DeviceSource[] = ['manual', 'passive', 'scan', 'snmp', 'osquery', 'wazuh']
+function sourcesOf(a: Asset): DeviceSource[] {
+  const has = new Set<DeviceSource>()
+  if (a.origin === 'manual') has.add('manual')
+  for (const src of [...obsOf(a).map((o) => o.source), ...a.software.map((x) => x.source), ...a.services.map((x) => x.source)]) {
+    if (src === 'passive' || src === 'snmp') has.add(src)
+    else if (src === 'nmap' || src === 'scan') has.add('scan')
+    else if (src === 'agent' && a.id !== BOX_ID) {
+      const mark = agentFeedStore.get()[a.id]
+      if (!mark || mark.osquery) has.add('osquery')
+      if (mark?.wazuh && wazuhStore.get()) has.add('wazuh')
+    }
+  }
+  return DEVICE_SOURCES.filter((x) => has.has(x))
+}
+const toRow = (a: Asset): DeviceRow => ({ ...live(a), ...scanInfo(a), sources: sourcesOf(a), suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), summary: summaryOf(a) })
+
+/** #849: the Devices search, as the backend reads it (ParseDeviceFilter): ANDed filters, each list ORed, unknown words 400 bad_filter,
+ * a boolean that is not true or false 400 invalid (the schema's enum). Returns the filter, or the error response. */
+function deviceFilter(url: string): ((r: DeviceRow) => boolean) | Response {
+  const p = new URL(url).searchParams
+  const list = (k: string) => [...new Set((p.get(k) ?? '').split(',').map((x) => x.trim().toLowerCase()).filter(Boolean))]
+  const bool = (k: string): boolean | null | 'bad' => { const v = p.get(k); return v === null || v === '' ? null : v === 'true' ? true : v === 'false' ? false : 'bad' }
+  const approved = bool('approved'), fragile = bool('fragile'), hasFindings = bool('has_findings')
+  for (const [k, v] of [['approved', approved], ['fragile', fragile], ['has_findings', hasFindings]] as const) if (v === 'bad') return fail(400, 'invalid', `The parameter "${k}" is not valid.`)
+  const types = list('type'), sources = list('source')
+  const badType = types.find((t) => !TYPE_IDS.includes(t))
+  if (badType) return fail(400, 'bad_filter', `"${badType}" is not a device type. Use a type id such as server, switch, firewall or printer.`)
+  const badSource = sources.find((x) => !DEVICE_SOURCES.includes(x as DeviceSource))
+  if (badSource) return fail(400, 'bad_filter', `"${badSource}" is not a source. Use one of: ${DEVICE_SOURCES.join(', ')}.`)
+  const q = (p.get('q') ?? '').trim().toLowerCase()
+  if (q.length > 80) return fail(400, 'invalid', 'The parameter "q" is not valid.')
+  // Whole bytes of a MAC, in the stored aa:bb:cc form, so a piece never matches across a byte boundary (as the backend's macFragment).
+  const macLike = /^[0-9a-f]{2}([:-][0-9a-f]{2})+$/.test(q) || /^([0-9a-f]{4}\.)+[0-9a-f]{2}([0-9a-f]{2})?$/.test(q) || /^([0-9a-f]{2}){3,6}$/.test(q)
+  const macBytes = (q.replace(/[:.-]/g, '').match(/../g) ?? []).join(':')
+  return (r) =>
+    (approved === null || r.approved === approved)
+    && (fragile === null || r.fragile === fragile)
+    && (hasFindings === null || (r.findings_count > 0) === hasFindings)
+    && (!types.length || types.includes(r.kind) || types.includes(actsAs(r.kind)))
+    && (!sources.length || r.sources.some((x) => sources.includes(x)))
+    && (!q || [r.hostname, r.ip, r.vendor?.value, r.model?.value, r.origin === 'manual' ? r.software.map((x) => x.display).join(' ') : ''].some((x) => (x ?? '').toLowerCase().includes(q))
+      || (macLike && (r.mac ?? '').toLowerCase().includes(macBytes)))
+}
 const find = (id: string) => allAssets().find((x) => x.id === id)
 const notFound = (_request?: Request) => fail(404, 'not_found', 'No such device. It may have been removed; go back to the list to see the remaining devices.')
 
@@ -377,7 +422,11 @@ function checkWazuhInput(b: Partial<WazuhInput>, prev: StoredWazuh | null): { st
   return null
 }
 /** Mô phỏng một lần agent/Wazuh báo về: tới 3 máy chủ hoặc máy tính nhận phần mềm nguồn "agent" (tin cậy cao) và một quan sát hệ điều hành. */
-function injectSample(): { devices: number; software: number } | { err: string } {
+/** #849: which agents report each device, as the box tells them apart: osquery by its node bound to the device (agent_key), Wazuh by
+ * the addresses its pull delivered to (intake_wazuh_agent). A device both report says both. Agent data of the sample fixtures with no
+ * mark is osquery's. */
+const agentFeedStore = collection<Record<string, { osquery?: true; wazuh?: true }>>('agent_feed', () => ({}), () => ({}))
+function injectSample(feed: 'osquery' | 'wazuh'): { devices: number; software: number } | { err: string } {
   const targets = allAssets().filter((a) => a.id !== BOX_ID && a.approved && (a.kind === 'server' || a.kind === 'pc')).slice(0, 3)
   if (!targets.length) return { err: 'There is no server or computer in the device list to match yet. Add a device first, then send sample data.' }
   let added = 0
@@ -390,6 +439,7 @@ function injectSample(): { devices: number; software: number } | { err: string }
     matchAssetToKev(a.id)
     addObs(a, 'os', a.os?.value ?? (windows ? 'Windows Server 2019 (build 17763)' : 'Ubuntu 22.04.4 LTS'), 'agent', 0.95)
     added += sw.length
+    agentFeedStore.update((m) => ({ ...m, [a.id]: { ...m[a.id], [feed]: true } }))
   }
   return { devices: targets.length, software: added }
 }
@@ -512,12 +562,14 @@ function recordSnmp(a: Asset, ans: NonNullable<SnmpTestResult['answer']>) {
 
 export const handlers = [
   // ---- Danh sách thiết bị ----
-  http.get(`${API}/inventory/devices`, () => {
+  http.get(`${API}/inventory/devices`, ({ request }) => {
     const denied = guard('viewer'); if (denied) return denied
-    const items = allAssets().map(toRow)
+    const keep = deviceFilter(request.url)
+    if (keep instanceof Response) return keep
+    const all = allAssets().map(toRow)
     return HttpResponse.json({
-      items,
-      counts: { all: items.length, pending: items.filter((a) => !a.approved).length, fragile: items.filter((a) => a.fragile).length, manual: items.filter((a) => a.origin === 'manual').length },
+      items: all.filter(keep),
+      counts: { all: all.length, pending: all.filter((a) => !a.approved).length, fragile: all.filter((a) => a.fragile).length, manual: all.filter((a) => a.origin === 'manual').length },
       notify_new: notifyStore.get().enabled,
       notify_available: isOn('notify'),
     } satisfies DevicesResponse)
@@ -678,10 +730,12 @@ export const handlers = [
   }),
 
   // ---- CSV ----
-  http.get(`${API}/inventory/export.csv`, () => {
+  http.get(`${API}/inventory/export.csv`, ({ request }) => {
     const denied = guard('viewer'); if (denied) return denied
+    const keep = deviceFilter(request.url)
+    if (keep instanceof Response) return keep
     const head = ['name', 'ip', 'mac', 'kind', 'vendor', 'model', 'os', 'software', 'approved', 'fragile', 'origin', 'source', 'confidence', 'last_seen']
-    const lines = allAssets().map((a) => {
+    const lines = allAssets().filter((a) => keep(toRow(a))).map((a) => {
       const s = summaryOf(a)
       return [a.hostname ?? '', hasIp(a) ? a.ip : '', a.mac ?? '', a.kind, a.vendor?.value, a.model?.value, a.os?.value, a.software.map((x) => `${x.display}${x.version ? ` ${x.version}` : ''}`).join('; '), a.approved ? 'yes' : 'no', a.fragile ? 'yes' : 'no', a.origin, s?.source, s ? s.confidence.toFixed(2) : '', a.last_seen].map(csvCell).join(',')
     })
@@ -913,7 +967,7 @@ export const handlers = [
     const t = agentsStore.get().find((x) => x.id === params.id)
     if (!t) return fail(404, 'not_found', 'No such token.')
     if (expired(t)) return fail(403, 'token_expired', 'This enrollment token has expired. Create a new one and run the install command again.')
-    const r = injectSample()
+    const r = injectSample('osquery')
     if ('err' in r) return fail(409, 'no_devices', r.err)
     agentsStore.update((l) => l.map((x) => (x.id === t.id ? { ...x, last_received: nowIso(), hosts: r.devices } : x)))
     audit('inventory.agent_enroll', t.name, `sample data: ${r.devices} devices, ${r.software} software`)
@@ -957,7 +1011,7 @@ export const handlers = [
     const denied = guard('admin'); if (denied) return denied
     const w = wazuhStore.get()
     if (!w) return fail(404, 'not_found', 'Connect Wazuh first.')
-    const r = injectSample()
+    const r = injectSample('wazuh')
     if ('err' in r) return fail(409, 'no_devices', r.err)
     wazuhStore.set({ ...w, status: 'connected', last_sync: nowIso(), agents: r.devices, packages: r.software * 40 + 120, error: null })
     audit('inventory.wazuh_sample_data', w.url, `${r.devices} devices, ${r.software} software`)
@@ -1036,7 +1090,48 @@ export const handlers = [
     audit('inventory.snmp_test', c.name, `${ip}: ${reason}`)
     return HttpResponse.json(res)
   }),
+
+  // #849 Read now: every approved device of the inventory in the credential's scope, read at once (D-512: never a device that is not
+  // approved, nor an address with no device). The mock reads at once; the run answers "running" and the next GET shows it done.
+  http.post(`${API}/inventory/snmp/:id/read`, ({ params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    if (!isOn('sensor-active')) return snmpOff()
+    const c = snmpStore.get().find((x) => x.id === params.id)
+    if (!c) return fail(404, 'not_found', 'No such SNMP credential. It may have been deleted.')
+    const st = loadSettings()
+    if (!st.active.enabled) return fail(409, 'scanning_off', SNMP_MSG.scanning_off(''))
+    if (!st.scope_confirmed_at) return fail(409, 'scope_not_confirmed', 'The scan scope is not set up and confirmed under Scope and sensors, so nothing is sent.')
+    if (Object.values(snmpReads).some((r) => r.status === 'running')) return fail(409, 'busy', 'Another SNMP read is running (a Test, a Read now or the scan window\'s round). Try again in a minute.')
+    const inScope = allAssets().filter((a) => hasIp(a) && inList(a.ip, c.scope))
+    const readable = (a: Asset) => a.id !== BOX_ID && a.origin !== 'manual' && a.approved && inList(a.ip, st.lan_ranges) && !inList(a.ip, st.active.exclusions) && metaStore.get()[a.id]?.regular_scan !== 'never'
+    const targets = inScope.filter(readable)
+    const results: SnmpRead['results'] = targets.map((a) => {
+      const ok = c.version === 'v3' || c.community === 'public'
+      const answer = ok ? snmpAnswer(a) : null
+      if (answer) recordSnmp(a, answer)
+      return { ip: a.ip, ok, reason: ok ? 'ok' : 'no_answer', message: ok ? `${a.ip} answered. What it said is now in the inventory, with source SNMP.` : SNMP_MSG.no_answer(a.ip), device_id: a.id, answer }
+    })
+    const answered = results.filter((r) => r.ok).length
+    if (answered) snmpStore.update((l) => l.map((x) => (x.id === c.id ? { ...x, last_answer_at: nowIso(), answered: Math.max(x.answered, answered) } : x)))
+    const run: SnmpRead = { id: newId('saj'), credential_id: c.id, by: currentUser()?.email ?? 'admin@example.com', started_at: nowIso(), finished_at: nowIso(), status: 'done', message: null,
+      total: targets.length, done: targets.length, answered, skipped: inScope.length - targets.length, results }
+    snmpReads[c.id] = { ...run, status: 'running' }
+    audit('inventory.snmp_read', c.name, `${targets.length} approved devices, ${run.skipped} skipped`) // every read, one with no target too
+    queueMicrotask(() => { snmpReads[c.id] = run })
+    return HttpResponse.json({ ...run, status: 'running', finished_at: null, done: 0, answered: 0, results: [] } satisfies SnmpRead, { status: 202 })
+  }),
+
+  http.get(`${API}/inventory/snmp/:id/read`, ({ params }) => {
+    const denied = guard('admin'); if (denied) return denied
+    if (!isOn('sensor-active')) return snmpOff()
+    const id = String(params.id)
+    if (!snmpStore.get().some((x) => x.id === id)) return fail(404, 'not_found', 'No such SNMP credential. It may have been deleted.')
+    return HttpResponse.json(snmpReads[id] ?? null)
+  }),
 ]
+
+/** The last Read now of each credential since the mock started (the box keeps it in memory too). */
+const snmpReads: Record<string, SnmpRead> = {}
 
 function sameSet(a: string[], b: string[]) { return a.length === b.length && a.every((x) => b.includes(x)) }
 

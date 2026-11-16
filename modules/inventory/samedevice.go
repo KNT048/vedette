@@ -387,7 +387,7 @@ func pairWhy(ctx context.Context, tx *sql.Tx, x, y *sameRow, sig signal, value s
 	// "Never online at the same time" must be true for a person (review r1 of #871 H2): one row was last seen online (lastOnline)
 	// before the other was first seen. The join's own test (onlineTogether) forgives a short overlap; a visitor's phone seen while the approved one was
 	// online must not be offered as it.
-	if !(x.lastOnline() < y.first || y.lastOnline() < x.first) {
+	if x.lastOnline() >= y.first && y.lastOnline() >= x.first {
 		return "", nil
 	}
 	if together, err := onlineTogether(ctx, tx, x.id, y.id, now); together || err != nil {

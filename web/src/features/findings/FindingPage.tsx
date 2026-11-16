@@ -271,7 +271,7 @@ export default function FindingPage() {
   // docs/UI.md §3: the parent above the title, also while the finding loads or is missing, so the way back is always there.
   const crumbs = [{ label: t('nav.findings'), to: '/findings' }]
   return (
-    <RequireModule module="findings">
+    <RequireModule module="findings" page>
       {q.data ? null : <Breadcrumbs items={crumbs} />}
       <QueryState query={q}>{(f) => <Detail f={f} crumbs={crumbs} />}</QueryState>
     </RequireModule>

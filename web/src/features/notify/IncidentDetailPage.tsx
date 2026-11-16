@@ -127,5 +127,5 @@ function Content() {
 }
 
 export default function IncidentDetailPage() {
-  return <RequireModule module="notify"><Content /></RequireModule>
+  return <RequireModule module="notify" page><Content /></RequireModule>
 }

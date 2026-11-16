@@ -54,6 +54,7 @@ describe('D-624: modules left out of v1 (#819)', () => {
   it('off: opening its Settings path says it is not part of v1, with no link to turn it on', async () => {
     renderApp('/settings/mcp')
     expect(await screen.findByText('MCP server is not part of v1')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'MCP server' })).toBeInTheDocument() // n72: the page has its h1
     expect(screen.queryByRole('link', { name: 'Open module settings' })).toBeNull()
     expect(screen.queryByRole('switch', { name: 'MCP server' })).toBeNull()
   })
@@ -91,7 +92,7 @@ describe('D-624: modules left out of v1 (#819)', () => {
     const header = (await screen.findByRole('heading', { level: 1 })).closest('header')!
     expect(within(header).getByText('Not in v1')).toBeInTheDocument()
     expect(within(header).getByText(LEAVING)).toBeInTheDocument()
-    expect(within(header).getByRole('link', { name: 'Turn off in Settings, Modules' })).toHaveAttribute('href', '/settings/modules')
+    expect(within(header).getByRole('link', { name: 'Turn off in Settings, Modules' })).toHaveAttribute('href', '/settings/modules#module-response') // its own switch
   })
 
   it('on: MCP server keeps only its off switch; SSO shows its settings without fields and only Turn off SSO', async () => {

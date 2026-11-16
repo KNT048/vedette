@@ -23,7 +23,7 @@ export default function HitPage() {
   // UI.md §3: the parent above the title, also while the hit loads or fails, so the way back is always there.
   const crumbs = [{ label: t('nav'), to: '/honeypot' }]
   return (
-    <RequireModule module="honeypot">
+    <RequireModule module="honeypot" page>
       {hit.error ? <><Breadcrumbs items={crumbs} /><ErrorState error={hit.error} onRetry={() => void hit.refetch()} /></>
         : hit.isPending ? <><Breadcrumbs items={crumbs} /><Loading /></>
         : <HitBody h={hit.data} crumbs={crumbs} respond={respond} />}

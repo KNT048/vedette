@@ -40,7 +40,7 @@ export default function HoneypotPage() {
       </EmptyState>
     </>
   )
-  return <RequireModule module="honeypot"><HoneypotBody /></RequireModule>
+  return <RequireModule module="honeypot" page><HoneypotBody /></RequireModule>
 }
 
 // Mounted only once GET /modules says the module is on (RequireModule): its reads never go to a route that is not there (walk 4: 404s on container-only).

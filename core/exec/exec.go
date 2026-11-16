@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"os"
 	osexec "os/exec"
@@ -19,6 +20,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -82,10 +84,11 @@ func (e *ExitError) Error() string {
 
 // Runner runs allowlisted binaries.
 type Runner struct {
-	log   *slog.Logger
-	bins  map[string]Binary
-	ptmx  string    // the master device of the terminals of TTY binaries
-	noTTY sync.Once // the warning that a TTY binary runs without a terminal
+	log        *slog.Logger
+	bins       map[string]Binary
+	ptmx       string                     // the master device of the terminals of TTY binaries
+	inTerminal func(*syscall.SysProcAttr) // how a TTY child takes its terminal (a test makes it fail in the child)
+	noTTY      sync.Once                  // the warning that a TTY binary runs without a terminal
 }
 
 var nameRE = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,63}$`)
@@ -95,7 +98,7 @@ func NewRunner(log *slog.Logger, bins ...Binary) (*Runner, error) {
 	if log == nil {
 		return nil, errors.New("exec: nil logger")
 	}
-	r := &Runner{log: log, bins: make(map[string]Binary, len(bins)), ptmx: "/dev/ptmx"}
+	r := &Runner{log: log, bins: make(map[string]Binary, len(bins)), ptmx: "/dev/ptmx", inTerminal: inTerminal}
 	for _, b := range bins {
 		switch {
 		case !nameRE.MatchString(b.Name):
@@ -209,23 +212,27 @@ func (r *Runner) RunWatch(ctx context.Context, name string, args []string, stdin
 		return Result{}, fmt.Errorf("%w: %s reads its terminal, it takes no stdin", ErrBadArgs, name)
 	}
 
-	cmd := osexec.CommandContext(ctx, bin.Path, args...) //nolint:gosec // path from the allowlist, argv validated, no shell
-	cmd.Env = append([]string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C"}, bin.Env...)
-	cmd.Dir = "/"
-	cmd.Stdin = stdin
 	stdout, stderr := &capped{max: bin.MaxOutput, watch: w.Stdout}, &capped{max: bin.MaxOutput, watch: w.Stderr}
 	if bin.MaxStderr > 0 {
 		stderr.max = bin.MaxStderr
 	}
-	cmd.Stdout, cmd.Stderr = stdout, stderr
-	cmd.WaitDelay = waitDelay
-	if err := isolate(cmd); err != nil {
+	newCmd := func() (*osexec.Cmd, error) {
+		cmd := osexec.CommandContext(ctx, bin.Path, args...) //nolint:gosec // path from the allowlist, argv validated, no shell
+		cmd.Env = append([]string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C"}, bin.Env...)
+		cmd.Dir = "/"
+		cmd.Stdin = stdin
+		cmd.Stdout, cmd.Stderr = stdout, stderr
+		cmd.WaitDelay = waitDelay
+		return cmd, isolate(cmd)
+	}
+	cmd, err := newCmd()
+	if err != nil {
 		return Result{}, err
 	}
 	var term *terminal
+	defer func() { term.close() }()
 	if bin.TTY {
 		term = r.attachTerminal(ctx, name, cmd)
-		defer term.close()
 	}
 
 	// Keep this goroutine on one OS thread while the child runs: on Linux the child's
@@ -235,6 +242,17 @@ func (r *Runner) RunWatch(ctx context.Context, name string, args []string, stdin
 
 	start := time.Now()
 	runErr := cmd.Start()
+	if runErr != nil && term != nil && !errors.Is(runErr, fs.ErrNotExist) {
+		// The child could not take the terminal (its setsid or TIOCSCTTY failed, review r1 #1): it runs without one, as when no
+		// terminal opens, rather than not at all. A missing binary is missing either way: no second start, no warning.
+		term.close()
+		term = nil
+		r.warnNoTTY(ctx, name, runErr)
+		if cmd, err = newCmd(); err != nil {
+			return Result{}, err
+		}
+		runErr = cmd.Start()
+	}
 	if runErr == nil {
 		term.started()
 		runErr = cmd.Wait()
@@ -278,14 +296,19 @@ type terminal struct {
 func (r *Runner) attachTerminal(ctx context.Context, name string, cmd *osexec.Cmd) *terminal {
 	master, peer, err := openTerm(r.ptmx)
 	if err != nil {
-		r.noTTY.Do(func() {
-			r.log.WarnContext(ctx, "exec: no terminal could be opened, the program runs without one (no live progress)", "binary", name, "error", err)
-		})
+		r.warnNoTTY(ctx, name, err)
 		return nil
 	}
 	cmd.Stdin = peer
-	inTerminal(cmd.SysProcAttr)
+	r.inTerminal(cmd.SysProcAttr)
 	return &terminal{master: master, peer: peer}
+}
+
+// warnNoTTY says once per Runner that a TTY binary runs without a terminal.
+func (r *Runner) warnNoTTY(ctx context.Context, name string, err error) {
+	r.noTTY.Do(func() {
+		r.log.WarnContext(ctx, "exec: no terminal could be opened, the program runs without one (no live progress)", "binary", name, "error", err)
+	})
 }
 
 // started is called once the child runs: the peer is the child's now (this process keeps no copy, so the master reads EIO once the

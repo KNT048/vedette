@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -151,5 +152,46 @@ func TestTTYFallsBackWithoutATerminal(t *testing.T) {
 	}
 	if len(h.msgs) != 1 {
 		t.Fatalf("warnings = %q, want exactly one", h.msgs)
+	}
+}
+
+// Review r1 #1: a terminal that opens but that the child cannot take (its setsid or TIOCSCTTY fails after the fork, so Start fails)
+// does not fail the run: the program is started once more without a terminal, as when none opens, with the same single warning.
+// Here the child is told to take its stdout, a pipe, as its controlling terminal: TIOCSCTTY fails with ENOTTY in the child.
+func TestTTYFallsBackWhenTheChildCannotTakeTheTerminal(t *testing.T) {
+	t.Parallel()
+	canOpenPTY(t)
+	b := testBinary(t, nil, 0)
+	b.TTY = true
+	h := &recordWarns{}
+	r, err := vexec.NewRunner(slog.New(h), b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	vexec.SetInTerminal(r, func(a *syscall.SysProcAttr) {
+		vexec.InTerminal(a)
+		a.Ctty = 1
+	})
+	for range 2 {
+		if v := runTTY(t, r); v.StdinTTY || v.Foreground {
+			t.Fatalf("view = %+v, want the program run without a terminal", v)
+		}
+	}
+	if len(h.msgs) != 1 {
+		t.Fatalf("warnings = %q, want exactly one", h.msgs)
+	}
+	// a missing binary is not retried and says nothing of terminals
+	gone := b
+	gone.Name, gone.Path = "gone", "/nonexistent/helper"
+	h2 := &recordWarns{}
+	r2, err := vexec.NewRunner(slog.New(h2), gone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := r2.Run(deadline(t, 30*time.Second), "gone", helperArgs("tty"), nil); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("missing binary: %v", err)
+	}
+	if len(h2.msgs) != 0 {
+		t.Fatalf("warnings for a missing binary = %q", h2.msgs)
 	}
 }

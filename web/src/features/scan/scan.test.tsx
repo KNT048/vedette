@@ -471,10 +471,10 @@ describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
     ] })))
     renderApp('/settings/scanning?tab=history')
     const table = await screen.findByRole('table', { name: 'Auto rescan event log' })
-    const pick = await within(table).findByText(/^Not scanned automatically: 2 devices need a hand pick in/)
+    const pick = await within(table).findByText(/^Not scanned automatically: 2 devices need a hand pick on/)
     expect(pick.className).toContain('text-off')
     expect(within(table).getByText('NAS-PHOTOS, CAM-03')).toBeInTheDocument()
-    expect(within(table).getByRole('link', { name: 'Scan now' })).toHaveAttribute('href', '/devices') // #850: Scan now is on the Devices list
+    expect(within(table).getByRole('link', { name: 'Devices' })).toHaveAttribute('href', '/devices') // #850: Scan selected is on the Devices list
     expect(within(table).getByText(/^Stopped before the end:/).className).toContain('text-off')
     await expectNoA11yViolations()
     await userEvent.click(within(table).getByRole('link', { name: 'see the run' }))

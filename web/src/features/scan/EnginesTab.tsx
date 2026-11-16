@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ChevronDown } from 'lucide-react'
-import { Section } from '@/components/common/PageHeader'
+import { Notice, Section } from '@/components/common/PageHeader'
 import { Card } from '@/components/common/Card'
 import { QueryState } from '@/components/common/States'
 import { Chip, type Tone } from '@/components/common/StatusChip'
@@ -166,8 +166,10 @@ function Groups({ d }: { d: EnginesResponse }) {
   useEffect(() => {
     if (target) document.getElementById(`engine-${target}`)?.scrollIntoView({ block: 'start' })
   }, [target])
+  const admin = useCan('admin')
   return (
     <>
+      {admin ? null : <Notice tone="off" title={t('engine.adminOnlyToggle')} />}
       {GROUPS.map((g) => {
         const list = d.items.filter((e) => e.group === g)
         if (!list.length) return null

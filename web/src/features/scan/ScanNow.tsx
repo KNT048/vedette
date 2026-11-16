@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Play, Radar } from 'lucide-react'
+import { Play, ScanSearch } from 'lucide-react'
 import { JobProgress } from '@/components/progress/JobProgress'
 import { Button } from '@/components/ui/button'
+import { Tooltip } from '@/components/ui/tooltip'
 import type { JobProgress as Progress } from '@/lib/progress'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan } from '@/lib/session'
@@ -80,13 +81,13 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
           onClick={() => start.mutate(ids, { onSuccess: (r) => { setMine(r.id); toast.success(t('start.started')) }, onError: (e) => toast.error(errMsg(e)) })}>
           <Play />{ours || start.isPending ? t('scanNow.running') : text}
         </Button>
-        {blocked && !ours ? <span className="text-[13px] text-muted">{blocked}{live && live.id !== mine ? <> <Link to={runHref(live.id)} className="text-accent underline-offset-4 hover:underline">{t('scanNow.openRun')}</Link></> : null}</span> : null}
+        {blocked && !ours ? <span className="text-meta text-muted">{blocked}{live && live.id !== mine ? <> <Link to={runHref(live.id)} className="text-accent underline-offset-4 hover:underline">{t('scanNow.openRun')}</Link></> : null}</span> : null}
       </div>
       {ours && showProgress ? (
         <div className="grid gap-2 rounded-md border border-rule bg-surface p-3">
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span className="font-medium">{ours.status === 'stopping' ? t('progress.stopping') : t('progress.device', { n: Math.min(ours.done + 1, ours.total), total: ours.total })}</span>
-            <Link to={runHref(ours.id)} className="text-[13px] text-accent underline-offset-4 hover:underline">{t('scanNow.openRun')}</Link>
+            <Link to={runHref(ours.id)} className="text-meta text-accent underline-offset-4 hover:underline">{t('scanNow.openRun')}</Link>
           </div>
           {ours.status === 'stopping' ? null : <JobProgress progress={ours.progress} />}
         </div>
@@ -108,11 +109,12 @@ export function ScansRunningIndicator({ className, compact = false }: { classNam
   const one = running.length === 1 ? running[0]! : null
   const to = one ? (one.engine === 'nuclei' ? runHref(one.run_id) : `/settings/scanning?tab=engines#${one.engine}`) : '/settings/scanning?tab=engines'
   const label = t('running.count', { count: running.length })
-  // compact (the phone top bar, the rail): the icon and the number, the words for screen readers and as the tooltip
-  return (
-    <Link to={to} title={compact ? label : undefined} className={cn('inline-flex h-8 items-center gap-2 rounded-md border border-accent/40 bg-accent-soft text-[13px] font-medium text-ink hover:bg-sunken', compact ? 'px-2' : 'px-3', className)}>
-      <Radar className="size-4 text-accent" aria-hidden />
-      <span role="status">{compact ? <><span aria-hidden className="tabular-nums">{running.length}</span><span className="sr-only">{label}</span></> : label}</span>
+  const link = (
+    <Link to={to} aria-label={label} className={cn('inline-flex h-8 items-center gap-2 rounded-md border border-rule bg-accent-soft text-meta font-medium text-ink hover:bg-sunken', compact ? 'px-2' : 'px-3', className)}>
+      <ScanSearch className="size-4 text-accent" aria-hidden />
+      <span aria-hidden className={compact ? 'tabular-nums' : undefined}>{compact ? running.length : label}</span>
     </Link>
   )
+  // compact (the phone top bar, the rail): the number only, its name in the shared Tooltip (the link's own label already says it)
+  return compact ? <Tooltip content={label} describe={false}>{link}</Tooltip> : link
 }

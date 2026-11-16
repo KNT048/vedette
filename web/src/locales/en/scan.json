@@ -225,8 +225,8 @@
       "clear": "No match reported",
       "skipped_off": "Skipped: turned off",
       "no_match": "Not scanned: no matching device",
-      "pick_only_one": "Not scanned automatically: {{count}} device needs a hand pick in <nav>Scan now</nav>",
-      "pick_only_other": "Not scanned automatically: {{count}} devices need a hand pick in <nav>Scan now</nav>",
+      "pick_only_one": "Not scanned automatically: {{count}} device needs a hand pick on <nav>Devices</nav>",
+      "pick_only_other": "Not scanned automatically: {{count}} devices need a hand pick on <nav>Devices</nav>",
       "stopped": "Stopped before the end: <nav>see the run</nav>",
       "expired_no_template": "Not scanned for 7 days: the scan template never arrived",
       "expired_scanner": "Not scanned for 7 days: the scanner was not available",
@@ -456,7 +456,8 @@
     "nuclei": {
       "inWindow": "Inside the time window, {{from}} to {{to}}.",
       "saveSchedule": "Save the schedule"
-    }
+    },
+    "adminOnlyToggle": "Only an administrator can turn engines on or off."
   },
   "scanNow": {
     "device": "Check this device now",

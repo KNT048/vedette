@@ -25,8 +25,8 @@ var (
 
 // exposureService builds the exposure service once per database, so the handlers and the auto-detect job share it
 // (and its one-detection-at-a-time lock). The box finds its public IP through three public services fixed in code
-// (D-81); events go to deps.Bus. The scan itself is the scan module's runner (scanRunner, D-229): while that module is off,
-// POST …/scan answers 409 module_off after the gate.
+// (D-81); events go to deps.Bus. The scan itself is the scan module's runner (scanRunner, D-229) behind exposure's own switch (J6):
+// it needs only this module on, not the Vulnerability scans module.
 func exposureService(d deps) *exposure.Service {
 	exposureMu.Lock()
 	defer exposureMu.Unlock()

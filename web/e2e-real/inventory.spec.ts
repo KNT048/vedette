@@ -1,4 +1,4 @@
-// Devices (Inventory) on the real backend: S-INV-2 (add by hand from the catalog or by typing maker and product), S-INV-5 (the box is device 1 and
+// Devices (Inventory) on the real backend: S-INV-2 (add manually from the catalog or by typing maker and product), S-INV-5 (the box is device 1 and
 // cannot be removed), the CSV round trip (INV-13), software add and remove (INV-10 match), approve / mark unknown (S-INV-3), removing a device
 // with its findings (INV-11), and the viewer's locked buttons. The form steps are those of e2e/qa/inventory.spec.ts; what only a real box shows is new:
 // the row is in the database after a reload, the audit log has the line, the duplicate IP is a real 409, the CSV that comes back is the real export.
@@ -44,7 +44,7 @@ test.describe('operator, day to day', () => {
     noErrors(errors, /status of (4|5)\d\d/)
   })
 
-  test('add by hand from the catalog: Escape closes only the list, an error keeps the input, Enter submits, the row is saved', async ({ page }) => {
+  test('add manually from the catalog: Escape closes only the list, an error keeps the input, Enter submits, the row is saved', async ({ page }) => {
     const errors = collectErrors(page)
     const name = uniq('fw')
     const addr = ip()
@@ -61,13 +61,13 @@ test.describe('operator, day to day', () => {
     await expect(dialog, 'the first Escape closes only the suggestion list').toBeVisible()
     await picker.fill('fortig') // another text than before: the same text would not open the closed list again
     await dialog.getByRole('option').first().click()
-    await dialog.getByLabel('Name (optional)', { exact: true }).fill(name)
-    await dialog.getByLabel('IP address (optional)', { exact: true }).fill('not-an-ip')
-    await dialog.getByLabel('IP address (optional)', { exact: true }).press('Enter')
-    await expect(dialog.getByRole('alert')).toBeVisible()
-    await expect(dialog.getByLabel('Name (optional)', { exact: true })).toHaveValue(name)
+    await dialog.getByLabel('Host name', { exact: true }).fill(name)
+    await dialog.getByLabel('IP address', { exact: true }).fill('not-an-ip')
+    await dialog.getByLabel('IP address', { exact: true }).press('Enter')
+    await expect(dialog.getByText(/That IP address is not valid/)).toBeVisible() // checked in the browser, under the field (#849)
+    await expect(dialog.getByLabel('Host name', { exact: true })).toHaveValue(name)
     await shot(page, 'real-inventory', 'add-error')
-    await dialog.getByLabel('IP address (optional)', { exact: true }).fill(addr)
+    await dialog.getByLabel('IP address', { exact: true }).fill(addr)
     await dialog.getByRole('button', { name: 'Add', exact: true }).click()
     await expect(dialog).toBeHidden()
     await expect(page.getByRole('link', { name }).first()).toBeVisible()
@@ -80,8 +80,8 @@ test.describe('operator, day to day', () => {
     await addBtn(page).click()
     await dialog.getByRole('combobox').fill('forti')
     await dialog.getByRole('option').first().click()
-    await dialog.getByLabel('Name (optional)', { exact: true }).fill(uniq('dup'))
-    await dialog.getByLabel('IP address (optional)', { exact: true }).fill(addr)
+    await dialog.getByLabel('Host name', { exact: true }).fill(uniq('dup'))
+    await dialog.getByLabel('IP address', { exact: true }).fill(addr)
     await dialog.getByRole('button', { name: 'Add', exact: true }).click()
     await expect(dialog.getByRole('alert')).toContainText(addr)
     await dialog.getByRole('button', { name: /Cancel|Close/ }).first().click()
@@ -117,7 +117,7 @@ test.describe('operator, day to day', () => {
     await expect(dialog.getByText(/No matching product/)).toBeVisible()
   })
 
-  test('a product that is not listed: maker and product typed by hand', async ({ page }) => {
+  test('a product that is not listed: maker and product typed in', async ({ page }) => {
     const name = uniq('lab')
     await open(page)
     await addBtn(page).click()
@@ -126,7 +126,7 @@ test.describe('operator, day to day', () => {
     await expect(dialog.getByRole('button', { name: 'Add', exact: true })).toBeDisabled()
     await dialog.getByLabel('Maker', { exact: true }).fill('Fortinet')
     await dialog.getByLabel('Product', { exact: true }).fill('FortiGate-Lab')
-    await dialog.getByLabel('Name (optional)', { exact: true }).fill(name)
+    await dialog.getByLabel('Host name', { exact: true }).fill(name)
     await dialog.getByRole('button', { name: 'Add', exact: true }).click()
     await expect(dialog).toBeHidden()
     await page.getByRole('link', { name }).first().click()
@@ -138,7 +138,8 @@ test.describe('operator, day to day', () => {
     const [a, b, c] = [`${tag}-fw`, `${tag}-prn`, `${tag}-srv`]
     const [ipA, ipB] = [ip(), ip()]
     await open(page)
-    await page.getByRole('button', { name: 'Import CSV' }).first().click()
+    await addBtn(page).click()
+    await page.getByRole('dialog').getByRole('radio', { name: /^CSV import/ }).click() // #849: CSV import is a method of Add a device
     const csv = `﻿Device name;IP address;Product;Version;Type\r\n\r\n${a};${ipA};FortiGate;7.2.5;Firewall\r\n\r\n${b};${ipB};;;Printer\r\n;;;;\r\nBad one;999.1.1.1;;;\r\n${c};;;;Server\r\n`
     await page.getByLabel('Choose a CSV file', { exact: true }).setInputFiles({ name: 'devices.csv', mimeType: 'text/csv', buffer: Buffer.from(csv, 'utf8') })
     const dlg = page.getByRole('dialog')
@@ -155,14 +156,16 @@ test.describe('operator, day to day', () => {
     // the export of this test's own rows goes back in: other specs add and remove devices at the same time, so only these three lines are re-imported
     const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/)
     const own = [lines[0]!, ...lines.slice(1).filter((l) => [a, b, c].some((n) => l.includes(n)))].join('\r\n')
-    await page.getByRole('button', { name: 'Import CSV' }).first().click()
+    await addBtn(page).click()
+    await page.getByRole('dialog').getByRole('radio', { name: /^CSV import/ }).click() // #849: CSV import is a method of Add a device
     await page.getByLabel('Choose a CSV file', { exact: true }).setInputFiles({ name: 'export.csv', mimeType: 'text/csv', buffer: Buffer.from(own, 'utf8') })
     await expect(page.getByRole('dialog').getByText(/Added 0 devices/)).toBeVisible()
     await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).first().click()
     const all = (await devices(page)).items
     for (const n of [a, b, c]) expect(all.filter((d) => d.hostname === n).length, `${n} after the round trip`).toBe(1)
     // an empty file and a file with the wrong columns are refused with the reason
-    await page.getByRole('button', { name: 'Import CSV' }).first().click()
+    await addBtn(page).click()
+    await page.getByRole('dialog').getByRole('radio', { name: /^CSV import/ }).click() // #849: CSV import is a method of Add a device
     await page.getByLabel('Choose a CSV file', { exact: true }).setInputFiles({ name: 'empty.csv', mimeType: 'text/csv', buffer: Buffer.from('', 'utf8') })
     await expect(page.getByRole('dialog').getByRole('alert')).toContainText('The file is empty')
     await page.getByLabel('Choose a CSV file', { exact: true }).setInputFiles({ name: 'wrong.csv', mimeType: 'text/csv', buffer: Buffer.from('a,b\n1,2\n', 'utf8') })
@@ -261,11 +264,10 @@ test.describe('viewer, read only', () => {
 
   test('write buttons are locked with the role named; export works; the setup page and the API refuse', async ({ page }) => {
     await open(page)
-    for (const n of ['Add a device', 'Import CSV']) {
-      const b = page.getByRole('button', { name: n })
-      await expect(b).toBeDisabled()
-      await expect(b).toHaveAttribute('title', /Operator/)
-    }
+    // #849: CSV import is a method inside Add a device, so this one button gates every way to add
+    const b = page.getByRole('button', { name: 'Add a device' })
+    await expect(b).toBeDisabled()
+    await expect(b).toHaveAttribute('title', /Operator/)
     await expect(page.getByRole('button', { name: 'Export CSV' })).toBeEnabled()
     await expect(page.getByRole('link', { name: 'Scope, sensors and agents' })).toHaveCount(0)
     await page.goto('/devices/setup')

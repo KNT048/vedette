@@ -2,12 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
+import { renderSnmp } from './snmpHarness'
 import { renderApp } from '@/test/render'
 import { server } from '@/test/server'
 import { assetsStore, auditStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { ensureBox, snmpStore } from './mocks'
 
-// S-INV-1, D-512: SNMP credentials on Devices → Scope and sensors (/devices/setup?tab=snmp; the old #snmp opens that tab, D-519).
+// S-INV-1, D-512: the SNMP credential list. #849 took it off Devices; Settings › Scanning (#850) places it, so the tests render the component.
 vi.setConfig({ testTimeout: 30_000 })
 beforeEach(() => ensureBox())
 afterEach(() => { server.events.removeAllListeners() })
@@ -42,7 +43,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     expect((await call('POST', '/snmp', { name: 'Printers', version: 'v2c', community: 'public', scope: ['192.168.10.200/29'] })).status).toBe(201)
     const got = await call('GET', '/snmp')
     expect(got.text).not.toMatch(/ro-auth-2fe8|ro-priv-91c4|"community"|password/)
-    renderApp('/devices/setup?tab=snmp')
+    renderSnmp()
     const v3 = await row('Core switches (v3)')
     expect(v3).toHaveTextContent('vedette-ro')
     expect(v3).toHaveTextContent('SHA-256, ••••2fe8')
@@ -59,7 +60,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
 
   it('adds a v2c credential from the dialog; the row shows the last 4 characters and the scope, and the audit log has the line', async () => {
     const user = userEvent.setup()
-    renderApp('/devices/setup?tab=snmp')
+    renderSnmp()
     await row('Core switches (v3)')
     await clickUntil(user, () => screen.getByRole('button', { name: 'Add SNMP credential' }), () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: 'Add SNMP credential' }, T)
@@ -82,7 +83,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     let posts = 0
     server.events.on('request:start', ({ request }) => { if (request.method === 'POST' && request.url.endsWith('/inventory/snmp')) posts++ })
     const user = userEvent.setup()
-    renderApp('/devices/setup?tab=snmp')
+    renderSnmp()
     await row('Core switches (v3)')
     await clickUntil(user, () => screen.getByRole('button', { name: 'Add SNMP credential' }), () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', { name: 'Add SNMP credential' }, T)
@@ -104,28 +105,31 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
 
   it('Test with an answer shows what the device said, links the device and records it in the inventory', async () => {
     const user = userEvent.setup()
-    renderApp('/devices/setup?tab=snmp')
+    renderSnmp()
     await row('Core switches (v3)')
     const li = await runTest(user, 'Core switches (v3)', '192.168.10.3')
     const answer = await within(li).findByText('192.168.10.3 answered.', undefined, T)
     const box = answer.closest('[role="status"]') as HTMLElement
-    expect(box).toHaveTextContent('Juniper Networks Junos')
-    expect(box).toHaveTextContent('EX4200-48T')
-    expect(box).toHaveTextContent('JUNOS 15.1R7.9')
+    // the preview answers as the device the list shows at that address (Cisco CBS350 SW-CORE), so recording it changes nothing shown
+    expect(box).toHaveTextContent('SW-CORE')
+    expect(box).toHaveTextContent('Cisco')
+    expect(box).toHaveTextContent('CBS350-24P')
+    expect(box).toHaveTextContent('CBS350 firmware 3.4')
     expect(box).toHaveTextContent('Switch')
-    expect(box).toHaveTextContent('.1.3.6.1.4.1.2636.1.1.1.2.31')
-    expect(within(box).getByText(/^Juniper Networks, Inc\. ex4200-48t Ethernet Switch/).tagName).toBe('PRE')
+    expect(box).toHaveTextContent('.1.3.6.1.4.1.9.6.1.95.24.1')
+    expect(within(box).getByText(/^CBS350-24P-4G 24-Port Gigabit PoE Managed Switch/).tagName).toBe('PRE')
     expect(box).toHaveTextContent('Recorded in the inventory with source SNMP.')
     expect(within(box).getByRole('link', { name: 'Open the device' })).toHaveAttribute('href', '/devices/a-sw01')
     const sw = assetsStore.get().find((a) => a.id === 'a-sw01')!
-    expect(sw.os).toMatchObject({ value: 'JUNOS 15.1R7.9', source: 'snmp' })
+    expect(sw.os).toMatchObject({ value: 'CBS350 firmware 3.4', source: 'snmp' })
+    expect(sw.model?.value).toBe('CBS350-24P')
     expect(auditStore.get()[0]).toMatchObject({ action: 'inventory.snmp_test', target: 'Core switches (v3)', detail: '192.168.10.3: ok' })
   })
 
   it('Test with a wrong community shows the plain no-answer reason; a bad IP is refused in the browser', async () => {
     expect((await call('POST', '/snmp', { name: 'Old community', version: 'v2c', community: 'wrong-community', scope: ['192.168.10.0/24'] })).status).toBe(201)
     const user = userEvent.setup()
-    renderApp('/devices/setup?tab=snmp')
+    renderSnmp()
     await row('Old community')
     const li = await runTest(user, 'Old community', '192.168.10.300')
     expect(within(li).getByText('Enter an IPv4 address, like 192.168.10.3.')).toBeInTheDocument()
@@ -167,7 +171,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     const kept = await call('PUT', '/snmp/snmp-1', { name: 'Core switches (v3)', version: 'v3', username: 'vedette-ro', auth: 'sha256', priv: 'aes128', scope: ['192.168.10.0/24'] })
     expect(kept.status).toBe(409)
     const user = userEvent.setup()
-    renderApp('/devices/setup?tab=snmp')
+    renderSnmp()
     const li = await row('Core switches (v3)')
     expect(within(li).getByRole('alert')).toHaveTextContent('The saved community or password was not restored')
     await clickUntil(user, () => within(li).getByRole('button', { name: 'Edit Core switches (v3)' }), () => screen.getByRole('dialog'))
@@ -190,7 +194,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     const run = await call('POST', '/snmp/snmp-1/read')
     expect(run.status).toBe(202)
     expect(run.json).toMatchObject({ total: 0, skipped: 1, results: [{ ip: '192.168.10.21', ok: false, reason: 'not_for_this_credential', device_id: 'a-nas02', message }] })
-    const { unmount } = renderApp('/devices/setup?tab=snmp')
+    const { unmount } = renderSnmp()
     const li = await row('Core switches (v3)')
     expect(within(li).getByRole('status')).toHaveTextContent('nas02 moved to 192.168.10.21, outside this credential\'s scope')
     expect(within(li).getByRole('status')).toHaveTextContent(message)
@@ -204,7 +208,7 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
 
   it('says why SNMP reads are not available, and adding still works', async () => {
     server.use(http.get('*/api/v1/inventory/snmp', () => HttpResponse.json({ credentials: [], ready: false, message: 'The scan container has not reported yet.' })))
-    renderApp('/devices/setup?tab=snmp')
+    renderSnmp()
     expect(await screen.findByText('The scan container has not reported yet.', undefined, T)).toBeInTheDocument()
     expect(screen.getByText('No SNMP credentials yet')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add SNMP credential' })).toBeEnabled()
@@ -213,10 +217,12 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
   it('the section does not exist while sensor-active is off, and its API is not asked', async () => {
     enableModule('sensor-active', false)
     let asked = 0
+    let modulesRead = false
     server.events.on('request:start', ({ request }) => { if (new URL(request.url).pathname.endsWith('/inventory/snmp')) asked++ })
-    renderApp('/devices/setup?tab=snmp')
-    await screen.findByRole('tab', { name: 'Agents' }, T)
-    expect(screen.queryByRole('tab', { name: 'SNMP' })).toBeNull() // D-519: no tab for an area that does not exist
+    server.events.on('response:mocked', ({ request }) => { if (new URL(request.url).pathname.endsWith('/modules')) modulesRead = true })
+    renderSnmp()
+    await waitFor(() => expect(modulesRead).toBe(true), T) // the section knows the module is off
+    expect(screen.queryByRole('button', { name: 'Add SNMP credential' })).toBeNull()
     expect(screen.queryByRole('heading', { name: 'SNMP credentials' })).toBeNull()
     expect(asked).toBe(0)
     expect((await call('GET', '/snmp')).status).toBe(404)

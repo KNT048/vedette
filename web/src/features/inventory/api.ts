@@ -81,6 +81,16 @@ export function useSaveSettings() {
     },
   })
 }
+/** Add one range to the scan scope without sending the whole block (#860, append-only): the ranges and confirmation the dialog showed
+ *  go back with it, so a change made meanwhile is a 409 scope_changed instead of being overwritten. */
+export function useAddScopeRange() {
+  const inv = useInvalidate()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (b: { range: string; confirm: boolean; shown_ranges: string[]; shown_confirmed_at: string | null }) => api.post('/scanning/safety/ranges', b),
+    onSettled: async () => { await Promise.all([inv(), qc.invalidateQueries({ queryKey: ['scanning'] })]) },
+  })
+}
 export function useAgentActions() {
   const inv = useInvalidate()
   return {

@@ -378,7 +378,6 @@ test.describe('notify: approvers per channel and Zalo personal (D-46)', () => {
 
 test.describe('notify: clean install', () => {
   test('incidents, channels and history say what to do first, with no sample data', async ({ page }) => {
-    test.skip(!POST_V1_IN_UI, 'post-v1 hidden (D-624, #819): channel approvals belong to AI response, which v1 does not offer')
     const errors = collectErrors(page)
     await finishClean(page)
     await page.goto('/incidents')
@@ -396,11 +395,14 @@ test.describe('notify: clean install', () => {
     await expectAccessible(page, 'channels clean')
     await page.getByRole('button', { name: 'Set up Telegram' }).click()
     const d = page.getByRole('dialog')
-    await d.getByRole('switch', { name: APPROVE }).click()
-    await expect(d.getByText(/Add at least one approver|Who can approve/).first()).toBeVisible()
+    // D-624 (#819): channel approvals belong to AI response, which v1 does not offer
+    if (POST_V1_IN_UI) {
+      await d.getByRole('switch', { name: APPROVE }).click()
+      await expect(d.getByText(/Add at least one approver|Who can approve/).first()).toBeVisible()
+    }
     await d.getByLabel('Chat ID', { exact: true }).fill('-1001234567890')
     await d.getByLabel('Bot token', { exact: true }).fill(TOKEN)
-    await d.getByRole('switch', { name: APPROVE }).click() // back off: no approver needed
+    if (POST_V1_IN_UI) await d.getByRole('switch', { name: APPROVE }).click() // back off: no approver needed
     await d.getByRole('button', { name: 'Save', exact: true }).click()
     await expect(page.getByText('Channel Telegram saved.').first()).toBeVisible()
     expect(errors).toEqual([])

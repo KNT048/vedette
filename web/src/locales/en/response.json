@@ -989,6 +989,18 @@
     "pending_other": "{{count}} requests wait for approval; they can no longer be approved once off.",
     "rollBackFirst": "Roll back first: Requests, History",
     "frozen": "This build does not offer AI response: you can reject or roll back, not approve or create.",
-    "noNewLink": "This build does not offer AI response, so no new approver link is made. A linked one can be removed."
+    "noNewLink": "This build does not offer AI response, so no new approver link is made. A linked one can be removed.",
+    "loading": "Loading what is still in force…",
+    "failed": "Could not read what is still in force. Check Requests, History before turning anything off.",
+    "onDevice": "(execution is off: undo it on the device itself)",
+    "offWarn": "Execution cannot be turned on again in this build, so device changes still in force can then only be undone on the device itself.",
+    "noDevice": "No device change is in force.",
+    "deviceInForce_one": "{{count}} device change is in force:",
+    "deviceInForce_other": "{{count}} device changes are in force:",
+    "undoOnDevice": "Execution is off: undo this on the device itself.",
+    "execOffTitle": "Turn off execution?",
+    "execOffConfirm": "Turn off execution",
+    "stopTitle": "Emergency stop?",
+    "linkFrozen": "This build does not offer AI response, so no new approver link is confirmed here."
   }
 }

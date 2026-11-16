@@ -37,8 +37,11 @@ export function RequestsTab() {
   const actions = useActions()
   const setupDone = useSetupDone()
   const frozen = useFrozen() // D-624: no guided setup for what this build does not offer
-  // ?view=history: where the turn-off dialog sends you to roll back first (D-624)
-  const [view, setView] = useState<'pending' | 'history'>(useSearchParams()[0].get('view') === 'history' ? 'history' : 'pending')
+  // ?view=history: where the turn-off dialog sends you to roll back first (D-624); followed when it changes on a mounted tab (N-L2)
+  const urlView = useSearchParams()[0].get('view')
+  const [view, setView] = useState<'pending' | 'history'>(urlView === 'history' ? 'history' : 'pending')
+  const [seenView, setSeenView] = useState(urlView)
+  if (urlView !== seenView) { setSeenView(urlView); if (urlView === 'history') setView('history') }
   const [src, setSrc] = useState<'all' | 'ai' | 'rule' | 'person'>('all')
   const [risk, setRisk] = useState<'all' | Risk>('all')
   if (actions.isPending) return <Loading />

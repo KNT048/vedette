@@ -127,7 +127,8 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
     save.mutate({ type, enabled, fields: sent, secret: secret || undefined, ...(type === 'email' && signin ? { signin } : {}), min_severity: min, ...zalo, ...(canApprove ? { approvals, approvers: approvals ? approvers : [] } : {}), ...(type === 'slack' && approvals ? { app_token: appToken || undefined, bot_token: botToken || undefined } : {}), ...(type === 'zalo' ? { secret_key: zaloKey || undefined, refresh_token: zaloRefresh || undefined } : {}) }, {
       onSuccess: () => {
         toast.success(t('channels.saved', { name }))
-        if (type === 'zalo-personal' && approvals && !thenTest) { setZaloSigned(null); toast.info(t('zp.codesSent')); return } // stay: show who is linked
+        // D-624 (N-L3): frozen approvers get no new codes, so nothing to stay for
+        if (type === 'zalo-personal' && approvals && !thenTest && !approvalsFrozen) { setZaloSigned(null); toast.info(t('zp.codesSent')); return } // stay: show who is linked
         onSaved(thenTest)
       },
       onError: (er) => {

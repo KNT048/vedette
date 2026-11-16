@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -11,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
 import { errText, useEmergencyStop, useRequestApproval } from './api'
 import { useFrozen } from './frozen'
+import { ConfirmExecutionOff } from './Leaving'
 import type { ActionStatus, Change, ItemStatus, Plan, Proposal, Risk } from './types'
 
 const TONE: Record<ActionStatus, Tone> = { pending: 'warn', approved: 'accent', rejected: 'off', expired: 'off', executed: 'ok', failed: 'danger', rolled_back: 'accent' }
@@ -106,10 +108,16 @@ export function EmergencyStop() {
   const { t } = useTranslation('response')
   const can = useCan('operator')
   const stop = useEmergencyStop()
+  const frozen = useFrozen() // D-624 (N-H1): on a box where it is not offered, stopping is one-way for device changes: confirm first
+  const [ask, setAsk] = useState(false)
+  const go = () => stop.mutate(undefined, { onSuccess: (r) => { setAsk(false); toast.success(t('stop.done', { count: r.cancelled })) }, onError: (e) => { setAsk(false); toast.error(errText(e)) } })
   return (
-    <Button variant="danger" disabled={!can || stop.isPending} title={!can ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
-      onClick={() => stop.mutate(undefined, { onSuccess: (r) => toast.success(t('stop.done', { count: r.cancelled })), onError: (e) => toast.error(errText(e)) })}>
-      <OctagonAlert className="size-4" aria-hidden />{t('stop.button')}
-    </Button>
+    <>
+      <Button variant="danger" disabled={!can || stop.isPending} title={!can ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
+        onClick={() => (frozen ? setAsk(true) : go())}>
+        <OctagonAlert className="size-4" aria-hidden />{t('stop.button')}
+      </Button>
+      {frozen ? <ConfirmExecutionOff open={ask} onOpenChange={setAsk} title={t('leaving.stopTitle')} confirmLabel={t('stop.button')} busy={stop.isPending} onConfirm={go} /> : null}
+    </>
   )
 }

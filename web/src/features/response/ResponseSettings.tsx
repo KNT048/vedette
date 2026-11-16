@@ -20,7 +20,7 @@ import { CatalogEditor } from './CatalogEditor'
 import { EmergencyStop } from './parts'
 import { NeverTouch } from './NeverTouch'
 import type { SettingsView, Window } from './types'
-import { Frozen, TurnOffResponse } from './Leaving'
+import { ConfirmExecutionOff, Frozen, TurnOffResponse } from './Leaving'
 import { FrozenCtx, useLeaving } from './frozen'
 
 /** The only way to turn execution on (D-41): admin, two-step sign-in, the exact phrase. Also opened by the guided setup of the inbox (D-513). */
@@ -149,6 +149,8 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
   const reset = useResetBreaker()
   const [open, setOpen] = useState(false)
   const leaving = useLeaving() // D-624 (#819): no new action; execution can be turned off, Emergency stop stays (frozen.ts)
+  const [askOff, setAskOff] = useState(false) // N-H1: on a frozen box turning execution off is one-way for device changes
+  const off = () => set.mutate({ enabled: false }, { onSuccess: () => { setAskOff(false); toast.success(t('enable.off')) }, onError: (e) => { setAskOff(false); toast.error(errText(e)) } })
   if (q.isPending) return <Loading />
   if (q.error) return <ErrorState error={q.error} onRetry={() => void q.refetch()} />
   const s = q.data
@@ -162,7 +164,7 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
           <Panel className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div className="flex items-center gap-3">
               <Switch id="resp-exec" checked={s.execution} disabled={set.isPending || (leaving && !s.execution)} title={leaving && !s.execution ? t('leaving.frozen') : undefined}
-                onCheckedChange={(v) => (v ? setOpen(true) : set.mutate({ enabled: false }, { onSuccess: () => toast.success(t('enable.off')), onError: (e) => toast.error(errText(e)) }))} />
+                onCheckedChange={(v) => (v ? setOpen(true) : leaving ? setAskOff(true) : off())} />
               <label htmlFor="resp-exec" className="grid text-sm"><span className="font-medium">{t('settings.switch')}</span>
                 <span className="text-[13px] text-muted">{s.execution ? t('settings.on', { who: s.accepted_by ?? '', time: fmtDateTime(s.accepted_at) }) : t('settings.off')}</span></label>
             </div>
@@ -182,6 +184,7 @@ export default function ResponseSettings({ embedded = false }: { embedded?: bool
       </section>
       </FrozenCtx.Provider>
       <EnableDialog open={open} onOpenChange={setOpen} />
+      {leaving ? <ConfirmExecutionOff open={askOff} onOpenChange={setAskOff} title={t('leaving.execOffTitle')} confirmLabel={t('leaving.execOffConfirm')} busy={set.isPending} onConfirm={off} /> : null}
     </>
   )
 }

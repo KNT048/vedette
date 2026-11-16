@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, MemoryRouter, RouterProvider } from 'react-router'
 import { Toaster } from 'sonner'
@@ -2123,4 +2124,82 @@ describe('D-624 (#819): a box that had AI response on before v1', () => {
       expect(screen.getByRole('button', { name: 'Emergency stop' })).toBeEnabled()
     } finally { postV1.POST_V1_IN_UI = true }
   })
+
+  // N-H1: the sample's first executed block-list item, made a device change (a firewall connection) for these tests
+  const deviceChange = () => actionsStore.update((l) => l.map((a) => (a.id === 'act-seed-1' ? { ...a, items: a.items.map((i) => ({ ...i, connector_id: 'conn-lab', connection: 'Lab firewall' })) } : a)))
+  const execOn = () => settingsStore.update((x) => ({ ...x, execution: true, accepted_by: 'admin@acme.example', accepted_at: new Date().toISOString() }))
+  const rollbackCalls = () => {
+    const calls: string[] = []
+    server.events.on('request:start', ({ request }) => { if (request.method === 'POST' && request.url.includes('/rollback')) calls.push(request.url) })
+    return calls
+  }
+
+  it('device change, execution on: Roll back works', async () => {
+    postV1.POST_V1_IN_UI = false
+    deviceChange(); execOn()
+    const calls = rollbackCalls()
+    try {
+      const u = userEvent.setup()
+      renderApp('/response?tab=requests&view=history')
+      const card = (await screen.findByRole('heading', { level: 3, name: 'Add 185.220.101.47 to the block list' })).closest('div.grid')!
+      const back = within(card as HTMLElement).getByRole('button', { name: 'Roll back' })
+      expect(enabled(back)).toBe(true)
+      await u.click(back)
+      await waitFor(() => expect(calls.some((c) => c.includes('act-seed-1'))).toBe(true))
+    } finally { postV1.POST_V1_IN_UI = true; server.events.removeAllListeners() }
+  })
+
+  it('device change, execution off: Roll back is off with where to undo it, and nothing is sent; a block-list rollback still works', async () => {
+    postV1.POST_V1_IN_UI = false
+    deviceChange()
+    const calls = rollbackCalls()
+    try {
+      renderApp('/response?tab=requests&view=history')
+      const card = (await screen.findByRole('heading', { level: 3, name: 'Add 185.220.101.47 to the block list' })).closest('div.grid')!
+      const back = within(card as HTMLElement).getByRole('button', { name: 'Roll back' })
+      expect(back).toBeDisabled()
+      expect(back).toHaveAccessibleDescription('Execution is off: undo this on the device itself.')
+      expect(calls).toHaveLength(0)
+      const other = (screen.getByRole('heading', { level: 3, name: 'Add 45.9.148.20 to the block list' })).closest('div.grid')!
+      expect(within(other as HTMLElement).getByRole('button', { name: 'Roll back' })).toBeEnabled()
+    } finally { postV1.POST_V1_IN_UI = true; server.events.removeAllListeners() }
+  })
+
+  it('turning execution off on a frozen box lists the device changes in force first and offers to roll them back', async () => {
+    postV1.POST_V1_IN_UI = false
+    deviceChange(); execOn()
+    try {
+      const u = userEvent.setup()
+      renderApp('/settings/response')
+      await u.click(await screen.findByRole('switch', { name: /^Let the AI carry out actions I approve/ }))
+      const dlg = await screen.findByRole('dialog', { name: 'Turn off execution?' })
+      expect(within(dlg).getByText(/can then only be undone on the device itself/)).toBeInTheDocument()
+      const list = await within(dlg).findByRole('list', { name: 'Changes still in force' })
+      expect(within(list).getByText(/Add 185\.220\.101\.47 to the block list on PC-SALES-02/)).toBeInTheDocument()
+      expect(within(dlg).getByRole('link', { name: 'Roll back first: Requests, History' })).toBeInTheDocument()
+      expect(settingsStore.get().execution).toBe(true)
+      await u.click(within(dlg).getByRole('button', { name: 'Turn off execution' }))
+      await waitFor(() => expect(settingsStore.get().execution).toBe(false))
+    } finally { postV1.POST_V1_IN_UI = true }
+  })
+
+  it('the turn-off list never says "nothing" before it has read the data: loading, then an error line if the read fails', async () => {
+    postV1.POST_V1_IN_UI = false
+    let open = false
+    let release: () => void = () => {}
+    const held = new Promise<void>((r) => { release = () => { open = true; r() } })
+    server.use(http.get(`${location.origin}/api/v1/response/actions`, async () => { if (!open) await held; return HttpResponse.json({ error: { code: 'server_busy', message: 'Busy' } }, { status: 503 }) }))
+    try {
+      const u = userEvent.setup()
+      renderApp('/settings/response')
+      await u.click(await screen.findByRole('button', { name: 'Turn off AI response' }))
+      const dlg = await screen.findByRole('dialog', { name: 'Turn off AI response?' })
+      expect(within(dlg).getByText('Loading what is still in force…')).toBeInTheDocument()
+      expect(within(dlg).queryByText('Nothing it did is still in force.')).toBeNull()
+      release()
+      expect(await within(dlg).findByText(/Could not read what is still in force/, {}, { timeout: 30_000 })).toBeInTheDocument()
+      expect(within(dlg).queryByText('Nothing it did is still in force.')).toBeNull()
+    } finally { postV1.POST_V1_IN_UI = true }
+  })
+
 })

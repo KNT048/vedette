@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select, Textarea } from '@/components/ui/input'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
-import { errText, useApprove, useReject, useRollback } from './api'
+import { errText, useApprove, usePlans, useReject, useRollback } from './api'
 import { undoable } from './state'
 import { ChangeView, ItemTag, RiskChip, StatusTag } from './parts'
 import { useFrozen } from './frozen'
@@ -87,6 +87,9 @@ export function RequestCard({ a }: { a: ActionRequest }) {
   const { t } = useTranslation('response')
   const can = useCan('operator')
   const frozen = useFrozen() // D-624: Reject and Roll back stay, Approve does not
+  // N-H1: rolling back a device change needs execution on (INV-7), which cannot be turned on again here: say where to undo it instead of a 409
+  const execution = usePlans().data?.execution
+  const onDevice = frozen && execution === false && a.items.some((i) => undoable(i) && i.reversible && i.connector_id !== null)
   const approve = useApprove()
   const rollback = useRollback()
   const [picked, setPicked] = useState<string[] | null>(null)
@@ -164,7 +167,11 @@ export function RequestCard({ a }: { a: ActionRequest }) {
           </div>
         </div>
       ) : a.items.some(undoable) ? (
-        <div><Button disabled={!can || rollback.isPending} title={role} onClick={() => rollback.mutate(a.id, { onSuccess: () => toast.success(t('action.rolledBackToast')), onError: (e) => toast.error(errText(e)) })}>{t('action.rollback')}</Button></div>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button disabled={!can || onDevice || rollback.isPending} title={onDevice ? t('leaving.undoOnDevice') : role} aria-describedby={onDevice ? `undo-${a.id}` : undefined} onClick={() => rollback.mutate(a.id, { onSuccess: () => toast.success(t('action.rolledBackToast')), onError: (e) => toast.error(errText(e)) })}>{t('action.rollback')}</Button>
+          {/* what to undo and where: the device above, each change under "Exact change and rollback" */}
+          {onDevice ? <p id={`undo-${a.id}`} className="text-[13px] text-warn">{t('leaving.undoOnDevice')}</p> : null}
+        </div>
       ) : null}
       {rejecting ? <RejectDialog a={a} onClose={() => setRejecting(false)} /> : null}
     </Panel>

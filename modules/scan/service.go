@@ -210,14 +210,15 @@ func (s *Service) SaveConfig(ctx context.Context, user string, p Patch) (ConfigV
 			}
 			copyOf.Exclusions = raw.Exclusions
 		}
-		if err := saveSettings(ctx, tx, copyOf, user, store.FormatTS(s.now())); err != nil {
+		at := store.FormatTS(s.now())
+		if err := saveSettings(ctx, tx, copyOf, user, at); err != nil {
 			return err
 		}
 		// INV-16 (#850): the window, the rate and the exclusions are the inventory's; every save writes the values it read (the
 		// union while the copy was not merged: review #857 M1) back there, in the same transaction, so the inventory marks the copy
 		// taken in and discovery and Settings › Scanning see the same values.
 		if shared {
-			if err := sh.SaveChecks(ctx, tx, user, Checks{Window: next.Window, Rate: next.Rate, Exclusions: next.Exclusions}); err != nil {
+			if err := sh.SaveChecks(ctx, tx, user, Checks{Window: next.Window, Rate: next.Rate, Exclusions: next.Exclusions, MergedFrom: &at}); err != nil {
 				return err
 			}
 		}

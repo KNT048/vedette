@@ -235,8 +235,21 @@ func TestContract_INV32_MergeLegacyChecks(t *testing.T) {
 	if st, _ := e.svc.Settings(e.ctx()); !slices.Contains(st.Active.Exclusions, "192.168.18.50") {
 		t.Fatalf("the rollback's exclusion is not in the one store: %v", st.Active.Exclusions)
 	}
+	// review #857 r2 L1: that merge was stamped by a copy from the future (a clock that ran ahead); a later rollback edit stamped
+	// earlier is still taken in, since only equality counts
+	again := rolled
+	again.SavedAt, again.Exclusions = "2026-12-01T00:00:00.000Z", append(slices.Clone(rolled.Exclusions), "192.168.18.51")
+	if merged, err := e.svc.MergeLegacyChecks(e.ctx(), again); err != nil || !merged {
+		t.Fatalf("an edit stamped before the merge stamp: %v %v", merged, err)
+	}
+	if st, _ := e.svc.Settings(e.ctx()); !slices.Contains(st.Active.Exclusions, "192.168.18.51") {
+		t.Fatalf("the later rollback edit is not in the one store: %v", st.Active.Exclusions)
+	}
+	if merged, _ := e.svc.MergeLegacyChecks(e.ctx(), again); merged {
+		t.Fatal("the same copy was taken in twice")
+	}
 	// L10: the same window, but exclusions added: an audit row all the same
-	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'scanning.safety.merged' AND detail LIKE '%"exclusions_added":1%'`); n != 2 {
+	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'scanning.safety.merged' AND detail LIKE '%"exclusions_added":1%'`); n != 3 {
 		t.Fatalf("merge rows with one exclusion added = %d", n)
 	}
 

@@ -1413,8 +1413,6 @@ func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identific
 	} else if !in {
 		return refuse("out_of_scope")
 	}
-	// The box's own addresses and its decoys are never probed (review L1). The list also holds devices discovery leaves to the
-	// passive sensors after their gentle scan, which a pick may identify: only those are let through.
 	// The box's own addresses and its decoys are never probed, whatever the device row says (BoxIPs, as SNMP does: review #857 L3);
 	// the passive-only exemption below is for the rest of ProtectedIPs.
 	box, err := s.inv.BoxIPs(jctx)
@@ -1424,6 +1422,8 @@ func (s *Service) IdentifyDevice(ctx context.Context, assetID string) (Identific
 	if slices.Contains(box, asset.IP) {
 		return refuse(reasonBox)
 	}
+	// ProtectedIPs also holds devices discovery leaves to the passive sensors after their gentle scan, which a pick may identify: only
+	// those are let through (review L1); the box itself was refused above.
 	protected, err := s.inv.ProtectedIPs(jctx)
 	if err != nil {
 		return Identification{}, stopped(err)

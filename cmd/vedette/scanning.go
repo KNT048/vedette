@@ -135,7 +135,7 @@ func (s scanInventory) Checks(ctx context.Context) (scan.Checks, error) {
 		return scan.Checks{}, err
 	}
 	return scan.Checks{Window: scan.Window{Days: st.Active.Days, From: st.Active.From, To: st.Active.To}, Rate: st.Active.Checks(), Exclusions: st.Active.Exclusions,
-		MergedAt: st.Active.ChecksMergedAt}, nil
+		MergedFrom: st.Active.ChecksMergedFrom}, nil
 }
 
 // SaveChecks implements scan.SharedChecks.
@@ -144,7 +144,11 @@ func (s scanInventory) SaveChecks(ctx context.Context, tx *sql.Tx, user string, 
 	if !ok {
 		return fmt.Errorf("vedette: scan: the inventory cannot store the shared settings")
 	}
-	return w.SaveChecks(ctx, tx, user, inventory.ChecksInput{Days: c.Window.Days, From: c.Window.From, To: c.Window.To, CheckRate: c.Rate, Exclusions: c.Exclusions})
+	in := inventory.ChecksInput{Days: c.Window.Days, From: c.Window.From, To: c.Window.To, CheckRate: c.Rate, Exclusions: c.Exclusions}
+	if c.MergedFrom != nil {
+		in.CopySavedAt = *c.MergedFrom
+	}
+	return w.SaveChecks(ctx, tx, user, in)
 }
 
 // Settle implements scan.SharedChecks.

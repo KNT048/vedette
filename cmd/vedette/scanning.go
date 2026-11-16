@@ -28,8 +28,8 @@ const scanContainer = "scan" // nmap discovery, version scans, SNMP and nuclei s
 func mb(n int) *int { return &n }
 
 // scanningHandlers builds core's Settings › Scanning handlers over the module services of d.
-func scanningHandlers(ctx context.Context, d deps) *core.ScanningHandlers {
-	e := scanningEngines{d: d, ctx: ctx}
+func scanningHandlers(d deps) *core.ScanningHandlers {
+	e := scanningEngines{d: d}
 	h, err := core.NewScanningHandlers(core.ScanningConfig{
 		DB: d.DB, Reg: d.Reg, Audit: d.Audit, Log: d.Log,
 		Safety:    scanningSafety{inv: d.Inventory},
@@ -177,10 +177,9 @@ func mergeScanningSafety(ctx context.Context, d *deps) {
 
 // ---- the engines ----
 
-type scanningEngines struct {
-	d   deps
-	ctx context.Context // the server's start-up context: sensor-active is built with it (sensorActiveService)
-}
+// scanningEngines reads the engines through d. sensor-active is found with sensorActiveService, which newHandler's snmpService has built
+// with the server's start-up context before any request: a request's ctx passed here only finds it (it keeps the first caller's values).
+type scanningEngines struct{ d deps }
 
 func (e scanningEngines) on(id string) bool { return e.d.Reg == nil || e.d.Reg.Enabled(id) }
 
@@ -304,7 +303,7 @@ func (e scanningEngines) active(ctx context.Context, id string) (core.EngineStat
 		return s, err
 	}
 	s.Enabled = e.on("sensor-active") && st.Active.Enabled
-	svc, err := sensorActiveService(e.ctx, e.d)
+	svc, err := sensorActiveService(ctx, e.d)
 	if err != nil { // no dispatcher: a build without the scan container's link
 		if s.Enabled {
 			s.State, s.Reason = core.EngineUnavailable, "Active discovery is not available in this build."
@@ -675,7 +674,7 @@ func (r discoveryRunner) Run(ctx context.Context, _ string, targets []string) (c
 	if !r.e.on("sensor-active") {
 		return core.RunningJob{}, core.ErrDiscoveryModuleOff
 	}
-	svc, err := sensorActiveService(r.e.ctx, r.e.d)
+	svc, err := sensorActiveService(ctx, r.e.d)
 	if err != nil {
 		return core.RunningJob{}, core.ErrNmapUnavailable
 	}

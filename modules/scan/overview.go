@@ -47,7 +47,7 @@ func (s *Service) Engine(ctx context.Context) (EngineView, error) {
 
 func (s *Service) runHead(ctx context.Context, where string) (*RunHead, error) {
 	var h RunHead
-	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT id, trigger, status, started_at, ended_at, total, done, matched FROM scan_run WHERE `+where+ //nolint:gosec // where is one of two constants of Engine
+	err := s.cfg.DB.Reader().QueryRowContext(ctx, `SELECT id, trigger, status, started_at, ended_at, total, done, matched FROM scan_run WHERE `+where+ // where is one of two constants of Engine
 		` ORDER BY started_at DESC, rowid DESC LIMIT 1`).Scan(&h.ID, &h.Trigger, &h.Status, &h.StartedAt, &h.EndedAt, &h.Total, &h.Done, &h.Matched)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil //nolint:nilnil // no such run

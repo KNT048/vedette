@@ -15,7 +15,7 @@ import (
 
 // ---- Scan the LAN now and Check this device now (#850, INV-21) ----
 
-// ErrManualBusy: a run a person started is still going, or (for a sweep) the window's own sweep or a device scan holds the nmap slot.
+// ErrManualBusy says a run a person started is still going, or (for a sweep) the window's own sweep or a device scan holds the nmap slot.
 var ErrManualBusy = errors.New("sensoractive: a run is already going")
 
 // TargetError is why one target of a manual run may not be checked; nothing was started. Reason is one of the Refuse* values.

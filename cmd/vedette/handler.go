@@ -63,10 +63,9 @@ type handler struct {
 // ctx is the caller's: services built here keep its values, never its end.
 func newHandler(ctx context.Context, d deps) handler {
 	return handler{
-		Fallback:       server.Fallback{Log: d.Log},
-		ModuleHandlers: core.NewModuleHandlers(d.DB, d.Reg),
-		// #850: it keeps ctx (the server's start-up context) for sensorActiveService, which keeps its first caller's.
-		ScanningHandlers: scanningHandlers(ctx, d),
+		Fallback:         server.Fallback{Log: d.Log},
+		ModuleHandlers:   core.NewModuleHandlers(d.DB, d.Reg),
+		ScanningHandlers: scanningHandlers(d), // #850: Settings › Scanning; its ports find the module services when asked
 		APIHandlers:      d.Core,
 		OIDCHandlers:     authoidc.NewHandlers(d.OIDC),
 		OSHandlers:       d.OS,

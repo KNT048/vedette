@@ -3,6 +3,7 @@ package mitigation
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"strings"
 	"testing"
 
@@ -10,6 +11,8 @@ import (
 )
 
 func (fakeVendors) OpenPorts(context.Context, string) ([]OpenPort, error) { return nil, nil }
+
+func (fakeVendors) BoxAddrs(context.Context) ([]netip.Addr, error) { return nil, nil }
 
 // portVendors is fakeVendors with the open ports of every device.
 type portVendors struct {
@@ -81,16 +84,17 @@ func TestContract_INV8_GeneralHardeningRestrictsTheSoftwaresPortsForEveryVendor(
 		t.Fatal("detected must follow the inventory (INV-5)")
 	}
 	mustContain(t, "FortiGate", codeOf(fg), `set subnet {ADMIN_NET}`, `edit "vedette-cve-2024-6387-10-0-0-5"`, "set subnet 10.0.0.5/32", "set tcp-portrange 22\n",
-		"set srcaddr-negate enable", `set dstaddr "vedette-cve-2024-6387-10-0-0-5"`, "set action deny", `set service "vedette-cve-2024-6387-10-0-0-5-ports"`,
-		"set match-vip enable", "move <ID> before <FIRST-ID>") // r1 H1: match-vip, so traffic through a Virtual IP is denied too
+		`set srcaddr "vedette-admin-net"`, "set action accept", `set dstaddr "vedette-cve-2024-6387-10-0-0-5"`, `set srcaddr "all"`, "set action deny", `set service "vedette-cve-2024-6387-10-0-0-5-ports"`,
+		"set match-vip enable", "move <ALLOW-ID> before <FIRST-ID>\n    move <DENY-ID> after <ALLOW-ID>") // r1 H1: match-vip, so traffic through a Virtual IP is denied too
 	mustContain(t, "FortiGate note", fg.Steps[1].Note, "Virtual IP")
 	mustContain(t, "MikroTik", codeOf(guideOf(t, h, "mikrotik")), "address-list add list=vedette-admin address={ADMIN_NET}",
-		"filter add chain=forward action=drop dst-address=10.0.0.5 src-address-list=!vedette-admin protocol=tcp dst-port=22 comment=\"Vedette CVE-2024-6387: restrict 10.0.0.5\" place-before=$first")
+		"filter add chain=forward action=accept dst-address=10.0.0.5 src-address-list=vedette-admin protocol=tcp dst-port=22 comment=\"Vedette CVE-2024-6387: restrict 10.0.0.5\" place-before=[:pick $rules 0]",
+		"filter add chain=forward action=drop dst-address=10.0.0.5 protocol=tcp dst-port=22 comment=\"Vedette CVE-2024-6387: restrict 10.0.0.5\" place-before=[:pick $rules 0]")
 	gen := codeOf(guideOf(t, h, "generic"))
-	mustContain(t, "nftables", gen, "table inet vedette_cve_2024_6387_10_0_0_5", "ip daddr 10.0.0.5 ip saddr != {ADMIN_NET} tcp dport { 22 } drop",
-		"hook forward", "hook input", "sudo nft delete table inet vedette_cve_2024_6387_10_0_0_5",
-		"sudo iptables -I INPUT -d 10.0.0.5 ! -s {ADMIN_NET} ! -i lo -p tcp -m multiport --dports 22 -m conntrack --ctstate NEW -m comment --comment vedette-cve-2024-6387 -j DROP",
-		"sudo iptables -D FORWARD -d 10.0.0.5 ! -s {ADMIN_NET} -p tcp -m multiport --dports 22 -m comment")
+	mustContain(t, "nftables", gen, "table inet vedette_cve_2024_6387_10_0_0_5", "ip daddr 10.0.0.5 ip saddr {ADMIN_NET} accept\n        ip daddr 10.0.0.5 tcp dport { 22 } ct state new drop",
+		"hook prerouting priority -150", "sudo nft delete table inet vedette_cve_2024_6387_10_0_0_5",
+		"sudo iptables -t mangle -I PREROUTING -d 10.0.0.5 ! -i lo -p tcp -m multiport --dports 22 -m conntrack --ctstate NEW -m comment --comment vedette-cve-2024-6387 -j DROP\nsudo iptables -t mangle -I PREROUTING -d 10.0.0.5 -s {ADMIN_NET} -m comment --comment vedette-cve-2024-6387 -j RETURN",
+		"sudo iptables -t mangle -D PREROUTING -d 10.0.0.5 -s {ADMIN_NET}")
 	for _, g := range h.Firewall {
 		if g.Steps[0].SideEffect == "" {
 			t.Errorf("%s: the side effect must be stated before the paste (INV-4)", g.Vendor)
@@ -113,7 +117,7 @@ func TestContract_INV8_UnknownPortsRestrictAllInboundAndSaySo(t *testing.T) {
 	}
 	mustContain(t, "FortiGate", codeOf(guideOf(t, &h, "fortigate")), `set service "ALL"`)
 	mustContain(t, "MikroTik", codeOf(guideOf(t, &h, "mikrotik")), "connection-state=new")
-	mustContain(t, "nftables", codeOf(guideOf(t, &h, "generic")), "ip daddr 192.168.10.21 ip saddr != {ADMIN_NET} ct state new drop", `iifname "lo" accept`,
+	mustContain(t, "nftables", codeOf(guideOf(t, &h, "generic")), "ip daddr 192.168.10.21 ct state new drop", `iifname "lo" accept`,
 		"! -i lo -m conntrack --ctstate NEW")
 	if strings.Contains(codeOf(guideOf(t, &h, "fortigate")), "service custom") {
 		t.Fatal("no port list: no custom service")
@@ -147,9 +151,9 @@ func TestContract_INV8_UnsafeDeviceValuesNeverReachTheConfigs(t *testing.T) {
 	if h.Target != "2001:db8::5" || h.AdminExample != adminExample6 {
 		t.Fatalf("v6 = %+v", h)
 	}
-	mustContain(t, "FortiGate v6", codeOf(guideOf(t, &h, "fortigate")), "config firewall address6", "set ip6 2001:db8::5/128", "set srcaddr6-negate enable", "set dstaddr6")
+	mustContain(t, "FortiGate v6", codeOf(guideOf(t, &h, "fortigate")), "config firewall address6", "set ip6 2001:db8::5/128", `set srcaddr6 "vedette-admin-net"`, "set dstaddr6")
 	mustContain(t, "MikroTik v6", codeOf(guideOf(t, &h, "mikrotik")), "/ipv6 firewall filter add")
-	mustContain(t, "nftables v6", codeOf(guideOf(t, &h, "generic")), "ip6 daddr 2001:db8::5 ip6 saddr != {ADMIN_NET}", "sudo ip6tables -I INPUT", "vedette_cve_2024_6387_2001_db8__5")
+	mustContain(t, "nftables v6", codeOf(guideOf(t, &h, "generic")), "ip6 daddr 2001:db8::5 ip6 saddr {ADMIN_NET} accept", "sudo ip6tables -t mangle -I PREROUTING", "vedette_cve_2024_6387_2001_db8__5")
 }
 
 // INV-8: the firewall's own CVE protects its own admin access: local-in policies on a FortiGate, chain input on a MikroTik,
@@ -174,7 +178,7 @@ func TestContract_INV8_TheFirewallItselfGetsItsOwnAdminAccessRestricted(t *testi
 		t.Fatalf("RouterOS = %+v", h)
 	}
 	mk := codeOf(guideOf(t, &h, "mikrotik"))
-	mustContain(t, "MikroTik self", mk, "chain=input action=drop src-address-list=!vedette-admin protocol=tcp dst-port=8291", "/ip service set [find] address={ADMIN_NET}")
+	mustContain(t, "MikroTik self", mk, "chain=input action=accept src-address-list=vedette-admin protocol=tcp dst-port=8291", "chain=input action=drop protocol=tcp dst-port=8291", "/ip service set [find] address={ADMIN_NET}")
 	if strings.Contains(mk, "dst-address=") {
 		t.Fatal("chain input needs no device address")
 	}
@@ -285,14 +289,14 @@ func TestContract_INV8_TwoFindingsOnOneDeviceNeverShareObjects(t *testing.T) {
 			}
 		}
 	}
-	if pa, pb := (cfg{t: targetOf(ssh.Asset), tag: tagOf(ssh.CVE)}).policyName(), (cfg{t: targetOf(web.Asset), tag: tagOf(web.CVE)}).policyName(); pa == pb || len(pa) > 35 {
+	if pa, pb := (cfg{t: targetOf(ssh.Asset), tag: tagOf(ssh.CVE)}).policyName("d"), (cfg{t: targetOf(web.Asset), tag: tagOf(web.CVE)}).policyName("d"); pa == pb || len(pa) > 35 {
 		t.Fatalf("policy names %q %q", pa, pb)
 	}
 	// r1 L7: IPv6 hosts of one /64 and a long tag still get distinct names within 35 characters
 	x := cfg{t: target{ip: "2001:db8::1", ok: true}, tag: "cve-2026-12345678901"}
 	y := cfg{t: target{ip: "2001:db8::2", ok: true}, tag: "cve-2026-12345678901"}
-	if x.policyName() == y.policyName() || len(x.policyName()) > 35 {
-		t.Fatalf("v6 policy names %q %q", x.policyName(), y.policyName())
+	if x.policyName("a") == y.policyName("a") || len(x.policyName("a")) > 35 {
+		t.Fatalf("v6 policy names %q %q", x.policyName("a"), y.policyName("a"))
 	}
 }
 
@@ -305,7 +309,7 @@ func TestContract_INV8_MikroTikFailsClosedWithoutRuleNumbers(t *testing.T) {
 		if strings.Contains(code, "place-before=0") {
 			t.Errorf("rule numbers depend on the last print: %s", code)
 		}
-		mustContain(t, "MikroTik", code, ":if ([:len [/ip firewall address-list find list=vedette-admin]] = 0) do={ :error", ":local first [:pick [/ip firewall filter find where dynamic=no] 0]", "place-before=$first } else={")
+		mustContain(t, "MikroTik", code, ":if ([:len [/ip firewall address-list find list=vedette-admin]] = 0) do={ :error", ":local rules [/ip firewall filter find where dynamic=no]", ":if ([:len $rules] > 0) do={", "place-before=[:pick $rules 0]", "} else={")
 		mustContain(t, "MikroTik verify", guideOf(t, &h, "mikrotik").Verify[0].Note, "if they are not, the paste failed")
 	}
 }
@@ -315,8 +319,7 @@ func TestContract_INV8_LinuxOnTheDeviceKeepsTheAdminSession(t *testing.T) {
 	t.Parallel()
 	h := generalHardening(hardeningInput{Row: hardeningRow("10.0.0.5", "server", "OpenBSD", "OpenSSH"), Firewall: true, Open: []OpenPort{{Port: 22, Proto: "tcp", Name: "ssh"}}})
 	g := guideOf(t, &h, "generic")
-	in := g.Steps[0].Code[strings.Index(g.Steps[0].Code, "chain input"):]
-	mustContain(t, "input chain", in, `iifname "lo" accept`, "tcp dport { 22 } ct state new drop")
+	mustContain(t, "prerouting chain", g.Steps[0].Code, `iifname "lo" accept`, "tcp dport { 22 } ct state new drop")
 	mustContain(t, "side effect", g.Steps[0].SideEffect, "the session you are in stays", "lock yourself out")
 }
 
@@ -354,5 +357,46 @@ func TestContract_INV8_AFailedPortReadStillGivesAConfig(t *testing.T) {
 	h, err := p.hardening(t.Context(), hardeningRow("10.0.0.5", "server", "OpenBSD", "OpenSSH"), nil, nil)
 	if err != nil || h == nil || h.PortsFrom != portsAll {
 		t.Fatalf("hardening = %+v, %v", h, err)
+	}
+}
+
+// r2 M2, M5, M3, L5: the box is allowed everywhere, no config negates anything, Linux covers Docker, the firewall itself comes first.
+func TestContract_INV8_BoxAllowedNoNegationDockerAndSelfFirst(t *testing.T) {
+	t.Parallel()
+	box := []netip.Addr{netip.MustParseAddr("192.168.18.5"), netip.MustParseAddr("fd00::5"), netip.MustParseAddr("10.0.0.5")}
+	h := generalHardening(hardeningInput{Row: hardeningRow("10.0.0.5", "server", "OpenBSD", "OpenSSH"), Firewall: true, Box: box,
+		Viewer: netip.MustParseAddr("192.168.18.40"), Open: []OpenPort{{Port: 22, Proto: "tcp", Name: "ssh"}}})
+	if len(h.Box) != 1 || h.Box[0] != "192.168.18.5" || h.Viewer != "192.168.18.40" {
+		t.Fatalf("box %v viewer %q (only the device's family, never the device itself)", h.Box, h.Viewer)
+	}
+	mustContain(t, "FortiGate", codeOf(guideOf(t, &h, "fortigate")), `edit "vedette-box-192-168-18-5"`, "set subnet 192.168.18.5/32", `set srcaddr "vedette-admin-net" "vedette-box-192-168-18-5"`)
+	mustContain(t, "MikroTik", codeOf(guideOf(t, &h, "mikrotik")), `address-list find list=vedette-admin address="192.168.18.5"]] = 0) do={ /ip firewall address-list add list=vedette-admin address=192.168.18.5 comment="Vedette box" }`)
+	gen := codeOf(guideOf(t, &h, "generic"))
+	mustContain(t, "nftables", gen, "ip saddr { {ADMIN_NET}, 192.168.18.5 } accept", "hook prerouting priority -150", "-s 192.168.18.5 -m comment --comment vedette-cve-2024-6387 -j RETURN")
+	mustContain(t, "generic note", guideOf(t, &h, "generic").Steps[0].Note, "Docker")
+	for _, g := range h.Firewall {
+		mustContain(t, g.Vendor+" intro", g.Intro, "The Vedette box (192.168.18.5) is allowed too")
+		if strings.Contains(g.Steps[0].SideEffect, "allow the Vedette box's address too") {
+			t.Errorf("%s: the box is allowed already", g.Vendor)
+		}
+		if c := codeOf(g); strings.Contains(c, "negate") || strings.Contains(c, "!vedette-admin") || strings.Contains(c, "saddr !=") || strings.Contains(c, "! -s") {
+			t.Errorf("%s: a negation can invert the config when it fails: %s", g.Vendor, c)
+		}
+	}
+	for _, row := range []findings.Row{hardeningRow("192.168.88.1", "server", "MikroTik", "RouterOS"), hardeningRow("192.168.1.1", "unknown", "Fortinet", "FortiOS")} {
+		s := generalHardening(hardeningInput{Row: row, Firewall: true, Detected: map[string]bool{"fortigate": true}})
+		want := map[string]string{"MikroTik": "mikrotik", "Fortinet": "fortigate"}[row.Kev.Vendor]
+		if s.Firewall[0].Vendor != want || !s.Firewall[0].Detected {
+			t.Errorf("%s: the firewall itself must come first and be selected: %+v", row.Kev.Vendor, s.Firewall[0].Vendor)
+		}
+	}
+	for vendor, want := range map[string]string{"FortiClient EMS": "Windows", "Samba": "Linux file server (Samba)"} {
+		r := hardeningRow("10.0.0.9", "server", strings.Fields(vendor)[0], vendor)
+		if vendor == "FortiClient EMS" {
+			r.Kev.Vendor = "Fortinet"
+		}
+		if f := familyOf(r); f.label != want {
+			t.Errorf("%s: family %q, want %q (r2 L4)", vendor, f.label, want)
+		}
 	}
 }

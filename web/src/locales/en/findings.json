@@ -219,7 +219,10 @@
     "checksTitle": "General checks ({{family}})",
     "needNet": "Enter your admin network first",
     "needNetBody": "The config appears here once the admin network above is a valid network: with a wrong one it could block everyone or no one.",
-    "needNetSelf": "This config protects the firewall's own admin access: with the example network it could lock you out. Type your admin network above to see it."
+    "needNetExample": "The field still holds the example network. Type the network your admins work from: the config appears once it is your own.",
+    "outside": "Your address {{addr}} is not inside {{net}}: you would lock yourself out",
+    "outsideBody": "Pasted as it is, the config blocks the computer you use now. Check the admin network, or paste it from a computer inside it.",
+    "showAnyway": "I sign in from elsewhere: show the config"
   },
   "aside": {
     "label": "Device and history",

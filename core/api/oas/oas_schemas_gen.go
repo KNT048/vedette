@@ -64336,6 +64336,9 @@ func (s *FindingsGetFindingsIDOKFixedInKind) UnmarshalText(data []byte) error {
 type FindingsGetFindingsIDOKHardening struct {
 	// The example admin network the page starts with; the configs hold {ADMIN_NET}.
 	AdminExample string `json:"admin_example"`
+	// The Vedette box's addresses the configs allow as well, so its scans still see the ports; empty when
+	// unknown.
+	Box []string `json:"box"`
 	// General "Have I been hit?" checks for the software family; null when the confirmed pack has its own.
 	Checks NilFindingsGetFindingsIDOKHardeningChecks `json:"checks"`
 	// The family the checks are written for ("Linux", "Network device", "General").
@@ -64354,11 +64357,19 @@ type FindingsGetFindingsIDOKHardening struct {
 	Software string `json:"software"`
 	// The device address in the configs; "" when the device has no usable IP (INV-4).
 	Target string `json:"target"`
+	// The address the box sees for the browser asking; empty when unknown. The page warns when it is
+	// outside the admin network typed.
+	Viewer string `json:"viewer"`
 }
 
 // GetAdminExample returns the value of AdminExample.
 func (s *FindingsGetFindingsIDOKHardening) GetAdminExample() string {
 	return s.AdminExample
+}
+
+// GetBox returns the value of Box.
+func (s *FindingsGetFindingsIDOKHardening) GetBox() []string {
+	return s.Box
 }
 
 // GetChecks returns the value of Checks.
@@ -64401,9 +64412,19 @@ func (s *FindingsGetFindingsIDOKHardening) GetTarget() string {
 	return s.Target
 }
 
+// GetViewer returns the value of Viewer.
+func (s *FindingsGetFindingsIDOKHardening) GetViewer() string {
+	return s.Viewer
+}
+
 // SetAdminExample sets the value of AdminExample.
 func (s *FindingsGetFindingsIDOKHardening) SetAdminExample(val string) {
 	s.AdminExample = val
+}
+
+// SetBox sets the value of Box.
+func (s *FindingsGetFindingsIDOKHardening) SetBox(val []string) {
+	s.Box = val
 }
 
 // SetChecks sets the value of Checks.
@@ -64444,6 +64465,11 @@ func (s *FindingsGetFindingsIDOKHardening) SetSoftware(val string) {
 // SetTarget sets the value of Target.
 func (s *FindingsGetFindingsIDOKHardening) SetTarget(val string) {
 	s.Target = val
+}
+
+// SetViewer sets the value of Viewer.
+func (s *FindingsGetFindingsIDOKHardening) SetViewer(val string) {
+	s.Viewer = val
 }
 
 type FindingsGetFindingsIDOKHardeningChecks struct {
@@ -73287,6 +73313,9 @@ func (s *FindingsPostFindingsIDAiOKFixedInKind) UnmarshalText(data []byte) error
 type FindingsPostFindingsIDAiOKHardening struct {
 	// The example admin network the page starts with; the configs hold {ADMIN_NET}.
 	AdminExample string `json:"admin_example"`
+	// The Vedette box's addresses the configs allow as well, so its scans still see the ports; empty when
+	// unknown.
+	Box []string `json:"box"`
 	// General "Have I been hit?" checks for the software family; null when the confirmed pack has its own.
 	Checks NilFindingsPostFindingsIDAiOKHardeningChecks `json:"checks"`
 	// The family the checks are written for ("Linux", "Network device", "General").
@@ -73305,11 +73334,19 @@ type FindingsPostFindingsIDAiOKHardening struct {
 	Software string `json:"software"`
 	// The device address in the configs; "" when the device has no usable IP (INV-4).
 	Target string `json:"target"`
+	// The address the box sees for the browser asking; empty when unknown. The page warns when it is
+	// outside the admin network typed.
+	Viewer string `json:"viewer"`
 }
 
 // GetAdminExample returns the value of AdminExample.
 func (s *FindingsPostFindingsIDAiOKHardening) GetAdminExample() string {
 	return s.AdminExample
+}
+
+// GetBox returns the value of Box.
+func (s *FindingsPostFindingsIDAiOKHardening) GetBox() []string {
+	return s.Box
 }
 
 // GetChecks returns the value of Checks.
@@ -73352,9 +73389,19 @@ func (s *FindingsPostFindingsIDAiOKHardening) GetTarget() string {
 	return s.Target
 }
 
+// GetViewer returns the value of Viewer.
+func (s *FindingsPostFindingsIDAiOKHardening) GetViewer() string {
+	return s.Viewer
+}
+
 // SetAdminExample sets the value of AdminExample.
 func (s *FindingsPostFindingsIDAiOKHardening) SetAdminExample(val string) {
 	s.AdminExample = val
+}
+
+// SetBox sets the value of Box.
+func (s *FindingsPostFindingsIDAiOKHardening) SetBox(val []string) {
+	s.Box = val
 }
 
 // SetChecks sets the value of Checks.
@@ -73395,6 +73442,11 @@ func (s *FindingsPostFindingsIDAiOKHardening) SetSoftware(val string) {
 // SetTarget sets the value of Target.
 func (s *FindingsPostFindingsIDAiOKHardening) SetTarget(val string) {
 	s.Target = val
+}
+
+// SetViewer sets the value of Viewer.
+func (s *FindingsPostFindingsIDAiOKHardening) SetViewer(val string) {
+	s.Viewer = val
 }
 
 type FindingsPostFindingsIDAiOKHardeningChecks struct {
@@ -77495,6 +77547,9 @@ func (s *FindingsPostFindingsIDAppliedOKFixedInKind) UnmarshalText(data []byte) 
 type FindingsPostFindingsIDAppliedOKHardening struct {
 	// The example admin network the page starts with; the configs hold {ADMIN_NET}.
 	AdminExample string `json:"admin_example"`
+	// The Vedette box's addresses the configs allow as well, so its scans still see the ports; empty when
+	// unknown.
+	Box []string `json:"box"`
 	// General "Have I been hit?" checks for the software family; null when the confirmed pack has its own.
 	Checks NilFindingsPostFindingsIDAppliedOKHardeningChecks `json:"checks"`
 	// The family the checks are written for ("Linux", "Network device", "General").
@@ -77513,11 +77568,19 @@ type FindingsPostFindingsIDAppliedOKHardening struct {
 	Software string `json:"software"`
 	// The device address in the configs; "" when the device has no usable IP (INV-4).
 	Target string `json:"target"`
+	// The address the box sees for the browser asking; empty when unknown. The page warns when it is
+	// outside the admin network typed.
+	Viewer string `json:"viewer"`
 }
 
 // GetAdminExample returns the value of AdminExample.
 func (s *FindingsPostFindingsIDAppliedOKHardening) GetAdminExample() string {
 	return s.AdminExample
+}
+
+// GetBox returns the value of Box.
+func (s *FindingsPostFindingsIDAppliedOKHardening) GetBox() []string {
+	return s.Box
 }
 
 // GetChecks returns the value of Checks.
@@ -77560,9 +77623,19 @@ func (s *FindingsPostFindingsIDAppliedOKHardening) GetTarget() string {
 	return s.Target
 }
 
+// GetViewer returns the value of Viewer.
+func (s *FindingsPostFindingsIDAppliedOKHardening) GetViewer() string {
+	return s.Viewer
+}
+
 // SetAdminExample sets the value of AdminExample.
 func (s *FindingsPostFindingsIDAppliedOKHardening) SetAdminExample(val string) {
 	s.AdminExample = val
+}
+
+// SetBox sets the value of Box.
+func (s *FindingsPostFindingsIDAppliedOKHardening) SetBox(val []string) {
+	s.Box = val
 }
 
 // SetChecks sets the value of Checks.
@@ -77603,6 +77676,11 @@ func (s *FindingsPostFindingsIDAppliedOKHardening) SetSoftware(val string) {
 // SetTarget sets the value of Target.
 func (s *FindingsPostFindingsIDAppliedOKHardening) SetTarget(val string) {
 	s.Target = val
+}
+
+// SetViewer sets the value of Viewer.
+func (s *FindingsPostFindingsIDAppliedOKHardening) SetViewer(val string) {
+	s.Viewer = val
 }
 
 type FindingsPostFindingsIDAppliedOKHardeningChecks struct {
@@ -81724,6 +81802,9 @@ func (s *FindingsPostFindingsIDStatusOKFixedInKind) UnmarshalText(data []byte) e
 type FindingsPostFindingsIDStatusOKHardening struct {
 	// The example admin network the page starts with; the configs hold {ADMIN_NET}.
 	AdminExample string `json:"admin_example"`
+	// The Vedette box's addresses the configs allow as well, so its scans still see the ports; empty when
+	// unknown.
+	Box []string `json:"box"`
 	// General "Have I been hit?" checks for the software family; null when the confirmed pack has its own.
 	Checks NilFindingsPostFindingsIDStatusOKHardeningChecks `json:"checks"`
 	// The family the checks are written for ("Linux", "Network device", "General").
@@ -81742,11 +81823,19 @@ type FindingsPostFindingsIDStatusOKHardening struct {
 	Software string `json:"software"`
 	// The device address in the configs; "" when the device has no usable IP (INV-4).
 	Target string `json:"target"`
+	// The address the box sees for the browser asking; empty when unknown. The page warns when it is
+	// outside the admin network typed.
+	Viewer string `json:"viewer"`
 }
 
 // GetAdminExample returns the value of AdminExample.
 func (s *FindingsPostFindingsIDStatusOKHardening) GetAdminExample() string {
 	return s.AdminExample
+}
+
+// GetBox returns the value of Box.
+func (s *FindingsPostFindingsIDStatusOKHardening) GetBox() []string {
+	return s.Box
 }
 
 // GetChecks returns the value of Checks.
@@ -81789,9 +81878,19 @@ func (s *FindingsPostFindingsIDStatusOKHardening) GetTarget() string {
 	return s.Target
 }
 
+// GetViewer returns the value of Viewer.
+func (s *FindingsPostFindingsIDStatusOKHardening) GetViewer() string {
+	return s.Viewer
+}
+
 // SetAdminExample sets the value of AdminExample.
 func (s *FindingsPostFindingsIDStatusOKHardening) SetAdminExample(val string) {
 	s.AdminExample = val
+}
+
+// SetBox sets the value of Box.
+func (s *FindingsPostFindingsIDStatusOKHardening) SetBox(val []string) {
+	s.Box = val
 }
 
 // SetChecks sets the value of Checks.
@@ -81832,6 +81931,11 @@ func (s *FindingsPostFindingsIDStatusOKHardening) SetSoftware(val string) {
 // SetTarget sets the value of Target.
 func (s *FindingsPostFindingsIDStatusOKHardening) SetTarget(val string) {
 	s.Target = val
+}
+
+// SetViewer sets the value of Viewer.
+func (s *FindingsPostFindingsIDStatusOKHardening) SetViewer(val string) {
+	s.Viewer = val
 }
 
 type FindingsPostFindingsIDStatusOKHardeningChecks struct {

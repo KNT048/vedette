@@ -11,7 +11,7 @@ import { Field, Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { useCan } from '@/lib/session'
 import { ADMIN_NET_PLACEHOLDER } from './contract'
-import { adminNetwork } from './adminNetwork'
+import { adminNetwork, inNetwork } from './adminNetwork'
 import type { CodeStep, FindingDetail, FirewallGuide, FirewallVendor } from './types'
 
 // Like HomeDashboard: the Devices dialog loads only when someone opens it.
@@ -95,12 +95,17 @@ export function GeneralHardening({ finding }: { finding: FindingDetail }) {
   })
   const [chosen, setChosen] = useState<FirewallVendor | null>(null)
   const [adding, setAdding] = useState(false)
+  const [anyway, setAnyway] = useState(false)
   if (!h || h.firewall.length === 0) return null
   const net = adminNetwork(raw, v6)
   const example = raw.trim() === h.admin_example
   const detected = h.firewall.find((g) => g.detected)
   const vendor = chosen ?? detected?.vendor ?? 'generic'
   const g = h.firewall.find((x) => x.vendor === vendor) ?? h.firewall[0]!
+  // r2 M4: the browser's own address outside the network typed means the admin pasting it locks themselves out.
+  const outside = !!net && !!h.viewer && inNetwork(h.viewer, net) === false
+  // r2 M1: a config only for a valid network that is not the example; for the firewall itself, not over a lock-out unless confirmed.
+  const ready = !!net && !example && !(outside && h.self && !anyway)
   return (
     <section aria-labelledby="hardening-title" className="grid gap-4 border-t border-rule pt-4" data-testid="general-hardening">
       <div className="grid gap-1">
@@ -129,12 +134,18 @@ export function GeneralHardening({ finding }: { finding: FindingDetail }) {
         </div>
         <Segmented<FirewallVendor> label={t('rec.fwVendor')} value={g.vendor} onChange={setChosen} className="flex-wrap"
           options={h.firewall.map((x) => ({ value: x.vendor, label: x.detected ? t('hardening.fwInDevices', { name: x.label }) : x.label }))} />
-        {/* r1 M2: no pasteable config with a bad admin network (MikroTik would drop everyone, FortiGate would restrict nobody),
-            nor with the example one when the device is the firewall itself (it locks the admins out). */}
-        {net && !(h.self && example) ? <GuideView key={g.vendor} g={g} net={net} /> : (
+        {outside ? (
+          <Notice tone="warn" className="mb-0" title={t('hardening.outside', { addr: h.viewer, net })}
+            actions={h.self && !anyway ? <Button size="sm" onClick={() => setAnyway(true)}>{t('hardening.showAnyway')}</Button> : undefined}>
+            {t('hardening.outsideBody')}
+          </Notice>
+        ) : null}
+        {ready ? <GuideView key={g.vendor} g={g} net={net} /> : (
           <div className="grid gap-3">
             <p className="max-w-3xl text-sm">{g.intro}</p>
-            <Notice tone="warn" className="mb-0" title={t('hardening.needNet')}>{t(net ? 'hardening.needNetSelf' : 'hardening.needNetBody')}</Notice>
+            {/* r1 M2, r2 M1: no pasteable config with a bad or example admin network (MikroTik would drop the admins, FortiGate would
+                restrict nobody, the example locks out admins who are not on it). */}
+            {!net || example ? <Notice tone="warn" className="mb-0" title={t('hardening.needNet')}>{t(net ? 'hardening.needNetExample' : 'hardening.needNetBody')}</Notice> : null}
           </div>
         )}
       </div>

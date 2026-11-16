@@ -3,6 +3,7 @@ package mitigation
 import (
 	"context"
 	"errors"
+	"net/netip"
 
 	"github.com/knt048/vedette/modules/findings"
 )
@@ -59,6 +60,9 @@ type Vendors interface {
 	// OpenPorts returns the ports a sensor saw open on the device (inventory's services), none for an unknown device. The general
 	// hardening config restricts the ones of the finding's software (INV-8).
 	OpenPorts(ctx context.Context, assetID string) ([]OpenPort, error)
+	// BoxAddrs returns the Vedette box's own addresses (the box device's IP, the Box address of Settings, Box network, when it is
+	// an IP): the hardening configs allow them so the box's scans still see the device (INV-8). None when unknown.
+	BoxAddrs(ctx context.Context) ([]netip.Addr, error)
 }
 
 // OpenPort is one port seen open on a device, as inventory lists it.

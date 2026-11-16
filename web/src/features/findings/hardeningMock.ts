@@ -1,6 +1,7 @@
 // Mock of the box's general hardening (modules/mitigation/hardening.go, INV-8, M2-1) so `make dev` shows the block: the same shape and
 // the same kind of configs, written from the sample device's IP and open ports. The box's Go code is the reference; this is sample data.
 import type { Asset } from '@/lib/types'
+import { collection } from '@/mocks/db'
 import { ADMIN_NET_PLACEHOLDER as NET } from './contract'
 import type { CompromiseCheck, FindingAsset, FirewallGuide, GeneralHardening, Indicator, KevInfo } from './types'
 
@@ -55,42 +56,59 @@ const IF_FOUND = [
   'Get help: your incident response provider or your national CERT.',
 ]
 
+/** The address the box sees for this browser (GeneralHardening.viewer): empty, as on a box behind no known address; tests set it. */
+export const mockViewer = collection<string>('mit_viewer', () => '')
+
+/** The sample box's own address (the mock's Vedette box), allowed in every config like the box's (r2 M2). */
+const BOX = '192.168.10.5'
+
 function guides(cve: string, ip: string, ports: Port[], has: (v: string) => boolean): FirewallGuide[] {
   const tcp = ports.filter((p) => p.proto === 'tcp').map((p) => p.port)
   const all = tcp.length === 0
-  const slug = `${cve.toLowerCase()}-${ip.replaceAll('.', '-')}`
-  const intro = all
-    ? `Vedette has not seen services of this kind open on ${ip}, so this config blocks every new connection to the device except from your admin network. A firewall only filters what passes through it: computers in the same network segment as the device still reach it directly.`
-    : `Vedette saw these services open on ${ip}: ${ports.map((p) => `${p.port}/${p.proto}${p.service ? ` (${p.service})` : ''}`).join(', ')}. This config lets only your admin network reach them; the rest of the device is unchanged. A firewall only filters what passes through it: computers in the same network segment as the device still reach it directly.`
-  const scans = " Vedette's own scans stop reaching them as well: allow the Vedette box's address too, or the device looks closed to Vedette."
-  const side = (all
-    ? 'Everything the device serves (shared folders, web pages, printing, remote desktop) stops for computers outside the admin network that reach it through this firewall.'
-    : 'Computers outside the admin network can no longer reach these ports of the device through this firewall.') + scans
+  const tag = cve.toLowerCase()
+  const slug = `${tag}-${ip.replaceAll('.', '-')}`
+  const boxNote = ` The Vedette box (${BOX}) is allowed too, so its scans still see the ports.`
+  const intro = (all
+    ? `Vedette has not seen services of this kind open on ${ip}, so this config blocks every new connection to the device except from your admin network.`
+    : `Vedette saw these services open on ${ip}: ${ports.map((p) => `${p.port}/${p.proto}${p.service ? ` (${p.service})` : ''}`).join(', ')}. This config lets only your admin network reach them; the rest of the device is unchanged.`)
+    + ' A firewall only filters what passes through it: computers in the same network segment as the device still reach it directly.' + boxNote
+  const side = all
+    ? 'Everything the device serves (websites, mail, shared folders, printing, remote desktop) stops for computers outside the admin network that reach it through this firewall.'
+    : 'Computers outside the admin network can no longer reach these ports of the device through this firewall.'
   const svc = all ? '"ALL"' : `"vedette-${slug}-ports"`
+  const box = `vedette-box-${BOX.replaceAll('.', '-')}`
+  const policy = (name: string, src: string, action: string, extra: string) =>
+    `    edit 0\n        set name "${name}"\n        set srcintf "any"\n        set dstintf "any"\n        set srcaddr ${src}\n        set dstaddr "vedette-${slug}"\n        set action ${action}\n        set service ${svc}\n        set schedule "always"\n${extra}    next\n`
   const fortigate = [
-    `config firewall address\n    edit "vedette-admin-net"\n        set subnet ${NET}\n    next\n    edit "vedette-${slug}"\n        set subnet ${ip}/32\n    next\nend`,
+    `config firewall address\n    edit "vedette-admin-net"\n        set subnet ${NET}\n    next\n    edit "${box}"\n        set subnet ${BOX}/32\n    next\n    edit "vedette-${slug}"\n        set subnet ${ip}/32\n    next\nend`,
     all ? '' : `config firewall service custom\n    edit "vedette-${slug}-ports"\n        set tcp-portrange ${tcp.join(' ')}\n    next\nend`,
-    `config firewall policy\n    edit 0\n        set name "vedette-${cve.toLowerCase()}"\n        set srcintf "any"\n        set dstintf "any"\n        set srcaddr "vedette-admin-net"\n        set srcaddr-negate enable\n        set dstaddr "vedette-${slug}"\n        set action deny\n        set service ${svc}\n        set schedule "always"\n        set match-vip enable\n        set logtraffic all\n    next\nend`,
+    `config firewall policy\n${policy(`vedette-${tag}-a`, `"vedette-admin-net" "${box}"`, 'accept', '')}${policy(`vedette-${tag}-d`, '"all"', 'deny', '        set match-vip enable\n        set logtraffic all\n')}end`,
   ].filter(Boolean).join('\n')
-  const mtRule = `/ip firewall filter add chain=forward action=drop dst-address=${ip} src-address-list=!vedette-admin ${all ? 'connection-state=new' : `protocol=tcp dst-port=${tcp.join(',')}`} comment="Vedette ${cve}: restrict ${ip}"`
-  const rule = all ? 'ct state new drop' : `tcp dport { ${tcp.join(', ')} } drop`
+  const spec = all ? '' : ` protocol=tcp dst-port=${tcp.join(',')}`
+  const comment = `Vedette ${cve}: restrict ${ip}`
+  const mt = [
+    `/ip firewall filter add chain=forward action=accept dst-address=${ip} src-address-list=vedette-admin${spec} comment="${comment}"`,
+    `/ip firewall filter add chain=forward action=drop dst-address=${ip}${all ? ' connection-state=new' : spec} comment="${comment}"`,
+  ]
+  const entry = (addr: string, what: string) => `    :if ([:len [/ip firewall address-list find list=vedette-admin address="${addr}"]] = 0) do={ /ip firewall address-list add list=vedette-admin address=${addr} comment="${what}" }\n`
+  const mikrotik = `{\n${entry(NET, 'Vedette admin network')}${entry(BOX, 'Vedette box')}    :if ([:len [/ip firewall address-list find list=vedette-admin]] = 0) do={ :error "The vedette-admin list is empty: nothing was added." }\n    :local rules [/ip firewall filter find where dynamic=no]\n    :if ([:len $rules] > 0) do={\n${mt.map((r) => `        ${r} place-before=[:pick $rules 0]\n`).join('')}    } else={\n${mt.map((r) => `        ${r}\n`).join('')}    }\n}`
   const table = `vedette_${slug.replaceAll('-', '_')}`
-  const chain = (name: string) => `    chain ${name} {\n        type filter hook ${name} priority 0; policy accept;\n${name === 'input' ? '        iifname "lo" accept\n' : ''}        ip daddr ${ip} ip saddr != ${NET} ${name === 'input' && !all ? rule.replace(' drop', ' ct state new drop') : rule}\n    }\n`
+  const drop = all ? `ip daddr ${ip} ct state new drop` : `ip daddr ${ip} tcp dport { ${tcp.join(', ')} } ct state new drop`
+  const nft = `sudo nft -f - <<'EOF'\ntable inet ${table} {\n    chain prerouting {\n        type filter hook prerouting priority -150; policy accept;\n        iifname "lo" accept\n        ip daddr ${ip} ip saddr { ${NET}, ${BOX} } accept\n        ${drop}\n    }\n}\nEOF`
   return [
     { vendor: 'fortigate', label: 'FortiGate', detected: has('fortinet'), intro,
       steps: [
-        { title: 'FortiGate CLI: deny the device\'s ports to everyone but the admin network', code: fortigate, side_effect: side, note: 'Paste it in the CLI console (the >_ icon at the top of the FortiGate page) or over SSH. FortiGate adds the policy at the bottom of the list.' },
-        { title: 'Move the policy to the top', code: `show firewall policy | grep -f vedette-${cve.toLowerCase()}\nconfig firewall policy\n    move <ID> before <FIRST-ID>\nend`, note: 'The show command prints the policy with its ID. Until it is above your allow policies it does nothing.' },
+        { title: 'FortiGate CLI: allow the admin network to the device\'s ports, deny everyone else', code: fortigate, side_effect: side, note: 'Paste it in the CLI console (the >_ icon at the top of the FortiGate page) or over SSH. FortiGate adds both policies at the bottom of the list.' },
+        { title: 'Move both policies to the top, allow first', code: `show firewall policy | grep -f vedette-${slug}\nconfig firewall policy\n    move <ALLOW-ID> before <FIRST-ID>\n    move <DENY-ID> after <ALLOW-ID>\nend`, note: 'Until they are above your other policies they do nothing.' },
       ],
-      verify: [{ title: 'Show the policy', code: `show firewall policy | grep -f vedette-${cve.toLowerCase()}` }],
-      undo: [{ title: 'Remove the policy and its objects', code: `config firewall policy\n    delete <ID>\nend` }] },
+      verify: [{ title: 'Show the policies', code: `show firewall policy | grep -f vedette-${slug}` }],
+      undo: [{ title: 'Remove the policies and their objects', code: `config firewall policy\n    delete <ALLOW-ID>\n    delete <DENY-ID>\nend` }] },
     { vendor: 'mikrotik', label: 'MikroTik', detected: has('mikrotik'), intro,
-      steps: [{ title: 'RouterOS terminal: drop the ports for everyone but the admin network', side_effect: side,
-        code: `/ip firewall address-list add list=vedette-admin address=${NET} comment="Vedette admin network"\n{\n    :if ([:len [/ip firewall address-list find list=vedette-admin]] = 0) do={ :error "The vedette-admin list is empty: nothing was added." }\n    :local first [:pick [/ip firewall filter find where dynamic=no] 0]\n    :if ([:len $first] > 0) do={ ${mtRule} place-before=$first } else={ ${mtRule} }\n}` }],
-      verify: [{ title: 'Show the rules and their counters', code: `/ip firewall filter print stats where comment="Vedette ${cve}: restrict ${ip}"` }],
-      undo: [{ title: 'Remove the rules', code: `/ip firewall filter remove [find comment="Vedette ${cve}: restrict ${ip}"]` }] },
-    { vendor: 'generic', label: 'Linux (nftables)', detected: false, intro: `${intro} The same config works on a Linux firewall or router and on the device itself when it runs Linux.`,
-      steps: [{ title: 'nftables: drop the ports for everyone but the admin network', side_effect: side, code: `sudo nft -f - <<'EOF'\ntable inet ${table} {\n${chain('forward')}${chain('input')}}\nEOF` }],
+      steps: [{ title: 'RouterOS terminal: allow the admin network, drop everyone else', side_effect: side, code: mikrotik }],
+      verify: [{ title: 'Show the rules and their counters', code: `/ip firewall filter print stats where comment="${comment}"` }],
+      undo: [{ title: 'Remove the rules', code: `/ip firewall filter remove [find comment="${comment}"]` }] },
+    { vendor: 'generic', label: 'Linux (nftables)', detected: false, intro: `${intro} The same config works on a Linux firewall or router and on the device itself when it runs Linux, including services it publishes from Docker or Podman.`,
+      steps: [{ title: 'nftables: allow the admin network, drop new connections from everyone else', side_effect: side, code: nft }],
       verify: [{ title: 'Show the table', code: `sudo nft list table inet ${table}` }],
       undo: [{ title: 'Remove the table', code: `sudo nft delete table inet ${table}` }] },
   ]
@@ -106,6 +124,6 @@ export function mockHardening(cve: string, kev: KevInfo | null, view: FindingAss
     summary: `General checks for ${software} (${fam.label}): signs any intruder tends to leave. They are not specific to ${cve}: the vendor advisory and the exploited-list entry (links in What to do) name the files, accounts and addresses seen for this CVE.`,
     indicators: [...fam.checks, OUTBOUND], if_found: IF_FOUND,
   }
-  return { software, family: fam.label, target: ip, self: false, ports_from: ports.length ? 'seen' : 'all', ports, admin_example: '192.168.1.0/24',
+  return { software, family: fam.label, target: ip, self: false, ports_from: ports.length ? 'seen' : 'all', ports, admin_example: '192.168.1.0/24', box: [BOX], viewer: mockViewer.get(),
     firewall: guides(cve, ip, ports, has), checks }
 }

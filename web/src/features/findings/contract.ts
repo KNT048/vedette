@@ -106,6 +106,8 @@ export const GeneralHardening = z.object({
   ports_from: z.enum(['seen', 'usual', 'all']).describe('seen = ports inventory saw open on the device for this software; usual = the usual admin ports of the firewall itself; all = none known, the configs block every new inbound connection except from the admin network'),
   ports: z.array(HardeningPort).describe('Empty when ports_from is all'),
   admin_example: z.string().describe('The example admin network the page starts with; the configs hold {ADMIN_NET}'),
+  box: z.array(z.string()).describe('The Vedette box\'s addresses the configs allow as well, so its scans still see the ports; empty when unknown'),
+  viewer: z.string().describe('The address the box sees for the browser asking; empty when unknown. The page warns when it is outside the admin network typed'),
   firewall: z.array(FirewallGuide).describe('Empty when the confirmed pack has its own firewall guides'),
   checks: CompromiseCheck.nullable().describe('General "Have I been hit?" checks for the software family; null when the confirmed pack has its own'),
 }).describe('M2-1, mitigation INV-8: general hardening written by reviewed code, not a recommendation for the CVE (D-21): never shown as "Vedette confirmed", never run by Vedette')

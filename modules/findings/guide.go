@@ -116,6 +116,8 @@ type Hardening struct {
 	PortsFrom    string           `json:"ports_from"`    // seen (open on the device), usual (the software's usual admin ports) or all
 	Ports        []HardeningPort  `json:"ports"`         // empty when PortsFrom is all
 	AdminExample string           `json:"admin_example"` // the example admin network the page starts with
+	Box          []string         `json:"box"`           // the Vedette box's addresses the configs allow as well (its scans)
+	Viewer       string           `json:"viewer"`        // the address the box sees for the browser asking; "" when unknown
 	Firewall     []FirewallGuide  `json:"firewall"`      // empty when the confirmed pack has its own firewall guides
 	Checks       *CompromiseCheck `json:"checks"`        // nil when the confirmed pack has its own compromise signs
 }
@@ -207,7 +209,7 @@ func (g *Guide) Normalize() {
 	}
 	g.Recheck.Steps = orEmpty(g.Recheck.Steps)
 	if h := g.Hardening; h != nil {
-		h.Ports, h.Firewall = orEmpty(h.Ports), orEmpty(h.Firewall)
+		h.Ports, h.Firewall, h.Box = orEmpty(h.Ports), orEmpty(h.Firewall), orEmpty(h.Box)
 		for i := range h.Firewall {
 			f := &h.Firewall[i]
 			f.Steps, f.Verify, f.Undo = orEmpty(f.Steps), orEmpty(f.Verify), orEmpty(f.Undo)

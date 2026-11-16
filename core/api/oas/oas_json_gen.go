@@ -126826,6 +126826,14 @@ func (s *FindingsGetFindingsIDOKHardening) encodeFields(e *jx.Encoder) {
 		e.Str(s.AdminExample)
 	}
 	{
+		e.FieldStart("box")
+		e.ArrStart()
+		for _, elem := range s.Box {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("checks")
 		s.Checks.Encode(e)
 	}
@@ -126865,18 +126873,24 @@ func (s *FindingsGetFindingsIDOKHardening) encodeFields(e *jx.Encoder) {
 		e.FieldStart("target")
 		e.Str(s.Target)
 	}
+	{
+		e.FieldStart("viewer")
+		e.Str(s.Viewer)
+	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsIDOKHardening = [9]string{
-	0: "admin_example",
-	1: "checks",
-	2: "family",
-	3: "firewall",
-	4: "ports",
-	5: "ports_from",
-	6: "self",
-	7: "software",
-	8: "target",
+var jsonFieldsNameOfFindingsGetFindingsIDOKHardening = [11]string{
+	0:  "admin_example",
+	1:  "box",
+	2:  "checks",
+	3:  "family",
+	4:  "firewall",
+	5:  "ports",
+	6:  "ports_from",
+	7:  "self",
+	8:  "software",
+	9:  "target",
+	10: "viewer",
 }
 
 // Decode decodes FindingsGetFindingsIDOKHardening from json.
@@ -126900,8 +126914,28 @@ func (s *FindingsGetFindingsIDOKHardening) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"admin_example\"")
 			}
-		case "checks":
+		case "box":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.Box = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Box = append(s.Box, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box\"")
+			}
+		case "checks":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Checks.Decode(d); err != nil {
 					return err
@@ -126911,7 +126945,7 @@ func (s *FindingsGetFindingsIDOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"checks\"")
 			}
 		case "family":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Family = string(v)
@@ -126923,7 +126957,7 @@ func (s *FindingsGetFindingsIDOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"family\"")
 			}
 		case "firewall":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Firewall = make([]FindingsGetFindingsIDOKHardeningFirewallItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -126941,7 +126975,7 @@ func (s *FindingsGetFindingsIDOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"firewall\"")
 			}
 		case "ports":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Ports = make([]FindingsGetFindingsIDOKHardeningPortsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -126959,7 +126993,7 @@ func (s *FindingsGetFindingsIDOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ports\"")
 			}
 		case "ports_from":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.PortsFrom.Decode(d); err != nil {
 					return err
@@ -126969,7 +127003,7 @@ func (s *FindingsGetFindingsIDOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ports_from\"")
 			}
 		case "self":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Bool()
 				s.Self = bool(v)
@@ -126981,7 +127015,7 @@ func (s *FindingsGetFindingsIDOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"self\"")
 			}
 		case "software":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Software = string(v)
@@ -126993,7 +127027,7 @@ func (s *FindingsGetFindingsIDOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "target":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Target = string(v)
@@ -127003,6 +127037,18 @@ func (s *FindingsGetFindingsIDOKHardening) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"target\"")
+			}
+		case "viewer":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Viewer = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"viewer\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -127015,7 +127061,7 @@ func (s *FindingsGetFindingsIDOKHardening) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -140981,6 +141027,14 @@ func (s *FindingsPostFindingsIDAiOKHardening) encodeFields(e *jx.Encoder) {
 		e.Str(s.AdminExample)
 	}
 	{
+		e.FieldStart("box")
+		e.ArrStart()
+		for _, elem := range s.Box {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("checks")
 		s.Checks.Encode(e)
 	}
@@ -141020,18 +141074,24 @@ func (s *FindingsPostFindingsIDAiOKHardening) encodeFields(e *jx.Encoder) {
 		e.FieldStart("target")
 		e.Str(s.Target)
 	}
+	{
+		e.FieldStart("viewer")
+		e.Str(s.Viewer)
+	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAiOKHardening = [9]string{
-	0: "admin_example",
-	1: "checks",
-	2: "family",
-	3: "firewall",
-	4: "ports",
-	5: "ports_from",
-	6: "self",
-	7: "software",
-	8: "target",
+var jsonFieldsNameOfFindingsPostFindingsIDAiOKHardening = [11]string{
+	0:  "admin_example",
+	1:  "box",
+	2:  "checks",
+	3:  "family",
+	4:  "firewall",
+	5:  "ports",
+	6:  "ports_from",
+	7:  "self",
+	8:  "software",
+	9:  "target",
+	10: "viewer",
 }
 
 // Decode decodes FindingsPostFindingsIDAiOKHardening from json.
@@ -141055,8 +141115,28 @@ func (s *FindingsPostFindingsIDAiOKHardening) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"admin_example\"")
 			}
-		case "checks":
+		case "box":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.Box = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Box = append(s.Box, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box\"")
+			}
+		case "checks":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Checks.Decode(d); err != nil {
 					return err
@@ -141066,7 +141146,7 @@ func (s *FindingsPostFindingsIDAiOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"checks\"")
 			}
 		case "family":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Family = string(v)
@@ -141078,7 +141158,7 @@ func (s *FindingsPostFindingsIDAiOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"family\"")
 			}
 		case "firewall":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Firewall = make([]FindingsPostFindingsIDAiOKHardeningFirewallItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -141096,7 +141176,7 @@ func (s *FindingsPostFindingsIDAiOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"firewall\"")
 			}
 		case "ports":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Ports = make([]FindingsPostFindingsIDAiOKHardeningPortsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -141114,7 +141194,7 @@ func (s *FindingsPostFindingsIDAiOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ports\"")
 			}
 		case "ports_from":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.PortsFrom.Decode(d); err != nil {
 					return err
@@ -141124,7 +141204,7 @@ func (s *FindingsPostFindingsIDAiOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ports_from\"")
 			}
 		case "self":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Bool()
 				s.Self = bool(v)
@@ -141136,7 +141216,7 @@ func (s *FindingsPostFindingsIDAiOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"self\"")
 			}
 		case "software":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Software = string(v)
@@ -141148,7 +141228,7 @@ func (s *FindingsPostFindingsIDAiOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "target":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Target = string(v)
@@ -141158,6 +141238,18 @@ func (s *FindingsPostFindingsIDAiOKHardening) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"target\"")
+			}
+		case "viewer":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Viewer = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"viewer\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -141170,7 +141262,7 @@ func (s *FindingsPostFindingsIDAiOKHardening) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -149449,6 +149541,14 @@ func (s *FindingsPostFindingsIDAppliedOKHardening) encodeFields(e *jx.Encoder) {
 		e.Str(s.AdminExample)
 	}
 	{
+		e.FieldStart("box")
+		e.ArrStart()
+		for _, elem := range s.Box {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("checks")
 		s.Checks.Encode(e)
 	}
@@ -149488,18 +149588,24 @@ func (s *FindingsPostFindingsIDAppliedOKHardening) encodeFields(e *jx.Encoder) {
 		e.FieldStart("target")
 		e.Str(s.Target)
 	}
+	{
+		e.FieldStart("viewer")
+		e.Str(s.Viewer)
+	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKHardening = [9]string{
-	0: "admin_example",
-	1: "checks",
-	2: "family",
-	3: "firewall",
-	4: "ports",
-	5: "ports_from",
-	6: "self",
-	7: "software",
-	8: "target",
+var jsonFieldsNameOfFindingsPostFindingsIDAppliedOKHardening = [11]string{
+	0:  "admin_example",
+	1:  "box",
+	2:  "checks",
+	3:  "family",
+	4:  "firewall",
+	5:  "ports",
+	6:  "ports_from",
+	7:  "self",
+	8:  "software",
+	9:  "target",
+	10: "viewer",
 }
 
 // Decode decodes FindingsPostFindingsIDAppliedOKHardening from json.
@@ -149523,8 +149629,28 @@ func (s *FindingsPostFindingsIDAppliedOKHardening) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"admin_example\"")
 			}
-		case "checks":
+		case "box":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.Box = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Box = append(s.Box, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box\"")
+			}
+		case "checks":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Checks.Decode(d); err != nil {
 					return err
@@ -149534,7 +149660,7 @@ func (s *FindingsPostFindingsIDAppliedOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"checks\"")
 			}
 		case "family":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Family = string(v)
@@ -149546,7 +149672,7 @@ func (s *FindingsPostFindingsIDAppliedOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"family\"")
 			}
 		case "firewall":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Firewall = make([]FindingsPostFindingsIDAppliedOKHardeningFirewallItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -149564,7 +149690,7 @@ func (s *FindingsPostFindingsIDAppliedOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"firewall\"")
 			}
 		case "ports":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Ports = make([]FindingsPostFindingsIDAppliedOKHardeningPortsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -149582,7 +149708,7 @@ func (s *FindingsPostFindingsIDAppliedOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ports\"")
 			}
 		case "ports_from":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.PortsFrom.Decode(d); err != nil {
 					return err
@@ -149592,7 +149718,7 @@ func (s *FindingsPostFindingsIDAppliedOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ports_from\"")
 			}
 		case "self":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Bool()
 				s.Self = bool(v)
@@ -149604,7 +149730,7 @@ func (s *FindingsPostFindingsIDAppliedOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"self\"")
 			}
 		case "software":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Software = string(v)
@@ -149616,7 +149742,7 @@ func (s *FindingsPostFindingsIDAppliedOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "target":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Target = string(v)
@@ -149626,6 +149752,18 @@ func (s *FindingsPostFindingsIDAppliedOKHardening) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"target\"")
+			}
+		case "viewer":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Viewer = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"viewer\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -149638,7 +149776,7 @@ func (s *FindingsPostFindingsIDAppliedOKHardening) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -157923,6 +158061,14 @@ func (s *FindingsPostFindingsIDStatusOKHardening) encodeFields(e *jx.Encoder) {
 		e.Str(s.AdminExample)
 	}
 	{
+		e.FieldStart("box")
+		e.ArrStart()
+		for _, elem := range s.Box {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
 		e.FieldStart("checks")
 		s.Checks.Encode(e)
 	}
@@ -157962,18 +158108,24 @@ func (s *FindingsPostFindingsIDStatusOKHardening) encodeFields(e *jx.Encoder) {
 		e.FieldStart("target")
 		e.Str(s.Target)
 	}
+	{
+		e.FieldStart("viewer")
+		e.Str(s.Viewer)
+	}
 }
 
-var jsonFieldsNameOfFindingsPostFindingsIDStatusOKHardening = [9]string{
-	0: "admin_example",
-	1: "checks",
-	2: "family",
-	3: "firewall",
-	4: "ports",
-	5: "ports_from",
-	6: "self",
-	7: "software",
-	8: "target",
+var jsonFieldsNameOfFindingsPostFindingsIDStatusOKHardening = [11]string{
+	0:  "admin_example",
+	1:  "box",
+	2:  "checks",
+	3:  "family",
+	4:  "firewall",
+	5:  "ports",
+	6:  "ports_from",
+	7:  "self",
+	8:  "software",
+	9:  "target",
+	10: "viewer",
 }
 
 // Decode decodes FindingsPostFindingsIDStatusOKHardening from json.
@@ -157997,8 +158149,28 @@ func (s *FindingsPostFindingsIDStatusOKHardening) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"admin_example\"")
 			}
-		case "checks":
+		case "box":
 			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.Box = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.Box = append(s.Box, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"box\"")
+			}
+		case "checks":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				if err := s.Checks.Decode(d); err != nil {
 					return err
@@ -158008,7 +158180,7 @@ func (s *FindingsPostFindingsIDStatusOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"checks\"")
 			}
 		case "family":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Family = string(v)
@@ -158020,7 +158192,7 @@ func (s *FindingsPostFindingsIDStatusOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"family\"")
 			}
 		case "firewall":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				s.Firewall = make([]FindingsPostFindingsIDStatusOKHardeningFirewallItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -158038,7 +158210,7 @@ func (s *FindingsPostFindingsIDStatusOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"firewall\"")
 			}
 		case "ports":
-			requiredBitSet[0] |= 1 << 4
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				s.Ports = make([]FindingsPostFindingsIDStatusOKHardeningPortsItem, 0)
 				if err := d.Arr(func(d *jx.Decoder) error {
@@ -158056,7 +158228,7 @@ func (s *FindingsPostFindingsIDStatusOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ports\"")
 			}
 		case "ports_from":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.PortsFrom.Decode(d); err != nil {
 					return err
@@ -158066,7 +158238,7 @@ func (s *FindingsPostFindingsIDStatusOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"ports_from\"")
 			}
 		case "self":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				v, err := d.Bool()
 				s.Self = bool(v)
@@ -158078,7 +158250,7 @@ func (s *FindingsPostFindingsIDStatusOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"self\"")
 			}
 		case "software":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Software = string(v)
@@ -158090,7 +158262,7 @@ func (s *FindingsPostFindingsIDStatusOKHardening) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"software\"")
 			}
 		case "target":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.Target = string(v)
@@ -158100,6 +158272,18 @@ func (s *FindingsPostFindingsIDStatusOKHardening) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"target\"")
+			}
+		case "viewer":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.Viewer = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"viewer\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -158112,7 +158296,7 @@ func (s *FindingsPostFindingsIDStatusOKHardening) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

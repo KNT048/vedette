@@ -32939,6 +32939,17 @@
                               "type": "string",
                               "description": "The example admin network the page starts with; the configs hold {ADMIN_NET}"
                             },
+                            "box": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "The Vedette box's addresses the configs allow as well, so its scans still see the ports; empty when unknown"
+                            },
+                            "viewer": {
+                              "type": "string",
+                              "description": "The address the box sees for the browser asking; empty when unknown. The page warns when it is outside the admin network typed"
+                            },
                             "firewall": {
                               "type": "array",
                               "items": {
@@ -33188,6 +33199,8 @@
                             "ports_from",
                             "ports",
                             "admin_example",
+                            "box",
+                            "viewer",
                             "firewall",
                             "checks"
                           ],
@@ -34570,6 +34583,17 @@
                               "type": "string",
                               "description": "The example admin network the page starts with; the configs hold {ADMIN_NET}"
                             },
+                            "box": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "The Vedette box's addresses the configs allow as well, so its scans still see the ports; empty when unknown"
+                            },
+                            "viewer": {
+                              "type": "string",
+                              "description": "The address the box sees for the browser asking; empty when unknown. The page warns when it is outside the admin network typed"
+                            },
                             "firewall": {
                               "type": "array",
                               "items": {
@@ -34819,6 +34843,8 @@
                             "ports_from",
                             "ports",
                             "admin_example",
+                            "box",
+                            "viewer",
                             "firewall",
                             "checks"
                           ],
@@ -36203,6 +36229,17 @@
                               "type": "string",
                               "description": "The example admin network the page starts with; the configs hold {ADMIN_NET}"
                             },
+                            "box": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "The Vedette box's addresses the configs allow as well, so its scans still see the ports; empty when unknown"
+                            },
+                            "viewer": {
+                              "type": "string",
+                              "description": "The address the box sees for the browser asking; empty when unknown. The page warns when it is outside the admin network typed"
+                            },
                             "firewall": {
                               "type": "array",
                               "items": {
@@ -36452,6 +36489,8 @@
                             "ports_from",
                             "ports",
                             "admin_example",
+                            "box",
+                            "viewer",
                             "firewall",
                             "checks"
                           ],
@@ -37848,6 +37887,17 @@
                               "type": "string",
                               "description": "The example admin network the page starts with; the configs hold {ADMIN_NET}"
                             },
+                            "box": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "The Vedette box's addresses the configs allow as well, so its scans still see the ports; empty when unknown"
+                            },
+                            "viewer": {
+                              "type": "string",
+                              "description": "The address the box sees for the browser asking; empty when unknown. The page warns when it is outside the admin network typed"
+                            },
                             "firewall": {
                               "type": "array",
                               "items": {
@@ -38097,6 +38147,8 @@
                             "ports_from",
                             "ports",
                             "admin_example",
+                            "box",
+                            "viewer",
                             "firewall",
                             "checks"
                           ],

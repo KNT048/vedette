@@ -3,7 +3,8 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp } from '@/test/render'
 import { assetsStore } from '@/mocks/stores'
-import { adminNetwork } from './adminNetwork'
+import { adminNetwork, inNetwork } from './adminNetwork'
+import { mockViewer } from './hardeningMock'
 
 const code = (label: RegExp) => screen.getAllByLabelText(label)[0]!.textContent ?? ''
 
@@ -15,17 +16,20 @@ describe('M2-1: general hardening when no confirmed pack exists (mitigation INV-
     expect(within(block).queryByText(/Vedette confirmed/)).toBeNull()
     const vendors = within(block).getByRole('group', { name: 'Firewall vendor' })
     expect(within(vendors).getByRole('button', { name: 'FortiGate (in Devices)' })).toHaveAttribute('aria-pressed', 'true')
-    let fg = code(/FortiGate CLI/)
-    expect(fg).toContain('set subnet 192.168.1.0/24')
-    expect(fg).toContain('set subnet 192.168.10.12/32')
-    expect(fg).toContain('set tcp-portrange 80 443')
+    // r2 M1: the example network gives no config, on any device
     expect(within(block).getByText('Example')).toBeInTheDocument()
+    expect(within(block).getByText('Enter your admin network first')).toBeInTheDocument()
+    expect(within(block).queryAllByLabelText(/FortiGate CLI/)).toHaveLength(0)
 
     const field = within(block).getByRole('textbox', { name: /Your admin network/ })
     await userEvent.clear(field)
     await userEvent.type(field, '10.20.0.0/16')
-    fg = code(/FortiGate CLI/)
+    const fg = code(/FortiGate CLI/)
     expect(fg).toContain('set subnet 10.20.0.0/16')
+    expect(fg).toContain('set subnet 192.168.10.12/32')
+    expect(fg).toContain('set tcp-portrange 80 443')
+    expect(fg).toContain('set srcaddr "vedette-admin-net" "vedette-box-192-168-10-5"') // r2 M2: the box is allowed
+    expect(fg).not.toContain('negate') // r2 M5
     expect(within(block).queryByText('Example')).toBeNull()
     await userEvent.clear(field)
     await userEvent.type(field, '10.20.0.0/40')
@@ -49,7 +53,9 @@ describe('M2-1: general hardening when no confirmed pack exists (mitigation INV-
     const block = await screen.findByRole('region', { name: 'General hardening' })
     expect(within(block).getByText(/No FortiGate or MikroTik in Devices/)).toBeInTheDocument()
     expect(within(block).getByRole('button', { name: 'Linux (nftables)' })).toHaveAttribute('aria-pressed', 'true')
-    expect(code(/nftables: drop/)).toContain('ip daddr 192.168.10.12 ip saddr != 192.168.1.0/24 tcp dport { 80, 443 } drop')
+    await userEvent.clear(within(block).getByRole('textbox', { name: /Your admin network/ }))
+    await userEvent.type(within(block).getByRole('textbox', { name: /Your admin network/ }), '10.20.0.0/24')
+    expect(code(/nftables: allow/)).toContain('ip daddr 192.168.10.12 ip saddr { 10.20.0.0/24, 192.168.10.5 } accept\n        ip daddr 192.168.10.12 tcp dport { 80, 443 } ct state new drop')
 
     await userEvent.click(within(block).getByRole('button', { name: 'New firewall' }))
     const dialog = await screen.findByRole('dialog', { name: 'Add a device' })
@@ -58,6 +64,23 @@ describe('M2-1: general hardening when no confirmed pack exists (mitigation INV-
     await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
     await waitFor(() => expect(within(block).getByRole('button', { name: 'FortiGate (in Devices)' })).toHaveAttribute('aria-pressed', 'true'))
     expect(within(block).queryByRole('button', { name: 'New firewall' })).toBeNull()
+  })
+
+  it('r2 M4: warns when the address of this browser is outside the admin network typed', async () => {
+    mockViewer.set('192.168.18.40')
+    renderApp('/findings/f-2')
+    const block = await screen.findByRole('region', { name: 'General hardening' })
+    const field = within(block).getByRole('textbox', { name: /Your admin network/ })
+    await userEvent.clear(field)
+    await userEvent.type(field, '10.20.0.0/24')
+    expect(within(block).getByText('Your address 192.168.18.40 is not inside 10.20.0.0/24: you would lock yourself out')).toBeInTheDocument()
+    await userEvent.clear(field)
+    await userEvent.type(field, '192.168.18.0/24')
+    expect(within(block).queryByText(/you would lock yourself out/)).toBeNull()
+    expect(inNetwork('192.168.18.40', '192.168.18.0/24')).toBe(true)
+    expect(inNetwork('2001:db8::1', '2001:db8::/64')).toBe(true)
+    expect(inNetwork('2001:db9::1', '2001:db8::/64')).toBe(false)
+    expect(inNetwork('10.0.0.1', 'fd00::/64')).toBeNull()
   })
 
   it('takes a network or one address, never other text', () => {
@@ -71,5 +94,7 @@ describe('M2-1: general hardening when no confirmed pack exists (mitigation INV-
     for (const bad of ['0.0.0.0/0', '10.0.0.0/7']) expect(adminNetwork(bad, false)).toBeNull()
     for (const bad of [':', '1:2:3', 'fffff::', '::/0', '1:2:3:4:5:6:7:8:9']) expect(adminNetwork(bad, true)).toBeNull()
     expect(adminNetwork('2001:db8::1', true)).toBe('2001:db8::1/128')
+    expect(adminNetwork('fd00::5/64', true)).toBe('fd00::/64') // r2 L3
+    expect(adminNetwork('2001:db8:0:0:1:0:0:1/112', true)).toBe('2001:db8:0:0:1::/112')
   })
 })

@@ -16,14 +16,12 @@ import { useSnmp, useSnmpActions } from './api'
 import { kindLabel } from '@/lib/deviceTypes'
 import { errMsg } from './kinds'
 import type { SnmpCredential, SnmpCredentialInput, SnmpTestResult } from './types'
-import { CIDR_RE_UI, IPV4_RE_UI, isPrivateCidr, LOCAL_RANGE_NAMES } from './validate'
+import { CIDR_RE_UI, IPV4_RE_UI, isPrivateCidr, LOCAL_RANGE_NAMES, SNMP_MAX } from './validate'
 
 type Version = SnmpCredentialInput['version']
 type Auth = NonNullable<SnmpCredentialInput['auth']>
 type Priv = NonNullable<SnmpCredentialInput['priv']>
 
-/** At most 8 credentials (409 too_many on the server). */
-const SNMP_MAX = 8
 const SCOPE_MAX = 16
 // Browser-side checks so mistakes show early; the server checks the same rules again (SYS-2, contract.ts SnmpCredentialInput).
 // eslint-disable-next-line no-control-regex

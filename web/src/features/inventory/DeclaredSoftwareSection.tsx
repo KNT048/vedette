@@ -62,7 +62,7 @@ function Body() {
       return (
         <div className="grid">
           <Link to={`/devices/${d.id}`} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{sw?.display ?? t('declaredPage.noProduct')}</Link>
-          {raw ? <span className="text-[12px] text-muted">{raw}</span> : null}
+          {raw ? <span className="text-caption text-muted">{raw}</span> : null}
         </div>
       )
     } },
@@ -70,7 +70,7 @@ function Body() {
     ...(findingsOn ? [{ id: 'findings', header: t('declaredPage.col.findings'), accessorFn: (r: Row) => r.d.findings_count, cell: ({ row }: { row: { original: Row } }) => (row.original.d.findings_count
       ? <Link to={`/findings?device=${encodeURIComponent(row.original.d.id)}`} className="tabular-nums text-accent underline-offset-4 hover:underline">{t('declaredPage.findings', { count: row.original.d.findings_count })}</Link>
       : <span className="text-muted">{t('declaredPage.noFindings')}</span>) } satisfies ColumnDef<Row>] : []),
-    { id: 'added', header: t('declaredPage.col.added'), accessorFn: (r) => new Date(r.d.first_seen).getTime(), cell: ({ row }) => <time className="whitespace-nowrap text-[13px] text-muted" dateTime={row.original.d.first_seen} title={fmtDateTime(row.original.d.first_seen)}>{fmtRelative(row.original.d.first_seen)}</time> },
+    { id: 'added', header: t('declaredPage.col.added'), accessorFn: (r) => new Date(r.d.first_seen).getTime(), cell: ({ row }) => <time className="whitespace-nowrap text-meta text-muted" dateTime={row.original.d.first_seen} title={fmtDateTime(row.original.d.first_seen)}>{fmtRelative(row.original.d.first_seen)}</time> },
     { id: 'actions', header: () => <span className="sr-only">{t('declaredPage.col.actions')}</span>, enableSorting: false, cell: ({ row }) => {
       const r = row.original
       const name = r.sw?.display ?? ''
@@ -98,7 +98,7 @@ function Body() {
                     <IconButton label={t('declaredPage.remove', { name: r.sw?.display ?? '' })} needRole={needRole} onClick={() => setRemoving(r)}><Trash2 /></IconButton>
                   </span>
                 </div>
-                <span className="flex flex-wrap gap-x-3 text-[13px] text-muted">
+                <span className="flex flex-wrap gap-x-3 text-meta text-muted">
                   <span>{r.sw?.version || t('software.noVersion')}</span>
                   {findingsOn ? <span>{r.d.findings_count ? t('declaredPage.findings', { count: r.d.findings_count }) : t('declaredPage.noFindingsLong')}</span> : null}
                 </span>

@@ -13,7 +13,7 @@ import { Slot } from '@/components/common/Slot'
 import { EmptyState, ModuleOff, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Tooltip } from '@/components/ui/tooltip'
-import { TokenSearch, type TokenChip } from '@/components/common/TokenSearch'
+import { hasToken, TokenSearch, type TokenChip } from '@/components/common/TokenSearch'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { download } from '@/lib/api'
@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils'
 import { categoryLabel, categoryOf, kindLabel } from '@/lib/deviceTypes'
 import { AddDialog, METHODS, type Method } from './AddDialog'
 import { useDevices, useSettings } from './api'
-import { deviceKeys, feedsOfRow, filterDevices, fromOldUrl } from './deviceQuery'
+import { deviceKeys, feedsOfRow, filterDevices, fromOldUrl, matchSoftware, softwareValues } from './deviceQuery'
 import { errMsg, kindIcon, shownKind } from './kinds'
 import { declaredSoftwareOnly, nameOf } from './nameOf'
 import { PendingPanel } from './PendingPanel'
@@ -47,7 +47,7 @@ function TypeCell({ d, dense }: { d: DeviceRow; dense?: boolean }) {
       {createElement(kindIcon(kind), { className: 'size-4 shrink-0 text-muted', 'aria-hidden': true })}
       <span>{type}</span>
       {guessed ? <Chip tone="off">{t('guess.likely')}</Chip> : null}
-      {saysMore && !dense ? <span className="text-[12px] text-muted">{cat}</span> : null}
+      {saysMore && !dense ? <span className="text-caption text-muted">{cat}</span> : null}
     </span>
   )
 }
@@ -62,12 +62,12 @@ function SourcesCell({ d, compact }: { d: DeviceRow; compact?: boolean }) {
   if (!list.length) return <span className="text-muted">–</span>
   const low = (d.summary?.confidence ?? 1) < 0.5
   const lowNote = low ? <span className="text-warn"> {t('search.lowConfidence')}</span> : null
-  if (!compact || list.length === 1) return <span className="whitespace-nowrap text-[13px] text-muted">{list.join(', ')}{lowNote}</span>
+  if (!compact || list.length === 1) return <span className="whitespace-nowrap text-meta text-muted">{list.join(', ')}{lowNote}</span>
   // One line on a desktop row (#849 review): the source that wins, "+2", the whole list on hover or focus (and the device page).
   const all = list.join(', ')
   return (
     <Tooltip content={all} side="top">
-      <span tabIndex={0} aria-label={t('search.sourcesAll', { list: all })} className="inline-flex items-center gap-1 whitespace-nowrap rounded-sm text-[13px] text-muted">
+      <span tabIndex={0} aria-label={t('search.sourcesAll', { list: all })} className="inline-flex items-center gap-1 whitespace-nowrap rounded-sm text-meta text-muted">
         <span>{list[0]}</span><span className="tabular-nums">{`+${list.length - 1}`}</span>{lowNote}
       </span>
     </Tooltip>
@@ -134,17 +134,20 @@ function DeviceSearch({ rows, now, query }: { rows: DeviceRow[]; now: number; qu
     { token: 'source:manual', label: t('search.chip.manual'), count: count('source', 'manual') },
     { token: 'has:findings', label: t('search.chip.findings'), count: count('has', 'findings') },
   ]
-  return <TokenSearch value={query.q} onChange={query.setQ} keys={keys} chips={chips} label={t('search.label')} placeholder={t('search.placeholder')} chipsLabel={t('search.chipsLabel')} />
+  // A chip that would show 0 is left out (To review would read "SNMP 0, osquery 0, Manual 0"), unless it is on (#849 review L11).
+  const shownChips = chips.filter((c) => c.count !== 0 || hasToken(query.q, c.token))
+  return <TokenSearch value={query.q} onChange={query.setQ} keys={keys} chips={shownChips} label={t('search.label')} placeholder={t('search.placeholder')} chipsLabel={t('search.chipsLabel')} />
 }
 
-/** "12 of 40 devices match", read out as the list changes (WCAG 4.1.3). */
-function MatchLine({ shown, total, onClear }: { shown: number; total: number; onClear: () => void }) {
+/** "12 of 40 devices", read out as the list changes (WCAG 4.1.3): the live region is always there (empty without a search), so the
+ *  first change and "0 of 40" are announced too; the Clear button shows only while something matches (the empty table has its own). */
+function MatchLine({ q, shown, total, onClear }: { q: string; shown: number; total: number; onClear: () => void }) {
   const { t } = useTranslation('inventory')
   return (
-    <p role="status" aria-live="polite" className="flex flex-wrap items-center gap-x-3 text-[13px] text-muted">
-      <span className="tabular-nums">{t('search.matches', { shown, count: total })}</span>
-      <Button size="sm" variant="link" onClick={onClear}>{t('search.clear')}</Button>
-    </p>
+    <div className="flex flex-wrap items-center gap-x-3 text-meta text-muted empty:hidden">
+      <span role="status" aria-live="polite" className="tabular-nums">{q ? t('search.matches', { shown, count: total }) : ''}</span>
+      {q && shown ? <Button size="sm" variant="link" onClick={onClear}>{t('search.clear')}</Button> : null}
+    </div>
   )
 }
 
@@ -155,6 +158,7 @@ function DevicesList({ rows, now, query }: { rows: DeviceRow[]; now: number; que
   const { q, clear } = query
   const deferred = useDeferredValue(q)
   const shown = useMemo(() => filterDevices(rows, deferred, now), [rows, deferred, now])
+  const swWanted = useMemo(() => softwareValues(deferred), [deferred])
   const selecting = slotComponents(DEVICES_ACTIONS_SLOT).length > 0
   const [sel, ops] = useRowSelection()
   const shownIds = shown.map((d) => d.id)
@@ -184,13 +188,28 @@ function DevicesList({ rows, now, query }: { rows: DeviceRow[]; now: number; que
         </span>
       )
     } },
+    // M2: with software: in the search the list answers "which devices run it, at which version" (the old Software tab), as runZero does.
+    ...(swWanted.length ? [{
+      id: 'matched', header: t('col.matched'), accessorFn: (d: DeviceRow) => matchSoftware(d, swWanted).map((x) => x.display).join(' '),
+      cell: ({ row }: { row: { original: DeviceRow } }) => {
+        const m = matchSoftware(row.original, swWanted)
+        if (!m.length) return dash
+        const line = (x: DeviceRow['software'][number]) => `${x.display} ${x.version ?? t('software.noVersion')}`
+        return (
+          <span className="flex items-center gap-1.5 whitespace-nowrap" title={m.map((x) => `${line(x)} (${t(`common:source.${x.source}`, { defaultValue: x.source })})`).join('\n')}>
+            <span className="font-medium">{m[0]!.display}</span><span className="tabular-nums">{m[0]!.version ?? <span className="text-muted">{t('software.noVersion')}</span>}</span>
+            {m.length > 1 ? <span className="text-meta text-muted tabular-nums">{`+${m.length - 1}`}</span> : null}
+          </span>
+        )
+      },
+    } satisfies ColumnDef<DeviceRow>] : []),
     { id: 'source', header: t('col.sources'), accessorFn: (d) => FEED_ORDER.filter((f) => feedsOfRow(d).has(f)).join(' '), cell: ({ row }) => <SourcesCell d={row.original} compact /> },
-    { id: 'seen', header: t('col.lastSeen'), accessorFn: (d) => new Date(d.last_seen).getTime(), cell: ({ row }) => <time className="whitespace-nowrap text-[13px] text-muted" dateTime={row.original.last_seen} title={fmtDateTime(row.original.last_seen)}>{shortAgo(row.original.last_seen, now, i18n.language || 'en')}</time> },
+    { id: 'seen', header: t('col.lastSeen'), accessorFn: (d) => new Date(d.last_seen).getTime(), cell: ({ row }) => <time className="whitespace-nowrap text-meta text-muted" dateTime={row.original.last_seen} title={fmtDateTime(row.original.last_seen)}>{shortAgo(row.original.last_seen, now, i18n.language || 'en')}</time> },
   ]
   return (
     <section aria-label={t('tabs.devices')} className="grid min-w-0 gap-3">
       <DeviceSearch rows={rows} now={now} query={query} />
-      {q && shown.length ? <MatchLine shown={shown.length} total={rows.length} onClear={clear} /> : null}
+      <MatchLine q={q} shown={shown.length} total={rows.length} onClear={clear} />
       {selecting ? <div className="flex flex-wrap items-center gap-2"><Slot name={DEVICES_ACTIONS_SLOT} props={{ selectedIds: [...sel], clearSelection: ops.clear }} /></div> : null}
       <DataTable caption={t('table.caption')} data={shown} columns={columns} initialSort={[{ id: 'seen', desc: true }]}
         onRowClick={(d) => void navigate(`/devices/${d.id}`)}
@@ -204,12 +223,12 @@ function DevicesList({ rows, now, query }: { rows: DeviceRow[]; now: number; que
                 {nameLink(d, 'min-w-0 [overflow-wrap:anywhere]')}
                 <NameChips d={d} />
               </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta text-muted">
                 <TypeCell d={d} />
                 {d.ip && d.ip !== '—' ? <span className="tabular-nums">{d.ip}</span> : null}
                 {hw ? <span className="min-w-0 [overflow-wrap:anywhere]">{hw}</span> : null}
               </div>
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted">
                 <SourcesCell d={d} />
                 <time dateTime={d.last_seen}>{fmtRelative(d.last_seen)}</time>
               </div>
@@ -228,7 +247,7 @@ function ReviewList({ rows, now, notifyNew, notifyAvailable, query }: { rows: De
   return (
     <section className="grid min-w-0 gap-3">
       <PendingPanel items={shown} total={rows.length} notifyNew={notifyNew} notifyAvailable={notifyAvailable}
-        search={<><DeviceSearch rows={rows} now={now} query={query} />{q && shown.length ? <MatchLine shown={shown.length} total={rows.length} onClear={clear} /> : null}</>} filtered={!!q} onClear={clear} />
+        search={<><DeviceSearch rows={rows} now={now} query={query} /><MatchLine q={q} shown={shown.length} total={rows.length} onClear={clear} /></>} filtered={!!q} onClear={clear} />
     </section>
   )
 }
@@ -264,6 +283,13 @@ function Body() {
   }, [q.data])
   if (old) return <Navigate replace to={{ search: `?${old}` }} />
   const all = lists.approved.length + lists.pending.length
+  // Declared software is not a device (#849): one line says where it is, also when it is all there is (#849 review L13).
+  const declaredLine = lists.declared > 0 ? (
+    <p className="mt-4 text-meta text-muted">
+      {t('declaredPage.elsewhere', { count: lists.declared })}{' '}
+      <Link to="/settings/declared-software" className="text-accent underline-offset-4 hover:underline">{t('declaredPage.open')}</Link>
+    </p>
+  ) : null
   const pending = lists.pending.length
   const title = !q.data ? t('list.titleLoading') : all === 0 ? t('list.titleEmpty') : all === 1 && lists.approved[0]?.is_box ? t('list.titleBoxOnly') : pending > 0 ? t('list.title', { count: all, pending }) : t('list.titleAllApproved', { count: all })
 
@@ -280,7 +306,7 @@ function Body() {
         } />
       <QueryState query={q}>
         {(d) => {
-          if (all === 0) return <NoDevices boxOnly={false} canOp={canOp} canAdmin={canAdmin} needRole={needRole} onAdd={setAdd} />
+          if (all === 0) return <><NoDevices boxOnly={false} canOp={canOp} canAdmin={canAdmin} needRole={needRole} onAdd={setAdd} />{declaredLine}</>
           const now = q.dataUpdatedAt
           return (
             <>
@@ -291,17 +317,14 @@ function Body() {
                 { id: 'devices', label: t('tabs.devices'), panel: <DevicesList rows={lists.approved} now={now} query={query} /> },
                 { id: 'review', label: t('tabs.review'), panel: <ReviewList rows={lists.pending} now={now} notifyNew={d.notify_new} notifyAvailable={d.notify_available} query={query} />, badge: { count: pending, label: t('tabs.reviewBadge') } },
               ]} />
-              {lists.declared > 0 ? (
-                <p className="mt-4 text-[13px] text-muted">
-                  {t('declaredPage.elsewhere', { count: lists.declared })}{' '}
-                  <Link to="/settings/declared-software" className="text-accent underline-offset-4 hover:underline">{t('declaredPage.open')}</Link>
-                </p>
-              ) : null}
+              {declaredLine}
             </>
           )
         }}
       </QueryState>
-      <AddDialog key={addMethod ?? 'closed'} open={!!addMethod} method={addMethod ?? 'manual'} onOpenChange={(o) => { if (!o) setAdd(null) }} />
+      {/* M1: ?add= opens the dialog only for someone who may add (a viewer's old ?tab=add link lands on the list). The URL follows the
+          method picked, so a reload reopens it there (L12); the dialog is keyed on open/closed only, so that does not remount it. */}
+      <AddDialog key={addMethod && canOp ? 'open' : 'closed'} open={!!addMethod && canOp} method={addMethod ?? 'manual'} onMethod={setAdd} onOpenChange={(o) => { if (!o) setAdd(null) }} />
     </>
   )
 }

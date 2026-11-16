@@ -25,8 +25,11 @@ const box = () => screen.getByRole('combobox', { name: 'Search devices' })
 const q = () => screen.getByTestId('q').textContent
 
 describe('parseQuery / toggleToken (#849)', () => {
-  it('splits free text from tokens of known keys; an unknown key is free text; a key still being typed (type:) filters nothing', () => {
+  it('splits free text from tokens of known keys; an unknown key is free text; a key still being typed (type:, or type at the end) filters nothing', () => {
     expect(parseQuery('Cisco type:Switch fragile foo:bar type:', KEYS)).toEqual({ text: ['cisco', 'foo:bar'], tokens: [{ key: 'type', value: 'switch' }, { key: 'fragile', value: null }] })
+    expect(parseQuery('cisco type', KEYS).text).toEqual(['cisco'])
+    expect(parseQuery('type cisco', KEYS).text).toEqual(['type', 'cisco']) // only the word being typed
+    expect(parseQuery('cisco ty', KEYS).text).toEqual(['cisco', 'ty']) // a partial word may be a name
   })
   it('a quoted run is one word, inside a value too', () => {
     expect(parseQuery('"core sw" type:"ip phone"', KEYS)).toEqual({ text: ['core sw'], tokens: [{ key: 'type', value: 'ip phone' }] })
@@ -42,9 +45,11 @@ describe('parseQuery / toggleToken (#849)', () => {
 })
 
 describe('TokenSearch (#849)', () => {
-  it('offers the keys, then the values of a key with their counts; Enter picks; the list is a listbox the input controls', async () => {
+  it('offers the keys, then the values of a key with their counts; an arrow key highlights, Enter picks; the list is a listbox the input controls', async () => {
     const user = userEvent.setup()
     render(<Harness />)
+    await user.tab()
+    expect(screen.queryByRole('listbox')).toBeNull() // Tab into the box does not open the list
     await user.click(box())
     const list = screen.getByRole('listbox')
     expect(box()).toHaveAttribute('aria-expanded', 'true')
@@ -52,14 +57,17 @@ describe('TokenSearch (#849)', () => {
     expect(within(list).getAllByRole('option').map((o) => o.textContent)).toEqual(['type:Device type', 'source:What reports on it', 'fragileFragile devices'])
     await user.type(box(), 'ty')
     expect(within(list).getAllByRole('option')).toHaveLength(1)
-    await user.keyboard('{Enter}')
+    await user.keyboard('{Enter}') // nothing highlighted: Enter keeps what was typed and closes the list
+    expect(q()).toBe('ty')
+    await user.click(box())
+    await user.keyboard('{ArrowDown}{Enter}')
     expect(q()).toBe('type:')
     const values = within(screen.getByRole('listbox')).getAllByRole('option')
     expect(values.map((o) => o.textContent)).toEqual(['type:switchSwitch3', 'type:firewallFirewall1', 'type:ip phoneIP phone2'])
-    await user.keyboard('{ArrowDown}{Enter}')
+    await user.keyboard('{ArrowDown}{ArrowDown}{Enter}')
     expect(q()).toBe('type:firewall ')
     await user.type(box(), 'type:ip')
-    await user.keyboard('{Enter}')
+    await user.keyboard('{ArrowDown}{Enter}')
     expect(q()).toBe('type:firewall type:"ip phone" ') // a value with a space is quoted
     await expectNoA11yViolations()
   })

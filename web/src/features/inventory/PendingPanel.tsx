@@ -34,7 +34,7 @@ function PendingItem({ d }: { d: DeviceRow }) {
           <Link to={`/devices/${d.id}`} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{name}</Link>
           {d.suspicious ? <Chip tone="warn">{t('chip.suspicious')}</Chip> : null}
         </div>
-        <p className="text-[13px] text-muted">
+        <p className="text-meta text-muted">
           {[d.ip, d.mac, kindLabel(d.kind)].filter((x) => x && x !== '—').join(', ')}. {t('pending.firstSeen', { when: fmtRelative(d.first_seen) })}
         </p>
       </div>
@@ -69,7 +69,7 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
             <h2 id="pending-title" className="text-base font-semibold">{total ? t('pending.title', { count: total }) : t('pending.titleNone')}</h2>
             <InfoTip topic={t('tabs.review')}>{t('pending.descriptionInfo')}</InfoTip>
           </div>
-          <p className="max-w-3xl text-[13px] text-muted">{t('pending.description')}</p>
+          <p className="max-w-3xl text-meta text-muted">{t('pending.description')}</p>
         </div>
         <div className="flex items-center gap-2">
           <Switch id="notify-new" checked={notifyNew} disabled={!can || notify.isPending} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
@@ -78,7 +78,7 @@ export function PendingPanel({ items, total, notifyNew, notifyAvailable, search,
         </div>
       </div>
       {notifyNew && !notifyAvailable ? <TurnOnModule id="notify" reason={t('pending.notifyOff2')} /> : null}
-      {notifyNew && notifyAvailable ? <p className="text-[13px] text-muted">{t('pending.notifyVia')} <Link className="text-accent underline-offset-4 hover:underline" to="/settings/channels">{t('pending.openChannels')}</Link></p> : null}
+      {notifyNew && notifyAvailable ? <p className="text-meta text-muted">{t('pending.notifyVia')} <Link className="text-accent underline-offset-4 hover:underline" to="/settings/channels">{t('pending.openChannels')}</Link></p> : null}
       {total ? search : null}
       {pending.length ? (
         <Card flush>

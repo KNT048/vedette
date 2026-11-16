@@ -7,10 +7,11 @@ import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/u
 import { Label } from '@/components/ui/input'
 import { useSaveSettings, useSettings } from './api'
 import { errMsg } from './kinds'
-import { CIDR_RE_UI, cidrRange, IPV4_RE_UI } from './validate'
+import { DependencyLink } from '@/components/common/DependencyLink'
+import { CIDR_RE_UI, cidrRange, IPV4_RE_UI, normalizeRange, overlapping, rangeProblem } from './validate'
 
 /** An address or range as a scope entry: one address is its /32. */
-export const asRange = (v: string) => (IPV4_RE_UI.test(v) ? `${v}/32` : v)
+export const asRange = (v: string) => (IPV4_RE_UI.test(v) ? `${v}/32` : normalizeRange(v).value)
 /** Whether `v` (an address or a range) lies inside one of `ranges`. */
 export function inRanges(v: string, ranges: string[]): boolean {
   if (!IPV4_RE_UI.test(v) && !CIDR_RE_UI.test(v)) return false
@@ -31,6 +32,8 @@ export function AddToScopeDialog({ entry, onClose, onDone }: { entry: string | n
   const [error, setError] = useState<string | null>(null)
   const s = settings.data
   const range = entry ? asRange(entry) : null
+  // The checks of the Scope page (NetworkForm): a public range or one overlapping a saved range is said before the commitment, not after.
+  const problem = range && s && !s.lan_ranges.includes(range) ? rangeProblem(range, s.lan_ranges) : null
   function submit() {
     if (!s) return
     setError(null)
@@ -41,15 +44,17 @@ export function AddToScopeDialog({ entry, onClose, onDone }: { entry: string | n
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent title={range ? t('toScope.title', { range }) : t('toScope.confirmTitle')} description={t('toScope.body')} info={t('toScope.info')}>
         <div className="grid gap-4">
-          {s ? <p className="text-[13px] text-muted">{s.lan_ranges.length ? t('toScope.now', { list: s.lan_ranges.join(', ') }) : t('toScope.none')}</p> : null}
+          {s ? <p className="text-meta text-muted">{s.lan_ranges.length ? t('toScope.now', { list: s.lan_ranges.join(', ') }) : t('toScope.none')}</p> : null}
           <div className="flex items-start gap-2">
             <Checkbox id="to-scope-confirm" className="mt-0.5" checked={confirmed} onCheckedChange={(v) => setConfirmed(v === true)} />
             <Label htmlFor="to-scope-confirm" className="font-normal">{t('scope.confirm')}</Label>
           </div>
+          {problem ? <Notice tone="danger" role="alert" className="mb-0" title={t(`network.problem.${problem}`, { value: range, net: range ? cidrRange(range).network : '', other: overlapping(range ?? '', s?.lan_ranges ?? []) ?? '' })} /> : null}
           {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
+          <DependencyLink reason={t('toScope.restWhy')} to="/devices/setup?tab=scope#active-enabled" label={t('toScope.rest')} />
           <DialogFooter>
             <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-            <Button variant="primary" disabled={!confirmed || !s || save.isPending} onClick={submit}>{range ? t('toScope.add') : t('toScope.confirm')}</Button>
+            <Button variant="primary" disabled={!confirmed || !s || !!problem || save.isPending} onClick={submit}>{range ? t('toScope.add') : t('toScope.confirm')}</Button>
           </DialogFooter>
         </div>
       </DialogContent>

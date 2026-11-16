@@ -1,6 +1,7 @@
 import { useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Search, X } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 // One search box with filter tokens (#849, the Devices reference page of #842), in the style of runZero and Lansweeper:
@@ -23,12 +24,16 @@ function words(q: string): string[] {
 const unquote = (s: string) => s.replace(/"/g, '')
 const lc = (s: string) => s.toLowerCase()
 
-/** Splits a query into free-text words and the tokens of known keys (case-insensitive). An unknown `foo:bar` is free text; a known
- *  key with no value yet (`type:` while it is typed) filters nothing, so the list does not empty under the cursor. */
+/** Splits a query into free-text words and the tokens of known keys (case-insensitive). An unknown `foo:bar` is free text. A key still
+ *  being typed filters nothing, so the list does not empty under the cursor: `type:` with no value, and the last word when it is exactly
+ *  a key that takes a value (`type`, `source` before their colon). Any other partial word ("ty", "sou") is free text, as it may be a name. */
 export function parseQuery(q: string, keys: TokenKey[]): ParsedQuery {
   const byKey = new Map(keys.map((k) => [lc(k.key), k]))
   const out: ParsedQuery = { text: [], tokens: [] }
-  for (const w of words(q)) {
+  const list = words(q)
+  const typing = list.length > 0 && !/\s$/.test(q) ? list.length - 1 : -1
+  for (const [n, w] of list.entries()) {
+    if (n === typing && byKey.get(lc(w))?.values) continue
     const i = w.indexOf(':')
     const k = i > 0 ? byKey.get(lc(w.slice(0, i))) : byKey.get(lc(w))
     if (i > 0 && k?.values) {
@@ -50,13 +55,13 @@ export const hasToken = (q: string, token: string) => words(q).some((w) => lc(w)
 
 type Option = { id: string; insert: string; label: ReactNode; hint?: string; count?: number; done: boolean }
 
-/** The word the caret is in: [start, end) in the text. */
+/** The word the caret is in: [start, end) in the text; a quoted run is one word (`type:"ip phone"`), as `words` reads it. */
 function currentWord(text: string, caret: number): [number, number] {
-  let s = caret
-  while (s > 0 && !/\s/.test(text[s - 1]!)) s--
-  let e = caret
-  while (e < text.length && !/\s/.test(text[e]!)) e++
-  return [s, e]
+  for (const m of text.matchAll(/(?:[^\s"]+|"[^"]*"?)+/g)) {
+    const s = m.index, e = m.index + m[0].length
+    if (caret >= s && caret <= e) return [s, e]
+  }
+  return [caret, caret]
 }
 
 function optionsFor(word: string, keys: TokenKey[], query: string): Option[] {
@@ -98,7 +103,7 @@ export function TokenSearch({ value, onChange, keys, chips, label, placeholder, 
   const input = useRef<HTMLInputElement>(null)
   const [open, setOpen] = useState(false)
   const [caret, setCaret] = useState(value.length)
-  const [active, setActive] = useState(0)
+  const [active, setActive] = useState(-1) // nothing highlighted until an arrow key: Enter on a typed word must not pick a suggestion
   // After a pick the caret goes right after the inserted token, once React has written the new value (not a frame later: typing
   // that follows at once must land there).
   const caretTo = useRef<number | null>(null)
@@ -111,7 +116,7 @@ export function TokenSearch({ value, onChange, keys, chips, label, placeholder, 
   const word = value.slice(start, end)
   const options = useMemo(() => (open ? optionsFor(word, keys, value) : []), [open, word, keys, value])
   const shown = open && options.length > 0
-  const activeIdx = Math.min(active, options.length - 1)
+  const activeIdx = active < 0 ? -1 : Math.min(active, options.length - 1)
 
   function pick(o: Option) {
     const before = value.slice(0, start)
@@ -121,16 +126,16 @@ export function TokenSearch({ value, onChange, keys, chips, label, placeholder, 
     const pos = before.length + o.insert.length + sep.length
     onChange(next)
     setCaret(pos)
-    setActive(0)
+    setActive(-1)
     setOpen(!o.done)
     caretTo.current = pos
     input.current?.focus()
   }
 
   function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'ArrowDown') { e.preventDefault(); if (!open) setOpen(true); else setActive((a) => (options.length ? (a + 1) % options.length : 0)) }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => (options.length ? (a - 1 + options.length) % options.length : 0)) }
-    else if (e.key === 'Enter' && shown) { e.preventDefault(); const o = options[activeIdx]; if (o) pick(o) }
+    if (e.key === 'ArrowDown') { e.preventDefault(); if (!open) setOpen(true); else setActive((a) => (options.length ? (a + 1) % options.length : -1)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => (options.length ? (a <= 0 ? options.length - 1 : a - 1) : -1)) }
+    else if (e.key === 'Enter' && shown) { const o = options[activeIdx]; if (o) { e.preventDefault(); pick(o) } else setOpen(false) }
     else if (e.key === 'Escape') {
       // First Escape closes the list, a second one clears the box (APG combobox).
       if (shown) { e.preventDefault(); e.stopPropagation(); setOpen(false) } else if (value) { e.preventDefault(); onChange('') }
@@ -141,7 +146,7 @@ export function TokenSearch({ value, onChange, keys, chips, label, placeholder, 
     <div className={cn('grid min-w-0 gap-2', className)}>
       <div className="relative min-w-0 max-w-2xl">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden />
-        <input
+        <Input
           ref={input}
           id={id}
           type="search"
@@ -155,13 +160,12 @@ export function TokenSearch({ value, onChange, keys, chips, label, placeholder, 
           spellCheck={false}
           value={value}
           placeholder={placeholder}
-          onChange={(e) => { onChange(e.target.value); setCaret(e.target.selectionStart ?? e.target.value.length); setActive(0); setOpen(true) }}
+          onChange={(e) => { onChange(e.target.value); setCaret(e.target.selectionStart ?? e.target.value.length); setActive(-1); setOpen(true) }}
           onSelect={(e) => setCaret(e.currentTarget.selectionStart ?? value.length)}
-          onFocus={() => setOpen(true)}
           onClick={() => setOpen(true)}
           onBlur={() => setOpen(false)}
           onKeyDown={onKeyDown}
-          className="h-10 w-full min-w-0 rounded-md border border-rule bg-surface pl-9 pr-10 text-base text-ink placeholder:text-muted sm:text-sm [&::-webkit-search-cancel-button]:hidden"
+          className="pl-9 pr-10 [&::-webkit-search-cancel-button]:hidden"
         />
         {value ? (
           <button type="button" aria-label={t('tokenSearch.clear')} onClick={() => { onChange(''); setCaret(0); input.current?.focus() }}
@@ -178,8 +182,8 @@ export function TokenSearch({ value, onChange, keys, chips, label, placeholder, 
               onMouseMove={() => setActive(i)}
               className={cn('flex min-h-9 cursor-pointer items-center gap-3 px-3 text-sm', i === activeIdx && 'bg-sunken')}>
               <span className="whitespace-nowrap">{o.label}</span>
-              {o.hint ? <span className="min-w-0 truncate text-[13px] text-muted">{o.hint}</span> : null}
-              {o.count !== undefined ? <span className="ml-auto text-[13px] tabular-nums text-muted">{o.count}</span> : null}
+              {o.hint ? <span className="min-w-0 truncate text-meta text-muted">{o.hint}</span> : null}
+              {o.count !== undefined ? <span className="ml-auto text-meta tabular-nums text-muted">{o.count}</span> : null}
             </li>
           ))}
         </ul>
@@ -190,7 +194,7 @@ export function TokenSearch({ value, onChange, keys, chips, label, placeholder, 
             const on = hasToken(value, c.token)
             return (
               <button key={c.token} type="button" aria-pressed={on} onClick={() => onChange(toggleToken(value, c.token))}
-                className={cn('inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[13px] sm:h-7',
+                className={cn('inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-meta sm:h-8',
                   on ? 'border-accent bg-accent-soft font-medium text-ink' : 'border-rule bg-surface text-muted hover:text-ink')}>
                 {c.label}
                 {c.count !== undefined ? <>{' '}<span className="tabular-nums text-muted">{c.count}</span></> : null}

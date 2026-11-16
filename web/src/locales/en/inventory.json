@@ -70,7 +70,7 @@
     "title_other": "{{count}} devices, {{pending}} not yet approved",
     "titleAllApproved_one": "{{count}} device, approved",
     "titleAllApproved_other": "{{count}} devices, all approved",
-    "meta": "Every value shows its source and confidence.",
+    "meta": "Each device says what reports on it; its page shows every value with its source and confidence.",
     "metaInfo": "New values are added; old values are never overwritten.",
     "all": "All devices",
     "titleEmpty": "No devices yet",
@@ -92,7 +92,8 @@
     "source": "Source",
     "lastSeen": "Last seen",
     "sources": "Sources",
-    "device": "Make, model and OS"
+    "device": "Make, model and OS",
+    "matched": "Matched software"
   },
   "table": {
     "caption": "Device list",
@@ -157,7 +158,7 @@
     "name": "Host name",
     "nameHint": "The name it has on your network, for example \"fw-hq\".",
     "ip": "IP address",
-    "ipHint": "Or a host name. One of the two is needed.",
+    "ipHint": "IPv4, or a host name below. One of the two is needed.",
     "submit": "Add",
     "done": "Added {{name}}. Vedette will alert you when an actively exploited vulnerability matches this product.",
     "softwareTitle": "Add software to the device",
@@ -906,7 +907,6 @@
       "csv": "Columns name, ip, product, version and kind; up to 500 rows. Wrong rows are reported by line, correct rows are still added."
     },
     "snmp": {
-      "first": "Add the credential your devices use first. Its scope is the address or range they live in.",
       "target": "IP address or range",
       "targetHint": "One address is read now. A range is read at every scan.",
       "targetBad": "Enter one IP address, such as 192.168.10.3, or a range, such as 192.168.10.0/24.",
@@ -915,10 +915,14 @@
       "rangeWhen": "Every approved device in it is read at the next scan window.",
       "addRange": "Add range to {{name}}",
       "test": "Test",
-      "notListed": "Vedette reads this address once a scan or the sensor finds it and you approve it under To review.",
       "editCredential": "Edit {{name}}",
       "outsideLan": "{{range}} is outside the scan scope",
-      "outsideLanWhy": "Vedette only sends SNMP inside the ranges you allowed. Add it to the scan scope here."
+      "outsideLanWhy": "Vedette only sends SNMP inside the ranges you allowed. Add it to the scan scope here.",
+      "noCredential": "No credential yet",
+      "capReason": "{{count}} credentials at most",
+      "capWhy": "The box keeps {{count}} credentials at most.",
+      "capLink": "Remove one in Scope, sensors and agents, SNMP",
+      "first": "Add the credential your devices use: choose New credential below."
     },
     "osquery": {
       "noMac": "macOS is not supported: osquery runs on Linux and Windows servers.",
@@ -1027,7 +1031,8 @@
   "inline": {
     "modulesPage": "Turn it on in Settings, Modules (admin)",
     "turnOn": "Turn on {{name}}",
-    "moduleOn": "{{name}} is on."
+    "moduleOn": "{{name}} is on.",
+    "alsoOn": "Turning it on also turns on {{list}}, which it needs."
   },
   "snmpNext": {
     "edit": "Edit {{name}}",
@@ -1040,16 +1045,22 @@
     "scanningWhy": "Active scanning is off, so the box sends nothing to devices.",
     "scanning": "Turn on active scanning in Scope",
     "neverWhy": "This device is set to Never scan.",
-    "never": "Change it on the device page"
+    "never": "Change it on the device page",
+    "notListedWhy": "Vedette has not found this address yet. The next scan or the sensor finds it; approve it under To review, then read it here.",
+    "notListed": "Open To review",
+    "manualWhy": "This device was added manually, so Vedette never probes it.",
+    "manual": "Open the device"
   },
   "toScope": {
     "title": "Add {{range}} to the scan scope",
     "confirmTitle": "Confirm the scan scope",
     "body": "Vedette only scans and asks SNMP inside the ranges you allow.",
-    "info": "The other scope settings (scan window, speed, fragile types) stay as they are; change them under Devices, Scope.",
+    "info": "Vedette sends scans and SNMP questions only inside these ranges, and only after someone confirms they belong to the company.",
     "now": "Allowed now: {{list}}.",
     "none": "No range is allowed yet.",
     "add": "Add to scope",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "restWhy": "The scan window, speed and fragile types stay as they are.",
+    "rest": "Change them in Scope"
   }
 }

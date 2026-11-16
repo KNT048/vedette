@@ -13,6 +13,7 @@ import { AddDialog } from './AddDialog'
 import { TurnOnModule } from './Inline'
 import { CreatableSelect } from '@/components/common/CreatableSelect'
 import { SnmpNext } from './SnmpNext'
+import { SNMP_MAX } from './validate'
 import { useDeviceAction, useSnmp, useSnmpActions } from './api'
 import { nameOf } from './nameOf'
 import { kindLabel } from '@/lib/deviceTypes'
@@ -43,8 +44,6 @@ function feedsOf(d: DeviceDetail): Map<Feed, string | null> {
 
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/
 
-/** The most credentials the box keeps (SnmpSection's SNMP_MAX; 409 too_many on the server). */
-const SNMP_MAX = 8
 
 /** Read this device now with one saved SNMP credential (the same Test as Scope and sensors → SNMP, with this device's address); add a
  *  credential for this address, or add the address to a credential whose scope does not hold it, without leaving the page. */
@@ -79,7 +78,7 @@ function SnmpRead({ ip }: { ip: string }) {
         <Field label={t('sources.snmp.credential')} htmlFor="device-snmp-cred">
           <CreatableSelect id="device-snmp-cred" className="w-auto" value={chosen} onChange={(id) => { setCred(id); setResult(null) }}
             options={creds.map((c) => ({ value: c.id, label: credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`)) }))}
-            newLabel={t('addDialog.snmp.newCredential')} canCreate={creds.length < SNMP_MAX}
+            newLabel={t('addDialog.snmp.newCredential')} canCreate={creds.length < SNMP_MAX} createDisabledReason={t('addDialog.snmp.capReason', { count: SNMP_MAX })}
             renderCreate={(p) => (p.open ? <CredentialDialog current={null} scope={ip} onClose={() => p.onOpenChange(false)}
               onSaved={(c) => { p.onCreated({ value: c.id, label: credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`)) }); saved(c) }} /> : null)} />
         </Field>

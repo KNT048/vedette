@@ -19,6 +19,7 @@ export function SnmpNext({ r, ip, cred, onWiden, onEdit, onRetry }: {
   const admin = useCan('admin')
   const [toScope, setToScope] = useState<string | null | false>(false)
   const scope = '/devices/setup?tab=scope#range-input' // the range field of Scope (useDeepLinkTarget focuses it)
+  const active = '/devices/setup?tab=scope#active-enabled' // the active scanning switch
   const scopeDialog = toScope !== false ? <AddToScopeDialog entry={toScope} onClose={() => setToScope(false)} onDone={onRetry} /> : null
   switch (r.reason) {
     case 'not_for_this_credential':
@@ -45,11 +46,15 @@ export function SnmpNext({ r, ip, cred, onWiden, onEdit, onRetry }: {
       )
     }
     case 'scanning_off':
-      return <DependencyLink reason={t('snmpNext.scanningWhy')} to={scope} label={t('snmpNext.scanning')} />
+      return <DependencyLink reason={t('snmpNext.scanningWhy')} to={active} label={t('snmpNext.scanning')} />
     case 'regular_scan_never':
       return r.device_id ? <DependencyLink reason={t('snmpNext.neverWhy')} to={`/devices/${encodeURIComponent(r.device_id)}`} label={t('snmpNext.never')} /> : null
     case 'not_in_inventory':
-      return <p className="text-[13px] text-muted">{t('addDialog.snmp.notListed')}</p>
+      // ponytail: no way yet to add an address the box has not found (asked of AI-Trưởng on #849); until then the next step is named.
+      return <DependencyLink reason={t('snmpNext.notListedWhy')} to="/devices?tab=review" label={t('snmpNext.notListed')} />
+    case 'declared_by_hand':
+      // A device added manually is never probed (INV-5); turning it into a probed one needs the backend (asked on #849).
+      return r.device_id ? <DependencyLink reason={t('snmpNext.manualWhy')} to={`/devices/${encodeURIComponent(r.device_id)}`} label={t('snmpNext.manual')} /> : null
     default:
       return null
   }

@@ -14,16 +14,27 @@ export const SOURCES = ['snmp', 'osquery', 'wazuh', 'scan', 'passive', 'manual']
 export type SourceToken = (typeof SOURCES)[number]
 const OF_OBS: Record<string, SourceToken[]> = { snmp: ['snmp'], agent: ['osquery', 'wazuh'], nmap: ['scan'], scan: ['scan'], passive: ['passive'], manual: ['manual'] }
 
-/** The feeds that reported on a row: from every value's source, its software and ports, and a declared row is "manual". */
+/** The feeds that reported on a row: from every value's source, its software and ports, and a declared row is "manual". Kept per row
+ *  object (a refetch makes new ones): an osquery host can list 1000+ packages, and the list, the chips and the search ask for it often. */
+const feedCache = new WeakMap<DeviceRow, Set<SourceToken>>()
 export function feedsOfRow(d: DeviceRow): Set<SourceToken> {
+  const hit = feedCache.get(d)
+  if (hit) return hit
   const out = new Set<SourceToken>()
   const add = (s: string | null | undefined) => { for (const f of (s ? OF_OBS[s] : undefined) ?? []) out.add(f) }
   add(d.vendor?.source); add(d.model?.source); add(d.os?.source); add(d.kind_source); add(d.summary?.source)
   for (const s of d.software) add(s.source)
   for (const s of d.services) add(s.source)
   if (d.origin === 'manual') out.add('manual')
+  feedCache.set(d, out)
   return out
 }
+
+/** The software rows of a device that `software:` values match (the "Matched software" column, #849 review M2). */
+export const matchSoftware = (d: DeviceRow, values: string[]) =>
+  d.software.filter((s) => values.some((v) => `${s.display} ${s.vendor} ${s.product}`.toLowerCase().includes(v)))
+/** The `software:` values of a query. */
+export const softwareValues = (q: string) => parseQuery(q, DEVICE_KEYS).tokens.filter((t) => t.key === 'software' && t.value).map((t) => t.value!)
 
 const DAY = 24 * 60 * 60 * 1000
 export const APPROVED_WITHIN = { '24h': DAY, '7d': 7 * DAY } as const
@@ -49,7 +60,7 @@ function tokenMatch(d: DeviceRow, key: string, value: string | null, now: number
     case 'fragile': return d.fragile
     case 'suspicious': return d.suspicious
     case 'has': return value === 'findings' ? d.findings_count > 0 : value === 'software' ? d.software.length > 0 : value === 'ports' ? d.services.length > 0 : false
-    case 'software': return !!value && d.software.some((s) => `${s.display} ${s.vendor} ${s.product}`.toLowerCase().includes(value))
+    case 'software': return !!value && matchSoftware(d, [value]).length > 0
     case 'approved': {
       const span = APPROVED_WITHIN[value as keyof typeof APPROVED_WITHIN]
       return !!span && !!d.approved_at && now - new Date(d.approved_at).getTime() < span
@@ -120,6 +131,7 @@ export function fromOldUrl(params: URLSearchParams): URLSearchParams | null {
   else if (show === 'agent') words.push('source:osquery', 'source:wazuh')
   else if (show === 'fragile') words.push('fragile')
   if (cat) words.push(`type:${cat}`)
+  if (tab === 'software') words.push('has:software') // the old Software tab: the devices with software, then software: narrows it
   if (words.length) p.set('q', [p.get('q'), ...words].filter(Boolean).join(' '))
   if (tab === 'add') p.set('add', p.get('add') ?? 'manual')
   if (tab === 'all' || tab === 'software' || tab === 'add') p.delete('tab')

@@ -4,6 +4,7 @@ import { Cable, FileSpreadsheet, PenLine, RadioTower, ServerCog, type LucideIcon
 import { Notice } from '@/components/common/PageHeader'
 import { InfoTip } from '@/components/common/InfoTip'
 import { CreatableSelect } from '@/components/common/CreatableSelect'
+import { DependencyLink } from '@/components/common/DependencyLink'
 import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { RadioGroup, RadioItem } from '@/components/ui/checkbox'
@@ -20,9 +21,9 @@ import { TurnOnModule } from './Inline'
 import { SnmpNext } from './SnmpNext'
 import { ImportForm } from './ImportDialog'
 import { credentialLabel, errMsg } from './kinds'
-import { CredentialDialog, CredentialForm, SnmpAnswer } from './SnmpSection'
+import { CredentialDialog, SnmpAnswer } from './SnmpSection'
 import type { SnmpCredential, SnmpTestResult } from './types'
-import { CIDR_RE_UI, cidrRange, IPV4_RE_UI } from './validate'
+import { CIDR_RE_UI, IPV4_RE_UI, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, SNMP_MAX } from './validate'
 
 // "Add a device" (#849): ONE dialog with every way a device gets into the list. Manual is first and chosen on open, so the S-INV-2
 // "three clicks" path stays three clicks; ?add=<method> opens it on a method (old ?tab=add, the device page's "Add SNMP / osquery").
@@ -50,15 +51,10 @@ function useNeeds(): Record<Method, Need> {
   }
 }
 
-const inScope = (target: string, scope: string[]) => {
-  const r = cidrRange(IPV4_RE_UI.test(target) ? `${target}/32` : target)
-  return scope.some((s) => { const q = cidrRange(IPV4_RE_UI.test(s) ? `${s}/32` : s); return r.base >= q.base && r.base + r.size <= q.base + q.size })
-}
-
 /** SNMP (D-512, the #829 device-page flow): a credential and an address or range. One address is read now with Test (it must be an approved
  *  device in the list: the Test reads devices, it does not create them); a range goes into the credential's scope and is read at every scan.
  *  Everything it needs is made here (kien 2026-11-16): "+ New credential" (a small dialog, selected on save, then read), Edit, the address
- *  added to a credential's scope or to the scan scope, the device approved; the credential stays editable in Settings › Scanning. */
+ *  added to a credential's scope or to the scan scope, the device approved; the full list stays in Devices › Scope, sensors and agents › SNMP. */
 function SnmpMethod() {
   const { t } = useTranslation('inventory')
   const uid = useId()
@@ -69,47 +65,46 @@ function SnmpMethod() {
   const [target, setTarget] = useState('')
   const [targetErr, setTargetErr] = useState<string | null>(null)
   const [cred, setCred] = useState('')
-  const [form, setForm] = useState<{ current: SnmpCredential | null; scope?: string; widen?: boolean } | null>(null)
+  const [form, setForm] = useState<{ current: SnmpCredential; scope?: string; widen?: boolean } | null>(null)
   const [toScope, setToScope] = useState<string | null>(null)
   const [result, setResult] = useState<{ ip: string; r: SnmpTestResult } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const known = useMemo(() => (devices.data?.items ?? []).filter((d) => d.approved && !d.is_box && IPV4_RE_UI.test(d.ip)).map((d) => d.ip), [devices.data])
   const creds = q.data?.credentials ?? []
   const chosen = creds.find((c) => c.id === cred) ?? creds[0]
-  const v = target.trim()
-  const isIp = IPV4_RE_UI.test(v)
+  const raw = target.trim()
+  const isIp = IPV4_RE_UI.test(raw)
+  // A range is taken as the Scope page takes it (normalizeRange): host bits cleared, "192.168.10.5/24" is 192.168.10.0/24 (#849 review M7).
+  const v = CIDR_RE_UI.test(raw) ? normalizeRange(raw).value : raw
   const isRange = CIDR_RE_UI.test(v)
-  const covered = !!chosen && (isIp || isRange) && inScope(v, chosen.scope)
+  const notLocal = isRange && !isPrivateCidr(v)
+  const covered = !!chosen && (isIp || isRange) && inRanges(v, chosen.scope)
   // A credential's scope must lie inside the scan scope (D-512): a range outside it is added there first, from here.
   const lan = settings.data?.lan_ranges
-  const outsideLan = isRange && !!lan && !inRanges(v, lan)
+  const outsideLan = isRange && !notLocal && !!lan && !inRanges(v, lan)
 
   const read = (id: string, ip: string) => { setResult(null); setError(null); test.mutate({ id, ip }, { onSuccess: (r) => setResult({ ip, r }), onError: (er) => setError(errMsg(er)) }) }
-  const saved = (c: SnmpCredential) => { setCred(c.id); if (isIp) read(c.id, v) } // the new credential is selected, and read at once when an address is typed
+  // The new credential is selected; it is read at once only when an address is typed (the customer asked for a read by making it here).
+  const saved = (c: SnmpCredential) => { setCred(c.id); if (isIp) read(c.id, raw) }
 
-  if (q.isPending) return <p className="text-[13px] text-muted">{t('sources.snmp.loading')}</p>
+  if (q.isPending) return <p className="text-meta text-muted">{t('sources.snmp.loading')}</p>
   if (q.error) return <QueryState query={q}>{() => null}</QueryState>
-  if (!creds.length) {
-    return (
-      <div className="grid gap-3">
-        <div className="flex items-center gap-1"><p className="text-sm font-medium">{t('snmp.form.addTitle')}</p><InfoTip topic={t('snmp.form.addTitle')}>{t('snmp.form.bodyInfo')}</InfoTip></div>
-        <p className="text-[13px] text-muted">{t('addDialog.snmp.first')}</p>
-        <CredentialForm current={null} idPrefix="add-snmp" scope={isIp || isRange ? v : undefined} onCancel={() => setTarget('')} onSaved={saved} />
-      </div>
-    )
-  }
 
   function submit(e: FormEvent) {
     e.preventDefault(); setResult(null); setError(null)
     if (!isIp && !isRange) { setTargetErr(t('addDialog.snmp.targetBad')); return }
+    if (notLocal) { setTargetErr(t('snmp.error.scopeNotLocal', { entry: v, ranges: LOCAL_RANGE_NAMES })); return }
     setTargetErr(null)
-    if (isRange) { if (outsideLan) setToScope(v); else if (!covered && chosen) setForm({ current: chosen, widen: true, scope: [...chosen.scope, v].join('\n') }); return }
-    if (chosen) read(chosen.id, v)
+    if (!chosen) return
+    if (isRange) { if (outsideLan) setToScope(v); else if (!covered) setForm({ current: chosen, widen: true, scope: [...chosen.scope, v].join('\n') }); return }
+    read(chosen.id, raw)
   }
   const targetId = `${uid}-target`
   const credId = `${uid}-cred`
+  const label = (c: SnmpCredential) => credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`))
   return (
     <div className="grid min-w-0 gap-4">
+      {creds.length ? null : <p className="text-meta text-muted">{t('addDialog.snmp.first')}</p>}
       <form onSubmit={submit} noValidate className="grid grid-cols-1 gap-4">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Field label={t('addDialog.snmp.target')} htmlFor={targetId} hint={t('addDialog.snmp.targetHint')} error={targetErr ?? undefined}>
@@ -120,27 +115,30 @@ function SnmpMethod() {
           <div className="grid content-start gap-1.5">
             <Field label={t('sources.snmp.credential')} htmlFor={credId}>
               <CreatableSelect id={credId} value={chosen?.id ?? ''} onChange={(id) => { setCred(id); setResult(null) }}
-                options={creds.map((c) => ({ value: c.id, label: credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`)) }))}
-                newLabel={t('addDialog.snmp.newCredential')} canCreate={creds.length < 8}
-                renderCreate={(p) => (p.open ? <CredentialDialog current={null} scope={isIp || isRange ? v : undefined} onClose={() => p.onOpenChange(false)}
-                  onSaved={(c) => { p.onCreated({ value: c.id, label: credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`)) }); saved(c) }} /> : null)} />
+                options={creds.map((c) => ({ value: c.id, label: label(c) }))} placeholder={creds.length ? undefined : t('addDialog.snmp.noCredential')}
+                newLabel={t('addDialog.snmp.newCredential')} canCreate={creds.length < SNMP_MAX} createDisabledReason={t('addDialog.snmp.capReason', { count: SNMP_MAX })}
+                renderCreate={(p) => (p.open ? <CredentialDialog current={null} scope={isIp || (isRange && !notLocal) ? v : undefined} onClose={() => p.onOpenChange(false)}
+                  onSaved={(c) => { p.onCreated({ value: c.id, label: label(c) }); saved(c) }} /> : null)} />
             </Field>
             {chosen ? <div><Button size="sm" variant="link" onClick={() => setForm({ current: chosen })}>{t('addDialog.snmp.editCredential', { name: chosen.name })}</Button></div> : null}
+            {creds.length >= SNMP_MAX ? <DependencyLink reason={t('addDialog.snmp.capWhy', { count: SNMP_MAX })} to="/devices/setup?tab=snmp" label={t('addDialog.snmp.capLink')} /> : null}
           </div>
         </div>
-        {q.data && !q.data.ready ? <p className="text-[13px] text-warn">{q.data.message ?? t('snmp.notReady')}</p> : null}
+        {q.data && !q.data.ready ? <p className="text-meta text-warn">{q.data.message ?? t('snmp.notReady')}</p> : null}
         {outsideLan ? <Notice tone="warn" role="status" className="mb-0" title={t('addDialog.snmp.outsideLan', { range: v })}>{t('addDialog.snmp.outsideLanWhy')}</Notice> : null}
         {isRange && covered && !outsideLan ? <Notice tone="accent" role="status" className="mb-0" title={t('addDialog.snmp.rangeCovered', { range: v, name: chosen?.name ?? '' })}>{t('addDialog.snmp.rangeWhen')}</Notice> : null}
-        <div className="flex flex-wrap items-center gap-2">
-          {isRange ? (
-            outsideLan ? <Button type="submit" variant="primary">{t('snmpNext.addToScope', { ip: v })}</Button>
-              : covered ? null : <Button type="submit" variant="primary">{t('addDialog.snmp.addRange', { name: chosen?.name ?? '' })}</Button>
-          ) : (
-            <Button type="submit" variant="primary" disabled={test.isPending}>{test.isPending ? t('snmp.run.running') : t('addDialog.snmp.test')}</Button>
-          )}
-        </div>
+        {chosen ? (
+          <div className="flex flex-wrap items-center gap-2">
+            {isRange ? (
+              outsideLan ? <Button type="submit" variant="primary">{t('snmpNext.addToScope', { ip: v })}</Button>
+                : covered ? null : <Button type="submit" variant="primary">{t('addDialog.snmp.addRange', { name: chosen.name })}</Button>
+            ) : (
+              <Button type="submit" variant="primary" disabled={test.isPending}>{test.isPending ? t('snmp.run.running') : t('addDialog.snmp.test')}</Button>
+            )}
+          </div>
+        ) : null}
       </form>
-      {test.isPending ? <p role="status" aria-live="polite" className="text-[13px] text-muted">{t('snmp.run.pending', { ip: v })}</p> : null}
+      {test.isPending ? <p role="status" aria-live="polite" className="text-meta text-muted">{t('snmp.run.pending', { ip: raw })}</p> : null}
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       {result && !test.isPending ? <SnmpAnswer r={result.r} ip={result.ip} /> : null}
       {result && !test.isPending && !result.r.ok ? (
@@ -148,7 +146,7 @@ function SnmpMethod() {
           onWiden={() => chosen && setForm({ current: chosen, widen: true, scope: [...chosen.scope, result.ip].join('\n') })}
           onEdit={() => chosen && setForm({ current: chosen })} onRetry={() => chosen && read(chosen.id, result.ip)} />
       ) : null}
-      {form ? <CredentialDialog key={form.current?.id ?? 'new'} current={form.current} scope={form.scope} widen={form.widen} onClose={() => setForm(null)} onSaved={saved} /> : null}
+      {form ? <CredentialDialog key={form.current.id} current={form.current} scope={form.scope} widen={form.widen} onClose={() => setForm(null)} onSaved={saved} /> : null}
       {toScope ? <AddToScopeDialog entry={toScope} onClose={() => setToScope(null)} /> : null}
     </div>
   )
@@ -161,7 +159,7 @@ function OsqueryMethod({ onCreated }: { onCreated: (on: boolean) => void }) {
   return (
     <div className="grid min-w-0 gap-3">
       <QueryState query={q}>{(d) => <OsqueryEnrol data={d} onCreated={() => onCreated(true)} />}</QueryState>
-      <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{t('addDialog.osquery.noMac')}</p><InfoTip topic={t('addDialog.osquery.noMacTopic')}>{t('addDialog.osquery.noMacInfo')}</InfoTip></div>
+      <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('addDialog.osquery.noMac')}</p><InfoTip topic={t('addDialog.osquery.noMacTopic')}>{t('addDialog.osquery.noMacInfo')}</InfoTip></div>
     </div>
   )
 }
@@ -199,7 +197,7 @@ function MethodPicker({ value, onChange, needs }: { value: Method; onChange: (m:
               {createElement(ICON[m], { className: cn('size-4 shrink-0', value === m ? 'text-accent' : 'text-muted'), 'aria-hidden': true })}
               <span className="text-sm font-medium">{t(`addDialog.name.${m}`)}</span>
             </span>
-            <span id={why ? `${id}-why` : undefined} className="text-[12px] leading-4 text-muted max-sm:ml-auto max-sm:text-right">{why ?? (off ? t('addDialog.moduleOff') : t(`addDialog.when.${m}`))}</span>
+            <span id={why ? `${id}-why` : undefined} className="text-caption text-muted max-sm:ml-auto max-sm:text-right">{why ?? (off ? t('addDialog.moduleOff') : t(`addDialog.when.${m}`))}</span>
           </label>
         )
       })}

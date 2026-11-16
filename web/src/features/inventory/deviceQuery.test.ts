@@ -59,7 +59,7 @@ describe('old Devices URLs (#849)', () => {
     expect(to('show=agent')).toBe('q=source%3Aosquery+source%3Awazuh')
     expect(to('tab=all&show=fragile&cat=security')).toBe('q=fragile+type%3Asecurity')
     expect(to('tab=add&show=recent')).toBe('q=approved%3A24h&add=manual')
-    expect(to('tab=software')).toBe('')
+    expect(to('tab=software')).toBe('q=has%3Asoftware')
     expect(to('tab=review')).toBeNull()
     expect(to('q=cisco')).toBeNull()
   })

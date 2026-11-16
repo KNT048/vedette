@@ -506,14 +506,17 @@ const ipTrust = 72 * time.Hour
 // does not probe that device). Otherwise a sensor's hint or a list goes nowhere (logged), and an agent's observation makes a device of its own,
 // which agentOrphan joins to the old one when the agent reports its card.
 //
-// A hint with a MAC nobody owns binds the address's device when that device has no MAC yet: a hand-added one when the MAC is burned in
-// and a person declared the address within ipTrust (the bootstrap Lansweeper and Tenable do; a private MAC is a phone or a guest, never
-// bound by an address alone: review r1 H2 of #872), a discovered one when its address was seen within ipTrust; otherwise, or when the
+// A hint with a MAC nobody owns binds the address's device when that device has no MAC yet: a hand-added one when the MAC is burned in,
+// a person declared the address within ipTrust (the bootstrap Lansweeper and Tenable do; a private MAC is a phone or a guest, never
+// bound by an address alone: review r1 H2 of #872) and no other MAC was seen at the address since (firstAtHand, n71), a discovered one when its address was seen within ipTrust; otherwise, or when the
 // holder has another MAC, a new device is made and takes the address (claimIP). A known MAC at such a hand-added device's address
 // whose device is a waiting discovered one goes to the hand-added device, and joinSame folds the other into it (handBound, review r1
 // M1: the duplicate an earlier batch made). A hint with only a MAC that a join left as a chassis MAC (D-515) is about the device it
 // joined.
 func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs) (id string, created bool, err error) {
+	if err := handSeen(ctx, tx, c); err != nil {
+		return "", false, err
+	}
 	if c.agent != "" { // the agent bound to a device finds it wherever its address went (D-598); an agent moves the address
 		if id, err := s.keyHit(ctx, tx, o, c); id != "" || err != nil {
 			return id, false, err
@@ -547,6 +550,12 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs
 		var manual bool
 		err := tx.QueryRowContext(ctx, `SELECT id, mac, ip_confirmed_at, origin = 'manual' FROM inv_asset WHERE ip = ?`, c.ip.String()).Scan(&id, &holderMAC, &confirmed, &manual)
 		fresh := confirmed.Valid && confirmed.String >= cutoff
+		first := true // c's MAC is the only one seen at a hand-added device's address since a person added it (inv_hand_seen)
+		if err == nil && manual && !holderMAC.Valid && c.mac != "" {
+			if first, err = firstAtHand(ctx, tx, id, c.mac); err != nil {
+				return "", false, err
+			}
+		}
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
 		case err != nil:
@@ -574,7 +583,7 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs
 			}
 			// an agent's observation at a stale address: a device of its own takes the address (below); when the agent reports the old
 			// device's card, agentOrphan joins the two in this write (INV-31 (3)), keeping the old device
-		case !holderMAC.Valid && (manual && fresh && !localMAC(c.mac) || !manual && fresh):
+		case !holderMAC.Valid && fresh && (!manual || first && !localMAC(c.mac)):
 			// Same device, first time its MAC is known. Set it now so the next observation of this batch finds the device by MAC
 			// (RecomputeAsset only runs at the end of the batch).
 			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET mac = ? WHERE id = ?`, c.mac, id); err != nil {
@@ -596,8 +605,36 @@ func (s *Service) resolve(ctx context.Context, tx *sql.Tx, o *outbox, c cleanObs
 	return id, true, s.claimIP(ctx, tx, o, id, c.ip, c.source, c.seenAt)
 }
 
+// handSeen records that a sighting put c's MAC at the address of a device added by hand and known by that address only (no MAC, no
+// agent): inv_hand_seen, any source, before anything else decides (#829, the N100 n71 walk). It is how the inventory knows that the
+// address was not the person's machine alone since they added it.
+func handSeen(ctx context.Context, tx *sql.Tx, c cleanObs) error {
+	if c.mac == "" || !c.ip.IsValid() {
+		return nil
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO inv_hand_seen (asset_id, mac, first_seen, last_seen)
+		SELECT id, ?2, ?3, ?3 FROM inv_asset WHERE ip = ?1 AND origin = 'manual' AND mac IS NULL AND agent_key IS NULL AND is_box = 0
+		ON CONFLICT (asset_id, mac) DO UPDATE SET last_seen = max(last_seen, excluded.last_seen)`, c.ip.String(), c.mac, c.seenAt); err != nil {
+		return fmt.Errorf("inventory: record a MAC at a hand-added address: %w", err)
+	}
+	return nil
+}
+
+// firstAtHand reports whether mac is the only MAC seen at the address of hand-added device id since the person added it (handSeen).
+// Only then may an address bind it (#829, n71: a person adds "printer .201", the printer is off, DHCP gives .201 to a laptop, then to
+// another one; the second must not silently become the approved printer). Any other MAC there, private or burned in, known or new,
+// means the address is shared: the newcomer is a new, announced device, offered as possibly the same device (D-599, byAddress).
+func firstAtHand(ctx context.Context, tx *sql.Tx, id, mac string) (bool, error) {
+	var other bool
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM inv_hand_seen WHERE asset_id = ? AND mac <> ?)`, id, mac).Scan(&other); err != nil {
+		return false, fmt.Errorf("inventory: read the MACs seen at a hand-added address: %w", err)
+	}
+	return !other, nil
+}
+
 // handHolder is the hand-added device at c's address that a sighting of c's burned-in MAC, which device other already owns, is about
-// (review r1 M1 of #872): it has no MAC and no agent, a person declared its address within ipTrust (cutoff), and other is a discovered
+// (review r1 M1 of #872): it has no MAC and no agent, a person declared its address within ipTrust (cutoff), no other MAC was seen at
+// that address since (firstAtHand), and other is a discovered
 // device nobody approved that never had an address (the duplicate an earlier batch made of it: a MAC-only hint before the ARP, an LLDP
 // frame; a machine already announced at another address is not folded, review r2 L-new-1). "" otherwise.
 // The hint then goes to the hand-added device, and joinSame folds other into it (handBound).
@@ -608,8 +645,8 @@ func handHolder(ctx context.Context, tx *sql.Tx, c cleanObs, other, cutoff strin
 	var id string
 	err := tx.QueryRowContext(ctx, `SELECT h.id FROM inv_asset h, inv_asset o WHERE h.ip = ? AND h.origin = 'manual' AND h.mac IS NULL AND h.agent_key IS NULL
 		AND h.is_box = 0 AND h.ip_confirmed_at >= ? AND o.id = ? AND o.id <> h.id AND o.origin = 'discovered' AND o.approved = 0 AND o.is_box = 0
-		AND o.ip IS NULL`,
-		c.ip.String(), cutoff, other).Scan(&id)
+		AND o.ip IS NULL AND NOT EXISTS (SELECT 1 FROM inv_hand_seen WHERE asset_id = h.id AND mac <> ?)`,
+		c.ip.String(), cutoff, other, c.mac).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
 	} else if err != nil {

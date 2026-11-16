@@ -55,6 +55,12 @@ type SafetyStore interface {
 	Safety(ctx context.Context) (Safety, error)
 	// SaveSafety validates and stores in; an error that is an *apierr.Error reaches the person as it is.
 	SaveSafety(ctx context.Context, actor string, in SafetyInput) (Safety, []Adjustment, error)
+	// AddRange adds one range to the scope in one transaction (read, append, store); the attestation covers what the dialog showed
+	// (in.Shown, in.ShownConfirmedAt) and the new range, and a stored list or confirmation other than that is a *SafetyChanged
+	// (scope_changed); a range the confirmed scope covers changes nothing. Its other errors as SaveSafety's.
+	AddRange(ctx context.Context, actor string, in RangeAdd) (Safety, []Adjustment, error)
+	// AddExclusion adds one exclusion in one transaction; one an exclusion covers changes nothing. Its errors as SaveSafety's.
+	AddExclusion(ctx context.Context, actor, entry string) (Safety, error)
 }
 
 // Safety is the shared block as stored.
@@ -69,6 +75,7 @@ type Safety struct {
 	FragileKinds             []string
 	RegularScanKinds         []string
 	FragileDevices           int
+	Version                  string // names the stored values (inventory SafetyVersion); a full save must name the one it read
 }
 
 // SafetyInput is PUT /scanning/safety.
@@ -80,7 +87,25 @@ type SafetyInput struct {
 	PacketsPerS, RequestsPerS      int
 	Exclusions                     []string
 	FragileKinds, RegularScanKinds []string
+	Version                        string // the version the page read: another one is a *SafetyChanged (safety_changed)
 }
+
+// RangeAdd is POST /scanning/safety/ranges: the range and what the dialog showed beside the tick.
+type RangeAdd struct {
+	Range            string
+	Shown            []string
+	ShownConfirmedAt *string // nil: shown as not confirmed
+	Confirmed        bool
+}
+
+// SafetyChanged refuses a write built on a block that changed since the person read it (409 Code: safety_changed, scope_changed;
+// review #860 H1/M1). Nothing was stored; Current is the block now, which the answer carries (error.safety) for the page to show.
+type SafetyChanged struct {
+	Code, Message string
+	Current       Safety
+}
+
+func (e *SafetyChanged) Error() string { return "core: scanning: " + e.Code }
 
 // Adjustment is a range or exclusion normalized on save.
 type Adjustment struct{ From, To string }
@@ -189,7 +214,7 @@ type ScanningConfig struct {
 	MemoryMB  func() (int, bool)               // MemTotal of the box; nil or false: unknown
 }
 
-// ScanningHandlers implements GET /scanning, PUT /scanning/safety, PATCH /scanning/engines/{id} and POST
+// ScanningHandlers implements GET /scanning, PUT /scanning/safety, POST /scanning/safety/ranges and /exclusions, PATCH /scanning/engines/{id} and POST
 // /scanning/engines/nmap-discovery/run. Embed it in the composite handler.
 type ScanningHandlers struct{ cfg ScanningConfig }
 
@@ -228,6 +253,7 @@ type safetyView struct {
 		RegularScanKinds []string `json:"regular_scan_kinds"`
 		Devices          int      `json:"devices"`
 	} `json:"fragile"`
+	Version string `json:"version"`
 }
 
 type lastRunView struct {
@@ -317,7 +343,17 @@ func (h *ScanningHandlers) safetyView(ctx context.Context, st Safety) safetyView
 	v.Speed.PacketsPerS, v.Speed.RequestsPerS = st.PacketsPerS, st.RequestsPerS
 	v.Exclusions = listOf(st.Exclusions)
 	v.Fragile.Kinds, v.Fragile.RegularScanKinds, v.Fragile.Devices = listOf(st.FragileKinds), listOf(st.RegularScanKinds), st.FragileDevices
+	v.Version = st.Version
 	return v
+}
+
+// safetyErr turns a *SafetyChanged into its 409 with the current block; other errors pass as they are.
+func (h *ScanningHandlers) safetyErr(ctx context.Context, err error) error {
+	var ch *SafetyChanged
+	if errors.As(err, &ch) {
+		return apierr.New(http.StatusConflict, ch.Code, ch.Message).With("safety", h.safetyView(ctx, ch.Current))
+	}
+	return err
 }
 
 // view reads the whole page. A card whose port fails shows state error; the page still answers (the other cards are fine).
@@ -396,7 +432,7 @@ func (h *ScanningHandlers) ScanningPutScanningSafety(ctx context.Context, req *o
 	}
 	in := SafetyInput{
 		LANRanges: req.Scope.LanRanges, Confirmed: req.Scope.Confirmed, Days: req.Window.Days, From: req.Window.From, To: req.Window.To,
-		PacketsPerS: req.Speed.PacketsPerS, RequestsPerS: req.Speed.RequestsPerS, Exclusions: req.Exclusions,
+		PacketsPerS: req.Speed.PacketsPerS, RequestsPerS: req.Speed.RequestsPerS, Exclusions: req.Exclusions, Version: req.Version,
 	}
 	for _, k := range req.Fragile.Kinds {
 		in.FragileKinds = append(in.FragileKinds, string(k))
@@ -406,17 +442,55 @@ func (h *ScanningHandlers) ScanningPutScanningSafety(ctx context.Context, req *o
 	}
 	st, adjusted, err := h.cfg.Safety.SaveSafety(ctx, p.Email, in)
 	if err != nil {
-		return nil, err
+		return nil, h.safetyErr(ctx, err)
 	}
-	type saved struct {
-		safetyView
-		Adjusted []map[string]string `json:"adjusted"`
-	}
-	out := saved{safetyView: h.safetyView(ctx, st), Adjusted: []map[string]string{}}
+	return encode[oas.ScanningPutScanningSafetyOK](h.savedView(ctx, st, adjusted))
+}
+
+// adjustedView is the adjusted list of an answer that saved ranges.
+type adjustedView struct {
+	safetyView
+	Adjusted []map[string]string `json:"adjusted"`
+}
+
+func (h *ScanningHandlers) savedView(ctx context.Context, st Safety, adjusted []Adjustment) adjustedView {
+	out := adjustedView{safetyView: h.safetyView(ctx, st), Adjusted: []map[string]string{}}
 	for _, a := range adjusted {
 		out.Adjusted = append(out.Adjusted, map[string]string{"from": a.From, "to": a.To})
 	}
-	return encode[oas.ScanningPutScanningSafetyOK](out)
+	return out
+}
+
+// ScanningPostScanningSafetyRanges implements POST /scanning/safety/ranges (admin): "+ New range" where the person is (#842). The
+// inventory adds the range in one transaction with the same rules, attestation, audit row (inventory.settings) and event as the PUT.
+func (h *ScanningHandlers) ScanningPostScanningSafetyRanges(ctx context.Context, req *oas.ScanningPostScanningSafetyRangesReq) (*oas.ScanningPostScanningSafetyRangesOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	in := RangeAdd{Range: req.Range, Shown: req.ShownRanges, Confirmed: req.Confirm}
+	if v, ok := req.ShownConfirmedAt.Get(); ok {
+		in.ShownConfirmedAt = &v
+	}
+	st, adjusted, err := h.cfg.Safety.AddRange(ctx, p.Email, in)
+	if err != nil {
+		return nil, h.safetyErr(ctx, err)
+	}
+	return encode[oas.ScanningPostScanningSafetyRangesOK](h.savedView(ctx, st, adjusted))
+}
+
+// ScanningPostScanningSafetyExclusions implements POST /scanning/safety/exclusions (admin): "+ New exclusion" where the person is
+// (#842), added in one transaction by the inventory (audited inventory.settings, inventory.settings.changed).
+func (h *ScanningHandlers) ScanningPostScanningSafetyExclusions(ctx context.Context, req *oas.ScanningPostScanningSafetyExclusionsReq) (*oas.ScanningPostScanningSafetyExclusionsOK, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	st, err := h.cfg.Safety.AddExclusion(ctx, p.Email, req.Entry)
+	if err != nil {
+		return nil, h.safetyErr(ctx, err)
+	}
+	return encode[oas.ScanningPostScanningSafetyExclusionsOK](h.safetyView(ctx, st))
 }
 
 // ScanningPatchScanningEnginesID implements PATCH /scanning/engines/{id} (admin): the switch the engine maps to, audited by that

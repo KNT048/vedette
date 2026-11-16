@@ -340,5 +340,7 @@ const (
 	ScanningGetScanningOperation                            OperationName = "ScanningGetScanning"
 	ScanningPatchScanningEnginesIDOperation                 OperationName = "ScanningPatchScanningEnginesID"
 	ScanningPostScanningEnginesNmapDiscoveryRunOperation    OperationName = "ScanningPostScanningEnginesNmapDiscoveryRun"
+	ScanningPostScanningSafetyExclusionsOperation           OperationName = "ScanningPostScanningSafetyExclusions"
+	ScanningPostScanningSafetyRangesOperation               OperationName = "ScanningPostScanningSafetyRanges"
 	ScanningPutScanningSafetyOperation                      OperationName = "ScanningPutScanningSafety"
 )

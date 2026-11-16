@@ -39,7 +39,7 @@ function Form({ data }: { data: ScanConfigResponse }) {
     setError(undefined)
     save.mutate({
       window: { days, from, to }, rate, exclusions: excl.split('\n').map((l) => l.trim()).filter(Boolean),
-      stop_on_unresponsive: stopOn, unresponsive_after: after, schedule: sch,
+      stop_on_unresponsive: stopOn, unresponsive_after: after, schedule: sch, version: data.version,
     }, { onSuccess: () => toast.success(t('safety.saved')), onError: (err) => setError(errMsg(err)) })
   }
 
@@ -135,5 +135,5 @@ function Form({ data }: { data: ScanConfigResponse }) {
 
 export function SafetyTab() {
   const q = useScanConfig()
-  return <QueryState query={q}>{(d) => <Form data={d} />}</QueryState>
+  return <QueryState query={q}>{(d) => <Form key={d.version} data={d} />}</QueryState>
 }

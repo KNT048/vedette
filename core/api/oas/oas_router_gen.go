@@ -396,8 +396,14 @@ var (
 	rn417AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
 	}
-	rn420AllowedHeaders = map[string]string{
+	rn423AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
+	}
+	rn420AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn422AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
 	}
 	rn402AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
@@ -9182,20 +9188,85 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								}
 
 								if len(elem) == 0 {
-									// Leaf node.
 									switch r.Method {
 									case "PUT":
 										s.handleScanningPutScanningSafetyRequest([0]string{}, elemIsEscaped, w, r)
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "PUT",
-											allowedHeaders: rn420AllowedHeaders,
+											allowedHeaders: rn423AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "",
 										})
 									}
 
 									return
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'e': // Prefix: "exclusions"
+
+										if l := len("exclusions"); len(elem) >= l && elem[0:l] == "exclusions" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handleScanningPostScanningSafetyExclusionsRequest([0]string{}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "POST",
+													allowedHeaders: rn420AllowedHeaders,
+													acceptPost:     "application/json",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
+									case 'r': // Prefix: "ranges"
+
+										if l := len("ranges"); len(elem) >= l && elem[0:l] == "ranges" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handleScanningPostScanningSafetyRangesRequest([0]string{}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "POST",
+													allowedHeaders: rn422AllowedHeaders,
+													acceptPost:     "application/json",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
+									}
+
 								}
 
 							}
@@ -15494,7 +15565,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										return r, true
 									case "PUT":
 										r.name = InventoryPutInventorySettingsOperation
-										r.summary = "Save the scan scope; enabling active scanning requires scope attestation"
+										r.summary = "Save the scan scope; enabling active scanning requires scope attestation. 409 safety_changed when the version sent is not the stored one"
 										r.operationID = "inventory_put_inventory_settings"
 										r.operationGroup = ""
 										r.pathPattern = "/inventory/settings"
@@ -18576,11 +18647,10 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 								}
 
 								if len(elem) == 0 {
-									// Leaf node.
 									switch method {
 									case "PUT":
 										r.name = ScanningPutScanningSafetyOperation
-										r.summary = "Save the shared safety settings every LAN engine obeys (one writer; GET/PUT /inventory/settings and the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days, no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20), bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on). Publishes inventory.settings.changed: a run that the new values no longer allow stops"
+										r.summary = "Save the shared safety settings every LAN engine obeys (one writer; GET/PUT /inventory/settings and the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days, no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20), bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on); 409 safety_changed (with error.safety, the current block) when version is not the stored one: re-read, merge, save again. Publishes inventory.settings.changed: a run that the new values no longer allow stops"
 										r.operationID = "scanning_put_scanning_safety"
 										r.operationGroup = ""
 										r.pathPattern = "/scanning/safety"
@@ -18590,6 +18660,72 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									default:
 										return
 									}
+								}
+								switch elem[0] {
+								case '/': // Prefix: "/"
+
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
+										elem = elem[l:]
+									} else {
+										break
+									}
+
+									if len(elem) == 0 {
+										break
+									}
+									switch elem[0] {
+									case 'e': // Prefix: "exclusions"
+
+										if l := len("exclusions"); len(elem) >= l && elem[0:l] == "exclusions" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = ScanningPostScanningSafetyExclusionsOperation
+												r.summary = "Add one exclusion where the person is (\"+ New exclusion\" in a dialog, #842), without sending the whole block: read, append and save in one transaction. 400 bad_exclusion as PUT /scanning/safety, and too_many_exclusions when the list would grow past 200. An entry an exclusion already covers is 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the entry) and publishes inventory.settings.changed: a run that may no longer touch it stops. Returns the whole safety block with its new version"
+												r.operationID = "scanning_post_scanning_safety_exclusions"
+												r.operationGroup = ""
+												r.pathPattern = "/scanning/safety/exclusions"
+												r.args = args
+												r.count = 0
+												return r, true
+											default:
+												return
+											}
+										}
+
+									case 'r': // Prefix: "ranges"
+
+										if l := len("ranges"); len(elem) >= l && elem[0:l] == "ranges" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = ScanningPostScanningSafetyRangesOperation
+												r.summary = "Add one LAN range to the scope where the person is (\"+ New range\" in a dialog, #842), without sending the whole block: read, append and save in one transaction, so it never overwrites another edit. The dialog lists the current ranges and whether they are confirmed with the confirmation tick, and sends both back (shown_ranges, shown_confirmed_at): the tick confirms those ranges and the new one only. 400 as PUT /scanning/safety for a range: no_prefix, bad_cidr, public_range, overlap_range, too_many_ranges (16), and scope_not_confirmed when confirm is not true; 409 scope_changed (with error.safety, the current block) when the stored ranges are not shown_ranges or the stored confirmation is not shown_confirmed_at. A range the confirmed scope already covers is 200 with the block unchanged (no audit row). Audited as the PUT (inventory.settings, naming the range, and saying when the add confirmed a scope that was not confirmed) and publishes inventory.settings.changed. Returns the whole safety block with its new version, and adjusted when the range was normalized"
+												r.operationID = "scanning_post_scanning_safety_ranges"
+												r.operationGroup = ""
+												r.pathPattern = "/scanning/safety/ranges"
+												r.args = args
+												r.count = 0
+												return r, true
+											default:
+												return
+											}
+										}
+
+									}
+
 								}
 
 							}
@@ -18642,7 +18778,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										return r, true
 									case "PUT":
 										r.name = ScanPutScansConfigOperation
-										r.summary = "Save scan settings (partial update); dangerous checks are always rejected"
+										r.summary = "Save scan settings (partial update); dangerous checks are always rejected. 409 safety_changed when the version sent is not the stored one"
 										r.operationID = "scan_put_scans_config"
 										r.operationGroup = ""
 										r.pathPattern = "/scans/config"

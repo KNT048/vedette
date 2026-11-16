@@ -410,5 +410,5 @@ function Content() {
 }
 
 export default function LogsPage() {
-  return <RequireModule module="logs"><Content /></RequireModule>
+  return <RequireModule module="logs" page><Content /></RequireModule>
 }

@@ -342,5 +342,5 @@ function VersionNeededList({ items }: { items: VersionNeeded[] }) {
 }
 
 export default function FindingsPage() {
-  return <RequireModule module="findings"><List /></RequireModule>
+  return <RequireModule module="findings" page><List /></RequireModule>
 }

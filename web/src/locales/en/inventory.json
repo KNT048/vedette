@@ -1066,6 +1066,7 @@
     "add": "Add to scope",
     "confirm": "Confirm",
     "restWhy": "The scan window, speed and fragile types stay as they are.",
-    "rest": "Change them in Scope"
+    "rest": "Change them in Scope",
+    "changed": "Someone changed the scan scope meanwhile. Check the ranges above and tick again."
   }
 }

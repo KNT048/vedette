@@ -322,6 +322,37 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(within(dlg).queryByText(/Enter one IP address/)).toBeNull()
   })
 
+  it('#849, #860: a range outside the scan scope is added from the SNMP method, append-only with what the dialog showed', async () => {
+    const user = userEvent.setup()
+    const bodies: unknown[] = []
+    server.events.on('request:start', async ({ request }) => { if (request.method === 'POST' && new URL(request.url).pathname.endsWith('/scanning/safety/ranges')) bodies.push(await request.clone().json()) })
+    renderApp('/devices?add=snmp')
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    await user.type(await within(dlg).findByLabelText('IP address or range', undefined, T), '10.50.0.0/24')
+    await user.click(await within(dlg).findByRole('button', { name: 'Add 10.50.0.0/24 to the scan scope' }, T))
+    const scope = await screen.findByRole('dialog', { name: 'Add 10.50.0.0/24 to the scan scope' }, T)
+    const shown = inventorySettingsStore.get().lan_ranges
+    await user.click(within(scope).getByRole('checkbox'))
+    await user.click(within(scope).getByRole('button', { name: 'Add to scope' }))
+    await waitFor(() => expect(inventorySettingsStore.get().lan_ranges).toContain('10.50.0.0/24'), T)
+    expect(bodies).toEqual([expect.objectContaining({ range: '10.50.0.0/24', confirm: true, shown_ranges: shown })])
+  })
+
+  it('#860: when the scope changed meanwhile (409 scope_changed) the dialog says so and asks for the tick again; nothing is overwritten', async () => {
+    const user = userEvent.setup()
+    server.use(http.post('*/api/v1/scanning/safety/ranges', () => HttpResponse.json({ error: { code: 'scope_changed', message: 'The scope changed.' } }, { status: 409 })))
+    renderApp('/devices?add=snmp')
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    await user.type(await within(dlg).findByLabelText('IP address or range', undefined, T), '10.50.0.0/24')
+    await user.click(await within(dlg).findByRole('button', { name: 'Add 10.50.0.0/24 to the scan scope' }, T))
+    const scope = await screen.findByRole('dialog', { name: 'Add 10.50.0.0/24 to the scan scope' }, T)
+    await user.click(within(scope).getByRole('checkbox'))
+    await user.click(within(scope).getByRole('button', { name: 'Add to scope' }))
+    expect(await within(scope).findByText(/Someone changed the scan scope meanwhile/, undefined, T)).toBeInTheDocument()
+    expect(within(scope).getByRole('checkbox')).not.toBeChecked()
+    expect(inventorySettingsStore.get().lan_ranges).not.toContain('10.50.0.0/24')
+  })
+
   it('#849 review M1: a viewer\'s old ?tab=add link lands on the list, not on a form that ends in 403', async () => {
     renderApp('/devices?tab=add', { role: 'viewer' })
     await deviceTable()

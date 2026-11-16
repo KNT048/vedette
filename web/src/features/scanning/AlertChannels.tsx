@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
-import { DependencyLink } from '@/components/common/DependencyLink'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Select } from '@/components/ui/input'
@@ -11,11 +10,14 @@ import { useChannels } from '@/features/notify/api'
 import type { Channel } from '@/features/notify/types'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan } from '@/lib/session'
+import { TurnOnModule } from './Fixes'
 
 /**
  * #850 (docs/UI.md §0): where the vulnerability checks' matches go, on the Nuclei card. Matches alert through every channel that is on
  * (there is no per-engine routing), so the card names them and offers "+ New channel" right here: choose the kind, then the same
- * form as Settings › Alert channels (notify's ChannelDialog), saved and switched on there too. A viewer or operator gets the exact link.
+ * form as Settings › Alert channels (notify's ChannelDialog), saved and switched on there too. Alert channels are an administrator's
+ * section: a viewer or operator is told who sets them up, with no link to a page they cannot open; an admin turns notify on here
+ * (#877 r1 L7).
  */
 export function AlertChannels() {
   const { t } = useTranslation('scanning')
@@ -25,8 +27,8 @@ export function AlertChannels() {
   const [choosing, setChoosing] = useState(false)
   const [kind, setKind] = useState('')
   const [editing, setEditing] = useState<Channel | null>(null)
-  if (!on) return <DependencyLink reason={t('alerts.notifyOff')} to="/settings/modules" label={t('alerts.notifyOffLink')} />
-  if (!admin) return <DependencyLink reason={t('alerts.reason')} to="/settings/channels#channels" label={t('alerts.link')} />
+  if (!admin) return <p className="text-meta text-muted">{t('alerts.askAdmin')}</p>
+  if (!on) return <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-meta"><span className="text-muted">{t('alerts.notifyOff')}</span><TurnOnModule module="notify" name={t('common:modules.notify.name')} /></div>
   const list = q.data?.channels ?? []
   const live = list.filter((c) => c.configured && c.enabled).map((c) => t(`notify:ch.${c.type}`))
   const free = list.filter((c) => !c.configured)

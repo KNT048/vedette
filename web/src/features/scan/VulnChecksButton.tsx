@@ -21,7 +21,7 @@ const MAX = 200
  * device the box may check without a person's own pick (never the box, never a fragile, unclassified or hand-added one); more than
  * 200 is said, never cut. Its progress shows under the button and the run opens in Settings › Scanning › History.
  */
-export function VulnChecksButton({ targets, size = 'sm' }: { targets: string[] | 'lan'; size?: 'sm' | 'md' }) {
+export function VulnChecksButton({ targets, size = 'sm', label, showProgress = true }: { targets: string[] | 'lan'; size?: 'sm' | 'md'; label?: string; /** Show the progress card under the button (default true); off where the page already shows the run (#877 r1 L12). */ showProgress?: boolean }) {
   const { t } = useTranslation('scan')
   const on = useModuleEnabled('scan') === true
   const can = useCan('operator')
@@ -39,17 +39,18 @@ export function VulnChecksButton({ targets, size = 'sm' }: { targets: string[] |
     : live && !ours ? t('checks.otherRunning')
     : runs.data?.engine_busy ? t('start.engineBusy')
     : targets === 'lan' && all.data && ids.length === 0 ? t('checks.none')
+    : targets !== 'lan' && ids.length === 0 ? t('start.none')
     : ids.length > MAX ? t('start.tooMany', { max: MAX, count: ids.length }) : null
   return (
     <div className="grid min-w-0 gap-2">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Button size={size} disabled={!!blocked || !!ours || start.isPending || (targets === 'lan' && !all.data)}
           onClick={() => start.mutate(ids, { onSuccess: (r) => { setMine(r.id); toast.success(t('start.started')) }, onError: (e) => toast.error(errMsg(e)) })}>
-          <ShieldCheck />{ours || start.isPending ? t('checks.running') : t('checks.button')}
+          <ShieldCheck />{ours || start.isPending ? t('checks.running') : label ?? t('checks.button')}
         </Button>
         {blocked && !ours ? <span className="text-meta text-muted">{blocked}{live && !ours ? <> <Link to={runHref(live.id)} className="text-accent underline-offset-4 hover:underline">{t('checks.openRun')}</Link></> : null}</span> : null}
       </div>
-      {ours ? (
+      {ours && showProgress ? (
         <Card className="grid gap-2">
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span className="font-medium">{t('progress.device', { n: Math.min(ours.done + 1, ours.total), total: ours.total })}</span>
@@ -57,7 +58,7 @@ export function VulnChecksButton({ targets, size = 'sm' }: { targets: string[] |
           </div>
           {ours.status === 'stopping' ? null : <JobProgress progress={ours.progress} />}
         </Card>
-      ) : mine && live === undefined && runs.data ? <p role="status" className="text-meta text-muted">{t('checks.finished')} <Link to={runHref(mine)} className="text-accent underline-offset-4 hover:underline">{t('checks.openRun')}</Link></p> : null}
+      ) : ours ? null : mine && live === undefined && runs.data ? <p role="status" className="text-meta text-muted">{t('checks.finished')} <Link to={runHref(mine)} className="text-accent underline-offset-4 hover:underline">{t('checks.openRun')}</Link></p> : null}
     </div>
   )
 }

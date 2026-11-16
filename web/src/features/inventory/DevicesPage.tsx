@@ -30,7 +30,8 @@ import { PendingPanel } from './PendingPanel'
 import type { DeviceRow } from './types'
 
 /** Where the scan feature (#850) plugs "Scan selected" / "Scan the LAN now" into the Devices list: a component registered as
- *  `slots['devices.actions']` gets `{ selectedIds: string[]; clearSelection: () => void }`. While nothing is registered the list has
+ *  `slots['devices.actions']` gets `{ selectedIds: string[]; selected: DeviceRow[]; clearSelection: () => void }` (selected: the rows
+ *  themselves, so a button can leave out the devices it may not touch and say why, #877 r1 M2). While nothing is registered the list has
  *  no selection column. The device page has `device.actions` (`{ assetId }`) for "Check this device now". */
 export const DEVICES_ACTIONS_SLOT = 'devices.actions'
 
@@ -227,7 +228,7 @@ function DevicesList({ rows, now, query }: { rows: DeviceRow[]; now: number; que
     <section aria-label={t('tabs.devices')} className="grid min-w-0 gap-3">
       <DeviceSearch rows={rows} now={now} query={query} />
       <MatchLine q={q} shown={shown.length} total={rows.length} onClear={clear} />
-      {selecting ? <div className="flex flex-wrap items-center gap-2"><Slot name={DEVICES_ACTIONS_SLOT} props={{ selectedIds: [...sel], clearSelection: ops.clear }} /></div> : null}
+      {selecting ? <div className="flex flex-wrap items-center gap-2"><Slot name={DEVICES_ACTIONS_SLOT} props={{ selectedIds: [...sel], selected: rows.filter((d) => sel.has(d.id)), clearSelection: ops.clear }} /></div> : null}
       <DataTable caption={t('table.caption')} data={shown} columns={columns} initialSort={[{ id: 'seen', desc: true }]}
         onRowClick={(d) => void navigate(`/devices/${d.id}`)}
         empty={t('table.emptyApproved')} filtered={!!q} onClearFilters={clear}

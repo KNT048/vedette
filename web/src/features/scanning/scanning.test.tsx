@@ -5,7 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { makeQueryClient } from '@/app/App'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
-import { auditStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { assetsStore, auditStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { inventorySettingsStore } from '@/features/inventory/mocks'
 import { scanningPoll } from './api'
 import { ScanNowButton, ScansRunningIndicator } from './ScanNow'
@@ -86,7 +86,7 @@ describe('Settings › Scanning: every engine on one page (#850, D-627)', () => 
   it('a deep link opens the engine\'s own settings: SNMP credentials on the SNMP card', async () => {
     renderApp('/settings/scanning#snmp')
     const row = await card(/SNMP reading/)
-    expect(within(row).getByRole('button', { name: 'Settings' })).toHaveAttribute('aria-expanded', 'true')
+    expect(within(row).getByRole('button', { name: 'Settings of SNMP reading' })).toHaveAttribute('aria-expanded', 'true') // r1 L11: named
     expect(await within(row).findByRole('heading', { name: 'SNMP credentials' })).toBeInTheDocument()
   })
 
@@ -297,5 +297,102 @@ describe('#860: the scope dialog adds one range atomically and never overwrites 
     expect(inventorySettingsStore.get().scope_confirmed_at).toBeNull()
     expect(within(dlg).getByRole('checkbox', { name: /I confirm these network ranges/ })).not.toBeChecked()
     expect(await within(dlg).findByText('10.99.0.0/24')).toBeInTheDocument()
+  })
+})
+
+describe('#877 review r1', () => {
+  /** The requests a test cares about, with their JSON body. */
+  async function capture(match: (method: string, path: string) => boolean) {
+    const { server } = await import('@/test/server')
+    const sent: { path: string; body: Record<string, unknown> }[] = []
+    server.events.on('request:start', async ({ request }) => {
+      const path = new URL(request.url).pathname
+      if (match(request.method, path)) sent.push({ path, body: await request.clone().json() as Record<string, unknown> })
+    })
+    return { sent, stop: () => server.events.removeAllListeners() }
+  }
+
+  it('M1: a background read while the scope dialog is open never changes the list under the tick; the save is refused and the new list asked again', async () => {
+    unconfirm()
+    sessionStore.set({ userId: 'u-admin' })
+    const qc = makeQueryClient()
+    const router = createMemoryRouter([{ path: '*', element: <ScanNowButton targets="lan" /> }], { initialEntries: ['/devices'] })
+    render(<QueryClientProvider client={qc}><RouterProvider router={router} /></QueryClientProvider>)
+    await userEvent.click(await screen.findByRole('button', { name: 'Set the network ranges' }))
+    const dlg = await screen.findByRole('dialog', { name: 'Network ranges you may scan' })
+    await userEvent.click(within(dlg).getByRole('checkbox', { name: /I confirm these network ranges/ }))
+    inventorySettingsStore.update((st) => ({ ...st, lan_ranges: [...st.lan_ranges, '10.99.0.0/24'] })) // another admin
+    await qc.invalidateQueries({ queryKey: ['scanning'] }) // the page's regular read
+    expect(qc.getQueryData<{ safety: { scope: { lan_ranges: string[] } } }>(['scanning'])!.safety.scope.lan_ranges).toContain('10.99.0.0/24')
+    expect(within(dlg).queryByText('10.99.0.0/24')).toBeNull() // the list under the tick is the one the admin saw
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Confirm these ranges' }))
+    expect(await within(dlg).findByText(/The ranges changed since this dialog opened/)).toBeInTheDocument()
+    expect(inventorySettingsStore.get().scope_confirmed_at).toBeNull()
+    expect(within(dlg).getByText('10.99.0.0/24')).toBeInTheDocument()
+    expect(within(dlg).getByRole('checkbox', { name: /I confirm these network ranges/ })).not.toBeChecked()
+  })
+
+  it('M2: Select all → Scan selected leaves out the box and devices added by hand, says so, and the run starts', async () => {
+    const pc = assetsStore.get().find((a) => a.id === 'a-pc01')!
+    assetsStore.update((l) => [...l, { ...pc, id: 'a-man1', ip: '192.168.10.240', mac: null, hostname: 'MAN-ONE', origin: 'manual' }])
+    const cap = await capture((m, p) => m === 'POST' && p.endsWith('/scanning/engines/nmap-discovery/run'))
+    renderApp('/devices')
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Select every device shown' }, { timeout: 4000 }))
+    expect(await screen.findByText('Not in Scan selected: the Vedette box, 1 added by hand.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /^Scan selected \(\d+\)$/ }))
+    await waitFor(() => expect(cap.sent).toHaveLength(1))
+    cap.stop()
+    const targets = cap.sent[0]!.body.targets as string[]
+    expect(targets).not.toContain('a-box')
+    expect(targets).not.toContain('a-man1')
+    expect(targets).toContain('a-web01')
+  })
+
+  it('M5: "Run vulnerability checks on selected" sends the selection; a fragile device goes only when ticked by name (D-126)', async () => {
+    const cap = await capture((m, p) => m === 'POST' && p.endsWith('/scans/runs'))
+    renderApp('/devices')
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Select WEB01' }, { timeout: 4000 }))
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Select NAS-PHOTOS' }))
+    expect(await screen.findByRole('button', { name: 'Run vulnerability checks on selected (1)' })).toBeEnabled()
+    const pick = screen.getByRole('group', { name: /1 selected device is checked only if you tick it here/ })
+    await userEvent.click(within(pick).getByRole('checkbox', { name: 'NAS-PHOTOS' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Run vulnerability checks on selected (2)' }))
+    await waitFor(() => expect(cap.sent).toHaveLength(1))
+    cap.stop()
+    expect(cap.sent[0]!.body).toEqual({ targets: ['a-web01', 'a-nas02'] })
+  })
+
+  it('L6: the box\'s own page says why it is not checked instead of a button that always fails', async () => {
+    renderApp('/devices/a-box')
+    expect(await screen.findByText('The Vedette box itself is never part of a network scan.', {}, { timeout: 4000 })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Check this device now' })).toBeNull()
+  })
+
+  it('M4: a 409 keeps what was typed, takes the other admin\'s change, says what it was, and the second save stores both', async () => {
+    renderApp('/settings/scanning?tab=safety')
+    const ex = await screen.findByLabelText('One IP or network per line')
+    await userEvent.clear(ex)
+    await userEvent.type(ex, '192.168.10.250')
+    inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, from: '21:00' } })) // another admin, meanwhile
+    await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
+    const note = (await screen.findByText(/^Someone else saved these settings after you opened this page/)).closest('[role=alert]')!
+    expect(note).toHaveTextContent(/Time window: changed by them, now .*21:00/)
+    expect(screen.getByLabelText('One IP or network per line')).toHaveValue('192.168.10.250')
+    expect(screen.getByLabelText('From')).toHaveValue('21:00')
+    await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
+    await waitFor(() => expect(inventorySettingsStore.get().active).toMatchObject({ from: '21:00', exclusions: ['192.168.10.250'] }))
+  })
+
+  it('M3: Devices › Scope and sensors sends the version it read, so a change made since is refused, never overwritten', async () => {
+    const cap = await capture((m, p) => m === 'PUT' && p.endsWith('/inventory/settings'))
+    renderApp('/devices/setup?tab=scope')
+    await userEvent.selectOptions(await screen.findByLabelText('Scan speed', {}, { timeout: 4000 }), '200')
+    inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, exclusions: ['192.168.10.99'] } })) // an inline add, meanwhile
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    await waitFor(() => expect(cap.sent).toHaveLength(1))
+    cap.stop()
+    expect(typeof cap.sent[0]!.body.version).toBe('string')
+    expect(await screen.findByText(/since you opened this page, so nothing was saved/)).toBeInTheDocument()
+    expect(inventorySettingsStore.get().active).toMatchObject({ rate: 50, exclusions: ['192.168.10.99'] })
   })
 })

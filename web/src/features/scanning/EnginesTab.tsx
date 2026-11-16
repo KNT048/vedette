@@ -33,13 +33,16 @@ import type { Engine, EngineId, Scanning } from './types'
 const GROUPS = ['discover', 'identify', 'vuln', 'traps'] as const
 const STATE_TONE: Record<Engine['state'], Tone> = { off: 'off', needs_setup: 'warn', starting: 'accent', ready: 'ok', running: 'accent', error: 'danger', unavailable: 'off' }
 
-/** Where an engine's own settings live when they are not on its card (docs/UI.md §0: the exact tab and field). */
+/** Where an engine's own settings live when they are not on its card (docs/UI.md §0: the exact tab and field). #sensors and #agents
+ *  are Devices › Setup's old hashes (OldHashToTab drops them): the tab, or a field id of it (#877 r1 L8). */
 const PLACE: Partial<Record<EngineId, string>> = {
-  passive: '/devices/setup?tab=sensor#sensors',
+  passive: '/devices/setup?tab=sensor',
   'nmap-versions': '/settings/scanning?tab=safety#fragile',
-  osquery: '/devices/setup?tab=agents#agents', wazuh: '/devices/setup?tab=agents#agents',
+  osquery: '/devices/setup?tab=agents', wazuh: '/devices/setup?tab=agents#wazuh-url',
   zap: '/exposure?tab=targets#targets', honeypot: '/honeypot?tab=trap-ips',
 }
+/** Devices › Setup is an administrator's page (a forbidden page for the others): its links are not offered to them (#877 r1 L8). */
+const ADMIN_PLACE = (to: string) => to.startsWith('/devices/setup')
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 const mb = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)} GB` : `${n} MB`)
@@ -181,10 +184,13 @@ function EngineRow({ e, d, open, onOpen }: { e: Engine; d: Scanning; open: boole
   })
   // turning off names what stops with it (affects) and a run that ends; turning on asks only when modules must come too
   const onSwitch = (v: boolean) => (v ? change(true) : e.affects.length || running ? setAsk({ off: true }) : change(false))
-  const own: ReactNode = e.id === 'snmp' ? (admin ? <SnmpSection /> : <p className="text-meta text-muted">{t('own.snmpAdmin')}</p>)
+  // a module that is off has no settings to show (SnmpSection is empty without sensor-active, GreenboneSetting fails without
+  // exposure): the card's own reason and switch say what to do instead (#877 r1 L9)
+  const snmpOn = useModuleEnabled('sensor-active') === true
+  const own: ReactNode = e.id === 'snmp' ? (!snmpOn ? null : admin ? <SnmpSection /> : <p className="text-meta text-muted">{t('own.snmpAdmin')}</p>)
     : e.id === 'nuclei' && e.enabled ? <NucleiSettings />
-    : e.id === 'openvas' ? <GreenboneSetting embedded /> : null
-  const place = PLACE[e.id]
+    : e.id === 'openvas' && exposureOn === true ? <GreenboneSetting embedded /> : null
+  const place = PLACE[e.id] && (admin || !ADMIN_PLACE(PLACE[e.id]!)) ? PLACE[e.id] : undefined
   return (
     <li id={`engine-${e.id}`} aria-labelledby={nameId} className="grid scroll-mt-24 gap-3 px-4 py-4">
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
@@ -211,11 +217,12 @@ function EngineRow({ e, d, open, onOpen }: { e: Engine; d: Scanning; open: boole
       {noDays ? <DependencyLink reason={t('fix.noDays')} to="/settings/scanning?tab=safety#win-from" label={t('fix.noDaysLink')} /> : null}
       <div className="flex flex-wrap items-center gap-3"><SetupFix e={e} d={d} />{exposureOff ? <TurnOnModule module="exposure" name={t('common:modules.exposure.name')} /> : null}</div>
       <Runs e={e} d={d} />
-      {e.id === 'nmap-discovery' && e.state !== 'needs_setup' ? <ScanNowButton targets="lan" variant="secondary" size="sm" /> : null}
-      {e.id === 'nuclei' && e.enabled ? <VulnChecksButton targets="lan" /> : null}
+      {/* the card's Runs already show the run's progress: the button does not repeat it (#877 r1 L12) */}
+      {e.id === 'nmap-discovery' && e.state !== 'needs_setup' ? <ScanNowButton targets="lan" variant="secondary" size="sm" showProgress={false} /> : null}
+      {e.id === 'nuclei' && e.enabled ? <VulnChecksButton targets="lan" showProgress={false} /> : null}
       {own ? (
         <div className="grid gap-3">
-          <Button variant="ghost" size="sm" className="w-fit" aria-expanded={open} aria-controls={panelId} onClick={() => onOpen(!open)}>
+          <Button variant="ghost" size="sm" className="w-fit" aria-expanded={open} aria-controls={panelId} aria-label={t('settingsOf', { name: name(e.id) })} onClick={() => onOpen(!open)}>
             <ChevronDown className={open ? 'rotate-180' : ''} aria-hidden />{t('settings')}
           </Button>
           {open ? <div id={panelId} className="min-w-0 border-l-2 border-rule pl-4">{own}</div> : null}

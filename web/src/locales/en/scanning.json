@@ -101,6 +101,7 @@
   "follows": "Follows {{name}}",
   "noSwitch": "Runs with each scan of a public target",
   "settings": "Settings",
+  "settingsOf": "Settings of {{name}}",
   "adminOnly": "Only an administrator can turn engines on or off.",
   "box": {
     "memory": "The engines that are on hold up to {{used}} of this box's {{total}} of memory."
@@ -165,8 +166,6 @@
     "snmpAdmin": "SNMP credentials need the Admin role."
   },
   "alerts": {
-    "reason": "Matches are sent through your alert channels.",
-    "link": "Check or add a channel: Settings, Alert channels",
     "sentTo": "Matches alert you through: {{list}}.",
     "none": "No alert channel is on: matches only show on the pages.",
     "new": "New channel",
@@ -176,7 +175,7 @@
     "continue": "Continue",
     "added": "{{name}} saved",
     "notifyOff": "Alerts need the Notifications module.",
-    "notifyOffLink": "Turn it on: Settings, Modules"
+    "askAdmin": "Matches are sent through your alert channels; an administrator sets them up."
   },
   "nucleiOff": "History and the probe log are those of the vulnerability checks (Nuclei, Preview), which are off.",
   "nucleiOffLink": "Turn them on: Engines, Vulnerability checks",
@@ -245,7 +244,13 @@
     "save": "Save settings",
     "saved": "Safety settings saved",
     "savedAdjusted": "Safety settings saved. Adjusted: {{list}}",
-    "changedElsewhere": "Someone else changed these settings since you opened this page, so nothing was saved. The current values are shown again: check them and save."
+    "changedElsewhere": "Someone else saved these settings after you opened this page, so nothing was saved yet.",
+    "merge": {
+      "taken": "{{part}}: changed by them, now {{value}}. Shown below.",
+      "bothChanged": "{{part}}: you both changed it. Your edit is kept below; theirs is {{value}}.",
+      "saveAgain": "Everything you typed is still in the form. Check it, then save again.",
+      "none": "none"
+    }
   },
   "scanNow": {
     "device": "Check this device now",
@@ -275,5 +280,50 @@
     "devices": "Devices",
     "body": "Vedette identifies the device again now (open ports, services and their versions), inside your scope and safety settings, then compares it with the exploited vulnerabilities.",
     "open": "Open {{name}}"
+  },
+  "selection": {
+    "nmap": {
+      "leftOut": "Not in Scan selected: {{list}}.",
+      "box_one": "the Vedette box",
+      "box_other": "the Vedette box",
+      "no_ip_one": "{{count}} without an IP address",
+      "no_ip_other": "{{count}} without an IP address",
+      "manual_one": "{{count}} added by hand",
+      "manual_other": "{{count}} added by hand",
+      "never_one": "{{count}} set to never scan",
+      "never_other": "{{count}} set to never scan",
+      "out_of_scope_one": "{{count}} outside the network ranges or excluded",
+      "out_of_scope_other": "{{count}} outside the network ranges or excluded"
+    },
+    "vuln": {
+      "leftOut": "Not in the vulnerability checks: {{list}}.",
+      "button_one": "Run vulnerability checks on selected ({{count}})",
+      "button_other": "Run vulnerability checks on selected ({{count}})",
+      "handPick_one": "{{count}} selected device is checked only if you tick it here (fragile, not classified yet, added by hand, or the box itself):",
+      "handPick_other": "{{count}} selected devices are checked only if you tick them here (fragile, not classified yet, added by hand, or the box itself):",
+      "unapproved_one": "{{count}} not approved yet",
+      "unapproved_other": "{{count}} not approved yet",
+      "excluded_one": "{{count}} excluded",
+      "excluded_other": "{{count}} excluded",
+      "out_of_scope_one": "{{count}} outside the confirmed scope",
+      "out_of_scope_other": "{{count}} outside the confirmed scope",
+      "no_ip_one": "{{count}} without an IP address",
+      "no_ip_other": "{{count}} without an IP address",
+      "regular_scan_never_one": "{{count}} set to never scan",
+      "regular_scan_never_other": "{{count}} set to never scan",
+      "unverified_one": "{{count}} not verified",
+      "unverified_other": "{{count}} not verified",
+      "expired_one": "{{count}} with an expired verification",
+      "expired_other": "{{count}} with an expired verification",
+      "not_supported_one": "{{count}} not supported",
+      "not_supported_other": "{{count}} not supported"
+    },
+    "device": {
+      "box": "The Vedette box itself is never part of a network scan.",
+      "no_ip": "No IP address yet, so network discovery cannot check it. Add its IP on this page.",
+      "manual": "Added by hand: network discovery does not check it. Its details are edited on this page.",
+      "never": "Set to never scan: network discovery does not check it.",
+      "out_of_scope": "Outside the network ranges or excluded: network discovery does not check it. Settings, Scanning, Safety holds the ranges."
+    }
   }
 }

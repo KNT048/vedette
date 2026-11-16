@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Notice } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
@@ -11,8 +12,14 @@ import { ApiError } from '@/lib/api'
 import type { ModuleId } from '@/lib/modules'
 import { useCan } from '@/lib/session'
 import { useAddRange, useScanning } from './api'
+import type { Safety } from './types'
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
+
+/** What the dialog shows next to the tick: frozen when it opens (#877 r1 M1), so a page read in the background (every 30 s, 5 s
+ *  during a run) never puts ranges under a tick the admin gave for another list. Taken again only from a 409's current block. */
+type Shown = { ranges: string[]; at: string | null; by: string | null }
+const shownOf = (s: Safety): Shown => ({ ranges: s.scope.lan_ranges, at: s.scope.confirmed_at, by: s.scope.confirmed_by ?? null })
 
 /**
  * "Do it where you are" (docs/UI.md §0): the LAN ranges and the commitment that they may be scanned, from any place that needs
@@ -30,19 +37,26 @@ export function ScopeDialog({ open, onOpenChange, onSaved }: { open: boolean; on
   const [confirmed, setConfirmed] = useState(false)
   const [error, setError] = useState<{ message: string; code?: string } | null>(null)
   const id = useId()
-  const shown = s?.scope.lan_ranges ?? []
+  const [frozen, setFrozen] = useState<Shown | null>(null)
+  if (!frozen && s) setFrozen(shownOf(s))
+  const shown = frozen?.ranges ?? []
   // a new range, or (none typed) the first range shown: then the tick confirms the list as it is
   const sent = range.trim() || shown[0] || ''
-  const close = (v: boolean) => { if (!v) { setRange(''); setConfirmed(false); setError(null) } onOpenChange(v) }
+  const close = (v: boolean) => { if (!v) { setRange(''); setConfirmed(false); setError(null); setFrozen(null) } onOpenChange(v) }
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!s || !sent) return
+    if (!frozen || !sent) return
     setError(null)
-    add.mutate({ range: sent, confirm: confirmed, shown_ranges: shown, shown_confirmed_at: s.scope.confirmed_at }, {
+    add.mutate({ range: sent, confirm: confirmed, shown_ranges: shown, shown_confirmed_at: frozen.at }, {
       onSuccess: () => { toast.success(t('scope.saved')); close(false); onSaved?.() },
       onError: (err) => {
         const code = err instanceof ApiError ? err.code : undefined
-        if (code === 'scope_changed') setConfirmed(false) // the list shown is read again: the tick must be given again for it
+        if (code === 'scope_changed') {
+          // the list shown is the current one from the 409 (or the next read): the tick must be given again for it
+          const cur = err instanceof ApiError ? (err.details.safety as Safety | undefined) : undefined
+          setFrozen(cur ? shownOf(cur) : null)
+          setConfirmed(false)
+        }
         setError({ message: errMsg(err), code })
       },
     })
@@ -56,7 +70,7 @@ export function ScopeDialog({ open, onOpenChange, onSaved }: { open: boolean; on
             {shown.length ? (
               <ul aria-label={t('scope.current')} className="grid gap-0.5 text-sm tabular-nums">{shown.map((r) => <li key={r}>{r}</li>)}</ul>
             ) : <p className="text-meta text-muted">{t('scope.noneYet')}</p>}
-            <p className="text-meta text-muted">{s?.scope.confirmed_at ? t('scope.confirmedBy', { by: s.scope.confirmed_by ?? '' }) : t('scope.notConfirmed')}</p>
+            <p className="text-meta text-muted">{frozen?.at ? t('scope.confirmedBy', { by: frozen.by ?? '' }) : t('scope.notConfirmed')}</p>
           </div>
           <Field htmlFor={`${id}-range`} label={shown.length ? t('scope.addOptional') : t('scope.add')} hint={t('scope.rangesHint')}>
             <Input id={`${id}-range`} spellCheck={false} value={range} placeholder="192.168.10.0/24" onChange={(e) => setRange(e.target.value)} />
@@ -68,7 +82,7 @@ export function ScopeDialog({ open, onOpenChange, onSaved }: { open: boolean; on
           {error ? <Notice tone={error.code === 'scope_changed' ? 'warn' : 'danger'} role="alert" className="mb-0" title={error.code === 'scope_changed' ? t('scope.changed') : error.message} /> : null}
           <DialogFooter>
             <Button onClick={() => close(false)}>{t('common:cancel')}</Button>
-            <Button type="submit" variant="primary" disabled={!s || add.isPending || !confirmed || !sent}>{range.trim() ? t('scope.save') : t('scope.confirmOnly')}</Button>
+            <Button type="submit" variant="primary" disabled={!frozen || add.isPending || !confirmed || !sent}>{range.trim() ? t('scope.save') : t('scope.confirmOnly')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -93,10 +107,15 @@ export function TurnOnModule({ module, name }: { module: ModuleId; name: string 
   const { t } = useTranslation('scanning')
   const admin = useCan('admin')
   const toggle = useToggleModule()
+  const qc = useQueryClient()
   const [missing, setMissing] = useState<ModuleId[] | null>(null)
   if (!admin) return null
   const go = (withDependencies: boolean) => toggle.mutate({ id: module, enabled: true, withDependencies }, {
-    onSuccess: (r) => { if (r.kind === 'missing') setMissing(r.missing); else { setMissing(null); toast.success(t('module.on', { name })) } },
+    onSuccess: (r) => { if (r.kind === 'missing') setMissing(r.missing); else {
+      setMissing(null); toast.success(t('module.on', { name }))
+      // the engine cards read GET /scanning (and exposure's own pages): their state and switch move now, not at the next poll (#877 r1 L10)
+      for (const k of ['scanning', 'exposure']) void qc.invalidateQueries({ queryKey: [k] })
+    } },
     onError: (e) => toast.error(e instanceof ApiError ? e.message : errMsg(e)),
   })
   return (

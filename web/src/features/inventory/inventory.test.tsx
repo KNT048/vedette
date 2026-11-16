@@ -460,7 +460,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     assetsStore.set([])
     server.use(http.get('*/api/v1/inventory/settings', () => HttpResponse.json({ ...inventorySettingsStore.get(), lan_ranges: [] })))
     renderApp('/devices')
-    expect(await screen.findByRole('link', { name: "Set the box's network ranges" }, T)).toHaveAttribute('href', '/devices/setup')
+    expect(await screen.findByRole('link', { name: "Set the box's network ranges" }, T)).toHaveAttribute('href', '/devices/setup?tab=scope#range-input') // straight to the range field (#842 deep link)
   })
 
   it('the setup page does not ask for agents while agent-intake is off', async () => {

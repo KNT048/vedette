@@ -10,7 +10,8 @@ import { useModuleEnabled } from '@/lib/modules'
 import { useCan, useMe } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { AddDialog } from './AddDialog'
-import { SelectWithNew, TurnOnModule } from './Inline'
+import { TurnOnModule } from './Inline'
+import { CreatableSelect } from '@/components/common/CreatableSelect'
 import { SnmpNext } from './SnmpNext'
 import { useDeviceAction, useSnmp, useSnmpActions } from './api'
 import { nameOf } from './nameOf'
@@ -76,9 +77,11 @@ function SnmpRead({ ip }: { ip: string }) {
     <div className="grid min-w-0 gap-2">
       <form onSubmit={submit} noValidate className="flex flex-wrap items-end gap-2">
         <Field label={t('sources.snmp.credential')} htmlFor="device-snmp-cred">
-          <SelectWithNew id="device-snmp-cred" className="w-auto" value={chosen} onChange={(id) => { setCred(id); setResult(null) }}
+          <CreatableSelect id="device-snmp-cred" className="w-auto" value={chosen} onChange={(id) => { setCred(id); setResult(null) }}
             options={creds.map((c) => ({ value: c.id, label: credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`)) }))}
-            newLabel={t('addDialog.snmp.newCredential')} onNew={addNew} />
+            newLabel={t('addDialog.snmp.newCredential')} canCreate={creds.length < SNMP_MAX}
+            renderCreate={(p) => (p.open ? <CredentialDialog current={null} scope={ip} onClose={() => p.onOpenChange(false)}
+              onSaved={(c) => { p.onCreated({ value: c.id, label: credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`)) }); saved(c) }} /> : null)} />
         </Field>
         <Button type="submit" size="sm" variant="primary" disabled={test.isPending}>{test.isPending ? t('snmp.run.running') : t('sources.snmp.read')}</Button>
         {chosenCred ? <Button size="sm" variant="link" onClick={() => setForm({ current: chosenCred, scope: chosenCred.scope.join('\n'), widen: false })}>{t('addDialog.snmp.editCredential', { name: chosenCred.name })}</Button> : null}

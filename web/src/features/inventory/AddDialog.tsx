@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Cable, FileSpreadsheet, PenLine, RadioTower, ServerCog, type LucideIcon } from 'lucide-react'
 import { Notice } from '@/components/common/PageHeader'
 import { InfoTip } from '@/components/common/InfoTip'
+import { CreatableSelect } from '@/components/common/CreatableSelect'
 import { QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { RadioGroup, RadioItem } from '@/components/ui/checkbox'
@@ -15,7 +16,7 @@ import { AddForm } from './AddDeviceDialog'
 import { OsqueryEnrol, WazuhForm } from './AgentsSection'
 import { AddToScopeDialog, inRanges } from './AddToScopeDialog'
 import { useAgents, useDevices, useSettings, useSnmp, useSnmpActions } from './api'
-import { SelectWithNew, TurnOnModule } from './Inline'
+import { TurnOnModule } from './Inline'
 import { SnmpNext } from './SnmpNext'
 import { ImportForm } from './ImportDialog'
 import { credentialLabel, errMsg } from './kinds'
@@ -118,9 +119,11 @@ function SnmpMethod() {
           </Field>
           <div className="grid content-start gap-1.5">
             <Field label={t('sources.snmp.credential')} htmlFor={credId}>
-              <SelectWithNew id={credId} value={chosen?.id ?? ''} onChange={(id) => { setCred(id); setResult(null) }}
+              <CreatableSelect id={credId} value={chosen?.id ?? ''} onChange={(id) => { setCred(id); setResult(null) }}
                 options={creds.map((c) => ({ value: c.id, label: credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`)) }))}
-                newLabel={t('addDialog.snmp.newCredential')} onNew={creds.length < 8 ? () => setForm({ current: null, scope: isIp || isRange ? v : undefined }) : undefined} />
+                newLabel={t('addDialog.snmp.newCredential')} canCreate={creds.length < 8}
+                renderCreate={(p) => (p.open ? <CredentialDialog current={null} scope={isIp || isRange ? v : undefined} onClose={() => p.onOpenChange(false)}
+                  onSaved={(c) => { p.onCreated({ value: c.id, label: credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`)) }); saved(c) }} /> : null)} />
             </Field>
             {chosen ? <div><Button size="sm" variant="link" onClick={() => setForm({ current: chosen })}>{t('addDialog.snmp.editCredential', { name: chosen.name })}</Button></div> : null}
           </div>

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
 import { AddToScopeDialog } from './AddToScopeDialog'
 import { useDeviceAction } from './api'
-import { NeedLink } from './Inline'
+import { DependencyLink } from '@/components/common/DependencyLink'
 import { errMsg } from './kinds'
 import type { SnmpCredential, SnmpTestResult } from './types'
 
@@ -18,7 +18,7 @@ export function SnmpNext({ r, ip, cred, onWiden, onEdit, onRetry }: {
   const approve = useDeviceAction(r.device_id ?? '').approve
   const admin = useCan('admin')
   const [toScope, setToScope] = useState<string | null | false>(false)
-  const scope = '/devices/setup?tab=scope'
+  const scope = '/devices/setup?tab=scope#range-input' // the range field of Scope (useDeepLinkTarget focuses it)
   const scopeDialog = toScope !== false ? <AddToScopeDialog entry={toScope} onClose={() => setToScope(false)} onDone={onRetry} /> : null
   switch (r.reason) {
     case 'not_for_this_credential':
@@ -36,19 +36,18 @@ export function SnmpNext({ r, ip, cred, onWiden, onEdit, onRetry }: {
       ) : null
     case 'out_of_scope': case 'scope_not_confirmed': {
       const entry = r.reason === 'out_of_scope' ? ip : null
-      if (!admin) return <NeedLink reason={t('snmpNext.scopeWhy')} to={scope} label={t('snmpNext.scope')} />
+      if (!admin) return <DependencyLink reason={t('snmpNext.scopeWhy')} to={scope} label={t('snmpNext.scope')} />
       return (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <Button size="sm" variant="primary" onClick={() => setToScope(entry)}>{entry ? t('snmpNext.addToScope', { ip }) : t('snmpNext.confirmScope')}</Button>
-          <NeedLink reason="" to={scope} label={t('snmpNext.scope')} />
           {scopeDialog}
         </div>
       )
     }
     case 'scanning_off':
-      return <NeedLink reason={t('snmpNext.scanningWhy')} to={scope} label={t('snmpNext.scanning')} />
+      return <DependencyLink reason={t('snmpNext.scanningWhy')} to={scope} label={t('snmpNext.scanning')} />
     case 'regular_scan_never':
-      return r.device_id ? <NeedLink reason={t('snmpNext.neverWhy')} to={`/devices/${encodeURIComponent(r.device_id)}`} label={t('snmpNext.never')} /> : null
+      return r.device_id ? <DependencyLink reason={t('snmpNext.neverWhy')} to={`/devices/${encodeURIComponent(r.device_id)}`} label={t('snmpNext.never')} /> : null
     case 'not_in_inventory':
       return <p className="text-[13px] text-muted">{t('addDialog.snmp.notListed')}</p>
     default:

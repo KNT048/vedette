@@ -7733,6 +7733,10 @@ func (s *AiGetAiProfilesOKItemsItem) encodeFields(e *jx.Encoder) {
 		s.KeyLast4.Encode(e)
 	}
 	{
+		e.FieldStart("key_lost")
+		e.Bool(s.KeyLost)
+	}
+	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -7766,19 +7770,20 @@ func (s *AiGetAiProfilesOKItemsItem) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfAiGetAiProfilesOKItemsItem = [12]string{
+var jsonFieldsNameOfAiGetAiProfilesOKItemsItem = [13]string{
 	0:  "api_style",
 	1:  "base_url",
 	2:  "id",
 	3:  "key_last4",
-	4:  "kind",
-	5:  "last_test",
-	6:  "location",
-	7:  "model",
-	8:  "monthly_budget",
-	9:  "name",
-	10: "usable",
-	11: "used_month",
+	4:  "key_lost",
+	5:  "kind",
+	6:  "last_test",
+	7:  "location",
+	8:  "model",
+	9:  "monthly_budget",
+	10: "name",
+	11: "usable",
+	12: "used_month",
 }
 
 // Decode decodes AiGetAiProfilesOKItemsItem from json.
@@ -7834,8 +7839,20 @@ func (s *AiGetAiProfilesOKItemsItem) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"key_last4\"")
 			}
-		case "kind":
+		case "key_lost":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.KeyLost = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"key_lost\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -7845,7 +7862,7 @@ func (s *AiGetAiProfilesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_test":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.LastTest.Decode(d); err != nil {
 					return err
@@ -7855,7 +7872,7 @@ func (s *AiGetAiProfilesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_test\"")
 			}
 		case "location":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Location.Decode(d); err != nil {
 					return err
@@ -7865,7 +7882,7 @@ func (s *AiGetAiProfilesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"location\"")
 			}
 		case "model":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Model = string(v)
@@ -7877,7 +7894,7 @@ func (s *AiGetAiProfilesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
 		case "monthly_budget":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.MonthlyBudget = int(v)
@@ -7889,7 +7906,7 @@ func (s *AiGetAiProfilesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"monthly_budget\"")
 			}
 		case "name":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -7901,7 +7918,7 @@ func (s *AiGetAiProfilesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "usable":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Bool()
 				s.Usable = bool(v)
@@ -7913,7 +7930,7 @@ func (s *AiGetAiProfilesOKItemsItem) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"usable\"")
 			}
 		case "used_month":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.UsedMonth = int(v)
@@ -7935,7 +7952,7 @@ func (s *AiGetAiProfilesOKItemsItem) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -17278,6 +17295,10 @@ func (s *AiPostAiProfilesOK) encodeFields(e *jx.Encoder) {
 		s.KeyLast4.Encode(e)
 	}
 	{
+		e.FieldStart("key_lost")
+		e.Bool(s.KeyLost)
+	}
+	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -17311,19 +17332,20 @@ func (s *AiPostAiProfilesOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfAiPostAiProfilesOK = [12]string{
+var jsonFieldsNameOfAiPostAiProfilesOK = [13]string{
 	0:  "api_style",
 	1:  "base_url",
 	2:  "id",
 	3:  "key_last4",
-	4:  "kind",
-	5:  "last_test",
-	6:  "location",
-	7:  "model",
-	8:  "monthly_budget",
-	9:  "name",
-	10: "usable",
-	11: "used_month",
+	4:  "key_lost",
+	5:  "kind",
+	6:  "last_test",
+	7:  "location",
+	8:  "model",
+	9:  "monthly_budget",
+	10: "name",
+	11: "usable",
+	12: "used_month",
 }
 
 // Decode decodes AiPostAiProfilesOK from json.
@@ -17379,8 +17401,20 @@ func (s *AiPostAiProfilesOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"key_last4\"")
 			}
-		case "kind":
+		case "key_lost":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.KeyLost = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"key_lost\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -17390,7 +17424,7 @@ func (s *AiPostAiProfilesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_test":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.LastTest.Decode(d); err != nil {
 					return err
@@ -17400,7 +17434,7 @@ func (s *AiPostAiProfilesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_test\"")
 			}
 		case "location":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Location.Decode(d); err != nil {
 					return err
@@ -17410,7 +17444,7 @@ func (s *AiPostAiProfilesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"location\"")
 			}
 		case "model":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Model = string(v)
@@ -17422,7 +17456,7 @@ func (s *AiPostAiProfilesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
 		case "monthly_budget":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.MonthlyBudget = int(v)
@@ -17434,7 +17468,7 @@ func (s *AiPostAiProfilesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"monthly_budget\"")
 			}
 		case "name":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -17446,7 +17480,7 @@ func (s *AiPostAiProfilesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "usable":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Bool()
 				s.Usable = bool(v)
@@ -17458,7 +17492,7 @@ func (s *AiPostAiProfilesOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"usable\"")
 			}
 		case "used_month":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.UsedMonth = int(v)
@@ -17480,7 +17514,7 @@ func (s *AiPostAiProfilesOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -23460,6 +23494,10 @@ func (s *AiPutAiProfilesIDOK) encodeFields(e *jx.Encoder) {
 		s.KeyLast4.Encode(e)
 	}
 	{
+		e.FieldStart("key_lost")
+		e.Bool(s.KeyLost)
+	}
+	{
 		e.FieldStart("kind")
 		s.Kind.Encode(e)
 	}
@@ -23493,19 +23531,20 @@ func (s *AiPutAiProfilesIDOK) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfAiPutAiProfilesIDOK = [12]string{
+var jsonFieldsNameOfAiPutAiProfilesIDOK = [13]string{
 	0:  "api_style",
 	1:  "base_url",
 	2:  "id",
 	3:  "key_last4",
-	4:  "kind",
-	5:  "last_test",
-	6:  "location",
-	7:  "model",
-	8:  "monthly_budget",
-	9:  "name",
-	10: "usable",
-	11: "used_month",
+	4:  "key_lost",
+	5:  "kind",
+	6:  "last_test",
+	7:  "location",
+	8:  "model",
+	9:  "monthly_budget",
+	10: "name",
+	11: "usable",
+	12: "used_month",
 }
 
 // Decode decodes AiPutAiProfilesIDOK from json.
@@ -23561,8 +23600,20 @@ func (s *AiPutAiProfilesIDOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"key_last4\"")
 			}
-		case "kind":
+		case "key_lost":
 			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.KeyLost = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"key_lost\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 5
 			if err := func() error {
 				if err := s.Kind.Decode(d); err != nil {
 					return err
@@ -23572,7 +23623,7 @@ func (s *AiPutAiProfilesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"kind\"")
 			}
 		case "last_test":
-			requiredBitSet[0] |= 1 << 5
+			requiredBitSet[0] |= 1 << 6
 			if err := func() error {
 				if err := s.LastTest.Decode(d); err != nil {
 					return err
@@ -23582,7 +23633,7 @@ func (s *AiPutAiProfilesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"last_test\"")
 			}
 		case "location":
-			requiredBitSet[0] |= 1 << 6
+			requiredBitSet[0] |= 1 << 7
 			if err := func() error {
 				if err := s.Location.Decode(d); err != nil {
 					return err
@@ -23592,7 +23643,7 @@ func (s *AiPutAiProfilesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"location\"")
 			}
 		case "model":
-			requiredBitSet[0] |= 1 << 7
+			requiredBitSet[1] |= 1 << 0
 			if err := func() error {
 				v, err := d.Str()
 				s.Model = string(v)
@@ -23604,7 +23655,7 @@ func (s *AiPutAiProfilesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"model\"")
 			}
 		case "monthly_budget":
-			requiredBitSet[1] |= 1 << 0
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.MonthlyBudget = int(v)
@@ -23616,7 +23667,7 @@ func (s *AiPutAiProfilesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"monthly_budget\"")
 			}
 		case "name":
-			requiredBitSet[1] |= 1 << 1
+			requiredBitSet[1] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Name = string(v)
@@ -23628,7 +23679,7 @@ func (s *AiPutAiProfilesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
 		case "usable":
-			requiredBitSet[1] |= 1 << 2
+			requiredBitSet[1] |= 1 << 3
 			if err := func() error {
 				v, err := d.Bool()
 				s.Usable = bool(v)
@@ -23640,7 +23691,7 @@ func (s *AiPutAiProfilesIDOK) Decode(d *jx.Decoder) error {
 				return errors.Wrap(err, "decode field \"usable\"")
 			}
 		case "used_month":
-			requiredBitSet[1] |= 1 << 3
+			requiredBitSet[1] |= 1 << 4
 			if err := func() error {
 				v, err := d.Int()
 				s.UsedMonth = int(v)
@@ -23662,7 +23713,7 @@ func (s *AiPutAiProfilesIDOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -184328,12 +184379,16 @@ func (s *LogsGetLogsSiemOK) encodeFields(e *jx.Encoder) {
 		s.SecretLast4.Encode(e)
 	}
 	{
+		e.FieldStart("secret_lost")
+		e.Bool(s.SecretLost)
+	}
+	{
 		e.FieldStart("url")
 		e.Str(s.URL)
 	}
 }
 
-var jsonFieldsNameOfLogsGetLogsSiemOK = [9]string{
+var jsonFieldsNameOfLogsGetLogsSiemOK = [10]string{
 	0: "enabled",
 	1: "events",
 	2: "format",
@@ -184342,7 +184397,8 @@ var jsonFieldsNameOfLogsGetLogsSiemOK = [9]string{
 	5: "port",
 	6: "proto",
 	7: "secret_last4",
-	8: "url",
+	8: "secret_lost",
+	9: "url",
 }
 
 // Decode decodes LogsGetLogsSiemOK from json.
@@ -184448,8 +184504,20 @@ func (s *LogsGetLogsSiemOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"secret_last4\"")
 			}
-		case "url":
+		case "secret_lost":
 			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.SecretLost = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"secret_lost\"")
+			}
+		case "url":
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -184471,7 +184539,7 @@ func (s *LogsGetLogsSiemOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -187359,12 +187427,16 @@ func (s *LogsPutLogsSiemOK) encodeFields(e *jx.Encoder) {
 		s.SecretLast4.Encode(e)
 	}
 	{
+		e.FieldStart("secret_lost")
+		e.Bool(s.SecretLost)
+	}
+	{
 		e.FieldStart("url")
 		e.Str(s.URL)
 	}
 }
 
-var jsonFieldsNameOfLogsPutLogsSiemOK = [9]string{
+var jsonFieldsNameOfLogsPutLogsSiemOK = [10]string{
 	0: "enabled",
 	1: "events",
 	2: "format",
@@ -187373,7 +187445,8 @@ var jsonFieldsNameOfLogsPutLogsSiemOK = [9]string{
 	5: "port",
 	6: "proto",
 	7: "secret_last4",
-	8: "url",
+	8: "secret_lost",
+	9: "url",
 }
 
 // Decode decodes LogsPutLogsSiemOK from json.
@@ -187479,8 +187552,20 @@ func (s *LogsPutLogsSiemOK) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"secret_last4\"")
 			}
-		case "url":
+		case "secret_lost":
 			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.SecretLost = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"secret_lost\"")
+			}
+		case "url":
+			requiredBitSet[1] |= 1 << 1
 			if err := func() error {
 				v, err := d.Str()
 				s.URL = string(v)
@@ -187502,7 +187587,7 @@ func (s *LogsPutLogsSiemOK) Decode(d *jx.Decoder) error {
 	var failures []validate.FieldError
 	for i, mask := range [2]uint8{
 		0b11111111,
-		0b00000001,
+		0b00000011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

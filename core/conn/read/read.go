@@ -51,6 +51,8 @@ const (
 	// RateCap is how many calls one connection takes in RateWindow (spec action-templates 9.2).
 	RateCap    = 30
 	RateWindow = time.Minute
+	// CodeSecretLost is the error code of a saved secret this box cannot open (#847), here so ai names it without importing core/conn.
+	CodeSecretLost = conn.CodeSecretLost
 
 	maxArgsJSON = 8 << 10 // the arguments of a call, encoded
 	maxString   = 2048    // one string of the arguments

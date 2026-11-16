@@ -51,13 +51,15 @@ func (*heldWorker) NmapHealth() string { return "" }
 
 func (w *heldWorker) RunSNMP(ctx context.Context, j sensorlink.SNMPJob) ([]sensorlink.SNMPAnswer, error) {
 	var ips []string
+	var answers []sensorlink.SNMPAnswer
 	for _, t := range j.Targets {
 		ips = append(ips, t.IP)
+		answers = append(answers, sensorlink.SNMPAnswer{Target: t.IP, Status: sensorlink.SNMPStatusNoAnswer, Credential: t.Credentials[0]})
 	}
 	if err := w.hold(ctx, ips...); err != nil {
 		return nil, err
 	}
-	return nil, nil
+	return answers, nil
 }
 
 func (w *heldWorker) Probe(ctx context.Context, argv []string) (sensoractive.Output, error) {

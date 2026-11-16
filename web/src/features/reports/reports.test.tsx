@@ -146,13 +146,15 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(screen.getByText(/Next send:/)).toBeInTheDocument()
   })
 
-  it('schedule: with no email channel on, automatic sending warns and links to Alert channels instead of promising a next send', async () => {
+  it('schedule: with no email channel on, automatic sending warns and sets the email channel up right here instead of promising a next send', async () => {
     sessionStore.set({ userId: 'u-admin' })
     expect((await api('/notify/channels/email', { method: 'DELETE' })).status).toBe(204)
     renderApp('/reports')
-    const warn = await screen.findByText(/No email channel is on, so nothing will be sent/)
-    expect(within(warn.parentElement as HTMLElement).getByRole('link', { name: 'Set up the email channel' })).toHaveAttribute('href', '/settings/channels')
+    expect(await screen.findByText(/No email channel is on, so nothing will be sent/)).toBeInTheDocument()
     expect(screen.queryByText(/Next send:/)).toBeNull()
+    // docs/UI.md §0: the dependency is created in place, with the same form as Settings › Alert channels
+    await userEvent.click(screen.getByRole('button', { name: 'Set up the email channel' }))
+    expect(await screen.findByRole('dialog', { name: /Email/ })).toBeInTheDocument()
   })
 
   it('schedule: a bad email is flagged at once; a typed but un-added email blocks Save; the server refuses automatic sending with no recipients', async () => {

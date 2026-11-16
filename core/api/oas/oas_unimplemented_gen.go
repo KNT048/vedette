@@ -1919,10 +1919,10 @@ func (UnimplementedHandler) InventoryGetInventoryCatalog(ctx context.Context, pa
 
 // InventoryGetInventoryDevices implements inventory_get_inventory_devices operation.
 //
-// List devices with counts per filter.
+// List devices matching the filters (all when none), with counts per tab over the whole inventory.
 //
 // GET /inventory/devices
-func (UnimplementedHandler) InventoryGetInventoryDevices(ctx context.Context) (r *InventoryGetInventoryDevicesOK, _ error) {
+func (UnimplementedHandler) InventoryGetInventoryDevices(ctx context.Context, params InventoryGetInventoryDevicesParams) (r *InventoryGetInventoryDevicesOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1937,10 +1937,11 @@ func (UnimplementedHandler) InventoryGetInventoryDevicesID(ctx context.Context, 
 
 // InventoryGetInventoryExportCsv implements inventory_get_inventory_export_csv operation.
 //
-// Download the device list as CSV (UTF-8 with BOM, opens in Excel).
+// Download the device list as CSV (UTF-8 with BOM, opens in Excel); the filters of GET
+// /inventory/devices export what the page shows.
 //
 // GET /inventory/export.csv
-func (UnimplementedHandler) InventoryGetInventoryExportCsv(ctx context.Context) (r InventoryGetInventoryExportCsvOK, _ error) {
+func (UnimplementedHandler) InventoryGetInventoryExportCsv(ctx context.Context, params InventoryGetInventoryExportCsvParams) (r InventoryGetInventoryExportCsvOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1979,6 +1980,15 @@ func (UnimplementedHandler) InventoryGetInventorySettings(ctx context.Context) (
 //
 // GET /inventory/snmp
 func (UnimplementedHandler) InventoryGetInventorySnmp(ctx context.Context) (r *InventoryGetInventorySnmpOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// InventoryGetInventorySnmpIDRead implements inventory_get_inventory_snmp_id_read operation.
+//
+// The read of this credential that runs now, or the last one; null when none since the box started.
+//
+// GET /inventory/snmp/{id}/read
+func (UnimplementedHandler) InventoryGetInventorySnmpIDRead(ctx context.Context, params InventoryGetInventorySnmpIDReadParams) (r NilInventoryGetInventorySnmpIDReadOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2141,6 +2151,17 @@ func (UnimplementedHandler) InventoryPostInventoryImport(ctx context.Context, re
 //
 // POST /inventory/snmp
 func (UnimplementedHandler) InventoryPostInventorySnmp(ctx context.Context, req *InventoryPostInventorySnmpReq) (r *InventoryPostInventorySnmpCreated, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// InventoryPostInventorySnmpIDRead implements inventory_post_inventory_snmp_id_read operation.
+//
+// Read now every approved device in this credential's scope (read-only GETs from the scan container,
+// logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the
+// window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent.
+//
+// POST /inventory/snmp/{id}/read
+func (UnimplementedHandler) InventoryPostInventorySnmpIDRead(ctx context.Context, params InventoryPostInventorySnmpIDReadParams) (r *InventoryPostInventorySnmpIDReadAccepted, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

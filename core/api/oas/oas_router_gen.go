@@ -240,10 +240,7 @@ var (
 		"PATCH": "Content-Type",
 		"PUT":   "Content-Type",
 	}
-	rn251AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn253AllowedHeaders = map[string]string{
+	rn252AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 	rn254AllowedHeaders = map[string]string{
@@ -255,10 +252,13 @@ var (
 	rn256AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
+	rn257AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
 	rn222AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn260AllowedHeaders = map[string]string{
+	rn261AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 	rn240AllowedHeaders = map[string]string{
@@ -267,22 +267,22 @@ var (
 	rn225AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
 	}
-	rn263AllowedHeaders = map[string]string{
+	rn264AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 	rn227AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
 	}
-	rn265AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
 	rn266AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn268AllowedHeaders = map[string]string{
+	rn267AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn270AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn249AllowedHeaders = map[string]string{
+	rn250AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
 	}
 	rn246AllowedHeaders = map[string]string{
@@ -294,109 +294,109 @@ var (
 	rn229AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn267AllowedHeaders = map[string]string{
+	rn269AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn279AllowedHeaders = map[string]string{
+	rn281AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn275AllowedHeaders = map[string]string{
+	rn277AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn276AllowedHeaders = map[string]string{
+	rn278AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn270AllowedHeaders = map[string]string{
+	rn272AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
 	rn104AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
 	}
-	rn281AllowedHeaders = map[string]string{
+	rn283AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
-	}
-	rn300AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
 	}
 	rn302AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn306AllowedHeaders = map[string]string{
+	rn304AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn294AllowedHeaders = map[string]string{
+	rn308AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn296AllowedHeaders = map[string]string{
 		"PATCH": "Content-Type",
 	}
-	rn316AllowedHeaders = map[string]string{
+	rn318AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn311AllowedHeaders = map[string]string{
+	rn313AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn315AllowedHeaders = map[string]string{
+	rn317AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn330AllowedHeaders = map[string]string{
+	rn332AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn319AllowedHeaders = map[string]string{
+	rn321AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
-	}
-	rn365AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
 	}
 	rn367AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn368AllowedHeaders = map[string]string{
+	rn369AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn371AllowedHeaders = map[string]string{
+	rn370AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn342AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
+	rn373AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
 	}
 	rn344AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn349AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn333AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn379AllowedHeaders = map[string]string{
+	rn346AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn380AllowedHeaders = map[string]string{
+	rn351AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn383AllowedHeaders = map[string]string{
+	rn335AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn381AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn358AllowedHeaders = map[string]string{
+	rn382AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
+	}
+	rn385AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn360AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn392AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn340AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
 	}
 	rn390AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn338AllowedHeaders = map[string]string{
+	rn361AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn388AllowedHeaders = map[string]string{
+	rn400AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn401AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn359AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn398AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
-	rn399AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn404AllowedHeaders = map[string]string{
+	rn406AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 )
@@ -5324,7 +5324,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn251AllowedHeaders,
+										allowedHeaders: rn252AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -5349,7 +5349,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn253AllowedHeaders,
+										allowedHeaders: rn254AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -5374,7 +5374,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn254AllowedHeaders,
+										allowedHeaders: rn255AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -5399,7 +5399,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn255AllowedHeaders,
+										allowedHeaders: rn256AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -5475,7 +5475,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn256AllowedHeaders,
+											allowedHeaders: rn257AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -5629,7 +5629,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn260AllowedHeaders,
+													allowedHeaders: rn261AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -5808,7 +5808,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn263AllowedHeaders,
+													allowedHeaders: rn264AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -5879,7 +5879,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn265AllowedHeaders,
+													allowedHeaders: rn266AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -5936,7 +5936,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn266AllowedHeaders,
+									allowedHeaders: rn267AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -5988,7 +5988,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "PUT",
-									allowedHeaders: rn268AllowedHeaders,
+									allowedHeaders: rn270AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -6072,7 +6072,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "PATCH",
-												allowedHeaders: rn249AllowedHeaders,
+												allowedHeaders: rn250AllowedHeaders,
 												acceptPost:     "",
 												acceptPatch:    "application/json",
 											})
@@ -6177,31 +6177,76 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									return
 								}
 								switch elem[0] {
-								case '/': // Prefix: "/test"
+								case '/': // Prefix: "/"
 
-									if l := len("/test"); len(elem) >= l && elem[0:l] == "/test" {
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										// Leaf node.
-										switch r.Method {
-										case "POST":
-											s.handleInventoryPostInventorySnmpIDTestRequest([1]string{
-												args[0],
-											}, elemIsEscaped, w, r)
-										default:
-											s.notAllowed(w, r, notAllowedParams{
-												allowedMethods: "POST",
-												allowedHeaders: rn267AllowedHeaders,
-												acceptPost:     "application/json",
-												acceptPatch:    "",
-											})
+										break
+									}
+									switch elem[0] {
+									case 'r': // Prefix: "read"
+
+										if l := len("read"); len(elem) >= l && elem[0:l] == "read" {
+											elem = elem[l:]
+										} else {
+											break
 										}
 
-										return
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "GET":
+												s.handleInventoryGetInventorySnmpIDReadRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											case "POST":
+												s.handleInventoryPostInventorySnmpIDReadRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "GET,POST",
+													allowedHeaders: nil,
+													acceptPost:     "",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
+									case 't': // Prefix: "test"
+
+										if l := len("test"); len(elem) >= l && elem[0:l] == "test" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch r.Method {
+											case "POST":
+												s.handleInventoryPostInventorySnmpIDTestRequest([1]string{
+													args[0],
+												}, elemIsEscaped, w, r)
+											default:
+												s.notAllowed(w, r, notAllowedParams{
+													allowedMethods: "POST",
+													allowedHeaders: rn269AllowedHeaders,
+													acceptPost:     "application/json",
+													acceptPatch:    "",
+												})
+											}
+
+											return
+										}
+
 									}
 
 								}
@@ -6292,7 +6337,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "PUT",
-								allowedHeaders: rn279AllowedHeaders,
+								allowedHeaders: rn281AllowedHeaders,
 								acceptPost:     "",
 								acceptPatch:    "",
 							})
@@ -6330,7 +6375,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,PUT",
-									allowedHeaders: rn275AllowedHeaders,
+									allowedHeaders: rn277AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -6383,7 +6428,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn276AllowedHeaders,
+									allowedHeaders: rn278AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -6423,7 +6468,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "DELETE,PUT",
-										allowedHeaders: rn270AllowedHeaders,
+										allowedHeaders: rn272AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -6680,7 +6725,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "DELETE,PUT",
-									allowedHeaders: rn281AllowedHeaders,
+									allowedHeaders: rn283AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -6735,7 +6780,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "POST",
-								allowedHeaders: rn300AllowedHeaders,
+								allowedHeaders: rn302AllowedHeaders,
 								acceptPost:     "application/json",
 								acceptPatch:    "",
 							})
@@ -6771,7 +6816,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn302AllowedHeaders,
+									allowedHeaders: rn304AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -6960,7 +7005,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn306AllowedHeaders,
+										allowedHeaders: rn308AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -6994,7 +7039,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,PATCH",
-									allowedHeaders: rn294AllowedHeaders,
+									allowedHeaders: rn296AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "application/json",
 								})
@@ -7021,7 +7066,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						default:
 							s.notAllowed(w, r, notAllowedParams{
 								allowedMethods: "PUT",
-								allowedHeaders: rn316AllowedHeaders,
+								allowedHeaders: rn318AllowedHeaders,
 								acceptPost:     "",
 								acceptPatch:    "",
 							})
@@ -7134,7 +7179,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn311AllowedHeaders,
+									allowedHeaders: rn313AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -7303,7 +7348,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "POST",
-									allowedHeaders: rn315AllowedHeaders,
+									allowedHeaders: rn317AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -7442,7 +7487,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "PUT",
-											allowedHeaders: rn330AllowedHeaders,
+											allowedHeaders: rn332AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "",
 										})
@@ -7473,7 +7518,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,PUT",
-									allowedHeaders: rn319AllowedHeaders,
+									allowedHeaders: rn321AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -7734,7 +7779,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn365AllowedHeaders,
+													allowedHeaders: rn367AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -7761,7 +7806,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn367AllowedHeaders,
+													allowedHeaders: rn369AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -7800,7 +7845,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 												default:
 													s.notAllowed(w, r, notAllowedParams{
 														allowedMethods: "POST",
-														allowedHeaders: rn368AllowedHeaders,
+														allowedHeaders: rn370AllowedHeaders,
 														acceptPost:     "application/json",
 														acceptPatch:    "",
 													})
@@ -7896,7 +7941,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn371AllowedHeaders,
+												allowedHeaders: rn373AllowedHeaders,
 												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
@@ -7952,7 +7997,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,PUT",
-										allowedHeaders: rn342AllowedHeaders,
+										allowedHeaders: rn344AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -7992,7 +8037,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,POST",
-										allowedHeaders: rn344AllowedHeaders,
+										allowedHeaders: rn346AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -8166,7 +8211,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn349AllowedHeaders,
+									allowedHeaders: rn351AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -8206,7 +8251,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "DELETE,PUT",
-										allowedHeaders: rn333AllowedHeaders,
+										allowedHeaders: rn335AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -8295,7 +8340,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn379AllowedHeaders,
+										allowedHeaders: rn381AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -8359,7 +8404,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "POST",
-										allowedHeaders: rn380AllowedHeaders,
+										allowedHeaders: rn382AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -8523,7 +8568,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn383AllowedHeaders,
+													allowedHeaders: rn385AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -8671,7 +8716,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn358AllowedHeaders,
+									allowedHeaders: rn360AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -8734,7 +8779,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn390AllowedHeaders,
+											allowedHeaders: rn392AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -8767,7 +8812,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "DELETE,PUT",
-										allowedHeaders: rn338AllowedHeaders,
+										allowedHeaders: rn340AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -8794,7 +8839,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "POST",
-											allowedHeaders: rn388AllowedHeaders,
+											allowedHeaders: rn390AllowedHeaders,
 											acceptPost:     "application/json",
 											acceptPatch:    "",
 										})
@@ -8825,7 +8870,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,PUT",
-									allowedHeaders: rn359AllowedHeaders,
+									allowedHeaders: rn361AllowedHeaders,
 									acceptPost:     "",
 									acceptPatch:    "",
 								})
@@ -9007,7 +9052,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,PUT",
-										allowedHeaders: rn398AllowedHeaders,
+										allowedHeaders: rn400AllowedHeaders,
 										acceptPost:     "",
 										acceptPatch:    "",
 									})
@@ -9033,7 +9078,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 								default:
 									s.notAllowed(w, r, notAllowedParams{
 										allowedMethods: "GET,POST",
-										allowedHeaders: rn399AllowedHeaders,
+										allowedHeaders: rn401AllowedHeaders,
 										acceptPost:     "application/json",
 										acceptPatch:    "",
 									})
@@ -9203,7 +9248,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 							default:
 								s.notAllowed(w, r, notAllowedParams{
 									allowedMethods: "GET,POST",
-									allowedHeaders: rn404AllowedHeaders,
+									allowedHeaders: rn406AllowedHeaders,
 									acceptPost:     "application/json",
 									acceptPatch:    "",
 								})
@@ -14786,7 +14831,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = InventoryGetInventoryDevicesOperation
-								r.summary = "List devices with counts per filter"
+								r.summary = "List devices matching the filters (all when none), with counts per tab over the whole inventory"
 								r.operationID = "inventory_get_inventory_devices"
 								r.operationGroup = ""
 								r.pathPattern = "/inventory/devices"
@@ -15022,7 +15067,7 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 							switch method {
 							case "GET":
 								r.name = InventoryGetInventoryExportCsvOperation
-								r.summary = "Download the device list as CSV (UTF-8 with BOM, opens in Excel)"
+								r.summary = "Download the device list as CSV (UTF-8 with BOM, opens in Excel); the filters of GET /inventory/devices export what the page shows"
 								r.operationID = "inventory_get_inventory_export_csv"
 								r.operationGroup = ""
 								r.pathPattern = "/inventory/export.csv"
@@ -15305,29 +15350,77 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 									}
 								}
 								switch elem[0] {
-								case '/': // Prefix: "/test"
+								case '/': // Prefix: "/"
 
-									if l := len("/test"); len(elem) >= l && elem[0:l] == "/test" {
+									if l := len("/"); len(elem) >= l && elem[0:l] == "/" {
 										elem = elem[l:]
 									} else {
 										break
 									}
 
 									if len(elem) == 0 {
-										// Leaf node.
-										switch method {
-										case "POST":
-											r.name = InventoryPostInventorySnmpIDTestOperation
-											r.summary = "Read one device with this credential now (read-only GETs from the scan container, logged in the probe log) and say what it answered, or why not; an answer is recorded in the inventory"
-											r.operationID = "inventory_post_inventory_snmp_id_test"
-											r.operationGroup = ""
-											r.pathPattern = "/inventory/snmp/{id}/test"
-											r.args = args
-											r.count = 1
-											return r, true
-										default:
-											return
+										break
+									}
+									switch elem[0] {
+									case 'r': // Prefix: "read"
+
+										if l := len("read"); len(elem) >= l && elem[0:l] == "read" {
+											elem = elem[l:]
+										} else {
+											break
 										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "GET":
+												r.name = InventoryGetInventorySnmpIDReadOperation
+												r.summary = "The read of this credential that runs now, or the last one; null when none since the box started"
+												r.operationID = "inventory_get_inventory_snmp_id_read"
+												r.operationGroup = ""
+												r.pathPattern = "/inventory/snmp/{id}/read"
+												r.args = args
+												r.count = 1
+												return r, true
+											case "POST":
+												r.name = InventoryPostInventorySnmpIDReadOperation
+												r.summary = "Read now every approved device in this credential's scope (read-only GETs from the scan container, logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent"
+												r.operationID = "inventory_post_inventory_snmp_id_read"
+												r.operationGroup = ""
+												r.pathPattern = "/inventory/snmp/{id}/read"
+												r.args = args
+												r.count = 1
+												return r, true
+											default:
+												return
+											}
+										}
+
+									case 't': // Prefix: "test"
+
+										if l := len("test"); len(elem) >= l && elem[0:l] == "test" {
+											elem = elem[l:]
+										} else {
+											break
+										}
+
+										if len(elem) == 0 {
+											// Leaf node.
+											switch method {
+											case "POST":
+												r.name = InventoryPostInventorySnmpIDTestOperation
+												r.summary = "Read one device with this credential now (read-only GETs from the scan container, logged in the probe log) and say what it answered, or why not; an answer is recorded in the inventory"
+												r.operationID = "inventory_post_inventory_snmp_id_test"
+												r.operationGroup = ""
+												r.pathPattern = "/inventory/snmp/{id}/test"
+												r.args = args
+												r.count = 1
+												return r, true
+											default:
+												return
+											}
+										}
+
 									}
 
 								}

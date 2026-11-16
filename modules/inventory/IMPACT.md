@@ -1,5 +1,11 @@
 # Inventory — Change Impact Map
 
+## Modifying: the Devices search (`DeviceFilter`, `ParseDeviceFilter`, `deviceSources`, `Device.Sources`, `Config.WazuhAgents`; #849, INV-32)
+- **Web** (Mlee; the Devices page of #849/#842, `web/src/features/inventory/{contract,mocks}.ts`): the page keeps the filter in the URL and sends it to `GET /inventory/devices` and `/inventory/export.csv`; the mock (`deviceFilter`, `sourcesOf`) follows the same words and refusals (`search.test.ts`). Adding or renaming a source word changes `DeviceSource` in `contract.ts`, the chips and tokens of the page, and saved URLs.
+- **agent-intake** (`WazuhAgentAddresses`, table `intake_wazuh_agent`, wired in `cmd/vedette/inventory.go` `wazuhAgents`): the only marker of a Wazuh device. Wazuh still sends no agent key (ids are per manager), so a change to how the pull records where it delivered (`wazuhAgentSeen`, the clean-up at the end of a pass) changes which devices say `wazuh`.
+- **`osquery`** reads `inv_asset.agent_key` (D-598): a change of the key prefix (`osquery:`) or of when a node binds (`bindAgent`) changes the source word.
+- `Devices` (every reader: scan, reports, honeypot, MCP) now also reads the sources of every device (one `DISTINCT` pass over observations, software and services): fine at the 2,000 rows `MaxListed` shows; a paginated list would read sources for its page only.
+
 ## Modifying: one machine one device (`sameMachine`, `agentOrphan`, `machineName`, `macKinds`, `bindAgent`, `inv_asset.agent_key`, `AssetHint.Agent`; D-598, INV-31)
 - **Counting devices**: loosening the name rule (generic names, burned-in MACs, address-only rows) joins machines that are not one; tightening it brings back one device and one "new unknown device" incident per private Wi-Fi address (issue #829).
 - **notify**: closes the joined row's new-device incident on `inventory.asset.merged` (D-554); **findings** moves its findings (`OnAssetMerged`); a join must keep publishing merged before deleted.

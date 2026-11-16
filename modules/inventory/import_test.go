@@ -68,7 +68,7 @@ func TestContract_INV13_CSVImportAndExport(t *testing.T) {
 	})
 
 	t.Run("a file just exported can be imported again without doubling devices", func(t *testing.T) {
-		rd, err := e.svc.ExportCSV(e.ctx(), "it@acme.example")
+		rd, err := e.svc.ExportCSV(e.ctx(), "it@acme.example", inventory.DeviceFilter{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -85,7 +85,7 @@ func TestContract_INV13_CSVImportAndExport(t *testing.T) {
 		e := newEnv(t)
 		e.addDevice(inventory.AddInput{CatalogID: "fortigate", Name: "=HYPERLINK(\"http://evil\")", IP: "192.168.30.1"})
 		e.addDevice(inventory.AddInput{CatalogID: "synology-nas-dsm", Name: "nas, \"main\""})
-		rd, err := e.svc.ExportCSV(e.ctx(), "it@acme.example")
+		rd, err := e.svc.ExportCSV(e.ctx(), "it@acme.example", inventory.DeviceFilter{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -459,7 +459,7 @@ func TestEveryMutationIsAudited(t *testing.T) {
 	must(e.svc.Approve(e.ctx(), "it@acme.example", id))
 	must(e.svc.SetNotifyNew(e.ctx(), "it@acme.example", true))
 	e.importCSV("name\nx\n")
-	_, err = e.svc.ExportCSV(e.ctx(), "it@acme.example")
+	_, err = e.svc.ExportCSV(e.ctx(), "it@acme.example", inventory.DeviceFilter{})
 	must(err)
 	_, err = e.svc.SaveSettings(e.ctx(), "admin@acme.example", okSettings())
 	must(err)

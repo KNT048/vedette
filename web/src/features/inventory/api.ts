@@ -5,7 +5,7 @@ import { api, ApiError } from '@/lib/api'
 import type { AssetKind } from '@/lib/types'
 import type {
   AddDeviceInput, AddDeviceResult, AgentKind, AgentsResponse, CatalogResponse, CreateTokenResult, DeviceDetail, DevicesResponse,
-  ImportResult, InventorySettings, RegularScan, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, SnmpCredential, SnmpCredentialInput, SnmpResponse, SnmpTestResult,
+  ImportResult, InventorySettings, KeepSeparateInput, MergeInput, RegularScan, SamePairs, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, SnmpCredential, SnmpCredentialInput, SnmpResponse, SnmpTestResult,
   WazuhConnection, WazuhInput, WazuhTestResult,
 } from './types'
 
@@ -56,6 +56,27 @@ export function useDeviceAction(id: string) {
     addSoftware: useMutation({ mutationFn: (b: Omit<AddDeviceInput, 'name' | 'ip'>) => api.post<{ kev_cves: number }>(`${base}/software`, b), onSuccess: inv }),
     removeSoftware: useMutation({ mutationFn: (sid: string) => api.del(`${base}/software/${encodeURIComponent(sid)}`), onSuccess: inv }),
     setVersion: useMutation({ mutationFn: (b: { sid: string; version: string }) => api.patch(`${base}/software/${encodeURIComponent(b.sid)}`, { version: b.version }), onSuccess: inv }),
+  }
+}
+/** D-599 (#829): every pair of devices that may be one machine; one cached read for the To review hints and the `possible:same` filter. */
+export const usePossibleSame = () => useQuery({ queryKey: ['inventory', 'possible-same'], queryFn: () => api.get<SamePairs>('/inventory/possible-same'), retry: false })
+/** D-599 (#829, J2): Merge (`from` joins `into` and is gone) and Keep separate, admin only. After a merge the device that went is not
+ *  read again (its page would answer 404 while it navigates away); every other inventory, feeds and findings query is. */
+export function useSameDevice() {
+  const qc = useQueryClient()
+  const refresh = (gone?: string) => Promise.all([
+    qc.invalidateQueries({ queryKey: ['inventory'], predicate: (q) => !(gone && q.queryKey[1] === 'device' && q.queryKey[2] === gone) }),
+    qc.invalidateQueries({ queryKey: ['feeds'] }), qc.invalidateQueries({ queryKey: ['findings'] }),
+  ])
+  return {
+    merge: useMutation({
+      mutationFn: ({ into, from }: { into: string } & MergeInput) => api.post<{ id: string }>(`/inventory/devices/${encodeURIComponent(into)}/merge`, { from } satisfies MergeInput),
+      onSuccess: (_r, v) => { qc.removeQueries({ queryKey: ['inventory', 'device', v.from], exact: true, type: 'inactive' }); return refresh(v.from) },
+    }),
+    keepSeparate: useMutation({
+      mutationFn: ({ id, other }: { id: string } & KeepSeparateInput) => api.post(`/inventory/devices/${encodeURIComponent(id)}/keep-separate`, { other } satisfies KeepSeparateInput),
+      onSuccess: () => refresh(),
+    }),
   }
 }
 export function useNotifyNew() {

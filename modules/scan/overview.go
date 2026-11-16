@@ -16,6 +16,9 @@ type EngineView struct {
 	Running     *RunHead
 	NextRun     *string
 	BlockReason *string
+	// ScheduleBlocked is why the schedule, on, starts nothing (the organization zone unreadable, or its time outside the shared
+	// window: review #857 L6); nil otherwise.
+	ScheduleBlocked *string
 }
 
 // RunHead is a run without its per-device rows.
@@ -32,7 +35,7 @@ func (s *Service) Engine(ctx context.Context) (EngineView, error) {
 	if err != nil {
 		return EngineView{}, err
 	}
-	v := EngineView{NextRun: cv.NextRun, BlockReason: cv.BlockReason}
+	v := EngineView{NextRun: cv.NextRun, BlockReason: cv.BlockReason, ScheduleBlocked: cv.ScheduleBlockedReason}
 	if v.Last, err = s.runHead(ctx, `status NOT IN ('running', 'stopping')`); err != nil {
 		return EngineView{}, err
 	}

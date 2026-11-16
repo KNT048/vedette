@@ -134,7 +134,8 @@ func (s scanInventory) Checks(ctx context.Context) (scan.Checks, error) {
 	if err != nil {
 		return scan.Checks{}, err
 	}
-	return scan.Checks{Window: scan.Window{Days: st.Active.Days, From: st.Active.From, To: st.Active.To}, Rate: st.Active.Checks(), Exclusions: st.Active.Exclusions}, nil
+	return scan.Checks{Window: scan.Window{Days: st.Active.Days, From: st.Active.From, To: st.Active.To}, Rate: st.Active.Checks(), Exclusions: st.Active.Exclusions,
+		MergedAt: st.Active.ChecksMergedAt}, nil
 }
 
 // SaveChecks implements scan.SharedChecks.
@@ -153,25 +154,26 @@ func (s scanInventory) Settle(ctx context.Context, tx *sql.Tx, committed bool) {
 	}
 }
 
-// mergeScanningSafety is the one-time merge of the scan module's own window, rate and exclusions into the inventory (#850, inventory
-// INV-32), at every start after the migrations: MergeLegacyChecks does nothing once it has run. A failure is logged and tried again at
-// the next start; until then the check rate reads as the default and the exclusions as the inventory's own.
+// mergeScanningSafety takes the scan module's own window, rate and exclusions into the inventory (#850, inventory INV-32) at every start
+// after the migrations: MergeLegacyChecks does it whenever that copy was saved after it was last taken in (review #857 M1). A failure
+// is logged and tried again at the next start; until then the scan module reads the union of both lists and the slower rate (scan
+// INV-16), so nothing is scanned that either list excludes.
 func mergeScanningSafety(ctx context.Context, d *deps) {
 	if d.Inventory == nil || d.DB == nil {
 		return
 	}
-	c, by, err := scan.LegacyChecks(ctx, d.DB.Reader())
+	c, by, at, err := scan.LegacyChecks(ctx, d.DB.Reader())
 	if err != nil {
 		d.Log.ErrorContext(ctx, "scanning: reading the scan module's own window to merge it failed; tried again at the next start", "error", err)
 		return
 	}
-	merged, err := d.Inventory.MergeLegacyChecks(ctx, inventory.LegacyChecks{Days: c.Window.Days, From: c.Window.From, To: c.Window.To, Rate: c.Rate, Exclusions: c.Exclusions, SavedBy: by})
+	merged, err := d.Inventory.MergeLegacyChecks(ctx, inventory.LegacyChecks{Days: c.Window.Days, From: c.Window.From, To: c.Window.To, Rate: c.Rate, Exclusions: c.Exclusions, SavedBy: by, SavedAt: at})
 	if err != nil {
 		d.Log.ErrorContext(ctx, "scanning: merging the scan module's window, rate and exclusions failed; tried again at the next start", "error", err)
 		return
 	}
 	if merged {
-		d.Log.InfoContext(ctx, "scanning: the vulnerability checks now share discovery's window and exclusions (#850)")
+		d.Log.InfoContext(ctx, "scanning: the vulnerability checks' own window, rate and exclusions were taken into the shared safety settings (#850)", "exclusions", len(c.Exclusions))
 	}
 }
 
@@ -207,7 +209,14 @@ func (e scanningEngines) list() []core.ScanEngine {
 		if err != nil {
 			return err
 		}
-		if st.ScopeConfirmedAt == nil || len(st.LANRanges) == 0 {
+		// Every refusal of SetDiscovery is checked here, before sensor-active is turned on with it (review #857 L9): a refused switch
+		// changes nothing.
+		switch {
+		case len(st.LANRanges) == 0:
+			return apierr.New(400, "no_ranges", "Active scanning needs at least one network range.")
+		case len(st.Active.Days) == 0:
+			return apierr.New(400, "no_days", "Choose at least one day for the scan window, or turn active scanning off.")
+		case st.ScopeConfirmedAt == nil:
 			return apierr.New(400, "scope_not_confirmed", "Tick the confirmation that these network ranges belong to your company and you are allowed to scan them. Vedette only scans within the confirmed scope.")
 		}
 		return nil
@@ -538,6 +547,8 @@ func (e scanningEngines) nuclei(ctx context.Context) (core.EngineStatus, error) 
 		s.State, s.Reason = core.EngineUnavailable, *v.BlockReason
 	case v.BlockReason != nil:
 		s.State, s.Reason = core.EngineNeedsSetup, *v.BlockReason
+	case v.ScheduleBlocked != nil: // e.g. the shared window no longer holds the schedule time: nothing scheduled runs
+		s.State, s.Reason = core.EngineNeedsSetup, *v.ScheduleBlocked
 	default:
 		s.State = core.EngineReady
 	}
@@ -670,7 +681,7 @@ func (e scanningEngines) honeypot(ctx context.Context) (core.EngineStatus, error
 
 type discoveryRunner struct{ e scanningEngines }
 
-func (r discoveryRunner) Run(ctx context.Context, _ string, targets []string) (core.RunningJob, error) {
+func (r discoveryRunner) Run(ctx context.Context, _ string, targets []string, record func(core.RunConsent) error) (core.RunningJob, error) {
 	if !r.e.on("sensor-active") {
 		return core.RunningJob{}, core.ErrDiscoveryModuleOff
 	}
@@ -678,13 +689,27 @@ func (r discoveryRunner) Run(ctx context.Context, _ string, targets []string) (c
 	if err != nil {
 		return core.RunningJob{}, core.ErrNmapUnavailable
 	}
-	m, err := svc.StartManual(ctx, targets)
+	m, err := svc.StartManual(ctx, targets, func(m sensoractive.ManualRun) error {
+		c := core.RunConsent{ID: m.ID, Ranges: m.Ranges, Until: m.Until}
+		for _, id := range m.Assets {
+			if len(m.Assets) == 1 && m.IP.IsValid() {
+				id = m.IP.String() + " (" + id + ")"
+			}
+			c.Devices = append(c.Devices, id)
+		}
+		return record(c)
+	})
 	var te *sensoractive.TargetError
+	var soon *sensoractive.TooSoonError
 	switch {
 	case err == nil:
 		return manualJob(m), nil
 	case errors.As(err, &te):
 		return core.RunningJob{}, &core.RunRefusal{Target: te.Target, Code: te.Reason, Detail: te.Detail}
+	case errors.As(err, &soon):
+		return core.RunningJob{}, &core.RunTooSoon{RetryAfter: soon.RetryAfter}
+	case errors.Is(err, sensoractive.ErrStopped):
+		return core.RunningJob{}, core.ErrDiscoveryModuleOff // the module was turned off while the run was checked
 	case errors.Is(err, sensoractive.ErrScanningOff):
 		return core.RunningJob{}, core.ErrDiscoveryOff
 	case errors.Is(err, sensoractive.ErrScopeNotConfirmed), errors.Is(err, sensoractive.ErrNoRanges):
@@ -693,6 +718,8 @@ func (r discoveryRunner) Run(ctx context.Context, _ string, targets []string) (c
 		return core.RunningJob{}, core.ErrNmapUnavailable
 	case errors.Is(err, sensoractive.ErrManualBusy):
 		return core.RunningJob{}, core.ErrRunBusy
+	case errors.Is(err, sensoractive.ErrSlotBusy):
+		return core.RunningJob{}, core.ErrNmapBusy
 	}
 	return core.RunningJob{}, err
 }

@@ -27,6 +27,10 @@ type ActiveWindow struct {
 	// one-time merge of the scan module's own copy has not run yet (MergeLegacyChecks), read as DefaultCheckRate. Not part of GET/PUT
 	// /inventory/settings (the handlers leave it out): /scanning/safety and /scans/config carry it.
 	CheckRate int `json:"check_rate,omitempty"`
+	// ChecksMergedAt is when the scan module's own copy (scan_setting) was last taken in: by MergeLegacyChecks at start, or by
+	// SaveChecks, whose caller wrote the values it read (the union while unmerged). "" = never. The scan module reads both lists
+	// while its copy is newer (scan INV-16, review #857 M1). Not part of GET/PUT /inventory/settings.
+	ChecksMergedAt string `json:"checks_merged_at,omitempty"`
 }
 
 // Limits of the vulnerability checks' speed and of the shared exclusions (#850, INV-32).
@@ -230,7 +234,8 @@ func checkSettings(in SettingsInput) (SettingsInput, []Adjustment, error) {
 	}
 	out := in
 	out.LANRanges = ranges
-	out.Active = ActiveWindow{Enabled: act.Enabled, Days: days, From: act.From, To: act.To, Rate: act.Rate, Exclusions: excl, CheckRate: act.CheckRate}
+	out.Active = ActiveWindow{Enabled: act.Enabled, Days: days, From: act.From, To: act.To, Rate: act.Rate, Exclusions: excl, CheckRate: act.CheckRate,
+		ChecksMergedAt: act.ChecksMergedAt}
 	out.FragileKinds, out.RegularScanKinds = fragile, regular
 	return out, adjusted, nil
 }
@@ -248,21 +253,43 @@ func dedupe(in []string) []string {
 // SaveSettings stores the scan scope (PRE-5, INV-6, INV-7). scope_confirmed_at stays when the ranges did
 // not change (POST-5). The fragile flag of every device without a manual override follows the new kinds.
 func (s *Service) SaveSettings(ctx context.Context, actor string, in SettingsInput) (SavedSettings, error) {
-	in, adjusted, err := checkSettings(in)
-	if err != nil {
-		return SavedSettings{}, err
+	return s.saveSettings(ctx, actor, in, saveOpts{})
+}
+
+// saveOpts are the rules of PUT /scanning/safety on top of SaveSettings' (INV-32).
+type saveOpts struct {
+	keepEnabled   bool // the switch of active discovery is not part of the input: the stored one, read in the transaction, stays (L8)
+	capExclusions bool // more than MaxExclusions exclusions only when the list does not grow (L7)
+}
+
+func (s *Service) saveSettings(ctx context.Context, actor string, in SettingsInput, opt saveOpts) (SavedSettings, error) {
+	if !opt.keepEnabled { // checked before the transaction as before; with keepEnabled it needs the stored switch
+		if _, _, err := checkSettings(in); err != nil {
+			return SavedSettings{}, err
+		}
 	}
 	var saved Settings
-	err = s.write(ctx, func(tx *sql.Tx, o *outbox) error {
+	var adjusted []Adjustment
+	err := s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		prev, err := loadSettings(ctx, tx)
 		if err != nil {
 			return err
+		}
+		if opt.keepEnabled {
+			in.Active.Enabled = prev.Active.Enabled
+		}
+		if in, adjusted, err = checkSettings(in); err != nil {
+			return err
+		}
+		if opt.capExclusions && len(in.Active.Exclusions) > MaxExclusions && len(in.Active.Exclusions) > len(prev.Active.Exclusions) {
+			return badRequest("too_many_exclusions", "The exclusion list can have at most 200 lines.")
 		}
 		now := s.now()
 		next := in.Settings
 		if next.Active.CheckRate == 0 { // PUT /inventory/settings does not carry it: the stored value stays
 			next.Active.CheckRate = prev.Active.CheckRate
 		}
+		next.Active.ChecksMergedAt = prev.Active.ChecksMergedAt
 		next.ScopeConfirmedAt, next.ScopeConfirmedBy = nil, nil
 		if in.ScopeConfirmed {
 			at, by := now, actor

@@ -44471,8 +44471,9 @@ func (s *Server) handleScanningGetScanningRequest(args [0]string, argsEscaped bo
 // discovery (nmap-discovery: on turns sensor-active on first when with_dependencies is set, off never
 // turns the module off) or the OpenVAS flag (openvas). Audited by the switch it moves. 409
 // not_toggleable (nmap-versions, snmp, zap), missing_dependencies, not_appliance, module_off (openvas
-// while External exposure is off), low_memory, low_disk; 400 scope_not_confirmed, core_module. Returns
-// the whole page, since one switch can change several engines.
+// while External exposure is off), low_memory, low_disk; 400 no_ranges, no_days, scope_not_confirmed
+// (nmap-discovery on, checked before anything moves), core_module. Returns the whole page, since one
+// switch can change several engines.
 //
 // PATCH /scanning/engines/{id}
 func (s *Server) handleScanningPatchScanningEnginesIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -44566,7 +44567,7 @@ func (s *Server) handleScanningPatchScanningEnginesIDRequest(args [1]string, arg
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ScanningPatchScanningEnginesIDOperation,
-			OperationSummary: "Turn an engine on or off: its module switch (passive, osquery, wazuh, nuclei, honeypot), active discovery (nmap-discovery: on turns sensor-active on first when with_dependencies is set, off never turns the module off) or the OpenVAS flag (openvas). Audited by the switch it moves. 409 not_toggleable (nmap-versions, snmp, zap), missing_dependencies, not_appliance, module_off (openvas while External exposure is off), low_memory, low_disk; 400 scope_not_confirmed, core_module. Returns the whole page, since one switch can change several engines",
+			OperationSummary: "Turn an engine on or off: its module switch (passive, osquery, wazuh, nuclei, honeypot), active discovery (nmap-discovery: on turns sensor-active on first when with_dependencies is set, off never turns the module off) or the OpenVAS flag (openvas). Audited by the switch it moves. 409 not_toggleable (nmap-versions, snmp, zap), missing_dependencies, not_appliance, module_off (openvas while External exposure is off), low_memory, low_disk; 400 no_ranges, no_days, scope_not_confirmed (nmap-discovery on, checked before anything moves), core_module. Returns the whole page, since one switch can change several engines",
 			OperationID:      "scanning_patch_scanning_engines_id",
 			Body:             request,
 			RawBody:          rawBody,
@@ -44628,13 +44629,16 @@ func (s *Server) handleScanningPatchScanningEnginesIDRequest(args [1]string, arg
 
 // handleScanningPostScanningEnginesNmapDiscoveryRunRequest handles scanning_post_scanning_engines_nmap_discovery_run operation.
 //
-// Scan the LAN now (no targets: a sweep of the whole scope outside the window, then the scans of the
-// devices it queued, for at most one hour) or check these devices now (targets). Runs in the
-// background: the answer is the run, which GET /scanning lists in running[] with its progress until it
-// ends. Works while the Vulnerability scans module is off. 400 unknown_device, out_of_scope,
+// Scan the LAN now (no targets: a sweep of the whole scope, then the scans of the devices it queued)
+// or check these devices now (targets), whatever the window, for at most one hour (devices not reached
+// by then wait for the window). Audited before anything is sent (scanning.run: the run id and the
+// ranges or devices; no audit row, no run). Runs in the background: the answer is the run, which GET
+// /scanning lists in running[] with its progress until it ends. Works while the Vulnerability scans
+// module is off. 400 unknown_device, out_of_scope (outside the ranges, excluded, or the box),
 // scope_not_confirmed, not_scannable (the device's safety rules refuse it); 409 module_off
-// (sensor-active off), engine_off (active discovery off), already_running; 503 scanner_unavailable
-// (nmap is not available).
+// (sensor-active off), engine_off (active discovery off), already_running (a run a person started),
+// busy (discovery is running nmap now), too_soon (a sweep less than 10 minutes ago; retry_after in
+// seconds); 503 scanner_unavailable (nmap is not available).
 //
 // POST /scanning/engines/nmap-discovery/run
 func (s *Server) handleScanningPostScanningEnginesNmapDiscoveryRunRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -44718,7 +44722,7 @@ func (s *Server) handleScanningPostScanningEnginesNmapDiscoveryRunRequest(args [
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    ScanningPostScanningEnginesNmapDiscoveryRunOperation,
-			OperationSummary: "Scan the LAN now (no targets: a sweep of the whole scope outside the window, then the scans of the devices it queued, for at most one hour) or check these devices now (targets). Runs in the background: the answer is the run, which GET /scanning lists in running[] with its progress until it ends. Works while the Vulnerability scans module is off. 400 unknown_device, out_of_scope, scope_not_confirmed, not_scannable (the device's safety rules refuse it); 409 module_off (sensor-active off), engine_off (active discovery off), already_running; 503 scanner_unavailable (nmap is not available)",
+			OperationSummary: "Scan the LAN now (no targets: a sweep of the whole scope, then the scans of the devices it queued) or check these devices now (targets), whatever the window, for at most one hour (devices not reached by then wait for the window). Audited before anything is sent (scanning.run: the run id and the ranges or devices; no audit row, no run). Runs in the background: the answer is the run, which GET /scanning lists in running[] with its progress until it ends. Works while the Vulnerability scans module is off. 400 unknown_device, out_of_scope (outside the ranges, excluded, or the box), scope_not_confirmed, not_scannable (the device's safety rules refuse it); 409 module_off (sensor-active off), engine_off (active discovery off), already_running (a run a person started), busy (discovery is running nmap now), too_soon (a sweep less than 10 minutes ago; retry_after in seconds); 503 scanner_unavailable (nmap is not available)",
 			OperationID:      "scanning_post_scanning_engines_nmap_discovery_run",
 			Body:             request,
 			RawBody:          rawBody,

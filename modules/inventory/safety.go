@@ -29,32 +29,25 @@ type SafetyInput struct {
 	RegularScanKinds []string
 }
 
-// SaveSafety stores the shared block (PRE-5 and INV-6/7 as SaveSettings; at least one day, the check rate 1..20 and at most
-// MaxExclusions exclusions on top). The switch of active discovery keeps its stored value; scope_not_confirmed when it is on and the
-// attestation is not ticked.
+// SaveSafety stores the shared block (PRE-5 and INV-6/7 as SaveSettings; at least one day, the check rate 1..20, and more than
+// MaxExclusions exclusions only when the list does not grow). The switch of active discovery keeps the value stored when the
+// transaction reads it (review #857 L8); scope_not_confirmed when it is on and the attestation is not ticked.
 func (s *Service) SaveSafety(ctx context.Context, actor string, in SafetyInput) (SavedSettings, error) {
-	if len(in.Exclusions) > MaxExclusions {
-		return SavedSettings{}, badRequest("too_many_exclusions", "The exclusion list can have at most 200 lines.")
-	}
 	if len(in.Days) == 0 {
 		return SavedSettings{}, badRequest("no_days", "Choose at least one day for the scan window.")
 	}
 	if in.RequestsPerS < 1 || in.RequestsPerS > MaxCheckRate {
 		return SavedSettings{}, badRequest("bad_rate", "The vulnerability check rate is 1 to 20 requests per second.")
 	}
-	prev, err := s.Settings(ctx)
-	if err != nil {
-		return SavedSettings{}, err
-	}
-	return s.SaveSettings(ctx, actor, SettingsInput{
+	return s.saveSettings(ctx, actor, SettingsInput{
 		Settings: Settings{
 			LANRanges: in.LANRanges,
-			Active: ActiveWindow{Enabled: prev.Active.Enabled, Days: in.Days, From: in.From, To: in.To, Rate: in.PacketsPerS,
+			Active: ActiveWindow{Days: in.Days, From: in.From, To: in.To, Rate: in.PacketsPerS,
 				Exclusions: in.Exclusions, CheckRate: in.RequestsPerS},
 			FragileKinds: in.FragileKinds, RegularScanKinds: in.RegularScanKinds,
 		},
 		ScopeConfirmed: in.Confirmed,
-	})
+	}, saveOpts{keepEnabled: true, capExclusions: true})
 }
 
 // SetDiscovery turns active discovery (active.enabled, the nmap-discovery engine of Settings › Scanning) on or off; the other
@@ -119,9 +112,6 @@ func (s *Service) SaveChecks(ctx context.Context, tx *sql.Tx, actor string, in C
 	if in.CheckRate < 1 || in.CheckRate > MaxCheckRate {
 		return badRequest("bad_rate", "The vulnerability check rate is 1 to 20 requests per second.")
 	}
-	if len(in.Exclusions) > MaxExclusions {
-		return badRequest("too_many_exclusions", "The exclusion list can have at most 200 lines.")
-	}
 	excl := []string{}
 	for _, raw := range in.Exclusions {
 		x, ok := normalExclusion(raw)
@@ -136,8 +126,12 @@ func (s *Service) SaveChecks(ctx context.Context, tx *sql.Tx, actor string, in C
 	if err := loadSetting(ctx, tx, "active", &act); err != nil {
 		return err
 	}
+	if len(excl) > MaxExclusions && len(excl) > len(act.Exclusions) { // over the limit only when it does not grow (L7)
+		return badRequest("too_many_exclusions", "The exclusion list can have at most 200 lines.")
+	}
 	act.Days = slices.Compact(slices.Sorted(slices.Values(in.Days)))
 	act.From, act.To, act.CheckRate, act.Exclusions = in.From, in.To, in.CheckRate, excl
+	act.ChecksMergedAt = s.now() // the caller wrote back what it read, the union of both lists while unmerged (M1)
 	if err := putSetting(ctx, tx, "active", act, s.now(), actorOrSystem(actor)); err != nil {
 		return err
 	}
@@ -166,26 +160,32 @@ type LegacyChecks struct {
 	Rate       int // requests per second
 	Exclusions []string
 	SavedBy    string // who saved it last; "" when nobody did (the defaults of the install)
+	SavedAt    string // when (store timestamp); "" when nobody did
 }
 
-// MergeLegacyChecks is the one-time merge of the scan module's copy into the one store (#850, INV-32), run at every start by
-// cmd/vedette and done once: it does nothing when the check rate is stored already. The check rate becomes the scan module's rate
-// (DefaultCheckRate when that is out of range); the exclusions become the union of both lists, normalized (nothing that was excluded
-// from any engine gets scanned: discovery now also skips what only the vulnerability checks skipped); the window stays the
-// inventory's. When a person had saved a different window for the vulnerability checks, one audit row scanning.safety.merged
-// names both windows, so the change is visible in the audit log. merged is true when it wrote.
+// MergeLegacyChecks takes the scan module's own copy into the one store (#850, INV-32). cmd/vedette runs it at every start and it does
+// something whenever the copy was saved after the last time it was taken in (ChecksMergedAt), or was never taken in: the first start
+// after #850, a merge that failed, or a version before #850 that wrote the copy after a rollback (review #857 M1: it can never be
+// skipped for good; the union is safe to repeat). The check rate becomes the copy's (DefaultCheckRate when out of range); the
+// exclusions become the union of both lists, normalized and each once (nothing either list excluded gets scanned: discovery also
+// skips what only the vulnerability checks skipped); the window stays the inventory's. One audit row scanning.safety.merged names
+// both windows and the exclusions added when that changed anything a person sees: a different window a person had saved, or
+// exclusions added (L10). merged is true when it wrote.
 func (s *Service) MergeLegacyChecks(ctx context.Context, in LegacyChecks) (merged bool, err error) {
 	err = s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		var act ActiveWindow
 		if err := loadSetting(ctx, tx, "active", &act); err != nil {
 			return err
 		}
-		if act.CheckRate != 0 {
-			return nil
+		if act.ChecksMergedAt != "" && in.SavedAt <= act.ChecksMergedAt {
+			return nil // taken in already, and not saved since
 		}
-		act.CheckRate = in.Rate
-		if act.CheckRate < 1 || act.CheckRate > MaxCheckRate {
-			act.CheckRate = DefaultCheckRate
+		rate := in.Rate
+		if rate < 1 || rate > MaxCheckRate {
+			rate = DefaultCheckRate
+		}
+		if act.CheckRate == 0 || in.SavedAt != "" { // a copy a person saved after the last merge is the newer speed
+			act.CheckRate = rate
 		}
 		excl := slices.Clone(act.Exclusions)
 		if excl == nil {
@@ -198,11 +198,13 @@ func (s *Service) MergeLegacyChecks(ctx context.Context, in LegacyChecks) (merge
 		}
 		added := len(excl) - len(act.Exclusions)
 		act.Exclusions = excl
-		if err := putSetting(ctx, tx, "active", act, s.now(), systemActor); err != nil {
+		act.ChecksMergedAt = s.now()
+		if err := putSetting(ctx, tx, "active", act, act.ChecksMergedAt, systemActor); err != nil {
 			return err
 		}
 		days := slices.Compact(slices.Sorted(slices.Values(in.Days)))
-		if in.SavedBy != "" && (!slices.Equal(days, act.Days) || in.From != act.From || in.To != act.To) {
+		otherWindow := in.SavedBy != "" && (!slices.Equal(days, act.Days) || in.From != act.From || in.To != act.To)
+		if otherWindow || added > 0 {
 			type window struct {
 				Days []int  `json:"days"`
 				From string `json:"from"`

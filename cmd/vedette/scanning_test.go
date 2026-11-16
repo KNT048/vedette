@@ -185,8 +185,17 @@ func TestScanningEngineSwitchesOverRealModules(t *testing.T) {
 	t.Parallel()
 	s := newStack(t)
 	s.module("sensor-active", false)
-	if code, out := s.do("PATCH", "/scanning/engines/nmap-discovery", "admin", `{"enabled":true,"with_dependencies":true}`); code != http.StatusBadRequest || errCodeOf(out) != "scope_not_confirmed" || s.d.Reg.Enabled("sensor-active") {
+	if code, out := s.do("PATCH", "/scanning/engines/nmap-discovery", "admin", `{"enabled":true,"with_dependencies":true}`); code != http.StatusBadRequest || errCodeOf(out) != "no_ranges" || s.d.Reg.Enabled("sensor-active") {
 		t.Fatalf("no scope: %d %v", code, out)
+	}
+	// review #857 L9: a range but no day: refused before sensor-active is turned on, so nothing changes
+	if _, err := s.d.Inventory.SaveSettings(t.Context(), "admin@acme.example", inventory.SettingsInput{Settings: inventory.Settings{
+		LANRanges: []string{"192.168.10.0/24"}, Active: inventory.ActiveWindow{Days: []int{}, From: "01:00", To: "05:00", Rate: 100, Exclusions: []string{}},
+	}, ScopeConfirmed: true}); err != nil {
+		t.Fatal(err)
+	}
+	if code, out := s.do("PATCH", "/scanning/engines/nmap-discovery", "admin", `{"enabled":true,"with_dependencies":true}`); code != http.StatusBadRequest || errCodeOf(out) != "no_days" || s.d.Reg.Enabled("sensor-active") {
+		t.Fatalf("no day: %d %v, module on %v", code, out, s.d.Reg.Enabled("sensor-active"))
 	}
 	if _, err := s.d.Inventory.SaveSettings(t.Context(), "admin@acme.example", inventory.SettingsInput{Settings: inventory.Settings{
 		LANRanges: []string{"192.168.10.0/24"}, Active: inventory.ActiveWindow{Days: []int{1}, From: "01:00", To: "05:00", Rate: 100, Exclusions: []string{}},
@@ -273,6 +282,23 @@ func TestScanningMergeOfTheTwoCopies(t *testing.T) {
 	if s.count(`SELECT count(*) FROM core_audit WHERE action = 'scanning.safety.merged'`) != 1 || s.activeSetting().CheckRate != 11 {
 		t.Fatal("the merge ran twice")
 	}
+	// review #857 M1: a version before #850 after a rollback writes the copy again (a new exclusion): the scan module reads it at once,
+	// and the next start takes it into the one store
+	err := s.d.DB.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `UPDATE scan_setting SET exclusions = '["192.168.10.9","192.168.10.50"]', updated_at = '2099-01-01T00:00:00.000Z'`)
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, cfg = s.do("GET", "/scans/config", "admin", "")
+	if ex := cfg["config"].(map[string]any)["exclusions"].([]any); !slices.Contains(ex, any("192.168.10.50")) {
+		t.Fatalf("before the next start nuclei skips %v, not the rollback's exclusion", ex)
+	}
+	mergeScanningSafety(t.Context(), s.d)
+	if a := s.activeSetting(); !slices.Contains(a.Exclusions, "192.168.10.50") {
+		t.Fatalf("after the next start: %v", a.Exclusions)
+	}
 }
 
 // POST /scanning/engines/nmap-discovery/run over the real modules: who may start it, the refusals of the switches, the scope and the
@@ -358,7 +384,7 @@ func TestScanningRunNow(t *testing.T) {
 	if code, again := run("admin", `{}`); code != http.StatusConflict || errCodeOf(again) != "already_running" {
 		t.Fatalf("a second run: %d %v", code, again)
 	}
-	if s.count(`SELECT count(*) FROM core_audit WHERE action = 'scanning.run' AND detail = '192.168.10.20' AND user = 'admin@acme.example'`) != 1 {
+	if s.count(`SELECT count(*) FROM core_audit WHERE action = 'scanning.run' AND target = ? AND detail LIKE 'check 192.168.10.20 (`+web+`) now%' AND user = 'admin@acme.example'`, out["id"]) != 1 {
 		t.Fatal("the run is not audited")
 	}
 	s.module("sensor-active", false)

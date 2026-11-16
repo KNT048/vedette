@@ -15,8 +15,12 @@ import (
 
 // ---- Scan the LAN now and Check this device now (#850, INV-21) ----
 
-// ErrManualBusy says a run a person started is still going, or (for a sweep) the window's own sweep or a device scan holds the nmap slot.
-var ErrManualBusy = errors.New("sensoractive: a run is already going")
+// ErrManualBusy says a run a person started is still going; ErrSlotBusy that the window's sweep, a queued device's scan or a Scan now
+// identification holds nmap now (review #857 L5: a check is refused, not skipped later).
+var (
+	ErrManualBusy = errors.New("sensoractive: a run is already going")
+	ErrSlotBusy   = errors.New("sensoractive: discovery is running nmap now")
+)
 
 // TargetError is why one target of a manual run may not be checked; nothing was started. Reason is one of the Refuse* values.
 type TargetError struct {
@@ -49,7 +53,8 @@ type ManualRun struct {
 	Assets    []string   // the device ids checked, in order; empty for a sweep
 	IP        netip.Addr // the address of the device when there is one; invalid otherwise
 	Ranges    []string   // the scope a sweep covers
-	StartedAt time.Time  //
+	StartedAt time.Time
+	Until     time.Time // its end at the latest: manualFor after its start (the sweep, its queue and every device check)
 	Progress  *progress.View
 }
 
@@ -72,14 +77,21 @@ func (s *Service) Manual() *ManualRun {
 	return &m
 }
 
-// StartManual checks a manual run and starts it in the background (INV-21): no targets sweeps the whole scope now and then scans the
-// devices the sweep queued, with the window counted open for manualFor ("Scan the LAN now"); targets (IPv4 addresses of devices or
-// device ids, at most MaxManualTargets) identify those devices one after the other as IdentifyDevice does ("Check this device now").
-// Every rule but the window holds and is checked before anything starts: active scanning on (ErrScanningOff), the scope confirmed
-// (ErrScopeNotConfirmed, ErrNoRanges), nmap present (ErrUnavailable), one manual run at a time (ErrManualBusy), and per target the device
+// StartManual checks a manual run, records it and starts it in the background (INV-21): no targets sweeps the whole scope now and then
+// scans the devices the sweep queued, with the window counted open for manualFor ("Scan the LAN now"); targets (IPv4 addresses of
+// devices or device ids, at most MaxManualTargets) identify those devices one after the other as IdentifyDevice does, all within
+// manualFor ("Check this device now"). Every rule but the window holds and is checked before anything starts: the module on (ErrStopped
+// once Stop ran), active scanning on (ErrScanningOff), the scope confirmed (ErrScopeNotConfirmed, ErrNoRanges), nmap present
+// (ErrUnavailable), one manual run at a time (ErrManualBusy), no LAN run holding nmap now (ErrSlotBusy: the window's sweep or a device
+// scan; never a check skipped later without a word), no sweep started in the last SweepGap (a *TooSoonError), and per target the device
 // exists, is inside the scope and outside the exclusions and the box, and its policy lets a person check it (a *TargetError).
-// The run goes on after ctx ends; Stop (the module turned off) and SettingsChanged end it as any other run.
-func (s *Service) StartManual(ctx context.Context, targets []string) (ManualRun, error) {
+// record is called once the run is claimed and before anything is sent (the person's consent, review #857 M2): its error refuses the
+// run and nothing starts. The run goes on after ctx ends; Stop (the module turned off) and SettingsChanged end it as any other run.
+func (s *Service) StartManual(ctx context.Context, targets []string, record func(ManualRun) error) (ManualRun, error) {
+	stops := s.stops.Load()
+	if s.off.Load() {
+		return ManualRun{}, ErrStopped
+	}
 	if len(targets) > MaxManualTargets {
 		return ManualRun{}, &TargetError{Target: targets[MaxManualTargets], Reason: RefuseNotAllowed, Detail: "too_many"}
 	}
@@ -97,23 +109,43 @@ func (s *Service) StartManual(ctx context.Context, targets []string) (ManualRun,
 	if err != nil {
 		return ManualRun{}, err
 	}
-	s.mu.Lock()
-	busy := s.manual != nil || (len(ids) == 0 && s.cur != nil && !s.cur.external)
-	s.mu.Unlock()
-	if busy {
-		return ManualRun{}, ErrManualBusy
+	if len(ids) == 0 {
+		if err := s.sweepGap(ctx); err != nil {
+			return ManualRun{}, err
+		}
 	}
 	tr := progress.NewTracker(s.clock)
-	rctx, cancel := context.WithCancel(progress.WithSink(context.WithoutCancel(ctx), tr))
-	m := &manualRun{ManualRun: ManualRun{ID: store.NewID("sar"), Assets: ids, IP: ip, Ranges: slices.Clone(st.LANRanges), StartedAt: s.clock()}, cancel: cancel, tr: tr, done: make(chan struct{})}
+	rctx, cancel := context.WithCancel(withManual(progress.WithSink(context.WithoutCancel(ctx), tr)))
+	now := s.clock()
+	m := &manualRun{ManualRun: ManualRun{ID: store.NewID("sar"), Assets: ids, IP: ip, Ranges: slices.Clone(st.LANRanges), StartedAt: now, Until: now.Add(manualFor)},
+		cancel: cancel, tr: tr, done: make(chan struct{})}
 	s.mu.Lock()
-	if s.manual != nil {
-		s.mu.Unlock()
-		cancel()
-		return ManualRun{}, ErrManualBusy
+	var refused error
+	switch {
+	case s.off.Load() || s.stops.Load() != stops: // the module was turned off since the checks (review #857 L1)
+		refused = ErrStopped
+	case s.manual != nil:
+		refused = ErrManualBusy
+	case s.cur != nil && !s.cur.external:
+		refused = ErrSlotBusy
+	default:
+		s.manual = m
+		if len(ids) == 0 {
+			s.manualUntil = m.Until
+		}
 	}
-	s.manual = m
 	s.mu.Unlock()
+	if refused != nil {
+		cancel()
+		return ManualRun{}, refused
+	}
+	if record != nil {
+		if err := record(m.ManualRun); err != nil {
+			s.unclaim(m)
+			cancel()
+			return ManualRun{}, err
+		}
+	}
 	if len(ids) == 0 {
 		tr.Report(progress.Update{Phase: progress.PhaseDiscovery, Percent: -1, NewPass: true})
 	} else {
@@ -124,6 +156,56 @@ func (s *Service) StartManual(ctx context.Context, targets []string) (ManualRun,
 	out.Progress = tr.View()
 	return out, nil
 }
+
+// SweepGap is the least time between two sweeps a person starts, or a person's and the window's (INV-21, review #857 L4): the window
+// stays the rule, a sweep on demand the exception.
+const SweepGap = 10 * time.Minute
+
+// TooSoonError refuses a sweep that would start within SweepGap of the last one; RetryAfter is how long until it may.
+type TooSoonError struct{ RetryAfter time.Duration }
+
+func (e *TooSoonError) Error() string {
+	return "sensoractive: a sweep ran less than " + SweepGap.String() + " ago"
+}
+
+// sweepGap refuses a sweep within SweepGap of the newest sweep's start.
+func (s *Service) sweepGap(ctx context.Context) error {
+	var last sql.NullString
+	if err := s.db.Reader().QueryRowContext(ctx, `SELECT max(started_at) FROM sa_job WHERE kind = 'sweep'`).Scan(&last); err != nil {
+		return fmt.Errorf("sensoractive: read the last sweep: %w", err)
+	}
+	if !last.Valid {
+		return nil
+	}
+	t, err := time.Parse(time.RFC3339Nano, last.String)
+	if err != nil {
+		return fmt.Errorf("sensoractive: read the last sweep: %w", err)
+	}
+	if wait := t.Add(SweepGap).Sub(s.clock()); wait > 0 {
+		return &TooSoonError{RetryAfter: wait}
+	}
+	return nil
+}
+
+// unclaim forgets a claimed run that did not start.
+func (s *Service) unclaim(m *manualRun) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.manual == m {
+		s.manual = nil
+		s.manualUntil = time.Time{}
+	}
+	close(m.done)
+}
+
+type manualKey struct{}
+
+// withManual marks ctx as a run of a person's "Scan the LAN now": windowNow lets it run until manualUntil.
+func withManual(ctx context.Context) context.Context {
+	return context.WithValue(ctx, manualKey{}, true)
+}
+
+func isManual(ctx context.Context) bool { v, _ := ctx.Value(manualKey{}).(bool); return v }
 
 // checkTargets resolves the targets to devices and refuses the first one a person may not check now; ip is the address of the only
 // device when there is one.
@@ -136,6 +218,10 @@ func (s *Service) checkTargets(ctx context.Context, st Settings, targets []strin
 		return nil, netip.Addr{}, err
 	}
 	protected, err := s.inv.ProtectedIPs(ctx)
+	if err != nil {
+		return nil, netip.Addr{}, err
+	}
+	box, err := s.inv.BoxIPs(ctx) // the box and its decoys: never, whatever the device row says (review #857 L3)
 	if err != nil {
 		return nil, netip.Addr{}, err
 	}
@@ -166,6 +252,8 @@ func (s *Service) checkTargets(ctx context.Context, st Settings, targets []strin
 			return nil, netip.Addr{}, &TargetError{Target: t, Reason: RefuseNotAllowed, Detail: why}
 		case !asset.IP.IsValid():
 			return nil, netip.Addr{}, &TargetError{Target: t, Reason: RefuseNotAllowed, Detail: "no_ip"}
+		case slices.Contains(box, asset.IP):
+			return nil, netip.Addr{}, &TargetError{Target: t, Reason: RefuseOutOfScope, Detail: reasonBox}
 		case !sc.contains(asset.IP):
 			return nil, netip.Addr{}, &TargetError{Target: t, Reason: RefuseOutOfScope, Detail: "out_of_scope"}
 		case slices.Contains(protected, asset.IP) && dec.Reason != reasonFragilePassive && dec.Reason != reasonUnclassifiedPassive:
@@ -189,6 +277,7 @@ func (s *Service) runManual(ctx context.Context, m *manualRun) {
 		s.mu.Lock()
 		if s.manual == m {
 			s.manual = nil
+			s.manualUntil = time.Time{}
 		}
 		s.mu.Unlock()
 		close(m.done)
@@ -197,34 +286,54 @@ func (s *Service) runManual(ctx context.Context, m *manualRun) {
 		s.manualSweep(ctx)
 		return
 	}
-	for _, id := range m.Assets {
-		if ctx.Err() != nil {
+	for i, id := range m.Assets {
+		left := m.Until.Sub(s.clock())
+		if ctx.Err() != nil || s.off.Load() {
 			return
 		}
-		res, err := s.IdentifyDevice(ctx, id)
+		if left <= 0 { // the run's hour is over: the rest wait for the window (review #857 L4)
+			s.queueRest(ctx, m.Assets[i:], "the check a person started ran out of time")
+			return
+		}
+		dctx, cancel := context.WithTimeout(ctx, left)
+		res, err := s.IdentifyDevice(dctx, id)
+		cancel()
 		switch {
 		case errors.Is(err, ErrStopped):
+			if ctx.Err() == nil && s.clock().Before(m.Until) && !s.off.Load() {
+				continue // stopped for this device alone (it changed); the next one is checked
+			}
+			if !s.off.Load() && ctx.Err() == nil {
+				s.queueRest(ctx, m.Assets[i:], "the check a person started ran out of time")
+			}
 			return
 		case err != nil:
 			s.log.WarnContext(ctx, "sensoractive: a device check a person started failed", "asset", id, "error", err)
+		case res.Why == reasonScanningOff || res.Why == reasonScopeNotConfirmed: // discovery turned off, or the scope, since it started
+			return
+		case res.Why == WhyBusy: // another run kept nmap (an exposure scan): the window's queue takes it, never a silent skip (L5)
+			s.queueRest(ctx, []string{id}, "nmap was busy")
 		case res.Why != "":
 			s.log.InfoContext(ctx, "sensoractive: a device check a person started found nothing to record", "asset", id, "why", res.Why)
 		}
 	}
 }
 
+// queueRest puts the devices a manual check could not reach in the window's queue, and says so in the log.
+func (s *Service) queueRest(ctx context.Context, ids []string, why string) {
+	ctx = context.WithoutCancel(ctx)
+	for _, id := range ids {
+		if err := s.Enqueue(ctx, id, "check_now"); err != nil {
+			s.log.WarnContext(ctx, "sensoractive: queueing a device a person asked to check failed", "asset", id, "error", err)
+		}
+	}
+	s.log.WarnContext(ctx, "sensoractive: devices a person asked to check wait for the next window", "devices", len(ids), "why", why)
+}
+
 // manualSweep is "Scan the LAN now": the sweep from the first address of the scope, then the scans of the devices it queued (the
 // gentle scan first for fragile and unclassified ones, D-84 (1)), with the window counted open for at most manualFor. Every other
 // rule holds; a change of settings stops it as it stops the window's runs.
 func (s *Service) manualSweep(ctx context.Context) {
-	s.mu.Lock()
-	s.manualUntil = s.clock().Add(manualFor)
-	s.mu.Unlock()
-	defer func() {
-		s.mu.Lock()
-		s.manualUntil = time.Time{}
-		s.mu.Unlock()
-	}()
 	s.setCursor(ctx, netip.Addr{}) // the whole scope, not the rest of a pass the window cut
 	s.log.InfoContext(ctx, "sensoractive: a sweep a person started, outside the window", "for", manualFor.String())
 	if _, err := s.DiscoverRanges(ctx); err != nil && !errors.Is(err, ErrStopped) && !errors.Is(err, ErrOutsideWindow) {

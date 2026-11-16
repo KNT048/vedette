@@ -94,8 +94,10 @@ func set[T any](dst *T, v *T) {
 	}
 }
 
-// validate checks INV-5 on a whole configuration, in the order and with the words of the mock's validateConfig.
-func (c Settings) validate() error {
+// validate checks INV-5 on a whole configuration, in the order and with the words of the mock's validateConfig. had is how many
+// exclusions the stored configuration held: a list over MaxExclusions passes when it does not grow (the merge of #850 can leave a
+// longer one, and a save of something else must still go through: review #857 L7).
+func (c Settings) validate(had int) error {
 	w := c.Window
 	if len(w.Days) == 0 || len(w.Days) > 7 || slices.ContainsFunc(w.Days, func(d int) bool { return d < 1 || d > 7 }) {
 		return invalidConfig("Choose at least one day for the scan window.")
@@ -109,7 +111,7 @@ func (c Settings) validate() error {
 	if c.Rate < 1 || c.Rate > MaxRate {
 		return invalidConfig("The rate must be 1 to 20 requests per second. A lower rate is safer for old devices.")
 	}
-	if len(c.Exclusions) > MaxExclusions {
+	if len(c.Exclusions) > MaxExclusions && len(c.Exclusions) > had {
 		return invalidConfig("The exclusion list can have at most 200 lines.")
 	}
 	for i, e := range c.Exclusions {
@@ -241,6 +243,10 @@ type Checks struct {
 	Window     Window
 	Rate       int // requests per second
 	Exclusions []string
+	// MergedAt is when the inventory last took this module's own copy (scan_setting) in; "" when it never did. While the copy is
+	// newer (a failed merge, or a version before #850 that wrote it after a rollback), settings reads the union of both lists and
+	// the slower rate, so nothing either list excludes is scanned (review #857 M1). Read only.
+	MergedAt string
 }
 
 // SharedChecks is the inventory as the one store of Checks (#850, INV-16). The Inventory adapter of cmd/vedette implements it; an
@@ -275,29 +281,42 @@ func (s *Service) settings(ctx context.Context, q interface {
 	if err != nil {
 		return Settings{}, fmt.Errorf("scan: reading the shared window, rate and exclusions: %w", err)
 	}
+	var updated sql.NullString
+	if err := q.QueryRowContext(ctx, `SELECT updated_at FROM scan_setting WHERE id = 1`).Scan(&updated); err != nil {
+		return Settings{}, fmt.Errorf("scan: reading when the settings were saved: %w", err)
+	}
+	own := c
 	c.Window = Window{Days: slices.Clone(ch.Window.Days), From: ch.Window.From, To: ch.Window.To}
 	c.Rate = ch.Rate
 	c.Exclusions = slices.Clone(ch.Exclusions)
+	if ch.MergedAt == "" || (updated.Valid && updated.String > ch.MergedAt) { // not merged yet: both lists bind, the slower rate wins
+		for _, x := range own.Exclusions {
+			if !slices.Contains(c.Exclusions, x) {
+				c.Exclusions = append(c.Exclusions, x)
+			}
+		}
+		c.Rate = min(c.Rate, own.Rate)
+	}
 	if c.Exclusions == nil {
 		c.Exclusions = []string{}
 	}
 	return c, nil
 }
 
-// LegacyChecks reads scan_setting's own window, rate and exclusions and who saved them last ("" when nobody did): what the one-time
-// merge into the inventory reads (#850, cmd/vedette).
+// LegacyChecks reads scan_setting's own window, rate and exclusions, who saved them last and when ("" when nobody did): what the
+// merge into the inventory reads at every start (#850, cmd/vedette).
 func LegacyChecks(ctx context.Context, q interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
-}) (c Checks, savedBy string, err error) {
+}) (c Checks, savedBy, savedAt string, err error) {
 	st, err := loadSettings(ctx, q)
 	if err != nil {
-		return Checks{}, "", err
+		return Checks{}, "", "", err
 	}
-	var by sql.NullString
-	if err := q.QueryRowContext(ctx, `SELECT updated_by FROM scan_setting WHERE id = 1`).Scan(&by); err != nil {
-		return Checks{}, "", fmt.Errorf("scan: reading who saved the settings: %w", err)
+	var by, at sql.NullString
+	if err := q.QueryRowContext(ctx, `SELECT updated_by, updated_at FROM scan_setting WHERE id = 1`).Scan(&by, &at); err != nil {
+		return Checks{}, "", "", fmt.Errorf("scan: reading who saved the settings: %w", err)
 	}
-	return Checks{Window: st.Window, Rate: st.Rate, Exclusions: st.Exclusions}, by.String, nil
+	return Checks{Window: st.Window, Rate: st.Rate, Exclusions: st.Exclusions}, by.String, at.String, nil
 }
 
 func loadSettings(ctx context.Context, q interface {

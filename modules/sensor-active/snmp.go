@@ -695,7 +695,7 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 	if err != nil {
 		return nil, s.stopFor(err)
 	}
-	end, ok := s.windowNow(st)
+	end, ok := s.windowNow(ctx, st)
 	if !ok && !picked {
 		return nil, ErrStopped
 	}
@@ -1099,7 +1099,7 @@ func (s *Service) snmpChanged(ctx context.Context, asset string) {
 		run.cancel()
 		return
 	}
-	end, ok := s.windowNow(st)
+	end, ok := s.windowNow(ctx, st)
 	s.mu.Lock()
 	deadline := run.deadline
 	s.mu.Unlock()

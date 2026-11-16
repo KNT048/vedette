@@ -139,11 +139,26 @@ type RunningJob struct {
 }
 
 // DiscoveryRunner starts "Scan the LAN now" (no targets) or "Check this device now" (targets) on active discovery (sensor-active).
-// Its errors: ErrDiscoveryModuleOff, ErrDiscoveryOff, ErrScopeNotConfirmed, ErrRunBusy, ErrNmapUnavailable, a *RunRefusal, or a
-// failure of the box.
+// It calls record once the run passed every check and before anything is sent; an error of record refuses the run (nothing starts).
+// Its errors: ErrDiscoveryModuleOff, ErrDiscoveryOff, ErrScopeNotConfirmed, ErrRunBusy, ErrNmapBusy, ErrNmapUnavailable, a
+// *RunTooSoon, a *RunRefusal, record's error, or a failure of the box.
 type DiscoveryRunner interface {
-	Run(ctx context.Context, actor string, targets []string) (RunningJob, error)
+	Run(ctx context.Context, actor string, targets []string, record func(RunConsent) error) (RunningJob, error)
 }
+
+// RunConsent is what a person's run will scan, for its audit row (the consent): the run, and the ranges of a sweep or the devices
+// of a check with their addresses.
+type RunConsent struct {
+	ID      string
+	Ranges  []string // a sweep: the confirmed scope it covers
+	Devices []string // a check: "id (ip)" of each device
+	Until   time.Time
+}
+
+// RunTooSoon refuses a sweep within the least gap after the last one.
+type RunTooSoon struct{ RetryAfter time.Duration }
+
+func (e *RunTooSoon) Error() string { return "core: scanning: a sweep ran a moment ago" }
 
 // The refusals of DiscoveryRunner.Run.
 var (
@@ -151,6 +166,7 @@ var (
 	ErrDiscoveryOff       = errors.New("core: scanning: active discovery is off")
 	ErrScopeNotConfirmed  = errors.New("core: scanning: the scope is not confirmed")
 	ErrRunBusy            = errors.New("core: scanning: a run is already going")
+	ErrNmapBusy           = errors.New("core: scanning: discovery is running nmap now")
 	ErrNmapUnavailable    = errors.New("core: scanning: nmap is not available")
 )
 
@@ -494,18 +510,21 @@ func (h *ScanningHandlers) ScanningPostScanningEnginesNmapDiscoveryRun(ctx conte
 	if req.Targets != nil && len(targets) == 0 {
 		return nil, apierr.Invalid("Name at least one device to check, or leave the list out to scan the whole network.")
 	}
-	run, err := h.cfg.Discovery.Run(ctx, p.Email, targets)
+	// The audit row is the person's consent (D-627): written before any packet, in its own transaction; if it cannot be written the
+	// run does not start (review #857 M2). It names the run and what it covers.
+	record := func(c RunConsent) error {
+		detail := "check " + strings.Join(c.Devices, ", ")
+		if len(c.Devices) == 0 {
+			detail = "sweep of " + strings.Join(c.Ranges, ", ") + " and the scans of the devices it queues"
+		}
+		detail += " now, whatever the window, until " + store.FormatTS(c.Until) + " at the latest"
+		return h.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
+			return h.cfg.Audit.Append(ctx, tx, audit.Entry{User: p.Email, Action: "scanning.run", Target: c.ID, Detail: clipRunes(detail, 1900)})
+		})
+	}
+	run, err := h.cfg.Discovery.Run(ctx, p.Email, targets, record)
 	if err != nil {
 		return nil, runError(err)
-	}
-	detail := "the whole scope"
-	if len(targets) > 0 {
-		detail = strings.Join(targets, ", ")
-	}
-	if err := h.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		return h.cfg.Audit.Append(ctx, tx, audit.Entry{User: p.Email, Action: "scanning.run", Target: "nmap-discovery", Detail: clipRunes(detail, 1900)})
-	}); err != nil {
-		h.cfg.Log.ErrorContext(ctx, "scanning: the audit row of a run failed; the run goes on", "run", run.ID, "error", err)
 	}
 	return encode[oas.ScanningPostScanningEnginesNmapDiscoveryRunAccepted](runningView{
 		Engine: run.Engine, ID: run.ID, Label: run.Label, TargetID: strOrNil(run.TargetID), StartedAt: store.FormatTS(run.StartedAt), Progress: run.Progress,
@@ -522,7 +541,11 @@ func clipRunes(s string, n int) string {
 // runError turns a refusal of DiscoveryRunner.Run into the API's answer.
 func runError(err error) error {
 	var rr *RunRefusal
+	var soon *RunTooSoon
 	switch {
+	case errors.As(err, &soon):
+		secs := max(1, int(soon.RetryAfter.Round(time.Second)/time.Second))
+		return apierr.New(http.StatusConflict, "too_soon", fmt.Sprintf("The network was swept a moment ago. Start another sweep in %d minutes.", (secs+59)/60)).With("retry_after", secs)
 	case errors.As(err, &rr):
 		var e *apierr.Error
 		switch rr.Code {
@@ -542,6 +565,8 @@ func runError(err error) error {
 		return apierr.New(http.StatusBadRequest, "scope_not_confirmed", "Tick the confirmation that these network ranges belong to your company and you are allowed to scan them. Vedette only scans within the confirmed scope.")
 	case errors.Is(err, ErrRunBusy):
 		return apierr.New(http.StatusConflict, "already_running", "A scan is already running. Wait for it to finish.")
+	case errors.Is(err, ErrNmapBusy):
+		return apierr.New(http.StatusConflict, "busy", "Discovery is running nmap now (the window's sweep or a device scan). Try again when it ends.")
 	case errors.Is(err, ErrNmapUnavailable):
 		return apierr.New(http.StatusServiceUnavailable, "scanner_unavailable", "The scanner is not available: the scan container or its nmap is missing. Check the box's services, then try again.")
 	}

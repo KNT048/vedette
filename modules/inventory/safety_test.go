@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/modules/inventory"
 )
@@ -51,7 +53,12 @@ func TestContract_INV32_SaveSafety(t *testing.T) {
 		{"check rate 0", func(in *inventory.SafetyInput) { in.RequestsPerS = 0 }, "bad_rate"},
 		{"check rate 21", func(in *inventory.SafetyInput) { in.RequestsPerS = 21 }, "bad_rate"},
 		{"packets 1001", func(in *inventory.SafetyInput) { in.PacketsPerS = 1001 }, "bad_rate"},
-		{"201 exclusions", func(in *inventory.SafetyInput) { in.Exclusions = slices.Repeat([]string{"192.168.18.9"}, 201) }, "too_many_exclusions"},
+		{"201 exclusions", func(in *inventory.SafetyInput) {
+			in.Exclusions = nil
+			for i := range 201 {
+				in.Exclusions = append(in.Exclusions, "10.1."+strconv.Itoa(i/250)+"."+strconv.Itoa(i%250))
+			}
+		}, "too_many_exclusions"},
 		{"host bits in an exclusion", func(in *inventory.SafetyInput) { in.Exclusions = []string{"192.168.18.5/28"} }, "bad_exclusion"},
 		{"discovery on, scope not ticked", func(in *inventory.SafetyInput) { in.Confirmed = false }, "scope_not_confirmed"},
 		{"same start and end", func(in *inventory.SafetyInput) { in.To = in.From }, "bad_window"},
@@ -187,7 +194,7 @@ func TestContract_INV32_MergeLegacyChecks(t *testing.T) {
 		t.Fatalf("before the merge: %d / %d", st.Active.CheckRate, st.Active.Checks())
 	}
 	e.ev.reset()
-	legacy := inventory.LegacyChecks{Days: []int{6, 7}, From: "22:00", To: "05:00", Rate: 9, Exclusions: []string{"192.168.18.9", "192.168.18.70/28", "10.0.0.1"}, SavedBy: "it@acme.example"}
+	legacy := inventory.LegacyChecks{Days: []int{6, 7}, From: "22:00", To: "05:00", Rate: 9, Exclusions: []string{"192.168.18.9", "192.168.18.70/28", "10.0.0.1"}, SavedBy: "it@acme.example", SavedAt: "2026-11-01T00:00:00.000Z"}
 	merged, err := e.svc.MergeLegacyChecks(e.ctx(), legacy)
 	if err != nil || !merged {
 		t.Fatalf("merge: %v %v", merged, err)
@@ -209,15 +216,37 @@ func TestContract_INV32_MergeLegacyChecks(t *testing.T) {
 	if n := len(e.ev.named(inventory.EventSettingsChanged)); n != 1 {
 		t.Fatalf("settings.changed = %d", n)
 	}
-	// once only
+	// the same copy at the next start: nothing
 	if merged, err := e.svc.MergeLegacyChecks(e.ctx(), legacy); err != nil || merged || e.count(`SELECT count(*) FROM core_audit WHERE action = 'scanning.safety.merged'`) != 1 {
 		t.Fatalf("second merge: %v %v", merged, err)
+	}
+	// review #857 M1: a copy saved after the merge (a version before #850 after a rollback) is taken in again at the next start, and a
+	// save of the shared block in between does not mark it taken in
+	if _, err := e.svc.SaveSafety(e.ctx(), "admin@acme.example", inventory.SafetyInput{LANRanges: []string{"192.168.18.0/24"}, Confirmed: true,
+		Days: []int{1, 2, 3, 4, 5, 6, 7}, From: "23:00", To: "05:00", PacketsPerS: 50, RequestsPerS: 9, Exclusions: st.Active.Exclusions}); err != nil {
+		t.Fatal(err)
+	}
+	e.tick(time.Hour)
+	rolled := legacy
+	rolled.SavedAt, rolled.Exclusions, rolled.Days, rolled.From, rolled.To = "2099-01-01T00:00:00.000Z", append(slices.Clone(legacy.Exclusions), "192.168.18.50"), []int{1, 2, 3, 4, 5, 6, 7}, "23:00", "05:00"
+	if merged, err := e.svc.MergeLegacyChecks(e.ctx(), rolled); err != nil || !merged {
+		t.Fatalf("a newer copy: %v %v", merged, err)
+	}
+	if st, _ := e.svc.Settings(e.ctx()); !slices.Contains(st.Active.Exclusions, "192.168.18.50") {
+		t.Fatalf("the rollback's exclusion is not in the one store: %v", st.Active.Exclusions)
+	}
+	// L10: the same window, but exclusions added: an audit row all the same
+	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'scanning.safety.merged' AND detail LIKE '%"exclusions_added":1%'`); n != 2 {
+		t.Fatalf("merge rows with one exclusion added = %d", n)
 	}
 
 	// a copy nobody saved (the install's defaults) merges silently; a rate out of range gives the default
 	e2 := newEnv(t)
 	if merged, err := e2.svc.MergeLegacyChecks(e2.ctx(), inventory.LegacyChecks{Days: []int{1}, From: "01:00", To: "02:00", Rate: 0}); err != nil || !merged {
 		t.Fatalf("defaults: %v %v", merged, err)
+	}
+	if merged, err := e2.svc.MergeLegacyChecks(e2.ctx(), inventory.LegacyChecks{Days: []int{1}, From: "01:00", To: "02:00", Rate: 0}); err != nil || merged {
+		t.Fatalf("defaults twice: %v %v", merged, err)
 	}
 	if st, _ := e2.svc.Settings(e2.ctx()); st.Active.CheckRate != inventory.DefaultCheckRate || e2.count(`SELECT count(*) FROM core_audit WHERE action = 'scanning.safety.merged'`) != 0 {
 		t.Fatalf("defaults merged into %+v", st.Active)
@@ -229,5 +258,45 @@ func TestFragileCount(t *testing.T) {
 	e := newEnv(t)
 	if n, err := e.svc.FragileCount(e.ctx()); err != nil || n != 0 {
 		t.Fatalf("empty: %d %v", n, err)
+	}
+}
+
+// review #857 L7, L8: a list over 200 left by a merge saves when it does not grow, and growing it is refused; the save keeps the
+// switch of active discovery as stored when its transaction reads it.
+func TestContract_INV32_LongListsAndTheStoredSwitch(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	long := make([]string, 0, 210)
+	for i := range 210 {
+		long = append(long, "10."+strconv.Itoa(i/250)+"."+strconv.Itoa(i%250)+".1")
+	}
+	in := okSettings("192.168.18.0/24")
+	in.Active.Exclusions = long
+	if _, err := e.svc.SaveSettings(e.ctx(), "admin@acme.example", in); err != nil { // the discovery page has no cap; a merge may add more
+		t.Fatal(err)
+	}
+	safety := okSafety()
+	safety.Exclusions = long
+	saved, err := e.svc.SaveSafety(e.ctx(), "admin@acme.example", safety)
+	if err != nil || len(saved.Active.Exclusions) != 210 || saved.Active.Enabled {
+		t.Fatalf("the same long list: %v, %d, enabled %v", err, len(saved.Active.Exclusions), saved.Active.Enabled)
+	}
+	safety.Exclusions = append(slices.Clone(long), "192.168.18.77")
+	_, err = e.svc.SaveSafety(e.ctx(), "admin@acme.example", safety)
+	wantAPIError(t, err, 400, "too_many_exclusions")
+	var tx *sql.Tx
+	werr := e.db.Write(e.ctx(), func(w *sql.Tx) error {
+		tx = w
+		return e.svc.SaveChecks(e.ctx(), w, "admin@acme.example", inventory.ChecksInput{Days: []int{1}, From: "20:00", To: "02:00", CheckRate: 3, Exclusions: long})
+	})
+	e.svc.Settle(e.ctx(), tx, werr == nil)
+	if werr != nil {
+		t.Fatalf("the scan module's save of the same long list: %v", werr)
+	}
+	// the switch: turned on between the page's read and its save, it stays on
+	e.confirmScope("192.168.18.0/24")
+	safety.Exclusions = long[:5]
+	if saved, err := e.svc.SaveSafety(e.ctx(), "admin@acme.example", safety); err != nil || !saved.Active.Enabled {
+		t.Fatalf("the stored switch: %v, enabled %v", err, saved.Active.Enabled)
 	}
 }

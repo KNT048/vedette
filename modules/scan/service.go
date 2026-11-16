@@ -199,15 +199,24 @@ func (s *Service) SaveConfig(ctx context.Context, user string, p Patch) (ConfigV
 			return err
 		}
 		next := p.apply(cur)
-		if err := next.validate(); err != nil {
+		if err := next.validate(len(cur.Exclusions)); err != nil {
 			return err
 		}
-		if err := saveSettings(ctx, tx, next, user, store.FormatTS(s.now())); err != nil {
+		copyOf := next // scan_setting's copy holds at most MaxExclusions (its CHECK): a longer shared list leaves the stored copy as it is
+		if len(next.Exclusions) > MaxExclusions {
+			raw, err := loadSettings(ctx, tx)
+			if err != nil {
+				return err
+			}
+			copyOf.Exclusions = raw.Exclusions
+		}
+		if err := saveSettings(ctx, tx, copyOf, user, store.FormatTS(s.now())); err != nil {
 			return err
 		}
-		// INV-16 (#850): the window, the rate and the exclusions are the inventory's; this save writes them there too, in the same
-		// transaction, so discovery and Settings › Scanning see the same values.
-		if shared && (p.Days != nil || p.From != nil || p.To != nil || p.Rate != nil || p.Exclusions != nil) {
+		// INV-16 (#850): the window, the rate and the exclusions are the inventory's; every save writes the values it read (the
+		// union while the copy was not merged: review #857 M1) back there, in the same transaction, so the inventory marks the copy
+		// taken in and discovery and Settings › Scanning see the same values.
+		if shared {
 			if err := sh.SaveChecks(ctx, tx, user, Checks{Window: next.Window, Rate: next.Rate, Exclusions: next.Exclusions}); err != nil {
 				return err
 			}

@@ -44,13 +44,26 @@ func (f *fakeSafety) SaveSafety(_ context.Context, _ string, in core.SafetyInput
 type fakeRunner struct {
 	err     error
 	targets [][]string
+	started int // runs started: after their record
 }
 
-func (f *fakeRunner) Run(_ context.Context, _ string, targets []string) (core.RunningJob, error) {
+// Run records the run as sensor-active does, before it starts: a sweep of the scope, or the devices named.
+func (f *fakeRunner) Run(_ context.Context, _ string, targets []string, record func(core.RunConsent) error) (core.RunningJob, error) {
 	f.targets = append(f.targets, targets)
 	if f.err != nil {
 		return core.RunningJob{}, f.err
 	}
+	c := core.RunConsent{ID: "sar-1", Until: time.Date(2026, 11, 16, 4, 0, 0, 0, time.UTC)}
+	if len(targets) == 0 {
+		c.Ranges = []string{"192.168.18.0/24"}
+	}
+	for _, t := range targets {
+		c.Devices = append(c.Devices, t+" (a-1)")
+	}
+	if err := record(c); err != nil {
+		return core.RunningJob{}, err
+	}
+	f.started++
 	return core.RunningJob{Engine: "nmap-discovery", ID: "sar-1", Label: "Check 192.168.18.20", TargetID: "a-1", StartedAt: time.Date(2026, 11, 16, 3, 0, 0, 0, time.UTC),
 		Progress: &progress.View{Phase: progress.PhaseDiscovery, StartedAt: "2026-11-16T03:00:00.000Z", PhaseStartedAt: "2026-11-16T03:00:00.000Z", UpdatedAt: "2026-11-16T03:00:00.000Z"}}, nil
 }
@@ -365,13 +378,13 @@ func TestContract_INV40_RunNow(t *testing.T) {
 	if !slices.Equal(s.runner.targets[0], []string{"192.168.18.20"}) {
 		t.Fatalf("targets = %v", s.runner.targets)
 	}
-	if n := count(t, s.db, `SELECT count(*) FROM core_audit WHERE action = 'scanning.run' AND user = 'admin@acme.example' AND detail = '192.168.18.20'`); n != 1 {
+	if n := count(t, s.db, `SELECT count(*) FROM core_audit WHERE action = 'scanning.run' AND user = 'admin@acme.example' AND target = 'sar-1' AND detail LIKE 'check 192.168.18.20 (a-1) now%2026-11-16T04:00:00.000Z%'`); n != 1 {
 		t.Fatalf("scanning.run rows = %d", n)
 	}
 	if code, _ := s.call("POST", "/scanning/engines/nmap-discovery/run", "admin", `{}`); code != http.StatusAccepted || len(s.runner.targets[1]) != 0 {
 		t.Fatalf("Scan the LAN now: %d, targets %v", code, s.runner.targets)
 	}
-	if n := count(t, s.db, `SELECT count(*) FROM core_audit WHERE action = 'scanning.run' AND detail = 'the whole scope'`); n != 1 {
+	if n := count(t, s.db, `SELECT count(*) FROM core_audit WHERE action = 'scanning.run' AND target = 'sar-1' AND detail LIKE 'sweep of 192.168.18.0/24 and the scans of the devices it queues now%'`); n != 1 {
 		t.Fatalf("whole scope rows = %d", n)
 	}
 	if code, body := s.call("POST", "/scanning/engines/nmap-discovery/run", "admin", `{"targets":[" "]}`); code != http.StatusBadRequest || errCode(body) != "invalid" {
@@ -386,6 +399,8 @@ func TestContract_INV40_RunNow(t *testing.T) {
 		{core.ErrDiscoveryOff, 409, "engine_off"},
 		{core.ErrScopeNotConfirmed, 400, "scope_not_confirmed"},
 		{core.ErrRunBusy, 409, "already_running"},
+		{core.ErrNmapBusy, 409, "busy"},
+		{&core.RunTooSoon{RetryAfter: 7*time.Minute + 10*time.Second}, 409, "too_soon"},
 		{core.ErrNmapUnavailable, 503, "scanner_unavailable"},
 		{&core.RunRefusal{Target: "192.168.18.77", Code: "unknown_device", Detail: "no_device"}, 400, "unknown_device"},
 		{&core.RunRefusal{Target: "10.0.0.1", Code: "out_of_scope", Detail: "out_of_scope"}, 400, "out_of_scope"},
@@ -400,8 +415,23 @@ func TestContract_INV40_RunNow(t *testing.T) {
 		if errors.As(c.err, &rr) && body["error"].(map[string]any)["target"] != rr.Target {
 			t.Errorf("%s: the answer does not name the target: %v", c.code, body)
 		}
+		if c.code == "too_soon" && body["error"].(map[string]any)["retry_after"] != 430.0 {
+			t.Errorf("too_soon without retry_after: %v", body)
+		}
 	}
-	if n := count(t, s.db, `SELECT count(*) FROM core_audit WHERE action = 'scanning.run'`); n != 2 {
-		t.Fatalf("a refused run was audited: %d rows", n)
+	if n := count(t, s.db, `SELECT count(*) FROM core_audit WHERE action = 'scanning.run'`); n != 2 || s.runner.started != 2 {
+		t.Fatalf("a refused run was audited or started: %d rows, %d started", n, s.runner.started)
+	}
+
+	// review #857 M2: the audit row is written before anything starts; when it cannot be, nothing starts
+	s.runner.err = nil
+	if err := s.db.Write(t.Context(), func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `CREATE TRIGGER test_no_audit BEFORE INSERT ON core_audit BEGIN SELECT RAISE(ABORT, 'test: the audit log refuses'); END`)
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if code, _ := s.call("POST", "/scanning/engines/nmap-discovery/run", "admin", `{}`); code != http.StatusInternalServerError || s.runner.started != 2 {
+		t.Fatalf("an unwritable audit row: %d, %d started", code, s.runner.started)
 	}
 }

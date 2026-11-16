@@ -28,7 +28,7 @@ func waitManual(t *testing.T, e *env) {
 func TestContract_INV21_ScanTheLANNowOutsideTheWindow(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{}, outsideWindow)
-	m, err := e.svc.StartManual(e.ctx(), nil)
+	m, err := e.svc.StartManual(e.ctx(), nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestContract_INV21_CheckThisDeviceNow(t *testing.T) {
 	e := newEnv(t, fakeOpts{}, outsideWindow, func(e *env) {
 		e.inv.addrs[netip.MustParseAddr("192.168.10.20")] = "a-web"
 	})
-	m, err := e.svc.StartManual(e.ctx(), []string{"192.168.10.20"})
+	m, err := e.svc.StartManual(e.ctx(), []string{"192.168.10.20"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func TestContract_INV21_CheckThisDeviceNow(t *testing.T) {
 	}
 	// by id, two devices at once: the address of the run is only set for one device
 	e.inv.addrs[netip.MustParseAddr("192.168.10.30")] = "a-printer"
-	m, err = e.svc.StartManual(e.ctx(), []string{"a-web", "192.168.10.30", "a-web"})
+	m, err = e.svc.StartManual(e.ctx(), []string{"a-web", "192.168.10.30", "a-web"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +123,7 @@ func TestContract_INV21_ManualRunRefusals(t *testing.T) {
 	})
 	refused := func(targets []string, reason, detail string) {
 		t.Helper()
-		_, err := e.svc.StartManual(e.ctx(), targets)
+		_, err := e.svc.StartManual(e.ctx(), targets, nil)
 		var te *sa.TargetError
 		if !errors.As(err, &te) || te.Reason != reason || (detail != "" && te.Detail != detail) {
 			t.Fatalf("%q: err = %v, want %s (%s)", targets, err, reason, detail)
@@ -145,11 +145,11 @@ func TestContract_INV21_ManualRunRefusals(t *testing.T) {
 	refused(many, sa.RefuseNotAllowed, "too_many")
 
 	e.inv.set(func(st *sa.Settings) { st.ScopeConfirmed = false })
-	if _, err := e.svc.StartManual(e.ctx(), nil); !errors.Is(err, sa.ErrScopeNotConfirmed) {
+	if _, err := e.svc.StartManual(e.ctx(), nil, nil); !errors.Is(err, sa.ErrScopeNotConfirmed) {
 		t.Fatalf("scope not confirmed: %v", err)
 	}
 	e.inv.set(func(st *sa.Settings) { st.ScopeConfirmed, st.Enabled = true, false })
-	if _, err := e.svc.StartManual(e.ctx(), []string{"a-web"}); !errors.Is(err, sa.ErrScanningOff) {
+	if _, err := e.svc.StartManual(e.ctx(), []string{"a-web"}, nil); !errors.Is(err, sa.ErrScanningOff) {
 		t.Fatalf("scanning off: %v", err)
 	}
 	if n := len(e.nm.calls(t)); n != 0 || e.svc.Manual() != nil {
@@ -158,10 +158,10 @@ func TestContract_INV21_ManualRunRefusals(t *testing.T) {
 
 	// one run at a time: a second one is refused while the first goes on (its nmap does not end by itself)
 	slow := newEnv(t, fakeOpts{slowFrom: 1}, outsideWindow)
-	if _, err := slow.svc.StartManual(slow.ctx(), []string{"a-web"}); err != nil {
+	if _, err := slow.svc.StartManual(slow.ctx(), []string{"a-web"}, nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := slow.svc.StartManual(slow.ctx(), nil); !errors.Is(err, sa.ErrManualBusy) {
+	if _, err := slow.svc.StartManual(slow.ctx(), nil, nil); !errors.Is(err, sa.ErrManualBusy) {
 		t.Fatalf("second run: %v", err)
 	}
 	slow.svc.Stop()
@@ -172,7 +172,7 @@ func TestContract_INV21_ManualRunRefusals(t *testing.T) {
 func TestContract_INV21_StopEndsAManualRun(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t, fakeOpts{slowFrom: 1}, outsideWindow)
-	if _, err := e.svc.StartManual(e.ctx(), nil); err != nil {
+	if _, err := e.svc.StartManual(e.ctx(), nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	e.svc.Stop()

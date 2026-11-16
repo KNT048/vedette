@@ -166,7 +166,17 @@
   },
   "alerts": {
     "reason": "Matches are sent through your alert channels.",
-    "link": "Check or add a channel: Settings, Alert channels"
+    "link": "Check or add a channel: Settings, Alert channels",
+    "sentTo": "Matches alert you through: {{list}}.",
+    "none": "No alert channel is on: matches only show on the pages.",
+    "new": "New channel",
+    "chooseTitle": "New alert channel",
+    "chooseBody": "Matches of every engine alert through the channels that are on.",
+    "kind": "Kind of channel",
+    "continue": "Continue",
+    "added": "{{name}} saved",
+    "notifyOff": "Alerts need the Notifications module.",
+    "notifyOffLink": "Turn it on: Settings, Modules"
   },
   "nucleiOff": "History and the probe log are those of the vulnerability checks (Nuclei, Preview), which are off.",
   "nucleiOffLink": "Turn them on: Engines, Vulnerability checks",

@@ -245,3 +245,23 @@ describe('#850 review r2: dead ends and the buttons of the Devices pages', () =>
     expect(await screen.findByRole('dialog', { name: 'Install osquery on a server' })).toBeInTheDocument()
   })
 })
+
+describe('#850: an alert channel for the matches, made where it is needed (§0)', () => {
+  it('the Nuclei card names the channels that are on and opens notify\'s channel form for a new one; the channels page has the #channels place', async () => {
+    renderApp('/settings/scanning')
+    const row = await card(/Vulnerability checks \(Nuclei\)/)
+    expect(await within(row).findByText(/^(Matches alert you through: .+\.|No alert channel is on: matches only show on the pages\.)$/)).toBeInTheDocument()
+    await userEvent.click(await within(row).findByRole('button', { name: 'New channel' }))
+    const choose = await screen.findByRole('dialog', { name: 'New alert channel' })
+    const kind = within(choose).getByLabelText('Kind of channel') as HTMLSelectElement
+    const label = kind.options[kind.selectedIndex]!.textContent!
+    await userEvent.click(within(choose).getByRole('button', { name: 'Continue' }))
+    expect(await screen.findByRole('dialog', { name: `Channel ${label}` })).toBeInTheDocument()
+  })
+
+  it('the channels page has the place deep links name (#channels)', async () => {
+    const { container } = renderApp('/settings/channels')
+    await screen.findByRole('table', { name: /./ }, { timeout: 4000 })
+    expect(container.querySelector('#channels')).not.toBeNull()
+  })
+})

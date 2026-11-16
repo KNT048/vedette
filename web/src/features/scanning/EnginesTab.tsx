@@ -25,6 +25,7 @@ import { useModuleEnabled } from '@/lib/modules'
 import { useCan } from '@/lib/session'
 import { useSetEngine } from './api'
 import { ScopeButton, ScopeDialog, TurnOnModule } from './Fixes'
+import { AlertChannels } from './AlertChannels'
 import { runPlace } from './places'
 import { ScanNowButton } from './ScanNow'
 import type { Engine, EngineId, Scanning } from './types'
@@ -221,7 +222,7 @@ function EngineRow({ e, d, open, onOpen }: { e: Engine; d: Scanning; open: boole
         </div>
       ) : null}
       {place ? <Link to={place} className="w-fit text-meta text-accent underline-offset-4 hover:underline">{t(`engines.${e.id}.where`)}</Link> : null}
-      {e.id === 'nuclei' ? <DependencyLink reason={t('alerts.reason')} to="/settings/channels" label={t('alerts.link')} /> : null}
+      {e.id === 'nuclei' && e.enabled ? <AlertChannels /> : null}
       <Dialog open={!!ask} onOpenChange={(v) => { if (!v) setAsk(null) }}>
         <DialogContent title={ask?.off ? t('ask.offTitle', { name: name(e.id) }) : t('ask.depsTitle', { name: name(e.id) })}
           description={ask?.off ? [e.affects.length ? t('ask.affects', { list: e.affects.map(name).join(', ') }) : '', running ? t('ask.stops') : ''].filter(Boolean).join(' ') : ask?.deps}>

@@ -67,7 +67,8 @@ function randomKey() {
   return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('')
 }
 
-function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { channel: Channel; codeUsers: number; onClose: () => void; onSaved: (thenTest: boolean) => void }) {
+/** The form of one alert channel (exported for #850: Settings › Scanning creates a channel where matches need one, §0). */
+export function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { channel: Channel; codeUsers: number; onClose: () => void; onSaved: (thenTest: boolean) => void }) {
   const { t, i18n } = useTranslation('notify')
   // #824: a field's hint is one short line; its explanation, when it has one, is the sibling `info` key of the hint actually shown.
   const infoOf = (keys: string[]) => {
@@ -458,7 +459,8 @@ function Channels({ channels, codeUsers }: { channels: Channel[]; codeUsers: num
   )
   return (
     <>
-      <DataTable caption={t('channels.caption')} data={channels} columns={columns} mobileRow={mobileRow} />
+      {/* #850: the place deep links name (docs/UI.md §0): /settings/channels#channels focuses the first channel's button */}
+      <div id="channels"><DataTable caption={t('channels.caption')} data={channels} columns={columns} mobileRow={mobileRow} /></div>
       {editing ? <ChannelDialog key={editing.type} channel={editing} codeUsers={codeUsers} onClose={() => setEditing(null)} onSaved={(thenTest) => { setEditing(null); if (thenTest) runTest(editing.type) }} /> : null}
       <Dialog open={removing !== null} onOpenChange={(o) => { if (!o) setRemoving(null) }}>
         {removing ? (

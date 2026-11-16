@@ -31,7 +31,10 @@
       "button": "Write AI commentary",
       "working": "Writing",
       "done": "AI commentary added to the report",
-      "unavailable": "Connect AI in Settings, AI assistant"
+      "unavailable": "Connect AI in Settings, AI assistant",
+      "why": "AI commentary needs an AI profile for this job.",
+      "openAi": "Open AI assistant settings",
+      "openModules": "Turn on the AI assistant in Settings, Modules"
     },
     "send": {
       "button": "Send now",
@@ -399,7 +402,7 @@
       },
       "backup": {
         "title": "Data backups",
-        "unknown": "Vedette cannot see your backup system. The responsible person records this by hand."
+        "unknown": "Vedette cannot see your backup system. The responsible person records this manually."
       }
     },
     "obligation": {

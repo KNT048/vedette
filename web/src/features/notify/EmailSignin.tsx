@@ -69,16 +69,16 @@ export function EmailSignin({ prov, fields, saved, error, onSignedIn, onFieldErr
           <Input id="ch-email-client_secret" type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} autoComplete="new-password" />
         </Field>
       ) : null}
-      <p role="status" className="text-[13px]">{status}</p>
+      <p role="status" className="text-meta">{status}</p>
       {s?.flow === 'device' && s.status === 'waiting' ? (
-        <div className="grid gap-1.5 text-[13px]">
+        <div className="grid gap-1.5 text-meta">
           <p>{t('signin.deviceOpen')} <a className="text-accent underline underline-offset-4" href={s.verification_uri} target="_blank" rel="noopener noreferrer">{s.verification_uri}</a></p>
-          <p>{t('signin.deviceCode')} <code aria-label={t('signin.codeLabel')} className="rounded bg-sunken px-2 py-1 font-mono text-base tracking-widest">{s.user_code}</code></p>
+          <p>{t('signin.deviceCode')} <code aria-label={t('signin.codeLabel')} className="rounded-sm bg-sunken px-2 py-1 font-mono text-base tracking-widest">{s.user_code}</code></p>
           <div><Button size="sm" disabled={busy} onClick={() => poll()}>{check.isPending ? <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden /> : null}{t('signin.checkNow')}</Button></div>
         </div>
       ) : null}
       {s?.flow === 'paste' && s.status === 'waiting' ? (
-        <div className="grid gap-2 text-[13px]">
+        <div className="grid gap-2 text-meta">
           <ol className="list-decimal pl-5">
             <li><a className="text-accent underline underline-offset-4" href={s.consent_url} target="_blank" rel="noopener noreferrer">{t('signin.pasteOpen')}</a></li>
             <li>{t('signin.pasteStep2')}</li>
@@ -90,7 +90,7 @@ export function EmailSignin({ prov, fields, saved, error, onSignedIn, onFieldErr
           <div><Button size="sm" disabled={busy || !pasted.trim()} onClick={() => poll(pasted)}>{t('signin.finish')}</Button></div>
         </div>
       ) : null}
-      {err || error ? <p role="alert" className="text-[13px] text-danger [overflow-wrap:anywhere]">{err ?? error}</p> : null}
+      {err || error ? <p role="alert" className="text-meta text-danger [overflow-wrap:anywhere]">{err ?? error}</p> : null}
       <div>
         <Button id="ch-email-secret" disabled={busy} onClick={begin}>
           {start.isPending ? <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden /> : null}

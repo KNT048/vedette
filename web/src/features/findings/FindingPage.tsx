@@ -2,9 +2,11 @@ import { useRef, useState, type ReactNode, type RefObject } from 'react'
 import { Link, useParams } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { ArrowLeft, ScanSearch } from 'lucide-react'
-import { PageHeader, Section, KeyValue, Panel, Notice } from '@/components/common/PageHeader'
-import { QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
+import { ScanSearch } from 'lucide-react'
+import { PageHeader, Section, KeyValue, Notice } from '@/components/common/PageHeader'
+import { Breadcrumbs } from '@/components/common/Breadcrumbs'
+import { Card } from '@/components/common/Card'
+import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { SourceBadge } from '@/components/common/SourceBadge'
 import { InfoTip } from '@/components/common/InfoTip'
@@ -59,7 +61,7 @@ function StatusDialog({ f, open, onOpenChange, opener }: { f: FindingDetail; ope
           {RESOLVE.map((a) => (
             <div key={a} className="flex items-start gap-2.5">
               <RadioItem id={`st-${a}`} value={a} className="mt-1" />
-              <label htmlFor={`st-${a}`} className="grid text-sm"><span className="font-medium">{t(`status.${a}`)}</span><span className="text-[13px] text-muted">{t(`status.${a}Hint`)}</span></label>
+              <label htmlFor={`st-${a}`} className="grid text-sm"><span className="font-medium">{t(`status.${a}`)}</span><span className="text-meta text-muted">{t(`status.${a}Hint`)}</span></label>
             </div>
           ))}
         </RadioGroup>
@@ -81,7 +83,7 @@ function Evidence({ f }: { f: FindingDetail }) {
   const ev = f.evidence
   return (
     <Section id="evidence" title={t('evidence.title')} description={t('evidence.description')} stories={['S-SCAN-3']}>
-      <Panel className="grid gap-4 p-4">
+      <Card className="grid gap-4">
         {ev ? (
           <>
             <p className="max-w-3xl text-sm">{ev.summary}</p>
@@ -102,13 +104,13 @@ function Evidence({ f }: { f: FindingDetail }) {
           {f.asset && hasIp(f.asset) ? (
             <Button asChild className="w-fit"><Link to={`/scans?target=${f.asset.id}`}><ScanSearch />{t('evidence.rescan')}</Link></Button>
           ) : f.asset ? (
-            <div className="flex flex-wrap items-center gap-x-1 text-[13px] text-muted">
+            <div className="flex flex-wrap items-center gap-x-1 text-meta text-muted">
               <span className="inline-flex items-center gap-1">{t('evidence.noIpScan')}<InfoTip topic={t('evidence.recheck')}>{t('evidence.noIpScanInfo')}</InfoTip></span>
               <Link to={`/devices/${f.asset.id}`} className="text-accent underline underline-offset-4">{t('evidence.openDevice')}</Link>
             </div>
           ) : null}
         </div>
-      </Panel>
+      </Card>
     </Section>
   )
 }
@@ -119,13 +121,13 @@ function Compromise({ f }: { f: FindingDetail }) {
   return (
     <Section id="compromise" title={t('compromise.title')} description={t('compromise.description')} stories={['S-MIT-3']}>
       {c ? (
-        <Panel className="grid gap-4 p-4">
+        <Card className="grid gap-4">
           <p className="max-w-3xl text-sm">{c.summary}</p>
           <ul className="grid gap-4">
             {c.indicators.map((i) => (
               <li key={i.title} className="grid gap-2">
                 <p className="text-sm font-medium">{i.title}</p>
-                <p className="max-w-3xl text-[13px] text-muted">{i.detail}</p>
+                <p className="max-w-3xl text-meta text-muted">{i.detail}</p>
                 {i.commands?.map((cmd) => <CodeBlock key={cmd.label} code={cmd.code} label={cmd.label} wrapOnPhone />)}
               </li>
             ))}
@@ -134,12 +136,9 @@ function Compromise({ f }: { f: FindingDetail }) {
             <h3 className="text-sm font-semibold">{t('compromise.ifFound')}</h3>
             <ol className="grid list-decimal gap-1 pl-5 text-sm">{c.if_found.map((s) => <li key={s}>{s}</li>)}</ol>
           </div>
-        </Panel>
+        </Card>
       ) : (
-        <div className="flex max-w-3xl items-center gap-1 rounded-md border border-dashed border-rule bg-surface px-4 py-3 text-sm text-muted">
-          <p>{t('compromise.none')}</p>
-          <InfoTip topic={t('compromise.title')}>{t('compromise.noneInfo')}</InfoTip>
-        </div>
+        <EmptyState title={t('compromise.none')} info={t('compromise.noneInfo')} />
       )}
     </Section>
   )
@@ -153,14 +152,14 @@ function Aside({ f }: { f: FindingDetail }) {
       <section aria-labelledby="dev-title" className="grid gap-2">
         <h2 id="dev-title" className="text-base font-semibold">{t('aside.device')}</h2>
         {f.asset ? (
-          <Panel className="grid gap-1 p-4 text-sm">
+          <Card className="grid gap-1 text-sm">
             <Link to={`/devices/${f.asset.id}`} title={deviceName(f.asset, t('removedDevice'))} className="w-fit font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{deviceName(f.asset, t('removedDevice'))}</Link>
             <span className="text-muted">{hasIp(f.asset) ? f.asset.ip : t('noIp')}</span>
             <span>{f.asset.display}</span>
-          </Panel>
+          </Card>
         ) : <p className="text-sm text-muted">{t('aside.noDevice')}</p>}
-        {f.kev ? <p className="text-[13px] text-muted">{f.kev.name}</p> : null}
-        <Link to={`/cve/${f.cve}`} className="w-fit text-[13px] text-accent underline-offset-4 hover:underline">{t('aside.cvePage', { cve: f.cve })}</Link>
+        {f.kev ? <p className="text-meta text-muted">{f.kev.name}</p> : null}
+        <Link to={`/cve/${f.cve}`} className="w-fit text-meta text-accent underline-offset-4 hover:underline">{t('aside.cvePage', { cve: f.cve })}</Link>
       </section>
       <section aria-labelledby="hist-title" className="grid gap-2">
         <h2 id="hist-title" className="text-base font-semibold">{t('history.title')}</h2>
@@ -168,8 +167,8 @@ function Aside({ f }: { f: FindingDetail }) {
           {[...f.history].reverse().map((h, i) => (
             <li key={`${h.ts}-${i}`} className="grid text-sm">
               <span className="font-medium">{label(h.action)}</span>
-              <span className="text-[12px] text-muted">{fmtDateTime(h.ts)}, {h.user === 'system' ? t('history.system') : h.user}</span>
-              {h.note ? <span className="text-[13px]">{h.note}</span> : null}
+              <span className="text-caption text-muted">{fmtDateTime(h.ts)}, {h.user === 'system' ? t('history.system') : h.user}</span>
+              {h.note ? <span className="text-meta">{h.note}</span> : null}
             </li>
           ))}
         </ol>
@@ -193,7 +192,7 @@ function ClosedNotice({ f, reopen }: { f: FindingDetail; reopen: ReactNode }) {
   )
 }
 
-function Detail({ f }: { f: FindingDetail }) {
+function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: string }[] }) {
   const { t } = useTranslation('findings')
   const can = useCan('operator')
   const set = useSetStatus(f.id)
@@ -217,6 +216,7 @@ function Detail({ f }: { f: FindingDetail }) {
   return (
     <>
       <PageHeader
+        breadcrumbs={crumbs}
         title={<span className="[overflow-wrap:anywhere]">{t(`headline.${f.status === 'suspected' && f.evidence?.agent ? 'agent' : f.status}`, { device: name, cve: f.cve, date: fmtDate(f.accepted_until) })}</span>}
         stories={['S-MIT-1', 'S-MIT-3', 'S-SCAN-3', 'S-AI-2']}
         meta={
@@ -264,10 +264,12 @@ export default function FindingPage() {
   const { t } = useTranslation('findings')
   const { id = '' } = useParams()
   const q = useFinding(id)
+  // docs/UI.md §3: the parent above the title, also while the finding loads or is missing, so the way back is always there.
+  const crumbs = [{ label: t('nav.findings'), to: '/findings' }]
   return (
     <RequireModule module="findings">
-      <Link to="/findings" className="mb-3 inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink"><ArrowLeft className="size-3.5" />{t('back')}</Link>
-      <QueryState query={q}>{(f) => <Detail f={f} />}</QueryState>
+      {q.data ? null : <Breadcrumbs items={crumbs} />}
+      <QueryState query={q}>{(f) => <Detail f={f} crumbs={crumbs} />}</QueryState>
     </RequireModule>
   )
 }

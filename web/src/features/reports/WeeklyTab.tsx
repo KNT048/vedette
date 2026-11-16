@@ -3,7 +3,9 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Printer, Send, Sparkles, X } from 'lucide-react'
-import { Notice, Panel, Section } from '@/components/common/PageHeader'
+import { Notice, Section } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
+import { DependencyLink } from '@/components/common/DependencyLink'
 import { DataTable } from '@/components/common/DataTable'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
@@ -16,6 +18,8 @@ import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useCan, useMe } from '@/lib/session'
 import { useChannels } from '@/features/notify/api'
+import { NewChannelButton } from '@/features/notify/NewChannel'
+import { useModuleEnabled } from '@/lib/modules'
 import { useHistory, useSaveSchedule, useSchedule, useSendWeekly, useWeekly, useWeeklyAi } from './api'
 import { WeeklyDocument } from './WeeklyDocument'
 import { ActionError } from './parts'
@@ -46,6 +50,7 @@ function Preview() {
   const send = useSendWeekly()
   const [confirm, setConfirm] = useState(false)
   const needRole = operator ? undefined : t('common:needRole', { role: t('common:role.operator') })
+  const aiOn = useModuleEnabled('ai') !== false
   const recipients = sched.data?.recipients ?? []
   const c = weekly.data?.report.counts
   const noData = !!c && c.devices === 0 && c.open_confirmed + c.open_suspected === 0 && c.new_findings === 0 && c.resolved === 0
@@ -58,18 +63,20 @@ function Preview() {
           <Button variant="primary" onClick={() => setConfirm(true)} disabled={!operator} title={needRole}><Send aria-hidden />{t('weekly.send.button')}</Button>
         </>
       ) : null}>
+      {/* docs/UI.md §0: a disabled AI button says why and links to the exact place (its title alone reaches no keyboard or touch) */}
+      {operator && weekly.data && !noData && !weekly.data.ai_available ? <DependencyLink className="mb-3" reason={t('weekly.ai.why')} to={aiOn ? '/settings/ai#ai-profiles' : '/settings/modules'} label={t(aiOn ? 'weekly.ai.openAi' : 'weekly.ai.openModules')} /> : null}
       <ActionError error={ai.error} />
       <QueryState query={weekly}>
         {(w) => noData
           ? <EmptyState title={t('weekly.empty.title')} info={t('weekly.empty.bodyInfo')} action={<Link to="/devices" className={buttonVariants({ variant: 'primary' })}>{t('weekly.empty.cta')}</Link>}>
             {t('weekly.empty.body')}
           </EmptyState>
-          : <Panel className="p-6"><WeeklyDocument report={w.report} org={me?.org ?? ''} /></Panel>}
+          : <Card><WeeklyDocument report={w.report} org={me?.org ?? ''} /></Card>}
       </QueryState>
       <Dialog open={confirm} onOpenChange={setConfirm}>
         <DialogContent title={t('weekly.send.title')} description={recipients.length ? t('weekly.send.body', { count: recipients.length }) : t('weekly.send.noRecipients')}>
           {recipients.length ? <ul className="ml-5 list-disc text-sm">{recipients.map((e) => <li key={e}>{e}</li>)}</ul> : null}
-          <p className="text-[13px] text-muted">{t('weekly.send.flow')}</p>
+          <p className="text-meta text-muted">{t('weekly.send.flow')}</p>
           <ActionError error={send.error} />
           <DialogFooter>
             <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
@@ -157,14 +164,15 @@ function ScheduleForm({ s, noChannel }: { s: Schedule; noChannel: boolean }) {
         </Field>
         {rec.length ? (
           <ul className="flex flex-wrap gap-2" aria-label={t('weekly.schedule.list')}>
-            {rec.map((e) => <li key={e} className="inline-flex items-center gap-1 rounded-md border border-rule bg-surface py-0.5 pl-2 pr-1 text-sm">{e}<button type="button" className="rounded p-1 text-muted hover:bg-sunken hover:text-ink disabled:opacity-50" disabled={!admin} aria-label={t('weekly.schedule.remove', { email: e })} onClick={() => { setRec(rec.filter((x) => x !== e)); setSavedErr('') }}><X className="size-3.5" aria-hidden /></button></li>)}
+            {rec.map((e) => <li key={e} className="inline-flex items-center gap-1 rounded-sm border border-rule bg-surface py-0.5 pl-2 pr-1 text-sm">{e}<button type="button" className="rounded-sm p-1 text-muted hover:bg-sunken hover:text-ink disabled:opacity-50" disabled={!admin} aria-label={t('weekly.schedule.remove', { email: e })} onClick={() => { setRec(rec.filter((x) => x !== e)); setSavedErr('') }}><X className="size-3.5" aria-hidden /></button></li>)}
           </ul>
         ) : <p className="text-sm text-muted">{t('weekly.schedule.noRecipients')}</p>}
       </div>
       {enabled && noChannel ? (
-        <Notice tone="warn" role="alert" className="mb-0" title={<>{t('weekly.schedule.noChannel')} <Link to="/settings/channels" className="text-accent underline-offset-4 hover:underline">{t('weekly.schedule.setupChannel')}</Link></>} />
+        // docs/UI.md §0: the email channel is set up right here (the same form as Settings › Alert channels)
+        <Notice tone="warn" role="alert" className="mb-0" title={t('weekly.schedule.noChannel')} actions={<NewChannelButton type="email" label={t('weekly.schedule.setupChannel')} />} />
       ) : null}
-      <p className="text-[13px] text-muted">{s.next_run && s.enabled && !noChannel ? t('weekly.schedule.next', { time: fmtDateTime(s.next_run) }) : t('weekly.schedule.off')} {t('weekly.schedule.channel')}</p>
+      <p className="text-meta text-muted">{s.next_run && s.enabled && !noChannel ? t('weekly.schedule.next', { time: fmtDateTime(s.next_run) }) : t('weekly.schedule.off')} {t('weekly.schedule.channel')}</p>
       <ActionError error={savedErr ? null : save.error} />
       <div><Button type="submit" variant="primary" disabled={!admin || save.isPending} title={reason}>{save.isPending ? t('weekly.schedule.saving') : t('common:save')}</Button></div>
     </form>
@@ -184,7 +192,7 @@ function HistorySection() {
               { id: 'ts', header: t('weekly.history.col.time'), accessorKey: 'ts', cell: ({ getValue }: { getValue: () => unknown }) => fmtDateTime(getValue() as string) },
               { id: 'trigger', header: t('weekly.history.col.trigger'), accessorFn: (r: Row) => t(`weekly.history.trigger.${r.trigger}`) },
               { id: 'to', header: t('weekly.history.col.to'), accessorFn: (r: Row) => t('weekly.history.people', { count: r.recipients.length }), cell: ({ row }: { row: { original: Row } }) => <span title={row.original.recipients.join(', ')}>{t('weekly.history.people', { count: row.original.recipients.length })}</span> },
-              { id: 'status', header: t('weekly.history.col.status'), accessorKey: 'status', cell: ({ row }: { row: { original: Row } }) => row.original.status === 'sent' ? <Chip tone="ok">{t('weekly.history.sent')}</Chip> : <span className="grid gap-1"><Chip tone="warn">{t('weekly.history.failed')}</Chip><span className="max-w-xs whitespace-normal text-[12px] text-muted">{row.original.error}</span></span> },
+              { id: 'status', header: t('weekly.history.col.status'), accessorKey: 'status', cell: ({ row }: { row: { original: Row } }) => row.original.status === 'sent' ? <Chip tone="ok">{t('weekly.history.sent')}</Chip> : <span className="grid gap-1"><Chip tone="warn">{t('weekly.history.failed')}</Chip><span className="max-w-xs whitespace-normal text-caption text-muted">{row.original.error}</span></span> },
               { id: 'open', header: t('weekly.history.col.open'), enableSorting: false, cell: ({ row }: { row: { original: Row } }) => <Link to={`/reports/print/weekly/${row.original.id}`} className="text-accent underline-offset-4 hover:underline">{t('weekly.history.open')}</Link> },
             ]} />
         )}

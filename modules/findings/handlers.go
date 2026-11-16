@@ -29,8 +29,9 @@ type FindingHandlers struct {
 	feed Feeds
 	gate server.ModuleGate
 
-	mu    sync.RWMutex
-	guide Guidance
+	mu           sync.RWMutex
+	guide        Guidance
+	summaryState // GET /findings/summary (summary.go); sum and home under mu
 }
 
 // NewFindingHandlers returns the handlers. gate says whether mitigation is on: while it is off the registered

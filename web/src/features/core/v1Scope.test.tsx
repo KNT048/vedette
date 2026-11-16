@@ -16,7 +16,7 @@ describe('D-624: preview modules (#818)', () => {
     renderApp('/honeypot')
     const traps = await within(await screen.findByRole('navigation', { name: 'Main navigation' })).findByRole('link', { name: 'Internal traps Preview' })
     expect(within(traps).getByText('Preview')).toBeInTheDocument()
-    expect(await mainNavLink('Devices')).toBeInTheDocument() // v1: no badge in its name
+    expect(await mainNavLink(/^Devices( \d+ to review)?$/)).toBeInTheDocument() // v1: no Preview badge in its name (a count may follow)
     const header = (await screen.findByRole('heading', { level: 1 })).closest('header')!
     expect(within(header).getByText('Preview')).toBeInTheDocument()
     expect(within(header).getByText('Not part of the v1 promise yet.')).toBeInTheDocument()

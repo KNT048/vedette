@@ -107,6 +107,10 @@ func (s *Service) services(ctx context.Context, hint observe.AssetHint, source o
 	if err != nil {
 		return err
 	}
+	from, err := checkFrom(hint)
+	if err != nil {
+		return err
+	}
 	clean, err := s.checkServices(ctx, items)
 	if err != nil {
 		return err
@@ -117,8 +121,8 @@ func (s *Service) services(ctx context.Context, hint observe.AssetHint, source o
 	}
 	return s.write(ctx, func(tx *sql.Tx, o *outbox) error {
 		now := s.seen(s.clock())
-		id, err := s.deviceFor(ctx, tx, o, cleanObs{ip: ip, mac: mac, agent: agent, source: string(source), seenAt: now})
-		if err != nil {
+		id, err := s.deviceFor(ctx, tx, o, cleanObs{ip: ip, mac: mac, agent: agent, from: from, source: string(source), seenAt: now})
+		if err != nil || id == "" { // "": no device may take the list (resolve)
 			return err
 		}
 		return replaceServicesTx(ctx, tx, id, clean, string(source), now, replace)

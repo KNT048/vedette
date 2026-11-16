@@ -135,9 +135,9 @@ func TestBadReportsAreDroppedOrCut(t *testing.T) {
 	if d, _ := val(tr.View().Done); d != 10 {
 		t.Fatalf("done over total = %v", d)
 	}
-	tr.Report(Update{Phase: PhaseVulns, Percent: -1, Message: "a\x00b‮\nc" + strings.Repeat("x", 500)})
+	tr.Report(Update{Phase: PhaseVulns, Percent: -1, Message: "a\x00b\u202e\nc" + strings.Repeat("x", 500)})
 	m, _ := val(tr.View().Message)
-	if strings.ContainsAny(m, "\x00‮\n") || len([]rune(m)) != MaxMessage {
+	if strings.ContainsAny(m, "\x00\u202e\n") || len([]rune(m)) != MaxMessage {
 		t.Fatalf("message = %q", m)
 	}
 }

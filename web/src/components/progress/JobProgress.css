@@ -1,0 +1,19 @@
+/* The indeterminate bar of JobProgress (#830): a segment that slides along the track while the tool gives no measure.
+   Reduced motion: no slide, a still hatched track that reads as "working, length unknown" and never as "full". */
+@keyframes vp-job-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+.vp-job-indeterminate {
+  width: 40%;
+  animation: vp-job-slide 1.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vp-job-indeterminate {
+    width: 100%;
+    animation: none !important;
+    transform: none;
+    opacity: 0.45;
+    background-image: repeating-linear-gradient(-45deg, transparent 0 6px, var(--surface) 6px 10px);
+  }
+}

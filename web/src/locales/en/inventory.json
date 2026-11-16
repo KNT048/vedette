@@ -70,7 +70,7 @@
     "title_other": "{{count}} devices, {{pending}} not yet approved",
     "titleAllApproved_one": "{{count}} device, approved",
     "titleAllApproved_other": "{{count}} devices, all approved",
-    "meta": "Each device says what reports on it; its page shows every value with its source and confidence.",
+    "meta": "Open a device for each value's source and confidence.",
     "metaInfo": "New values are added; old values are never overwritten.",
     "all": "All devices",
     "titleEmpty": "No devices yet",

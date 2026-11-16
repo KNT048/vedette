@@ -448,3 +448,32 @@ func TestPlan_TwoInstallsKeepTheirItems(t *testing.T) {
 		t.Fatalf("items %v", fixes)
 	}
 }
+
+// M2-10 (walk n74): WINLAB01, Windows Server 2025 build 26100.1742 reported by the agent, gets one cumulative update fixing 2786
+// tier CVEs. Only the OS's own NVD entries count, in NVD's real shapes: an OS CVE with a windows_server_2025 range (CVE-2026-69902,
+// also listing the 24H2 client of the same build); never an
+// application CVE NVD lists "running on" Windows Server 2025 (.NET Framework CVE-2026-23666: the OS is only the AND platform, not
+// vulnerable), a Windows client release of the same build alone (server and client never stand in for each other), an application
+// whose product name starts with "windows" (Windows Admin Center), or an OS entry with no fixed build (CVE-2026-45585).
+func TestPlan_M2_10_WindowsServerCountsOnlyItsOwnEntries(t *testing.T) {
+	t.Parallel()
+	osEntry := func(product, hw, end string) Affected {
+		return Affected{CPE: "cpe:2.3:o:microsoft:" + product + ":*:*:*:*:*:*:" + hw + ":*", Range: VersionRange{EndExcl: end}}
+	}
+	ntfs := tierV("CVE-2026-69902", "recent", 27, 0.01, osEntry("windows_11_24h2", "arm64", "10.0.26100.9711"), osEntry("windows_11_24h2", "x64", "10.0.26100.9711"),
+		osEntry("windows_server_2025", "x64", "10.0.26100.33650"))
+	dotnet := tierV("CVE-2026-23666", "recent", 300, 0.01, Affected{CPE: "cpe:2.3:a:microsoft:.net_framework:3.5:-:*:*:*:*:*:*"},
+		Affected{CPE: "cpe:2.3:a:microsoft:.net_framework:4.8.1:*:*:*:*:*:*:*"})
+	dotnet.Platforms = [][]string{{"microsoft:windows_10_21h2", "microsoft:windows_server_2025"}, {"microsoft:windows_10_21h2", "microsoft:windows_server_2025"}}
+	client := tierV("CVE-2026-49001", "recent", 30, 0.01, osEntry("windows_11_24h2", "x64", "10.0.26100.9711"))
+	wac := tierV("CVE-2026-49002", "recent", 30, 0.01, Affected{CPE: "cpe:2.3:a:microsoft:windows_admin_center:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "2.4.2"}})
+	yellow := tierV("CVE-2026-45585", "likely", 173, 0.3, Affected{CPE: "cpe:2.3:o:microsoft:windows_server_2025:*:*:*:*:*:*:*:*"})
+	a := Asset{ID: "a-winlab", Name: "WINLAB01", OS: "Microsoft Windows Server 2025 Datacenter Evaluation", AgentOS: "Microsoft Windows Server 2025 Datacenter Evaluation",
+		Software: []Software{{ID: "s-win", Display: "Windows Server 2025", Vendor: "Microsoft", Product: "Windows", Version: "10.0.26100.1742",
+			CPE: "cpe:2.3:o:microsoft:windows_server_2025:10.0.26100.1742:*:*:*:*:*:*:*", Source: "agent", KevKeys: []string{"microsoft|windows"}}}}
+	items, compared := planOf(a, []TierVuln{ntfs, dotnet, client, wac, yellow}, nil)
+	if !compared || len(items) != 1 || items[0].Kind != "windows" || items[0].Fixed != "10.0.26100.33650" ||
+		!slices.Equal(cvesOf(items[0]), []string{"CVE-2026-69902/recent/agent"}) {
+		t.Fatalf("items %+v", items)
+	}
+}

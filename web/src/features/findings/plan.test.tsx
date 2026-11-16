@@ -10,7 +10,8 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
   it('one item per update on one device, the CVEs with tier, published day and evidence; the filter narrows; no a11y violation', async () => {
     renderApp('/plan')
     // D-623: with no filter picked, the page opens on "Likely to be exploited" when some update fixes such a CVE
-    expect(await screen.findByRole('heading', { level: 1, name: '3 updates to plan' })).toBeInTheDocument()
+    // M2-9: the heading names the tab it counts
+    expect(await screen.findByRole('heading', { level: 1, name: '3 updates to plan for CVEs likely to be exploited' })).toBeInTheDocument()
     expect(screen.getByText(/FIRST estimates at least a 1 in 10 chance they are exploited/)).toBeInTheDocument()
     expect(screen.getByText('fixes 2 CVEs likely to be exploited (All lists every CVE it fixes)')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'All' }))
@@ -120,7 +121,11 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
 
   it('Findings links to the page; the device page lists its own items', async () => {
     const { unmount } = renderApp('/findings')
-    expect(await screen.findByRole('link', { name: '4 updates to plan fix CVEs not exploited yet' })).toHaveAttribute('href', '/plan')
+    // M2-9 (walk n74): each number opens the tab that shows that many updates, and that tab's heading says the same number
+    expect(await screen.findByRole('link', { name: '4 in all' })).toHaveAttribute('href', '/plan?tier=all')
+    await userEvent.click(screen.getByRole('link', { name: '3 updates to plan fix CVEs likely to be exploited' }))
+    expect(await screen.findByRole('heading', { level: 1, name: '3 updates to plan for CVEs likely to be exploited' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Likely to be exploited' })).toHaveAttribute('aria-pressed', 'true')
     unmount()
     renderApp('/devices/a-web01')
     expect(await screen.findByRole('heading', { name: 'Updates to plan' })).toBeInTheDocument()

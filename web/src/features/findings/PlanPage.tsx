@@ -32,7 +32,8 @@ function Page() {
   return (
     <>
       <PageHeader
-        title={!p || !p.compared || p.items.length === 0 ? t('plan.title') : t('plan.titleCount', { count: p.items.length })}
+        // M2-9 (walk n74): the count names the tab it counts, so the Findings line's number reads the same here
+        title={!p || !p.compared || p.items.length === 0 ? t('plan.title') : t(`plan.titleCount.${tier}`, { count: p.items.length })}
         stories={['S-TIER-1', 'S-TIER-2']}
         meta={dataLine}
         info={<><p>{t('plan.intro')}</p><p>{t('plan.introInfo')}</p></>}

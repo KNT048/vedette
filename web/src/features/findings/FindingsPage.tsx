@@ -305,12 +305,23 @@ function List() {
   )
 }
 
-/** D-613 (S-TIER-1): one line to Updates to plan when updates there fix CVEs not exploited yet; those are never findings. */
+/** D-613 (S-TIER-1): one line to Updates to plan when updates there fix CVEs not exploited yet; those are never findings. M2-9 (walk
+ * n74): each number links to the tab that shows that many updates: "1 update to plan fixes CVEs likely to be exploited" opens Likely
+ * (its heading says "1 update to plan for CVEs likely to be exploited"), "(3 in all)" opens All; no likely one: the count opens All. */
 function PlanLine() {
   const { t } = useTranslation('findings')
   const n = usePlan().data
   if (!n?.compared || n.items.length === 0) return null
-  return <p className="mb-4 text-sm"><Link to="/plan" className="text-accent underline underline-offset-4">{t('plan.line', { count: n.items.length })}</Link></p>
+  const all = n.items.length
+  const likely = n.items.filter((i) => i.likely > 0).length
+  const link = 'text-accent underline underline-offset-4'
+  if (likely === 0) return <p className="mb-4 text-sm"><Link to="/plan?tier=all" className={link}>{t('plan.line', { count: all })}</Link></p>
+  return (
+    <p className="mb-4 text-sm">
+      <Link to="/plan?tier=likely" className={link}>{t('plan.lineLikely', { count: likely })}</Link>
+      {likely < all ? <>{' ('}<Link to="/plan?tier=all" className={link}>{t('plan.lineAll', { count: all })}</Link>{')'}</> : null}
+    </p>
+  )
 }
 
 /** D-500 (S-INV-2): a software on the exploited list without a usable version is ONE line here, not one finding per CVE. */

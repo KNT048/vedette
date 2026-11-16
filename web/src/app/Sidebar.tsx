@@ -61,7 +61,7 @@ function EntryLink({ e, rail, drawer, onNavigate }: { e: Entry; rail: boolean; d
     return (
       <Tooltip describe={false} content={[label, e.badge ? `${e.badge.count} ${words}` : null, preview].filter(Boolean).join(', ')}>
         <RailLink to={e.item.to} end={e.item.end} onClick={onNavigate}>
-          <e.item.icon aria-hidden /><span className="sr-only">{label}{preview ? ` ${preview}` : ''}</span>{counter}
+          <e.item.icon aria-hidden /><span className="sr-only">{label}{preview ? ` ${preview}` : ''}</span>{counter ? <>{' '}{counter}</> : null}
         </RailLink>
       </Tooltip>
     )

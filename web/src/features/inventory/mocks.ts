@@ -462,12 +462,15 @@ function injectSample(feed: 'osquery' | 'wazuh'): { devices: number; software: n
 // ---- SNMP credentials (S-INV-1, D-512; module sensor-active, table prefix sa_) ----
 // Secrets live only in this store (the box encrypts them with core/secrets); every response goes through publicSnmp.
 type StoredSnmp = SnmpCredential & { community?: string; auth_password?: string; priv_password?: string }
-const snmpStore = collection<StoredSnmp[]>('sa_snmp', () => [{
+export const snmpStore = collection<StoredSnmp[]>('sa_snmp', () => [{
   id: 'snmp-1', name: 'Core switches (v3)', version: 'v3', username: 'vedette-ro', auth: 'sha256', priv: 'aes128',
   auth_password: 'ro-auth-2fe8', priv_password: 'ro-priv-91c4', secret_last4: '2fe8', priv_last4: '91c4',
-  scope: ['192.168.10.0/24'], created_at: daysAgo(30), last_answer_at: daysAgo(1), answered: 3,
+  scope: ['192.168.10.0/24'], created_at: daysAgo(30), last_answer_at: daysAgo(1), answered: 3, secret_lost: false,
 }], () => [])
 const SNMP_MAX = 8
+/** #868: what the backend says about a credential whose saved secret this box cannot open (restore without the key). */
+const SNMP_LOST = 'The saved SNMP community or password of this credential was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter it again and save. Nothing was sent.'
+const SNMP_KEPT_LOST = 'The saved SNMP community or password of this credential was not restored (the backup was restored without its decryption key, or the box key changed). Enter it again, then save.'
 const PRINTABLE_RE = /^[\x20-\x7e]{1,64}$/
 const SNMP_USER_RE = /^[A-Za-z0-9._@-]{1,64}$/
 /** The last 4 characters only when the secret has 8 or more (a short one would be half shown). */
@@ -478,7 +481,7 @@ const ipInt = (ip: string) => cidrRange(`${ip}/32`).base
 /** `ip` inside an address or CIDR range of `list`. */
 const inList = (ip: string, list: string[]) => list.some((x) => { const r = cidrRange(x.includes('/') ? x : `${x}/32`); const n = ipInt(ip); const base = Math.floor(r.base / r.size) * r.size; return n >= base && n < base + r.size })
 
-function checkSnmp(b: Partial<SnmpCredentialInput>, prev: StoredSnmp | null): { err: ReturnType<typeof bad> } | { err?: undefined; value: Omit<StoredSnmp, 'id' | 'created_at' | 'last_answer_at' | 'answered'> } {
+function checkSnmp(b: Partial<SnmpCredentialInput>, prev: StoredSnmp | null): { err: ReturnType<typeof bad> } | { err?: undefined; value: Omit<StoredSnmp, 'id' | 'created_at' | 'last_answer_at' | 'answered' | 'secret_lost'> } {
   const name = typeof b.name === 'string' ? b.name.trim() : ''
   if (!LABEL_RE.test(name)) return { err: bad(400, 'bad_name', 'Name the credential, up to 64 characters, without < or >. Example "Core switches".') }
   if (snmpStore.get().some((x) => x.id !== prev?.id && x.name.toLowerCase() === name.toLowerCase())) return { err: bad(409, 'name_taken', `A credential named "${name}" already exists. Choose another name.`) }
@@ -502,6 +505,8 @@ function checkSnmp(b: Partial<SnmpCredentialInput>, prev: StoredSnmp | null): { 
   const secret = (v: unknown, keep: string | undefined, what: string, min: number) => {
     if (v === undefined || v === '') {
       if (!keep) return { err: bad(400, 'secret_required', `Enter the ${what}.`) }
+      // #868: a saved secret this box cannot open is never kept: it would save a credential that is sent nowhere.
+      if (prev?.secret_lost) return { err: bad(409, 'secret_lost', SNMP_KEPT_LOST) }
       kept = true
       return { v: keep }
     }
@@ -1061,7 +1066,7 @@ export const handlers = [
     if (snmpStore.get().length >= SNMP_MAX) return fail(409, 'too_many', `At most ${SNMP_MAX} SNMP credentials: each one is tried in turn on every device. Delete one you no longer use.`)
     const v = checkSnmp(await body<SnmpCredentialInput>(request), null)
     if (v.err) return fail(v.err.status, v.err.code, v.err.message)
-    const c: StoredSnmp = { ...v.value, id: newId('snmp'), created_at: nowIso(), last_answer_at: null, answered: 0 }
+    const c: StoredSnmp = { ...v.value, id: newId('snmp'), created_at: nowIso(), last_answer_at: null, answered: 0, secret_lost: false }
     snmpStore.update((l) => [...l, c])
     audit('inventory.snmp_add', c.name, `${c.version}, scope ${c.scope.join(' ')}`)
     return HttpResponse.json(publicSnmp(c), { status: 201 })
@@ -1074,7 +1079,7 @@ export const handlers = [
     if (!prev) return fail(404, 'not_found', 'No such SNMP credential. It may have been deleted.')
     const v = checkSnmp(await body<SnmpCredentialInput>(request), prev)
     if (v.err) return fail(v.err.status, v.err.code, v.err.message)
-    const c: StoredSnmp = { ...v.value, id: prev.id, created_at: prev.created_at, last_answer_at: prev.last_answer_at, answered: prev.answered }
+    const c: StoredSnmp = { ...v.value, id: prev.id, created_at: prev.created_at, last_answer_at: prev.last_answer_at, answered: prev.answered, secret_lost: false }
     snmpStore.update((l) => l.map((x) => (x.id === c.id ? c : x)))
     audit('inventory.snmp_edit', c.name, c.version)
     return HttpResponse.json(publicSnmp(c))
@@ -1099,6 +1104,7 @@ export const handlers = [
     const b = await body<{ ip: string }>(request)
     const ip = typeof b.ip === 'string' ? b.ip.trim() : ''
     if (!IPV4_RE.test(ip)) return fail(400, 'bad_ip', 'Enter the IPv4 address of a device in the list, like 192.168.10.3.')
+    if (c.secret_lost) return fail(409, 'secret_lost', SNMP_LOST)
     const a = allAssets().find((x) => x.ip === ip)
     const st = loadSettings()
     const reason: SnmpTestReason = !st.active.enabled ? 'scanning_off'
@@ -1129,6 +1135,7 @@ export const handlers = [
     if (!isOn('sensor-active')) return snmpOff()
     const c = snmpStore.get().find((x) => x.id === params.id)
     if (!c) return fail(404, 'not_found', 'No such SNMP credential. It may have been deleted.')
+    if (c.secret_lost) return fail(409, 'secret_lost', SNMP_LOST)
     const st = loadSettings()
     if (!st.active.enabled) return fail(409, 'scanning_off', SNMP_MSG.scanning_off(''))
     if (!st.scope_confirmed_at) return fail(409, 'scope_not_confirmed', 'The scan scope is not set up and confirmed under Scope and sensors, so nothing is sent.')

@@ -215,6 +215,16 @@ func (s *Service) devices(ctx context.Context, f DeviceFilter, withSources bool)
 	return out, nil
 }
 
+// DeviceCounts is the "All" and "To review" counts of the device list without the list (Home's device tile, findings
+// GET /findings/summary, #825): one aggregate over inv_asset.
+func (s *Service) DeviceCounts(ctx context.Context) (total, pending int, err error) {
+	err = s.db.Reader().QueryRowContext(ctx, `SELECT count(*), ifnull(sum(approved = 0), 0) FROM inv_asset`).Scan(&total, &pending)
+	if err != nil {
+		return 0, 0, fmt.Errorf("inventory: count devices: %w", err)
+	}
+	return total, pending, nil
+}
+
 // filtered reads the devices f keeps (limit 0 = all), newest first, each with its finding count, summary and, when withSources, its
 // sources (a source filter reads them in any case); the box is always just seen.
 func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limit int, withSources bool) ([]Device, error) {

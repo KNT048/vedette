@@ -68,8 +68,9 @@ export function CredentialForm({ current, scope, widen = false, onCancel, onSave
   const [scopeText, setScopeText] = useState(scope ?? current?.scope.join('\n') ?? '')
   const [errors, setErrors] = useState<Errors>({})
   const [error, setError] = useState<string | null>(null)
-  // A blank secret keeps the saved one, but only when there is a saved one of that kind (same version; privacy already on).
-  const sameVersion = !widen && current?.version === version
+  // A blank secret keeps the saved one, but only when there is a saved one of that kind (same version; privacy already on) that this
+  // box can open: one not restored (#868, restore without the key) is typed again (the server answers 409 secret_lost otherwise).
+  const sameVersion = !widen && !current?.secret_lost && current?.version === version
   const keepCommunity = sameVersion && version === 'v2c'
   const keepAuth = sameVersion && version === 'v3'
   const keepPriv = keepAuth && current?.priv === 'aes128'
@@ -254,6 +255,7 @@ function CredentialRow({ c, index, onEdit, onDelete }: { c: SnmpCredential; inde
           <Button size="sm" onClick={onDelete} aria-label={t('snmp.deleteFor', { name: c.name })}>{t('snmp.delete')}</Button>
         </div>
       </div>
+      {c.secret_lost ? <Notice tone="danger" role="alert" className="mb-0" title={t('snmp.secretLost')}>{t('snmp.secretLostBody')}</Notice> : null}
       <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
         {c.version === 'v2c' ? (
           <><dt className="text-[13px] text-muted">{t('snmp.form.community')}</dt><dd><SecretMask last4={c.secret_last4} /></dd></>

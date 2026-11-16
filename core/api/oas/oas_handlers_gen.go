@@ -22347,6 +22347,133 @@ func (s *Server) handleFindingsGetFindingsPlanRequest(args [0]string, argsEscape
 	}
 }
 
+// handleFindingsGetFindingsSummaryRequest handles findings_get_findings_summary operation.
+//
+// Home at a glance (#825): open findings, the few to fix first with their CVSS, 30 days of trend,
+// device and alert counts; one cached read.
+//
+// GET /findings/summary
+func (s *Server) handleFindingsGetFindingsSummaryRequest(args [0]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
+	statusWriter := &codeRecorder{ResponseWriter: w}
+	w = statusWriter
+	ctx := r.Context()
+
+	var (
+		err          error
+		opErrContext = ogenerrors.OperationContext{
+			Name: FindingsGetFindingsSummaryOperation,
+			ID:   "findings_get_findings_summary",
+		}
+	)
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+			sctx, ok, err := s.securitySession(ctx, FindingsGetFindingsSummaryOperation, r)
+			if err != nil {
+				err = &ogenerrors.SecurityError{
+					OperationContext: opErrContext,
+					Security:         "Session",
+					Err:              err,
+				}
+				if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+					defer recordError("Security:Session", err)
+				}
+				return
+			}
+			if ok {
+				satisfied[0] |= 1 << 0
+				ctx = sctx
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			err = &ogenerrors.SecurityError{
+				OperationContext: opErrContext,
+				Err:              ogenerrors.ErrSecurityRequirementIsNotSatisfied,
+			}
+			if encodeErr := encodeErrorResponse(s.h.NewError(ctx, err), w); encodeErr != nil {
+				defer recordError("Security", err)
+			}
+			return
+		}
+	}
+
+	var rawBody []byte
+
+	var response *FindingsGetFindingsSummaryOK
+	if m := s.cfg.Middleware; m != nil {
+		mreq := middleware.Request{
+			Context:          ctx,
+			OperationName:    FindingsGetFindingsSummaryOperation,
+			OperationSummary: "Home at a glance (#825): open findings, the few to fix first with their CVSS, 30 days of trend, device and alert counts; one cached read",
+			OperationID:      "findings_get_findings_summary",
+			Body:             nil,
+			RawBody:          rawBody,
+			Params:           middleware.Parameters{},
+			Raw:              r,
+		}
+
+		type (
+			Request  = struct{}
+			Params   = struct{}
+			Response = *FindingsGetFindingsSummaryOK
+		)
+		response, err = middleware.HookMiddleware[
+			Request,
+			Params,
+			Response,
+		](
+			m,
+			mreq,
+			nil,
+			func(ctx context.Context, request Request, params Params) (response Response, err error) {
+				response, err = s.h.FindingsGetFindingsSummary(ctx)
+				return response, err
+			},
+		)
+	} else {
+		response, err = s.h.FindingsGetFindingsSummary(ctx)
+	}
+	if err != nil {
+		if errRes, ok := errors.Into[*ErrorStatusCode](err); ok {
+			if err := encodeErrorResponse(errRes, w); err != nil {
+				defer recordError("Internal", err)
+			}
+			return
+		}
+		if errors.Is(err, ht.ErrNotImplemented) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+			return
+		}
+		if err := encodeErrorResponse(s.h.NewError(ctx, err), w); err != nil {
+			defer recordError("Internal", err)
+		}
+		return
+	}
+
+	if err := encodeFindingsGetFindingsSummaryResponse(response, w); err != nil {
+		defer recordError("EncodeResponse", err)
+		if !errors.Is(err, ht.ErrInternalServerErrorResponse) {
+			s.cfg.ErrorHandler(ctx, w, r, err)
+		}
+		return
+	}
+}
+
 // handleFindingsPostFindingsIDAiRequest handles findings_post_findings_id_ai operation.
 //
 // Explain or draft a recommendation with the customer AI key (BYOK); fails if AI is off.
@@ -29598,7 +29725,8 @@ func (s *Server) handleInventoryPostInventorySnmpRequest(args [0]string, argsEsc
 // Read now every approved device in this credential's scope (read-only GETs from the scan container,
 // logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the
 // window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent;
-// 409 stopped when active discovery was turned off while the read started.
+// 409 secret_lost when its saved secret cannot be opened on this box (Edit and type it again); 409
+// stopped when active discovery was turned off while the read started.
 //
 // POST /inventory/snmp/{id}/read
 func (s *Server) handleInventoryPostInventorySnmpIDReadRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29677,7 +29805,7 @@ func (s *Server) handleInventoryPostInventorySnmpIDReadRequest(args [1]string, a
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPostInventorySnmpIDReadOperation,
-			OperationSummary: "Read now every approved device in this credential's scope (read-only GETs from the scan container, logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent; 409 stopped when active discovery was turned off while the read started",
+			OperationSummary: "Read now every approved device in this credential's scope (read-only GETs from the scan container, logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent; 409 secret_lost when its saved secret cannot be opened on this box (Edit and type it again); 409 stopped when active discovery was turned off while the read started",
 			OperationID:      "inventory_post_inventory_snmp_id_read",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -29740,7 +29868,9 @@ func (s *Server) handleInventoryPostInventorySnmpIDReadRequest(args [1]string, a
 // handleInventoryPostInventorySnmpIDTestRequest handles inventory_post_inventory_snmp_id_test operation.
 //
 // Read one device with this credential now (read-only GETs from the scan container, logged in the
-// probe log) and say what it answered, or why not; an answer is recorded in the inventory.
+// probe log) and say what it answered, or why not; an answer is recorded in the inventory. 409
+// secret_lost when its saved secret cannot be opened on this box (nothing is sent; Edit and type it
+// again).
 //
 // POST /inventory/snmp/{id}/test
 func (s *Server) handleInventoryPostInventorySnmpIDTestRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -29834,7 +29964,7 @@ func (s *Server) handleInventoryPostInventorySnmpIDTestRequest(args [1]string, a
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPostInventorySnmpIDTestOperation,
-			OperationSummary: "Read one device with this credential now (read-only GETs from the scan container, logged in the probe log) and say what it answered, or why not; an answer is recorded in the inventory",
+			OperationSummary: "Read one device with this credential now (read-only GETs from the scan container, logged in the probe log) and say what it answered, or why not; an answer is recorded in the inventory. 409 secret_lost when its saved secret cannot be opened on this box (nothing is sent; Edit and type it again)",
 			OperationID:      "inventory_post_inventory_snmp_id_test",
 			Body:             request,
 			RawBody:          rawBody,
@@ -30320,7 +30450,8 @@ func (s *Server) handleInventoryPutInventorySettingsRequest(args [0]string, args
 
 // handleInventoryPutInventorySnmpIDRequest handles inventory_put_inventory_snmp_id operation.
 //
-// Edit an SNMP credential; a blank secret keeps the saved one.
+// Edit an SNMP credential; a blank secret keeps the saved one. 409 secret_lost when a blank secret
+// would keep one this box cannot open (type it again).
 //
 // PUT /inventory/snmp/{id}
 func (s *Server) handleInventoryPutInventorySnmpIDRequest(args [1]string, argsEscaped bool, w http.ResponseWriter, r *http.Request) {
@@ -30414,7 +30545,7 @@ func (s *Server) handleInventoryPutInventorySnmpIDRequest(args [1]string, argsEs
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPutInventorySnmpIDOperation,
-			OperationSummary: "Edit an SNMP credential; a blank secret keeps the saved one",
+			OperationSummary: "Edit an SNMP credential; a blank secret keeps the saved one. 409 secret_lost when a blank secret would keep one this box cannot open (type it again)",
 			OperationID:      "inventory_put_inventory_snmp_id",
 			Body:             request,
 			RawBody:          rawBody,

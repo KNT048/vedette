@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Send } from 'lucide-react'
@@ -20,6 +20,9 @@ import { SIEM_EVENTS } from './types'
 import type { Proto, SiemConfig, SiemEvent, SiemFormat } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
+// #847: the saved signing key was not restored; the key is entered again right here, in its field.
+const focusSecretField = () => document.getElementById('siem-secret')?.focus()
+const focusSecret = (e: unknown) => { if (e instanceof ApiError && e.code === 'secret_lost') focusSecretField() }
 
 function randomKey() {
   const b = new Uint8Array(24)
@@ -46,6 +49,13 @@ function SiemForm({ cfg }: { cfg: SiemConfig }) {
   const noHoneypot = useModules().data?.modules.find((m) => m.id === 'honeypot')?.available === false
   const shown = (ev: SiemEvent) => !(noHoneypot && ev === 'honeypot')
 
+  // #847: only the JSON webhook signs with the key, so only then does a key that was not restored stop forwarding.
+  const lost = cfg.secret_lost && format === 'json'
+  // What is saved decides whether forwarding is stopped now: a saved, switched-on webhook. A JSON switch not saved yet, or a webhook
+  // saved off, only needs the key entered again before it can send (own wording, review r1 L3).
+  const stopped = cfg.secret_lost && cfg.format === 'json' && cfg.enabled
+  // The page opens on the field to fill (the fieldset is enabled once the role is known)
+  useEffect(() => { if (stopped && isAdmin) focusSecretField() }, [stopped, isAdmin])
   const body = () => ({ enabled, format, host: host.trim(), port: Number(port), proto, url: url.trim(), events: events.filter(shown), secret: secret || undefined })
   function onSave(e: { preventDefault(): void }, thenTest = false) {
     e.preventDefault()
@@ -54,9 +64,9 @@ function SiemForm({ cfg }: { cfg: SiemConfig }) {
       onSuccess: () => {
         setSecret('')
         toast.success(t('siem.saved'))
-        if (thenTest) test.mutate(undefined, { onSuccess: (r) => (r.ok ? toast.success(t('siem.testOk')) : toast.error(r.detail)), onError: (er) => setError(errMsg(er)) })
+        if (thenTest) test.mutate(undefined, { onSuccess: (r) => (r.ok ? toast.success(t('siem.testOk')) : toast.error(r.detail)), onError: (er) => { setError(errMsg(er)); focusSecret(er) } })
       },
-      onError: (er) => setError(errMsg(er)),
+      onError: (er) => { setError(errMsg(er)); focusSecret(er) },
     })
   }
   const toggleEvent = (ev: SiemEvent, on: boolean) => setEvents((l) => (on ? [...l, ev] : l.filter((x) => x !== ev)))
@@ -65,6 +75,8 @@ function SiemForm({ cfg }: { cfg: SiemConfig }) {
   return (
     <form onSubmit={onSave} className="grid max-w-2xl gap-5" noValidate>
       {error ? <Notice tone="danger" role="alert" title={error} className="mb-0" /> : null}
+      {stopped && !error ? <Notice tone="danger" role="status" title={t('siem.lostTitle')} className="mb-0">{t('siem.lostBody')}</Notice>
+        : lost && !error ? <Notice tone="warn" role="status" title={t('siem.lostKeyTitle')} className="mb-0">{t('siem.lostKeyBody')}</Notice> : null}
       <div className="flex items-center gap-3">
         <Switch id="siem-enabled" checked={enabled} onCheckedChange={setEnabled} disabled={!isAdmin} />
         <Label htmlFor="siem-enabled">{t('siem.enabled')}</Label>
@@ -74,9 +86,9 @@ function SiemForm({ cfg }: { cfg: SiemConfig }) {
         {format === 'json' ? (
           <>
             <Field label={t('siem.url')} hint={t('siem.urlHint')} htmlFor="siem-url"><Input id="siem-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://siem.acme.example/hooks/vedette" autoComplete="off" aria-describedby="siem-url-hint" /></Field>
-            <Field label={t('siem.secret')} hint={cfg.secret_last4 ? t('siem.secretSaved', { last4: cfg.secret_last4 }) : t('siem.secretHint')} info={t('siem.secretHintInfo')} htmlFor="siem-secret">
+            <Field label={t('siem.secret')} hint={lost ? t('siem.secretLost') : cfg.secret_last4 ? t('siem.secretSaved', { last4: cfg.secret_last4 }) : t('siem.secretHint')} info={t('siem.secretHintInfo')} htmlFor="siem-secret">
               <div className="flex gap-2">
-                <Input id="siem-secret" type="password" value={secret} onChange={(e) => setSecret(e.target.value)} autoComplete="new-password" aria-describedby="siem-secret-hint" />
+                <Input id="siem-secret" type="password" value={secret} onChange={(e) => setSecret(e.target.value)} autoComplete="new-password" aria-invalid={lost && !secret ? true : undefined} aria-describedby="siem-secret-hint" />
                 <Button onClick={() => setSecret(randomKey())}>{t('siem.generate')}</Button>
               </div>
             </Field>

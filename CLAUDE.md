@@ -30,6 +30,7 @@ Worktree riêng mỗi việc; nhánh `feat/…`, `fix/…`, `docs/…`. Không p
 - File `docs/decisions/D-nnn.md` (một hàng bảng, kèm nguồn) chỉ cho: phạm vi sản phẩm, pháp lý, dữ liệu rời hộp, mô hình bảo mật, việc không hoàn tác được. Lựa chọn khác ghi trong mô tả PR.
 - Màn hình hoặc hành vi mới phải truy về một story trong `docs/USER_STORIES.md`; thiếu thì thêm tiêu chí vào story sẵn có. Không thêm tuỳ chọn "để sau này cần".
 - Viết đúng cái cần: không interface cho một implementation, không layer cho một caller.
+- Sửa gốc, không sửa bề mặt (kien 2026-11-17): lỗi là một ca của cả một lớp (một sản phẩm, một thiết bị, một trang) thì đo cả lớp trước (đếm theo nguyên nhân, kiểm này chạy lại được như test), rồi sửa thiết kế cho mọi trường hợp. Không vá riêng từng sản phẩm.
 
 ## Kiểm tra
 - Xong = chạy được như khách. Thay đổi giao diện: kiểm theo `docs/QA.md`. Hành trình v1: kiểm trên hộp thật, ghi chứng cứ vào `docs/v1-journeys.json`.

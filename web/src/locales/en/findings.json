@@ -411,6 +411,7 @@
     "dataEpss": "EPSS scores of {{date}}",
     "dataRecent": "CVEs published since {{date}}",
     "filterLabel": "Which CVEs",
+    "filterCount": "{{label}} ({{count}})",
     "filter": {
       "likely": "Likely to be exploited",
       "recent": "Recent",
@@ -523,7 +524,8 @@
     "line_other": "{{count}} updates to plan fix CVEs not exploited yet",
     "lineLikely_one": "1 update to plan fixes CVEs likely to be exploited",
     "lineLikely_other": "{{count}} updates to plan fix CVEs likely to be exploited",
-    "lineAll": "{{count}} in all",
+    "lineAll_one": "{{count}} update in all",
+    "lineAll_other": "{{count}} updates in all",
     "device": {
       "title": "Updates to plan",
       "description": "Fixes for CVEs on this device not exploited yet. They never alert.",

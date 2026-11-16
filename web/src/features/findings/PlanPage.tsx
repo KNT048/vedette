@@ -41,7 +41,9 @@ function Page() {
       />
       <p className="mb-4 text-sm">{t('plan.introLine')} <Link to="/findings" className="text-accent underline underline-offset-4">{t('plan.toFindings')}</Link></p>
       <div className="mb-4 flex max-w-full items-center gap-1 overflow-x-auto">
-        <Segmented<PlanFilter> label={t('plan.filterLabel')} value={tier} onChange={setTier} options={FILTERS.map((v) => ({ value: v, label: t(`plan.filter.${v}`) }))} />
+        {/* M2-9: each filter shows how many updates it lists, from the one answer's counts: "Likely to be exploited (1)", "All (3)" */}
+        <Segmented<PlanFilter> label={t('plan.filterLabel')} value={tier} onChange={setTier} options={FILTERS.map((v) => ({ value: v,
+          label: p?.compared ? t('plan.filterCount', { label: t(`plan.filter.${v}`), count: p.counts[v] }) : t(`plan.filter.${v}`) }))} />
         <InfoTip topic={t('plan.filterLabel')}>{FILTERS.map((v) => <p key={v}><span className="font-medium">{t(`plan.filter.${v}`)}</span>{': '}{t(`plan.filterHint.${v}`)}</p>)}</InfoTip>
       </div>
       <QueryState query={q}>

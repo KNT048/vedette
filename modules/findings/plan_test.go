@@ -177,7 +177,11 @@ func TestPlan_JobAndEndpoint(t *testing.T) {
 	if _, b = e.call("GET", "/findings/plan?tier=likely", "viewer", ""); len(b["items"].([]any)) != 1 || len(b["items"].([]any)[0].(map[string]any)["cves"].([]any)) != 1 {
 		t.Fatalf("likely: %v", b)
 	}
-	if _, b = e.call("GET", "/findings/plan?asset=a-1", "viewer", ""); len(b["items"].([]any)) != 0 {
+	// M2-9 (r1 M1 of #898): every tab's number in the one answer, whatever tier was asked, for the same device filter
+	if c := b["counts"].(map[string]any); c["likely"] != float64(1) || c["recent"] != float64(1) || c["all"] != float64(1) {
+		t.Fatalf("counts: %v", b["counts"])
+	}
+	if _, b = e.call("GET", "/findings/plan?asset=a-1", "viewer", ""); len(b["items"].([]any)) != 0 || b["counts"].(map[string]any)["all"] != float64(0) {
 		t.Fatalf("other device: %v", b)
 	}
 	// The device is upgraded: the next run compares it again (no stamp change, so not a full pass).
@@ -452,8 +456,9 @@ func TestPlan_TwoInstallsKeepTheirItems(t *testing.T) {
 // M2-10 (walk n74): WINLAB01, Windows Server 2025 build 26100.1742 reported by the agent, gets one cumulative update fixing 2786
 // tier CVEs. Only the OS's own NVD entries count, in NVD's real shapes: an OS CVE with a windows_server_2025 range (CVE-2026-69902,
 // also listing the 24H2 client of the same build); never an
-// application CVE NVD lists "running on" Windows Server 2025 (.NET Framework CVE-2026-23666: the OS is only the AND platform, not
-// vulnerable), a Windows client release of the same build alone (server and client never stand in for each other), an application
+// application CVE NVD lists "running on" Windows Server 2025 (.NET Framework CVE-2026-23666, as feeds stores it: only its .NET entries
+// are Affected, the OS is their Platforms; that the parser never stores the OS as Affected is pinned by feeds
+// TestParseNVDRecent_M2_10_RunningOnWindowsIsNotAffected), a Windows client release of the same build alone (server and client never stand in for each other), an application
 // whose product name starts with "windows" (Windows Admin Center), or an OS entry with no fixed build (CVE-2026-45585).
 func TestPlan_M2_10_WindowsServerCountsOnlyItsOwnEntries(t *testing.T) {
 	t.Parallel()

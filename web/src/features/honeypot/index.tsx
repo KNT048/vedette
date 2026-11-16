@@ -1,4 +1,4 @@
-import { ShieldAlert } from 'lucide-react'
+import { Radar } from 'lucide-react'
 import type { Feature } from '@/app/feature'
 import DevicePanel from './DevicePanel'
 
@@ -9,6 +9,6 @@ export const feature: Feature = {
     { path: 'honeypot', lazy: () => import('./HoneypotPage').then((m) => ({ Component: m.default })) },
     { path: 'honeypot/hits/:id', lazy: () => import('./HitPage').then((m) => ({ Component: m.default })) },
   ],
-  nav: [{ to: '/honeypot', label: 'honeypot:nav', icon: ShieldAlert, module: 'honeypot', group: 'detect', order: 10 }],
+  nav: [{ to: '/honeypot', label: 'honeypot:nav', icon: Radar, module: 'honeypot', group: 'detect', order: 10 }],
   slots: { 'device.panels': DevicePanel },
 }

@@ -85,7 +85,7 @@ groups ([Primer NavList](https://primer.style/product/components/nav-list/)), ic
 - **Groups**: a group with one visible item renders as that plain item (no header, no chevron); a group with none is not
   drawn ([Primer NavList](https://primer.style/product/components/nav-list/) groups related items, never one link). On a
   default v1 box (Preview modules off) Incidents and Lookup are therefore plain items. A real group's header is a disclosure
-  button (`aria-expanded`, chevron). First visit: every group closed except the one holding the current page, which opens by
+  button (`aria-expanded`, chevron); the group holding the current page stays open (closing it would hide where you are). First visit: every group closed except the one holding the current page, which opens by
   itself without overwriting the saved state. Open groups and the rail choice are saved per user in `localStorage`
   (`vedette.nav.<userId>`, reads and writes in try/catch; on failure the first-visit default).
 - **Badges** come from one cheap read, `GET /findings/summary` (#825, cached on the box, shared with Home through the same
@@ -94,7 +94,7 @@ groups ([Primer NavList](https://primer.style/product/components/nav-list/)), ic
   as work waits for the user. No per-item hook and no list fetch in the shell. A closed group shows only the **urgent** total
   of its items; its accessible name lists the parts ("Assets: Devices 15 to review"). No summary (findings off, error): no badges.
 - **Rail**: from `lg`, "Collapse menu" (`aria-pressed`) at the foot shrinks 240 px to 56 px; groups flatten into icons,
-  each group a list with its own `aria-label`, split by a rule. Every nav icon is unique (Internal traps moves from
+  each group a `role=group` with its own `aria-label` (not a `ul`: page tests query their page's one list), split by a rule. Every nav icon is unique (Internal traps moves from
   `ShieldAlert` to `Radar`). Each icon has a `Tooltip` (**build** `components/ui/tooltip.tsx`, Radix, in `radix-ui`) with the
   label, the badge words and "Preview" when it is one; the link keeps its label as `sr-only` text, so the tooltip does not
   repeat it as a description. A badge is a counter on the icon's corner. The logo becomes the mark; the org name hides; the user
@@ -120,7 +120,7 @@ groups ([Primer NavList](https://primer.style/product/components/nav-list/)), ic
 - Breadcrumbs on every detail page, parents only ("Devices ›"), `text-meta` muted, `nav aria-label="Breadcrumb"`; the `h1`
   names the current page ([Atlassian page header](https://atlassian.design/components/page-header)).
 - **Standalone pages** (sign-in, first-run setup, change password, SSO return, not found) sit outside the shell: **build**
-  `components/common/StandalonePage.tsx`: centred column `max-w-md`, stacked logo 48 px, `h1` in `page-title`, one `Card`,
+  `components/common/StandalonePage.tsx`: centred column (`size` sm/md/lg), stacked logo, `h1` in `page-title` (sign-in: the logo is the h1), one `Card`,
   optional footer links; first-run steps may show the `welcome` / `setup-done` illustrations (GitHub and Vercel sign-in work
   this way). Sign-in adopts it with the shell; the setup pages move with the core page group.
 

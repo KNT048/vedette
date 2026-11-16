@@ -68,6 +68,11 @@
 - **Migration 0005** dựng lại `sa_job` và `sa_probe` như 0003/0004 (giữ id, bộ đếm AUTOINCREMENT, mọi kind/shape cũ): thêm mẫu sau này cũng phải dựng lại cả hai và giữ `TestMigration000{3,4,5}KeepsTheProbeCounter` (mỗi test chạy các migration trước số của nó).
 - `SettingsChanged` bỏ qua lượt `external` (`running.external`): sửa chỗ đó thì một đổi cài đặt LAN sẽ dừng hay để lọt lượt của exposure.
 
+## Modifying: nmap on a terminal, the worker's own phase, a pass per job (#830 FAIL 1 on the N100)
+- The scan container: nmap now opens `/dev/ptmx` and gets a `/dev/pts` peer (a new session it leads). The container's AppArmor profile (`deploy/deb/vedette-container.apparmor`) has a bare `file,` rule, so no rule changes; Podman mounts a private devpts in every container, `ReadOnly=true` included. Without a terminal nmap runs as before (one warning in the worker's log, no live percent).
+- The worker posts the first phase as a job starts (one more request a job) and moves to `ports` on nmap's `<hosthint>`.
+- `Dispatcher.JobProgress` sets `progress.Update.NewPass` on a job's first report: a consumer that keeps a Tracker sees each nmap run as a pass of its own.
+
 ## Modifying: progress of a running job (#830: `nmapargv.StatsEvery`, `worker/progress.go`, `Dispatcher.JobProgress`)
 - `nmapargv.Build`/`BuildFor`/`Validate`/`ParseFor`: `--stats-every 5s` sits before `-oX -` in every shape; every test that spells an argv carries it (`cmd/vedette` `sensoractive_test.go` too). The probe log row of a run stores it after the shape's flags (`StatsFlags`, INV-9); rows from before have none.
 - The worker's `Link` gained `PostProgress`; `*sensorlink.Client` implements it. A `core` of before #830 answers `404`, which the worker ignores.

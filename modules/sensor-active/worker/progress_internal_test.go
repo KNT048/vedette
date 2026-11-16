@@ -117,3 +117,47 @@ func TestNucleiCounterDropsAGivenUpTarget(t *testing.T) {
 		t.Fatalf("end = %+v, want all of what can run", p)
 	}
 }
+
+// #830 FAIL 1, fix B: the phase the worker names by itself starts where the command line starts and only moves forward on a
+// <hosthint>; nmap's own <taskprogress> is taken as it is.
+func TestNmapWatchNamesThePhaseItself(t *testing.T) {
+	hint := `<hosthint><status state="up" reason="syn-ack" reason_ttl="0"/>` + "\n"
+	for _, tc := range []struct {
+		name string
+		argv []string
+		out  string
+		want []string // the phase before the first line, then after each line of out
+	}{
+		{"lan scan", []string{"--privileged", "-sS", "-sV", "192.168.10.20"}, hint, []string{"discovery", "ports"}},
+		{"external starts at the ports", []string{"-sS", "-sV", "-Pn", "203.0.113.7"}, hint, []string{"ports", "ports"}},
+		{"sweep stays in discovery", []string{"-sn", "192.168.10.0"}, hint, []string{"discovery", "discovery"}},
+		{"never back to the ports", []string{"-sS", "-sV", "192.168.10.20"},
+			`<taskprogress task="Service scan" time="1" percent="10.00"/>` + "\n" + hint, []string{"discovery", "services", "services"}},
+		{"nmap's own word", []string{"-sS", "-sV", "192.168.10.20"},
+			hint + `<taskprogress task="Ping Scan" time="1" percent="50.00"/>` + "\n", []string{"discovery", "ports", "discovery"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rep := &reporter{}
+			w := nmapWatch(tc.argv, rep)
+			got := []string{phaseOf(t, rep)}
+			for line := range strings.Lines(tc.out) {
+				_, _ = w.Stdout.Write([]byte(line))
+				got = append(got, phaseOf(t, rep))
+			}
+			if strings.Join(got, ",") != strings.Join(tc.want, ",") {
+				t.Fatalf("phases = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// phaseOf is the phase of rep's latest state.
+func phaseOf(t *testing.T, rep *reporter) string {
+	t.Helper()
+	rep.mu.Lock()
+	defer rep.mu.Unlock()
+	if !validReport(rep.latest) {
+		t.Fatalf("report %+v is not one core accepts", rep.latest)
+	}
+	return rep.latest.Phase
+}

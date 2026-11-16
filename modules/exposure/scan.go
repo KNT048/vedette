@@ -258,7 +258,7 @@ func (s *Service) startScan(ctx context.Context, who Actor, id, noticeVersion st
 }
 
 // auditFailedScan writes the exposure.scan row of an attempt that ended without a snapshot: refused by the gate, busy, too soon,
-// the scan module off, or failed. The write outlives a caller that hung up; a failure to write is logged.
+// the module off, or failed. The write outlives a caller that hung up; a failure to write is logged.
 func (s *Service) auditFailedScan(ctx context.Context, user string, t Target, cause error) {
 	detail := "failed: the scan stopped (" + clipText(cause.Error(), 200) + ")"
 	var ae *APIError

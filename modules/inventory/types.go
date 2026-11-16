@@ -257,6 +257,7 @@ type Detail struct {
 	FindingsCount int              `json:"findings_count"`
 	Observations  []ObservationRow `json:"observations"`
 	Kinds         []string         `json:"kinds"`
+	PossibleSame  []PossibleSame   `json:"possible_same"` // devices that may be the same machine (D-599)
 }
 
 // Counts are the numbers behind the filter chips of the device list.

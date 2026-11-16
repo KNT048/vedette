@@ -67,6 +67,9 @@ type Update struct {
 	Unit      string
 	Remaining time.Duration
 	Message   string
+	// NewPass starts a new pass of the phase whatever came before it (the first report of a Series): its time and pace start
+	// again, and the percent may start again from 0.
+	NewPass bool
 }
 
 // Phase is an Update that names a phase only (no percent, no count).
@@ -132,6 +135,11 @@ func NewTracker(now func() time.Time) *Tracker {
 
 // Report implements Sink: it checks u and keeps it as the latest state. A report with an unknown phase is dropped whole; an
 // out-of-range number is dropped alone.
+//
+// Within a pass of a phase the bar never goes back (#830 FAIL 2: the page read 85 % → 39 % → 82 %): a report with a lower percent
+// keeps the state shown before whole (percent, count, estimate, message); only updated_at moves. Only a new pass starts lower: a report that says so (NewPass), another phase, or a percent
+// without a count that falls by more than restartDrop (the second nmap run of a device: that tool's percent restarts on its own).
+// A count never starts a pass by falling: the jobs of one pass are added up by a Series.
 func (t *Tracker) Report(u Update) {
 	u, ok := clean(u)
 	if !ok {
@@ -140,7 +148,16 @@ func (t *Tracker) Report(u Update) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	now := t.now()
-	if !t.has || u.Phase != t.cur.Phase || (u.Percent >= 0 && t.cur.Percent >= 0 && u.Percent < t.cur.Percent-restartDrop) {
+	pass := !t.has || u.Phase != t.cur.Phase || u.NewPass
+	if !pass && u.Percent >= 0 && t.cur.Percent >= 0 && u.Percent < t.cur.Percent {
+		if u.Total == 0 && t.cur.Total == 0 && u.Percent < t.cur.Percent-restartDrop {
+			pass = true
+		} else { // the state shown stays whole, its estimate and note too (review r1 #3): only the time of the last word moves
+			t.updated = now
+			return
+		}
+	}
+	if pass {
 		t.phaseAt, t.done0 = now, u.Done
 	}
 	t.has, t.cur, t.updated = true, u, now
@@ -244,4 +261,101 @@ func text(s string) string {
 		n++
 	}
 	return strings.TrimSpace(b.String())
+}
+
+// Series is one count of checks over the jobs of a pass of a phase that run one after another (#830 FAIL 2). The deep scan of a
+// public IP hands its templates to nuclei as many jobs, each reporting its own 0..N, and passed on as they came the page read
+// 85 % → 39 % → 82 %. A Series adds the checks of the jobs that ended to the running job's count, against the total its owner plans
+// for the pass, so the count only grows, the estimate of the end follows the whole pass, and a job's report never stands for the
+// pass. The owner makes it with NewSeries, runs each job with the context of Job and calls the end function Job returns when the job
+// is over. Safe for concurrent use; nothing happens when the context carries no Sink.
+type Series struct {
+	sink  Sink
+	phase string
+
+	mu    sync.Mutex
+	plan  int64 // the checks the owner plans for the pass
+	ended int64 // the checks of the jobs that ended
+	done  int64 // of the running job: its count
+	total int64 // of the running job: its total
+	job   int   // the running job; a report of another one is dropped
+}
+
+// NewSeries starts a pass of phase with plan checks planned (an upper bound is fine: Plan lowers it when the owner knows better) and
+// reports its 0 at once.
+func NewSeries(ctx context.Context, phase string, plan int64) *Series {
+	s := &Series{sink: SinkFrom(ctx), phase: phase, plan: max(plan, 0)}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.reportLocked(true)
+	return s
+}
+
+// Plan sets the total the owner plans for the pass, the jobs that ended included (the templates of a port once its technologies
+// are known).
+func (s *Series) Plan(plan int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.plan = max(plan, 0)
+	s.reportLocked(false)
+}
+
+// Job returns the context the next job of the series runs with, and the function that ends that job with the number of checks it
+// stood for: they count as done whether the tool ran them all or not (a target it gave up, a template it did not load), and the
+// job's later reports are dropped.
+func (s *Series) Job(ctx context.Context) (context.Context, func(checks int64)) {
+	s.mu.Lock()
+	s.job++
+	s.done, s.total = 0, 0
+	id := s.job
+	s.mu.Unlock()
+	end := func(checks int64) {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if s.job != id {
+			return
+		}
+		s.job++
+		s.ended += max(checks, s.done, 0)
+		s.done, s.total = 0, 0
+		s.reportLocked(false)
+	}
+	return WithSink(ctx, seriesJob{s: s, id: id}), end
+}
+
+// reportLocked reports the count of the pass. The caller holds mu.
+func (s *Series) reportLocked(first bool) {
+	if s.sink == nil {
+		return
+	}
+	total := max(s.plan, s.ended+s.total, s.ended+s.done)
+	if total <= 0 {
+		s.sink.Report(Update{Phase: s.phase, Percent: -1, NewPass: first})
+		return
+	}
+	s.sink.Report(Update{Phase: s.phase, Percent: -1, Done: s.ended + s.done, Total: total, Unit: UnitChecks, NewPass: first})
+}
+
+// seriesJob is the Sink of one job of a Series.
+type seriesJob struct {
+	s  *Series
+	id int
+}
+
+// Report takes the job's count of its own checks into the pass; a report of another phase, or without a count, goes on as it is.
+func (j seriesJob) Report(u Update) {
+	s := j.s
+	if u.Phase != s.phase || u.Total <= 0 || u.Done < 0 {
+		if s.sink != nil {
+			s.sink.Report(u)
+		}
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.job != j.id {
+		return
+	}
+	s.done, s.total = max(s.done, min(u.Done, MaxCount)), min(u.Total, MaxCount)
+	s.reportLocked(false)
 }

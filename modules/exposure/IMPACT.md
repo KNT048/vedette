@@ -1,5 +1,8 @@
 # Exposure — Change Impact Map
 
+## Modifying: the count of the template step (#830 FAIL 2, INV-29)
+- `cmd/vedette` `exposureTemplateScan` (`scanBaseline`, `scanFull`/`fullPortScan`, `fullMeter`, `portBound`, `reachableTags`, `webCandidate`): each nuclei run goes out with the context of a `progress.Series` job, so the run's Tracker sees one count of the whole step. A new caller of `send` must do the same, or its run's own count reaches the Tracker (held, never backwards, but stalled). No API or UI change: `ScanRun.progress` keeps its shape.
+
 ## Modifying: `ScanRun.progress`, `scanRun.prog`, `reportOpenVAS` (#830, INV-29)
 - **SPA**: the exposure page (web part of #830; contract `web/src/lib/progress.ts`). **sensor-active**/**scan**: the nmap and nuclei jobs of the runner report into the run's context; an adapter that drops the context's values loses them.
 

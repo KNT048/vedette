@@ -763,16 +763,39 @@ func TestScanningHoneypotStarting(t *testing.T) {
 // has not reported yet (a busy host after an update).
 func TestScanningScanContainerStarting(t *testing.T) {
 	t.Parallel()
-	s := newStackWith(t, func(d *deps) {
-		d.ScanStart = &startWatch{}
-		d.ScanStart.done(errors.New("the host is busy"), false) // the guard's start is being retried
-	})
+	var mu sync.Mutex
+	now := time.Date(2026, 11, 16, 18, 24, 0, 0, time.UTC)
+	clock := func() time.Time { mu.Lock(); defer mu.Unlock(); return now }
+	move := func(d time.Duration) { mu.Lock(); now = now.Add(d); mu.Unlock() }
+	w := &startWatch{now: clock, busyOnly: true}
+	s := newStackWith(t, func(d *deps) { d.ScanStart = w })
 	s.module("sensor-active", true)
 	s.saveScope(t)
-	_, page := s.do("GET", "/scanning", "viewer", "")
-	for _, id := range []string{"nmap-discovery", "nmap-versions", "snmp"} {
-		if e := s.engine(page, id); e["state"] != core.EngineStarting || e["reason"] != "The box is starting the scan container." {
-			t.Errorf("%s: %v (%v)", id, e["state"], e["reason"])
+	want := func(step, state string) {
+		t.Helper()
+		_, page := s.do("GET", "/scanning", "viewer", "")
+		for _, id := range []string{"nmap-discovery", "nmap-versions", "snmp"} {
+			if e := s.engine(page, id); e["state"] != state || (state == core.EngineStarting) != (e["reason"] == "The box is starting the scan container.") {
+				t.Errorf("%s: %s: %v (%v), want %s", step, id, e["state"], e["reason"], state)
+			}
 		}
 	}
+	busy := fmt.Errorf("container.start: %w", errHostBusy)
+	w.done(busy, false) // the guard's start is retried: the host is busy
+	want("busy", core.EngineStarting)
+	move(4 * time.Minute)
+	w.done(busy, false)
+	want("busy for 4 min", core.EngineStarting)
+	move(time.Minute)
+	want("busy for 5 min", core.EngineUnavailable) // the worker's own health message
+	w.done(nil, false)                             // the host answered: the unit runs
+	w.done(errors.New("scan: container.start refused (unit_unsafe)"), false)
+	want("a refusal", core.EngineUnavailable)
+	move(time.Minute)
+	w.done(busy, false)
+	want("busy after a refusal", core.EngineUnavailable) // does not hide the refusal
+	w.done(nil, true)
+	want("a confirmed start: the worker's health speaks", core.EngineUnavailable)
+	w.done(busy, false)
+	want("a new busy spell", core.EngineStarting)
 }

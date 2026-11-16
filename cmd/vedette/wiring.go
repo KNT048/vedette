@@ -518,7 +518,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	}
 	if d.HostSocket != "" {
 		d.SensorStart = &startWatch{now: d.Clock}
-		d.ScanStart = &startWatch{now: d.Clock}
+		d.ScanStart = &startWatch{now: d.Clock, busyOnly: true}
 	}
 	sp, err := newSensorPassive(*d)
 	if err != nil {

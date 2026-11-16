@@ -610,13 +610,32 @@ func TestBusyHostStartReadsStartingForABoundedTime(t *testing.T) {
 	e.host.failStart = busy
 	_ = e.svc.Apply(e.ctx())
 	want("busy again", honeypot.StateStarting, "")
+	e.host.failStat = busy // a rate-limited read changes nothing: still the same wait
+	e.now = e.now.Add(time.Minute)
+	_ = e.svc.Apply(e.ctx())
+	want("a busy read while busy", honeypot.StateStarting, "")
+	e.host.failStat = nil
 	e.host.failStart = errStart
 	_ = e.svc.Apply(e.ctx())
 	want("a real failure", honeypot.StateFailed, "the honeypot container did not start")
+	e.host.failStart = busy // a busy answer after a real failure does not hide it (review r1 M2)
+	e.now = e.now.Add(time.Minute)
+	_ = e.svc.Apply(e.ctx())
+	want("busy after a real failure", honeypot.StateFailed, "the honeypot container did not start")
+	e.host.failStart = nil
+	if err := e.svc.Apply(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	want("the host took the start again", honeypot.StateListening, "")
 	e.host.failStart = busy
 	e.now = e.now.Add(time.Hour)
 	_ = e.svc.Apply(e.ctx())
-	want("a failure ends the old wait", honeypot.StateStarting, "")
+	want("a new wait after a start", honeypot.StateStarting, "")
+	e.host.failStat = errors.New("connection refused") // the host does not answer: that is said at once
+	_ = e.svc.Apply(e.ctx())
+	if _, _, p := busyLook(t, e); p != "the host does not answer" {
+		t.Fatalf("a host that does not answer: %q", p)
+	}
 }
 
 // #889: the first address of the traps that the host does not take only because it is busy is "starting" too, within the same

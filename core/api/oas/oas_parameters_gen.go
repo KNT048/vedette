@@ -10907,3 +10907,76 @@ func decodeScanPostScansRunsIDStopParams(args [1]string, argsEscaped bool, r *ht
 	}
 	return params, nil
 }
+
+// ScanningPatchScanningEnginesIDParams is parameters of scanning_patch_scanning_engines_id operation.
+type ScanningPatchScanningEnginesIDParams struct {
+	ID ScanningPatchScanningEnginesIDID
+}
+
+func unpackScanningPatchScanningEnginesIDParams(packed middleware.Parameters) (params ScanningPatchScanningEnginesIDParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "id",
+			In:   "path",
+		}
+		params.ID = packed[key].(ScanningPatchScanningEnginesIDID)
+	}
+	return params
+}
+
+func decodeScanningPatchScanningEnginesIDParams(args [1]string, argsEscaped bool, r *http.Request) (params ScanningPatchScanningEnginesIDParams, _ error) {
+	// Decode path: id.
+	if err := func() error {
+		param := args[0]
+		if argsEscaped {
+			unescaped, err := url.PathUnescape(args[0])
+			if err != nil {
+				return errors.Wrap(err, "unescape path")
+			}
+			param = unescaped
+		}
+		if len(param) > 0 {
+			d := uri.NewPathDecoder(uri.PathDecoderConfig{
+				Param:   "id",
+				Value:   param,
+				Style:   uri.PathStyleSimple,
+				Explode: false,
+			})
+
+			if err := func() error {
+				val, err := d.DecodeValue()
+				if err != nil {
+					return err
+				}
+
+				c, err := conv.ToString(val)
+				if err != nil {
+					return err
+				}
+
+				params.ID = ScanningPatchScanningEnginesIDID(c)
+				return nil
+			}(); err != nil {
+				return err
+			}
+			if err := func() error {
+				if err := params.ID.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		} else {
+			return validate.ErrFieldRequired
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "id",
+			In:   "path",
+			Err:  err,
+		}
+	}
+	return params, nil
+}

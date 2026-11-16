@@ -124,6 +124,10 @@ var contractRoutes = map[string][]string{
 		"PATCH /core/updates/os/settings",
 		"PATCH /core/users/{id}",
 		"PATCH /modules/{id}",
+		"GET /scanning", // #850: Settings › Scanning answers with every engine module off (core INV-40)
+		"PUT /scanning/safety",
+		"PATCH /scanning/engines/{id}",
+		"POST /scanning/engines/nmap-discovery/run",
 		"POST /auth/login",
 		"POST /auth/login/resend-code",
 		"POST /auth/logout",

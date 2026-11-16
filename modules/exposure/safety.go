@@ -5,7 +5,7 @@ import (
 	"net/netip"
 )
 
-// The shared safety block of Settings › Scanning (#850, INV-30): the speed and the exclusion list a person sets once for every
+// The shared safety block of Settings › Scanning (#850, INV-31): the speed and the exclusion list a person sets once for every
 // engine that sends anything. Inventory stores them (D-627, GET /scanning shows them); cmd/vedette hands them to exposure through
 // ScanSafety, so exposure never reads another module's tables. The time window does not apply here: a scan of a public target runs
 // only when a person presses Scan now, as the LAN's Scan now does.
@@ -54,7 +54,7 @@ func (s *Service) safety(ctx context.Context) (Safety, error) {
 const (
 	// notSafetyRead is the line of a step that did not run because the shared safety settings could not be read.
 	notSafetyRead = "Not checked: the shared safety settings (Settings, Scanning, Safety) could not be read, so nothing was sent."
-	// notDeepExcluded is the line of a domain's address on the exclusion list (D-571 deep scan, INV-30).
+	// notDeepExcluded is the line of a domain's address on the exclusion list (D-571 deep scan, INV-31).
 	notDeepExcluded = "%s is on the exclusion list under Settings, Scanning, Safety, so nothing was sent to it."
 )
 

@@ -38,7 +38,7 @@ type Config struct {
 	Probes      ProbeLog         // nil: the template and web steps do not run (nothing is sent without a probe log row, LEGAL §3)
 	Matcher     Matcher          // nil: identified services are not compared with exploited CVEs, and the page says so (INV-20)
 	Outside     *InternetDB      // nil: "Check what Shodan has seen" answers 501 (INV-21); cmd/vedette wires Shodan InternetDB
-	Safety      ScanSafety       // nil: the module's own rates and no exclusion; cmd/vedette wires the scan module's shared safety block (INV-30, #850)
+	Safety      ScanSafety       // nil: the module's own rates and no exclusion; cmd/vedette wires the scan module's shared safety block (INV-31, #850)
 	Location    *time.Location   // the day of a snapshot (nil: time.Local)
 	Log         *slog.Logger     //
 	Clock       func() time.Time // nil: time.Now
@@ -445,6 +445,10 @@ func (s *Service) Remove(ctx context.Context, user, id string, ignore bool) erro
 		}
 		if err := deleteTarget(ctx, tx, id); err != nil {
 			return err
+		}
+		// INV-30: Settings › Scanning no longer names the target as an engine's last run (#863 r1 L4)
+		if _, err := tx.ExecContext(ctx, `DELETE FROM exp_engine_run WHERE target = ?`, t.Value); err != nil {
+			return fmt.Errorf("exposure: removing the target's engine runs: %w", err)
 		}
 		if err := s.audit(ctx, tx, user, "exposure.target_delete", t.Value, ""); err != nil {
 			return err

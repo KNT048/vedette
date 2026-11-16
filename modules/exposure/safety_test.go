@@ -30,7 +30,7 @@ func prefixes(t *testing.T, v ...string) []netip.Prefix {
 	return out
 }
 
-// INV-30: the shared speed only lowers the rate of the template jobs (and the probe log says the rate that was asked), never raises it.
+// INV-31: the shared speed only lowers the rate of the template jobs (and the probe log says the rate that was asked), never raises it.
 func TestContract_INV30_SharedSpeedLowersTheTemplateRate(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct{ ceiling, want int }{{2, 2}, {20, TemplateRPS}, {0, TemplateRPS}} {
@@ -46,7 +46,7 @@ func TestContract_INV30_SharedSpeedLowersTheTemplateRate(t *testing.T) {
 	}
 }
 
-// INV-30: an IP target on the shared exclusion list is refused before anything is sent (400 out_of_scope, as the LAN's Scan now),
+// INV-31: an IP target on the shared exclusion list is refused before anything is sent (400 out_of_scope, as the LAN's Scan now),
 // the refusal is audited; a list that cannot be read refuses every scan (503), nothing is sent either.
 func TestContract_INV30_ExcludedIPIsNotScanned(t *testing.T) {
 	t.Parallel()
@@ -80,7 +80,7 @@ func TestContract_INV30_ExcludedIPIsNotScanned(t *testing.T) {
 	}
 }
 
-// INV-30, D-571: a domain's address on the exclusion list gets nothing in its deep scan and says why; the others go on.
+// INV-31, D-571: a domain's address on the exclusion list gets nothing in its deep scan and says why; the others go on.
 func TestContract_INV30_DeepScanSkipsExcludedAddresses(t *testing.T) {
 	t.Parallel()
 	d := newDeepEnv(t)
@@ -96,7 +96,7 @@ func TestContract_INV30_DeepScanSkipsExcludedAddresses(t *testing.T) {
 	}
 }
 
-// INV-30 (review H5): a domain target without terms, the box's own IP and another address excluded: nothing goes to either (no ZAP page,
+// INV-31 (review H5): a domain target without terms, the box's own IP and another address excluded: nothing goes to either (no ZAP page,
 // no service identification), each excluded address is said once; ScannableIP answers false for an excluded address.
 func TestContract_INV30_DomainSkipsExcludedAddresses(t *testing.T) {
 	t.Parallel()
@@ -128,7 +128,7 @@ func TestContract_INV30_DomainSkipsExcludedAddresses(t *testing.T) {
 	}
 }
 
-// INV-30 (review H5): while the shared block cannot be read, a domain's scan is refused before anything is sent (503).
+// INV-31 (review H5): while the shared block cannot be read, a domain's scan is refused before anything is sent (503).
 func TestContract_INV30_DomainUnreadableBlockSendsNothing(t *testing.T) {
 	t.Parallel()
 	d := newDeepEnv(t)
@@ -145,7 +145,7 @@ func TestContract_INV30_DomainUnreadableBlockSendsNothing(t *testing.T) {
 	}
 }
 
-// INV-30 (review L4): a Full-depth job is lowered too; an address excluded after the scan started gets no templates.
+// INV-31 (review L4): a Full-depth job is lowered too; an address excluded after the scan started gets no templates.
 func TestContract_INV30_FullJobsLoweredAndLateExclusion(t *testing.T) {
 	t.Parallel()
 	e, f := tplEnv(t)

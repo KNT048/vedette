@@ -351,7 +351,7 @@ func (s *Service) deepDomain(ctx context.Context, st ScanTarget, c Content) (Con
 	state := map[string]HostIP{}
 	var fence []string
 	var queue []deepAddr
-	// INV-30: an address on the shared exclusion list gets nothing; a list that cannot be read stops the deep step (nothing sent)
+	// INV-31: an address on the shared exclusion list gets nothing; a list that cannot be read stops the deep step (nothing sent)
 	sf, err := s.safety(ctx)
 	if err != nil {
 		if ctx.Err() != nil {

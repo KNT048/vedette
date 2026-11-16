@@ -1,6 +1,6 @@
 # Exposure — Change Impact Map
 
-## Modifying: `ScanSafety`, `Safety`, `Config.Safety`, `checkSafety`, `ScannableIP`, the web step's exclusions, the rate of `TemplateJob` (INV-30, #850)
+## Modifying: `ScanSafety`, `Safety`, `Config.Safety`, `checkSafety`, `ScannableIP`, the web step's exclusions, the rate of `TemplateJob` (INV-31, #850)
 - **cmd/vedette** (AI-Trưởng): wires `Config.Safety` with an adapter over the one block (D-627, inventory's `active.exclusions` and the check rate that `GET /scanning` shows as `speed.requests_per_s`); until then the port is nil and exposure keeps its own rates and no exclusion. The template scanner (`exposureTemplateScan`, `exposuretemplates.go`) must send each job at its `RPS` and write its own probe row with that rate, not `nucleiargv.OwnIPRate`/`FullRate`; `baselineInstead` keeps `min(j.RPS, TemplateRPS)`.
 - **scan** (runner): its scope callback is `ScannableIP`, which now refuses excluded addresses: no change needed there.
 - **SPA**: `features/scanning/SafetyTab.tsx` says the block does not cover public targets yet; change that line in the PR that wires the port. `features/exposure` shows the refusals (400 `out_of_scope`, 503) as any Scan now error.
@@ -8,6 +8,11 @@
 
 ## Modifying: the count of the template step (#830 FAIL 2, INV-29)
 - `cmd/vedette` `exposureTemplateScan` (`scanBaseline`, `scanFull`/`fullPortScan`, `fullMeter`, `portBound`, `reachableTags`, `webCandidate`): each nuclei run goes out with the context of a `progress.Series` job, so the run's Tracker sees one count of the whole step. A new caller of `send` must do the same, or its run's own count reaches the Tracker (held, never backwards, but stalled). No API or UI change: `ScanRun.progress` keeps its shape.
+
+## Modifying: `EngineRuns`, `EngineRun`, `stepLog`, `saveSteps`, `exp_engine_run` (#861, INV-30)
+- **cmd/vedette** `scanning.go` `externalRun`: the nuclei, zap and openvas cards of Settings › Scanning (core INV-40) read `EngineRuns` for `last_run`; an engine name, outcome or the `At` format changed here changes the page. `TestScanningExternalLastRuns` holds it.
+- **modules/core** `export_policy.go`: every column of `exp_engine_run` is listed (exported as stored).
+- A new engine step (or a new call site of `ScanTemplates`/`Baseline`) must `begin`/`end` on `stepsOf(ctx)`, or its card keeps the earlier run.
 
 ## Modifying: `ScanRun.progress`, `scanRun.prog`, `reportOpenVAS` (#830, INV-29)
 - **SPA**: the exposure page (web part of #830; contract `web/src/lib/progress.ts`). **sensor-active**/**scan**: the nmap and nuclei jobs of the runner report into the run's context; an adapter that drops the context's values loses them.

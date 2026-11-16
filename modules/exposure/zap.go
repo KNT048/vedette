@@ -445,7 +445,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 		return c, nil
 	}
 	pages, left := webPages(st, c)
-	// INV-30: no page goes to an address on the shared exclusion list; a list that cannot be read sends no page at all
+	// INV-31: no page goes to an address on the shared exclusion list; a list that cannot be read sends no page at all
 	sf, err := s.safety(ctx)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -485,6 +485,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 	}
 	var scanned []string
 	alerts := 0
+	steps := stepsOf(ctx) // INV-30: each page ZAP is asked for is a call of the ZAP step
 	for i, page := range pages {
 		if err := plog.RecordWebProbe(ctx, WebProbe{ID: store.NewID("pb"), IP: page.IP.String(), Port: page.Port, URL: page.URL, Tool: webTool}); err != nil { // LEGAL §3: logged before ZAP starts
 			if ctx.Err() != nil {
@@ -496,6 +497,7 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 			break
 		}
 		wctx, cancel := context.WithTimeout(ctx, WebScanTimeout)
+		steps.begin(StepZAP, false)
 		res, err := s.cfg.Web.Baseline(wctx, st, page)
 		slow := wctx.Err() != nil
 		cancel()
@@ -505,19 +507,28 @@ func (s *Service) webPassive(ctx context.Context, st ScanTarget, c Content) (Con
 			case perr == nil:
 				c.WebFindings = append(c.WebFindings, rows...)
 				scanned, alerts = append(scanned, page.URL), alerts+len(rows)
-			case errors.Is(perr, ErrNoPage):
+				steps.end(StepZAP, callRan, len(rows), s.clock())
+			case errors.Is(perr, ErrNoPage): // ZAP ran and found no page there
 				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebNoPage, maxLineText)})
+				steps.end(StepZAP, callEmpty, 0, s.clock())
 			default:
 				s.cfg.Log.ErrorContext(ctx, "exposure: unreadable ZAP report", "target", st.Value, "page", page.URL, "error", perr)
 				c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText(page.URL+": "+notWebUnread, maxLineText)})
+				steps.end(StepZAP, callFailed, 0, s.clock())
 			}
 			continue
 		}
 		var un *Unavailable
 		var skip *PageSkipped
 		switch {
-		case ctx.Err() != nil: // the run was stopped: nothing is stored
+		case ctx.Err() != nil: // the run was stopped: nothing is stored, and the step reads as stopped (begin without end)
 			return c, err
+		case errors.As(err, &skip), errors.As(err, &un): // ZAP did not run there (unavailable, not running): not a run of the step
+			steps.end(StepZAP, callSkipped, 0, s.clock())
+		default:
+			steps.end(StepZAP, callFailed, 0, s.clock())
+		}
+		switch {
 		case errors.As(err, &un):
 			c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "web", Text: clipText("Passive web scan (ZAP) did not run: "+un.Reason, maxLineText)})
 			left += len(pages) - i - 1 // the same reason holds for the pages not tried: one line, and the pages already scanned stay recorded

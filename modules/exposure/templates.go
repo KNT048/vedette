@@ -230,7 +230,7 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 	case skipped > 0:
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: fmt.Sprintf("Safe templates for exploited vulnerabilities: %s were not run, over the limit of %d jobs a scan.", plural(skipped, "exploited CVE"), maxTemplateJobs)})
 	}
-	// INV-30: the shared speed only lowers each job's rate; a block that cannot be read sends nothing
+	// INV-31: the shared speed only lowers each job's rate; a block that cannot be read sends nothing
 	sf, err := s.safety(ctx)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -296,8 +296,19 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 	}
 	tctx, cancel := context.WithTimeout(ctx, bound)
 	defer cancel()
+	steps := stepsOf(ctx) // INV-30: each address the templates run on is a call of the nuclei step
+	steps.begin(StepNuclei, st.Mode.Full)
 	res, err := s.cfg.Templates.ScanTemplates(tctx, st, ip, jobs)
 	var un *Unavailable
+	switch {
+	case err == nil:
+		steps.end(StepNuclei, callRan, matched(res.Results), s.clock())
+	case ctx.Err() != nil: // a stop of the run leaves the call open: the step reads as stopped
+	case errors.As(err, &un): // nuclei did not run (the module off, the scan container down, the terms withdrawn): not a run
+		steps.end(StepNuclei, callSkipped, 0, s.clock())
+	default:
+		steps.end(StepNuclei, callFailed, 0, s.clock())
+	}
 	switch {
 	case err == nil:
 		rows, notKept := sanitizeTemplateResults(res.Results, jobs)
@@ -432,7 +443,7 @@ func schemeOf(r ServiceRow) string {
 	return ""
 }
 
-// jobsRPS is the rate the jobs of a step ran at (INV-30: the shared speed may have lowered it), def when there is no job.
+// jobsRPS is the rate the jobs of a step ran at (INV-31: the shared speed may have lowered it), def when there is no job.
 func jobsRPS(jobs []TemplateJob, def int) int {
 	if len(jobs) == 0 {
 		return def
@@ -693,4 +704,15 @@ func sentIDs(in []string) []string {
 		}
 	}
 	return out
+}
+
+// matched is how many of the results confirmed something (the count on the nuclei card's last run, INV-30).
+func matched(rs []TemplateResult) int {
+	n := 0
+	for _, r := range rs {
+		if r.Outcome == OutcomeMatched {
+			n++
+		}
+	}
+	return n
 }

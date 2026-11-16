@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"slices"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/exec/exectest"
+	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/inventory"
 	sensoractive "github.com/knt048/vedette/modules/sensor-active"
 )
@@ -584,5 +586,150 @@ func TestScanningInlineExclusionStopsTheRunningScan(t *testing.T) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("the scan of the device went on after it was excluded")
+	}
+}
+
+// #861 (exposure INV-30): the zap and openvas cards take their last run from the external scans in which their step ran, through
+// exposure's own read; nuclei's is the newer of its LAN runs and the external scans' template step. Those scans run on Scan now only,
+// so zap and openvas have no next run. With no scan, every last run is null.
+func TestScanningExternalLastRuns(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	s.module("scan", true)
+	s.module("exposure", true)
+	exec := func(q string, args ...any) {
+		t.Helper()
+		if err := s.d.DB.Write(ctx, func(tx *sql.Tx) error { _, err := tx.ExecContext(ctx, q, args...); return err }); err != nil {
+			t.Fatal(err)
+		}
+	}
+	card := func(id string) map[string]any {
+		t.Helper()
+		code, page := s.do("GET", "/scanning", "viewer", "")
+		if code != http.StatusOK {
+			t.Fatalf("GET /scanning = %d %v", code, page)
+		}
+		return s.engine(page, id)
+	}
+	for _, id := range []string{"nuclei", "zap", "openvas"} {
+		if e := card(id); e["last_run"] != nil || (id != "nuclei" && e["next_run_at"] != nil) {
+			t.Fatalf("%s before any scan: last %v, next %v", id, e["last_run"], e["next_run_at"])
+		}
+	}
+
+	// What an external deep scan of the box's IP stores (exposure's saveSteps): every step ran; ZAP lost a page, OpenVAS found 3.
+	const ins = `INSERT INTO exp_engine_run (engine, run_id, target, at, outcome, text) VALUES (?, 'sr-1', '203.0.113.10', ?, ?, ?)`
+	exec(ins, "nuclei", "2026-11-16T06:30:00.000Z", "ok", "External scan of 203.0.113.10: safe templates ran, 0 matched")
+	exec(ins, "zap", "2026-11-16T06:40:00.000Z", "partial", "External scan of 203.0.113.10: ZAP scanned 1 of 2 pages, 4 alerts")
+	exec(ins, "openvas", "2026-11-16T07:55:00.000Z", "ok", "External scan of 203.0.113.10: OpenVAS found 3 results")
+	want := map[string]map[string]any{
+		"nuclei":  {"at": "2026-11-16T06:30:00Z", "outcome": "ok", "text": "External scan of 203.0.113.10: safe templates ran, 0 matched"},
+		"zap":     {"at": "2026-11-16T06:40:00Z", "outcome": "partial", "text": "External scan of 203.0.113.10: ZAP scanned 1 of 2 pages, 4 alerts"},
+		"openvas": {"at": "2026-11-16T07:55:00Z", "outcome": "ok", "text": "External scan of 203.0.113.10: OpenVAS found 3 results"},
+	}
+	for id, w := range want {
+		e := card(id)
+		last, _ := e["last_run"].(map[string]any)
+		if fmt.Sprint(last) != fmt.Sprint(w) || (id != "nuclei" && e["next_run_at"] != nil) {
+			t.Errorf("%s: last %v, next %v; want last %v and no next run", id, e["last_run"], e["next_run_at"], w)
+		}
+	}
+
+	// A LAN run of the vulnerability checks after the external scan is nuclei's last run; one before it is not.
+	lan := func(id, ended string) {
+		t.Helper()
+		exec(`INSERT INTO scan_run (id, trigger, started_at, started_by, ended_at, status, target_ids, total, done, matched) VALUES (?, 'manual', ?, 'admin@acme.example', ?, 'done', '["a"]', 1, 1, 0)`,
+			id, ended, ended)
+	}
+	lan("run-old", "2026-11-16T05:00:00.000Z")
+	if last, _ := card("nuclei")["last_run"].(map[string]any); last["at"] != "2026-11-16T06:30:00Z" {
+		t.Fatalf("nuclei with an older LAN run: %v", last)
+	}
+	lan("run-new", "2026-11-16T08:18:00.000Z")
+	if last, _ := card("nuclei")["last_run"].(map[string]any); last["at"] != "2026-11-16T08:18:00Z" || last["text"] != "Checked 1 of 1 devices, 0 confirmed" {
+		t.Fatalf("nuclei with a newer LAN run: %v", last)
+	}
+}
+
+// The fakes of a real exposure run in cmd/vedette (#863 r1 L5): the box's IP is 8.8.8.8, a web server with an exploited CVE on 80,
+// one safe template that matches, and ZAP's report with one alert.
+type extFakes struct{}
+
+func (extFakes) Round(context.Context) (netip.Addr, error) {
+	return netip.MustParseAddr("8.8.8.8"), nil
+}
+func (extFakes) LookupTXT(context.Context, string) ([]string, error) {
+	return nil, errors.New("no such host")
+}
+func (extFakes) Scan(context.Context, exposure.ScanTarget) (exposure.Content, error) {
+	return exposure.Content{Ports: []exposure.PortRow{{IP: "8.8.8.8", Port: 80, Service: "http"}}}, nil
+}
+func (extFakes) ScanServices(context.Context, exposure.ScanTarget, netip.Addr) (exposure.ServiceScan, error) {
+	return exposure.ServiceScan{Ports: 98, Services: []exposure.ServiceRow{{IP: "8.8.8.8", Port: 80, Name: "http", Product: "Apache httpd", Version: "2.4.49"}}}, nil
+}
+func (extFakes) Match(context.Context, []exposure.ServiceRow) (exposure.Matches, error) {
+	return exposure.Matches{Compared: 1, Listed: 1, Vulns: []exposure.VulnRow{{IP: "8.8.8.8", Port: 80, CVE: "CVE-2021-41773", Name: "Path traversal", Basis: "version", Summary: "In range."}}}, nil
+}
+func (extFakes) ScanTemplates(context.Context, exposure.ScanTarget, netip.Addr, []exposure.TemplateJob) (exposure.TemplateScan, error) {
+	return exposure.TemplateScan{Results: []exposure.TemplateResult{{Port: 80, Template: "CVE-2021-41773", CVE: "CVE-2021-41773", Outcome: exposure.OutcomeMatched}}}, nil
+}
+func (extFakes) RecordTemplateProbes(context.Context, []exposure.TemplateProbe) error { return nil }
+func (extFakes) RecordWebProbe(context.Context, exposure.WebProbe) error              { return nil }
+func (extFakes) Baseline(_ context.Context, _ exposure.ScanTarget, p exposure.WebPage) (exposure.WebScan, error) {
+	return exposure.WebScan{Report: []byte(fmt.Sprintf(`{"site":[{"@name":%q,"alerts":[{"pluginid":"10036","alert":"Server Leaks Version","riskcode":"1","confidence":"3","cweid":"200","instances":[{"uri":%q}]}]}]}`,
+		strings.TrimSuffix(p.URL, "/"), p.URL))}, nil
+}
+
+// #863 r1 L5: a real exposure run (fake scanners, the box's own exposure service for this database) records its steps, and GET /scanning
+// shows them on the nuclei and zap cards; OpenVAS, not on this box, stays null. With the External exposure module off the zap card
+// still shows its last run.
+func TestScanningShowsARealExternalRun(t *testing.T) {
+	t.Parallel()
+	s := newStack(t)
+	ctx := t.Context()
+	s.module("scan", true)
+	s.module("exposure", true)
+	f := extFakes{}
+	svc, err := exposure.NewService(exposure.Config{DB: s.d.DB, Audit: s.d.Audit, Log: s.d.Log, Resolver: f, Prober: f, Runner: f,
+		Services: f, Matcher: f, Templates: f, Probes: f, Web: f, Location: time.UTC,
+		TwoStep: func(context.Context, string) (string, error) { return "app", nil }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	exposureMu.Lock()
+	exposureServices[s.d.DB] = svc // the service every exposureService(d) of this stack answers from now on
+	exposureMu.Unlock()
+	det, err := svc.Detect(ctx, "admin@acme.example", true)
+	if err != nil || len(det.Items) != 1 {
+		t.Fatalf("detect: %+v %v", det, err)
+	}
+	if _, err := svc.ScanNow(ctx, exposure.Actor{ID: "u-admin", Email: "admin@acme.example", Admin: true}, det.Items[0].ID, exposure.NoticeVersion); err != nil {
+		t.Fatal(err)
+	}
+	card := func(id string) map[string]any {
+		t.Helper()
+		code, page := s.do("GET", "/scanning", "viewer", "")
+		if code != http.StatusOK {
+			t.Fatalf("GET /scanning = %d %v", code, page)
+		}
+		return s.engine(page, id)
+	}
+	want := map[string]string{
+		"nuclei": "External scan of 8.8.8.8: safe templates ran, 1 matched",
+		"zap":    "External scan of 8.8.8.8: ZAP scanned 1 page, 1 alert",
+	}
+	for id, text := range want {
+		last, _ := card(id)["last_run"].(map[string]any)
+		if last["outcome"] != "ok" || last["text"] != text || last["at"] == nil {
+			t.Errorf("%s: last %v, want ok %q", id, last, text)
+		}
+	}
+	if e := card("openvas"); e["last_run"] != nil {
+		t.Errorf("openvas did not run: %v", e["last_run"])
+	}
+	s.module("exposure", false)
+	if e := card("zap"); e["enabled"] != false || e["last_run"] == nil {
+		t.Fatalf("zap with the module off: enabled %v, last %v", e["enabled"], e["last_run"])
 	}
 }

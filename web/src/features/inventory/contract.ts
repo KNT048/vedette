@@ -103,8 +103,12 @@ export const InventorySettings = z.object({
   lan_ranges: z.array(z.string()).max(16).describe('Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461)'), active: ActiveWindow, fragile_kinds: z.array(BehaviourKind).describe('Device types scanned only once, gently, when first seen; passive-only after that. Every type acting as one of them counts (D-511)'),
   regular_scan_kinds: z.array(BehaviourKind).describe('Subset of fragile_kinds for which the owner allowed regular scans'),
   scope_confirmed_at: dt.nullable(), scope_confirmed_by: z.string().nullable(),
+  version: z.string().describe('Version of the shared safety block (the same as GET /scanning safety.version, inventory INV-32): send it back on PUT to be refused with 409 safety_changed instead of replacing a change made since the page loaded'),
 })
-export const SettingsInput = InventorySettings.extend({ scope_confirmed: z.boolean().describe('Attestation: the ranges belong to the company and scanning them is permitted') })
+export const SettingsInput = InventorySettings.extend({
+  scope_confirmed: z.boolean().describe('Attestation: the ranges belong to the company and scanning them is permitted'),
+  version: z.string().max(64).optional().describe('The version this page read. Given and not the stored one: 409 safety_changed, nothing stored (review #860 M1). Left out: no check, so a range or exclusion added since the page loaded is replaced; this page is being replaced by Settings › Scanning (#850)'),
+})
 export const SettingsSaved = InventorySettings.extend({
   adjusted: z.array(z.object({ from: z.string(), to: z.string() })).describe('Ranges normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24'),
 })
@@ -251,7 +255,7 @@ export const endpoints = defineEndpoints([
   { method: 'get', path: '/inventory/import-template.csv', summary: 'Download a sample CSV for importing devices', stories: ['S-INV-2'], role: 'viewer', response: 'file' },
   { method: 'post', path: '/inventory/import', summary: 'Import devices from CSV content; invalid rows are reported by row number, valid rows are still added', stories: ['S-INV-2'], role: 'operator', body: ImportInput, response: ImportResult },
   { method: 'get', path: '/inventory/settings', summary: 'LAN ranges, active scan window, device types scanned only once (and which allow regular scans), scope attestation', stories: ['S-INV-1'], role: 'admin', response: InventorySettings },
-  { method: 'put', path: '/inventory/settings', summary: 'Save the scan scope; enabling active scanning requires scope attestation', stories: ['S-INV-1'], role: 'admin', body: SettingsInput, response: SettingsSaved },
+  { method: 'put', path: '/inventory/settings', summary: 'Save the scan scope; enabling active scanning requires scope attestation. 409 safety_changed when the version sent is not the stored one', stories: ['S-INV-1'], role: 'admin', body: SettingsInput, response: SettingsSaved },
   { method: 'get', path: '/inventory/sensors', summary: 'Sensors of this box only (multiple sites not supported yet)', stories: ['S-INV-1'], role: 'admin', response: SensorsResponse },
   { method: 'patch', path: '/inventory/sensors/{id}', summary: 'Container-only install: choose the card the sensor reads (any card of its last heartbeat, with or without an address; null: back to the default card) and whether it is the SPAN card (D-387, D-393). 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box network sets it', stories: ['S-CORE-8', 'S-INV-1'], role: 'admin', params: id, body: SensorPatch, response: Sensor },
   { method: 'get', path: '/inventory/agents', summary: 'Issued osquery tokens and the Wazuh connection (if any)', stories: ['S-INV-4'], role: 'admin', response: AgentsResponse },

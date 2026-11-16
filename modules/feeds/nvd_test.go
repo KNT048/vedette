@@ -153,9 +153,9 @@ func TestNVDPageURL(t *testing.T) {
 	}
 }
 
-// nvdOrigin answers ?hasKev pages of n records CVE-2024-0000…, each with an NVD CVSS 3.1 score of 7.5; with lastModStartDate only
-// the first two.
-func nvdOrigin(o *origin, n int, endExcl string) {
+// nvdOrigin answers ?hasKev pages of n records CVE-2024-0000… (fixed before 2.0), each with an NVD CVSS 3.1 score of 7.5; with
+// lastModStartDate only the first two.
+func nvdOrigin(o *origin, n int) {
 	o.serve("/nvd", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 		start, _ := strconv.Atoi(q.Get("startIndex"))
@@ -165,7 +165,7 @@ func nvdOrigin(o *origin, n int, endExcl string) {
 		}
 		var recs []string
 		for i := start; i < min(start+NVDPageSize, total); i++ {
-			recs = append(recs, fmt.Sprintf(`{"cve":{"id":"CVE-2024-%04d","published":"2024-01-15T10:00:00.000","metrics":{"cvssMetricV31":[{"type":"Primary","cvssData":{"baseScore":7.5,"baseSeverity":"HIGH","vectorString":"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"}}]},"configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":%q}]}]}]}}`, i, endExcl))
+			recs = append(recs, fmt.Sprintf(`{"cve":{"id":"CVE-2024-%04d","published":"2024-01-15T10:00:00.000","metrics":{"cvssMetricV31":[{"type":"Primary","cvssData":{"baseScore":7.5,"baseSeverity":"HIGH","vectorString":"CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"}}]},"configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:acme:box:*:*:*:*:*:*:*:*","versionEndExcluding":"2.0"}]}]}]}}`, i))
 		}
 		_, _ = fmt.Fprintf(w, `{"totalResults":%d,"vulnerabilities":[%s]}`, total, strings.Join(recs, ","))
 	})
@@ -178,7 +178,7 @@ func TestContract_NVDRangesPull(t *testing.T) {
 	e, o := pullEnv(t)
 	e.only("nvd-kev")
 	e.mirror("nvd-kev", o.url("/nvd"))
-	nvdOrigin(o, 250, "2.0")
+	nvdOrigin(o, 250)
 	var got []RangesUpdatedEvent
 	e.svc.Events = publishFunc(func(ev events.Event) {
 		if r, ok := ev.Data.(RangesUpdatedEvent); ok {
@@ -198,7 +198,7 @@ func TestContract_NVDRangesPull(t *testing.T) {
 		t.Fatalf("events = %d %+v", len(got), got)
 	}
 	// the next day: an incremental pull with the window; one changed entry, one unchanged: one event for one CVE
-	nvdOrigin(o, 250, "2.0")
+	nvdOrigin(o, 250)
 	o.serve("/nvd", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("lastModStartDate") == "" {
 			t.Errorf("full pull the next day: %s", r.URL.RawQuery)

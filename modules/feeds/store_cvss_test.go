@@ -23,7 +23,7 @@ func TestContract_INV28_CVSSFromNVD(t *testing.T) {
 	e, o := pullEnv(t)
 	e.only("nvd-kev")
 	e.mirror("nvd-kev", o.url("/nvd"))
-	nvdOrigin(o, 3, "2.0")
+	nvdOrigin(o, 3)
 	if err := e.svc.Fetch(t.Context(), "nvd-kev"); err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +169,7 @@ func TestRunPull_FullDuePullsNVDKevAtTheNextCheck(t *testing.T) {
 	e, o := pullEnv(t)
 	e.only("nvd-kev")
 	e.mirror("nvd-kev", o.url("/nvd"))
-	nvdOrigin(o, 3, "2.0")
+	nvdOrigin(o, 3)
 	if err := e.svc.Fetch(t.Context(), "nvd-kev"); err != nil {
 		t.Fatal(err)
 	}

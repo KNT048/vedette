@@ -35,6 +35,9 @@ type Settings struct {
 	UnresponsiveAfter  int      `json:"unresponsive_after"`
 	AutoRescan         bool     `json:"auto_rescan"`
 	Schedule           Schedule `json:"schedule"`
+	// Version is the shared block's version read with the window, rate and exclusions above, in the same read (Checks; review #860
+	// r2 L3); "" without SharedChecks. Not part of the stored row or of contract.ts ScanConfig.
+	Version string `json:"-"`
 }
 
 // Patch is a partial PUT /scans/config: a nil field keeps the stored value (POST-3).
@@ -51,6 +54,7 @@ type Patch struct {
 	SchedWeekday       *int
 	SchedAt            *string
 	DangerousChecks    *bool
+	Version            string // the shared block's version the page read (ConfigView.Version); "" = none, no check
 }
 
 // Limits of INV-5.
@@ -94,8 +98,10 @@ func set[T any](dst *T, v *T) {
 	}
 }
 
-// validate checks INV-5 on a whole configuration, in the order and with the words of the mock's validateConfig.
-func (c Settings) validate() error {
+// validate checks INV-5 on a whole configuration, in the order and with the words of the mock's validateConfig. had is how many
+// exclusions the stored configuration held: a list over MaxExclusions passes when it does not grow (the merge of #850 can leave a
+// longer one, and a save of something else must still go through: review #857 L7).
+func (c Settings) validate(had int) error {
 	w := c.Window
 	if len(w.Days) == 0 || len(w.Days) > 7 || slices.ContainsFunc(w.Days, func(d int) bool { return d < 1 || d > 7 }) {
 		return invalidConfig("Choose at least one day for the scan window.")
@@ -109,7 +115,7 @@ func (c Settings) validate() error {
 	if c.Rate < 1 || c.Rate > MaxRate {
 		return invalidConfig("The rate must be 1 to 20 requests per second. A lower rate is safer for old devices.")
 	}
-	if len(c.Exclusions) > MaxExclusions {
+	if len(c.Exclusions) > MaxExclusions && len(c.Exclusions) > had {
 		return invalidConfig("The exclusion list can have at most 200 lines.")
 	}
 	for i, e := range c.Exclusions {
@@ -205,6 +211,11 @@ func (c Settings) NextRun(now time.Time, loc *time.Location, first bool) *time.T
 // the next window of any window day, so a new box with the weekly default does not wait up to a week for it (W3-6, D-504); the
 // weekday counts from the second run on.
 func (c Settings) slotOK(slot time.Time, first bool) bool {
+	// The window is shared with discovery since #850 and saved on its own (PUT /scanning/safety): a schedule time it no longer holds
+	// is no slot, so nothing scheduled runs outside the window (INV-5).
+	if !inTimeRange(c.Schedule.At, c.Window.From, c.Window.To) {
+		return false
+	}
 	if _, ok := c.slotWindowEnd(slot); !ok {
 		return false
 	}
@@ -230,6 +241,92 @@ func (c Settings) slotWindowEnd(slot time.Time) (time.Time, bool) {
 }
 
 // ---- storage ----
+
+// Checks is the part of the settings every LAN engine shares since #850 (INV-16): the window, the check rate and the exclusions.
+type Checks struct {
+	Window     Window
+	Rate       int // requests per second
+	Exclusions []string
+	// MergedFrom names the copy of this module (scan_setting) the inventory last took in, by that copy's updated_at ("" for a copy
+	// nobody saved); nil when it never took one in. While the copy's updated_at is not exactly that (a failed merge, or a version
+	// before #850 that wrote it after a rollback), settings reads the union of both lists and the slower rate, so nothing either list
+	// excludes is scanned (review #857 M1; equality only, no clock order: r2 L1). On SaveChecks it is the stamp the save wrote.
+	MergedFrom *string
+	// Version names the shared block as read (Checks); on SaveChecks it is the one the page read ("" = none: no check), and another
+	// one refuses the save with 409 safety_changed (review #860 M1).
+	Version string
+}
+
+// SharedChecks is the inventory as the one store of Checks (#850, INV-16). The Inventory adapter of cmd/vedette implements it; an
+// Inventory without it (the module's own tests) leaves them in scan_setting, as before.
+type SharedChecks interface {
+	Checks(ctx context.Context) (Checks, error)
+	// SaveChecks writes them inside tx, the transaction of PUT /scans/config; Settle is called once tx is over, with whether it
+	// committed (the inventory announces inventory.settings.changed then).
+	SaveChecks(ctx context.Context, tx *sql.Tx, user string, c Checks) error
+	Settle(ctx context.Context, tx *sql.Tx, committed bool)
+}
+
+func (s *Service) shared() (SharedChecks, bool) {
+	sc, ok := s.cfg.Inventory.(SharedChecks)
+	return sc, ok
+}
+
+// settings is scan_setting with the shared window, check rate and exclusions of the inventory over it (INV-16). scan_setting keeps
+// its own copy (written along by SaveConfig) so a rollback to a version before #850 finds the values of PUT /scans/config.
+func (s *Service) settings(ctx context.Context, q interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}) (Settings, error) {
+	c, err := loadSettings(ctx, q)
+	if err != nil {
+		return Settings{}, err
+	}
+	sh, ok := s.shared()
+	if !ok {
+		return c, nil
+	}
+	ch, err := sh.Checks(ctx)
+	if err != nil {
+		return Settings{}, fmt.Errorf("scan: reading the shared window, rate and exclusions: %w", err)
+	}
+	var updated sql.NullString
+	if err := q.QueryRowContext(ctx, `SELECT updated_at FROM scan_setting WHERE id = 1`).Scan(&updated); err != nil {
+		return Settings{}, fmt.Errorf("scan: reading when the settings were saved: %w", err)
+	}
+	own := c
+	c.Version = ch.Version
+	c.Window = Window{Days: slices.Clone(ch.Window.Days), From: ch.Window.From, To: ch.Window.To}
+	c.Rate = ch.Rate
+	c.Exclusions = slices.Clone(ch.Exclusions)
+	if ch.MergedFrom == nil || *ch.MergedFrom != updated.String { // not this copy taken in: both lists bind, the slower rate wins
+		for _, x := range own.Exclusions {
+			if !slices.Contains(c.Exclusions, x) {
+				c.Exclusions = append(c.Exclusions, x)
+			}
+		}
+		c.Rate = min(c.Rate, own.Rate)
+	}
+	if c.Exclusions == nil {
+		c.Exclusions = []string{}
+	}
+	return c, nil
+}
+
+// LegacyChecks reads scan_setting's own window, rate and exclusions, who saved them last and when ("" when nobody did): what the
+// merge into the inventory reads at every start (#850, cmd/vedette).
+func LegacyChecks(ctx context.Context, q interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}) (c Checks, savedBy, savedAt string, err error) {
+	st, err := loadSettings(ctx, q)
+	if err != nil {
+		return Checks{}, "", "", err
+	}
+	var by, at sql.NullString
+	if err := q.QueryRowContext(ctx, `SELECT updated_by, updated_at FROM scan_setting WHERE id = 1`).Scan(&by, &at); err != nil {
+		return Checks{}, "", "", fmt.Errorf("scan: reading who saved the settings: %w", err)
+	}
+	return Checks{Window: st.Window, Rate: st.Rate, Exclusions: st.Exclusions}, by.String, at.String, nil
+}
 
 func loadSettings(ctx context.Context, q interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row

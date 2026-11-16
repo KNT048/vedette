@@ -229,6 +229,7 @@ type Device struct {
 	Suspicious    bool        `json:"suspicious"`
 	FindingsCount int         `json:"findings_count"`
 	Summary       *Summary    `json:"summary"`
+	Sources       []string    `json:"sources"` // what feeds the device, in the words of the Devices search (#849, DeviceSources); set by DevicesPage only
 	ident         []*Observed // current hostname and MAC observations: the summary of a device with no vendor, model or OS
 }
 

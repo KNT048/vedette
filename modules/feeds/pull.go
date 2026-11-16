@@ -68,6 +68,15 @@ func (s *Service) RunPull(ctx context.Context) error {
 				due = st.Due(now, r.IntervalHours)
 			}
 		}
+		if r.ID == nvdFeedID && r.Enabled { // review r2 M1 of #825: the full pull migration 0015 asked for runs at the next check, not a day later
+			if full, err := s.st.fullDue(ctx, r.ID); err != nil {
+				s.Log.ErrorContext(ctx, "reading whether the NVD affected versions need a full pull failed", "error", err)
+			} else if full {
+				st := r.state()
+				st.LastSuccess = time.Time{} // only the back-off after failures holds it back (as N55-2)
+				due = st.Due(now, r.IntervalHours)
+			}
+		}
 		if at, paused := s.nvdResumeAt(); paused && r.ID == nvdFeedID {
 			due = !now.Before(at) // a paused NVD pull goes on when it said it would (W3-1)
 		}
@@ -126,6 +135,8 @@ type pullPlan struct {
 	affected     map[string][]AffectedRow // nvd-kev (D-500)
 	affectedFull bool                     // a full pull: CVEs not in affected are dropped
 	published    map[string]string        // nvd-kev: the day NVD published each CVE (D-615)
+	cvss         map[string]CVSS          // nvd-kev: the CVSS base score of each CVE that has one (INV-28)
+	cvssSeen     map[string]bool          // nvd-kev: every CVE NVD answered for (INV-28)
 	hasAffected  bool
 
 	cveOrg        map[string]CVEOrgResult // cve-org (D-556): the CVEs whose record gave ranges
@@ -618,6 +629,14 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				}
 				if err = applyPublished(ctx, tx, p.published); err != nil {
 					return err
+				}
+				if err = applyCVSS(ctx, tx, p.cvssSeen, p.cvss, p.affectedFull); err != nil {
+					return err
+				}
+				if p.affectedFull { // the one full pull migration 0015 asked for is done (INV-28)
+					if _, err = tx.ExecContext(ctx, `UPDATE feeds_source SET full_due = 0 WHERE id = ? AND full_due = 1`, src.ID); err != nil {
+						return fmt.Errorf("feeds: full pull done: %w", err)
+					}
 				}
 				p.out.Records = total // the CVEs the box has versions for, not only those this (incremental) pull got
 			case p.hasCVEOrg:

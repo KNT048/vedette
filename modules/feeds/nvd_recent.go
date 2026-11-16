@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -54,6 +56,7 @@ type RecentCVE struct {
 	Status                  string   // NVD's vulnStatus; "Rejected" records are dropped
 	Severity                string   // CVSS base severity of the newest CVSS version NVD gives (NVD's own first), "" when none
 	Score                   *float64 // its base score
+	CVSS                    *CVSS    // the score findings show (cvssOf, INV-28: needs a valid vector, may differ from Severity/Score); nil when none
 	Affected                []AffectedRow
 	// Platforms is, per entry of Affected, the operating systems ("microsoft:windows", vendor and product of the CPE) of NVD's "running
 	// on" condition of its configuration (an AND of the vulnerable entries with non-vulnerable operating-system entries); nil for an
@@ -86,11 +89,41 @@ func RecentPageURL(base string, byPublished bool, from, to time.Time, start, siz
 }
 
 type cvssEntry struct {
-	Type     string `json:"type"`
-	CVSSData struct {
+	Type         string `json:"type"`
+	BaseSeverity string `json:"baseSeverity"` // CVSS 2.0 only: NVD writes v2's severity beside cvssData, not in it
+	CVSSData     struct {
 		BaseScore    *float64 `json:"baseScore"`
 		BaseSeverity string   `json:"baseSeverity"`
+		VectorString string   `json:"vectorString"`
 	} `json:"cvssData"`
+}
+
+// cvssVectorRE is a CVSS 3.x or 4.0 vector string as NVD writes it ("CVSS:3.1/AV:N/AC:L/…"), cvss2VectorRE a CVSS 2.0 base vector
+// ("AV:N/AC:L/Au:N/C:P/I:P/A:P", no prefix); anything else is not kept (INV-28).
+var (
+	cvssVectorRE  = regexp.MustCompile(`^CVSS:(3\.0|3\.1|4\.0)(/[A-Za-z]{1,3}:[A-Za-z]{1,5}){1,40}$`)
+	cvss2VectorRE = regexp.MustCompile(`^AV:[LAN]/AC:[HML]/Au:[MSN]/C:[NPC]/I:[NPC]/A:[NPC]$`)
+)
+
+// cvssMetrics is the `metrics` of an NVD CVE API 2.0 record, read by nvd-recent and nvd-kev alike. CVSS 2.0 comes last: only a CVE NVD
+// scored with nothing newer (many old KEV CVEs) shows it, with v2's own bands (the pages; no Critical).
+type cvssMetrics struct {
+	V40 []cvssEntry `json:"cvssMetricV40"`
+	V31 []cvssEntry `json:"cvssMetricV31"`
+	V30 []cvssEntry `json:"cvssMetricV30"`
+	V2  []cvssEntry `json:"cvssMetricV2"`
+}
+
+// vectorOf is e's vector string when it is a vector of version, else "".
+func vectorOf(e cvssEntry, version string) string {
+	v := strings.TrimSpace(e.CVSSData.VectorString)
+	switch {
+	case len(v) > 200:
+		return ""
+	case version == "2.0" && cvss2VectorRE.MatchString(v), version != "2.0" && cvssVectorRE.MatchString(v) && strings.HasPrefix(v, "CVSS:"+version+"/"):
+		return v
+	}
+	return ""
 }
 
 // recentAnswer is one NVD answer; each record is decoded on its own (recentRecord), so one record of the wrong shape is rejected
@@ -102,15 +135,11 @@ type recentAnswer struct {
 
 type recentRecord struct {
 	CVE struct {
-		ID           string `json:"id"`
-		Published    string `json:"published"`
-		LastModified string `json:"lastModified"`
-		VulnStatus   string `json:"vulnStatus"`
-		Metrics      struct {
-			V40 []cvssEntry `json:"cvssMetricV40"`
-			V31 []cvssEntry `json:"cvssMetricV31"`
-			V30 []cvssEntry `json:"cvssMetricV30"`
-		} `json:"metrics"`
+		ID             string          `json:"id"`
+		Published      string          `json:"published"`
+		LastModified   string          `json:"lastModified"`
+		VulnStatus     string          `json:"vulnStatus"`
+		Metrics        json.RawMessage `json:"metrics"` // decoded on its own: metricsOf
 		Configurations []struct {
 			Operator string `json:"operator"`
 			Nodes    []struct {
@@ -136,10 +165,10 @@ func nvdTime(s string) (time.Time, bool) {
 	return t.UTC(), err == nil
 }
 
-// severityOf picks the CVSS severity tier 3 shows: the newest CVSS version present, NVD's own score ("Primary") before
-// the CNA's ("Secondary"). An unknown severity or a score outside 0..10 is ignored.
-func severityOf(lists ...[]cvssEntry) (string, *float64) {
-	for _, l := range lists {
+// severityOf picks the CVSS severity tier 3 shows (INV-24): the newest CVSS version present (4.0, 3.1, 3.0), NVD's own ("Primary")
+// before the CNA's ("Secondary"). An unknown severity or a score outside 0..10 is ignored.
+func severityOf(m cvssMetrics) (string, *float64) {
+	for _, l := range [][]cvssEntry{m.V40, m.V31, m.V30} {
 		for _, want := range []string{"Primary", "Secondary"} {
 			for _, e := range l {
 				sev := strings.ToUpper(strings.TrimSpace(e.CVSSData.BaseSeverity))
@@ -155,6 +184,46 @@ func severityOf(lists ...[]cvssEntry) (string, *float64) {
 		}
 	}
 	return "", nil
+}
+
+// cvssOf picks the CVSS base score every finding shows (INV-28): the newest CVSS version present (4.0, 3.1, 3.0, then 2.0 when NVD
+// has nothing newer), NVD's own score ("Primary", source nvd) before another scorer's ("Secondary", source cna: the CNA or CISA's ADP).
+// An entry counts only with a known severity, a score in 0..10 and a valid vector of its version (FIRST: a score is shown with its
+// vector); otherwise the next entry is tried. The score is rounded to one decimal, as CVSS defines it, so text and band agree.
+func cvssOf(m cvssMetrics) (CVSS, bool) {
+	for _, l := range []struct {
+		version string
+		list    []cvssEntry
+	}{{"4.0", m.V40}, {"3.1", m.V31}, {"3.0", m.V30}, {"2.0", m.V2}} {
+		for _, want := range []string{"Primary", "Secondary"} {
+			for _, e := range l.list {
+				sev := e.CVSSData.BaseSeverity
+				if l.version == "2.0" {
+					sev = e.BaseSeverity // NVD writes v2's severity beside cvssData
+				}
+				sc, vec := e.CVSSData.BaseScore, vectorOf(e, l.version)
+				if e.Type != want || !cvssSeverities[strings.ToUpper(strings.TrimSpace(sev))] || sc == nil || *sc < 0 || *sc > 10 || vec == "" {
+					continue
+				}
+				src := "nvd"
+				if want == "Secondary" {
+					src = "cna"
+				}
+				return CVSS{Score: math.Round(*sc*10) / 10, Version: l.version, Source: src, Vector: vec}, true
+			}
+		}
+	}
+	return CVSS{}, false
+}
+
+// metricsOf decodes a record's `metrics` on its own (review r1 H1): a malformed value (a string score, a number for a vector, an
+// array) leaves that record without a score; the record, its affected versions and its dates are still accepted.
+func metricsOf(raw json.RawMessage) cvssMetrics {
+	var m cvssMetrics
+	if len(raw) == 0 || json.Unmarshal(raw, &m) != nil {
+		return cvssMetrics{}
+	}
+	return m
 }
 
 // ParseNVDRecent reads one NVD CVE API 2.0 answer for tier 3. A record with a bad id or dates is rejected, as is one with
@@ -192,7 +261,11 @@ func ParseNVDRecent(data []byte) (RecentPage, error) {
 			continue
 		}
 		rec := RecentCVE{CVE: id, Published: pub, LastModified: mod, Status: status, Affected: []AffectedRow{}}
-		rec.Severity, rec.Score = severityOf(v.CVE.Metrics.V40, v.CVE.Metrics.V31, v.CVE.Metrics.V30)
+		m := metricsOf(v.CVE.Metrics)
+		rec.Severity, rec.Score = severityOf(m)
+		if c, ok := cvssOf(m); ok {
+			rec.CVSS = &c
+		}
 		bad := ""
 	entries:
 		for _, c := range v.CVE.Configurations {
@@ -372,8 +445,9 @@ func storeRecentPage(ctx context.Context, tx *sql.Tx, recs []RecentCVE, cutoff t
 		return err
 	}
 	defer func() { _ = del.Close() }()
-	up, err := tx.PrepareContext(ctx, `INSERT INTO feeds_recent_cve (cve, published, last_modified, status, severity, score) VALUES (?, ?, ?, ?, ?, ?)
-ON CONFLICT(cve) DO UPDATE SET published = excluded.published, last_modified = excluded.last_modified, status = excluded.status, severity = excluded.severity, score = excluded.score`)
+	up, err := tx.PrepareContext(ctx, `INSERT INTO feeds_recent_cve (cve, published, last_modified, status, severity, score, cvss_score, cvss_version, cvss_source, cvss_vector) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(cve) DO UPDATE SET published = excluded.published, last_modified = excluded.last_modified, status = excluded.status, severity = excluded.severity, score = excluded.score,
+cvss_score = excluded.cvss_score, cvss_version = excluded.cvss_version, cvss_source = excluded.cvss_source, cvss_vector = excluded.cvss_vector`)
 	if err != nil {
 		return err
 	}
@@ -399,7 +473,11 @@ ON CONFLICT(cve) DO UPDATE SET published = excluded.published, last_modified = e
 		if r.Severity != "" {
 			sev = r.Severity
 		}
-		if _, err := up.ExecContext(ctx, r.CVE, store.FormatTS(r.Published), store.FormatTS(r.LastModified), r.Status, sev, r.Score); err != nil {
+		var cs, ver, src, vec any // all four or none (CHECK)
+		if c := r.CVSS; c != nil {
+			cs, ver, src, vec = c.Score, c.Version, c.Source, c.Vector
+		}
+		if _, err := up.ExecContext(ctx, r.CVE, store.FormatTS(r.Published), store.FormatTS(r.LastModified), r.Status, sev, r.Score, cs, ver, src, vec); err != nil {
 			return err
 		}
 		if _, err := wipe.ExecContext(ctx, r.CVE); err != nil {

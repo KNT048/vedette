@@ -70,6 +70,7 @@ var exportPolicy = map[string]tablePolicy{
 	"core_user":              {export: "id name email role cred_version twofa_method disabled created_at last_login sso_issuer sso_subject", skip: "password_hash temp_password_expires_at"},
 	"core_user_totp":         {skipAll: true, skip: "user_id secret_id confirmed last_step created_at"},
 	"exp_attempt":            {export: "id ts"},
+	"exp_engine_run":         {export: "engine run_id target at outcome text"},
 	"exp_ignored":            {export: "value ignored_by ignored_at"},
 	"exp_outside":            {export: "target_id ip checked_at checked_by found", json: "answer"},
 	"exp_setting":            {export: "id auto interval_min last_run_at last_run_ok last_run_message last_deep_at last_full_ok_at greenbone greenbone_by greenbone_at greenbone_sync_at greenbone_sync_ok greenbone_sync_note"},
@@ -77,18 +78,19 @@ var exportPolicy = map[string]tablePolicy{
 	"exp_target":             {export: "id kind value method verified_at commitment_by commitment_at commitment_version commitment_sentence commitment_user_id commitment_method created_at last_scan_at terms_version terms_by terms_at terms_text terms_user_id terms_method terms_disruptive", json: "last_check", skip: "token"},
 	"feeds_affected":         {export: "cve cpe start_incl start_excl end_incl end_excl"}, // D-500: public NVD data
 	"feeds_affected_cve":     {export: "cve updated_at source"},
-	"feeds_cveorg_checked":   {export: "cve checked_at"},                                                         // D-556: when each CVE.org record was read
-	"feeds_distro_fix":       {export: "source_id distro release package cve status fixed_version pro"},          // D-516: public Ubuntu/Debian data
-	"feeds_epss":             {skipAll: true, skip: "cve epss percentile gen"},                                   // D-614: FIRST's public scores of every CVE (400,000 rows), pulled again daily
-	"feeds_epss_baseline":    {skipAll: true, skip: "id url count"},                                              // D-614: the yardstick of the next EPSS file
-	"feeds_recent_affected":  {skipAll: true, skip: "cve cpe start_incl start_excl end_incl end_excl platforms"}, // D-614: public NVD data of 100,000 CVEs, pulled again
-	"feeds_recent_cursor":    {skipAll: true, skip: "id url mode win_from win_to until next_index total"},        // D-614: where an unfinished pull goes on
-	"feeds_recent_cve":       {skipAll: true, skip: "cve published last_modified status severity score"},         // D-614: public NVD data, pulled again
-	"feeds_published":        {export: "cve published source"},                                                   // D-615: the day each KEV CVE was published; kept so a restore does not reopen age-closed findings
+	"feeds_cveorg_checked":   {export: "cve checked_at"},                                                                                                 // D-556: when each CVE.org record was read
+	"feeds_distro_fix":       {export: "source_id distro release package cve status fixed_version pro"},                                                  // D-516: public Ubuntu/Debian data
+	"feeds_epss":             {skipAll: true, skip: "cve epss percentile gen"},                                                                           // D-614: FIRST's public scores of every CVE (400,000 rows), pulled again daily
+	"feeds_epss_baseline":    {skipAll: true, skip: "id url count"},                                                                                      // D-614: the yardstick of the next EPSS file
+	"feeds_recent_affected":  {skipAll: true, skip: "cve cpe start_incl start_excl end_incl end_excl platforms"},                                         // D-614: public NVD data of 100,000 CVEs, pulled again
+	"feeds_recent_cursor":    {skipAll: true, skip: "id url mode win_from win_to until next_index total"},                                                // D-614: where an unfinished pull goes on
+	"feeds_recent_cve":       {skipAll: true, skip: "cve published last_modified status severity score cvss_score cvss_version cvss_source cvss_vector"}, // D-614: public NVD data, pulled again
+	"feeds_cvss":             {export: "cve score version source vector"},                                                                                // #825: the CVSS score of each KEV CVE, public NVD data
+	"feeds_published":        {export: "cve published source"},                                                                                           // D-615: the day each KEV CVE was published; kept so a restore does not reopen age-closed findings
 	"feeds_fetch_log":        {export: "id source_id started_at finished_at status records_accepted records_rejected error bytes etag last_modified", json: "reject_reasons"},
 	"feeds_ioc":              {export: "id type value first_seen last_seen"},
 	"feeds_ioc_source":       {export: "ioc_id source_id last_seen confidence seen"},
-	"feeds_source":           {export: "id builtin name kind format enabled interval_hours auth_type auth_header_name auth_username secret_last4 license created_at last_fetch last_success failures records status error etag last_modified mirror_etag mirror_last_modified catalog_version rev answered_by distro_packages", json: "parser", url: "url default_url", skip: "secret_id"},
+	"feeds_source":           {export: "id builtin name kind format enabled interval_hours auth_type auth_header_name auth_username secret_last4 license created_at last_fetch last_success failures records status error etag last_modified mirror_etag mirror_last_modified catalog_version rev answered_by distro_packages full_due", json: "parser", url: "url default_url", skip: "secret_id"},
 	"feeds_template":         {export: "cve"},
 	"feeds_vuln":             {export: "cve vendor product product_key name description required_action date_added due_date ransomware epss epss_7d_ago has_template source_id updated_at kev_announced_at", json: "links"},
 	"feeds_weekly_answer":    {export: "key answer user_id answered_at device_added device_id have_since"},
@@ -126,6 +128,7 @@ var exportPolicy = map[string]tablePolicy{
 	"intake_wazuh":           {export: "id username password_last4 interval_minutes tls_pin tls_pin_first_seen generation status last_sync next_pull agents packages error resume_after pass_packages updated_at", url: "url", skip: "secret_id"},  // the password stays in core_secret (agent-intake INV-6)
 	"intake_osquery_nodes":   {export: "id token_id host_identifier hostname platform osquery_version enrolled_at last_seen last_result_at bound_ip bound_mac reported approved_at kernel win_name win_version win_target", skip: "node_key_hash"}, // the key hash never leaves
 	"intake_prune_clock":     {export: "id last_run"},                                                                                                                                                                                              // when node-prune last ran (agent-intake POST-4)
+	"intake_wazuh_agent":     {export: "agent_id generation ip mac seen_at"},                                                                                                                                                                       // where each Wazuh agent's data went (agent-intake, #849)
 	"mcp_tokens":             {export: "id name last4 created_at last_used", json: "scopes", skip: "token_hash"},                                                                                                                                   // the hash never leaves (mcp-server INV-3)
 	"notify_send_notice":     {export: "send_id notice_id"},
 	"notify_box":             {export: "id first_run_at discovery_told_at discovery_told_count"}, // when notify first ran (D-483 first-discovery window)

@@ -41,7 +41,9 @@
     "prev": "Previous",
     "next": "Next",
     "emptyFiltered": "No rows match these filters.",
-    "clearFilters": "Clear filters"
+    "clearFilters": "Clear filters",
+    "sortBy": "Sort by",
+    "sortOption": "Sort by {{column}}"
   },
   "status": {
     "confirmed": "Confirmed",
@@ -210,7 +212,7 @@
       "devices": "to review",
       "incidents": "high or critical open"
     },
-    "groupWaiting": "{{group}}: {{parts}}",
+    "groupWaiting": "waiting: {{parts}}",
     "groupHere": "holds this page"
   },
   "login": {

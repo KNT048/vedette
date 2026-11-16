@@ -283,6 +283,7 @@ func serve(ctx context.Context, log *slog.Logger, o options) error {
 	if err != nil {
 		return err
 	}
+	sec.SetLog(log)
 	o.log = log
 	db, err := store.Open(ctx, o.db, log)
 	if err != nil {

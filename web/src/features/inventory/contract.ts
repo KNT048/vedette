@@ -45,10 +45,23 @@ const ScanInfo = z.object({
   regular_scan: RegularScan,
   approved_at: dt.nullable().describe('When a person approved the device, or osquery enrolment did (D-471: "Approved in the last 24 h"); approving again does not move it; null = not approved, added by hand, or approved before this field existed'),
 })
+/** #849: what feeds a device, in the words of the Devices search (source:…). scan = nmap or a vulnerability scan; osquery and Wazuh are
+ * told apart (both are source agent in observations): osquery by the device's agent binding (D-598), Wazuh by its sync. */
+export const DeviceSource = z.enum(['manual', 'passive', 'scan', 'snmp', 'osquery', 'wazuh'])
 export const DeviceRow = Asset.extend(ScanInfo.shape).extend({
+  sources: z.array(DeviceSource).describe('Every source that told Vedette something about the device and is still kept (its details, software or open ports), plus manual for a device added manually, in the order of DeviceSource (#849 source: filter, #829 sources of the device page)'),
   suspicious: z.boolean(),
   findings_count: z.number().int().describe('Number of findings attached to the device; deleting the device also deletes these findings'),
   summary: z.object({ source: ObsSource, confidence }).nullable().describe('Source of the most trusted value; confidence is that of the weakest value'),
+})
+/** #849: the filters of the Devices search; all optional, ANDed; each list ORs its values. counts stay over the whole inventory. */
+export const DevicesQuery = z.object({
+  approved: z.enum(['true', 'false']).optional().describe('true: the Devices list (approved); false: To review'),
+  type: z.string().max(400).optional().describe('Comma-separated device type ids; a value also matches the types that act as it (D-511: type=server finds a hypervisor). Unknown id: 400 bad_filter'),
+  source: z.string().max(200).optional().describe(`Comma-separated: ${DeviceSource.options.join(', ')}. Unknown value: 400 bad_filter`),
+  fragile: z.enum(['true', 'false']).optional(),
+  has_findings: z.enum(['true', 'false']).optional().describe('true: findings_count > 0'),
+  q: z.string().max(80).optional().describe('Free text, case-insensitive, matched in the name (host name, or the product of a device added manually), IP, MAC (any notation: aa:bb, aa-bb, aabb), vendor and model'),
 })
 export const DevicesResponse = z.object({
   items: z.array(DeviceRow),
@@ -90,8 +103,12 @@ export const InventorySettings = z.object({
   lan_ranges: z.array(z.string()).max(16).describe('Internal IPv4 CIDR (RFC 1918, or the RFC 6598 shared address space 100.64.0.0/10, D-461)'), active: ActiveWindow, fragile_kinds: z.array(BehaviourKind).describe('Device types scanned only once, gently, when first seen; passive-only after that. Every type acting as one of them counts (D-511)'),
   regular_scan_kinds: z.array(BehaviourKind).describe('Subset of fragile_kinds for which the owner allowed regular scans'),
   scope_confirmed_at: dt.nullable(), scope_confirmed_by: z.string().nullable(),
+  version: z.string().describe('Version of the shared safety block (the same as GET /scanning safety.version, inventory INV-32): send it back on PUT to be refused with 409 safety_changed instead of replacing a change made since the page loaded'),
 })
-export const SettingsInput = InventorySettings.extend({ scope_confirmed: z.boolean().describe('Attestation: the ranges belong to the company and scanning them is permitted') })
+export const SettingsInput = InventorySettings.extend({
+  scope_confirmed: z.boolean().describe('Attestation: the ranges belong to the company and scanning them is permitted'),
+  version: z.string().max(64).optional().describe('The version this page read. Given and not the stored one: 409 safety_changed, nothing stored (review #860 M1). Left out: no check, so a range or exclusion added since the page loaded is replaced; this page is being replaced by Settings › Scanning (#850)'),
+})
 export const SettingsSaved = InventorySettings.extend({
   adjusted: z.array(z.object({ from: z.string(), to: z.string() })).describe('Ranges normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24'),
 })
@@ -204,11 +221,22 @@ export const SnmpTestResult = z.object({
   answer: SnmpAnswer.nullable().describe('What the device said, when it answered; it is also recorded in the inventory with source snmp'),
 })
 
+/** #849 SNMP by range: "Read now" for every approved device of a credential's scope, outside the window like Test (D-512 holds:
+ * nothing is sent to a device that is not approved, or to an address with no device). One read at a time on the box (409 busy). */
+export const SnmpRead = z.object({
+  id: z.string(), credential_id: z.string(), by: z.string(), started_at: dt, finished_at: dt.nullable(),
+  status: z.enum(['running', 'done', 'stopped', 'failed']),
+  message: z.string().nullable().describe('Why the read stopped or failed, in plain words; null while running and when done'),
+  total: z.number().int().describe('Approved devices of the scope that get one read'), done: z.number().int(), answered: z.number().int(),
+  skipped: z.number().int().describe('Devices of the inventory in the credential\'s scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is sent to them, nor to an address with no device'),
+  results: z.array(SnmpTestResult.extend({ ip: z.string() })).describe('One row per device read so far, as Test answers it'),
+})
+
 const id = z.object({ id: z.string() })
 const ok = z.object({ ok: z.literal(true) })
 
 export const endpoints = defineEndpoints([
-  { method: 'get', path: '/inventory/devices', summary: 'List devices with counts per filter', stories: ['S-INV-1', 'S-INV-3'], role: 'viewer', response: DevicesResponse },
+  { method: 'get', path: '/inventory/devices', summary: 'List devices matching the filters (all when none), with counts per tab over the whole inventory', stories: ['S-INV-1', 'S-INV-3'], role: 'viewer', query: DevicesQuery, response: DevicesResponse },
   { method: 'post', path: '/inventory/devices', status: 201, summary: 'Declare a device manually using a product from the suggestion list', stories: ['S-INV-2'], role: 'operator', body: AddDeviceInput, response: AddDeviceResult },
   { method: 'get', path: '/inventory/devices/{id}', summary: 'Device details: observations, services, software', stories: ['S-INV-1'], role: 'viewer', params: id, response: DeviceDetail, example: { params: { id: 'a-nas02' } } },
   { method: 'patch', path: '/inventory/devices/{id}', summary: 'Change the type, mark as fragile, override regular scans or edit the notes of a device', stories: ['S-INV-1'], role: 'operator', params: id,
@@ -223,11 +251,11 @@ export const endpoints = defineEndpoints([
   { method: 'delete', path: '/inventory/devices/{id}/software/{sid}', summary: 'Remove manually declared software from a device', stories: ['S-INV-2'], role: 'operator', params: id.extend({ sid: z.string() }), response: null },
   { method: 'get', path: '/inventory/catalog', summary: 'Suggest products by vendor or commercial name', stories: ['S-INV-2'], role: 'viewer', query: z.object({ q: z.string().max(80) }), response: CatalogResponse, example: { query: { q: 'forti' } } },
   { method: 'put', path: '/inventory/notify-new', summary: 'Turn alerts for new devices on or off', stories: ['S-INV-3'], role: 'operator', body: z.object({ enabled: z.boolean() }), response: z.object({ enabled: z.boolean() }) },
-  { method: 'get', path: '/inventory/export.csv', summary: 'Download the device list as CSV (UTF-8 with BOM, opens in Excel)', stories: ['S-INV-2'], role: 'viewer', response: 'file' },
+  { method: 'get', path: '/inventory/export.csv', summary: 'Download the device list as CSV (UTF-8 with BOM, opens in Excel); the filters of GET /inventory/devices export what the page shows', stories: ['S-INV-2'], role: 'viewer', query: DevicesQuery, response: 'file' },
   { method: 'get', path: '/inventory/import-template.csv', summary: 'Download a sample CSV for importing devices', stories: ['S-INV-2'], role: 'viewer', response: 'file' },
   { method: 'post', path: '/inventory/import', summary: 'Import devices from CSV content; invalid rows are reported by row number, valid rows are still added', stories: ['S-INV-2'], role: 'operator', body: ImportInput, response: ImportResult },
   { method: 'get', path: '/inventory/settings', summary: 'LAN ranges, active scan window, device types scanned only once (and which allow regular scans), scope attestation', stories: ['S-INV-1'], role: 'admin', response: InventorySettings },
-  { method: 'put', path: '/inventory/settings', summary: 'Save the scan scope; enabling active scanning requires scope attestation', stories: ['S-INV-1'], role: 'admin', body: SettingsInput, response: SettingsSaved },
+  { method: 'put', path: '/inventory/settings', summary: 'Save the scan scope; enabling active scanning requires scope attestation. 409 safety_changed when the version sent is not the stored one', stories: ['S-INV-1'], role: 'admin', body: SettingsInput, response: SettingsSaved },
   { method: 'get', path: '/inventory/sensors', summary: 'Sensors of this box only (multiple sites not supported yet)', stories: ['S-INV-1'], role: 'admin', response: SensorsResponse },
   { method: 'patch', path: '/inventory/sensors/{id}', summary: 'Container-only install: choose the card the sensor reads (any card of its last heartbeat, with or without an address; null: back to the default card) and whether it is the SPAN card (D-387, D-393). 400 bad_interface: not a reported card, no heartbeat in 90 s, or a SPAN card with an address. 409 set_in_box_network on an appliance, where Settings → Box network sets it', stories: ['S-CORE-8', 'S-INV-1'], role: 'admin', params: id, body: SensorPatch, response: Sensor },
   { method: 'get', path: '/inventory/agents', summary: 'Issued osquery tokens and the Wazuh connection (if any)', stories: ['S-INV-4'], role: 'admin', response: AgentsResponse },
@@ -252,4 +280,6 @@ export const endpoints = defineEndpoints([
   { method: 'delete', path: '/inventory/snmp/{id}', summary: 'Delete an SNMP credential and its secrets; what devices said stays in the inventory', stories: ['S-INV-1'], role: 'admin', params: id, response: null },
   { method: 'post', path: '/inventory/snmp/{id}/test', summary: 'Read one device with this credential now (read-only GETs from the scan container, logged in the probe log) and say what it answered, or why not; an answer is recorded in the inventory', stories: ['S-INV-1'], role: 'admin', params: id,
     body: z.object({ ip: z.string().max(15).describe('IPv4 of a device in the inventory') }), response: SnmpTestResult },
+  { method: 'post', path: '/inventory/snmp/{id}/read', status: 202, summary: 'Read now every approved device in this credential\'s scope (read-only GETs from the scan container, logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the window\'s round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent; 409 stopped when active discovery was turned off while the read started', stories: ['S-INV-1'], role: 'admin', params: id, response: SnmpRead },
+  { method: 'get', path: '/inventory/snmp/{id}/read', summary: 'The read of this credential that runs now, or the last one; null when none since the box started', stories: ['S-INV-1'], role: 'admin', params: id, response: SnmpRead.nullable() },
 ])

@@ -310,6 +310,7 @@ function WazuhCard({ w }: { w: WazuhConnection | null }) {
             <dd className="flex flex-wrap items-center gap-2"><Chip tone={w.status === 'connected' ? 'ok' : w.status === 'error' ? 'danger' : 'off'}>{t(`agents.wazuh.status.${w.status}`)}</Chip>
               <span className="text-[13px] text-muted">{w.last_sync ? `${t('agents.wazuh.lastSync', { when: fmtRelative(w.last_sync) })}. ${t('agents.wazuh.summary', { agents: w.agents, packages: w.packages })}` : t('agents.wazuh.noSync')}</span></dd>
           </dl>
+          {w.status === 'error' && w.error ? <p role="status" className="max-w-3xl text-sm text-danger">{w.error}</p> : null}
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={() => setEditing(true)}>{t('agents.wazuh.edit')}</Button>
             {MOCK_BUILD ? <Button size="sm" disabled={act.sample.isPending} title={t('agents.sampleHint')}

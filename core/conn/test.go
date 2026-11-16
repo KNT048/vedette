@@ -67,7 +67,8 @@ type outcome struct {
 // transaction, and again inside the write transaction that saves the result. No network call happens inside a transaction.
 // An unknown id is 404, a connection that is off is 409 connection_off (nothing is sent), a failure is 502: pin_mismatch,
 // address_refused, device_error (the device answered, but said no) or unreachable. A connection edited while the test ran
-// is 409 connection_changed and nothing is saved.
+// is 409 connection_changed and nothing is saved. A credential this box cannot open (sealed under another master key) is 409
+// secret_lost: nothing is sent, and the failure is saved like the others.
 func (s *Service) Test(ctx context.Context, actor, id string, guard func(ctx context.Context, tx *sql.Tx) error) (TestResult, error) {
 	cur, err := s.Get(ctx, id)
 	if err != nil {
@@ -80,29 +81,39 @@ func (s *Service) Test(ctx context.Context, actor, id string, guard func(ctx con
 		return TestResult{}, err
 	}
 	var secret secrets.Value
+	var failure *apierr.Error
 	if cur.secretID != nil {
-		if secret, err = s.vault.Open(ctx, s.cfg.DB.Reader(), *cur.secretID); err != nil {
+		secret, err = s.vault.Open(ctx, s.cfg.DB.Reader(), *cur.secretID)
+		switch {
+		case secrets.IsWrongKey(err):
+			// Sealed under another master key (#847): nothing is sent, and the failure is saved like any other, so the card says so.
+			failure = credentialLost()
+		case err != nil:
 			return TestResult{}, fmt.Errorf("conn: open credential: %w", err)
 		}
 	}
 
-	// The whole Test has a budget of its own, whatever the request's context says: a device that answers one byte at a time cannot
-	// hold the administrator's request, a goroutine and a socket for ever.
-	budget := testBudget(cur.Kind)
-	if s.testBudget > 0 {
-		budget = s.testBudget
-	}
-	pctx, pcancel := context.WithTimeout(ctx, budget)
-	defer pcancel()
-	start := s.now()
-	out, perr := s.probe(pctx, cur, secret)
-	latency := int(s.now().Sub(start) / time.Millisecond)
-	if perr != nil && ctx.Err() != nil {
-		return TestResult{}, ctx.Err() // the caller went away: nothing to save
-	}
-	var failure *apierr.Error
-	if perr != nil {
-		failure = describe(cur, perr, secret)
+	var out outcome
+	latency := 0
+	if failure == nil {
+		// The whole Test has a budget of its own, whatever the request's context says: a device that answers one byte at a time cannot
+		// hold the administrator's request, a goroutine and a socket for ever.
+		budget := testBudget(cur.Kind)
+		if s.testBudget > 0 {
+			budget = s.testBudget
+		}
+		pctx, pcancel := context.WithTimeout(ctx, budget)
+		defer pcancel()
+		start := s.now()
+		var perr error
+		out, perr = s.probe(pctx, cur, secret)
+		latency = int(s.now().Sub(start) / time.Millisecond)
+		if perr != nil && ctx.Err() != nil {
+			return TestResult{}, ctx.Err() // the caller went away: nothing to save
+		}
+		if perr != nil {
+			failure = describe(cur, perr, secret)
+		}
 	}
 
 	var res TestResult
@@ -187,6 +198,16 @@ func testBudget(kind string) time.Duration {
 	}
 	return 30 * time.Second
 }
+
+// credentialLost is the Test of a connection whose saved credential is sealed under another master key: a backup restored without
+// its decryption key, or a key file made again (#847). The box cannot tell the two apart, and the credential is gone for good: the
+// administrator types it again (Edit), which seals it under this box's key.
+func credentialLost() *apierr.Error {
+	return apierr.New(409, CodeSecretLost, "The saved password, token or key of this connection was not restored (the backup was restored without its decryption key, or the box key changed). Open Edit, enter it again and save, then test the connection. Nothing was sent.")
+}
+
+// CodeSecretLost is the error code of a saved secret that this box cannot open (#847).
+const CodeSecretLost = "secret_lost"
 
 func connOff() *apierr.Error {
 	return apierr.New(409, "connection_off", "This connection is turned off, so nothing is sent to it. Turn it on, then test it.")

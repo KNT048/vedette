@@ -51,9 +51,13 @@ func fail(err error) error {
 	return err
 }
 
-// InventoryGetInventoryDevices implements GET /inventory/devices (viewer).
-func (h *Handlers) InventoryGetInventoryDevices(ctx context.Context) (*oas.InventoryGetInventoryDevicesOK, error) {
-	l, err := h.svc.DevicesPage(ctx)
+// InventoryGetInventoryDevices implements GET /inventory/devices (viewer): the devices the search keeps (#849).
+func (h *Handlers) InventoryGetInventoryDevices(ctx context.Context, p oas.InventoryGetInventoryDevicesParams) (*oas.InventoryGetInventoryDevicesOK, error) {
+	f, err := ParseDeviceFilter(string(p.Approved.Value), string(p.Fragile.Value), string(p.HasFindings.Value), p.Type.Value, p.Source.Value, p.Q.Value)
+	if err != nil {
+		return nil, err
+	}
+	l, err := h.svc.DevicesPage(ctx, f)
 	if err != nil {
 		return nil, err
 	}
@@ -199,13 +203,17 @@ func (h *Handlers) InventoryPutInventoryNotifyNew(ctx context.Context, req *oas.
 	return &oas.InventoryPutInventoryNotifyNewOK{Enabled: req.Enabled}, nil
 }
 
-// InventoryGetInventoryExportCsv implements GET /inventory/export.csv (viewer).
-func (h *Handlers) InventoryGetInventoryExportCsv(ctx context.Context) (oas.InventoryGetInventoryExportCsvOK, error) {
+// InventoryGetInventoryExportCsv implements GET /inventory/export.csv (viewer): the devices the search keeps, as the page shows them.
+func (h *Handlers) InventoryGetInventoryExportCsv(ctx context.Context, p oas.InventoryGetInventoryExportCsvParams) (oas.InventoryGetInventoryExportCsvOK, error) {
 	who, err := actor(ctx)
 	if err != nil {
 		return oas.InventoryGetInventoryExportCsvOK{}, err
 	}
-	r, err := h.svc.ExportCSV(ctx, who)
+	f, err := ParseDeviceFilter(string(p.Approved.Value), string(p.Fragile.Value), string(p.HasFindings.Value), p.Type.Value, p.Source.Value, p.Q.Value)
+	if err != nil {
+		return oas.InventoryGetInventoryExportCsvOK{}, err
+	}
+	r, err := h.svc.ExportCSV(ctx, who, f)
 	if err != nil {
 		return oas.InventoryGetInventoryExportCsvOK{}, err
 	}
@@ -249,6 +257,7 @@ func (h *Handlers) InventoryGetInventorySettings(ctx context.Context) (*oas.Inve
 	if err != nil {
 		return nil, err
 	}
+	st.Active.CheckRate, st.Active.ChecksMergedFrom = 0, nil // not part of this contract: /scanning/safety and /scans/config carry it (INV-32)
 	return convert[oas.InventoryGetInventorySettingsOK](st)
 }
 
@@ -262,9 +271,11 @@ func (h *Handlers) InventoryPutInventorySettings(ctx context.Context, req *oas.I
 	if err != nil {
 		return nil, apierr.Invalid("The settings are not valid.")
 	}
+	in.Active.CheckRate, in.Active.ChecksMergedFrom = 0, nil // not part of this contract: the stored values stay (INV-32)
 	st, err := h.svc.SaveSettings(ctx, who, *in)
 	if err != nil {
 		return nil, err
 	}
+	st.Active.CheckRate, st.Active.ChecksMergedFrom = 0, nil
 	return convert[oas.InventoryPutInventorySettingsOK](st)
 }

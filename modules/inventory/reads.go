@@ -188,30 +188,21 @@ func (s *Service) findingCounts(ctx context.Context) (map[string]int, error) {
 	return m, nil
 }
 
-// Devices lists the devices for GET /inventory/devices: at most MaxListed rows, the counts over all of them.
+// Devices lists the devices for the other modules (scan, reports, honeypot, MCP): at most MaxListed rows, the counts over all of them.
+// It does not read the sources (Device.Sources nil): only the Devices page and the export need them (#855 r1 L3).
 func (s *Service) Devices(ctx context.Context) (DeviceList, error) {
+	return s.devices(ctx, DeviceFilter{}, false)
+}
+
+// devices is Devices narrowed by the Devices search (#849): at most MaxListed of the devices f keeps, with their sources when
+// withSources; the counts stay over the whole inventory (the tabs).
+func (s *Service) devices(ctx context.Context, f DeviceFilter, withSources bool) (DeviceList, error) {
 	db := s.db.Reader()
-	items, err := s.loadDevices(ctx, db, "", MaxListed)
-	if err != nil {
-		return DeviceList{}, err
-	}
-	counts, err := s.findingCounts(ctx)
+	items, err := s.filtered(ctx, db, f, MaxListed, withSources)
 	if err != nil {
 		return DeviceList{}, err
 	}
 	out := DeviceList{Items: items}
-	if out.Items == nil {
-		out.Items = []Device{}
-	}
-	now := s.now()
-	for i := range out.Items {
-		d := &out.Items[i]
-		d.FindingsCount = counts[d.ID]
-		d.Summary = summaryOf(d)
-		if d.IsBox {
-			d.LastSeen = now // the box is the machine running Vedette: always just seen
-		}
-	}
 	err = db.QueryRowContext(ctx, `SELECT count(*), ifnull(sum(approved = 0), 0), ifnull(sum(fragile), 0), ifnull(sum(origin = 'manual'), 0) FROM inv_asset`).
 		Scan(&out.Counts.All, &out.Counts.Pending, &out.Counts.Fragile, &out.Counts.Manual)
 	if err != nil {
@@ -222,6 +213,44 @@ func (s *Service) Devices(ctx context.Context) (DeviceList, error) {
 	}
 	out.NotifyAvailable = s.modules != nil && s.modules.Enabled("notify")
 	return out, nil
+}
+
+// filtered reads the devices f keeps (limit 0 = all), newest first, each with its finding count, summary and, when withSources, its
+// sources (a source filter reads them in any case); the box is always just seen.
+func (s *Service) filtered(ctx context.Context, db querier, f DeviceFilter, limit int, withSources bool) ([]Device, error) {
+	counts, err := s.findingCounts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var sources map[string][]string
+	if withSources || len(f.Sources) > 0 {
+		if sources, err = s.deviceSources(ctx, db); err != nil {
+			return nil, err
+		}
+	}
+	where, args := f.where(sources, counts)
+	items, err := s.loadDevices(ctx, db, where, limit, args...)
+	if err != nil {
+		return nil, err
+	}
+	if items == nil {
+		items = []Device{}
+	}
+	now := s.now()
+	for i := range items {
+		d := &items[i]
+		d.FindingsCount = counts[d.ID]
+		d.Summary = summaryOf(d)
+		if withSources {
+			if d.Sources = sources[d.ID]; d.Sources == nil {
+				d.Sources = []string{}
+			}
+		}
+		if d.IsBox {
+			d.LastSeen = now // the box is the machine running Vedette: always just seen
+		}
+	}
+	return items, nil
 }
 
 // Device returns one device as a list row, or ErrNotFound. findings, notify and the other modules read it.
@@ -405,10 +434,11 @@ func deviceName(ctx context.Context, q querier, id string) string {
 	return id
 }
 
-// DevicesPage is Devices with the guesses of the identification rules (D-511): GET /inventory/devices. Only the Devices page asks for
-// guesses; every other reader (scan, reports, honeypot, MCP, response) reads Devices or Device, which never ask the host (#714 M3).
-func (s *Service) DevicesPage(ctx context.Context) (DeviceList, error) {
-	l, err := s.Devices(ctx)
+// DevicesPage is Devices narrowed by the Devices search (#849) with the guesses of the identification rules (D-511): GET
+// /inventory/devices. Only the Devices page asks for guesses; every other reader (scan, reports, honeypot, MCP, response) reads Devices
+// or Device, which never ask the host (#714 M3).
+func (s *Service) DevicesPage(ctx context.Context, f DeviceFilter) (DeviceList, error) {
+	l, err := s.devices(ctx, f, true)
 	if err != nil {
 		return l, err
 	}

@@ -1,5 +1,11 @@
 # Scan — Change Impact Map
 
+## Modifying: the shared window, rate and exclusions (`SharedChecks`, `settings`, `LegacyChecks`, `Engine`; #850, INV-16)
+- **inventory** owns the values (INV-32): `PUT /scans/config` writes there through `SaveChecks`; Settings › Scanning (`PUT /scanning/safety`) and Devices › Scope write the same keys, so a change there moves nuclei's window, speed and exclusions too.
+- **`Checks.Version` / `ConfigView.Version` / `Patch.Version`** (review #860 M1): the inventory's version of the shared block passes through `SharedChecks`; `PUT /scans/config` with a stale one is 409 `safety_changed` from the inventory's `SaveChecks`, inside this module's transaction (its own row rolls back too).
+- **cmd/vedette** `mergeScanningSafety` reads `LegacyChecks` (scan_setting) once at start; `scanningEngines.nuclei` reads `Engine` for the card.
+- **`scan_setting`** keeps its columns and a copy of the values (forward-only, DATA_MODEL §6): do not drop them before a release that no longer rolls back past #850.
+
 ## Modifying: `RunView.progress`, `live.prog`, `setProgress`/`progressOf` (#830, INV-15)
 - **SPA**: `/scans` (the web part of #830 shows it; contract `web/src/lib/progress.ts` `JobProgress`, shared with exposure). **sensor-active**: its `Dispatcher` reports into the Sink of the context the run probes with; a wrapper of that context in `cmd/vedette` must keep its values (`context.WithoutCancel`, never `context.Background()`).
 - `nucleiout.TimeoutTarget` (one line of the error log; `ParseHostErrors` is built on it) is read by the scan worker while nuclei runs, to drop the checks of a target nuclei gave up from the progress total. Changing what counts as a timeout changes both.
@@ -39,7 +45,7 @@
 - (D-522, N1, INV-14) `endpoints()` đọc tiền tố `ssl/` mà sensor-active ghi cho `tunnel="ssl"`: đổi cách đặt tên ở parser (sensor-active INV-18) phải sửa cả đây.
 
 ## Disabling this module
-- "Scan now" của External exposure trả 409 `module_off`; ảnh chụp cũ giữ nguyên.
+- "Scan now" của External exposure vẫn chạy: runner theo công tắc của `exposure` (INV-12, J6); probe của nó vẫn vào `scan_probe`, chỉ trang Scans (`/scans/probes`) không xem được tới khi bật lại.
 - Mất trang Scans và nút quét; không xác nhận mới; không tự quét lại sau KEV mới.
 - `scan-credentialed` không chạy được (phụ thuộc); `findings` chỉ còn `suspected`; `reports` bỏ mục quét.
 - Cấu hình, lịch sử, probe log, sự kiện quét lại giữ.

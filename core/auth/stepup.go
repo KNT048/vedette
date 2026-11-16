@@ -12,6 +12,7 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store/coredb"
 )
 
@@ -197,9 +198,19 @@ func (s *Service) stepUpTOTP(ctx context.Context, row coredb.CoreUser, code, pur
 	fail := func(why string) error {
 		return s.stepUpFailed(ctx, row.Email, row.Email, why, purpose, "app", wrongAppCode())
 	}
+	// A key sealed under another box key (a restore without the decryption key) can never check a code: refused as at sign-in.
+	keyLost := func(err error) error {
+		if !errors.Is(err, secrets.ErrDecrypt) {
+			return err
+		}
+		return s.stepUpFailed(ctx, row.Email, row.Email, "two-step key cannot be opened (restored without the decryption key, or the box key changed)", purpose, "app", twofaKeyLost())
+	}
 	if code == "" {
 		if e := s.limit.check(twofaKey, row.Email); e != nil {
 			return StepUp{}, stepUpLimited(e)
+		}
+		if _, _, _, err := s.totpKey(ctx, row.ID); err != nil {
+			return StepUp{}, keyLost(err)
 		}
 		return StepUp{Method: "app"}, apierr.New(400, CodeRequired, "Enter the 6-digit code from your authenticator app to continue.").With("method", "app")
 	}
@@ -210,7 +221,7 @@ func (s *Service) stepUpTOTP(ctx context.Context, row coredb.CoreUser, code, pur
 	step, ok, err := s.checkTOTP(ctx, row.ID, code)
 	if err != nil {
 		guess.refund()
-		return StepUp{}, err
+		return StepUp{}, keyLost(err)
 	}
 	if !ok {
 		return StepUp{}, fail("wrong two-step code")

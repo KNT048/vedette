@@ -1406,7 +1406,7 @@ describe('response: screens', () => {
     await turnOn()
     const pending = (await list<ActionRequest>('admin', '/response/actions')).filter((a) => a.status === 'pending').length
     renderApp('/response')
-    const banner = (await screen.findByText('High-risk mode is on')).parentElement!
+    const banner = (await screen.findByText('High-risk mode is on')).parentElement!.parentElement! // the Notice: its title row (title + ⓘ, #824) and its body
     expect(banner.textContent).not.toContain('{{')
     expect(banner).toHaveTextContent(pending === 1 ? '1 request is waiting.' : `${pending} requests are waiting.`)
   })

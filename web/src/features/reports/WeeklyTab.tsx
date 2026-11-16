@@ -6,7 +6,6 @@ import { Printer, Send, Sparkles, X } from 'lucide-react'
 import { Notice, Panel, Section } from '@/components/common/PageHeader'
 import { DataTable } from '@/components/common/DataTable'
 import { EmptyState, QueryState } from '@/components/common/States'
-import { InfoTip } from '@/components/common/InfoTip'
 import { Chip } from '@/components/common/StatusChip'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -62,8 +61,8 @@ function Preview() {
       <ActionError error={ai.error} />
       <QueryState query={weekly}>
         {(w) => noData
-          ? <EmptyState title={t('weekly.empty.title')} action={<Link to="/devices" className={buttonVariants({ variant: 'primary' })}>{t('weekly.empty.cta')}</Link>}>
-            <span className="inline-flex items-center gap-1">{t('weekly.empty.body')}<InfoTip topic={t('weekly.empty.title')}>{t('weekly.empty.bodyInfo')}</InfoTip></span>
+          ? <EmptyState title={t('weekly.empty.title')} info={t('weekly.empty.bodyInfo')} action={<Link to="/devices" className={buttonVariants({ variant: 'primary' })}>{t('weekly.empty.cta')}</Link>}>
+            {t('weekly.empty.body')}
           </EmptyState>
           : <Panel className="p-6"><WeeklyDocument report={w.report} org={me?.org ?? ''} /></Panel>}
       </QueryState>
@@ -179,7 +178,7 @@ function HistorySection() {
   return (
     <Section id="rep-history" title={t('weekly.history.title')} description={t('weekly.history.description')} stories={['S-REP-1']}>
       <QueryState query={hist}>
-        {(h) => h.items.length === 0 ? <EmptyState title={t('weekly.history.empty')}><span className="inline-flex items-center gap-1">{t('weekly.history.emptyBody')}<InfoTip topic={t('weekly.history.title')}>{t('weekly.history.emptyBodyInfo')}</InfoTip></span></EmptyState> : (
+        {(h) => h.items.length === 0 ? <EmptyState title={t('weekly.history.empty')} info={t('weekly.history.emptyBodyInfo')}>{t('weekly.history.emptyBody')}</EmptyState> : (
           <DataTable<Row> caption={t('weekly.history.caption')} data={h.items} initialSort={[{ id: 'ts', desc: true }]}
             columns={[
               { id: 'ts', header: t('weekly.history.col.time'), accessorKey: 'ts', cell: ({ getValue }: { getValue: () => unknown }) => fmtDateTime(getValue() as string) },

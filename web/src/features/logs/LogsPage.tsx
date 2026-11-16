@@ -124,7 +124,7 @@ function SourcesSection() {
           return (
             <>
               {d.sources.length === 0 ? (
-                <EmptyState title={t('sources.emptyTitle')} action={addButton}><span className="inline-flex items-center gap-1">{t('sources.emptyBody')}<InfoTip topic={t('sources.emptyTitle')}>{t('sources.emptyBodyInfo')}</InfoTip></span></EmptyState>
+                <EmptyState title={t('sources.emptyTitle')} info={t('sources.emptyBodyInfo')} action={addButton}>{t('sources.emptyBody')}</EmptyState>
               ) : (
                 <DataTable caption={t('sources.caption')} data={d.sources} columns={columns} rowTone={(r) => (r.state === 'silent' ? 'warn' : undefined)}
                   mobileRow={(r) => (
@@ -385,7 +385,7 @@ function Content() {
       {kpis.length ? <KpiStrip label={t('kpi.label')} items={kpis} /> : null}
       <PageTabs label={t('tabs.label')} tabs={noSources ? [sourcesTab, ...retention] : [
         { id: 'digest', label: t('tabs.digest'), panel: <>
-          {noLogs ? <EmptyState title={t('digest.none.title')}><span className="inline-flex items-center gap-1">{t('digest.none.body')}<InfoTip topic={t('digest.none.title')}>{t('digest.none.bodyInfo')}</InfoTip></span></EmptyState> : <DigestSections />}
+          {noLogs ? <EmptyState title={t('digest.none.title')} info={t('digest.none.bodyInfo')}>{t('digest.none.body')}</EmptyState> : <DigestSections />}
           <Slot name="logs.panels" props={{}} />
         </> },
         { id: 'events', label: t('tabs.events'), panel: <EventsSection sources={sourceList} /> },

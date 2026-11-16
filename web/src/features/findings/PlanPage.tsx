@@ -48,8 +48,8 @@ function Page() {
             {d.compared && d.old_evidence > 0 ? <p className="mb-3 text-[13px] text-muted">{t('plan.oldEvidence', { count: d.old_evidence })}</p> : null}
             {d.compared && d.items.length > 0 ? <PlanItems items={d.items} showDevice likelyOnly={tier === 'likely'} /> : null}
             {d.compared && d.items.length === 0 && (d.data.epss === 'ready' || d.data.recent === 'ready') && d.data.epss !== 'module_off' ? (
-              <EmptyState title={tier === 'all' ? t('plan.empty') : t(`plan.emptyFilter.${tier}`)}>
-                <span className="inline-flex items-center gap-1">{t('plan.emptyBody', { compared: d.compared_devices, count: d.unchecked_devices })}<InfoTip topic={t('plan.title')}>{t('plan.emptyBodyInfo')}</InfoTip></span>{' '}
+              <EmptyState title={tier === 'all' ? t('plan.empty') : t(`plan.emptyFilter.${tier}`)} info={t('plan.emptyBodyInfo')}>
+                {t('plan.emptyBody', { compared: d.compared_devices, count: d.unchecked_devices })}{' '}
                 {d.unchecked_devices > 0 ? <Link to="/devices" className="text-accent underline underline-offset-4">{t('plan.emptyDevices')}</Link> : null}
               </EmptyState>
             ) : null}

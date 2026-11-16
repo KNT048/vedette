@@ -3,7 +3,6 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Section } from '@/components/common/PageHeader'
 import { EmptyState, ErrorState, Loading } from '@/components/common/States'
-import { InfoTip } from '@/components/common/InfoTip'
 import { Segmented } from '@/components/ui/segmented'
 import { useActions, usePlans } from './api'
 import { PlanView } from './parts'
@@ -54,7 +53,7 @@ export function RequestsTab() {
           <Segmented label={t('requests.risk')} value={risk} onChange={setRisk} options={[{ value: 'all', label: t('requests.anyRisk') }, ...(['high', 'medium', 'low'] as const).map((r) => ({ value: r, label: t(`catalog.risks.${r}`) }))]} />
         </div>}>
         {items.length ? <div className="grid gap-4">{items.map((a) => <RequestCard key={a.id} a={a} />)}</div>
-          : <EmptyState title={view === 'pending' ? t('requests.emptyPending') : t('requests.empty')}>{filtered ? <span className="inline-flex items-center gap-1">{t('requests.emptyFiltered')}<InfoTip topic={t('requests.title')}>{t('requests.emptyFilteredInfo')}</InfoTip></span> : t('requests.emptyBody')}</EmptyState>}
+          : <EmptyState title={view === 'pending' ? t('requests.emptyPending') : t('requests.empty')} info={filtered ? t('requests.emptyFilteredInfo') : undefined}>{filtered ? t('requests.emptyFiltered') : t('requests.emptyBody')}</EmptyState>}
       </Section>
       {!pending ? <><AiSetup /><InboxWhy /></> : null}
       <Plans />

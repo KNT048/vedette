@@ -4,7 +4,6 @@ import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { Plus } from 'lucide-react'
 import { Notice, Section } from '@/components/common/PageHeader'
-import { InfoTip } from '@/components/common/InfoTip'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
@@ -291,7 +290,7 @@ export function SnmpSection() {
                   {d.credentials.map((c, i) => <CredentialRow key={c.id} c={c} index={i} onEdit={() => setEditing(c)} onDelete={() => setDeleting(c)} />)}
                 </ol>
               </>
-            ) : <EmptyState title={t('snmp.empty')}><span className="inline-flex items-center gap-1">{t('snmp.emptyBody')}<InfoTip topic={t('snmp.empty')}>{t('snmp.emptyBodyInfo')}</InfoTip></span></EmptyState>}
+            ) : <EmptyState title={t('snmp.empty')} info={t('snmp.emptyBodyInfo')}>{t('snmp.emptyBody')}</EmptyState>}
           </div>
         )}
       </QueryState>

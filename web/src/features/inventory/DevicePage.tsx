@@ -132,7 +132,7 @@ function Observations({ list }: { list: Observation[] }) {
 
 function Services({ list, fragile }: { list: Service[]; fragile: boolean }) {
   const { t } = useTranslation('inventory')
-  if (!list.length) return <EmptyState title={t('services.empty')}><span className="inline-flex items-center gap-1">{fragile ? t('services.emptyFragile') : t('services.emptyBody')}<InfoTip topic={t('services.empty')}>{fragile ? t('services.emptyFragileInfo') : t('services.emptyBodyInfo')}</InfoTip></span></EmptyState>
+  if (!list.length) return <EmptyState title={t('services.empty')} info={fragile ? t('services.emptyFragileInfo') : t('services.emptyBodyInfo')}>{fragile ? t('services.emptyFragile') : t('services.emptyBody')}</EmptyState>
   const columns: ColumnDef<Service>[] = [
     { id: 'port', header: t('services.port'), accessorFn: (s) => s.port, cell: ({ row }) => <span className="whitespace-nowrap">{row.original.port}/{row.original.proto}</span> },
     { id: 'name', header: t('services.name'), accessorFn: (s) => s.name },
@@ -229,7 +229,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
   const [editing, setEditing] = useState<SoftwareView | null>(null)
   const open = useOpenFindings(d.asset.id)
   const list = d.asset.software
-  if (!list.length) return <EmptyState title={t('software.empty')}><span className="inline-flex items-center gap-1">{t('software.emptyBody')}<InfoTip topic={t('software.empty')}>{t('software.emptyBodyInfo')}</InfoTip></span></EmptyState>
+  if (!list.length) return <EmptyState title={t('software.empty')} info={t('software.emptyBodyInfo')}>{t('software.emptyBody')}</EmptyState>
   const openCount = (sw: SoftwareView) => (open instanceof Map ? sw.kev_cves.filter((c) => open.has(c)).length : 0)
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const version = (sw: SoftwareView) => {

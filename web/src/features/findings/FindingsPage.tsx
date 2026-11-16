@@ -7,7 +7,6 @@ import { Notice, PageHeader } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
-import { InfoTip } from '@/components/common/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -244,8 +243,8 @@ function List() {
             )}
             rowTone={(r) => (r.status === 'confirmed' ? 'danger' : r.status === 'suspected' && !unverified(r) ? 'warn' : undefined)}
             empty={
-              <EmptyState title={cve ? t('emptyCve', { cve }) : tab === 'open' ? t('emptyOpen') : t('emptyFilter')}>
-                <span className="inline-flex items-center gap-1">{t('emptyHelp')}<InfoTip topic={t('emptyOpen')}>{t('emptyHelpInfo')}</InfoTip></span>{' '}
+              <EmptyState title={cve ? t('emptyCve', { cve }) : tab === 'open' ? t('emptyOpen') : t('emptyFilter')} info={t('emptyHelpInfo')}>
+                {t('emptyHelp')}{' '}
                 <Link to="/devices" className="text-accent underline underline-offset-4">{t('emptyDevices')}</Link>{' '}
                 <Link to="/scans" className="text-accent underline underline-offset-4">{t('emptyScan')}</Link>
               </EmptyState>

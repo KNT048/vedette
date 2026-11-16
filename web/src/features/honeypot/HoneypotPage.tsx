@@ -2,7 +2,6 @@ import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { FlaskConical } from 'lucide-react'
-import { InfoTip } from '@/components/common/InfoTip'
 import { Notice, PageHeader, Section, Panel, KeyValue } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
@@ -32,8 +31,8 @@ export default function HoneypotPage() {
   if (hp?.available === false) return (
     <>
       <PageHeader title={t('notHere.page')} stories={['S-HP-1', 'S-CORE-9']} />
-      <EmptyState title={t('notHere.title')}>
-        <span className="inline-flex items-center gap-1">{t('notHere.body')}<InfoTip topic={t('notHere.title')}>{t('notHere.bodyInfo')}</InfoTip></span>
+      <EmptyState title={t('notHere.title')} info={t('notHere.bodyInfo')}>
+        {t('notHere.body')}
         {hp.enabled ? <p className="mt-2"><Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules">{t('notHere.modules')}</Link></p> : null}
       </EmptyState>
     </>
@@ -224,6 +223,6 @@ export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn
         </div>
       )}
       filterPlaceholder={t('hits.filter')} initialSort={[{ id: 'ts', desc: true }]}
-      empty={<EmptyState title={t('hits.emptyTitle')}><span className="inline-flex items-center gap-1">{anyTrapOn ? t('hits.emptyBody') : t('hits.emptyBodyOff')}<InfoTip topic={t('hits.emptyTitle')}>{anyTrapOn ? t('hits.emptyBodyInfo') : t('hits.emptyBodyOffInfo')}</InfoTip></span></EmptyState>} />
+      empty={<EmptyState title={t('hits.emptyTitle')} info={anyTrapOn ? t('hits.emptyBodyInfo') : t('hits.emptyBodyOffInfo')}>{anyTrapOn ? t('hits.emptyBody') : t('hits.emptyBodyOff')}</EmptyState>} />
   )
 }

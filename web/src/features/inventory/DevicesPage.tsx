@@ -150,7 +150,7 @@ function AllSoftware({ items }: { items: DeviceRow[] }) {
   const rows = useMemo<SoftwareRow[]>(() => items.flatMap((d) => d.software.map((s) => ({
     key: `${d.id}/${s.id}`, display: s.display, raw: rawProductLine(s.display, s.vendor, s.product), version: s.version, source: s.source, confidence: s.confidence, device: d,
   }))), [items])
-  if (!rows.length) return <EmptyState title={t('softwareTab.empty')}><span className="inline-flex items-center gap-1">{t('softwareTab.emptyBody')}<InfoTip topic={t('softwareTab.empty')}>{t('softwareTab.emptyBodyInfo')}</InfoTip></span></EmptyState>
+  if (!rows.length) return <EmptyState title={t('softwareTab.empty')} info={t('softwareTab.emptyBodyInfo')}>{t('softwareTab.emptyBody')}</EmptyState>
   const device = (d: DeviceRow) => <Link to={`/devices/${d.id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-accent underline-offset-4 [overflow-wrap:anywhere] hover:underline">{nameOf(d, kindLabel(d.kind))}</Link>
   const version = (v: string | null) => v || <span className="text-muted">{t('software.noVersion')}</span>
   const columns: ColumnDef<SoftwareRow>[] = [
@@ -183,7 +183,7 @@ function NoDevices({ boxOnly, canOp, canAdmin, needRole, onAdd, onImport }: { bo
   const kind = ranges === 'saved' ? 'Watching' : ranges === 'none' ? '' : 'Neutral'
   const body = (boxOnly ? 'empty.bodyBoxOnly' : 'empty.body') + kind
   return (
-    <EmptyState title={boxOnly ? t('empty.titleBoxOnly') : t('empty.title')} action={<div className="flex flex-wrap gap-2"><Button variant="primary" disabled={!canOp} title={needRole} onClick={onAdd}>{t('add.open')}</Button><Button disabled={!canOp} title={needRole} onClick={onImport}>{t('import.open')}</Button>{ranges === 'none' ? <Link to="/devices/setup" className={cn(buttonVariants({ variant: 'secondary' }))}>{t('empty.range')}</Link> : null}</div>}><span className="inline-flex items-center gap-1">{t(body)}<InfoTip topic={boxOnly ? t('empty.titleBoxOnly') : t('empty.title')}>{t('empty.info')}</InfoTip></span></EmptyState>
+    <EmptyState title={boxOnly ? t('empty.titleBoxOnly') : t('empty.title')} info={t('empty.info')} action={<div className="flex flex-wrap gap-2"><Button variant="primary" disabled={!canOp} title={needRole} onClick={onAdd}>{t('add.open')}</Button><Button disabled={!canOp} title={needRole} onClick={onImport}>{t('import.open')}</Button>{ranges === 'none' ? <Link to="/devices/setup" className={cn(buttonVariants({ variant: 'secondary' }))}>{t('empty.range')}</Link> : null}</div>}>{t(body)}</EmptyState>
   )
 }
 

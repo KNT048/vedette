@@ -9,6 +9,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/chain/chainhead"
@@ -220,7 +221,8 @@ func TestContract_INV5_BadAnswersAreDiscarded(t *testing.T) {
 	a.fake.setAnswer(`{"why":"` + long + `","patch_steps":[` + items + `],"temp_mitigations":[],"detection_hints":["ok\u0000\u0007x"]}`)
 	got := a.explain("CVE-2022-27593", 200, "")
 	steps := got["patch_steps"].([]any)
-	if len(got["why"].(string)) != 1200 || len(steps) != 8 || len(steps[0].(string)) != 500 || got["detection_hints"].([]any)[0] != "okx" {
+	// a list item over its limit is cut at a sentence end, else a word, and marked "…" (M2-2: never a silent mid-sentence stop)
+	if s0 := steps[0].(string); len(got["why"].(string)) != 1200 || len(steps) != 8 || utf8.RuneCountInString(s0) != 500 || !strings.HasSuffix(s0, "…") || got["detection_hints"].([]any)[0] != "okx" {
 		t.Fatalf("limits not applied: why %d, steps %d, hint %q", len(got["why"].(string)), len(steps), got["detection_hints"])
 	}
 }

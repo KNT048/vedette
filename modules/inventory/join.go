@@ -526,6 +526,22 @@ func newestWireMAC(ctx context.Context, tx *sql.Tx, id string) (string, error) {
 	return m, nil
 }
 
+// agentCardIs reports whether a row may join on mac as far as its agent goes (review r2 of #862 L1): a row with no agent bound, or one
+// whose bound agent last reported mac as its card. On an agent-bound laptop the column holds the agent's card; a MAC only sensors saw
+// there (a range extender's rewritten client MAC) is no key, so a machine that copies it while the laptop is away stays a new device.
+func agentCardIs(ctx context.Context, tx *sql.Tx, id, mac string) (bool, error) {
+	var card sql.NullString
+	err := tx.QueryRowContext(ctx, `SELECT (SELECT o.value FROM inv_observation o WHERE o.asset_id = a.id AND o.field = 'mac' AND o.source = 'agent'
+		ORDER BY o.seen_at DESC, o.id DESC LIMIT 1) FROM inv_asset a WHERE a.id = ? AND a.agent_key IS NOT NULL`, id).Scan(&card)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return true, nil
+	case err != nil:
+		return false, fmt.Errorf("inventory: read the agent's card: %w", err)
+	}
+	return card.Valid && card.String == mac, nil
+}
+
 // sameMAC finds the other row of a machine whose newest MAC another row already owned (D-598 (4), n69). resolve finds a device by its
 // MAC column, and RecomputeAsset never gives a row a MAC another row owns: so when a device's newest MAC was blocked (an older build kept
 // a scan's two-day-old MAC as the device's MAC while the name rule had joined the new private MAC into it), the next sighting of that
@@ -534,7 +550,8 @@ func newestWireMAC(ctx context.Context, tx *sql.Tx, id string) (string, error) {
 // never joins a burned-in-MAC device); they state no other name, model or OS (facts, differ); they were not online together
 // (onlineTogether); never the box. An older MAC of a device is no key (review r1 of #862 H1): a machine that takes one while the device
 // is away is a device of its own and is announced, as on main; a device that goes back to an older MAC is joined by the name rule
-// (sameMachine) when it carries its name. The row that stays: keptOrder.
+// (sameMachine) when it carries its name. A row an agent is bound to joins only on the card its agent reports (agentCardIs). The row
+// that stays: keptOrder.
 func sameMAC(ctx context.Context, tx *sql.Tx, id string, now time.Time) (from, into, why string, err error) {
 	var isBox bool
 	if err := tx.QueryRowContext(ctx, `SELECT is_box FROM inv_asset WHERE id = ?`, id).Scan(&isBox); err != nil {
@@ -560,6 +577,11 @@ func sameMAC(ctx context.Context, tx *sql.Tx, id string, now time.Time) (from, i
 	}
 	for _, x := range []string{id, other} { // a burned-in MAC (shared or not) is a switch, a proxy or a server, never a rotation (D-515, D-598)
 		if burned, _, err := macKinds(ctx, tx, x); burned || err != nil {
+			return "", "", "", err
+		}
+	}
+	for _, x := range []string{id, other} {
+		if ok, err := agentCardIs(ctx, tx, x, shared); !ok || err != nil {
 			return "", "", "", err
 		}
 	}

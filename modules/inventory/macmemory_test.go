@@ -135,6 +135,25 @@ func TestContract_D598_APrivateMACNeverJoinsABurnedInRow(t *testing.T) {
 	if n := e.devices(); n != 2 || len(e.discovered()) != 1 {
 		t.Errorf("%d devices, %d announced; want 2 and 1", n, len(e.discovered()))
 	}
+
+	// The burned-in row is the touched one (review r2 of #862 L2): its newest wire MAC is a private one another row owns, quiet for 25
+	// minutes; an address-only sighting of the burned-in row joins nothing.
+	q := newEnv(t)
+	q.record(dhcp(burnt1, "192.168.18.20", "")...)
+	qid := q.idOf("192.168.18.20")
+	if err := q.svc.Approve(q.ctx(), "kien", qid); err != nil {
+		t.Fatal(err)
+	}
+	q.tick(time.Minute)
+	ts := store.FormatTS(q.now)
+	q.exec(`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES ('o-wifi', ?, 'mac', ?, 'passive', 0.9, ?)`, qid, privMac3, ts)
+	q.exec(`INSERT INTO inv_asset (id, mac, ip, kind, origin, approved, fragile, first_seen, last_seen) VALUES ('a-wifi', ?, '192.168.18.61', 'unknown', 'discovered', 0, 0, ?, ?)`, privMac3, ts, ts)
+	q.exec(`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES ('o-wifi2', 'a-wifi', 'mac', ?, 'passive', 0.9, ?)`, privMac3, ts)
+	q.tick(25 * time.Minute)
+	q.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.18.20")}, Field: observe.Vendor, Value: "Apple", Source: observe.Nmap, Confidence: 0.5})
+	if n := q.devices(); n != 2 {
+		t.Errorf("touched burned-in row: %d devices, want 2", n)
+	}
 }
 
 // D-598 (4), review r1 of #862 M2: what sameMAC never counts. A MAC only an agent claims on a row (self-declared, D-265 (4)), even its
@@ -250,6 +269,60 @@ func TestContract_D598_ASharedMACWithAnotherModelStaysApart(t *testing.T) {
 	n69Leftover(e, "iPhone15,2")
 	e.tick(110 * time.Minute)
 	e.record(dhcp(n100NewMAC, "192.168.18.138", "")...)
+	if n := e.devices(); n != 2 {
+		t.Errorf("%d devices, want 2", n)
+	}
+}
+
+// D-598 (4), review r2 of #862 L2: the other row's sighting of the shared MAC must be within macMemory (30 days): the n69 leftover
+// seen again 31 days later stays two devices.
+func TestContract_D598_ASharedMACOlderThan30DaysIsNoKey(t *testing.T) {
+	e := newEnv(t)
+	n69Leftover(e, "Mac14,2")
+	e.tick(31 * 24 * time.Hour)
+	e.record(dhcp(n100NewMAC, "192.168.18.138", "")...)
+	if n := e.devices(); n != 2 {
+		t.Errorf("%d devices, want 2", n)
+	}
+}
+
+// D-598 (4), review r2 of #862 L1: an agent-bound laptop whose agent reports another card than the MAC sensors last saw (a range
+// extender rewrites client MACs) joins only on its agent's card: a machine that copies the sensor-only MAC while the laptop is away is a
+// device of its own, announced.
+func TestContract_D598_AnAgentBoundRowJoinsOnlyOnItsCard(t *testing.T) {
+	e := newEnv(t)
+	e.record(dhcp(privMac1, "192.168.18.20", "")...)
+	id := e.idOf("192.168.18.20")
+	if err := e.svc.Approve(e.ctx(), "kien", id); err != nil {
+		t.Fatal(err)
+	}
+	e.tick(time.Minute)
+	e.exec(`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES ('o-card', ?, 'mac', ?, 'agent', 0.9, ?)`,
+		id, privMac3, store.FormatTS(e.now))
+	e.exec(`UPDATE inv_asset SET agent_key = 'osquery:node-a', agent_ip = ip, mac = ? WHERE id = ?`, privMac3, id) // the column follows the agent's newest card
+	e.ev.reset()
+	e.tick(25 * time.Minute)
+	e.record(dhcp(privMac1, "192.168.18.50", "")...)
+	if n := e.devices(); n != 2 || len(e.discovered()) != 1 {
+		t.Errorf("%d devices, %d announced; want 2 and 1", n, len(e.discovered()))
+	}
+}
+
+// D-598 (4), review r2 of #862 L3: an agent's claim on the touched row is no shared MAC either (D-265 (4)): an intruder whose agent
+// claims the away iPad's MAC does not join it when the intruder's row is seen again.
+func TestContract_D598_AnAgentsClaimOnTheTouchedRowIsNoKey(t *testing.T) {
+	e := newEnv(t)
+	e.record(dhcp(privMac1, "192.168.18.20", "kiens-ipad")...)
+	if err := e.svc.Approve(e.ctx(), "kien", e.idOf("192.168.18.20")); err != nil {
+		t.Fatal(err)
+	}
+	e.record(dhcp(privMac2, "192.168.18.31", "")...)
+	intruder := e.idOf("192.168.18.31")
+	e.tick(time.Minute)
+	e.exec(`INSERT INTO inv_observation (id, asset_id, field, value, source, confidence, seen_at) VALUES ('o-claim', ?, 'mac', ?, 'agent', 0.9, ?)`,
+		intruder, privMac1, store.FormatTS(e.now))
+	e.tick(25 * time.Minute)
+	e.record(observe.Observation{AssetHint: observe.AssetHint{IP: netip.MustParseAddr("192.168.18.31")}, Field: observe.Vendor, Value: "Acme", Source: observe.Nmap, Confidence: 0.5})
 	if n := e.devices(); n != 2 {
 		t.Errorf("%d devices, want 2", n)
 	}

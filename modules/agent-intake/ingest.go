@@ -35,28 +35,43 @@ func (s *Service) Log(ctx context.Context, src netip.Addr, in logIn) error {
 	if err := s.markResult(ctx, n, ip, mac, update); err != nil {
 		return err
 	}
-	if !ip.IsValid() {
-		s.warnUnmatched(ctx, n.id,
-			"node", n.id, "src", src.String(), "declared_interfaces", len(in.snaps["interfaces"]))
-		return nil
-	}
 	// The hint is the TCP address and the node (D-598), never the MAC. The MAC is the node's own claim, and the inventory resolves a
 	// device by MAC: with it in the hint a node could write onto any device whose MAC it names. It goes in as a 0.9 observation only,
 	// which the inventory refuses when another device owns that MAC (D-265 (4)). The node is the id this box gave it at enrolment:
 	// the inventory binds it to the device its report reached by address, and a later report finds that device by it when the
 	// machine's address changed (a laptop on DHCP), instead of making a second device.
 	hint := observe.AssetHint{IP: ip, Agent: nodeAgent(n.id)}
-	kernel, err := s.nodeKernel(ctx, n, in)
-	if err != nil {
-		return err
+	if !ip.IsValid() {
+		s.warnUnmatched(ctx, n.id,
+			"node", n.id, "src", src.String(), "declared_interfaces", len(in.snaps["interfaces"]))
+		if update { // the request's own interfaces answer says the connection's address is not the node's (NAT, a spoof)
+			return nil
+		}
+		// The request has no interfaces answer and comes from another address than the bound one: a laptop DHCP moved, before its next
+		// interfaces answer (config asks for it every minute meanwhile, nodeSchedule). The report goes by the node alone, with From = the
+		// connection's address (#829: its facts arrive at once): the inventory gives it to the device it bound the node to only when that
+		// device is at From (a sensor saw the machine move there); it moves no address, finds no other device and creates none. A copied
+		// node key used from another machine's address therefore still writes nothing.
+		hint = observe.AssetHint{Agent: nodeAgent(n.id)}
+		if a := src.Unmap().WithZone(""); a.Is4() {
+			hint.From = a
+		}
 	}
-	win, err := s.nodeWindows(ctx, n, in)
-	if err != nil {
-		return err
+	// A key-only report stores nothing on the node (review r1 H1 of #872: a copied key must not set its kernel); its own kernel_info goes
+	// with its own list only (r2 L-new-2: a machine that rebooted and moved), and the inventory takes that list only from the device's address.
+	kernel, win := reqKernel(n, in), n.win
+	if ip.IsValid() {
+		var err error
+		if kernel, err = s.nodeKernel(ctx, n, in); err != nil {
+			return err
+		}
+		if win, err = s.nodeWindows(ctx, n, in); err != nil {
+			return err
+		}
 	}
 	in.snaps = withWindows(withKernel(in.snaps, kernel), win)
 	taken, err := s.deliver(ctx, src.Unmap().WithZone(""), hint, mac, n.id, in)
-	if err != nil {
+	if err != nil || !ip.IsValid() { // the enrolment's name, the first report and the approval need the address the node declared
 		return err
 	}
 	named, err := s.enrolHostname(ctx, n, hint, in)
@@ -124,17 +139,23 @@ func enrolNames(n nodeRow) []string {
 // enrolHostConfidence is the rank of the enrolment's host name among the agent's observations: below system_info's.
 const enrolHostConfidence = 0.9
 
+// reqKernel is the running kernel release this request reports (kernel_info), or the node's stored one when it reports none or one
+// that is not a kernel release.
+func reqKernel(n nodeRow, in logIn) string {
+	rows := in.snaps["kernel_info"]
+	if len(rows) == 0 {
+		return n.kernel
+	}
+	if k := strings.ToLower(rows[0]["version"]); kernelReleaseRE.MatchString(k) {
+		return k
+	}
+	return n.kernel
+}
+
 // nodeKernel is the running kernel release of the node (D-516): the one this request's kernel_info snapshot gives, stored on the node
 // when it changed, else the one stored. "" when the node never gave a usable one.
 func (s *Service) nodeKernel(ctx context.Context, n nodeRow, in logIn) (string, error) {
-	rows := in.snaps["kernel_info"]
-	if len(rows) == 0 {
-		return n.kernel, nil
-	}
-	k := strings.ToLower(rows[0]["version"])
-	if !kernelReleaseRE.MatchString(k) {
-		return n.kernel, nil
-	}
+	k := reqKernel(n, in)
 	if k == n.kernel {
 		return k, nil
 	}

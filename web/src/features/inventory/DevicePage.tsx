@@ -339,8 +339,9 @@ function Body() {
       <PageHeader breadcrumbs={crumbs} title={<span className="[overflow-wrap:anywhere]">{name}</span>} stories={['S-INV-1', 'S-INV-2']}
         meta={<span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<span>{t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
         actions={<>
-          {/* #850: "Check this device now" plugs in here (slot device.actions, props { assetId }). */}
-          <Slot name="device.actions" props={{ assetId: a.id }} />
+          {/* #850: "Check this device now" plugs in here (slot device.actions, props { assetId, asset }: the facts that say whether
+              it can be checked, from this page's own read, #877 r1 L6). */}
+          <Slot name="device.actions" props={{ assetId: a.id, asset: a }} />
           <Button disabled={!can || a.is_box} title={a.is_box ? t('box.noDelete') : needRole} onClick={() => setDel(true)}><Trash2 />{t('detail.delete')}</Button>
         </>} />
       {a.is_box ? <BoxNotice findings={d.findings_count} /> : null}

@@ -319,9 +319,10 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     await userEvent.selectOptions(await screen.findByLabelText('Vulnerability checks on the LAN'), '2')
     inventorySettingsStore.update((st) => ({ ...st, active: { ...st.active, exclusions: [...st.active.exclusions, '192.168.10.40'] } })) // an inline add elsewhere
     await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
-    expect(await screen.findByText(/Someone else changed these settings/)).toBeInTheDocument()
+    expect(await screen.findByText(/Someone else saved these settings/)).toBeInTheDocument()
     expect(puts[0]?.version).toEqual(expect.any(String))
     await waitFor(() => expect(screen.getByLabelText('One IP or network per line')).toHaveValue('192.168.10.40')) // the form was built again on the stored values
+    expect(screen.getByLabelText('Vulnerability checks on the LAN')).toHaveValue('2') // and keeps what was typed (#877 r1 M4)
     await userEvent.selectOptions(screen.getByLabelText('Vulnerability checks on the LAN'), '2')
     await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
     expect(await screen.findByText('Safety settings saved')).toBeInTheDocument()

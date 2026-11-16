@@ -2,7 +2,6 @@ import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/input'
-import { useDevice } from '@/features/inventory/api'
 import type { DeviceRow } from '@/features/inventory/types'
 import { inRanges } from '@/features/inventory/AddToScopeDialog'
 import { useTargets } from '@/features/scan/api'
@@ -116,9 +115,8 @@ function SelectedVulnChecks({ selectedIds }: { selectedIds: string[] }) {
 /** #850 H3, slot `device.actions` of the device page: "Check this device now" (nmap identification), and "Run vulnerability
  *  checks now" while the vulnerability checks (Preview) are on (review r2 N4). A device the nmap check always refuses (the box, added
  *  by hand, never scan, no IP, outside the scope) gets the reason instead of a button that can only fail (#877 r1 L6). */
-export function DeviceActions({ assetId }: { assetId: string }) {
+export function DeviceActions({ assetId, asset: d }: { assetId: string; /** The device page's own read (no second read of it here). */ asset?: Facts }) {
   const { t } = useTranslation('scanning')
-  const d = useDevice(assetId).data?.asset
   const safety = useScanning().data?.safety
   const r = d ? nmapRefusal(d, safety) : null
   return (

@@ -30,7 +30,7 @@ export function RouteError() {
       <div role="alert">
         <h1 className="text-xl font-semibold">{t('routeError.title')}</h1>
         <p className="mt-2 text-sm text-muted">{t('routeError.body')}</p>
-        <pre className="mt-3 overflow-x-auto rounded-md bg-sunken p-3 font-mono text-[12px]">{msg}</pre>
+        <pre className="mt-3 overflow-x-auto rounded-md bg-sunken p-3 font-mono text-caption">{msg}</pre>
         <div className="mt-4 flex flex-wrap items-center gap-4">
           <a href="/" className="text-accent underline-offset-4 hover:underline">{t('notFound.home')}</a>
           <Button onClick={() => setBug(true)}>{t('routeError.report')}</Button>

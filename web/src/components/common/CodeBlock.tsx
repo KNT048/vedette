@@ -19,14 +19,14 @@ export function CodeBlock({ code, label, wrapOnPhone }: { code: string; label?: 
   return (
     <div className="overflow-hidden rounded-md border border-rule bg-sunken">
       <div className="flex items-center justify-between gap-2 border-b border-rule px-3 py-1.5">
-        <span className="min-w-0 text-[12px] text-muted [overflow-wrap:anywhere]">{label ?? ''}</span>
+        <span className="min-w-0 text-caption text-muted [overflow-wrap:anywhere]">{label ?? ''}</span>
         <Button size="sm" variant="ghost" onClick={() => void copy()} aria-label={t('copy')}>
           {copied ? <Check /> : <Copy />}
           {copied ? t('copied') : t('copy')}
         </Button>
       </div>
       {/* tabIndex: khối cuộn ngang phải dùng được bằng bàn phím (WCAG 2.1.1) */}
-      <pre tabIndex={0} aria-label={label || t('codeBlock')} className={cn('overflow-x-auto p-3 font-mono text-[12.5px] leading-relaxed', wrapOnPhone && 'whitespace-pre-wrap [overflow-wrap:anywhere] sm:whitespace-pre sm:[overflow-wrap:normal]')}><code>{code}</code></pre>
+      <pre tabIndex={0} aria-label={label || t('codeBlock')} className={cn('overflow-x-auto p-3 font-mono text-meta leading-relaxed', wrapOnPhone && 'whitespace-pre-wrap [overflow-wrap:anywhere] sm:whitespace-pre sm:[overflow-wrap:normal]')}><code>{code}</code></pre>
     </div>
   )
 }

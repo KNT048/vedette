@@ -16,5 +16,5 @@ export function PortMarkNote({ p, at }: { p: Pick<PortRow, 'last_seen' | 'misses
   if (!p.last_seen) return null
   const missed = (p.misses ?? 0) > 0 && !p.unchecked
   const text = missed ? t('open.notSeenNote', { date: dateText(p.last_seen), at: at ? dateTimeText(at) : '–' }) : t('open.notCheckedNote', { date: dateText(p.last_seen) })
-  return <InfoLine className="text-[12px] text-muted" topic={missed ? t('open.notSeen') : t('open.notChecked', { date: dateText(p.last_seen) })} info={missed ? t('open.notSeenNoteInfo') : t('open.notCheckedNoteInfo')}>{text}</InfoLine>
+  return <InfoLine className="text-caption text-muted" topic={missed ? t('open.notSeen') : t('open.notChecked', { date: dateText(p.last_seen) })} info={missed ? t('open.notSeenNoteInfo') : t('open.notCheckedNoteInfo')}>{text}</InfoLine>
 }

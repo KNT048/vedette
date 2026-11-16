@@ -41,7 +41,7 @@ function Progress({ run }: { run: ScanRun }) {
         </Button>
       </div>
       {stopping ? null : <JobProgress progress={run.progress} className="mt-3 rounded-md bg-surface p-3" />}
-      <p className="mt-2 text-[13px] text-muted">{t('progress.note')}</p>
+      <p className="mt-2 text-meta text-muted">{t('progress.note')}</p>
     </section>
   )
 }
@@ -55,7 +55,7 @@ function Identification({ rows }: { rows: RunIdentRow[] }) {
       <h3 id="ident-title" className="text-sm font-semibold">{t('res.identTitle')}</h3>
       <ul className="divide-y divide-rule rounded-md border border-rule">
         {rows.map((r) => (
-          <li key={r.target_id} className="grid gap-1 px-3 py-2 text-[13px]">
+          <li key={r.target_id} className="grid gap-1 px-3 py-2 text-meta">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <Link to={`/devices/${r.target_id}`} className="font-medium text-accent underline-offset-4 hover:underline">{r.label}</Link>
               <span className="text-muted">{r.ip}</span>
@@ -73,11 +73,11 @@ function Identification({ rows }: { rows: RunIdentRow[] }) {
 function ResultDialog({ run, onClose, opener }: { run: ScanRun | null; onClose: () => void; opener: React.RefObject<HTMLElement | null> }) {
   const { t } = useTranslation('scan')
   const columns: ColumnDef<RunResultRow>[] = [
-    { id: 'device', header: t('res.device'), accessorFn: (r) => r.label, cell: ({ row: { original: r } }) => <div className="grid"><span className="font-medium">{r.label}</span><span className="text-[12px] text-muted">{r.ip}</span></div> },
-    { id: 'template', header: t('res.template'), accessorFn: (r) => r.template ?? '', cell: ({ row: { original: r } }) => <span className="text-[13px]">{r.template ?? <span className="text-muted">–</span>}</span> },
+    { id: 'device', header: t('res.device'), accessorFn: (r) => r.label, cell: ({ row: { original: r } }) => <div className="grid"><span className="font-medium">{r.label}</span><span className="text-caption text-muted">{r.ip}</span></div> },
+    { id: 'template', header: t('res.template'), accessorFn: (r) => r.template ?? '', cell: ({ row: { original: r } }) => <span className="text-meta">{r.template ?? <span className="text-muted">–</span>}</span> },
     { id: 'result', header: t('res.result'), accessorFn: (r) => r.result, cell: ({ row: { original: r } }) => <ResultChip kind={r.result} /> },
     { id: 'note', header: t('res.note'), accessorFn: (r) => r.note, cell: ({ row: { original: r } }) => (
-      <div className="grid text-[13px]"><span>{r.note}</span>{r.finding_id ? <Link to={`/findings/${r.finding_id}`} className="w-fit text-accent underline underline-offset-4">{t('res.openFinding')}</Link> : null}</div>
+      <div className="grid text-meta"><span>{r.note}</span>{r.finding_id ? <Link to={`/findings/${r.finding_id}`} className="w-fit text-accent underline underline-offset-4">{t('res.openFinding')}</Link> : null}</div>
     ) },
   ]
   // Giữ nội dung lần mở trước trong lúc đóng để Radix kịp trả focus về nút mở (nếu gỡ ngay, focus rơi về body).
@@ -107,7 +107,7 @@ function History({ runs }: { runs: ScanRun[] }) {
   // Cột phải ổn định: cột mới mỗi lần render làm TanStack gắn lại mọi ô, nút "Xem kết quả" bị thay và mất focus khi đóng hộp thoại.
   const columns = useMemo<ColumnDef<ScanRun>[]>(() => [
     { id: 'started', header: t('hist.started'), accessorFn: (r) => r.started_at, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap">{fmtDateTime(r.started_at)}</span> },
-    { id: 'trigger', header: t('hist.trigger'), accessorFn: (r) => r.trigger, cell: ({ row: { original: r } }) => <div className="grid text-[13px]"><span>{t(`trigger.${r.trigger}`)}</span>{r.trigger_note ? <span className="text-muted">{r.trigger_note}</span> : <span className="text-muted">{r.started_by === 'system' ? t('hist.bySystem') : r.started_by}</span>}</div> },
+    { id: 'trigger', header: t('hist.trigger'), accessorFn: (r) => r.trigger, cell: ({ row: { original: r } }) => <div className="grid text-meta"><span>{t(`trigger.${r.trigger}`)}</span>{r.trigger_note ? <span className="text-muted">{r.trigger_note}</span> : <span className="text-muted">{r.started_by === 'system' ? t('hist.bySystem') : r.started_by}</span>}</div> },
     { id: 'total', header: t('hist.devices'), accessorFn: (r) => r.total, cell: ({ row: { original: r } }) => <span>{r.done === r.total ? r.total : t('hist.partial', { done: r.done, total: r.total })}</span> },
     { id: 'status', header: t('hist.status'), accessorFn: (r) => r.status, cell: ({ row: { original: r } }) => <RunStatusChip run={r} /> },
     { id: 'matched', header: t('hist.matched'), accessorFn: (r) => r.matched, cell: ({ row: { original: r } }) => (r.matched ? <span className="font-medium text-danger">{r.matched}</span> : <span className="text-muted">0</span>) },
@@ -124,8 +124,8 @@ function History({ runs }: { runs: ScanRun[] }) {
               <span className="font-medium">{fmtDateTime(r.started_at)}</span>
               <RunStatusChip run={r} />
             </div>
-            <span className="text-[13px] text-muted">{t(`trigger.${r.trigger}`)}{r.trigger_note ? `: ${r.trigger_note}` : r.started_by === 'system' ? '' : `, ${r.started_by}`}</span>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+            <span className="text-meta text-muted">{t(`trigger.${r.trigger}`)}{r.trigger_note ? `: ${r.trigger_note}` : r.started_by === 'system' ? '' : `, ${r.started_by}`}</span>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-meta">
               <span>{t('hist.devicesCount', { count: r.total })}</span>
               <span className={r.matched ? 'font-medium text-danger' : 'text-muted'}>{t('hist.matchedCount', { count: r.matched })}</span>
             </div>
@@ -144,7 +144,7 @@ function Last({ run }: { run: ScanRun }) {
     <div role="status" className="mb-8 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-rule bg-surface px-4 py-3 text-sm">
       <RunStatusChip run={run} />
       <span>{run.status === 'done' ? t('last.done', { time: fmtRelative(run.ended_at), total: run.total, count: run.matched }) : t('last.stopped', { time: fmtRelative(run.ended_at), done: run.done, total: run.total })}</span>
-      {run.stop_reason ? <span className="w-full text-[13px] text-muted">{run.stop_reason}</span> : null}
+      {run.stop_reason ? <span className="w-full text-meta text-muted">{run.stop_reason}</span> : null}
     </div>
   )
 }

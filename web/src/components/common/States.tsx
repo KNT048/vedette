@@ -52,9 +52,9 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
       <p className="mt-1 text-ink">{msg}</p>
       {retry ? <Button className="mt-3" size="sm" onClick={onRetry}>{t('retry')}</Button> : null}
       {/* 501: backend chưa có phần này; dữ liệu mẫu cũ không liên quan nên không mời khôi phục. */}
-      {status === 501 ? <p className="mt-3 text-[13px] text-muted">{t('error.notImplemented')}</p> : null}
+      {status === 501 ? <p className="mt-3 text-meta text-muted">{t('error.notImplemented')}</p> : null}
       {/* Bản xem thử: lỗi 5xx khác thường do dữ liệu mẫu lưu từ phiên bản cũ của giao diện */}
-      {status >= 500 && status !== 501 && import.meta.env.VITE_API_MOCK !== 'off' ? <p className="mt-3 text-[13px] text-muted">{t('error.previewStale')} <Link to="/settings/data" className="text-accent underline underline-offset-4">{t('error.previewStaleLink')}</Link></p> : null}
+      {status >= 500 && status !== 501 && import.meta.env.VITE_API_MOCK !== 'off' ? <p className="mt-3 text-meta text-muted">{t('error.previewStale')} <Link to="/settings/data" className="text-accent underline underline-offset-4">{t('error.previewStaleLink')}</Link></p> : null}
     </div>
   )
 }
@@ -129,5 +129,5 @@ export function SampleDataNote() {
   // Cùng queryKey với useSetup (src/app/RequireSession.tsx). Cài sạch → không có dữ liệu mẫu nào để ghi nhãn.
   const setup = useQuery({ queryKey: ['setup'], queryFn: () => api.get<{ complete: boolean; org: string; data_mode?: 'sample' | 'clean' }>('/setup'), staleTime: 60_000 })
   if (import.meta.env.VITE_API_MOCK === 'off' || setup.data?.data_mode !== 'sample') return null
-  return <span className="inline-flex h-6 items-center rounded-[4px] border border-rule bg-sunken px-2 text-[12px] text-muted">{t('sampleData')}</span>
+  return <span className="inline-flex h-6 items-center rounded-sm border border-rule bg-sunken px-2 text-caption text-muted">{t('sampleData')}</span>
 }

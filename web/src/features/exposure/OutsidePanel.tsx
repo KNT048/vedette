@@ -37,7 +37,7 @@ export function OutsidePanel({ target }: { target: Target }) {
     <Section id="outside" title={t('outside.title')} description={t('outside.description', { ip: target.value })} info={t('outside.descriptionInfo', { ip: target.value })}
       actions={<Button onClick={() => setConfirm(true)} disabled={!!reason || check.isPending} title={reason}><Globe />{v ? t('outside.again') : t('outside.button')}</Button>}>
       {q.isPending ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : v ? <Answer v={v} /> : <Never ip={target.value} />}
-      {!eligible ? <p className="mt-2 max-w-3xl text-[13px] text-muted">{t('outside.notEligible')}</p> : null}
+      {!eligible ? <p className="mt-2 max-w-3xl text-meta text-muted">{t('outside.notEligible')}</p> : null}
       <Dialog open={confirm} onOpenChange={(o) => { if (!check.isPending) setConfirm(o) }}>
         <DialogContent title={t('outside.confirmTitle', { ip: target.value })} description={t('outside.confirmBody', { ip: target.value })} info={t('outside.confirmBodyInfo', { ip: target.value })}>
           <DialogFooter>
@@ -63,7 +63,7 @@ export function Answer({ v }: { v: OutsideView }) {
   const ports = [...new Set([...v.ports, ...(ours ?? [])])].sort((a, b) => a - b)
   return (
     <div className="grid max-w-3xl gap-3" data-testid="outside-answer">
-      <InfoLine className="text-[13px] text-muted" topic={t('outside.title')} info={t('outside.askedInfo')}>{t('outside.asked', { time: dateTimeText(v.checked_at), by: v.checked_by })}</InfoLine>
+      <InfoLine className="text-meta text-muted" topic={t('outside.title')} info={t('outside.askedInfo')}>{t('outside.asked', { time: dateTimeText(v.checked_at), by: v.checked_by })}</InfoLine>
       {!v.found ? <Panel className="px-4 py-3 text-sm">{t('outside.noRecord', { ip: v.ip })}</Panel> : null}
       {ours === null ? <p className="text-sm">{t('outside.notScanned', { ip: v.ip })}</p> : null}
       {ports.length > 0 ? (
@@ -79,7 +79,7 @@ export function Answer({ v }: { v: OutsideView }) {
                   {key === 'shodanOnly' ? <span className="flex items-center gap-1"><Chip tone="warn">{t('outside.onlyOutside')}</Chip><InfoTip topic={t('outside.onlyOutside')}>{t('outside.hint.shodanOnlyInfo')}</InfoTip></span> : null}
                   {key === 'oursOnly' ? <InfoTip topic={t(`outside.port.${key}`, { port: p })}>{t('outside.hint.oursOnly', { port: p })}</InfoTip> : null}
                 </div>
-                {key === 'shodanOnly' ? <p className="text-[13px] text-muted">{t('outside.hint.shodanOnly')}</p> : null}
+                {key === 'shodanOnly' ? <p className="text-meta text-muted">{t('outside.hint.shodanOnly')}</p> : null}
               </div>
             )
           })}
@@ -119,7 +119,7 @@ function OutsideOne({ target }: { target: Target }) {
   return (
     <div className="grid gap-2">
       <h3 className="flex flex-wrap items-center gap-3 text-sm font-medium">{target.value}
-        <Link className="text-[13px] font-normal text-accent underline-offset-4 hover:underline" to={`/exposure/${target.id}?tab=outside`}>{t('outsideList.open', { ip: target.value })}</Link>
+        <Link className="text-meta font-normal text-accent underline-offset-4 hover:underline" to={`/exposure/${target.id}?tab=outside`}>{t('outsideList.open', { ip: target.value })}</Link>
       </h3>
       {q.isPending ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : q.data ? <Answer v={q.data} /> : <Never ip={target.value} />}
     </div>

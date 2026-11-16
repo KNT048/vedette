@@ -38,8 +38,8 @@ export function VerifyPanel({ target }: { target: Target }) {
       <Button variant={verified && target.blocked_reason !== 'txt_missing' && !paused && target.validity !== 'expired' ? 'secondary' : 'primary'} onClick={run} disabled={!can || verify.isPending} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}>
         <RefreshCw className={verify.isPending ? 'animate-spin motion-reduce:animate-none' : undefined} />{verify.isPending ? t('verify.checking') : label}
       </Button>
-      {domain ? <span className="max-w-xl text-[13px] text-muted">{t('verify.recheckHint')}</span>
-        : <InfoLine className="max-w-xl text-[13px] text-muted" topic={t('verify.ipRecheck')} info={t('verify.ipRecheckHintInfo')}>{t('verify.ipRecheckHint', { value: target.value })}</InfoLine>}
+      {domain ? <span className="max-w-xl text-meta text-muted">{t('verify.recheckHint')}</span>
+        : <InfoLine className="max-w-xl text-meta text-muted" topic={t('verify.ipRecheck')} info={t('verify.ipRecheckHintInfo')}>{t('verify.ipRecheckHint', { value: target.value })}</InfoLine>}
     </div>
   )
 
@@ -60,9 +60,9 @@ export function VerifyPanel({ target }: { target: Target }) {
                 { label: t('verify.dns.ttl'), value: t('verify.dns.ttlValue') },
               ]} />
               <CodeBlock code={`vedette-verify=${target.token}`} label={t('verify.dns.valueLabel')} />
-              <InfoLine className="max-w-3xl text-[13px] text-muted" topic={t('verify.dns.valueLabel')} info={t('verify.dnsHintInfo')}>{t('verify.dnsHint')}</InfoLine>
+              <InfoLine className="max-w-3xl text-meta text-muted" topic={t('verify.dns.valueLabel')} info={t('verify.dnsHintInfo')}>{t('verify.dnsHint')}</InfoLine>
             </>
-          ) : <p className="max-w-3xl text-[13px] text-muted">{t('verify.keepRecord')}</p>}
+          ) : <p className="max-w-3xl text-meta text-muted">{t('verify.keepRecord')}</p>}
         </>
       ) : (
         <>
@@ -77,7 +77,7 @@ export function VerifyPanel({ target }: { target: Target }) {
       {recheck}
       {check && !paused ? (
         <div role="status" className={`rounded-md border px-3 py-2 text-sm ${check.ok ? 'border-ok/40 bg-ok-soft' : 'border-warn/50 bg-warn-soft/60'}`}>
-          <p className="mb-1 flex flex-wrap items-center gap-2"><Chip tone={check.ok ? 'ok' : 'warn'}>{domain ? (check.ok ? t('verify.found') : t('verify.notFound')) : (check.ok ? t('verify.passed') : t('verify.failed'))}</Chip><span className="text-[12px] text-muted">{t('verify.checkedAt', { time: dateTimeText(check.at) })}</span></p>
+          <p className="mb-1 flex flex-wrap items-center gap-2"><Chip tone={check.ok ? 'ok' : 'warn'}>{domain ? (check.ok ? t('verify.found') : t('verify.notFound')) : (check.ok ? t('verify.passed') : t('verify.failed'))}</Chip><span className="text-caption text-muted">{t('verify.checkedAt', { time: dateTimeText(check.at) })}</span></p>
           <p>{check.message}</p>
         </div>
       ) : null}

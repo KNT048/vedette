@@ -8,6 +8,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { QrCode, TriangleAlert } from 'lucide-react'
 import { InfoTip } from '@/components/common/InfoTip'
+import { QrSvg } from '@/components/common/QrCode'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Field, Input, Select } from '@/components/ui/input'
@@ -23,16 +24,6 @@ const NEW_QR: ZaloLogin['state'][] = ['expired', 'declined', 'failed']
 export function ZaloWarning() {
   const { t } = useTranslation('notify')
   return <p role="note" className="flex items-start gap-2 text-meta text-warn"><TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />{t('zp.warning')}</p>
-}
-
-/** The QR code, redrawn by the box as one SVG path on a white square (the quiet zone is part of the view box). */
-function QrImage({ size, path, label }: { size: number; path: string; label: string }) {
-  return (
-    <svg role="img" aria-label={label} viewBox={`0 0 ${size} ${size}`} className="size-48 rounded-md border border-rule" shapeRendering="crispEdges">
-      <rect width={size} height={size} fill="white" />
-      <path d={path} fill="black" />
-    </svg>
-  )
 }
 
 /** Sign in with a QR code. onSigned gets the account's name once the box has really signed in; Save then keeps that session. */
@@ -68,7 +59,7 @@ export function ZaloSignIn({ channel, onSigned }: { channel: Channel; onSigned: 
       <p className="text-meta text-muted">{signedName ? t('zp.signedNew', { name: signedName }) : saved ? t('zp.signedSaved', { name: saved }) : channel.secret_last4 ? t('zp.sessionSaved') : t('zp.none')}</p>
       {v && v.qr && (v.state === 'waiting' || v.state === 'scanned') ? (
         <div className="grid justify-items-start gap-2">
-          <QrImage size={v.qr.size} path={v.qr.path} label={t('zp.qrAlt')} />
+          <QrSvg size={v.qr.size} path={v.qr.path} label={t('zp.qrAlt')} />
           <p role="status" className="text-meta">{v.state === 'scanned' ? (v.name ? t('zp.scannedBy', { name: v.name }) : t('zp.scannedConfirm')) : t('zp.scan', { time: v.expires_at ? fmtDateTime(v.expires_at) : '' })}</p>
         </div>
       ) : null}

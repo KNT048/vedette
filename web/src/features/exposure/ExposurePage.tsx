@@ -111,15 +111,15 @@ function OpenPorts({ ports, total, gateway }: { ports: (PortRow & { target: Targ
                 {p.product ? <span className="text-muted">{t('open.software', { product: p.product })}</span> : null}
                 {risk ? <span className="flex items-center gap-1"><Chip tone="warn">{t('open.attacked')}</Chip><InfoTip topic={t('open.attacked')}>{t(`risky.${risk}`)}</InfoTip></span> : null}
                 <PortMark p={p} />
-                <Link className="text-[13px] text-accent underline-offset-4 hover:underline" to={`/exposure/${p.target.id}`}>{t('open.details')}</Link>
+                <Link className="text-meta text-accent underline-offset-4 hover:underline" to={`/exposure/${p.target.id}`}>{t('open.details')}</Link>
               </div>
               {p.last_seen ? <PortMarkNote p={p} at={p.target.last_scan_at} /> : null}
-              <p className="text-[13px] text-muted">{t('open.purposePlain')}</p>
+              <p className="text-meta text-muted">{t('open.purposePlain')}</p>
             </div>
           )
         })}
       </Panel>
-      {total > ports.length ? <p className="mt-2 text-[13px] text-muted">{t('open.moreOnTarget', { count: total - ports.length })}</p> : null}
+      {total > ports.length ? <p className="mt-2 text-meta text-muted">{t('open.moreOnTarget', { count: total - ports.length })}</p> : null}
     </Section>
   )
 }
@@ -135,7 +135,7 @@ function GatewayNote({ g }: { g: Gateway }) {
   const info = !g.ip ? t('gateway.unknownInfo') : !known ? t('gateway.notListedInfo') : g.open_exploited > 0 ? t('gateway.knownInfo') : t('gateway.noneInfo', { name })
   return (
     <Notice tone="accent" data-testid="gateway-note" title={text} info={info}
-      actions={known && g.open_exploited > 0 ? <Link className="text-[13px] text-accent underline-offset-4 hover:underline" to={`/findings?device=${encodeURIComponent(g.device_id ?? '')}`}>{t('gateway.link', { name })}</Link> : undefined} />
+      actions={known && g.open_exploited > 0 ? <Link className="text-meta text-accent underline-offset-4 hover:underline" to={`/findings?device=${encodeURIComponent(g.device_id ?? '')}`}>{t('gateway.link', { name })}</Link> : undefined} />
   )
 }
 
@@ -143,17 +143,17 @@ function TargetsTable({ items }: { items: Target[] }) {
   const { t } = useTranslation('exposure')
   const columns: ColumnDef<Target>[] = [
     { id: 'value', header: t('targets.col.target'), accessorFn: (r) => r.value, cell: ({ row }) => (
-      <span className="grid"><Link className="font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${row.original.id}`}>{row.original.value}</Link><span className="text-[12px] text-muted">{t(`kind.${row.original.kind}`)}</span></span>
+      <span className="grid"><Link className="font-medium text-accent underline-offset-4 hover:underline" to={`/exposure/${row.original.id}`}>{row.original.value}</Link><span className="text-caption text-muted">{t(`kind.${row.original.kind}`)}</span></span>
     ) },
     { id: 'owner', header: t('targets.col.owner'), accessorFn: (r) => r.status, cell: ({ row }) => <OwnerChip target={row.original} /> },
     { id: 'commit', header: t('targets.col.commit'), accessorFn: (r) => (r.commitment ? 1 : 0), cell: ({ row }) => <CommitChip target={row.original} /> },
     { id: 'scan', header: t('targets.col.scan'), accessorFn: (r) => r.last_scan_at ?? '', cell: ({ row }) => {
       const r = row.original
-      return r.blocked_reason ? <span className="text-[13px] text-warn">{t(`blocked.${blockedKey(r)}`)}</span> : <span className="grid"><span>{r.last_scan_at ? fmtRelative(r.last_scan_at) : t('targets.neverScanned')}</span><span className="text-[12px] text-muted">{t('targets.ready')}</span></span>
+      return r.blocked_reason ? <span className="text-meta text-warn">{t(`blocked.${blockedKey(r)}`)}</span> : <span className="grid"><span>{r.last_scan_at ? fmtRelative(r.last_scan_at) : t('targets.neverScanned')}</span><span className="text-caption text-muted">{t('targets.ready')}</span></span>
     } },
     { id: 'latest', header: t('targets.col.latest'), enableSorting: false, cell: ({ row }) => {
       const c = row.original.latest
-      return c ? <span className="text-[13px]">{t('targets.latest', { admin: c.admin_panels, ports: c.ports, certs: c.certs_expiring })}</span> : <span className="text-[13px] text-muted">{t('targets.noResult')}</span>
+      return c ? <span className="text-meta">{t('targets.latest', { admin: c.admin_panels, ports: c.ports, certs: c.certs_expiring })}</span> : <span className="text-meta text-muted">{t('targets.noResult')}</span>
     } },
   ]
   return <DataTable caption={t('targets.caption')} data={items} columns={columns} pageSize={20}
@@ -164,8 +164,8 @@ function TargetsTable({ items }: { items: Target[] }) {
           <OwnerChip target={r} />
           <CommitChip target={r} />
         </div>
-        <p className="text-[13px] text-muted">{r.blocked_reason ? t(`blocked.${blockedKey(r)}`) : r.last_scan_at ? fmtRelative(r.last_scan_at) : t('targets.neverScanned')}</p>
-        {r.latest ? <p className="text-[13px]">{t('targets.latest', { admin: r.latest.admin_panels, ports: r.latest.ports, certs: r.latest.certs_expiring })}</p> : null}
+        <p className="text-meta text-muted">{r.blocked_reason ? t(`blocked.${blockedKey(r)}`) : r.last_scan_at ? fmtRelative(r.last_scan_at) : t('targets.neverScanned')}</p>
+        {r.latest ? <p className="text-meta">{t('targets.latest', { admin: r.latest.admin_panels, ports: r.latest.ports, certs: r.latest.certs_expiring })}</p> : null}
       </div>
     )}
     empty={<EmptyState title={t('targets.emptyTitle')}><InfoLine topic={t('targets.emptyTitle')} info={t('targets.emptyBodyInfo')}>{t('targets.emptyBody')}</InfoLine></EmptyState>} />

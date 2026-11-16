@@ -23,7 +23,7 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
   // INV-22: a service or CVE on a port kept from an earlier scan carries the port's mark
   const mark = (ip: string, port: number) => <PortMark p={s.ports.find((x) => x.ip === ip && x.port === port) ?? {}} />
   // D-571: a domain's services and CVEs are on several addresses (its deep scan): each row says which
-  const ipCol = <T extends { ip: string }>(): ColumnDef<T>[] => (domain ? [{ id: 'ip', header: t('col.ip'), accessorFn: (r) => r.ip, cell: ({ row }) => <span className="font-mono text-[13px]">{row.original.ip}</span> }] : [])
+  const ipCol = <T extends { ip: string }>(): ColumnDef<T>[] => (domain ? [{ id: 'ip', header: t('col.ip'), accessorFn: (r) => r.ip, cell: ({ row }) => <span className="font-mono text-meta">{row.original.ip}</span> }] : [])
   const serviceCols: ColumnDef<ServiceRow>[] = [
     ...ipCol<ServiceRow>(),
     { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="grid gap-1"><span className="tabular-nums">{row.original.port}</span>{mark(row.original.ip, row.original.port)}</span> },
@@ -36,14 +36,14 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
     } },
   ]
   const vulnCols: ColumnDef<VulnRow>[] = [
-    { id: 'cve', header: t('col.cve'), accessorFn: (r) => r.cve, cell: ({ row }) => <span className="grid gap-0.5"><span className="font-medium">{row.original.cve}</span><span className="text-[12px] text-muted">{row.original.name}</span></span> },
+    { id: 'cve', header: t('col.cve'), accessorFn: (r) => r.cve, cell: ({ row }) => <span className="grid gap-0.5"><span className="font-medium">{row.original.cve}</span><span className="text-caption text-muted">{row.original.name}</span></span> },
     ...ipCol<VulnRow>(),
     { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="grid gap-1"><span className="tabular-nums">{row.original.port}</span>{mark(row.original.ip, row.original.port)}</span> },
     { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row }) => row.original.basis === 'template' ? <Chip tone="danger">{t('vulns.basis.template', { id: row.original.template })}</Chip> : row.original.basis === 'greenbone' ? <Chip tone="warn">{t('vulns.basis.greenbone', { qod: row.original.qod ?? 0 })}</Chip> : row.original.backport ? <Chip tone="off">{t('vulns.basis.backport', { distro: row.original.backport })}</Chip> : <Chip tone="warn">{t(`vulns.basis.${row.original.basis}`)}</Chip> },
     { id: 'listed', header: t('col.listed'), accessorFn: (r) => r.date_added ?? '', cell: ({ row }) => (
       <span className="grid gap-1">{row.original.date_added ? dateText(row.original.date_added) : t('common:unknown')}{row.original.ransomware ? <Chip tone="danger">{t('vulns.ransomware')}</Chip> : null}</span>
     ) },
-    { id: 'why', header: t('col.why'), enableSorting: false, accessorFn: (r) => r.summary, cell: ({ row }) => <span className="text-[13px]">{row.original.summary}</span> },
+    { id: 'why', header: t('col.why'), enableSorting: false, accessorFn: (r) => r.summary, cell: ({ row }) => <span className="text-meta">{row.original.summary}</span> },
   ]
   // D-527 (deep scan, testing terms accepted): what nuclei's deep templates matched (an exposed .git, an admin panel, a technology).
   // A matched row of a CVE the list above already shows as "Confirmed by template" is not repeated.
@@ -52,7 +52,7 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
     .sort((a, b) => SEVERITY_ORDER[a.severity!] - SEVERITY_ORDER[b.severity!])
   const deepCols: ColumnDef<TemplateRow>[] = [
     { id: 'risk', header: t('col.risk'), accessorFn: (r) => SEVERITY_ORDER[r.severity!], cell: ({ row }) => row.original.severity === 'unknown' || row.original.severity === undefined ? <Chip tone="off">{t('common:unknown')}</Chip> : <SeverityChip severity={row.original.severity} /> },
-    { id: 'name', header: t('col.name'), accessorFn: (r) => r.name ?? r.template, cell: ({ row }) => <span className="grid gap-0.5"><span className="font-medium">{row.original.name || row.original.template}</span><span className="text-[12px] text-muted">{t('vulns.deepTemplate', { id: row.original.template })}</span></span> },
+    { id: 'name', header: t('col.name'), accessorFn: (r) => r.name ?? r.template, cell: ({ row }) => <span className="grid gap-0.5"><span className="font-medium">{row.original.name || row.original.template}</span><span className="text-caption text-muted">{t('vulns.deepTemplate', { id: row.original.template })}</span></span> },
     ...ipCol<TemplateRow>(),
     { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="grid gap-1"><span className="tabular-nums">{row.original.port}</span>{mark(row.original.ip, row.original.port)}</span> },
     { id: 'cve', header: t('col.cve'), accessorFn: (r) => r.cve, cell: ({ row }) => row.original.cve || null },
@@ -83,7 +83,7 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
           {deep.length > 0 ? (
             <div className="grid gap-2">
               <DataTable caption={t('vulns.deepCaption')} data={deep} columns={deepCols} pageSize={20} />
-              <InfoLine className="text-[13px] text-muted" topic={t('vulns.deepCaption')} info={t('vulns.deepNoteInfo')}>{t('vulns.deepNote')}</InfoLine>
+              <InfoLine className="text-meta text-muted" topic={t('vulns.deepCaption')} info={t('vulns.deepNoteInfo')}>{t('vulns.deepNote')}</InfoLine>
             </div>
           ) : null}
           {s.services.length > 0 ? <DataTable caption={t('vulns.servicesCaption')} data={s.services} columns={serviceCols} pageSize={20} empty={t('vulns.noneIdentifiedBody')} /> : null}
@@ -103,7 +103,7 @@ export function ChecksSection({ s }: { s: Snapshot }) {
           <div>
             <h3 className="mb-2 text-sm font-semibold">{t('checked.checked')}</h3>
             <ul aria-label={t('checked.checked')} className="grid gap-2 text-sm">
-              {s.checks.map((c, i) => <li key={i}>{c.text} <span className="text-[12px] text-muted">{dateTimeText(c.at)}</span></li>)}
+              {s.checks.map((c, i) => <li key={i}>{c.text} <span className="text-caption text-muted">{dateTimeText(c.at)}</span></li>)}
             </ul>
           </div>
           <div>

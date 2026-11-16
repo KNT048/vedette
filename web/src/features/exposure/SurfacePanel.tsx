@@ -41,17 +41,17 @@ function SurfaceView({ s }: { s: Snapshot }) {
     { id: 'name', header: t('col.name'), accessorFn: (r) => r.name, cell: ({ row }) => (
       <span className="grid gap-1">
         <span className="break-all">{row.original.name}</span>
-        {row.original.source ? <span className="text-[12px] text-muted">{t(`surface.source.${row.original.source}`)}</span> : null}
-        {row.original.lookup_failed ? <span className="text-[12px] text-warn">{t('surface.lookupFailed')}</span> : null}
+        {row.original.source ? <span className="text-caption text-muted">{t(`surface.source.${row.original.source}`)}</span> : null}
+        {row.original.lookup_failed ? <span className="text-caption text-warn">{t('surface.lookupFailed')}</span> : null}
       </span>
     ) },
-    { id: 'cname', header: t('surface.col.cname'), accessorFn: (r) => r.cname ?? '', cell: ({ row }) => row.original.cname ? <span className="break-all text-[13px]">{row.original.cname}</span> : <span className="text-muted">{t('surface.none')}</span> },
+    { id: 'cname', header: t('surface.col.cname'), accessorFn: (r) => r.cname ?? '', cell: ({ row }) => row.original.cname ? <span className="break-all text-meta">{row.original.cname}</span> : <span className="text-muted">{t('surface.none')}</span> },
     { id: 'ips', header: t('surface.col.addresses'), enableSorting: false, cell: ({ row }) => <Addresses h={row.original} /> },
   ]
   return (
     <div className="grid gap-6">
       <Panel className="p-4">
-        <p className="mb-3 text-[13px] text-muted">{t('surface.from', { date: dateText(s.scanned_at) })}</p>
+        <p className="mb-3 text-meta text-muted">{t('surface.from', { date: dateText(s.scanned_at) })}</p>
         <KeyValue items={[
           { label: t('surface.count.names'), value: s.hosts.length },
           { label: t('count.ips'), value: s.counts.ips },
@@ -75,8 +75,8 @@ function SurfaceView({ s }: { s: Snapshot }) {
 
 function Addresses({ h }: { h: HostRow }) {
   const { t } = useTranslation('exposure')
-  if (!h.source) return <span className="text-[13px]">{h.ip || t('surface.none')}</span>
-  if (!h.ips || h.ips.length === 0) return <span className="text-[13px] text-muted">{h.cname ? t('surface.dangling') : t('surface.noAddress')}</span>
+  if (!h.source) return <span className="text-meta">{h.ip || t('surface.none')}</span>
+  if (!h.ips || h.ips.length === 0) return <span className="text-meta text-muted">{h.cname ? t('surface.dangling') : t('surface.noAddress')}</span>
   const used = h.ips.find((a) => a.contacted)?.ip
   return <ul className="grid gap-1.5">{h.ips.map((a) => <li key={a.ip} className="grid gap-0.5"><Address a={a} used={used} /></li>)}</ul>
 }
@@ -91,9 +91,9 @@ function Address({ a, used }: { a: HostIp; used: string | undefined }) {
     : t(`surface.deep.${x.deep}`)
   return (
     <>
-      <span className="flex flex-wrap items-center gap-2"><span className="break-all font-mono text-[13px]">{a.ip}</span><Chip tone={TONE[a.class]}>{t(`surface.class.${a.class}`)}</Chip></span>
-      {a.deep ? <span className={a.deep === 'scanned' ? 'text-[12px] text-ok' : 'text-[12px] text-muted'}>{deepNote(a)}</span> : (
-        <span className="text-[12px] text-muted">
+      <span className="flex flex-wrap items-center gap-2"><span className="break-all font-mono text-meta">{a.ip}</span><Chip tone={TONE[a.class]}>{t(`surface.class.${a.class}`)}</Chip></span>
+      {a.deep ? <span className={a.deep === 'scanned' ? 'text-caption text-ok' : 'text-caption text-muted'}>{deepNote(a)}</span> : (
+        <span className="text-caption text-muted">
           {a.family === 'ipv6' && a.class !== 'private' ? t('surface.ipv6')
             : a.class === 'public' && !a.contacted ? (used ? t('surface.note.notContacted', { ip: used }) : t('surface.note.notContactedAny'))
             : t(`surface.note.${a.class}`)}

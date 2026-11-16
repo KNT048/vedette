@@ -61,7 +61,7 @@ function BoxAddressNote({ box }: { box: string }) {
   try { host = new URL(box).hostname } catch { /* shown as given */ }
   const here = window.location.hostname
   return (
-    <div className="grid gap-1 text-[13px]">
+    <div className="grid gap-1 text-meta">
       <p>
         {t('agents.boxAddress.uses', { url: box })}{' '}
         {install === 'container'
@@ -87,7 +87,7 @@ function PackageTable({ packages }: { packages: OsqueryPackage[] }) {
   return (
     // On a phone the table keeps its width and scrolls inside this box (the links in it are focusable), instead of breaking file names per letter.
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[46rem] text-left text-[13px]">
+      <table className="w-full min-w-[46rem] text-left text-meta">
         <caption className="sr-only">{t('agents.download.caption')}</caption>
         <thead className="text-muted"><tr>
           <th scope="col" className="py-1 pr-3 font-medium">{t('agents.download.col.file')}</th>
@@ -107,8 +107,8 @@ function PackageTable({ packages }: { packages: OsqueryPackage[] }) {
               </td>
               <td className="py-1.5 pr-3">{t(`agents.download.format.${p.format}`)} · {p.format === 'msi' ? 'x64' : p.arch}</td>
               <td className="whitespace-nowrap py-1.5 pr-3">{t('agents.download.size', { mb: (p.size / 1e6).toFixed(1) })}</td>
-              <td className="py-1.5 pr-3"><code className="break-all font-mono text-[12px]">{p.sha256}</code></td>
-              <td className="py-1.5"><code className="break-all font-mono text-[12px]">{INSTALL_HINT[p.format](p.file)}</code></td>
+              <td className="py-1.5 pr-3"><code className="break-all font-mono text-caption">{p.sha256}</code></td>
+              <td className="py-1.5"><code className="break-all font-mono text-caption">{INSTALL_HINT[p.format](p.file)}</code></td>
             </tr>
           ))}
         </tbody>
@@ -123,7 +123,7 @@ function Downloads({ packages }: { packages: OsqueryPackage[] }) {
   return (
     <div className="grid gap-1.5">
       <div className="flex items-center gap-1"><p className="text-sm font-medium">{t('agents.download.title')}</p><InfoTip topic={t('agents.download.title')}>{t('agents.download.bodyInfo')}</InfoTip></div>
-      <p className="text-[13px] text-muted">{t('agents.download.body')}</p>
+      <p className="text-meta text-muted">{t('agents.download.body')}</p>
       <PackageTable packages={packages} />
     </div>
   )
@@ -145,7 +145,7 @@ export function InstallPanel({ data, token }: { data: AgentsResponse; token: str
         <span className="text-sm font-medium">{t('agents.platform.label')}</span>
         <Segmented<Platform> label={t('agents.platform.label')} value={platform} onChange={setPlatform}
           options={[{ value: 'linux', label: t('agents.platform.linux') }, { value: 'windows', label: t('agents.platform.windows') }]} />
-        <p className="text-[13px] text-muted">{t('agents.serverOnly')}</p>
+        <p className="text-meta text-muted">{t('agents.serverOnly')}</p>
       </div>
       <div className="grid gap-1.5">
         <div className="flex items-center gap-1">
@@ -156,14 +156,14 @@ export function InstallPanel({ data, token }: { data: AgentsResponse; token: str
             {platform === 'windows' ? <p>{t('agents.install.windowsWhy')}</p> : null}
           </InfoTip>
         </div>
-        <p className="text-[13px] text-muted">{t(`agents.install.${platform}How`)}</p>
+        <p className="text-meta text-muted">{t(`agents.install.${platform}How`)}</p>
         {packages.length ? null : <Notice tone="warn" role="status" className="mb-0" title={t('agents.download.none')} info={t('agents.download.noneInfo')} />}
         <CodeBlock label={t(`agents.install.${platform}Label`)} code={one(box, inst.sha256, token)} />
-        <p className="text-[13px]"><span className="font-medium">{t('agents.install.sha')}:</span> <code className="break-all font-mono text-[12.5px]">{inst.sha256}</code></p>
+        <p className="text-meta"><span className="font-medium">{t('agents.install.sha')}:</span> <code className="break-all font-mono text-meta">{inst.sha256}</code></p>
       </div>
       <details className="rounded-md border border-rule p-3">
         <summary className="cursor-pointer text-sm font-medium">{t('agents.install.readFirst')}</summary>
-        <p className="my-2 text-[13px] text-muted">{t('agents.install.readFirstBody')}</p>
+        <p className="my-2 text-meta text-muted">{t('agents.install.readFirstBody')}</p>
         <CodeBlock label={inst.url} code={inst.script} />
       </details>
       {packages.length ? <Downloads packages={packages} /> : null}
@@ -171,12 +171,12 @@ export function InstallPanel({ data, token }: { data: AgentsResponse; token: str
         <p className="text-sm font-medium">{t('agents.install.uninstall')}</p>
         <CodeBlock label={t(`agents.install.${platform}Label`)} code={one(box, inst.sha256, token, 'uninstall')} />
       </div>
-      <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{t('agents.install.security')}</p><InfoTip>{t('agents.install.securityInfo')}</InfoTip></div>
+      <div className="flex items-center gap-1"><p className="text-meta text-muted">{t('agents.install.security')}</p><InfoTip>{t('agents.install.securityInfo')}</InfoTip></div>
       <details className="rounded-md border border-rule p-3">
         <summary className="cursor-pointer text-sm font-medium">{t('agents.install.advanced')}</summary>
         <div className="mt-3 grid min-w-0 gap-4 [&>*]:min-w-0">
           <div className="flex items-center gap-1">
-            <p className="text-[13px] text-muted">{t('agents.install.advancedBody')}</p>
+            <p className="text-meta text-muted">{t('agents.install.advancedBody')}</p>
             <InfoTip topic={t('agents.install.advanced')}><p>{t('agents.install.advancedBodyInfo')}</p><p>{t('agents.fingerprint')}</p><p>{t('agents.ownPaths')}</p></InfoTip>
           </div>
           <Steps items={osquerySteps(platform, box, token, packages)} ns={`agents.steps.${platform}`} />
@@ -185,7 +185,7 @@ export function InstallPanel({ data, token }: { data: AgentsResponse; token: str
               <p className="text-sm font-medium">{t('agents.install.queries')}</p>
               <InfoTip topic={t('agents.install.queries')}><p>{t('agents.install.queriesBodyInfo')}</p><p>{t('agents.install.queriesBodyInfo2')}</p></InfoTip>
             </div>
-            <p className="text-[13px] text-muted">{t('agents.install.queriesBody')}</p>
+            <p className="text-meta text-muted">{t('agents.install.queriesBody')}</p>
             <CodeBlock label="schedule" code={OSQUERY_SCHEDULE} />
           </div>
         </div>
@@ -284,7 +284,7 @@ export function WazuhForm({ current, onSaved }: { current: WazuhConnection | nul
         <div className="grid min-w-0 gap-4 [&>*]:min-w-0">
           <details className="rounded-md border border-rule p-3" open={!current}>
             <summary className="cursor-pointer text-sm font-medium">{t('agents.wazuh.stepsTitle')}</summary>
-            <div className="my-2 flex items-center gap-1"><p className="text-[13px] text-muted">{t('agents.wazuh.stepsBody')}</p><InfoTip topic={t('agents.wazuh.stepsTitle')}>{t('agents.wazuh.stepsBodyInfo')}</InfoTip></div>
+            <div className="my-2 flex items-center gap-1"><p className="text-meta text-muted">{t('agents.wazuh.stepsBody')}</p><InfoTip topic={t('agents.wazuh.stepsTitle')}>{t('agents.wazuh.stepsBodyInfo')}</InfoTip></div>
             <Steps items={wazuhReaderSteps()} ns="agents.wazuh.steps" />
           </details>
           <form onSubmit={submit} className="grid gap-4" noValidate>
@@ -318,17 +318,17 @@ function WazuhCard({ w }: { w: WazuhConnection | null }) {
     <div className="grid gap-3 rounded-md border border-rule bg-surface p-4">
       <div className="grid gap-1">
         <div className="flex items-center gap-1"><h3 className="text-sm font-semibold">{t('agents.wazuh.title')}</h3><InfoTip topic={t('agents.wazuh.title')}>{t('agents.wazuh.introInfo')}</InfoTip></div>
-        <p className="max-w-3xl text-[13px] text-muted">{t('agents.wazuh.intro')}</p>
+        <p className="max-w-3xl text-meta text-muted">{t('agents.wazuh.intro')}</p>
       </div>
       {w ? (
         <>
           <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
-            <dt className="text-[13px] text-muted">{t('agents.wazuh.url')}</dt><dd className="[overflow-wrap:anywhere]">{w.url}</dd>
-            <dt className="text-[13px] text-muted">{t('agents.wazuh.username')}</dt><dd>{w.username}, {t('agents.tokenMask', { last4: w.password_last4 })}</dd>
-            <dt className="text-[13px] text-muted">{t('agents.wazuh.interval')}</dt><dd>{t(`agents.wazuh.intervalOption.${w.interval_minutes}`)}</dd>
-            <dt className="text-[13px] text-muted">{t('agents.wazuh.statusLabel')}</dt>
+            <dt className="text-meta text-muted">{t('agents.wazuh.url')}</dt><dd className="[overflow-wrap:anywhere]">{w.url}</dd>
+            <dt className="text-meta text-muted">{t('agents.wazuh.username')}</dt><dd>{w.username}, {t('agents.tokenMask', { last4: w.password_last4 })}</dd>
+            <dt className="text-meta text-muted">{t('agents.wazuh.interval')}</dt><dd>{t(`agents.wazuh.intervalOption.${w.interval_minutes}`)}</dd>
+            <dt className="text-meta text-muted">{t('agents.wazuh.statusLabel')}</dt>
             <dd className="flex flex-wrap items-center gap-2"><Chip tone={w.status === 'connected' ? 'ok' : w.status === 'error' ? 'danger' : 'off'}>{t(`agents.wazuh.status.${w.status}`)}</Chip>
-              <span className="text-[13px] text-muted">{w.last_sync ? `${t('agents.wazuh.lastSync', { when: fmtRelative(w.last_sync) })}. ${t('agents.wazuh.summary', { agents: w.agents, packages: w.packages })}` : t('agents.wazuh.noSync')}</span></dd>
+              <span className="text-meta text-muted">{w.last_sync ? `${t('agents.wazuh.lastSync', { when: fmtRelative(w.last_sync) })}. ${t('agents.wazuh.summary', { agents: w.agents, packages: w.packages })}` : t('agents.wazuh.noSync')}</span></dd>
           </dl>
           {w.status === 'error' && w.error ? <p role="status" className="max-w-3xl text-sm text-danger">{w.error}</p> : null}
           <div className="flex flex-wrap gap-2">
@@ -394,7 +394,7 @@ export function AgentsSection() {
               <div className="grid min-w-0 gap-5 [&>*]:min-w-0">
                 <div className="grid gap-1">
                   <div className="flex items-center gap-1"><h3 className="text-sm font-semibold">{t('agents.osquery.title')}</h3><InfoTip topic={t('agents.osquery.title')}>{t('agents.osquery.introInfo')}</InfoTip></div>
-                  <p className="max-w-3xl text-[13px] text-muted">{t('agents.osquery.intro')}</p>
+                  <p className="max-w-3xl text-meta text-muted">{t('agents.osquery.intro')}</p>
                 </div>
                 {/* Item 26b: the packages are on the page itself (step 1), not only inside the token dialog; the token is step 2. */}
                 <div className="grid gap-1.5">
@@ -404,7 +404,7 @@ export function AgentsSection() {
                   </div>
                   {d.install.packages.length ? (
                     <>
-                      <p className="max-w-3xl text-[13px] text-muted">{t('agents.page.downloadBody', { version: d.install.osquery_version })}</p>
+                      <p className="max-w-3xl text-meta text-muted">{t('agents.page.downloadBody', { version: d.install.osquery_version })}</p>
                       <PackageTable packages={d.install.packages} />
                     </>
                   ) : <Notice tone="warn" role="status" className="mb-0 max-w-3xl" title={t('agents.page.none')} info={t('agents.page.noneInfo')} />}
@@ -413,7 +413,7 @@ export function AgentsSection() {
                   <div className="flex flex-wrap items-end justify-between gap-3">
                     <div className="grid gap-1">
                       <div className="flex items-center gap-1"><h4 className="text-sm font-medium">{t('agents.page.tokenTitle')}</h4><InfoTip topic={t('agents.page.tokenTitle')}>{t('agents.page.tokenBodyInfo')}</InfoTip></div>
-                      <p className="max-w-3xl text-[13px] text-muted">{t('agents.page.tokenBody')}</p>
+                      <p className="max-w-3xl text-meta text-muted">{t('agents.page.tokenBody')}</p>
                     </div>
                     <Button onClick={() => setCreating(true)}><Plus />{t('agents.create')}</Button>
                   </div>

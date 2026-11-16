@@ -44,7 +44,7 @@ export function JobProgress({ progress, className }: { progress: Progress | null
         {/* The live region holds the step and its note only: they change a few times per job, the time every second. */}
         <p aria-live="polite" aria-atomic="true" className="min-w-0 text-sm">
           <span className="font-medium">{step}</span>
-          {progress?.message ? <span className="block text-[13px] text-muted">{progress.message}</span> : null}
+          {progress?.message ? <span className="block text-meta text-muted">{progress.message}</span> : null}
         </p>
         {percent !== null ? <span aria-hidden className="shrink-0 text-sm tabular-nums text-muted">{t('percent', { percent })}</span> : null}
       </div>
@@ -61,7 +61,7 @@ export function JobProgress({ progress, className }: { progress: Progress | null
           ? <div data-indeterminate className="vp-job-indeterminate absolute inset-y-0 left-0 rounded-full bg-accent" />
           : <div className="h-full rounded-full bg-accent transition-[width] duration-700 ease-out" style={{ width: `${percent}%` }} />}
       </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[13px] text-muted tabular-nums">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-meta text-muted tabular-nums">
         {count ? <span className="text-ink">{count}</span> : null}
         {elapsed !== null ? <span>{t('elapsed', { time: sayDuration(t, elapsed) })}</span> : null}
         {left ? <span>{left}</span> : null}

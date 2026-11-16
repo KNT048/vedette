@@ -28,12 +28,12 @@ function Hearing({ sensor }: { sensor: Sensor }) {
   const st = sensor.span_status
   return (
     <dl className="grid gap-3 text-sm sm:grid-cols-2">
-      {sensor.capture_error ? <div className="sm:col-span-2"><dt className="text-[13px] text-muted">{t('sensors.capture.label')}</dt><dd className="text-warn">{t('sensors.capture.notCapturing')}: {t(`sensors.capture.${sensor.capture_error}`)}</dd></div> : null}
-      <div><dt className="text-[13px] text-muted">{t('sensors.interface')}</dt><dd className="font-medium">{sensor.interface ?? '–'}{sensor.span ? <span className="ml-2 text-[12px] font-normal text-muted">{t('sensors.spanOn')}</span> : null}</dd></div>
+      {sensor.capture_error ? <div className="sm:col-span-2"><dt className="text-meta text-muted">{t('sensors.capture.label')}</dt><dd className="text-warn">{t('sensors.capture.notCapturing')}: {t(`sensors.capture.${sensor.capture_error}`)}</dd></div> : null}
+      <div><dt className="text-meta text-muted">{t('sensors.interface')}</dt><dd className="font-medium">{sensor.interface ?? '–'}{sensor.span ? <span className="ml-2 text-caption font-normal text-muted">{t('sensors.spanOn')}</span> : null}</dd></div>
       {SPAN_IN_UI || sensor.span ? (
         <div>
-          <dt className="text-[13px] text-muted">{t('sensors.spanStatus')}</dt>
-          <dd className="grid gap-1"><Chip tone={VERDICT_TONE[st.verdict]}>{t(`sensors.verdict.${st.verdict}`)}</Chip>{st.verdict === 'ok' || st.verdict === 'own_only' ? <span className="text-[12px] text-muted">{t('sensors.rate', { pps: st.packets_per_s, macs: st.other_macs })}</span> : null}</dd>
+          <dt className="text-meta text-muted">{t('sensors.spanStatus')}</dt>
+          <dd className="grid gap-1"><Chip tone={VERDICT_TONE[st.verdict]}>{t(`sensors.verdict.${st.verdict}`)}</Chip>{st.verdict === 'ok' || st.verdict === 'own_only' ? <span className="text-caption text-muted">{t('sensors.rate', { pps: st.packets_per_s, macs: st.other_macs })}</span> : null}</dd>
         </div>
       ) : null}
     </dl>
@@ -105,7 +105,7 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
                     {cards.map((n) => <option key={n} value={n}>{sensor.interfaces.includes(n) ? n : t('sensors.card.notReported', { name: n })}</option>)}
                   </Select>
                 </Field>
-                {error && errorAt === 'card' ? <p role="alert" id="sensor-card-error" className="max-w-lg text-[13px] text-danger [overflow-wrap:anywhere]">{error}</p> : null}
+                {error && errorAt === 'card' ? <p role="alert" id="sensor-card-error" className="max-w-lg text-meta text-danger [overflow-wrap:anywhere]">{error}</p> : null}
               </div>
               {showSpan ? <div className="grid gap-1">
                 <div className="flex items-center gap-2">
@@ -113,9 +113,9 @@ function CardDialog({ sensor, onClose }: { sensor: Sensor; onClose: () => void }
                     aria-invalid={error && errorAt === 'span' ? true : undefined} aria-describedby={error && errorAt === 'span' ? 'sensor-span-error sensor-span-hint' : 'sensor-span-hint'} />
                   <Label htmlFor="sensor-span" className="font-normal">{t('sensors.card.span')}</Label>
                 </div>
-                {error && errorAt === 'span' ? <p role="alert" id="sensor-span-error" className="max-w-lg text-[13px] text-danger [overflow-wrap:anywhere]">{error}</p> : null}
+                {error && errorAt === 'span' ? <p role="alert" id="sensor-span-error" className="max-w-lg text-meta text-danger [overflow-wrap:anywhere]">{error}</p> : null}
                 {/* "Automatic" is whatever card the sensor takes by itself: SPAN is a property of one named card, so the tick waits for one (D-393). */}
-                <p id="sensor-span-hint" className="max-w-lg text-[13px] text-muted">{(!SPAN_IN_UI ? t('sensors.card.spanKept', { name: sensor.interface ?? '' }) : t(card === '' ? 'sensors.card.spanNeedsCard' : 'sensors.card.spanHint'))}</p>
+                <p id="sensor-span-hint" className="max-w-lg text-meta text-muted">{(!SPAN_IN_UI ? t('sensors.card.spanKept', { name: sensor.interface ?? '' }) : t(card === '' ? 'sensors.card.spanNeedsCard' : 'sensors.card.spanHint'))}</p>
               </div> : null}
               {error && errorAt === 'form' ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
               <DialogFooter>
@@ -139,15 +139,15 @@ export function SensorsSection() {
   const config = q.data?.sensors.find((s) => s.id === configId) // live: a heartbeat that arrives while the dialog is open shows in it
   const columns: ColumnDef<Sensor>[] = [
     { id: 'name', header: t('sensors.col.name'), accessorFn: (s) => s.name, cell: ({ row }) => <span className="font-medium">{row.original.name}</span> },
-    { id: 'iface', header: t('sensors.col.interface'), accessorFn: (s) => s.interface ?? '', cell: ({ row }) => row.original.interface ? <span>{row.original.interface}{row.original.span ? <span className="ml-2 text-[12px] text-muted">{t('sensors.spanOn')}</span> : null}</span> : <span className="text-muted">–</span> },
+    { id: 'iface', header: t('sensors.col.interface'), accessorFn: (s) => s.interface ?? '', cell: ({ row }) => row.original.interface ? <span>{row.original.interface}{row.original.span ? <span className="ml-2 text-caption text-muted">{t('sensors.spanOn')}</span> : null}</span> : <span className="text-muted">–</span> },
     { id: 'status', header: t('sensors.col.status'), accessorFn: (s) => s.status, cell: ({ row }) => (
       <div className="grid gap-0.5">
         {row.original.capture_error
-          ? <><Chip tone="warn">{t('sensors.capture.notCapturing')}</Chip><span className="max-w-xs text-[12px] text-warn">{t(`sensors.capture.${row.original.capture_error}`)}</span></>
+          ? <><Chip tone="warn">{t('sensors.capture.notCapturing')}</Chip><span className="max-w-xs text-caption text-warn">{t(`sensors.capture.${row.original.capture_error}`)}</span></>
           : <Chip tone={TONE[row.original.status]}>{t(`sensors.status.${row.original.status}`)}</Chip>}
-        {row.original.last_seen ? <span className="text-[12px] text-muted">{t('sensors.lastSeen', { when: fmtRelative(row.original.last_seen) })}</span> : null}
-        {row.original.status === 'never_connected' && install ? <span className="flex max-w-xs items-center gap-1 text-[12px] text-muted">{t(install === 'container' ? 'sensors.startHint' : 'sensors.notStartedHint')}{install === 'container' ? null : <InfoTip>{t('sensors.notStartedHintInfo')}</InfoTip>}</span> : null}
-        {row.original.status === 'starting' ? <span className="max-w-xs text-[12px] text-muted">{t('sensors.startingHint')}</span> : null}
+        {row.original.last_seen ? <span className="text-caption text-muted">{t('sensors.lastSeen', { when: fmtRelative(row.original.last_seen) })}</span> : null}
+        {row.original.status === 'never_connected' && install ? <span className="flex max-w-xs items-center gap-1 text-caption text-muted">{t(install === 'container' ? 'sensors.startHint' : 'sensors.notStartedHint')}{install === 'container' ? null : <InfoTip>{t('sensors.notStartedHintInfo')}</InfoTip>}</span> : null}
+        {row.original.status === 'starting' ? <span className="max-w-xs text-caption text-muted">{t('sensors.startingHint')}</span> : null}
       </div>
     ) },
     { id: 'seen', header: t('sensors.col.devices'), accessorFn: (s) => s.devices_seen },

@@ -86,13 +86,13 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
     { id: 'expires', header: t('col.expires'), accessorFn: (r) => r.expires_at, cell: ({ row }) => dateText(row.original.expires_at) },
     { id: 'left', header: t('col.left'), accessorFn: (r) => daysLeft(r.expires_at), cell: ({ row }) => {
       const d = daysLeft(row.original.expires_at)
-      return d < 0 ? <Chip tone="danger">{t('cert.expired')}</Chip> : d <= 14 ? <Chip tone="danger">{t('cert.left', { count: d })}</Chip> : d <= CERT_WARN_DAYS ? <Chip tone="warn">{t('cert.left', { count: d })}</Chip> : <span className="text-[13px] text-muted">{t('cert.left', { count: d })}</span>
+      return d < 0 ? <Chip tone="danger">{t('cert.expired')}</Chip> : d <= 14 ? <Chip tone="danger">{t('cert.left', { count: d })}</Chip> : d <= CERT_WARN_DAYS ? <Chip tone="warn">{t('cert.left', { count: d })}</Chip> : <span className="text-meta text-muted">{t('cert.left', { count: d })}</span>
     } },
   ]
   return (
     <div className="grid gap-8">
       <Panel className="p-4">
-        <div className="mb-3 flex flex-wrap items-center gap-x-2 text-[13px] text-muted">
+        <div className="mb-3 flex flex-wrap items-center gap-x-2 text-meta text-muted">
           <SourceBadge source="nmap" at={s.scanned_at} />
           <InfoTip topic={t('results.scopeTopic')}><p>{t(!target.full_scan ? 'results.scopeBasic' : target.kind === 'domain' ? 'results.scopeDeepDomain' : 'results.scopeDeepIp')}</p><p>{t('results.sourceNote')}</p></InfoTip>
         </div>

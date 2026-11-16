@@ -34,7 +34,7 @@ export function RemoveDialog({ target, onClose, onDone }: { target: Target | nul
                 <Label htmlFor="box-ignore" className="font-normal">{t('boxIp.remove.ignoreLabel')}</Label>
                 <InfoTip topic={t('boxIp.remove.ignoreLabel')}>{ignore ? t('boxIp.remove.ignoreOnInfo') : t('boxIp.remove.ignoreOffInfo')}</InfoTip>
               </div>
-              <p id="box-ignore-hint" className="text-[13px] text-muted">{ignore ? t('boxIp.remove.ignoreOn') : t('boxIp.remove.ignoreOff')}</p>
+              <p id="box-ignore-hint" className="text-meta text-muted">{ignore ? t('boxIp.remove.ignoreOn') : t('boxIp.remove.ignoreOff')}</p>
             </div>
           </div>
           <DialogFooter>

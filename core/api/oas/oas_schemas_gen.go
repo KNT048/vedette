@@ -43773,6 +43773,9 @@ type ExposureGetExposureGreenboneOK struct {
 	ChangedBy NilString `json:"changed_by"`
 	// The stored switch; the page offers Turn off whenever it is true.
 	Enabled bool `json:"enabled"`
+	// The feed OpenVAS itself has loaded (T10): there from the first feed load at enable on; null while it
+	// is off or unavailable, and until Vedette has read it since the box started.
+	Feed NilExposureGetExposureGreenboneOKFeed `json:"feed"`
 	// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
 	// below 60 GB free, audited.
 	FeedSync  ExposureGetExposureGreenboneOKFeedSync  `json:"feed_sync"`
@@ -43797,6 +43800,11 @@ func (s *ExposureGetExposureGreenboneOK) GetChangedBy() NilString {
 // GetEnabled returns the value of Enabled.
 func (s *ExposureGetExposureGreenboneOK) GetEnabled() bool {
 	return s.Enabled
+}
+
+// GetFeed returns the value of Feed.
+func (s *ExposureGetExposureGreenboneOK) GetFeed() NilExposureGetExposureGreenboneOKFeed {
+	return s.Feed
 }
 
 // GetFeedSync returns the value of FeedSync.
@@ -43834,6 +43842,11 @@ func (s *ExposureGetExposureGreenboneOK) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
+// SetFeed sets the value of Feed.
+func (s *ExposureGetExposureGreenboneOK) SetFeed(val NilExposureGetExposureGreenboneOKFeed) {
+	s.Feed = val
+}
+
 // SetFeedSync sets the value of FeedSync.
 func (s *ExposureGetExposureGreenboneOK) SetFeedSync(val ExposureGetExposureGreenboneOKFeedSync) {
 	s.FeedSync = val
@@ -43852,6 +43865,47 @@ func (s *ExposureGetExposureGreenboneOK) SetReason(val NilString) {
 // SetState sets the value of State.
 func (s *ExposureGetExposureGreenboneOK) SetState(val ExposureGetExposureGreenboneOKState) {
 	s.State = val
+}
+
+type ExposureGetExposureGreenboneOKFeed struct {
+	// When Vedette last read it from OpenVAS.
+	CheckedAt time.Time `json:"checked_at"`
+	// When that feed was built (UTC), read from its version; null when the version is not of the form
+	// YYYYMMDDhhmm.
+	NvtDate NilDateTime `json:"nvt_date"`
+	// Version of the vulnerability tests (NVT feed) OpenVAS reports in GMP get_feeds, e.g. "202611140611";
+	// null when it gave none or one Vedette does not show.
+	NvtVersion NilString `json:"nvt_version"`
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *ExposureGetExposureGreenboneOKFeed) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetNvtDate returns the value of NvtDate.
+func (s *ExposureGetExposureGreenboneOKFeed) GetNvtDate() NilDateTime {
+	return s.NvtDate
+}
+
+// GetNvtVersion returns the value of NvtVersion.
+func (s *ExposureGetExposureGreenboneOKFeed) GetNvtVersion() NilString {
+	return s.NvtVersion
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *ExposureGetExposureGreenboneOKFeed) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetNvtDate sets the value of NvtDate.
+func (s *ExposureGetExposureGreenboneOKFeed) SetNvtDate(val NilDateTime) {
+	s.NvtDate = val
+}
+
+// SetNvtVersion sets the value of NvtVersion.
+func (s *ExposureGetExposureGreenboneOKFeed) SetNvtVersion(val NilString) {
+	s.NvtVersion = val
 }
 
 // The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
@@ -44041,10 +44095,10 @@ type ExposureGetExposureScanOK struct {
 	Error      NilExposureGetExposureScanOKError `json:"error"`
 	FinishedAt NilDateTime                       `json:"finished_at"`
 	ID         string                            `json:"id"`
-	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-	// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-	// the snapshot exists. A failed or stopped run keeps the phase it reached.
+	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+	// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+	// snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposureGetExposureScanOKPhase `json:"phase"`
 	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
@@ -44207,10 +44261,10 @@ func (s *ExposureGetExposureScanOKError) SetMessage(val string) {
 	s.Message = val
 }
 
-// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-// the snapshot exists. A failed or stopped run keeps the phase it reached.
+// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+// snapshot exists. A failed or stopped run keeps the phase it reached.
 type ExposureGetExposureScanOKPhase string
 
 const (
@@ -50358,10 +50412,10 @@ type ExposurePostExposureScanStopOK struct {
 	Error      NilExposurePostExposureScanStopOKError `json:"error"`
 	FinishedAt NilDateTime                            `json:"finished_at"`
 	ID         string                                 `json:"id"`
-	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-	// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-	// the snapshot exists. A failed or stopped run keeps the phase it reached.
+	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+	// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+	// snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposurePostExposureScanStopOKPhase `json:"phase"`
 	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
@@ -50524,10 +50578,10 @@ func (s *ExposurePostExposureScanStopOKError) SetMessage(val string) {
 	s.Message = val
 }
 
-// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-// the snapshot exists. A failed or stopped run keeps the phase it reached.
+// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+// snapshot exists. A failed or stopped run keeps the phase it reached.
 type ExposurePostExposureScanStopOKPhase string
 
 const (
@@ -51911,10 +51965,10 @@ type ExposurePostExposureTargetsIDScanAccepted struct {
 	Error      NilExposurePostExposureTargetsIDScanAcceptedError `json:"error"`
 	FinishedAt NilDateTime                                       `json:"finished_at"`
 	ID         string                                            `json:"id"`
-	// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-	// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-	// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-	// the snapshot exists. A failed or stopped run keeps the phase it reached.
+	// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+	// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+	// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+	// snapshot exists. A failed or stopped run keeps the phase it reached.
 	Phase ExposurePostExposureTargetsIDScanAcceptedPhase `json:"phase"`
 	// How far the step that runs now is (#830): the port scan, service detection and vulnerability checks
 	// as the scan worker reports them, the passive web checks, and OpenVAS's own percent during the
@@ -52077,10 +52131,10 @@ func (s *ExposurePostExposureTargetsIDScanAcceptedError) SetMessage(val string) 
 	s.Message = val
 }
 
-// Queued: accepted, about to start; probing: the Vulnerability scans module is scanning the target;
-// saving: the result is being stored; greenbone: the snapshot of the other steps is stored and the
-// optional Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done:
-// the snapshot exists. A failed or stopped run keeps the phase it reached.
+// Queued: accepted, about to start; probing: the scan module's runner is scanning the target; saving:
+// the result is being stored; greenbone: the snapshot of the other steps is stored and the optional
+// Greenbone scan runs (up to 90 minutes, D-563), the box's one scan slot stays busy; done: the
+// snapshot exists. A failed or stopped run keeps the phase it reached.
 type ExposurePostExposureTargetsIDScanAcceptedPhase string
 
 const (
@@ -53509,6 +53563,9 @@ type ExposurePutExposureGreenboneOK struct {
 	ChangedBy NilString `json:"changed_by"`
 	// The stored switch; the page offers Turn off whenever it is true.
 	Enabled bool `json:"enabled"`
+	// The feed OpenVAS itself has loaded (T10): there from the first feed load at enable on; null while it
+	// is off or unavailable, and until Vedette has read it since the box started.
+	Feed NilExposurePutExposureGreenboneOKFeed `json:"feed"`
 	// The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
 	// below 60 GB free, audited.
 	FeedSync  ExposurePutExposureGreenboneOKFeedSync  `json:"feed_sync"`
@@ -53533,6 +53590,11 @@ func (s *ExposurePutExposureGreenboneOK) GetChangedBy() NilString {
 // GetEnabled returns the value of Enabled.
 func (s *ExposurePutExposureGreenboneOK) GetEnabled() bool {
 	return s.Enabled
+}
+
+// GetFeed returns the value of Feed.
+func (s *ExposurePutExposureGreenboneOK) GetFeed() NilExposurePutExposureGreenboneOKFeed {
+	return s.Feed
 }
 
 // GetFeedSync returns the value of FeedSync.
@@ -53570,6 +53632,11 @@ func (s *ExposurePutExposureGreenboneOK) SetEnabled(val bool) {
 	s.Enabled = val
 }
 
+// SetFeed sets the value of Feed.
+func (s *ExposurePutExposureGreenboneOK) SetFeed(val NilExposurePutExposureGreenboneOKFeed) {
+	s.Feed = val
+}
+
 // SetFeedSync sets the value of FeedSync.
 func (s *ExposurePutExposureGreenboneOK) SetFeedSync(val ExposurePutExposureGreenboneOKFeedSync) {
 	s.FeedSync = val
@@ -53588,6 +53655,47 @@ func (s *ExposurePutExposureGreenboneOK) SetReason(val NilString) {
 // SetState sets the value of State.
 func (s *ExposurePutExposureGreenboneOK) SetState(val ExposurePutExposureGreenboneOKState) {
 	s.State = val
+}
+
+type ExposurePutExposureGreenboneOKFeed struct {
+	// When Vedette last read it from OpenVAS.
+	CheckedAt time.Time `json:"checked_at"`
+	// When that feed was built (UTC), read from its version; null when the version is not of the form
+	// YYYYMMDDhhmm.
+	NvtDate NilDateTime `json:"nvt_date"`
+	// Version of the vulnerability tests (NVT feed) OpenVAS reports in GMP get_feeds, e.g. "202611140611";
+	// null when it gave none or one Vedette does not show.
+	NvtVersion NilString `json:"nvt_version"`
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *ExposurePutExposureGreenboneOKFeed) GetCheckedAt() time.Time {
+	return s.CheckedAt
+}
+
+// GetNvtDate returns the value of NvtDate.
+func (s *ExposurePutExposureGreenboneOKFeed) GetNvtDate() NilDateTime {
+	return s.NvtDate
+}
+
+// GetNvtVersion returns the value of NvtVersion.
+func (s *ExposurePutExposureGreenboneOKFeed) GetNvtVersion() NilString {
+	return s.NvtVersion
+}
+
+// SetCheckedAt sets the value of CheckedAt.
+func (s *ExposurePutExposureGreenboneOKFeed) SetCheckedAt(val time.Time) {
+	s.CheckedAt = val
+}
+
+// SetNvtDate sets the value of NvtDate.
+func (s *ExposurePutExposureGreenboneOKFeed) SetNvtDate(val NilDateTime) {
+	s.NvtDate = val
+}
+
+// SetNvtVersion sets the value of NvtVersion.
+func (s *ExposurePutExposureGreenboneOKFeed) SetNvtVersion(val NilString) {
+	s.NvtVersion = val
 }
 
 // The weekly update of Greenbone's feed while it is enabled (D-564): never during a scan, refused
@@ -61834,8 +61942,10 @@ type FindingsGetFindingsIDOK struct {
 	Compromise NilFindingsGetFindingsIDOKCompromise `json:"compromise"`
 	Confidence float64                              `json:"confidence"`
 	Cve        string                               `json:"cve"`
-	Evidence   NilFindingsGetFindingsIDOKEvidence   `json:"evidence"`
-	FirstSeen  time.Time                            `json:"first_seen"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss      NilFindingsGetFindingsIDOKCvss     `json:"cvss"`
+	Evidence  NilFindingsGetFindingsIDOKEvidence `json:"evidence"`
+	FirstSeen time.Time                          `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
 	// none to name.
 	Fix OptNilFindingsGetFindingsIDOKFix `json:"fix"`
@@ -61905,6 +62015,11 @@ func (s *FindingsGetFindingsIDOK) GetConfidence() float64 {
 // GetCve returns the value of Cve.
 func (s *FindingsGetFindingsIDOK) GetCve() string {
 	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsGetFindingsIDOK) GetCvss() NilFindingsGetFindingsIDOKCvss {
+	return s.Cvss
 }
 
 // GetEvidence returns the value of Evidence.
@@ -62030,6 +62145,11 @@ func (s *FindingsGetFindingsIDOK) SetConfidence(val float64) {
 // SetCve sets the value of Cve.
 func (s *FindingsGetFindingsIDOK) SetCve(val string) {
 	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsGetFindingsIDOK) SetCvss(val NilFindingsGetFindingsIDOKCvss) {
+	s.Cvss = val
 }
 
 // SetEvidence sets the value of Evidence.
@@ -63489,6 +63609,163 @@ func (s *FindingsGetFindingsIDOKCompromiseIndicatorsItemKind) UnmarshalText(data
 		return nil
 	case FindingsGetFindingsIDOKCompromiseIndicatorsItemKindProcess:
 		*s = FindingsGetFindingsIDOKCompromiseIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsGetFindingsIDOKCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsGetFindingsIDOKCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsGetFindingsIDOKCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsGetFindingsIDOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsIDOKCvss) GetSource() FindingsGetFindingsIDOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsGetFindingsIDOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsIDOKCvss) GetVersion() FindingsGetFindingsIDOKCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsGetFindingsIDOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsIDOKCvss) SetSource(val FindingsGetFindingsIDOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsGetFindingsIDOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsIDOKCvss) SetVersion(val FindingsGetFindingsIDOKCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsGetFindingsIDOKCvssSource string
+
+const (
+	FindingsGetFindingsIDOKCvssSourceNvd FindingsGetFindingsIDOKCvssSource = "nvd"
+	FindingsGetFindingsIDOKCvssSourceCna FindingsGetFindingsIDOKCvssSource = "cna"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKCvssSource values.
+func (FindingsGetFindingsIDOKCvssSource) AllValues() []FindingsGetFindingsIDOKCvssSource {
+	return []FindingsGetFindingsIDOKCvssSource{
+		FindingsGetFindingsIDOKCvssSourceNvd,
+		FindingsGetFindingsIDOKCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKCvssSource(data) {
+	case FindingsGetFindingsIDOKCvssSourceNvd:
+		*s = FindingsGetFindingsIDOKCvssSourceNvd
+		return nil
+	case FindingsGetFindingsIDOKCvssSourceCna:
+		*s = FindingsGetFindingsIDOKCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsGetFindingsIDOKCvssVersion string
+
+const (
+	FindingsGetFindingsIDOKCvssVersion40 FindingsGetFindingsIDOKCvssVersion = "4.0"
+	FindingsGetFindingsIDOKCvssVersion31 FindingsGetFindingsIDOKCvssVersion = "3.1"
+	FindingsGetFindingsIDOKCvssVersion30 FindingsGetFindingsIDOKCvssVersion = "3.0"
+	FindingsGetFindingsIDOKCvssVersion20 FindingsGetFindingsIDOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsGetFindingsIDOKCvssVersion values.
+func (FindingsGetFindingsIDOKCvssVersion) AllValues() []FindingsGetFindingsIDOKCvssVersion {
+	return []FindingsGetFindingsIDOKCvssVersion{
+		FindingsGetFindingsIDOKCvssVersion40,
+		FindingsGetFindingsIDOKCvssVersion31,
+		FindingsGetFindingsIDOKCvssVersion30,
+		FindingsGetFindingsIDOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsIDOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsIDOKCvssVersion40:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKCvssVersion31:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsGetFindingsIDOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsIDOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsIDOKCvssVersion(data) {
+	case FindingsGetFindingsIDOKCvssVersion40:
+		*s = FindingsGetFindingsIDOKCvssVersion40
+		return nil
+	case FindingsGetFindingsIDOKCvssVersion31:
+		*s = FindingsGetFindingsIDOKCvssVersion31
+		return nil
+	case FindingsGetFindingsIDOKCvssVersion30:
+		*s = FindingsGetFindingsIDOKCvssVersion30
+		return nil
+	case FindingsGetFindingsIDOKCvssVersion20:
+		*s = FindingsGetFindingsIDOKCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -65037,11 +65314,13 @@ type FindingsGetFindingsOKItemsItem struct {
 	AssetID       string                                 `json:"asset_id"`
 	// Scan = confirmed by a scan template; version = suspected by version; product = only the product
 	// matches.
-	Basis      FindingsGetFindingsOKItemsItemBasis       `json:"basis"`
-	Confidence float64                                   `json:"confidence"`
-	Cve        string                                    `json:"cve"`
-	Evidence   NilFindingsGetFindingsOKItemsItemEvidence `json:"evidence"`
-	FirstSeen  time.Time                                 `json:"first_seen"`
+	Basis      FindingsGetFindingsOKItemsItemBasis `json:"basis"`
+	Confidence float64                             `json:"confidence"`
+	Cve        string                              `json:"cve"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss      NilFindingsGetFindingsOKItemsItemCvss     `json:"cvss"`
+	Evidence  NilFindingsGetFindingsOKItemsItemEvidence `json:"evidence"`
+	FirstSeen time.Time                                 `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
 	// none to name.
 	Fix     OptNilFindingsGetFindingsOKItemsItemFix     `json:"fix"`
@@ -65085,6 +65364,11 @@ func (s *FindingsGetFindingsOKItemsItem) GetConfidence() float64 {
 // GetCve returns the value of Cve.
 func (s *FindingsGetFindingsOKItemsItem) GetCve() string {
 	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsGetFindingsOKItemsItem) GetCvss() NilFindingsGetFindingsOKItemsItemCvss {
+	return s.Cvss
 }
 
 // GetEvidence returns the value of Evidence.
@@ -65175,6 +65459,11 @@ func (s *FindingsGetFindingsOKItemsItem) SetConfidence(val float64) {
 // SetCve sets the value of Cve.
 func (s *FindingsGetFindingsOKItemsItem) SetCve(val string) {
 	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsGetFindingsOKItemsItem) SetCvss(val NilFindingsGetFindingsOKItemsItemCvss) {
+	s.Cvss = val
 }
 
 // SetEvidence sets the value of Evidence.
@@ -66003,6 +66292,163 @@ func (s *FindingsGetFindingsOKItemsItemBasis) UnmarshalText(data []byte) error {
 		return nil
 	case FindingsGetFindingsOKItemsItemBasisProduct:
 		*s = FindingsGetFindingsOKItemsItemBasisProduct
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsGetFindingsOKItemsItemCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsGetFindingsOKItemsItemCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsGetFindingsOKItemsItemCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsGetFindingsOKItemsItemCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsGetFindingsOKItemsItemCvss) GetSource() FindingsGetFindingsOKItemsItemCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsGetFindingsOKItemsItemCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsGetFindingsOKItemsItemCvss) GetVersion() FindingsGetFindingsOKItemsItemCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsGetFindingsOKItemsItemCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsGetFindingsOKItemsItemCvss) SetSource(val FindingsGetFindingsOKItemsItemCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsGetFindingsOKItemsItemCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsGetFindingsOKItemsItemCvss) SetVersion(val FindingsGetFindingsOKItemsItemCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsGetFindingsOKItemsItemCvssSource string
+
+const (
+	FindingsGetFindingsOKItemsItemCvssSourceNvd FindingsGetFindingsOKItemsItemCvssSource = "nvd"
+	FindingsGetFindingsOKItemsItemCvssSourceCna FindingsGetFindingsOKItemsItemCvssSource = "cna"
+)
+
+// AllValues returns all FindingsGetFindingsOKItemsItemCvssSource values.
+func (FindingsGetFindingsOKItemsItemCvssSource) AllValues() []FindingsGetFindingsOKItemsItemCvssSource {
+	return []FindingsGetFindingsOKItemsItemCvssSource{
+		FindingsGetFindingsOKItemsItemCvssSourceNvd,
+		FindingsGetFindingsOKItemsItemCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOKItemsItemCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOKItemsItemCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOKItemsItemCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOKItemsItemCvssSource(data) {
+	case FindingsGetFindingsOKItemsItemCvssSourceNvd:
+		*s = FindingsGetFindingsOKItemsItemCvssSourceNvd
+		return nil
+	case FindingsGetFindingsOKItemsItemCvssSourceCna:
+		*s = FindingsGetFindingsOKItemsItemCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsGetFindingsOKItemsItemCvssVersion string
+
+const (
+	FindingsGetFindingsOKItemsItemCvssVersion40 FindingsGetFindingsOKItemsItemCvssVersion = "4.0"
+	FindingsGetFindingsOKItemsItemCvssVersion31 FindingsGetFindingsOKItemsItemCvssVersion = "3.1"
+	FindingsGetFindingsOKItemsItemCvssVersion30 FindingsGetFindingsOKItemsItemCvssVersion = "3.0"
+	FindingsGetFindingsOKItemsItemCvssVersion20 FindingsGetFindingsOKItemsItemCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsGetFindingsOKItemsItemCvssVersion values.
+func (FindingsGetFindingsOKItemsItemCvssVersion) AllValues() []FindingsGetFindingsOKItemsItemCvssVersion {
+	return []FindingsGetFindingsOKItemsItemCvssVersion{
+		FindingsGetFindingsOKItemsItemCvssVersion40,
+		FindingsGetFindingsOKItemsItemCvssVersion31,
+		FindingsGetFindingsOKItemsItemCvssVersion30,
+		FindingsGetFindingsOKItemsItemCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsOKItemsItemCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsOKItemsItemCvssVersion40:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemCvssVersion31:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemCvssVersion30:
+		return []byte(s), nil
+	case FindingsGetFindingsOKItemsItemCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsOKItemsItemCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOKItemsItemCvssVersion(data) {
+	case FindingsGetFindingsOKItemsItemCvssVersion40:
+		*s = FindingsGetFindingsOKItemsItemCvssVersion40
+		return nil
+	case FindingsGetFindingsOKItemsItemCvssVersion31:
+		*s = FindingsGetFindingsOKItemsItemCvssVersion31
+		return nil
+	case FindingsGetFindingsOKItemsItemCvssVersion30:
+		*s = FindingsGetFindingsOKItemsItemCvssVersion30
+		return nil
+	case FindingsGetFindingsOKItemsItemCvssVersion20:
+		*s = FindingsGetFindingsOKItemsItemCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -68208,8 +68654,10 @@ type FindingsPostFindingsIDAiOK struct {
 	Compromise NilFindingsPostFindingsIDAiOKCompromise `json:"compromise"`
 	Confidence float64                                 `json:"confidence"`
 	Cve        string                                  `json:"cve"`
-	Evidence   NilFindingsPostFindingsIDAiOKEvidence   `json:"evidence"`
-	FirstSeen  time.Time                               `json:"first_seen"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss      NilFindingsPostFindingsIDAiOKCvss     `json:"cvss"`
+	Evidence  NilFindingsPostFindingsIDAiOKEvidence `json:"evidence"`
+	FirstSeen time.Time                             `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
 	// none to name.
 	Fix OptNilFindingsPostFindingsIDAiOKFix `json:"fix"`
@@ -68279,6 +68727,11 @@ func (s *FindingsPostFindingsIDAiOK) GetConfidence() float64 {
 // GetCve returns the value of Cve.
 func (s *FindingsPostFindingsIDAiOK) GetCve() string {
 	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsPostFindingsIDAiOK) GetCvss() NilFindingsPostFindingsIDAiOKCvss {
+	return s.Cvss
 }
 
 // GetEvidence returns the value of Evidence.
@@ -68404,6 +68857,11 @@ func (s *FindingsPostFindingsIDAiOK) SetConfidence(val float64) {
 // SetCve sets the value of Cve.
 func (s *FindingsPostFindingsIDAiOK) SetCve(val string) {
 	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsPostFindingsIDAiOK) SetCvss(val NilFindingsPostFindingsIDAiOKCvss) {
+	s.Cvss = val
 }
 
 // SetEvidence sets the value of Evidence.
@@ -69863,6 +70321,163 @@ func (s *FindingsPostFindingsIDAiOKCompromiseIndicatorsItemKind) UnmarshalText(d
 		return nil
 	case FindingsPostFindingsIDAiOKCompromiseIndicatorsItemKindProcess:
 		*s = FindingsPostFindingsIDAiOKCompromiseIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsPostFindingsIDAiOKCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsPostFindingsIDAiOKCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsPostFindingsIDAiOKCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsPostFindingsIDAiOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAiOKCvss) GetSource() FindingsPostFindingsIDAiOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsPostFindingsIDAiOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDAiOKCvss) GetVersion() FindingsPostFindingsIDAiOKCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsPostFindingsIDAiOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAiOKCvss) SetSource(val FindingsPostFindingsIDAiOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsPostFindingsIDAiOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDAiOKCvss) SetVersion(val FindingsPostFindingsIDAiOKCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsPostFindingsIDAiOKCvssSource string
+
+const (
+	FindingsPostFindingsIDAiOKCvssSourceNvd FindingsPostFindingsIDAiOKCvssSource = "nvd"
+	FindingsPostFindingsIDAiOKCvssSourceCna FindingsPostFindingsIDAiOKCvssSource = "cna"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKCvssSource values.
+func (FindingsPostFindingsIDAiOKCvssSource) AllValues() []FindingsPostFindingsIDAiOKCvssSource {
+	return []FindingsPostFindingsIDAiOKCvssSource{
+		FindingsPostFindingsIDAiOKCvssSourceNvd,
+		FindingsPostFindingsIDAiOKCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKCvssSource(data) {
+	case FindingsPostFindingsIDAiOKCvssSourceNvd:
+		*s = FindingsPostFindingsIDAiOKCvssSourceNvd
+		return nil
+	case FindingsPostFindingsIDAiOKCvssSourceCna:
+		*s = FindingsPostFindingsIDAiOKCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsPostFindingsIDAiOKCvssVersion string
+
+const (
+	FindingsPostFindingsIDAiOKCvssVersion40 FindingsPostFindingsIDAiOKCvssVersion = "4.0"
+	FindingsPostFindingsIDAiOKCvssVersion31 FindingsPostFindingsIDAiOKCvssVersion = "3.1"
+	FindingsPostFindingsIDAiOKCvssVersion30 FindingsPostFindingsIDAiOKCvssVersion = "3.0"
+	FindingsPostFindingsIDAiOKCvssVersion20 FindingsPostFindingsIDAiOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsPostFindingsIDAiOKCvssVersion values.
+func (FindingsPostFindingsIDAiOKCvssVersion) AllValues() []FindingsPostFindingsIDAiOKCvssVersion {
+	return []FindingsPostFindingsIDAiOKCvssVersion{
+		FindingsPostFindingsIDAiOKCvssVersion40,
+		FindingsPostFindingsIDAiOKCvssVersion31,
+		FindingsPostFindingsIDAiOKCvssVersion30,
+		FindingsPostFindingsIDAiOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAiOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAiOKCvssVersion40:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKCvssVersion31:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAiOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAiOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAiOKCvssVersion(data) {
+	case FindingsPostFindingsIDAiOKCvssVersion40:
+		*s = FindingsPostFindingsIDAiOKCvssVersion40
+		return nil
+	case FindingsPostFindingsIDAiOKCvssVersion31:
+		*s = FindingsPostFindingsIDAiOKCvssVersion31
+		return nil
+	case FindingsPostFindingsIDAiOKCvssVersion30:
+		*s = FindingsPostFindingsIDAiOKCvssVersion30
+		return nil
+	case FindingsPostFindingsIDAiOKCvssVersion20:
+		*s = FindingsPostFindingsIDAiOKCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -71449,8 +72064,10 @@ type FindingsPostFindingsIDAppliedOK struct {
 	Compromise NilFindingsPostFindingsIDAppliedOKCompromise `json:"compromise"`
 	Confidence float64                                      `json:"confidence"`
 	Cve        string                                       `json:"cve"`
-	Evidence   NilFindingsPostFindingsIDAppliedOKEvidence   `json:"evidence"`
-	FirstSeen  time.Time                                    `json:"first_seen"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss      NilFindingsPostFindingsIDAppliedOKCvss     `json:"cvss"`
+	Evidence  NilFindingsPostFindingsIDAppliedOKEvidence `json:"evidence"`
+	FirstSeen time.Time                                  `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
 	// none to name.
 	Fix OptNilFindingsPostFindingsIDAppliedOKFix `json:"fix"`
@@ -71520,6 +72137,11 @@ func (s *FindingsPostFindingsIDAppliedOK) GetConfidence() float64 {
 // GetCve returns the value of Cve.
 func (s *FindingsPostFindingsIDAppliedOK) GetCve() string {
 	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsPostFindingsIDAppliedOK) GetCvss() NilFindingsPostFindingsIDAppliedOKCvss {
+	return s.Cvss
 }
 
 // GetEvidence returns the value of Evidence.
@@ -71645,6 +72267,11 @@ func (s *FindingsPostFindingsIDAppliedOK) SetConfidence(val float64) {
 // SetCve sets the value of Cve.
 func (s *FindingsPostFindingsIDAppliedOK) SetCve(val string) {
 	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsPostFindingsIDAppliedOK) SetCvss(val NilFindingsPostFindingsIDAppliedOKCvss) {
+	s.Cvss = val
 }
 
 // SetEvidence sets the value of Evidence.
@@ -73104,6 +73731,163 @@ func (s *FindingsPostFindingsIDAppliedOKCompromiseIndicatorsItemKind) UnmarshalT
 		return nil
 	case FindingsPostFindingsIDAppliedOKCompromiseIndicatorsItemKindProcess:
 		*s = FindingsPostFindingsIDAppliedOKCompromiseIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsPostFindingsIDAppliedOKCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsPostFindingsIDAppliedOKCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsPostFindingsIDAppliedOKCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsPostFindingsIDAppliedOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKCvss) GetSource() FindingsPostFindingsIDAppliedOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsPostFindingsIDAppliedOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDAppliedOKCvss) GetVersion() FindingsPostFindingsIDAppliedOKCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsPostFindingsIDAppliedOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDAppliedOKCvss) SetSource(val FindingsPostFindingsIDAppliedOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsPostFindingsIDAppliedOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDAppliedOKCvss) SetVersion(val FindingsPostFindingsIDAppliedOKCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsPostFindingsIDAppliedOKCvssSource string
+
+const (
+	FindingsPostFindingsIDAppliedOKCvssSourceNvd FindingsPostFindingsIDAppliedOKCvssSource = "nvd"
+	FindingsPostFindingsIDAppliedOKCvssSourceCna FindingsPostFindingsIDAppliedOKCvssSource = "cna"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKCvssSource values.
+func (FindingsPostFindingsIDAppliedOKCvssSource) AllValues() []FindingsPostFindingsIDAppliedOKCvssSource {
+	return []FindingsPostFindingsIDAppliedOKCvssSource{
+		FindingsPostFindingsIDAppliedOKCvssSourceNvd,
+		FindingsPostFindingsIDAppliedOKCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKCvssSource(data) {
+	case FindingsPostFindingsIDAppliedOKCvssSourceNvd:
+		*s = FindingsPostFindingsIDAppliedOKCvssSourceNvd
+		return nil
+	case FindingsPostFindingsIDAppliedOKCvssSourceCna:
+		*s = FindingsPostFindingsIDAppliedOKCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsPostFindingsIDAppliedOKCvssVersion string
+
+const (
+	FindingsPostFindingsIDAppliedOKCvssVersion40 FindingsPostFindingsIDAppliedOKCvssVersion = "4.0"
+	FindingsPostFindingsIDAppliedOKCvssVersion31 FindingsPostFindingsIDAppliedOKCvssVersion = "3.1"
+	FindingsPostFindingsIDAppliedOKCvssVersion30 FindingsPostFindingsIDAppliedOKCvssVersion = "3.0"
+	FindingsPostFindingsIDAppliedOKCvssVersion20 FindingsPostFindingsIDAppliedOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsPostFindingsIDAppliedOKCvssVersion values.
+func (FindingsPostFindingsIDAppliedOKCvssVersion) AllValues() []FindingsPostFindingsIDAppliedOKCvssVersion {
+	return []FindingsPostFindingsIDAppliedOKCvssVersion{
+		FindingsPostFindingsIDAppliedOKCvssVersion40,
+		FindingsPostFindingsIDAppliedOKCvssVersion31,
+		FindingsPostFindingsIDAppliedOKCvssVersion30,
+		FindingsPostFindingsIDAppliedOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDAppliedOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDAppliedOKCvssVersion40:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion31:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDAppliedOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDAppliedOKCvssVersion(data) {
+	case FindingsPostFindingsIDAppliedOKCvssVersion40:
+		*s = FindingsPostFindingsIDAppliedOKCvssVersion40
+		return nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion31:
+		*s = FindingsPostFindingsIDAppliedOKCvssVersion31
+		return nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion30:
+		*s = FindingsPostFindingsIDAppliedOKCvssVersion30
+		return nil
+	case FindingsPostFindingsIDAppliedOKCvssVersion20:
+		*s = FindingsPostFindingsIDAppliedOKCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -74711,8 +75495,10 @@ type FindingsPostFindingsIDStatusOK struct {
 	Compromise NilFindingsPostFindingsIDStatusOKCompromise `json:"compromise"`
 	Confidence float64                                     `json:"confidence"`
 	Cve        string                                      `json:"cve"`
-	Evidence   NilFindingsPostFindingsIDStatusOKEvidence   `json:"evidence"`
-	FirstSeen  time.Time                                   `json:"first_seen"`
+	// Null = no CVSS score known: the pages say "No score", never 0.
+	Cvss      NilFindingsPostFindingsIDStatusOKCvss     `json:"cvss"`
+	Evidence  NilFindingsPostFindingsIDStatusOKEvidence `json:"evidence"`
+	FirstSeen time.Time                                 `json:"first_seen"`
 	// GET /findings only, open findings: the update that fixes it with others (D-545); null when there is
 	// none to name.
 	Fix OptNilFindingsPostFindingsIDStatusOKFix `json:"fix"`
@@ -74782,6 +75568,11 @@ func (s *FindingsPostFindingsIDStatusOK) GetConfidence() float64 {
 // GetCve returns the value of Cve.
 func (s *FindingsPostFindingsIDStatusOK) GetCve() string {
 	return s.Cve
+}
+
+// GetCvss returns the value of Cvss.
+func (s *FindingsPostFindingsIDStatusOK) GetCvss() NilFindingsPostFindingsIDStatusOKCvss {
+	return s.Cvss
 }
 
 // GetEvidence returns the value of Evidence.
@@ -74907,6 +75698,11 @@ func (s *FindingsPostFindingsIDStatusOK) SetConfidence(val float64) {
 // SetCve sets the value of Cve.
 func (s *FindingsPostFindingsIDStatusOK) SetCve(val string) {
 	s.Cve = val
+}
+
+// SetCvss sets the value of Cvss.
+func (s *FindingsPostFindingsIDStatusOK) SetCvss(val NilFindingsPostFindingsIDStatusOKCvss) {
+	s.Cvss = val
 }
 
 // SetEvidence sets the value of Evidence.
@@ -76366,6 +77162,163 @@ func (s *FindingsPostFindingsIDStatusOKCompromiseIndicatorsItemKind) UnmarshalTe
 		return nil
 	case FindingsPostFindingsIDStatusOKCompromiseIndicatorsItemKindProcess:
 		*s = FindingsPostFindingsIDStatusOKCompromiseIndicatorsItemKindProcess
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
+// reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
+type FindingsPostFindingsIDStatusOKCvss struct {
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
+	Score float64 `json:"score"`
+	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsPostFindingsIDStatusOKCvssSource `json:"source"`
+	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsPostFindingsIDStatusOKCvssVersion `json:"version"`
+}
+
+// GetScore returns the value of Score.
+func (s *FindingsPostFindingsIDStatusOKCvss) GetScore() float64 {
+	return s.Score
+}
+
+// GetSource returns the value of Source.
+func (s *FindingsPostFindingsIDStatusOKCvss) GetSource() FindingsPostFindingsIDStatusOKCvssSource {
+	return s.Source
+}
+
+// GetVector returns the value of Vector.
+func (s *FindingsPostFindingsIDStatusOKCvss) GetVector() string {
+	return s.Vector
+}
+
+// GetVersion returns the value of Version.
+func (s *FindingsPostFindingsIDStatusOKCvss) GetVersion() FindingsPostFindingsIDStatusOKCvssVersion {
+	return s.Version
+}
+
+// SetScore sets the value of Score.
+func (s *FindingsPostFindingsIDStatusOKCvss) SetScore(val float64) {
+	s.Score = val
+}
+
+// SetSource sets the value of Source.
+func (s *FindingsPostFindingsIDStatusOKCvss) SetSource(val FindingsPostFindingsIDStatusOKCvssSource) {
+	s.Source = val
+}
+
+// SetVector sets the value of Vector.
+func (s *FindingsPostFindingsIDStatusOKCvss) SetVector(val string) {
+	s.Vector = val
+}
+
+// SetVersion sets the value of Version.
+func (s *FindingsPostFindingsIDStatusOKCvss) SetVersion(val FindingsPostFindingsIDStatusOKCvssVersion) {
+	s.Version = val
+}
+
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
+type FindingsPostFindingsIDStatusOKCvssSource string
+
+const (
+	FindingsPostFindingsIDStatusOKCvssSourceNvd FindingsPostFindingsIDStatusOKCvssSource = "nvd"
+	FindingsPostFindingsIDStatusOKCvssSourceCna FindingsPostFindingsIDStatusOKCvssSource = "cna"
+)
+
+// AllValues returns all FindingsPostFindingsIDStatusOKCvssSource values.
+func (FindingsPostFindingsIDStatusOKCvssSource) AllValues() []FindingsPostFindingsIDStatusOKCvssSource {
+	return []FindingsPostFindingsIDStatusOKCvssSource{
+		FindingsPostFindingsIDStatusOKCvssSourceNvd,
+		FindingsPostFindingsIDStatusOKCvssSourceCna,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDStatusOKCvssSource) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDStatusOKCvssSourceNvd:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKCvssSourceCna:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDStatusOKCvssSource) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDStatusOKCvssSource(data) {
+	case FindingsPostFindingsIDStatusOKCvssSourceNvd:
+		*s = FindingsPostFindingsIDStatusOKCvssSourceNvd
+		return nil
+	case FindingsPostFindingsIDStatusOKCvssSourceCna:
+		*s = FindingsPostFindingsIDStatusOKCvssSourceCna
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
+type FindingsPostFindingsIDStatusOKCvssVersion string
+
+const (
+	FindingsPostFindingsIDStatusOKCvssVersion40 FindingsPostFindingsIDStatusOKCvssVersion = "4.0"
+	FindingsPostFindingsIDStatusOKCvssVersion31 FindingsPostFindingsIDStatusOKCvssVersion = "3.1"
+	FindingsPostFindingsIDStatusOKCvssVersion30 FindingsPostFindingsIDStatusOKCvssVersion = "3.0"
+	FindingsPostFindingsIDStatusOKCvssVersion20 FindingsPostFindingsIDStatusOKCvssVersion = "2.0"
+)
+
+// AllValues returns all FindingsPostFindingsIDStatusOKCvssVersion values.
+func (FindingsPostFindingsIDStatusOKCvssVersion) AllValues() []FindingsPostFindingsIDStatusOKCvssVersion {
+	return []FindingsPostFindingsIDStatusOKCvssVersion{
+		FindingsPostFindingsIDStatusOKCvssVersion40,
+		FindingsPostFindingsIDStatusOKCvssVersion31,
+		FindingsPostFindingsIDStatusOKCvssVersion30,
+		FindingsPostFindingsIDStatusOKCvssVersion20,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsPostFindingsIDStatusOKCvssVersion) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsPostFindingsIDStatusOKCvssVersion40:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKCvssVersion31:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKCvssVersion30:
+		return []byte(s), nil
+	case FindingsPostFindingsIDStatusOKCvssVersion20:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsPostFindingsIDStatusOKCvssVersion) UnmarshalText(data []byte) error {
+	switch FindingsPostFindingsIDStatusOKCvssVersion(data) {
+	case FindingsPostFindingsIDStatusOKCvssVersion40:
+		*s = FindingsPostFindingsIDStatusOKCvssVersion40
+		return nil
+	case FindingsPostFindingsIDStatusOKCvssVersion31:
+		*s = FindingsPostFindingsIDStatusOKCvssVersion31
+		return nil
+	case FindingsPostFindingsIDStatusOKCvssVersion30:
+		*s = FindingsPostFindingsIDStatusOKCvssVersion30
+		return nil
+	case FindingsPostFindingsIDStatusOKCvssVersion20:
+		*s = FindingsPostFindingsIDStatusOKCvssVersion20
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -108896,6 +109849,51 @@ func (o NilExposureDeleteExposureTargetsIDTermsOKValidity) Or(d ExposureDeleteEx
 	return d
 }
 
+// NewNilExposureGetExposureGreenboneOKFeed returns new NilExposureGetExposureGreenboneOKFeed with value set to v.
+func NewNilExposureGetExposureGreenboneOKFeed(v ExposureGetExposureGreenboneOKFeed) NilExposureGetExposureGreenboneOKFeed {
+	return NilExposureGetExposureGreenboneOKFeed{
+		Value: v,
+	}
+}
+
+// NilExposureGetExposureGreenboneOKFeed is nullable ExposureGetExposureGreenboneOKFeed.
+type NilExposureGetExposureGreenboneOKFeed struct {
+	Value ExposureGetExposureGreenboneOKFeed
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposureGetExposureGreenboneOKFeed) SetTo(v ExposureGetExposureGreenboneOKFeed) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposureGetExposureGreenboneOKFeed) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposureGetExposureGreenboneOKFeed) SetToNull() {
+	o.Null = true
+	var v ExposureGetExposureGreenboneOKFeed
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposureGetExposureGreenboneOKFeed) Get() (v ExposureGetExposureGreenboneOKFeed, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposureGetExposureGreenboneOKFeed) Or(d ExposureGetExposureGreenboneOKFeed) ExposureGetExposureGreenboneOKFeed {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposureGetExposureScanOK returns new NilExposureGetExposureScanOK with value set to v.
 func NewNilExposureGetExposureScanOK(v ExposureGetExposureScanOK) NilExposureGetExposureScanOK {
 	return NilExposureGetExposureScanOK{
@@ -111326,6 +112324,51 @@ func (o NilExposurePutExposureBoxIPSettingsOKLastRun) Or(d ExposurePutExposureBo
 	return d
 }
 
+// NewNilExposurePutExposureGreenboneOKFeed returns new NilExposurePutExposureGreenboneOKFeed with value set to v.
+func NewNilExposurePutExposureGreenboneOKFeed(v ExposurePutExposureGreenboneOKFeed) NilExposurePutExposureGreenboneOKFeed {
+	return NilExposurePutExposureGreenboneOKFeed{
+		Value: v,
+	}
+}
+
+// NilExposurePutExposureGreenboneOKFeed is nullable ExposurePutExposureGreenboneOKFeed.
+type NilExposurePutExposureGreenboneOKFeed struct {
+	Value ExposurePutExposureGreenboneOKFeed
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilExposurePutExposureGreenboneOKFeed) SetTo(v ExposurePutExposureGreenboneOKFeed) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilExposurePutExposureGreenboneOKFeed) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilExposurePutExposureGreenboneOKFeed) SetToNull() {
+	o.Null = true
+	var v ExposurePutExposureGreenboneOKFeed
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilExposurePutExposureGreenboneOKFeed) Get() (v ExposurePutExposureGreenboneOKFeed, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilExposurePutExposureGreenboneOKFeed) Or(d ExposurePutExposureGreenboneOKFeed) ExposurePutExposureGreenboneOKFeed {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilExposurePutExposureTargetsIDTermsOKBlockedReason returns new NilExposurePutExposureTargetsIDTermsOKBlockedReason with value set to v.
 func NewNilExposurePutExposureTargetsIDTermsOKBlockedReason(v ExposurePutExposureTargetsIDTermsOKBlockedReason) NilExposurePutExposureTargetsIDTermsOKBlockedReason {
 	return NilExposurePutExposureTargetsIDTermsOKBlockedReason{
@@ -112406,6 +113449,51 @@ func (o NilFindingsGetFindingsIDOKCompromise) Or(d FindingsGetFindingsIDOKCompro
 	return d
 }
 
+// NewNilFindingsGetFindingsIDOKCvss returns new NilFindingsGetFindingsIDOKCvss with value set to v.
+func NewNilFindingsGetFindingsIDOKCvss(v FindingsGetFindingsIDOKCvss) NilFindingsGetFindingsIDOKCvss {
+	return NilFindingsGetFindingsIDOKCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsIDOKCvss is nullable FindingsGetFindingsIDOKCvss.
+type NilFindingsGetFindingsIDOKCvss struct {
+	Value FindingsGetFindingsIDOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsIDOKCvss) SetTo(v FindingsGetFindingsIDOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsIDOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsIDOKCvss) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsIDOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsIDOKCvss) Get() (v FindingsGetFindingsIDOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsIDOKCvss) Or(d FindingsGetFindingsIDOKCvss) FindingsGetFindingsIDOKCvss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsGetFindingsIDOKEvidence returns new NilFindingsGetFindingsIDOKEvidence with value set to v.
 func NewNilFindingsGetFindingsIDOKEvidence(v FindingsGetFindingsIDOKEvidence) NilFindingsGetFindingsIDOKEvidence {
 	return NilFindingsGetFindingsIDOKEvidence{
@@ -112625,6 +113713,51 @@ func (o NilFindingsGetFindingsOKItemsItemAsset) Get() (v FindingsGetFindingsOKIt
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsGetFindingsOKItemsItemAsset) Or(d FindingsGetFindingsOKItemsItemAsset) FindingsGetFindingsOKItemsItemAsset {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsOKItemsItemCvss returns new NilFindingsGetFindingsOKItemsItemCvss with value set to v.
+func NewNilFindingsGetFindingsOKItemsItemCvss(v FindingsGetFindingsOKItemsItemCvss) NilFindingsGetFindingsOKItemsItemCvss {
+	return NilFindingsGetFindingsOKItemsItemCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsOKItemsItemCvss is nullable FindingsGetFindingsOKItemsItemCvss.
+type NilFindingsGetFindingsOKItemsItemCvss struct {
+	Value FindingsGetFindingsOKItemsItemCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsOKItemsItemCvss) SetTo(v FindingsGetFindingsOKItemsItemCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsOKItemsItemCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsOKItemsItemCvss) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsOKItemsItemCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsOKItemsItemCvss) Get() (v FindingsGetFindingsOKItemsItemCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsOKItemsItemCvss) Or(d FindingsGetFindingsOKItemsItemCvss) FindingsGetFindingsOKItemsItemCvss {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -112991,6 +114124,51 @@ func (o NilFindingsPostFindingsIDAiOKCompromise) Or(d FindingsPostFindingsIDAiOK
 	return d
 }
 
+// NewNilFindingsPostFindingsIDAiOKCvss returns new NilFindingsPostFindingsIDAiOKCvss with value set to v.
+func NewNilFindingsPostFindingsIDAiOKCvss(v FindingsPostFindingsIDAiOKCvss) NilFindingsPostFindingsIDAiOKCvss {
+	return NilFindingsPostFindingsIDAiOKCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDAiOKCvss is nullable FindingsPostFindingsIDAiOKCvss.
+type NilFindingsPostFindingsIDAiOKCvss struct {
+	Value FindingsPostFindingsIDAiOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDAiOKCvss) SetTo(v FindingsPostFindingsIDAiOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDAiOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDAiOKCvss) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDAiOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDAiOKCvss) Get() (v FindingsPostFindingsIDAiOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDAiOKCvss) Or(d FindingsPostFindingsIDAiOKCvss) FindingsPostFindingsIDAiOKCvss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDAiOKEvidence returns new NilFindingsPostFindingsIDAiOKEvidence with value set to v.
 func NewNilFindingsPostFindingsIDAiOKEvidence(v FindingsPostFindingsIDAiOKEvidence) NilFindingsPostFindingsIDAiOKEvidence {
 	return NilFindingsPostFindingsIDAiOKEvidence{
@@ -113351,6 +114529,51 @@ func (o NilFindingsPostFindingsIDAppliedOKCompromise) Or(d FindingsPostFindingsI
 	return d
 }
 
+// NewNilFindingsPostFindingsIDAppliedOKCvss returns new NilFindingsPostFindingsIDAppliedOKCvss with value set to v.
+func NewNilFindingsPostFindingsIDAppliedOKCvss(v FindingsPostFindingsIDAppliedOKCvss) NilFindingsPostFindingsIDAppliedOKCvss {
+	return NilFindingsPostFindingsIDAppliedOKCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDAppliedOKCvss is nullable FindingsPostFindingsIDAppliedOKCvss.
+type NilFindingsPostFindingsIDAppliedOKCvss struct {
+	Value FindingsPostFindingsIDAppliedOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDAppliedOKCvss) SetTo(v FindingsPostFindingsIDAppliedOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDAppliedOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDAppliedOKCvss) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDAppliedOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDAppliedOKCvss) Get() (v FindingsPostFindingsIDAppliedOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDAppliedOKCvss) Or(d FindingsPostFindingsIDAppliedOKCvss) FindingsPostFindingsIDAppliedOKCvss {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilFindingsPostFindingsIDAppliedOKEvidence returns new NilFindingsPostFindingsIDAppliedOKEvidence with value set to v.
 func NewNilFindingsPostFindingsIDAppliedOKEvidence(v FindingsPostFindingsIDAppliedOKEvidence) NilFindingsPostFindingsIDAppliedOKEvidence {
 	return NilFindingsPostFindingsIDAppliedOKEvidence{
@@ -113705,6 +114928,51 @@ func (o NilFindingsPostFindingsIDStatusOKCompromise) Get() (v FindingsPostFindin
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsPostFindingsIDStatusOKCompromise) Or(d FindingsPostFindingsIDStatusOKCompromise) FindingsPostFindingsIDStatusOKCompromise {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsPostFindingsIDStatusOKCvss returns new NilFindingsPostFindingsIDStatusOKCvss with value set to v.
+func NewNilFindingsPostFindingsIDStatusOKCvss(v FindingsPostFindingsIDStatusOKCvss) NilFindingsPostFindingsIDStatusOKCvss {
+	return NilFindingsPostFindingsIDStatusOKCvss{
+		Value: v,
+	}
+}
+
+// NilFindingsPostFindingsIDStatusOKCvss is nullable FindingsPostFindingsIDStatusOKCvss.
+type NilFindingsPostFindingsIDStatusOKCvss struct {
+	Value FindingsPostFindingsIDStatusOKCvss
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsPostFindingsIDStatusOKCvss) SetTo(v FindingsPostFindingsIDStatusOKCvss) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsPostFindingsIDStatusOKCvss) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsPostFindingsIDStatusOKCvss) SetToNull() {
+	o.Null = true
+	var v FindingsPostFindingsIDStatusOKCvss
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsPostFindingsIDStatusOKCvss) Get() (v FindingsPostFindingsIDStatusOKCvss, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsPostFindingsIDStatusOKCvss) Or(d FindingsPostFindingsIDStatusOKCvss) FindingsPostFindingsIDStatusOKCvss {
 	if v, ok := o.Get(); ok {
 		return v
 	}

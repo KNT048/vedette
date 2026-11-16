@@ -254,7 +254,7 @@ test.describe('P2 IT person, day to day: list, add manually, CSV, detail', () =>
   })
 
   test('not approved: approve, flag as unknown; removing a device with findings says so; Escape and Cancel keep it', async ({ page }) => {
-    await page.goto('/devices')
+    await page.goto('/devices?tab=review') // #849: devices found but not approved are the To review list
     const pending = page.getByRole('list', { name: /new devices not approved/ })
     await expect(pending.getByRole('listitem')).toHaveCount(2)
     await pending.getByRole('button', { name: 'Mark unknown' }).first().click()
@@ -552,7 +552,7 @@ test.describe('Clean install: first-time user', () => {
     await page.getByRole('button', { name: 'Continue' }).click()
     await finishWizard(page)
     await page.goto('/devices')
-    await expect(h1(page)).toHaveText(/^1 device,/) // only the box itself: it is always the first device (INV-3)
+    await expect(h1(page)).toHaveText('Only the Vedette box so far') // only the box itself: it is always the first device (INV-3)
     await expect(page.getByRole('button', { name: 'Add a device' }).last()).toBeEnabled()
     await expect(page.getByRole('table').getByRole('row')).toHaveCount(2) // header + the box
     await shot(page, 'inventory', 'clean-empty')

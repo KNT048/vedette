@@ -1,5 +1,11 @@
 # Inventory — Change Impact Map
 
+## Modifying: the shared safety block (`active.check_rate`, `SaveSafety`, `SetDiscovery`, `SaveChecks`, `MergeLegacyChecks`, `FragileCount`; #850, INV-32)
+- **scan** reads the window, the check rate and the exclusions through `cmd/vedette` `scanInventory` (`scan.SharedChecks`) and writes them back with `SaveChecks` in its own transaction: a change of their meaning or limits changes when and how fast nuclei runs, and what it skips.
+- **sensor-active** reads the same `active` (window, exclusions, rate) through `sensorInventory.Settings`: the exclusions merged from the scan module now bind discovery too.
+- **core** (`GET/PUT /scanning*`, `PATCH /scanning/engines/nmap-discovery`) reads and writes through `cmd/vedette` `scanningSafety` and `SetDiscovery`.
+- **`GET/PUT /inventory/settings`** must keep `check_rate` out (the generated decoder refuses an unknown field) and keep the stored value on save.
+
 ## Modifying: one machine one device (`sameMachine`, `agentOrphan`, `machineName`, `macKinds`, `bindAgent`, `inv_asset.agent_key`, `AssetHint.Agent`; D-598, INV-31)
 - **Counting devices**: loosening the name rule (generic names, burned-in MACs, address-only rows) joins machines that are not one; tightening it brings back one device and one "new unknown device" incident per private Wi-Fi address (issue #829).
 - **notify**: closes the joined row's new-device incident on `inventory.asset.merged` (D-554); **findings** moves its findings (`OnAssetMerged`); a join must keep publishing merged before deleted.

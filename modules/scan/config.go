@@ -205,6 +205,11 @@ func (c Settings) NextRun(now time.Time, loc *time.Location, first bool) *time.T
 // the next window of any window day, so a new box with the weekly default does not wait up to a week for it (W3-6, D-504); the
 // weekday counts from the second run on.
 func (c Settings) slotOK(slot time.Time, first bool) bool {
+	// The window is shared with discovery since #850 and saved on its own (PUT /scanning/safety): a schedule time it no longer holds
+	// is no slot, so nothing scheduled runs outside the window (INV-5).
+	if !inTimeRange(c.Schedule.At, c.Window.From, c.Window.To) {
+		return false
+	}
 	if _, ok := c.slotWindowEnd(slot); !ok {
 		return false
 	}
@@ -230,6 +235,70 @@ func (c Settings) slotWindowEnd(slot time.Time) (time.Time, bool) {
 }
 
 // ---- storage ----
+
+// Checks is the part of the settings every LAN engine shares since #850 (INV-16): the window, the check rate and the exclusions.
+type Checks struct {
+	Window     Window
+	Rate       int // requests per second
+	Exclusions []string
+}
+
+// SharedChecks is the inventory as the one store of Checks (#850, INV-16). The Inventory adapter of cmd/vedette implements it; an
+// Inventory without it (the module's own tests) leaves them in scan_setting, as before.
+type SharedChecks interface {
+	Checks(ctx context.Context) (Checks, error)
+	// SaveChecks writes them inside tx, the transaction of PUT /scans/config; Settle is called once tx is over, with whether it
+	// committed (the inventory announces inventory.settings.changed then).
+	SaveChecks(ctx context.Context, tx *sql.Tx, user string, c Checks) error
+	Settle(ctx context.Context, tx *sql.Tx, committed bool)
+}
+
+func (s *Service) shared() (SharedChecks, bool) {
+	sc, ok := s.cfg.Inventory.(SharedChecks)
+	return sc, ok
+}
+
+// settings is scan_setting with the shared window, check rate and exclusions of the inventory over it (INV-16). scan_setting keeps
+// its own copy (written along by SaveConfig) so a rollback to a version before #850 finds the values of PUT /scans/config.
+func (s *Service) settings(ctx context.Context, q interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}) (Settings, error) {
+	c, err := loadSettings(ctx, q)
+	if err != nil {
+		return Settings{}, err
+	}
+	sh, ok := s.shared()
+	if !ok {
+		return c, nil
+	}
+	ch, err := sh.Checks(ctx)
+	if err != nil {
+		return Settings{}, fmt.Errorf("scan: reading the shared window, rate and exclusions: %w", err)
+	}
+	c.Window = Window{Days: slices.Clone(ch.Window.Days), From: ch.Window.From, To: ch.Window.To}
+	c.Rate = ch.Rate
+	c.Exclusions = slices.Clone(ch.Exclusions)
+	if c.Exclusions == nil {
+		c.Exclusions = []string{}
+	}
+	return c, nil
+}
+
+// LegacyChecks reads scan_setting's own window, rate and exclusions and who saved them last ("" when nobody did): what the one-time
+// merge into the inventory reads (#850, cmd/vedette).
+func LegacyChecks(ctx context.Context, q interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}) (c Checks, savedBy string, err error) {
+	st, err := loadSettings(ctx, q)
+	if err != nil {
+		return Checks{}, "", err
+	}
+	var by sql.NullString
+	if err := q.QueryRowContext(ctx, `SELECT updated_by FROM scan_setting WHERE id = 1`).Scan(&by); err != nil {
+		return Checks{}, "", fmt.Errorf("scan: reading who saved the settings: %w", err)
+	}
+	return Checks{Window: st.Window, Rate: st.Rate, Exclusions: st.Exclusions}, by.String, nil
+}
 
 func loadSettings(ctx context.Context, q interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row

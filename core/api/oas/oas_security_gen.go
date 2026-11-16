@@ -339,6 +339,10 @@ var operationRolesSession = map[string][]string{
 	ScanPostScansRunsOperation:                              []string{},
 	ScanPostScansRunsIDStopOperation:                        []string{},
 	ScanPutScansConfigOperation:                             []string{},
+	ScanningGetScanningOperation:                            []string{},
+	ScanningPatchScanningEnginesIDOperation:                 []string{},
+	ScanningPostScanningEnginesNmapDiscoveryRunOperation:    []string{},
+	ScanningPutScanningSafetyOperation:                      []string{},
 }
 
 // GetRolesForSession returns the required roles for the given operation.

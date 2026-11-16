@@ -19,6 +19,7 @@ import (
 	"github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/core/logexport"
 	"github.com/knt048/vedette/core/observe"
+	"github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/core/secrets"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/modules/sensor-active/nmapargv"
@@ -113,6 +114,10 @@ type Service struct {
 	allPortsHeldIn time.Time
 	// firstUntil is set while the first pass of a new box runs (firstPass, D-501): until then the window counts as open. Zero otherwise.
 	firstUntil time.Time
+	// manualUntil is firstUntil for a sweep a person started (Scan the LAN now, INV-21); manual is that run, or the device checks a
+	// person started, while it goes on.
+	manualUntil time.Time
+	manual      *manualRun
 }
 
 // firstPassFor bounds the first pass: it may run outside the window for at most this long; a sweep it did not finish goes on from
@@ -124,6 +129,9 @@ const firstPassFor = time.Hour
 func (s *Service) windowNow(st Settings) (end time.Time, ok bool) {
 	s.mu.Lock()
 	until := s.firstUntil
+	if s.manualUntil.After(until) {
+		until = s.manualUntil
+	}
 	s.mu.Unlock()
 	if s.clock().Before(until) {
 		return until, true
@@ -148,7 +156,8 @@ type running struct {
 	external bool
 	// weekly: the weekly scan of every port of a device (D-592), with its -sV follow-up. A Scan now identification or an exposure
 	// scan stops it (lockWithin, review r1 M1); it stays due.
-	weekly bool
+	weekly  bool
+	started time.Time // when it was registered (setCur), for Settings › Scanning
 }
 
 // New returns the service.
@@ -530,6 +539,7 @@ func (s *Service) Stop() {
 	s.mu.Lock()
 	cur, snmp := s.cur, s.snmpCur
 	s.mu.Unlock()
+	s.stopManual()
 	if cur != nil {
 		cur.cancel()
 	}
@@ -779,6 +789,14 @@ func (s *Service) DiscoverRanges(ctx context.Context) (Result, error) {
 		return Result{}, err
 	}
 	res := Result{JobID: id}
+	// A sweep a person started reports how far it is (#850): the addresses swept out of the scope, batch by batch. Each batch's own
+	// nmap reports would start at 0 again (#830 FAIL 2), so the batches run without the sink.
+	sink := progress.SinkFrom(ctx)
+	pctx, planned := jctx, int64(newScope(st).count())
+	if sink != nil {
+		pctx = progress.WithSink(jctx, nil)
+		sink.Report(progress.Update{Phase: progress.PhaseDiscovery, Percent: -1, Total: planned, Unit: progress.UnitHosts, NewPass: true})
+	}
 	var failed int
 	var firstErr string
 	status := StatusDone
@@ -808,7 +826,7 @@ loop:
 			s.setCursor(ctx, netip.Addr{}) // the pass reached the end of the ranges
 			break
 		}
-		hosts, err := s.probe(jctx, id, nmapargv.Sweep, st.Rate, batch)
+		hosts, err := s.probe(pctx, id, nmapargv.Sweep, st.Rate, batch)
 		switch {
 		case errors.Is(err, ErrStopped):
 			status, firstErr = StatusStopped, stoppedText
@@ -824,6 +842,9 @@ loop:
 				res.Targets += len(batch)
 				res.NewDevices += n
 				s.setCursor(ctx, batch[len(batch)-1])
+				if sink != nil {
+					sink.Report(progress.Update{Phase: progress.PhaseDiscovery, Percent: -1, Done: int64(res.Targets), Total: max(planned, int64(res.Targets)), Unit: progress.UnitHosts})
+				}
 				continue
 			}
 			fallthrough
@@ -941,6 +962,9 @@ func (s *Service) setAsset(id string) {
 func (s *Service) setCur(r *running) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if r != nil && r.started.IsZero() {
+		r.started = s.clock()
+	}
 	s.cur = r
 }
 

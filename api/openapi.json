@@ -86,6 +86,9 @@
       "name": "response"
     },
     {
+      "name": "scanning"
+    },
+    {
       "name": "scan"
     }
   ],
@@ -69936,6 +69939,2007 @@
                   },
                   "required": [
                     "items"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scanning": {
+      "get": {
+        "operationId": "scanning_get_scanning",
+        "summary": "Every scanning engine with its switch, state, memory cost, last and next run, the jobs running now, and the shared safety settings (scope, window, speed, exclusions, fragile types)",
+        "tags": [
+          "scanning"
+        ],
+        "x-stories": [
+          "S-SCAN-4",
+          "S-CORE-1",
+          "S-INV-1"
+        ],
+        "x-min-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "safety": {
+                      "type": "object",
+                      "properties": {
+                        "scope": {
+                          "type": "object",
+                          "properties": {
+                            "lan_ranges": {
+                              "maxItems": 16,
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges"
+                            },
+                            "confirmed_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "confirmed_by": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "lan_ranges",
+                            "confirmed_at",
+                            "confirmed_by"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "window": {
+                          "type": "object",
+                          "properties": {
+                            "days": {
+                              "type": "array",
+                              "items": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 7,
+                                "description": "1 = Monday … 7 = Sunday (D-57 (9))"
+                              },
+                              "description": "Empty only on a box whose discovery was saved off without a day; a save needs one"
+                            },
+                            "from": {
+                              "type": "string",
+                              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                              "description": "HH:MM"
+                            },
+                            "to": {
+                              "type": "string",
+                              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                              "description": "Earlier than from: crosses midnight"
+                            },
+                            "time_zone": {
+                              "type": "string",
+                              "description": "IANA zone the window is read in (the organization time zone); read-only"
+                            }
+                          },
+                          "required": [
+                            "days",
+                            "from",
+                            "to",
+                            "time_zone"
+                          ],
+                          "additionalProperties": false,
+                          "description": "One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now, Check this device now and external scans are not bound by it"
+                        },
+                        "speed": {
+                          "type": "object",
+                          "properties": {
+                            "packets_per_s": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 1000,
+                              "description": "nmap and SNMP (inventory active.rate)"
+                            },
+                            "requests_per_s": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 20,
+                              "description": "nuclei on LAN devices (was scan config rate)"
+                            }
+                          },
+                          "required": [
+                            "packets_per_s",
+                            "requests_per_s"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "exclusions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the 200 a save accepts)"
+                        },
+                        "fragile": {
+                          "type": "object",
+                          "properties": {
+                            "kinds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": [
+                                  "firewall",
+                                  "router",
+                                  "switch",
+                                  "ap",
+                                  "nas",
+                                  "server",
+                                  "pc",
+                                  "printer",
+                                  "camera",
+                                  "nvr",
+                                  "iot",
+                                  "web",
+                                  "unknown"
+                                ]
+                              },
+                              "description": "Types scanned once, gently, when first seen; passive-only after that (D-45, D-511)"
+                            },
+                            "regular_scan_kinds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": [
+                                  "firewall",
+                                  "router",
+                                  "switch",
+                                  "ap",
+                                  "nas",
+                                  "server",
+                                  "pc",
+                                  "printer",
+                                  "camera",
+                                  "nvr",
+                                  "iot",
+                                  "web",
+                                  "unknown"
+                                ]
+                              },
+                              "description": "Subset of kinds that may still get regular scans"
+                            },
+                            "devices": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "description": "Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter; read-only"
+                            }
+                          },
+                          "required": [
+                            "kinds",
+                            "regular_scan_kinds",
+                            "devices"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "scope",
+                        "window",
+                        "speed",
+                        "exclusions",
+                        "fragile"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "engines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "enum": [
+                              "passive",
+                              "nmap-discovery",
+                              "nmap-versions",
+                              "snmp",
+                              "osquery",
+                              "wazuh",
+                              "nuclei",
+                              "zap",
+                              "openvas",
+                              "honeypot"
+                            ]
+                          },
+                          "group": {
+                            "type": "string",
+                            "enum": [
+                              "discover",
+                              "identify",
+                              "vuln",
+                              "traps"
+                            ]
+                          },
+                          "module": {
+                            "type": "string",
+                            "enum": [
+                              "sensor-passive",
+                              "sensor-active",
+                              "agent-intake",
+                              "scan",
+                              "exposure",
+                              "honeypot"
+                            ],
+                            "description": "The module it belongs to; PATCH /modules/{id} of that module still works"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "can_toggle": {
+                            "type": "boolean",
+                            "description": "false: it has no switch of its own; follows names the engine whose switch it obeys, or reason says why"
+                          },
+                          "follows": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "passive",
+                                  "nmap-discovery",
+                                  "nmap-versions",
+                                  "snmp",
+                                  "osquery",
+                                  "wazuh",
+                                  "nuclei",
+                                  "zap",
+                                  "openvas",
+                                  "honeypot"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "nmap-versions and snmp follow nmap-discovery; null otherwise"
+                          },
+                          "affects": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "passive",
+                                "nmap-discovery",
+                                "nmap-versions",
+                                "snmp",
+                                "osquery",
+                                "wazuh",
+                                "nuclei",
+                                "zap",
+                                "openvas",
+                                "honeypot"
+                              ]
+                            },
+                            "description": "Engines that stop too when this one is turned off (osquery and wazuh share the agent-intake switch; nmap-discovery off stops nmap-versions and the SNMP rounds). External scans (zap, openvas) follow the External exposure module, not nuclei. The page names them before turning off"
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "off",
+                              "needs_setup",
+                              "starting",
+                              "ready",
+                              "running",
+                              "error",
+                              "unavailable"
+                            ],
+                            "description": "off: switched off (or its module is); needs_setup: on, but it has nothing to work with yet (scope not confirmed, no SNMP credential, no osquery token, no Wazuh server, no verified target, no Trap IP); starting: its container is starting, or OpenVAS loads its feed; ready: on and waiting for its window, schedule or a person; running: a job runs now; error: it failed and needs a person (reason says what); unavailable: this box cannot run it (container-only install, tool missing, not enough memory)"
+                          },
+                          "reason": {
+                            "description": "Plain sentence for needs_setup, starting, error and unavailable, or a warning while ready (e.g. \"A sweep of these ranges needs 3 windows\"); null otherwise",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "preview": {
+                            "type": "boolean",
+                            "description": "Its module ships as Preview in v1 (SHIP.md: scan, honeypot)"
+                          },
+                          "cost": {
+                            "type": "object",
+                            "properties": {
+                              "ram_mb": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "Memory it may take, from a fact of the box's code: its container's memory cap (sensor 512, honeypot 256, scan 1024, ZAP 1024), or the measured peak for OpenVAS (about 4000, D-569); 0 for osquery and Wazuh, which run inside core. null when it is not known; never an estimate"
+                              },
+                              "while": {
+                                "type": "string",
+                                "enum": [
+                                  "on",
+                                  "running"
+                                ],
+                                "description": "on: held as long as the engine is on (a long-running container); running: only while one of its jobs runs (a one-shot container, or OpenVAS scanning)"
+                              },
+                              "container": {
+                                "description": "The container it shares with other engines (scan: nmap, SNMP and nuclei); count a shared container once. null when the figure is its own",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "ram_mb",
+                              "while",
+                              "container"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "last_run": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "outcome": {
+                                    "type": "string",
+                                    "enum": [
+                                      "ok",
+                                      "partial",
+                                      "failed",
+                                      "stopped"
+                                    ]
+                                  },
+                                  "text": {
+                                    "type": "string",
+                                    "description": "One sentence from the box, e.g. \"Swept 254 addresses, 3 new devices\", \"Last report from an osquery agent\", \"Last trap hit\""
+                                  }
+                                },
+                                "required": [
+                                  "at",
+                                  "outcome",
+                                  "text"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "null: never ran"
+                          },
+                          "next_run_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Next window opening (nmap-discovery, nmap-versions, snmp), next scheduled scan (nuclei), next Wazuh sync; null for engines that listen all the time (passive, osquery, honeypot) or run only when a person asks (zap, openvas)"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "group",
+                          "module",
+                          "enabled",
+                          "can_toggle",
+                          "follows",
+                          "affects",
+                          "state",
+                          "reason",
+                          "preview",
+                          "cost",
+                          "last_run",
+                          "next_run_at"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Every engine of this version, in display order; post-v1 ones (credentialed scans) are not listed"
+                    },
+                    "running": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "engine": {
+                            "type": "string",
+                            "enum": [
+                              "passive",
+                              "nmap-discovery",
+                              "nmap-versions",
+                              "snmp",
+                              "osquery",
+                              "wazuh",
+                              "nuclei",
+                              "zap",
+                              "openvas",
+                              "honeypot"
+                            ]
+                          },
+                          "id": {
+                            "type": "string",
+                            "description": "The run: a scan_run id, an exposure ScanRun id, an sa_job id, or a run of POST /scanning/engines/nmap-discovery/run"
+                          },
+                          "label": {
+                            "type": "string",
+                            "description": "What it scans, e.g. \"LAN sweep 192.168.18.0/24\", \"Check 192.168.18.20\", \"203.0.113.10\""
+                          },
+                          "target_id": {
+                            "description": "The device id or exposure target id the run is about, for a link; null for a sweep or several devices",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "started_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "progress": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "phase": {
+                                    "type": "string",
+                                    "enum": [
+                                      "discovery",
+                                      "ports",
+                                      "services",
+                                      "scripts",
+                                      "vulns",
+                                      "web",
+                                      "openvas",
+                                      "saving"
+                                    ],
+                                    "description": "discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection; scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the result is being stored"
+                                  },
+                                  "percent": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 100
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the phase without a bar)"
+                                  },
+                                  "done": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "With total: the count behind percent (unit says what is counted); null when the phase has no count"
+                                  },
+                                  "total": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "unit": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "checks",
+                                          "hosts"
+                                        ]
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch"
+                                  },
+                                  "started_at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                    "description": "When the job (the device, or the public IP scan) started: elapsed time is now minus this"
+                                  },
+                                  "phase_started_at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                    "description": "When the current phase (or the current pass of it: a device gets a second nmap pass over admin ports) started"
+                                  },
+                                  "updated_at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                    "description": "The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is quiet, not that the box hangs"
+                                  },
+                                  "eta": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the vulnerability checks (after 10 s and 1 %); null until it can be estimated"
+                                  },
+                                  "message": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "maxLength": 120
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "A short English note on the pass, e.g. \"Second pass: administration and alternative ports\"; null when none"
+                                  }
+                                },
+                                "required": [
+                                  "phase",
+                                  "percent",
+                                  "done",
+                                  "total",
+                                  "unit",
+                                  "started_at",
+                                  "phase_started_at",
+                                  "updated_at",
+                                  "eta",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "null until the run reports a step, and for runs that do not report one"
+                          }
+                        },
+                        "required": [
+                          "engine",
+                          "id",
+                          "label",
+                          "target_id",
+                          "started_at",
+                          "progress"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Jobs running now across engines, for the \"1 scan running\" indicator of the top bar"
+                    },
+                    "box": {
+                      "type": "object",
+                      "properties": {
+                        "memory_mb": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "MemTotal of the box; null when it cannot be read (container-only install may report its limit)"
+                        },
+                        "reserved_mb": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Sum of the cost of the engines that hold memory now (while on, plus while running for running jobs), a shared container counted once, plus core's 2048"
+                        }
+                      },
+                      "required": [
+                        "memory_mb",
+                        "reserved_mb"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "safety",
+                    "engines",
+                    "running",
+                    "box"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scanning/engines/{id}": {
+      "patch": {
+        "operationId": "scanning_patch_scanning_engines_id",
+        "summary": "Turn an engine on or off: its module switch (passive, osquery, wazuh, nuclei, honeypot), active discovery (nmap-discovery: on turns sensor-active on first when with_dependencies is set, off never turns the module off) or the OpenVAS flag (openvas). Audited by the switch it moves. 409 not_toggleable (nmap-versions, snmp, zap), missing_dependencies, not_appliance, module_off (openvas while External exposure is off), low_memory, low_disk; 400 scope_not_confirmed, core_module. Returns the whole page, since one switch can change several engines",
+        "tags": [
+          "scanning"
+        ],
+        "x-stories": [
+          "S-CORE-1",
+          "S-SCAN-4"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "passive",
+                "nmap-discovery",
+                "nmap-versions",
+                "snmp",
+                "osquery",
+                "wazuh",
+                "nuclei",
+                "zap",
+                "openvas",
+                "honeypot"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "with_dependencies": {
+                    "description": "As PATCH /modules/{id}: also turn on the modules it needs instead of 409 missing_dependencies",
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "enabled"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "safety": {
+                      "type": "object",
+                      "properties": {
+                        "scope": {
+                          "type": "object",
+                          "properties": {
+                            "lan_ranges": {
+                              "maxItems": 16,
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              },
+                              "description": "Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges"
+                            },
+                            "confirmed_at": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "confirmed_by": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "lan_ranges",
+                            "confirmed_at",
+                            "confirmed_by"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "window": {
+                          "type": "object",
+                          "properties": {
+                            "days": {
+                              "type": "array",
+                              "items": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 7,
+                                "description": "1 = Monday … 7 = Sunday (D-57 (9))"
+                              },
+                              "description": "Empty only on a box whose discovery was saved off without a day; a save needs one"
+                            },
+                            "from": {
+                              "type": "string",
+                              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                              "description": "HH:MM"
+                            },
+                            "to": {
+                              "type": "string",
+                              "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                              "description": "Earlier than from: crosses midnight"
+                            },
+                            "time_zone": {
+                              "type": "string",
+                              "description": "IANA zone the window is read in (the organization time zone); read-only"
+                            }
+                          },
+                          "required": [
+                            "days",
+                            "from",
+                            "to",
+                            "time_zone"
+                          ],
+                          "additionalProperties": false,
+                          "description": "One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now, Check this device now and external scans are not bound by it"
+                        },
+                        "speed": {
+                          "type": "object",
+                          "properties": {
+                            "packets_per_s": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 1000,
+                              "description": "nmap and SNMP (inventory active.rate)"
+                            },
+                            "requests_per_s": {
+                              "type": "integer",
+                              "minimum": 1,
+                              "maximum": 20,
+                              "description": "nuclei on LAN devices (was scan config rate)"
+                            }
+                          },
+                          "required": [
+                            "packets_per_s",
+                            "requests_per_s"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "exclusions": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the 200 a save accepts)"
+                        },
+                        "fragile": {
+                          "type": "object",
+                          "properties": {
+                            "kinds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": [
+                                  "firewall",
+                                  "router",
+                                  "switch",
+                                  "ap",
+                                  "nas",
+                                  "server",
+                                  "pc",
+                                  "printer",
+                                  "camera",
+                                  "nvr",
+                                  "iot",
+                                  "web",
+                                  "unknown"
+                                ]
+                              },
+                              "description": "Types scanned once, gently, when first seen; passive-only after that (D-45, D-511)"
+                            },
+                            "regular_scan_kinds": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "enum": [
+                                  "firewall",
+                                  "router",
+                                  "switch",
+                                  "ap",
+                                  "nas",
+                                  "server",
+                                  "pc",
+                                  "printer",
+                                  "camera",
+                                  "nvr",
+                                  "iot",
+                                  "web",
+                                  "unknown"
+                                ]
+                              },
+                              "description": "Subset of kinds that may still get regular scans"
+                            },
+                            "devices": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991,
+                              "description": "Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter; read-only"
+                            }
+                          },
+                          "required": [
+                            "kinds",
+                            "regular_scan_kinds",
+                            "devices"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "scope",
+                        "window",
+                        "speed",
+                        "exclusions",
+                        "fragile"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "engines": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "enum": [
+                              "passive",
+                              "nmap-discovery",
+                              "nmap-versions",
+                              "snmp",
+                              "osquery",
+                              "wazuh",
+                              "nuclei",
+                              "zap",
+                              "openvas",
+                              "honeypot"
+                            ]
+                          },
+                          "group": {
+                            "type": "string",
+                            "enum": [
+                              "discover",
+                              "identify",
+                              "vuln",
+                              "traps"
+                            ]
+                          },
+                          "module": {
+                            "type": "string",
+                            "enum": [
+                              "sensor-passive",
+                              "sensor-active",
+                              "agent-intake",
+                              "scan",
+                              "exposure",
+                              "honeypot"
+                            ],
+                            "description": "The module it belongs to; PATCH /modules/{id} of that module still works"
+                          },
+                          "enabled": {
+                            "type": "boolean"
+                          },
+                          "can_toggle": {
+                            "type": "boolean",
+                            "description": "false: it has no switch of its own; follows names the engine whose switch it obeys, or reason says why"
+                          },
+                          "follows": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "passive",
+                                  "nmap-discovery",
+                                  "nmap-versions",
+                                  "snmp",
+                                  "osquery",
+                                  "wazuh",
+                                  "nuclei",
+                                  "zap",
+                                  "openvas",
+                                  "honeypot"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "nmap-versions and snmp follow nmap-discovery; null otherwise"
+                          },
+                          "affects": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "passive",
+                                "nmap-discovery",
+                                "nmap-versions",
+                                "snmp",
+                                "osquery",
+                                "wazuh",
+                                "nuclei",
+                                "zap",
+                                "openvas",
+                                "honeypot"
+                              ]
+                            },
+                            "description": "Engines that stop too when this one is turned off (osquery and wazuh share the agent-intake switch; nmap-discovery off stops nmap-versions and the SNMP rounds). External scans (zap, openvas) follow the External exposure module, not nuclei. The page names them before turning off"
+                          },
+                          "state": {
+                            "type": "string",
+                            "enum": [
+                              "off",
+                              "needs_setup",
+                              "starting",
+                              "ready",
+                              "running",
+                              "error",
+                              "unavailable"
+                            ],
+                            "description": "off: switched off (or its module is); needs_setup: on, but it has nothing to work with yet (scope not confirmed, no SNMP credential, no osquery token, no Wazuh server, no verified target, no Trap IP); starting: its container is starting, or OpenVAS loads its feed; ready: on and waiting for its window, schedule or a person; running: a job runs now; error: it failed and needs a person (reason says what); unavailable: this box cannot run it (container-only install, tool missing, not enough memory)"
+                          },
+                          "reason": {
+                            "description": "Plain sentence for needs_setup, starting, error and unavailable, or a warning while ready (e.g. \"A sweep of these ranges needs 3 windows\"); null otherwise",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "preview": {
+                            "type": "boolean",
+                            "description": "Its module ships as Preview in v1 (SHIP.md: scan, honeypot)"
+                          },
+                          "cost": {
+                            "type": "object",
+                            "properties": {
+                              "ram_mb": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ],
+                                "description": "Memory it may take, from a fact of the box's code: its container's memory cap (sensor 512, honeypot 256, scan 1024, ZAP 1024), or the measured peak for OpenVAS (about 4000, D-569); 0 for osquery and Wazuh, which run inside core. null when it is not known; never an estimate"
+                              },
+                              "while": {
+                                "type": "string",
+                                "enum": [
+                                  "on",
+                                  "running"
+                                ],
+                                "description": "on: held as long as the engine is on (a long-running container); running: only while one of its jobs runs (a one-shot container, or OpenVAS scanning)"
+                              },
+                              "container": {
+                                "description": "The container it shares with other engines (scan: nmap, SNMP and nuclei); count a shared container once. null when the figure is its own",
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              }
+                            },
+                            "required": [
+                              "ram_mb",
+                              "while",
+                              "container"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "last_run": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                  },
+                                  "outcome": {
+                                    "type": "string",
+                                    "enum": [
+                                      "ok",
+                                      "partial",
+                                      "failed",
+                                      "stopped"
+                                    ]
+                                  },
+                                  "text": {
+                                    "type": "string",
+                                    "description": "One sentence from the box, e.g. \"Swept 254 addresses, 3 new devices\", \"Last report from an osquery agent\", \"Last trap hit\""
+                                  }
+                                },
+                                "required": [
+                                  "at",
+                                  "outcome",
+                                  "text"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "null: never ran"
+                          },
+                          "next_run_at": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "Next window opening (nmap-discovery, nmap-versions, snmp), next scheduled scan (nuclei), next Wazuh sync; null for engines that listen all the time (passive, osquery, honeypot) or run only when a person asks (zap, openvas)"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "group",
+                          "module",
+                          "enabled",
+                          "can_toggle",
+                          "follows",
+                          "affects",
+                          "state",
+                          "reason",
+                          "preview",
+                          "cost",
+                          "last_run",
+                          "next_run_at"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Every engine of this version, in display order; post-v1 ones (credentialed scans) are not listed"
+                    },
+                    "running": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "engine": {
+                            "type": "string",
+                            "enum": [
+                              "passive",
+                              "nmap-discovery",
+                              "nmap-versions",
+                              "snmp",
+                              "osquery",
+                              "wazuh",
+                              "nuclei",
+                              "zap",
+                              "openvas",
+                              "honeypot"
+                            ]
+                          },
+                          "id": {
+                            "type": "string",
+                            "description": "The run: a scan_run id, an exposure ScanRun id, an sa_job id, or a run of POST /scanning/engines/nmap-discovery/run"
+                          },
+                          "label": {
+                            "type": "string",
+                            "description": "What it scans, e.g. \"LAN sweep 192.168.18.0/24\", \"Check 192.168.18.20\", \"203.0.113.10\""
+                          },
+                          "target_id": {
+                            "description": "The device id or exposure target id the run is about, for a link; null for a sweep or several devices",
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "started_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "progress": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "phase": {
+                                    "type": "string",
+                                    "enum": [
+                                      "discovery",
+                                      "ports",
+                                      "services",
+                                      "scripts",
+                                      "vulns",
+                                      "web",
+                                      "openvas",
+                                      "saving"
+                                    ],
+                                    "description": "discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection; scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the result is being stored"
+                                  },
+                                  "percent": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 100
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the phase without a bar)"
+                                  },
+                                  "done": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "With total: the count behind percent (unit says what is counted); null when the phase has no count"
+                                  },
+                                  "total": {
+                                    "anyOf": [
+                                      {
+                                        "type": "integer",
+                                        "minimum": -9007199254740991,
+                                        "maximum": 9007199254740991
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ]
+                                  },
+                                  "unit": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "checks",
+                                          "hosts"
+                                        ]
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch"
+                                  },
+                                  "started_at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                    "description": "When the job (the device, or the public IP scan) started: elapsed time is now minus this"
+                                  },
+                                  "phase_started_at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                    "description": "When the current phase (or the current pass of it: a device gets a second nmap pass over admin ports) started"
+                                  },
+                                  "updated_at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                    "description": "The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is quiet, not that the box hangs"
+                                  },
+                                  "eta": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "format": "date-time",
+                                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the vulnerability checks (after 10 s and 1 %); null until it can be estimated"
+                                  },
+                                  "message": {
+                                    "anyOf": [
+                                      {
+                                        "type": "string",
+                                        "maxLength": 120
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "A short English note on the pass, e.g. \"Second pass: administration and alternative ports\"; null when none"
+                                  }
+                                },
+                                "required": [
+                                  "phase",
+                                  "percent",
+                                  "done",
+                                  "total",
+                                  "unit",
+                                  "started_at",
+                                  "phase_started_at",
+                                  "updated_at",
+                                  "eta",
+                                  "message"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "null until the run reports a step, and for runs that do not report one"
+                          }
+                        },
+                        "required": [
+                          "engine",
+                          "id",
+                          "label",
+                          "target_id",
+                          "started_at",
+                          "progress"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Jobs running now across engines, for the \"1 scan running\" indicator of the top bar"
+                    },
+                    "box": {
+                      "type": "object",
+                      "properties": {
+                        "memory_mb": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "MemTotal of the box; null when it cannot be read (container-only install may report its limit)"
+                        },
+                        "reserved_mb": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Sum of the cost of the engines that hold memory now (while on, plus while running for running jobs), a shared container counted once, plus core's 2048"
+                        }
+                      },
+                      "required": [
+                        "memory_mb",
+                        "reserved_mb"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "safety",
+                    "engines",
+                    "running",
+                    "box"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scanning/engines/nmap-discovery/run": {
+      "post": {
+        "operationId": "scanning_post_scanning_engines_nmap_discovery_run",
+        "summary": "Scan the LAN now (no targets: a sweep of the whole scope outside the window, then the scans of the devices it queued, for at most one hour) or check these devices now (targets). Runs in the background: the answer is the run, which GET /scanning lists in running[] with its progress until it ends. Works while the Vulnerability scans module is off. 400 unknown_device, out_of_scope, scope_not_confirmed, not_scannable (the device's safety rules refuse it); 409 module_off (sensor-active off), engine_off (active discovery off), already_running; 503 scanner_unavailable (nmap is not available)",
+        "tags": [
+          "scanning"
+        ],
+        "x-stories": [
+          "S-INV-1",
+          "S-SCAN-4"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "targets": {
+                    "description": "Leave out: sweep the whole LAN scope now, then identify the devices waiting for their scan (\"Scan the LAN now\"). Given: the devices to check now (\"Check this device now\", \"Scan selected\"), each an IPv4 address of a device or a device id. Every target must be a device inside the confirmed scope, outside the exclusions, and one its safety rules let a person check (a fragile device gets its gentle scan; \"never scan\" is refused)",
+                    "minItems": 1,
+                    "maxItems": 64,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 96
+                    }
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "engine": {
+                      "type": "string",
+                      "enum": [
+                        "passive",
+                        "nmap-discovery",
+                        "nmap-versions",
+                        "snmp",
+                        "osquery",
+                        "wazuh",
+                        "nuclei",
+                        "zap",
+                        "openvas",
+                        "honeypot"
+                      ]
+                    },
+                    "id": {
+                      "type": "string",
+                      "description": "The run: a scan_run id, an exposure ScanRun id, an sa_job id, or a run of POST /scanning/engines/nmap-discovery/run"
+                    },
+                    "label": {
+                      "type": "string",
+                      "description": "What it scans, e.g. \"LAN sweep 192.168.18.0/24\", \"Check 192.168.18.20\", \"203.0.113.10\""
+                    },
+                    "target_id": {
+                      "description": "The device id or exposure target id the run is about, for a link; null for a sweep or several devices",
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "started_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "progress": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "phase": {
+                              "type": "string",
+                              "enum": [
+                                "discovery",
+                                "ports",
+                                "services",
+                                "scripts",
+                                "vulns",
+                                "web",
+                                "openvas",
+                                "saving"
+                              ],
+                              "description": "discovery: is the host up (ping or ARP); ports: port scan; services: service and version detection; scripts: nmap reads titles, certificates and NTLM answers; vulns: vulnerability checks (nuclei templates); web: passive web checks (ZAP); openvas: the optional OpenVAS deep scan; saving: the result is being stored"
+                            },
+                            "percent": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0,
+                                  "maximum": 100
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "How far into the phase, 0 to 100, one decimal; null when the tool gives no measure yet (show the phase without a bar)"
+                            },
+                            "done": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "With total: the count behind percent (unit says what is counted); null when the phase has no count"
+                            },
+                            "total": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "unit": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "checks",
+                                    "hosts"
+                                  ]
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "checks: template x port pairs of the vulnerability checks; hosts: addresses of a discovery batch"
+                            },
+                            "started_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the job (the device, or the public IP scan) started: elapsed time is now minus this"
+                            },
+                            "phase_started_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "When the current phase (or the current pass of it: a device gets a second nmap pass over admin ports) started"
+                            },
+                            "updated_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                              "description": "The latest report; nmap and nuclei report every 5 seconds at most, so an older one means the tool is quiet, not that the box hangs"
+                            },
+                            "eta": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "format": "date-time",
+                                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "Estimated end of the current phase: nmap's own estimate for its phases, the pace so far for the vulnerability checks (after 10 s and 1 %); null until it can be estimated"
+                            },
+                            "message": {
+                              "anyOf": [
+                                {
+                                  "type": "string",
+                                  "maxLength": 120
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "A short English note on the pass, e.g. \"Second pass: administration and alternative ports\"; null when none"
+                            }
+                          },
+                          "required": [
+                            "phase",
+                            "percent",
+                            "done",
+                            "total",
+                            "unit",
+                            "started_at",
+                            "phase_started_at",
+                            "updated_at",
+                            "eta",
+                            "message"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "null until the run reports a step, and for runs that do not report one"
+                    }
+                  },
+                  "required": [
+                    "engine",
+                    "id",
+                    "label",
+                    "target_id",
+                    "started_at",
+                    "progress"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scanning/safety": {
+      "put": {
+        "operationId": "scanning_put_scanning_safety",
+        "summary": "Save the shared safety settings every LAN engine obeys (one writer; GET/PUT /inventory/settings and the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days, no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20), bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on). Publishes inventory.settings.changed: a run that the new values no longer allow stops",
+        "tags": [
+          "scanning"
+        ],
+        "x-stories": [
+          "S-SCAN-4",
+          "S-INV-1"
+        ],
+        "x-min-role": "admin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scope": {
+                    "type": "object",
+                    "properties": {
+                      "lan_ranges": {
+                        "maxItems": 16,
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges"
+                      },
+                      "confirmed": {
+                        "type": "boolean",
+                        "description": "Attestation: the ranges belong to the company and scanning them is permitted. Required true while nmap-discovery is on (400 scope_not_confirmed); changing the ranges asks for it again"
+                      }
+                    },
+                    "required": [
+                      "lan_ranges",
+                      "confirmed"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "window": {
+                    "type": "object",
+                    "properties": {
+                      "days": {
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 7,
+                          "description": "1 = Monday … 7 = Sunday (D-57 (9))"
+                        }
+                      },
+                      "from": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                        "description": "HH:MM"
+                      },
+                      "to": {
+                        "type": "string",
+                        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                        "description": "Earlier than from: crosses midnight"
+                      }
+                    },
+                    "required": [
+                      "days",
+                      "from",
+                      "to"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "speed": {
+                    "type": "object",
+                    "properties": {
+                      "packets_per_s": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 1000,
+                        "description": "nmap and SNMP (inventory active.rate)"
+                      },
+                      "requests_per_s": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 20,
+                        "description": "nuclei on LAN devices (was scan config rate)"
+                      }
+                    },
+                    "required": [
+                      "packets_per_s",
+                      "requests_per_s"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "exclusions": {
+                    "maxItems": 200,
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "IPv4 or CIDR without host bits"
+                  },
+                  "fragile": {
+                    "type": "object",
+                    "properties": {
+                      "kinds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "firewall",
+                            "router",
+                            "switch",
+                            "ap",
+                            "nas",
+                            "server",
+                            "pc",
+                            "printer",
+                            "camera",
+                            "nvr",
+                            "iot",
+                            "web",
+                            "unknown"
+                          ]
+                        },
+                        "description": "Types scanned once, gently, when first seen; passive-only after that (D-45, D-511)"
+                      },
+                      "regular_scan_kinds": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "firewall",
+                            "router",
+                            "switch",
+                            "ap",
+                            "nas",
+                            "server",
+                            "pc",
+                            "printer",
+                            "camera",
+                            "nvr",
+                            "iot",
+                            "web",
+                            "unknown"
+                          ]
+                        },
+                        "description": "Subset of kinds that may still get regular scans"
+                      }
+                    },
+                    "required": [
+                      "kinds",
+                      "regular_scan_kinds"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "scope",
+                  "window",
+                  "speed",
+                  "exclusions",
+                  "fragile"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "scope": {
+                      "type": "object",
+                      "properties": {
+                        "lan_ranges": {
+                          "maxItems": 16,
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Internal IPv4 CIDR (RFC 1918 or 100.64.0.0/10, D-461); inventory lan_ranges"
+                        },
+                        "confirmed_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "confirmed_by": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "lan_ranges",
+                        "confirmed_at",
+                        "confirmed_by"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "window": {
+                      "type": "object",
+                      "properties": {
+                        "days": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 7,
+                            "description": "1 = Monday … 7 = Sunday (D-57 (9))"
+                          },
+                          "description": "Empty only on a box whose discovery was saved off without a day; a save needs one"
+                        },
+                        "from": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                          "description": "HH:MM"
+                        },
+                        "to": {
+                          "type": "string",
+                          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                          "description": "Earlier than from: crosses midnight"
+                        },
+                        "time_zone": {
+                          "type": "string",
+                          "description": "IANA zone the window is read in (the organization time zone); read-only"
+                        }
+                      },
+                      "required": [
+                        "days",
+                        "from",
+                        "to",
+                        "time_zone"
+                      ],
+                      "additionalProperties": false,
+                      "description": "One window for discovery, version scans, SNMP rounds and scheduled vulnerability checks. Scan now, Check this device now and external scans are not bound by it"
+                    },
+                    "speed": {
+                      "type": "object",
+                      "properties": {
+                        "packets_per_s": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 1000,
+                          "description": "nmap and SNMP (inventory active.rate)"
+                        },
+                        "requests_per_s": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 20,
+                          "description": "nuclei on LAN devices (was scan config rate)"
+                        }
+                      },
+                      "required": [
+                        "packets_per_s",
+                        "requests_per_s"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "exclusions": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "IPv4 or CIDR never touched by any engine on the LAN (a merge of two old lists may hold more than the 200 a save accepts)"
+                    },
+                    "fragile": {
+                      "type": "object",
+                      "properties": {
+                        "kinds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "firewall",
+                              "router",
+                              "switch",
+                              "ap",
+                              "nas",
+                              "server",
+                              "pc",
+                              "printer",
+                              "camera",
+                              "nvr",
+                              "iot",
+                              "web",
+                              "unknown"
+                            ]
+                          },
+                          "description": "Types scanned once, gently, when first seen; passive-only after that (D-45, D-511)"
+                        },
+                        "regular_scan_kinds": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "firewall",
+                              "router",
+                              "switch",
+                              "ap",
+                              "nas",
+                              "server",
+                              "pc",
+                              "printer",
+                              "camera",
+                              "nvr",
+                              "iot",
+                              "web",
+                              "unknown"
+                            ]
+                          },
+                          "description": "Subset of kinds that may still get regular scans"
+                        },
+                        "devices": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Devices fragile today (by type or marked by hand), for the link to Devices with the fragile filter; read-only"
+                        }
+                      },
+                      "required": [
+                        "kinds",
+                        "regular_scan_kinds",
+                        "devices"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "adjusted": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "from": {
+                            "type": "string"
+                          },
+                          "to": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "from",
+                          "to"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Ranges and exclusions normalized on save, e.g. 192.168.18.0 → 192.168.18.0/24"
+                    }
+                  },
+                  "required": [
+                    "scope",
+                    "window",
+                    "speed",
+                    "exclusions",
+                    "fragile",
+                    "adjusted"
                   ],
                   "additionalProperties": false
                 }

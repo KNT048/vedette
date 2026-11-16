@@ -1,5 +1,10 @@
 # Scan — Change Impact Map
 
+## Modifying: the shared window, rate and exclusions (`SharedChecks`, `settings`, `LegacyChecks`, `Engine`; #850, INV-16)
+- **inventory** owns the values (INV-32): `PUT /scans/config` writes there through `SaveChecks`; Settings › Scanning (`PUT /scanning/safety`) and Devices › Scope write the same keys, so a change there moves nuclei's window, speed and exclusions too.
+- **cmd/vedette** `mergeScanningSafety` reads `LegacyChecks` (scan_setting) once at start; `scanningEngines.nuclei` reads `Engine` for the card.
+- **`scan_setting`** keeps its columns and a copy of the values (forward-only, DATA_MODEL §6): do not drop them before a release that no longer rolls back past #850.
+
 ## Modifying: `RunView.progress`, `live.prog`, `setProgress`/`progressOf` (#830, INV-15)
 - **SPA**: `/scans` (the web part of #830 shows it; contract `web/src/lib/progress.ts` `JobProgress`, shared with exposure). **sensor-active**: its `Dispatcher` reports into the Sink of the context the run probes with; a wrapper of that context in `cmd/vedette` must keep its values (`context.WithoutCancel`, never `context.Background()`).
 - `nucleiout.TimeoutTarget` (one line of the error log; `ParseHostErrors` is built on it) is read by the scan worker while nuclei runs, to drop the checks of a target nuclei gave up from the progress total. Changing what counts as a timeout changes both.

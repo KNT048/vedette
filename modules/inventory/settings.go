@@ -13,7 +13,9 @@ import (
 	"github.com/knt048/vedette/content/devicetypes"
 )
 
-// ActiveWindow is when and how fast the box may scan actively (INV-7).
+// ActiveWindow is when and how fast the box may scan actively (INV-7). Since #850 it is the one store of the safety settings every
+// LAN engine shares (INV-32): the window and the exclusions bind the vulnerability checks of the scan module too, and CheckRate is
+// their speed.
 type ActiveWindow struct {
 	Enabled    bool     `json:"enabled"`
 	Days       []int    `json:"days"` // 1 = Monday ... 7 = Sunday
@@ -21,6 +23,25 @@ type ActiveWindow struct {
 	To         string   `json:"to"` // earlier than From means the window crosses midnight
 	Rate       int      `json:"rate"`
 	Exclusions []string `json:"exclusions"` // IPv4 or CIDR
+	// CheckRate is the speed of the vulnerability checks (nuclei) on LAN devices, in requests per second (1..MaxCheckRate). 0: the
+	// one-time merge of the scan module's own copy has not run yet (MergeLegacyChecks), read as DefaultCheckRate. Not part of GET/PUT
+	// /inventory/settings (the handlers leave it out): /scanning/safety and /scans/config carry it.
+	CheckRate int `json:"check_rate,omitempty"`
+}
+
+// Limits of the vulnerability checks' speed and of the shared exclusions (#850, INV-32).
+const (
+	DefaultCheckRate = 5  // the scan module's default (scan migration 0001)
+	MaxCheckRate     = 20 // scan INV-5
+	MaxExclusions    = 200
+)
+
+// Checks is the check rate, DefaultCheckRate until it was stored.
+func (a ActiveWindow) Checks() int {
+	if a.CheckRate == 0 {
+		return DefaultCheckRate
+	}
+	return a.CheckRate
 }
 
 // Settings is the scan scope of the box (contract.ts InventorySettings).
@@ -161,6 +182,9 @@ func checkSettings(in SettingsInput) (SettingsInput, []Adjustment, error) {
 	if act.Rate < 1 || act.Rate > 1000 {
 		return in, nil, badRequest("bad_rate", "Scan rate is 1 to 1000 packets per second.")
 	}
+	if act.CheckRate != 0 && (act.CheckRate < 1 || act.CheckRate > MaxCheckRate) {
+		return in, nil, badRequest("bad_rate", "The vulnerability check rate is 1 to 20 requests per second.")
+	}
 	var excl []string
 	for _, raw := range act.Exclusions {
 		x := strings.TrimSpace(raw)
@@ -206,7 +230,7 @@ func checkSettings(in SettingsInput) (SettingsInput, []Adjustment, error) {
 	}
 	out := in
 	out.LANRanges = ranges
-	out.Active = ActiveWindow{Enabled: act.Enabled, Days: days, From: act.From, To: act.To, Rate: act.Rate, Exclusions: excl}
+	out.Active = ActiveWindow{Enabled: act.Enabled, Days: days, From: act.From, To: act.To, Rate: act.Rate, Exclusions: excl, CheckRate: act.CheckRate}
 	out.FragileKinds, out.RegularScanKinds = fragile, regular
 	return out, adjusted, nil
 }
@@ -236,6 +260,9 @@ func (s *Service) SaveSettings(ctx context.Context, actor string, in SettingsInp
 		}
 		now := s.now()
 		next := in.Settings
+		if next.Active.CheckRate == 0 { // PUT /inventory/settings does not carry it: the stored value stays
+			next.Active.CheckRate = prev.Active.CheckRate
+		}
 		next.ScopeConfirmedAt, next.ScopeConfirmedBy = nil, nil
 		if in.ScopeConfirmed {
 			at, by := now, actor

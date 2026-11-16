@@ -1,5 +1,10 @@
 # Core — Change Impact Map
 
+## Modifying: Settings › Scanning (`ScanningHandlers`, `ScanEngine`, `SafetyStore`, `DiscoveryRunner`; #850, INV-40)
+- **cmd/vedette/scanning.go** builds every port: a new field of `ScanEngine`/`EngineStatus` or a new refusal of `DiscoveryRunner` needs its adapter there; the engine list and its order are the page's.
+- **`core/server/modules.go`** maps `/scanning` to core (and `web/src/lib/apiModules.ts`, `api/route-modules.json`): moving it to a module would make the page 404 with that module off.
+- **The SPA** (`web/src/features/scanning`, the UI owner's) reads `GET /scanning` every 5 s while visible for the "scan running" indicator: keep the read cheap (no per-device work in a port's `Status`).
+
 Interface Go (`core/…`). Mọi module gọi `core`; đổi chữ ký ở đây ảnh hưởng toàn bộ. Đã có code: `core/store`, `core/secrets`, `core/chain`, `core/audit`, `core/exec` (WP-03); `core/apierr`, `core/server`, `core/modreg`, `core/jobs`, `modules/manifests.go` (WP-04a); `core/auth`, `core/events`, đầu chuỗi (`chain.Head`), `secrets.Value.Last4/IsSet` (WP-04b phần 1: thư viện); `modules/core` handler HTTP của đăng nhập/tài khoản/người dùng/thiết lập/audit/general, `cmd/vedette` TLS + danh sách Host, `server.Exchange`/`HostAllowlist`, cookie thiết bị (WP-04b phần 2); các mục còn lại là dự kiến.
 
 ## Modifying: `modreg.Registry` (WP-04a, `core/modreg`) — thực tế: `modreg.Load(fs.FS) ([]Manifest, error)`, `modreg.New(ctx, Config{DB, Audit, Manifests, Version, Clock, Log, ContainerOnly}) (*Registry, error)`, `(*Registry).Enabled(id) bool`, `ContainerOnly() bool` (D-381), `List() []State{ID, Tier, Depends, Enabled, EnabledAt, Available}`, `Enable(ctx, tx, actor, id, withDeps) (Change, error)`, `Disable(ctx, tx, actor, id) (Change, error)`, `Publish(Change)`, `OnChange(func(id string, enabled bool))`, `Change{Enabled, Affected}`, `ErrManifest`

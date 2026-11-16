@@ -132,7 +132,7 @@ func (s *Service) ready(ctx context.Context) bool {
 
 // Config returns the settings with the scope, the commitment, whether a scan can start and the next scheduled run.
 func (s *Service) Config(ctx context.Context) (ConfigView, error) {
-	c, err := loadSettings(ctx, s.cfg.DB.Reader())
+	c, err := s.settings(ctx, s.cfg.DB.Reader())
 	if err != nil {
 		return ConfigView{}, err
 	}
@@ -166,6 +166,11 @@ func (s *Service) view(ctx context.Context, c Settings) (ConfigView, error) {
 	} else if c.Schedule.Enabled {
 		v.ScheduleBlockedReason = ptr(msgZoneUnknown)
 	}
+	// #850: the window is shared and saved on Settings › Scanning too, so it can move away from the schedule time (INV-16).
+	if c.Schedule.Enabled && v.ScheduleBlockedReason == nil && hhmmRE.MatchString(c.Schedule.At) && hhmmRE.MatchString(c.Window.From) &&
+		hhmmRE.MatchString(c.Window.To) && !inTimeRange(c.Schedule.At, c.Window.From, c.Window.To) {
+		v.ScheduleBlockedReason = ptr(fmt.Sprintf("The schedule time %s is outside the scan window %s to %s (Settings, Scanning), so no scheduled scan runs. Pick a time inside the window.", c.Schedule.At, c.Window.From, c.Window.To))
+	}
 	switch {
 	case v.Scope.Commitment == nil:
 		v.BlockReason = ptr(msgNoCommitment)
@@ -185,8 +190,11 @@ func (s *Service) SaveConfig(ctx context.Context, user string, p Patch) (ConfigV
 		return ConfigView{}, fmt.Errorf("scan: saving the settings: %w", ErrDangerousLocked)
 	}
 	var saved Settings
+	sh, shared := s.shared()
+	var wtx *sql.Tx // the write transaction, for the inventory's Settle
 	err := s.cfg.DB.Write(ctx, func(tx *sql.Tx) error {
-		cur, err := loadSettings(ctx, tx)
+		wtx = tx
+		cur, err := s.settings(ctx, tx)
 		if err != nil {
 			return err
 		}
@@ -196,6 +204,13 @@ func (s *Service) SaveConfig(ctx context.Context, user string, p Patch) (ConfigV
 		}
 		if err := saveSettings(ctx, tx, next, user, store.FormatTS(s.now())); err != nil {
 			return err
+		}
+		// INV-16 (#850): the window, the rate and the exclusions are the inventory's; this save writes them there too, in the same
+		// transaction, so discovery and Settings › Scanning see the same values.
+		if shared && (p.Days != nil || p.From != nil || p.To != nil || p.Rate != nil || p.Exclusions != nil) {
+			if err := sh.SaveChecks(ctx, tx, user, Checks{Window: next.Window, Rate: next.Rate, Exclusions: next.Exclusions}); err != nil {
+				return err
+			}
 		}
 		detail, err := json.Marshal(struct {
 			Rate       int    `json:"rate"`
@@ -210,6 +225,9 @@ func (s *Service) SaveConfig(ctx context.Context, user string, p Patch) (ConfigV
 		saved = next
 		return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: "scan.config", Target: "scan", Detail: string(detail)})
 	})
+	if shared && wtx != nil {
+		sh.Settle(ctx, wtx, err == nil)
+	}
 	if err != nil {
 		return ConfigView{}, fmt.Errorf("scan: saving the settings: %w", err)
 	}

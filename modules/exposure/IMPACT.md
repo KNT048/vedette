@@ -3,6 +3,11 @@
 ## Modifying: the count of the template step (#830 FAIL 2, INV-29)
 - `cmd/vedette` `exposureTemplateScan` (`scanBaseline`, `scanFull`/`fullPortScan`, `fullMeter`, `portBound`, `reachableTags`, `webCandidate`): each nuclei run goes out with the context of a `progress.Series` job, so the run's Tracker sees one count of the whole step. A new caller of `send` must do the same, or its run's own count reaches the Tracker (held, never backwards, but stalled). No API or UI change: `ScanRun.progress` keeps its shape.
 
+## Modifying: `EngineRuns`, `EngineRun`, `stepLog`, `saveSteps`, `exp_engine_run` (#861, INV-30)
+- **cmd/vedette** `scanning.go` `externalRun`: the nuclei, zap and openvas cards of Settings › Scanning (core INV-40) read `EngineRuns` for `last_run`; an engine name, outcome or the `At` format changed here changes the page. `TestScanningExternalLastRuns` holds it.
+- **modules/core** `export_policy.go`: every column of `exp_engine_run` is listed (exported as stored).
+- A new engine step (or a new call site of `ScanTemplates`/`Baseline`) must `begin`/`end` on `stepsOf(ctx)`, or its card keeps the earlier run.
+
 ## Modifying: `ScanRun.progress`, `scanRun.prog`, `reportOpenVAS` (#830, INV-29)
 - **SPA**: the exposure page (web part of #830; contract `web/src/lib/progress.ts`). **sensor-active**/**scan**: the nmap and nuclei jobs of the runner report into the run's context; an adapter that drops the context's values loses them.
 

@@ -68,7 +68,7 @@ export function IUpdated({ asset, software, fixed, size }: { asset: FindingAsset
             <div className="grid gap-3 text-sm">
               <p>{t('updated.scanned', { device })}</p>
               {hasIp(asset) ? (
-                <Button asChild variant="primary" className="w-fit"><Link to={`/devices/${asset.id}`}><ScanSearch />{t('updated.scan', { device })}</Link></Button>
+                <Button asChild variant="primary" className="w-fit"><Link to={`/scans?target=${encodeURIComponent(asset.id)}`}><ScanSearch />{t('updated.scan', { device })}</Link></Button>
               ) : <p className="text-[13px] text-muted">{t('evidence.noIpScan')}</p>}
             </div>
           ) : done ? (

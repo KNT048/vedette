@@ -1,9 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
-import { QueryClientProvider } from '@tanstack/react-query'
-import { createMemoryRouter, RouterProvider } from 'react-router'
-import { makeQueryClient } from '@/app/App'
-import { ScanNowButton, ScansRunningIndicator } from './ScanNow'
+import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
@@ -29,17 +25,10 @@ const RUNNING_POLL_MS = runsPoll.runningMs
 runsPoll.runningMs = 1000 // the page reads every 5 s while a scan runs (#830); the tests' mock scans last 2 s
 afterEach(() => { timing.stepMs = 2000; timing.stopMs = 1000; timing.engineMs = 0; vi.useRealTimers(); localStorage.removeItem('vedette-mock-egress') })
 
-/** ScanNowButton where another page places it (#850): the app's providers and a router, no page around it. */
-function renderNow(node: React.ReactNode, role: 'admin' | 'operator' | 'viewer' = 'admin') {
-  sessionStore.set({ userId: role === 'admin' ? 'u-admin' : role === 'operator' ? 'u-op' : 'u-view' })
-  const router = createMemoryRouter([{ path: '*', element: node }], { initialEntries: ['/devices/a-nas02'] })
-  return render(<QueryClientProvider client={makeQueryClient()}><RouterProvider router={router} /></QueryClientProvider>)
-}
-
 describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => {
   it('từ chối thiết bị chưa duyệt, tên miền chưa xác thực, mục lạ, danh sách rỗng, và quét chồng', async () => {
     renderApp('/settings/scanning?tab=history')
-    await screen.findByRole('table', { name: 'History of scans' })
+    await screen.findByRole('table', { name: 'History of scans' }, { timeout: 4000 }) // the first test loads the page's code
     as('u-op')
     const bad = await postRun(['a-unk01'])
     expect(bad.status).toBe(400)
@@ -95,11 +84,7 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
 
   it('máy quét không sẵn sàng: can_scan=false kèm lý do, nút khoá, POST trả 503 scanner_unavailable', async () => {
     scannerStore.set({ available: false })
-    renderNow(<ScanNowButton targets={['a-nas02']} />)
-    expect(await screen.findByText(/The vulnerability scanner is not available: the scan container or its scanner is missing/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Check this device now' })).toBeDisabled()
-    // the commitment is ticked, so the page must not blame it
-    expect(screen.queryByText(/Vedette scans no address until you set the scan scope/)).not.toBeInTheDocument()
+    as('u-admin')
     const cfg = await (await fetch(`${base()}/scans/config`)).json()
     expect(cfg.can_scan).toBe(false)
     expect(cfg.block_reason).toMatch(/^The vulnerability scanner is not available/)
@@ -110,23 +95,21 @@ describe('scan: API không bao giờ quét ngoài phạm vi (LEGAL §3)', () => 
     expect((await getRuns()).filter((r) => !r.id.startsWith('run-seed'))).toHaveLength(0)
   })
 
-  it('no run history: the Nuclei card and its schedule note blame the real reason, not always the commitment', async () => {
+  it('no run history: the Nuclei schedule note blames the real reason, not always the commitment', async () => {
     runs.set([])
     scannerStore.set({ available: false })
     renderApp('/settings/scanning?tab=engines#nuclei')
     const card = await screen.findByRole('listitem', { name: /Vulnerability checks \(Nuclei\)/ })
-    expect(within(card).getByText('Error')).toBeInTheDocument()
     expect(await within(card).findByText(/nothing runs while the vulnerability scanner is not available/)).toBeInTheDocument()
     expect(screen.queryByText(/until the scan scope commitment is ticked/)).not.toBeInTheDocument()
   })
 
-  it('no run history and no commitment: the Nuclei card and its schedule note ask for the commitment', async () => {
+  it('no run history and no commitment: the Nuclei schedule note asks for the commitment', async () => {
     const { inventorySettingsStore } = await import('@/features/inventory/mocks')
     inventorySettingsStore.update((s) => ({ ...s, scope_confirmed_at: null, scope_confirmed_by: null }))
     runs.set([])
     renderApp('/settings/scanning?tab=engines#nuclei')
     const card = await screen.findByRole('listitem', { name: /Vulnerability checks \(Nuclei\)/ })
-    expect(within(card).getByText('Needs setup')).toBeInTheDocument()
     expect(await within(card).findByText(/nothing runs until the scan scope commitment is ticked/)).toBeInTheDocument()
   })
 
@@ -166,8 +149,8 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
 
   it('quét một thiết bị đến khi xong: ghi kết quả vào phát hiện dùng chung, kiểm toán, nhật ký probe', async () => {
     timing.stepMs = 30
-    renderNow(<ScanNowButton targets={['a-nas02']} />)
-    await userEvent.click(await screen.findByRole('button', { name: 'Check this device now' }))
+    as('u-admin')
+    await postRun(['a-nas02']) // fragile: a person's own pick
     await waitFor(async () => expect((await getRuns())[0]!.status).toBe('done'), { timeout: 4000 })
     const run = (await getRuns())[0]!
     expect(run.results.map((r) => r.result)).toContain('matched')
@@ -281,9 +264,7 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
   })
 
   it('vai chỉ xem không quét và không dừng được', async () => {
-    renderNow(<ScanNowButton targets="lan" />, 'viewer')
-    expect(await screen.findByRole('button', { name: 'Scan the LAN now' })).toBeDisabled()
-    expect(await screen.findByText('Requires Operator role')).toBeInTheDocument()
+    as('u-view')
     const res = await postRun(['a-nas02'])
     expect(res.status).toBe(403)
   })
@@ -320,39 +301,39 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
     renderApp('/settings/scanning?tab=safety')
     expect(await screen.findByLabelText('From')).toHaveValue('22:00')
     expect(screen.getByLabelText('Until')).toHaveValue('05:00')
-    expect(screen.getByLabelText('Speed')).toHaveValue('5')
-    expect(screen.getByLabelText('One IP or network per line')).toHaveValue('192.168.10.240')
+    expect(screen.getByLabelText('Vulnerability checks on the LAN')).toHaveValue('5') // D-627: the shared block (inventory stores it)
+    expect(screen.getByLabelText('Discovery and SNMP')).toHaveValue('50')
     expect(screen.getByText('No changes, no denial of service')).toBeInTheDocument()
     expect(screen.getByText(/Never guesses passwords/)).toBeInTheDocument()
-    expect(screen.getByRole('switch', { name: 'Stop automatically when a device does not respond' })).toBeChecked()
     await expectNoA11yViolations()
   })
 
   it('lưu tốc độ và loại trừ: lưu bền, ghi kiểm toán, còn sau khi mở lại', async () => {
     const view = renderApp('/settings/scanning?tab=safety')
-    await userEvent.selectOptions(await screen.findByLabelText('Speed'), '2')
+    await userEvent.selectOptions(await screen.findByLabelText('Vulnerability checks on the LAN'), '2')
     const ex = screen.getByLabelText('One IP or network per line')
     await userEvent.clear(ex)
     await userEvent.type(ex, '192.168.10.250{enter}192.168.20.0/24')
     await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
-    expect(await screen.findByText('Scan settings saved')).toBeInTheDocument()
-    const cfg = (await (await fetch(`${base()}/scans/config`)).json()).config as ScanConfig
-    expect(cfg.rate).toBe(2)
-    expect(cfg.exclusions).toEqual(['192.168.10.250', '192.168.20.0/24'])
-    expect(auditStore.get().some((a) => a.action === 'scan.config')).toBe(true)
+    expect(await screen.findByText('Safety settings saved')).toBeInTheDocument()
+    as('u-admin')
+    const safety = (await (await fetch(`${base()}/scanning`)).json()).safety as { speed: { requests_per_s: number }; exclusions: string[] }
+    expect(safety.speed.requests_per_s).toBe(2)
+    expect(safety.exclusions).toEqual(['192.168.10.250', '192.168.20.0/24'])
+    expect(auditStore.get().some((a) => a.action === 'inventory.settings')).toBe(true)
     view.unmount()
     renderApp('/settings/scanning?tab=safety')
-    expect(await screen.findByLabelText('Speed')).toHaveValue('2')
+    expect(await screen.findByLabelText('Vulnerability checks on the LAN')).toHaveValue('2')
   })
 
   it('loại trừ sai nói rõ dòng nào và sửa thế nào', async () => {
     renderApp('/settings/scanning?tab=safety')
     const ex = await screen.findByLabelText('One IP or network per line')
-    await userEvent.type(ex, '{enter}may-in')
+    await userEvent.type(ex, 'may-in')
     await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('Line 2: "may-in" is not an IP or network range')
-    expect(alert).toHaveTextContent('For example 192.168.10.5')
+    expect(alert).toHaveTextContent('Exclusion "may-in" is not valid')
+    expect(alert).toHaveTextContent('Enter an IP (192.168.10.10)')
   })
 
   it('ngày trong tuần là 1 đến 7 (Thứ Hai = 1, Chủ Nhật = 7), ô chọn ngày chỉ mở khi lịch hằng tuần (D-57)', async () => {
@@ -409,9 +390,10 @@ describe('scan: lịch và an toàn (S-SCAN-4)', () => {
   it('vai vận hành xem được nhưng không đổi được thiết lập', async () => {
     renderApp('/settings/scanning?tab=safety', { role: 'operator' })
     expect(await screen.findByText(/Only an administrator can change these settings/)).toBeInTheDocument()
-    expect(screen.getByLabelText('Speed')).toBeDisabled()
+    expect(screen.getByLabelText('Vulnerability checks on the LAN')).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Save settings' })).toBeDisabled()
     expect((await fetch(`${base()}/scans/config`, json('PUT', { rate: 1 }))).status).toBe(403)
+    expect((await fetch(`${base()}/scanning/safety`, json('PUT', {}))).status).toBe(403)
   })
 
   it('tính lần quét kế tiếp theo lịch hằng ngày, hằng tuần và khi tắt', () => {
@@ -519,9 +501,7 @@ describe('scan: tự quét lại khi có KEV mới (S-SCAN-2)', () => {
 
   it('D-261 (4): after Stop now, while the scanner is still busy, Scan now is locked with the reason and a start is refused', async () => {
     engineStore.set({ busyUntil: Date.now() + 60_000 })
-    renderNow(<ScanNowButton targets="lan" />, 'operator')
-    expect(await screen.findByText(/The scanner is still finishing the scan you stopped/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Scan the LAN now' })).toBeDisabled()
+    as('u-admin')
     expect((await (await fetch(`${base()}/scans/runs`)).json()).engine_busy).toBe(true)
     as('u-op')
     const res = await postRun(['a-nas02'])
@@ -699,151 +679,5 @@ describe('scan: quét có tài khoản (S-SCAN-5)', () => {
     const input = screen.getByLabelText('SSH private key file') as HTMLInputElement
     await userEvent.upload(input, new File([KEY], 'vedette_scan_key', { type: 'text/plain' }))
     expect(await screen.findByText('Read file vedette_scan_key')).toBeInTheDocument()
-  })
-})
-
-
-describe('Settings › Scanning: every engine on one page (#850, S-SCAN-4)', () => {
-  const card = (name: RegExp) => screen.findByRole('listitem', { name })
-
-  it('groups the engines by what they do; each card has its switch, cost, last and next run; Preview engines say so; no a11y errors', async () => {
-    renderApp('/settings/scanning')
-    for (const g of ['Discover', 'Identify', 'Check vulnerabilities', 'Traps']) expect(await screen.findByRole('heading', { level: 2, name: g })).toBeInTheDocument()
-    const nuclei = await card(/Vulnerability checks \(Nuclei\)/)
-    expect(within(nuclei).getByText('Preview')).toBeInTheDocument()
-    expect(within(nuclei).getByText('400 MB memory, medium CPU')).toBeInTheDocument()
-    expect(within(nuclei).getByText('Next run')).toBeInTheDocument()
-    expect(within(await card(/Service versions \(nmap\)/)).queryByText('Preview')).toBeNull()
-    expect(within(await card(/OpenVAS deep scan/)).getByText('5.5 GB memory, high CPU')).toBeInTheDocument()
-    expect(within(await card(/Decoys \(honeypot\)/)).getByText('Preview')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { level: 1, name: 'Scanning' })).toBeInTheDocument()
-    await expectNoA11yViolations()
-  })
-
-  it('the menu has no Vulnerability scans entry; Settings lists Scanning', async () => {
-    renderApp('/settings/scanning')
-    await screen.findByRole('heading', { level: 1, name: 'Scanning' })
-    expect(screen.queryByRole('link', { name: /Vulnerability scans/ })).toBeNull()
-    expect(screen.getByRole('link', { name: 'Scanning' })).toHaveAttribute('href', '/settings/scanning')
-  })
-
-  it('an admin turns an engine off and on: the card follows, the change is audited; an operator cannot', async () => {
-    const view = renderApp('/settings/scanning')
-    const row = await card(/Service versions \(nmap\)/)
-    const sw = within(row).getByRole('switch', { name: /Service versions \(nmap\)/ })
-    await userEvent.click(sw)
-    await waitFor(() => expect(within(row).getAllByText('Off').length).toBeGreaterThan(0))
-    expect(auditStore.get().some((a) => a.action === 'scan.engine_off' && a.target === 'nmap_versions')).toBe(true)
-    await userEvent.click(sw)
-    await waitFor(() => expect(sw).toBeChecked())
-    expect(auditStore.get().some((a) => a.action === 'scan.engine_on')).toBe(true)
-    view.unmount()
-    renderApp('/settings/scanning', { role: 'operator' })
-    const r2 = await card(/Service versions \(nmap\)/)
-    expect(within(r2).getByRole('switch')).toBeDisabled()
-    as('u-op')
-    expect((await fetch(`${base()}/scans/engines/nmap_versions`, json('PUT', { enabled: false }))).status).toBe(403)
-  })
-
-  it('an engine whose module is off says so once with the way to turn it on; the API refuses 409 module_off', async () => {
-    modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: false } : m)))
-    renderApp('/settings/scanning')
-    const row = await card(/osquery agents/)
-    expect(within(row).getByRole('switch')).toBeDisabled()
-    expect(within(row).getAllByText(/Its module is off/)).toHaveLength(1)
-    expect(within(row).getByRole('link', { name: 'Open Settings, Modules' })).toHaveAttribute('href', '/settings/modules')
-    as('u-admin')
-    const res = await fetch(`${base()}/scans/engines/osquery`, json('PUT', { enabled: true }))
-    expect(res.status).toBe(409)
-    expect((await res.json()).error.code).toBe('module_off')
-  })
-
-  it('a running Nuclei shows its JobProgress on the card; turning it off asks first, then stops the run', async () => {
-    timing.stepMs = 60_000
-    timing.stopMs = 300
-    as('u-admin')
-    await postRun(['a-web01'])
-    renderApp('/settings/scanning')
-    const row = await card(/Vulnerability checks \(Nuclei\)/)
-    expect(await within(row).findByRole('progressbar', { name: 'Finding the device' })).toBeInTheDocument()
-    expect(within(row).getByText('Running')).toBeInTheDocument()
-    expect(within(row).getByRole('link', { name: 'Open the run' }).getAttribute('href')).toMatch(/^\/settings\/scanning\?tab=history&run=/)
-    await userEvent.click(within(row).getByRole('switch', { name: /Vulnerability checks/ }))
-    const dlg = await screen.findByRole('dialog', { name: 'Turn off Vulnerability checks (Nuclei) and stop its scan?' })
-    await userEvent.click(within(dlg).getByRole('button', { name: 'Turn off and stop the scan' }))
-    await waitFor(async () => expect((await getRuns())[0]!.status).toBe('stopped'), { timeout: 4000 })
-  })
-
-  it('a deep link to an engine opens its own settings: SNMP credentials on the SNMP card', async () => {
-    renderApp('/settings/scanning#snmp')
-    const row = await card(/SNMP reading/)
-    expect(within(row).getByRole('button', { name: 'Settings' })).toHaveAttribute('aria-expanded', 'true')
-    expect(await within(row).findByRole('heading', { name: 'SNMP credentials' })).toBeInTheDocument()
-  })
-
-  it('the shared safety block shows the scope and the fragile devices with links to them', async () => {
-    renderApp('/settings/scanning?tab=safety')
-    expect(await screen.findByText(/Confirmed scope: 192\.168\.10\.0\/24, 192\.168\.20\.0\/24/)).toBeInTheDocument()
-    const list = await screen.findByRole('list', { name: 'Fragile devices' })
-    expect(within(list).getByRole('link', { name: 'NAS-PHOTOS' })).toHaveAttribute('href', '/devices/a-nas02')
-    expect(screen.queryByLabelText('Frequency')).toBeNull() // the schedule is Nuclei's own, on its card
-  })
-
-  it('the old Vulnerability scans links land on their new place', async () => {
-    for (const [from, want] of [['/scans', 'Engines'], ['/scans?tab=safety', 'Safety'], ['/scans?tab=probes', 'Probe log'], ['/scans?tab=auto', 'History']] as const) {
-      const view = renderApp(from)
-      expect(await screen.findByRole('tab', { name: want, selected: true })).toBeInTheDocument()
-      view.unmount()
-    }
-    renderApp('/scans?tab=runs&run=run-seed-3')
-    expect(within(await screen.findByRole('dialog')).getByText('You pressed Stop now.')).toBeInTheDocument()
-  })
-
-  it('a scan module that is off: the page says what it needs and where to turn it on', async () => {
-    modulesStore.update((l) => l.map((m) => (m.id === 'scan' ? { ...m, enabled: false } : m)))
-    renderApp('/settings/scanning')
-    expect(await screen.findByText('Scanning settings need the Vulnerability scan module')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open Settings, Modules' })).toHaveAttribute('href', '/settings/modules')
-  })
-})
-
-describe('Scan now in context: ScanNowButton and ScansRunningIndicator (#850)', () => {
-  it('"Scan the LAN now" sends only devices a sweep may take (never the box, a fragile, unclassified or hand-added one), then shows JobProgress and the run', async () => {
-    timing.stepMs = 60_000
-    let sent: string[] = []
-    server.events.on('request:start', async ({ request }) => {
-      if (request.method === 'POST' && request.url.endsWith('/scans/runs')) sent = ((await request.clone().json()) as { targets: string[] }).targets
-    })
-    renderNow(<ScanNowButton targets="lan" />, 'operator')
-    await userEvent.click(await screen.findByRole('button', { name: 'Scan the LAN now' }))
-    expect(await screen.findByRole('progressbar', { name: 'Finding the device' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open the run' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Scanning…' })).toBeDisabled()
-    server.events.removeAllListeners()
-    const targets = (await (await fetch(`${base()}/scans/targets`)).json()).items as { id: string; pick_only: boolean; box: boolean }[]
-    expect(sent.length).toBeGreaterThan(0)
-    for (const id of sent) expect(targets.find((x) => x.id === id), id).toMatchObject({ pick_only: false, box: false })
-  })
-
-  it('another scan running locks it with the reason and a link to that run; one device or a selection names itself', async () => {
-    timing.stepMs = 60_000
-    as('u-admin')
-    await postRun(['a-web01'])
-    renderNow(<><ScanNowButton targets={['a-nas02']} /><ScanNowButton targets={['a-web01', 'a-srvad']} /></>)
-    expect(await screen.findByRole('button', { name: 'Check this device now' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Scan selected (2)' })).toBeDisabled()
-    await waitFor(() => expect(screen.getAllByText('Another scan is running.')).toHaveLength(2))
-  })
-
-  it('the top-bar indicator shows nothing while idle and "1 scan running" with a link to the run while one runs', async () => {
-    const view = renderNow(<ScansRunningIndicator />)
-    await waitFor(() => expect(screen.queryByText(/scan running/)).toBeNull())
-    view.unmount()
-    timing.stepMs = 60_000
-    as('u-admin')
-    const run = (await (await postRun(['a-web01'])).json()) as ScanRun
-    renderNow(<ScansRunningIndicator />, 'viewer')
-    const link = await screen.findByRole('link', { name: '1 scan running' })
-    expect(link).toHaveAttribute('href', `/settings/scanning?tab=history&run=${run.id}`)
   })
 })

@@ -1,0 +1,222 @@
+import { useEffect, useId, useState, type ReactNode } from 'react'
+import { Link, useLocation } from 'react-router'
+import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
+import { ChevronDown } from 'lucide-react'
+import { Card } from '@/components/common/Card'
+import { DependencyLink } from '@/components/common/DependencyLink'
+import { Notice, Section } from '@/components/common/PageHeader'
+import { Chip, type Tone } from '@/components/common/StatusChip'
+import { ScopeBadge } from '@/components/common/V1Scope'
+import { JobProgress } from '@/components/progress/JobProgress'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
+import { Switch } from '@/components/ui/switch'
+import { GreenboneSetting } from '@/features/exposure/GreenbonePanel'
+import { CredentialDialog, SnmpSection } from '@/features/inventory/SnmpSection'
+import { NucleiSettings } from '@/features/scan/NucleiSettings'
+import { useStopRun } from '@/features/scan/api'
+import { ApiError } from '@/lib/api'
+import { fmtDateTime, fmtRelative } from '@/lib/format'
+import { useModuleEnabled } from '@/lib/modules'
+import { useCan } from '@/lib/session'
+import { useSetEngine } from './api'
+import { ScopeButton, TurnOnModule } from './Fixes'
+import { runPlace } from './places'
+import { ScanNowButton } from './ScanNow'
+import type { Engine, EngineId, Scanning } from './types'
+
+const GROUPS = ['discover', 'identify', 'vuln', 'traps'] as const
+const STATE_TONE: Record<Engine['state'], Tone> = { off: 'off', needs_setup: 'warn', starting: 'accent', ready: 'ok', running: 'accent', error: 'danger', unavailable: 'off' }
+
+/** Where an engine's own settings live when they are not on its card (docs/UI.md §0: the exact tab and field). */
+const PLACE: Partial<Record<EngineId, string>> = {
+  passive: '/devices/setup?tab=sensor#sensors',
+  'nmap-versions': '/settings/scanning?tab=safety#fragile',
+  osquery: '/devices/setup?tab=agents#agents', wazuh: '/devices/setup?tab=agents#agents',
+  zap: '/exposure?tab=targets#targets', honeypot: '/honeypot?tab=trap-ips',
+}
+
+const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
+const mb = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)} GB` : `${n} MB`)
+
+/** The fix of an engine that needs setup, where it is: a dialog when the thing can be made here, else the exact place (§0). */
+function SetupFix({ e }: { e: Engine }) {
+  const { t } = useTranslation('scanning')
+  const admin = useCan('admin')
+  const [snmp, setSnmp] = useState(false)
+  if (e.state !== 'needs_setup' || !admin) return null
+  if (e.id === 'nmap-discovery') return <ScopeButton /> // the others of sensor-active follow it
+  if (e.id === 'snmp') return (
+    <>
+      <Button size="sm" onClick={() => setSnmp(true)}>{t('fix.newSnmp')}</Button>
+      {snmp ? <CredentialDialog current={null} onClose={() => setSnmp(false)} /> : null}
+    </>
+  )
+  if (e.id === 'osquery') return <DependencyLink reason="" to="/devices/setup?tab=agents#agents" label={t('fix.osquery')} />
+  if (e.id === 'wazuh') return <DependencyLink reason="" to="/devices/setup?tab=agents#agents" label={t('fix.wazuh')} />
+  if (e.id === 'zap' || e.id === 'openvas') return <DependencyLink reason="" to="/exposure?tab=targets#targets" label={t('fix.target')} />
+  if (e.id === 'honeypot') return <DependencyLink reason="" to="/honeypot?tab=trap-ips" label={t('fix.trapIp')} />
+  return null
+}
+
+/** The runs of this engine going on now (from GET /scanning running[], by engine), with their progress and where they are seen. */
+function Runs({ e, d }: { e: Engine; d: Scanning }) {
+  const { t } = useTranslation('scanning')
+  const can = useCan('operator')
+  const stop = useStopRun()
+  const [stopping, setStopping] = useState<string | null>(null)
+  const jobs = d.running.filter((j) => j.engine === e.id)
+  if (!jobs.length) return null
+  return (
+    <>
+      {jobs.map((j) => (
+        <Card key={j.id} className="grid gap-2">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            <span className="font-medium">{j.label}</span>
+            <Link to={runPlace(j)} className="text-meta text-accent underline-offset-4 hover:underline">{t('scanNow.openRun')}</Link>
+            {/* only a LAN vulnerability check has a Stop here; the others are stopped where they are seen */}
+            {e.id === 'nuclei' && can ? <Button size="sm" variant="danger" className="ml-auto" onClick={() => setStopping(j.id)}>{t('run.stop')}</Button> : null}
+          </div>
+          <JobProgress progress={j.progress} />
+        </Card>
+      ))}
+      <Dialog open={!!stopping} onOpenChange={(v) => { if (!v) setStopping(null) }}>
+        <DialogContent title={t('run.stopTitle')} description={t('run.stopBody')}>
+          <DialogFooter>
+            <Button onClick={() => setStopping(null)}>{t('common:cancel')}</Button>
+            <Button variant="danger" disabled={stop.isPending} onClick={() => stopping && stop.mutate(stopping, { onSuccess: () => setStopping(null), onError: (err) => toast.error(errMsg(err)) })}>{t('run.stopConfirm')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+function Facts({ e }: { e: Engine }) {
+  const { t } = useTranslation('scanning')
+  const last = e.last_run
+  const always = e.id === 'passive' || e.id === 'osquery' || e.id === 'honeypot'
+  const cost = e.cost.ram_mb === null ? t('cost.unknown') : t(`cost.${e.cost.while}`, { size: mb(e.cost.ram_mb) }) + (e.cost.container ? ` ${t('cost.shared', { name: e.cost.container })}` : '')
+  return (
+    <dl className="flex flex-wrap gap-x-6 gap-y-1 text-meta">
+      <div className="flex gap-1.5"><dt className="whitespace-nowrap text-muted">{t('facts.memory')}</dt><dd className="tabular-nums">{cost}</dd></div>
+      {e.enabled ? (
+        <div className="flex gap-1.5"><dt className="whitespace-nowrap text-muted">{t('facts.last')}</dt>
+          <dd>{last ? <><time dateTime={last.at} title={fmtDateTime(last.at)}>{t(`outcome.${last.outcome}`, { time: fmtRelative(last.at) })}</time> <span className="text-muted">{last.text}</span></> : t('facts.never')}</dd></div>
+      ) : null}
+      {e.enabled && !always ? <div className="flex gap-1.5"><dt className="whitespace-nowrap text-muted">{t('facts.next')}</dt><dd>{e.next_run_at ? <time dateTime={e.next_run_at}>{fmtDateTime(e.next_run_at)}</time> : t('facts.onDemand')}</dd></div> : null}
+    </dl>
+  )
+}
+
+function EngineRow({ e, d, open, onOpen }: { e: Engine; d: Scanning; open: boolean; onOpen: (v: boolean) => void }) {
+  const { t } = useTranslation('scanning')
+  const admin = useCan('admin')
+  const set = useSetEngine()
+  const [ask, setAsk] = useState<{ off: boolean; deps?: string } | null>(null)
+  const nameId = useId()
+  const panelId = useId()
+  const name = (id: EngineId) => t(`engines.${id}.name`)
+  const running = d.running.some((j) => j.engine === e.id || e.affects.includes(j.engine))
+  // ZAP and OpenVAS run in External exposure's scans: with that module off, it is turned on from here (§0)
+  const exposureOn = useModuleEnabled('exposure')
+  const exposureOff = e.module === 'exposure' && exposureOn === false
+  const change = (enabled: boolean, withDependencies = false) => set.mutate({ id: e.id, enabled, withDependencies }, {
+    onSuccess: () => { setAsk(null); toast.success(t(enabled ? 'toast.on' : 'toast.off', { name: name(e.id) })) },
+    onError: (err) => {
+      if (err instanceof ApiError && err.code === 'missing_dependencies') { setAsk({ off: false, deps: err.message }); return }
+      setAsk(null)
+      toast.error(errMsg(err))
+    },
+  })
+  // turning off names what stops with it (affects) and a run that ends; turning on asks only when modules must come too
+  const onSwitch = (v: boolean) => (v ? change(true) : e.affects.length || running ? setAsk({ off: true }) : change(false))
+  const own: ReactNode = e.id === 'snmp' ? (admin ? <SnmpSection /> : <p className="text-meta text-muted">{t('own.snmpAdmin')}</p>)
+    : e.id === 'nuclei' && e.enabled ? <NucleiSettings />
+    : e.id === 'openvas' ? <GreenboneSetting embedded /> : null
+  const place = PLACE[e.id]
+  return (
+    <li id={`engine-${e.id}`} aria-labelledby={nameId} className="grid scroll-mt-24 gap-3 px-4 py-4">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+        <div className="grid min-w-0 gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 id={nameId} className="text-sm font-semibold">{name(e.id)}</h3>
+            {e.preview ? <ScopeBadge scope="preview" /> : null}
+            <Chip tone={STATE_TONE[e.state]}>{t(`state.${e.state}`)}</Chip>
+          </div>
+          <p className="text-meta text-muted">{t(`engines.${e.id}.finds`)}</p>
+          {e.reason ? <p className={e.state === 'error' ? 'text-meta text-danger' : e.state === 'needs_setup' ? 'text-meta text-warn' : 'text-meta'}>{e.reason}</p> : null}
+          <Facts e={e} />
+        </div>
+        <div className="flex items-center gap-2 sm:justify-end">
+          {e.can_toggle ? (
+            <>
+              <Switch id={`engine-${e.id}-switch`} checked={e.enabled} aria-labelledby={`${nameId} engine-${e.id}-on`} disabled={!admin || set.isPending || e.state === 'unavailable'} onCheckedChange={onSwitch} />
+              <span id={`engine-${e.id}-on`} className="text-sm">{e.enabled ? t('on') : t('off')}</span>
+            </>
+          ) : <span className="text-meta text-muted">{e.follows ? t('follows', { name: name(e.follows) }) : t('noSwitch')}</span>}
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-3"><SetupFix e={e} />{exposureOff ? <TurnOnModule module="exposure" name={t('common:modules.exposure.name')} /> : null}</div>
+      <Runs e={e} d={d} />
+      {e.id === 'nmap-discovery' && e.state !== 'needs_setup' ? <ScanNowButton targets="lan" variant="secondary" size="sm" /> : null}
+      {own ? (
+        <div className="grid gap-3">
+          <Button variant="ghost" size="sm" className="w-fit" aria-expanded={open} aria-controls={panelId} onClick={() => onOpen(!open)}>
+            <ChevronDown className={open ? 'rotate-180' : ''} aria-hidden />{t('settings')}
+          </Button>
+          {open ? <div id={panelId} className="min-w-0 border-l-2 border-rule pl-4">{own}</div> : null}
+        </div>
+      ) : null}
+      {place ? <Link to={place} className="w-fit text-meta text-accent underline-offset-4 hover:underline">{t(`engines.${e.id}.where`)}</Link> : null}
+      {e.id === 'nuclei' ? <DependencyLink reason={t('alerts.reason')} to="/settings/channels" label={t('alerts.link')} /> : null}
+      <Dialog open={!!ask} onOpenChange={(v) => { if (!v) setAsk(null) }}>
+        <DialogContent title={ask?.off ? t('ask.offTitle', { name: name(e.id) }) : t('ask.depsTitle', { name: name(e.id) })}
+          description={ask?.off ? [e.affects.length ? t('ask.affects', { list: e.affects.map(name).join(', ') }) : '', running ? t('ask.stops') : ''].filter(Boolean).join(' ') : ask?.deps}>
+          <DialogFooter>
+            <Button onClick={() => setAsk(null)}>{t('common:cancel')}</Button>
+            <Button variant={ask?.off ? 'danger' : 'primary'} disabled={set.isPending} onClick={() => (ask?.off ? change(false) : change(true, true))}>{ask?.off ? t('ask.offConfirm') : t('ask.depsConfirm')}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </li>
+  )
+}
+
+function Groups({ d }: { d: Scanning }) {
+  const { t } = useTranslation('scanning')
+  const { hash } = useLocation()
+  const admin = useCan('admin')
+  const target = hash.startsWith('#engine-') ? hash.slice('#engine-'.length).replace(/-switch$/, '') : hash.slice(1)
+  // a deep link to an engine (#snmp or #engine-snmp) opens that card's settings and scrolls to it
+  const [open, setOpen] = useState<Set<string>>(() => new Set(target ? [target] : []))
+  useEffect(() => {
+    if (target && !hash.startsWith('#engine-')) document.getElementById(`engine-${target}`)?.scrollIntoView({ block: 'start' })
+  }, [target, hash])
+  const box = d.box
+  return (
+    <>
+      {admin ? null : <Notice tone="off" title={t('adminOnly')} />}
+      {box.memory_mb ? <p className="mb-5 text-meta text-muted">{t('box.memory', { used: mb(box.reserved_mb), total: mb(box.memory_mb) })}</p> : null}
+      {GROUPS.map((g) => {
+        const list = d.engines.filter((e) => e.group === g)
+        if (!list.length) return null
+        return (
+          <Section key={g} id={`group-${g}`} title={t(`group.${g}.title`)} description={t(`group.${g}.description`)} info={t(`group.${g}.info`)}>
+            <Card flush>
+              <ul className="divide-y divide-rule">
+                {list.map((e) => <EngineRow key={e.id} e={e} d={d} open={open.has(e.id)} onOpen={(v) => setOpen((s) => { const n = new Set(s); if (v) n.add(e.id); else n.delete(e.id); return n })} />)}
+              </ul>
+            </Card>
+          </Section>
+        )
+      })}
+    </>
+  )
+}
+
+export function EnginesTab({ d }: { d: Scanning }) {
+  const { hash } = useLocation()
+  return <Groups key={hash} d={d} />
+}

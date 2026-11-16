@@ -185,7 +185,8 @@
     "noticeWho": "Vedette keeps who confirmed it, when, for which target and this exact sentence.",
     "needTwoStep": "Turn on two-step sign-in for your account before the first scan of {{value}}: that scan records your confirmation of ownership and authorization.",
     "needTwoStepLink": "Turn on two-step sign-in",
-    "deepButton": "Deep scan now"
+    "deepButton": "Deep scan now",
+    "acceptTerms": "For a deep scan, accept the testing terms: Ownership tab"
   },
   "step": {
     "verify": "Step 1. Verify ownership",
@@ -702,8 +703,8 @@
       "notesHeaderInfo": "The Low results of OpenVAS are not alerts and are not counted anywhere.",
       "notesCaption": "OpenVAS hardening notes on this IP"
     },
-    "moved": "The OpenVAS deep scan is turned on or off with the other engines.",
-    "movedLink": "Open Settings, Scanning"
+    "offReason": "OpenVAS is off on this box.",
+    "offLink": "Turn it on: External exposure, Optional deep scan"
   },
   "web": {
     "title": "Web findings (passive)",

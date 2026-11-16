@@ -101,7 +101,7 @@ function Evidence({ f }: { f: FindingDetail }) {
           <ol className="grid list-decimal gap-1 pl-5 text-sm">{f.recheck.steps.map((s) => <li key={s}>{s}</li>)}</ol>
           {f.recheck.code ? <CodeBlock code={f.recheck.code} label={t('evidence.recheckCode')} wrapOnPhone /> : null}
           {f.asset && hasIp(f.asset) ? (
-            <Button asChild className="w-fit"><Link to={`/devices/${f.asset.id}`}><ScanSearch />{t('evidence.rescan')}</Link></Button>
+            <Button asChild className="w-fit"><Link to={`/scans?target=${encodeURIComponent(f.asset.id)}`}><ScanSearch />{t('evidence.rescan')}</Link></Button>
           ) : f.asset ? (
             <div className="flex flex-wrap items-center gap-x-1 text-[13px] text-muted">
               <span className="inline-flex items-center gap-1">{t('evidence.noIpScan')}<InfoTip topic={t('evidence.recheck')}>{t('evidence.noIpScanInfo')}</InfoTip></span>

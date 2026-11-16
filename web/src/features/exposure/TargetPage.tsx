@@ -14,7 +14,7 @@ import { useCan } from '@/lib/session'
 import { useDeleteTarget, useScan, useScanRun, useTarget } from './api'
 import { AnchorRedirect, ScrollToHash } from './anchors'
 import { ScanProgress } from './ScanProgress'
-import { ScanNowButton } from '@/features/scan/ScanNow'
+import { ScanNowButton } from '@/features/scanning/ScanNow'
 import { CommitmentPanel } from './CommitmentPanel'
 import { TermsPanel } from './TermsPanel'
 import { CommitChip, OwnerChip } from './OwnerChip'
@@ -100,9 +100,9 @@ function TargetView({ target }: { target: Target }) {
           <DeleteTarget target={target} />
         </>} />
       <ScanProgress />
-      {needTwoStep ? <p role="alert" className="-mt-3 mb-6 max-w-3xl text-sm text-warn">{t('scan.needTwoStep', { value: target.value })} <Link to="/account#two-step" className="underline">{t('scan.needTwoStepLink')}</Link></p> : null}
+      {needTwoStep ? <p role="alert" className="-mt-3 mb-6 max-w-3xl text-sm text-warn">{t('scan.needTwoStep', { value: target.value })} <Link to="/settings/account?tab=sign-in#two-step" className="underline">{t('scan.needTwoStepLink')}</Link></p> : null}
       {blocked ? <p id="scan-reason" className="-mt-3 mb-6 max-w-3xl text-sm text-warn">{blocked}</p> : (scopeInfo ? <InfoLine className="-mt-3 mb-6 max-w-3xl text-[13px] text-muted" topic={t('scan.scopeTopic')} info={scopeInfo}>{scopeText}</InfoLine>
-        : <p className="-mt-3 mb-6 max-w-3xl text-[13px] text-muted">{scopeText}</p>)}
+        : <p className="-mt-3 mb-6 max-w-3xl text-meta text-muted">{scopeText}{!target.full_scan && admin ? <> <Link to="?tab=ownership#step-terms" className="font-medium text-accent underline underline-offset-4">{t('scan.acceptTerms')}</Link></> : null}</p>)}
       {notice ? (
         <div id="scan-notice" role="note" aria-label={t('scan.noticeTitle')} className="-mt-3 mb-6 max-w-3xl rounded-md border border-line p-3 text-sm">
           <div className="mb-1 flex items-center gap-1">

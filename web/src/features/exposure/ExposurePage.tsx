@@ -19,6 +19,7 @@ import { BoxIpPanel } from './BoxIpPanel'
 import { InfoLine } from './InfoLine'
 import { CommitChip, OwnerChip } from './OwnerChip'
 import { ScanProgress } from './ScanProgress'
+import { GreenboneSetting } from './GreenbonePanel'
 import { useAddTarget, useTargets } from './api'
 import { OutsideList } from './OutsidePanel'
 import { PortMark, PortMarkNote } from './PortMark'
@@ -80,7 +81,7 @@ function ExposureView() {
                     <TargetsTable items={d.items.filter((x) => x.kind === 'domain')} />
                   </Section>
                   <BoxIpPanel items={d.items.filter((x) => x.kind === 'ip')} settings={d.box_ip} ignored={d.ignored} />
-                  <OpenVasMoved />
+                  <GreenboneSetting />
                 </> },
                 { id: 'open', label: t('tabs.open'), panel: open.length > 0 ? <OpenPorts ports={open} total={ports} gateway={d.gateway} /> : <EmptyState title={t('openEmpty')} /> },
                 { id: 'outside', label: t('tabs.outside'), panel: <OutsideList items={d.items.filter((x) => x.kind === 'ip')} /> },
@@ -210,12 +211,3 @@ function AddTarget() {
   )
 }
 
-/** #850: OpenVAS is an engine of Settings › Scanning now; the list keeps one line that points there. */
-function OpenVasMoved() {
-  const { t } = useTranslation('exposure')
-  return (
-    <p className="mb-8 text-[13px] text-muted">
-      {t('greenbone.moved')} <Link to="/settings/scanning?tab=engines#openvas" className="text-accent underline-offset-4 hover:underline">{t('greenbone.movedLink')}</Link>
-    </p>
-  )
-}

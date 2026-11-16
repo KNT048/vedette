@@ -6,6 +6,7 @@ import { Chip, type Tone } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Button } from '@/components/ui/button'
 import { useCan } from '@/lib/session'
+import { DependencyLink } from '@/components/common/DependencyLink'
 import { dateText, dateTimeText } from './dates'
 import { InfoLine } from './InfoLine'
 import { useGreenbone, useSetGreenbone } from './api'
@@ -105,6 +106,14 @@ function FeedTests({ g }: { g: Greenbone }) {
   return <>{g.changed_at ? t('greenbone.feedFirstDoneAt', { time: dateTimeText(g.changed_at) }) : t('greenbone.feedFirstDone')}</>
 }
 
+/** docs/UI.md §0: OpenVAS did not run because it is off: the place to turn it on, on the External exposure page. */
+function OpenVasOffLink() {
+  const { t } = useTranslation('exposure')
+  const q = useGreenbone()
+  if (q.data?.state !== 'off') return null
+  return <DependencyLink className="mt-2" reason={t('greenbone.offReason')} to="/exposure?tab=targets#greenbone" label={t('greenbone.offLink')} />
+}
+
 /** A snapshot read from a box older than greenbone_run (or the mock's stored days) has none: the lines say what happened. */
 function runOf(s: Snapshot): GreenboneRun {
   const run = (s as Partial<Snapshot>).greenbone_run
@@ -177,7 +186,7 @@ export function GreenboneSection({ s }: { s: Snapshot }) {
         {shown ? (
           <DataTable caption={t('greenbone.results.caption')} data={findings} columns={cols} pageSize={20} initialSort={[{ id: 'severity', desc: true }]} rowTone={(r) => (r.severity >= 7 ? 'warn' : undefined)} />
         ) : (
-          <EmptyState title={t(EMPTY_TITLE[run.state])} info={emptyInfo}>{emptyBody}</EmptyState>
+          <EmptyState title={t(EMPTY_TITLE[run.state])} info={emptyInfo}>{emptyBody}{run.state === 'not_run' ? <OpenVasOffLink /> : null}</EmptyState>
         )}
         {started && run.state !== 'running' ? <p className="mt-2 text-[12px] text-muted">{t('greenbone.results.startedAt', { time: started })}</p> : null}
       </Section>

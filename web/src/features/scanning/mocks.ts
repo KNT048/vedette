@@ -9,6 +9,8 @@ import { assetsStore, installStore, isOn, modulesStore } from '@/mocks/stores'
 import type { ModuleId } from '@/lib/modules'
 import { mockDeviceProgress } from '@/lib/progress'
 import { inventorySettingsStore } from '@/features/inventory/mocks'
+import { exposureMockRun, greenboneMock } from '@/features/exposure/mocks'
+import { lastScanRun, liveScanRuns } from '@/features/scan/mocks'
 import type { DiscoveryRunInput, Engine, EngineId, EnginePatch, RunningJob, Scanning, SafetyInput } from './contract'
 
 type EngineT = z.infer<typeof Engine>
@@ -16,7 +18,6 @@ type Id = z.infer<typeof EngineId>
 type Run = z.infer<typeof RunningJob>
 
 const checkRate = collection<{ requests_per_s: number }>('scanning_check_rate', () => ({ requests_per_s: 5 }))
-const greenbone = collection<{ enabled: boolean }>('scanning_openvas', () => ({ enabled: false }))
 const runs = collection<Array<Run & { ends_ms: number }>>('scanning_runs', () => [], () => [])
 const RUN_MS = 20_000
 
@@ -35,7 +36,8 @@ const DEFS: Def[] = [
 ]
 const NO_SWITCH: Id[] = ['nmap-versions', 'snmp', 'zap']
 
-function live(): Run[] {
+/** The discovery runs a person started (POST …/nmap-discovery/run). */
+function discoveryRuns(): Run[] {
   const now = Date.now()
   const kept = runs.get().filter((r) => r.ends_ms > now)
   if (kept.length !== runs.get().length) runs.set(kept)
@@ -44,12 +46,25 @@ function live(): Run[] {
     return { ...r, progress: mockDeviceProgress(started, (now - started) / (ends_ms - started), now) }
   })
 }
+/** Every run going on (#850 review M7): discovery, the LAN vulnerability checks (scan mock) and the public scan (exposure mock). */
+function live(): Run[] {
+  const out = discoveryRuns()
+  for (const r of liveScanRuns()) out.push({ engine: 'nuclei', id: r.id, label: r.total === 1 && r.current ? `Check ${r.current.label}` : `Vulnerability checks on ${r.total} devices`, target_id: null, started_at: r.started_at, progress: r.progress })
+  const ex = exposureMockRun()
+  if (ex?.status === 'running') out.push({ engine: ex.phase === 'greenbone' ? 'openvas' : 'zap', id: ex.id, label: ex.target_value, target_id: ex.target_id, started_at: ex.started_at, progress: ex.progress })
+  return out
+}
 
 function enabled(d: Def): boolean {
   const st = inventorySettingsStore.get()
   if (d.module === 'sensor-active') return isOn('sensor-active') && st.active.enabled
-  if (d.id === 'openvas') return isOn('exposure') && greenbone.get().enabled
+  if (d.id === 'openvas') return isOn('exposure') && greenboneMock.view().enabled
   return isOn(d.module)
+}
+
+function nucleiLast(): EngineT['last_run'] {
+  const r = lastScanRun()
+  return r ? { at: r.ended_at ?? r.started_at, outcome: r.status === 'done' ? 'ok' : 'stopped', text: `${r.total} devices checked, ${r.matched} matched` } : null
 }
 
 function engine(d: Def, running: Run[]): EngineT {
@@ -60,12 +75,20 @@ function engine(d: Def, running: Run[]): EngineT {
   let reason: string | null = null
   if (!appliance && (d.id === 'honeypot' || d.id === 'zap' || d.id === 'openvas')) { state = 'unavailable'; reason = 'This install has no operating system helper (container-only install), so it cannot run this.' }
   else if (on && d.module === 'sensor-active' && !st.scope_confirmed_at) { state = 'needs_setup'; reason = 'Confirm the network ranges you may scan.' }
+  else if (d.id === 'openvas' && isOn('exposure')) {
+    const g = greenboneMock.view()
+    if (g.state === 'unavailable') { state = 'unavailable'; reason = g.reason }
+    else if (!g.preflight.ok && !g.enabled) { state = 'unavailable'; reason = g.preflight.reason }
+    else if (g.state === 'starting' || g.state === 'loading') { state = 'starting'; reason = g.reason ?? 'OpenVAS is loading its feed (first time takes about 2 hours).' }
+    else if (g.state === 'error') { state = 'error'; reason = g.reason }
+    if (running.some((r) => r.engine === 'openvas')) state = 'running'
+  }
   else if (on && running.some((r) => r.engine === d.id)) state = 'running'
   const windowed = d.module === 'sensor-active' || d.id === 'nuclei'
   return {
     id: d.id, group: d.group, module: d.module, enabled: on, can_toggle: !NO_SWITCH.includes(d.id), follows: d.follows ?? null, affects: d.affects ?? [],
     state, reason, preview: d.preview ?? false, cost: d.cost,
-    last_run: on ? { at: new Date(Date.now() - 9 * 3600_000).toISOString(), outcome: 'ok', text: d.id === 'nmap-discovery' ? 'Swept 508 addresses, 2 new devices' : 'Last run finished' } : null,
+    last_run: !on ? null : d.id === 'nuclei' ? nucleiLast() : d.id === 'zap' || d.id === 'openvas' ? null : { at: new Date(Date.now() - 9 * 3600_000).toISOString(), outcome: 'ok', text: d.id === 'nmap-discovery' ? 'Swept 508 addresses, 2 new devices' : 'Last run finished' },
     next_run_at: on && windowed ? new Date(Date.now() + 6 * 3600_000).toISOString() : null,
   }
 }
@@ -162,8 +185,8 @@ export const handlers = [
       audit('inventory.settings', 'scan scope', `active scanning ${b.enabled ? 'on' : 'off'}`)
     } else if (d.id === 'openvas') {
       if (!isOn('exposure')) return fail(409, 'module_off', 'The External exposure module is off. An admin can turn it on in Settings, Modules.')
-      greenbone.set({ enabled: b.enabled })
-      audit('exposure.greenbone', 'openvas', b.enabled ? 'on' : 'off')
+      const refused = greenboneMock.set(b.enabled) // the OpenVAS flag of the exposure mock, as PUT /exposure/greenbone (audited there)
+      if (refused) return fail(409, refused.code, refused.message)
     } else {
       if (b.enabled && installStore.get().kind !== 'appliance' && d.id === 'honeypot') return fail(409, 'not_appliance', 'This install has no operating system helper (container-only install), so it cannot run the honeypot.')
       setModule(d.module, b.enabled)
@@ -179,7 +202,7 @@ export const handlers = [
     if (!isOn('sensor-active')) return fail(409, 'module_off', 'Active discovery (module sensor-active) is off. An admin can turn it on in Settings, Scanning.')
     if (!st.active.enabled) return fail(409, 'engine_off', 'Network discovery is off. Turn it on in Settings, Scanning first.')
     if (!st.scope_confirmed_at) return fail(400, 'scope_not_confirmed', 'Tick the confirmation that these network ranges belong to your company and you are allowed to scan them. Vedette only scans within the confirmed scope.')
-    if (live().length) return fail(409, 'already_running', 'A scan is already running. Wait for it to finish or press Stop now.')
+    if (discoveryRuns().length) return fail(409, 'already_running', 'A scan is already running. Wait for it to finish or press Stop now.')
     const targets = b.targets ?? []
     const assets = assetsStore.get()
     const picked = []

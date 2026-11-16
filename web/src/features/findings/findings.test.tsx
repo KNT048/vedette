@@ -64,7 +64,7 @@ describe('findings: danh sách (S-MIT-1)', () => {
     findingsStore.update((l) => l.map((f) => ({ ...f, status: 'patched' as const })))
     renderApp('/findings')
     expect(await screen.findByRole('heading', { level: 1, name: 'No unresolved findings' })).toBeInTheDocument()
-    expect(screen.getAllByRole('link', { name: 'Open Vulnerability scans' })[0]).toHaveAttribute('href', '/scans')
+    expect(screen.getAllByRole('link', { name: 'Open Settings, Scanning' })[0]).toHaveAttribute('href', '/settings/scanning') // #850
     expect(screen.getAllByRole('link', { name: 'Open Devices' })[0]).toHaveAttribute('href', '/devices')
   })
 
@@ -136,7 +136,7 @@ describe('findings: f-1 có khuyến nghị Vedette đã xác nhận (D-21, S-MI
     expect(within(ev).getByText('http/cves/2022/CVE-2022-27593.yaml')).toBeInTheDocument()
     expect(within(ev).getByText(/GET http:\/\/192\.168\.10\.21\/photo/)).toBeInTheDocument()
     expect(within(ev).getByText('curl -sI http://192.168.10.21/photo/')).toBeInTheDocument()
-    expect(within(ev).getByRole('link', { name: 'Rescan this device' })).toHaveAttribute('href', '/scans?target=a-nas02')
+    expect(within(ev).getByRole('link', { name: 'Rescan this device' })).toHaveAttribute('href', '/devices/a-nas02') // #850: the device page has Check this device now
   })
 
   it('FortiGate được chọn sẵn; mỗi bước một khung, dùng IP thật của NAS, có tác dụng phụ và kiểm tra', async () => {
@@ -593,7 +593,7 @@ describe('findings: "I updated <software>" (D-499, S-MIT-1, item 14)', () => {
     const dlg = await screen.findByRole('dialog', { name: 'I updated FortiOS' })
     expect(within(dlg).queryByLabelText('New version')).toBeNull()
     expect(within(dlg).getByText('Vedette reads this version from the device. Run a scan of SRV-AD to check.')).toBeInTheDocument()
-    expect(within(dlg).getByRole('link', { name: 'Scan SRV-AD' })).toHaveAttribute('href', '/scans?target=a-srvad')
+    expect(within(dlg).getByRole('link', { name: 'Scan SRV-AD' })).toHaveAttribute('href', '/devices/a-srvad')
   })
 
   it('software an agent reads (the Windows row of osquery, D-546): no version box, no scan, the agent reports it', async () => {

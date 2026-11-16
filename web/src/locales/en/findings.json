@@ -35,7 +35,7 @@
   "emptyHelp": "Add your devices, then run a scan to check right away.",
   "emptyHelpInfo": "Vedette only matches vulnerabilities against devices it knows, and tells you when a new vulnerability matches.",
   "emptyDevices": "Open Devices",
-  "emptyScan": "Open Vulnerability scans",
+  "emptyScan": "Open Settings, Scanning",
   "col": {
     "device": "Device",
     "cve": "CVE",

@@ -246,7 +246,7 @@ function List() {
               <EmptyState title={cve ? t('emptyCve', { cve }) : tab === 'open' ? t('emptyOpen') : t('emptyFilter')} info={t('emptyHelpInfo')}>
                 {t('emptyHelp')}{' '}
                 <Link to="/devices" className="text-accent underline underline-offset-4">{t('emptyDevices')}</Link>{' '}
-                <Link to="/scans" className="text-accent underline underline-offset-4">{t('emptyScan')}</Link>
+                <Link to="/settings/scanning" className="text-accent underline underline-offset-4">{t('emptyScan')}</Link>
               </EmptyState>
             }
           />

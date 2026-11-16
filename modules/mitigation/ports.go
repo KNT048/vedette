@@ -3,6 +3,7 @@ package mitigation
 import (
 	"context"
 	"errors"
+	"net/netip"
 
 	"github.com/knt048/vedette/modules/findings"
 )
@@ -66,6 +67,20 @@ type Vendors interface {
 	// HasFirewallVendor reports whether the inventory has a firewall or router whose vendor is the
 	// given lower-case inventory vendor name ("fortinet", "mikrotik").
 	HasFirewallVendor(ctx context.Context, vendor string) (bool, error)
+	// OpenPorts returns the ports a sensor saw open on the device (inventory's services), none for an unknown device. The general
+	// hardening config restricts the ones of the finding's software (INV-8).
+	OpenPorts(ctx context.Context, assetID string) ([]OpenPort, error)
+	// BoxAddrs returns the Vedette box's own addresses (the box device's IP, the Box address of Settings, Box network, when it is
+	// an IP): the hardening configs allow them so the box's scans still see the device (INV-8). None when unknown.
+	BoxAddrs(ctx context.Context) ([]netip.Addr, error)
+}
+
+// OpenPort is one port seen open on a device, as inventory lists it.
+type OpenPort struct {
+	Port    int
+	Proto   string // tcp or udp
+	Name    string // the service name ("ssh", "https"), "" when unknown
+	Product string // the product the service named ("OpenSSH"), "" when none
 }
 
 // Verifier checks the signature of an update (core/updates, Kien's; not built yet).

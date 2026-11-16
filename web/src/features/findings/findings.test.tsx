@@ -209,7 +209,8 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     expect(screen.getByText(/Apply mitigations in accordance with vendor instructions/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Vendor advisory (wordpress.org)' })).toHaveAttribute('href', 'https://wordpress.org/news/2026/10/wordpress-7-1-4')
     expect(screen.getByText('Steps you can take now')).toBeInTheDocument() // W1-31: what the box knows, without a pack
-    expect(screen.getByText(/No confirmed exploitation signs/)).toBeInTheDocument()
+    expect(screen.queryByText(/No confirmed exploitation signs/)).not.toBeInTheDocument() // M2-1: general checks instead (INV-8)
+    expect(screen.getByTestId('general-checks')).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 

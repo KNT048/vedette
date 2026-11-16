@@ -63,7 +63,7 @@ test('clean install: no sample targets, the box finds its two IPs by itself; a d
   const url = page.url()
   const id = url.split('/').pop()!
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/shop-test\.example cannot be scanned yet: awaiting ownership proof/)
-  const scan = page.getByRole('button', { name: 'Scan now' })
+  const scan = page.getByRole('button', { name: 'Scan now', exact: true })
   await expect(scan).toBeDisabled()
   await expect(page.locator('#scan-reason')).toContainText('has no ownership proof')
   await page.getByRole('tab', { name: /^Ownership/ }).click() // the DNS record, Check and the confirmation live on the Ownership tab
@@ -145,7 +145,8 @@ test('clean install, two public IPs behind a load balancer: auto-detect finds bo
   await expect(link('198.51.100.7')).toBeVisible()
   await expect(link('198.51.100.8')).toBeVisible()
   await expect(box.getByRole('status')).toContainText('The box reaches the Internet via 2 public IPs: 198.51.100.7, 198.51.100.8.')
-  await expect(box.getByText('Removed IPs come back if the box keeps using them while auto-detect is on, unless you chose not to add them again.')).toBeVisible()
+  // #824: the rule is behind the section's ⓘ; its text is the button's accessible description
+  await expect(box.getByRole('button', { name: 'About Public IPs of this box' })).toHaveAccessibleDescription(/Removed IPs come back if the box keeps using them while auto-detect is on, unless you chose not to add them again\./)
   await expect(box.getByRole('textbox')).toHaveCount(0) // an IP is never typed in
   await shot(page, 'exposure', `box-ip-two-ips-${size}`)
   await expectAccessible(page, 'exposure box ips')
@@ -264,29 +265,29 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await expect(page.getByText('Valid', { exact: true })).toBeVisible()
   // Wrong route: the box now exits elsewhere, so Verify again explains what to do.
   await setEgress(page, '198.51.100.8')
-  await page.getByRole('button', { name: 'Verify again' }).click()
+  await page.getByRole('button', { name: 'Verify again', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: 'This box currently reaches the Internet via 198.51.100.8, not 198.51.100.7. Ask your admin to route the box through 198.51.100.7 (for example switch WAN), then verify again.' })).toBeVisible()
   await setEgress(page, '198.51.100.7')
-  await page.getByRole('button', { name: 'Verify again' }).click()
+  await page.getByRole('button', { name: 'Verify again', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: /Verified until/ })).toBeVisible()
   // D-473: the administrator's first Scan now (two-step sign-in on) records the confirmation; it runs in the background (D-493).
   await turnOnTwoStep(page, 'a-very-long-password-123')
   await page.reload()
-  await page.getByRole('button', { name: 'Scan now' }).click()
+  await page.getByRole('button', { name: 'Scan now', exact: true }).click()
   await expect(page.getByRole('tab', { name: 'Results', selected: true })).toBeVisible() // a finished scan lands on the results
   await page.getByRole('tab', { name: /^Ownership/ }).click()
   await expect(page.getByText(/Confirmed by admin@testco\.example on .*, by pressing Scan now\./)).toBeVisible()
   await page.getByRole('tab', { name: 'Results' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7: \d+ open port\(s\)/)
   // Scan-time check (D-79): the box no longer goes out through this IP, so the scan is paused, the IP stays, and it works again when the box is back.
-  await expect(page.getByRole('button', { name: 'Scan now' })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Scan now', exact: true })).toBeEnabled()
   await setEgress(page, '198.51.100.8')
   await page.clock.fastForward('11:00') // past the 5-minute window of the egress check and the 10 minutes between scans of one target
-  await page.getByRole('button', { name: 'Scan now' }).click()
+  await page.getByRole('button', { name: 'Scan now', exact: true }).click()
   // The pause stays on the page, not only in a toast: heading, card, locked button with the reason, and "Paused" in the list.
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7 is paused: the box no longer goes out through it/)
   await expect(page.getByRole('alert').filter({ hasText: /Scans paused: the box no longer reaches the Internet through this IP \(last seen \d{1,2} \w{3} \d{4}, \d{2}:\d{2}\)/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Scan now' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Scan now', exact: true })).toBeDisabled()
   await expect(page.locator('#scan-reason')).toContainText('no longer goes out through 198.51.100.7')
   await expect(page.getByText(/is ready for its first scan/)).toHaveCount(0)
   await expect(page.getByText(/The box reaches the Internet via 198\.51\.100\.7\. Verified until/)).toHaveCount(0) // no stale green result next to the pause
@@ -305,9 +306,9 @@ test('clean install: Detect now refuses private and CGNAT results; a public IP g
   await setEgress(page, '198.51.100.7')
   await page.locator('#box-ip').getByRole('link', { name: '198.51.100.7' }).click()
   await page.getByRole('tab', { name: /^Ownership/ }).click()
-  await page.getByRole('button', { name: 'Verify again' }).click()
-  await expect(page.getByRole('button', { name: 'Scan now' })).toBeEnabled()
-  await page.getByRole('button', { name: 'Scan now' }).click()
+  await page.getByRole('button', { name: 'Verify again', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Scan now', exact: true })).toBeEnabled()
+  await page.getByRole('button', { name: 'Scan now', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/198\.51\.100\.7: \d+ open port\(s\)/)
   await expect(page.getByRole('heading', { name: 'Subdomains' })).toHaveCount(0)
   await expectAccessible(page, 'ip target results')
@@ -332,27 +333,27 @@ test('sample: expired IP, expiring IP, missing TXT record and unverified domain 
   // Expired IP: locked; verify again only works when the box egresses through that IP.
   await page.goto('/exposure/xt-4?tab=ownership')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/203\.0\.113\.55 cannot be scanned yet: verification expired/)
-  await expect(page.getByRole('button', { name: 'Scan now' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Scan now', exact: true })).toBeDisabled()
   expect((await api(page, 'POST', '/exposure/targets/xt-4/scan')).body.error.code).toBe('expired')
   await shot(page, 'exposure', `ip-expired-${isMobile ? 'mobile' : 'desktop'}`)
-  await page.getByRole('button', { name: 'Verify again' }).click()
+  await page.getByRole('button', { name: 'Verify again', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: /not 203\.0\.113\.55/ })).toBeVisible()
   await setEgress(page, '203.0.113.55')
-  await page.getByRole('button', { name: 'Verify again' }).click()
+  await page.getByRole('button', { name: 'Verify again', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/203\.0\.113\.55 is ready for its first scan/)
   await setEgress(page, null)
 
   // Missing TXT: scan blocked even though the domain was verified before; adding the record back fixes it.
   await page.goto('/exposure/xt-5?tab=ownership')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/old-site\.example cannot be scanned yet: DNS TXT record missing/)
-  await expect(page.getByRole('button', { name: 'Scan now' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Scan now', exact: true })).toBeDisabled()
   expect((await api(page, 'POST', '/exposure/targets/xt-5/scan')).body.error.code).toBe('txt_missing')
   await page.getByRole('button', { name: 'Check again' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/old-site\.example is ready for its first scan/)
 
   // Unverified domain: nothing to scan.
   await page.goto('/exposure/xt-3')
-  await expect(page.getByRole('button', { name: 'Scan now' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Scan now', exact: true })).toBeDisabled()
   expect((await api(page, 'POST', '/exposure/targets/xt-3/scan')).body.error.code).toBe('not_verified')
 
   // Compare two days and a fresh scan.
@@ -366,7 +367,7 @@ test('sample: expired IP, expiring IP, missing TXT record and unverified domain 
   await expect(page.getByText('Choose two different days.')).toBeVisible()
   await shot(page, 'exposure', `compare-${isMobile ? 'mobile' : 'desktop'}`)
   await expectAccessible(page, 'xt-1 compare')
-  await page.getByRole('button', { name: 'Scan now' }).click()
+  await page.getByRole('button', { name: 'Scan now', exact: true }).click()
   await expect(page.getByText('staging.acme.example').first()).toBeVisible()
   expect(errors).toEqual([])
 })
@@ -382,7 +383,7 @@ test('viewer: results are visible, every action is locked with a visible reason'
   await page.getByRole('button', { name: 'Sign in' }).click()
   await page.goto('/exposure/xt-1')
   await expect(page.getByRole('table', { name: 'Ports open to the Internet' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Scan now' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Scan now', exact: true })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'Delete target' })).toBeDisabled()
   await expect(page.getByText(/You have view-only access/)).toBeVisible()
   await page.goto('/exposure')
@@ -434,7 +435,7 @@ test('clean install: IPv6 is refused like IPv4, an IP page offers the same Remov
   await expect(page).toHaveURL(/\/exposure\/xt-/)
   await page.getByRole('tab', { name: /^Ownership/ }).click()
   await expect(page.getByText(/verified because (this|the) box reaches the Internet through it/i)).toHaveCount(1)
-  await expect(page.getByText(/Verify again runs a full check/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'About Verify again' })).toHaveAccessibleDescription(/Verify again runs a full check/) // #824: behind the ⓘ
   await page.getByRole('button', { name: 'Delete target' }).click()
   const dlg = page.getByRole('dialog')
   await expect(dlg.getByRole('checkbox', { name: "Don't add it again if detected" })).toBeChecked()

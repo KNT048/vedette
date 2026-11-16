@@ -3,6 +3,7 @@ package inventory
 import (
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 // sourceRank orders the sources (DATA_MODEL 5.1 (2)): manual > agent > snmp > nmap = scan > passive.
@@ -38,13 +39,19 @@ type obs struct {
 var uuidName = regexp.MustCompile(`^(?i:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{32})$`)
 
 // better reports whether a wins over b: source rank, then higher confidence, then newer seen_at, then the
-// smaller id, so the result is deterministic (DATA_MODEL 5.1 (2)). One exception before all that (M5-186, walk 1
-// W1-10): of two host names a readable one beats a UUID-looking one from any source but a person's.
+// smaller id, so the result is deterministic (DATA_MODEL 5.1 (2)). Two exceptions before all that, both unless a person
+// stated the value: of two host names a readable one beats a UUID-looking one (M5-186, walk 1 W1-10); of two MACs the
+// one seen last wins, whoever saw it (D-598 (4), n69): a MAC is not more true for a stronger source, it is where the
+// device answers now. A private Wi-Fi address that rotates would otherwise stay behind a scan's MAC of days ago, and
+// the next sighting of the new address, found by MAC, would make a second device.
 func better(a, b obs) bool {
 	if a.field == "hostname" && a.source != "manual" && b.source != "manual" {
 		if ua, ub := uuidName.MatchString(a.value), uuidName.MatchString(b.value); ua != ub {
 			return ub
 		}
+	}
+	if a.field == "mac" && a.source != "manual" && b.source != "manual" && a.seenAt != b.seenAt {
+		return a.seenAt > b.seenAt
 	}
 	if ra, rb := sourceRank(a.source), sourceRank(b.source); ra != rb {
 		return ra > rb
@@ -58,10 +65,14 @@ func better(a, b obs) bool {
 	return a.id < b.id
 }
 
-// winners picks the current observation of each field.
+// winners picks the current observation of each field. A model without a letter ("0,1,2", n69) names nothing and never
+// wins; the passive sensor no longer sends one (sensor-passive capture.UsefulValue), older rows may still hold one.
 func winners(list []obs) map[string]obs {
 	best := map[string]obs{}
 	for _, o := range list {
+		if o.field == "model" && !strings.ContainsFunc(o.value, unicode.IsLetter) {
+			continue
+		}
 		if b, ok := best[o.field]; !ok || better(o, b) {
 			best[o.field] = o
 		}

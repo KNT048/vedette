@@ -2476,6 +2476,19 @@ func encodeInventoryGetInventoryImportTemplateCsvResponse(response InventoryGetI
 	return nil
 }
 
+func encodeInventoryGetInventoryPossibleSameResponse(response *InventoryGetInventoryPossibleSameOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
 func encodeInventoryGetInventorySensorsResponse(response *InventoryGetInventorySensorsOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
@@ -2685,6 +2698,32 @@ func encodeInventoryPostInventoryDevicesResponse(response *InventoryPostInventor
 }
 
 func encodeInventoryPostInventoryDevicesIDApproveResponse(response *InventoryPostInventoryDevicesIDApproveOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeInventoryPostInventoryDevicesIDKeepSeparateResponse(response *InventoryPostInventoryDevicesIDKeepSeparateOK, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(200)
+
+	e := new(jx.Encoder)
+	response.Encode(e)
+	if _, err := e.WriteTo(w); err != nil {
+		return errors.Wrap(err, "write")
+	}
+
+	return nil
+}
+
+func encodeInventoryPostInventoryDevicesIDMergeResponse(response *InventoryPostInventoryDevicesIDMergeOK, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(200)
 

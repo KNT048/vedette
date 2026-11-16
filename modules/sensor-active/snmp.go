@@ -75,6 +75,7 @@ type SNMPCredential struct {
 	CreatedAt, LastAnswerAt                 time.Time // LastAnswerAt zero: never
 	Answered                                int
 	SecretLost                              bool
+	MovedOut                                []SNMPMoved // set by SNMPCredentials only (#829 C4)
 }
 
 // SNMPCredentialInput is the form (SnmpCredentialInput in contract.ts). A blank secret on an edit keeps the saved one.
@@ -155,6 +156,10 @@ func (s *Service) SNMPCredentials(ctx context.Context) ([]SNMPCredential, error)
 			s.log.WarnContext(ctx, "sensoractive: checking an snmp credential's secret failed", "credential", r.ID, "error", err)
 		}
 		out[i].SecretLost = lost
+	}
+	moved, _ := s.snmpMovedOut(ctx, rows)
+	for i := range out {
+		out[i].MovedOut = moved[out[i].ID]
 	}
 	return out, nil
 }
@@ -512,6 +517,9 @@ func (s *Service) EditSNMP(ctx context.Context, actor, id string, in SNMPCredent
 			f.name, f.version, nullable(f.user), nullable(f.auth), nullable(f.priv), last4, privID, privLast4, string(scope), s.now(), id); err != nil {
 			return nameTaken(err)
 		}
+		if err := forgetOutside(ctx, tx, id, f.scopeText); err != nil {
+			return err
+		}
 		return s.auditTx(ctx, tx, actor, "inventory.snmp_edit", f.name, f.words())
 	})
 	if err != nil {
@@ -535,6 +543,9 @@ func (s *Service) DeleteSNMP(ctx context.Context, actor, id string) error {
 		prev, err := s.snmpRow(ctx, tx, id)
 		if err != nil {
 			return err
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM sa_snmp_answer WHERE credential_id = ?`, id); err != nil {
+			return fmt.Errorf("sensoractive: delete snmp answers: %w", err)
 		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM sa_snmp WHERE id = ?`, id); err != nil {
 			return fmt.Errorf("sensoractive: delete snmp credential: %w", err)
@@ -876,7 +887,7 @@ func (s *Service) snmpBatch(ctx context.Context, jobID string, creds []snmpRow, 
 	if err != nil {
 		return nil, err
 	}
-	return answers, s.recordSNMP(ctx, creds, answers, picked)
+	return answers, s.recordSNMP(ctx, creds, targets, answers, picked)
 }
 
 // recheckSNMP reads the credentials and every target's policy again right before a batch: targets the policy now refuses (never, not
@@ -1013,7 +1024,7 @@ func (s *Service) insertSNMPProbe(ctx context.Context, jobID string, rate int, c
 
 // recordSNMP writes what the devices said into the inventory (source snmp) and the credentials' last answer. An observation the
 // inventory refuses (a value it does not take) is dropped and the rest of the device's are written.
-func (s *Service) recordSNMP(ctx context.Context, creds []snmpRow, answers []sensorlink.SNMPAnswer, picked bool) error {
+func (s *Service) recordSNMP(ctx context.Context, creds []snmpRow, targets []snmpTarget, answers []sensorlink.SNMPAnswer, picked bool) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
 	defer cancel()
 	answered := make([]int, len(creds))
@@ -1053,6 +1064,19 @@ func (s *Service) recordSNMP(ctx context.Context, creds []snmpRow, answers []sen
 				continue
 			}
 			if _, err := tx.ExecContext(ctx, `UPDATE sa_snmp SET last_answer_at = ?, `+set+` WHERE id = ?`, now, answered[i], c.ID); err != nil {
+				return err
+			}
+		}
+		// Which device answered which credential at which address (#829 C4): a device that moves out of the credential's scope is
+		// then named on the credential instead of silently no longer read.
+		for _, a := range answers {
+			i := slices.IndexFunc(targets, func(t snmpTarget) bool { return t.ip.String() == a.Target })
+			if a.Status != sensorlink.SNMPStatusOK || i < 0 || a.Credential < 0 || a.Credential >= len(creds) {
+				continue
+			}
+			if _, err := tx.ExecContext(ctx, `INSERT INTO sa_snmp_answer (credential_id, asset_id, ip, answered_at) SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM sa_snmp WHERE id = ?)
+				ON CONFLICT (credential_id, asset_id) DO UPDATE SET ip = excluded.ip, answered_at = excluded.answered_at`,
+				creds[a.Credential].ID, targets[i].asset, a.Target, now, creds[a.Credential].ID); err != nil {
 				return err
 			}
 		}
@@ -1124,6 +1148,17 @@ func (s *Service) snmpRound(ctx context.Context, windowStart time.Time) error {
 		s.log.WarnContext(ctx, "sensoractive: snmp credentials skipped: their saved secret was not restored", "credentials", lost)
 	}
 	creds = usable
+	// A device that answered a credential and moved out of its scope is not read (D-512); the credential, the device page and the
+	// Scanning card name it (#829 C4), and the log says it once per round.
+	moved, gone := s.snmpMovedOut(ctx, creds)
+	if err := s.forgetSNMPAnswers(ctx, gone); err != nil {
+		s.log.WarnContext(ctx, "sensoractive: forgetting the snmp answers of deleted devices failed", "error", err)
+	}
+	for _, c := range creds {
+		for _, m := range moved[c.ID] {
+			s.log.InfoContext(ctx, "sensoractive: snmp device skipped: it moved out of the credential's scope", "credential", c.Name, "device", m.DeviceID, "ip", m.IP)
+		}
+	}
 	jobID, err := s.startJob(ctx, KindSNMP, snmpReasonWindow, 0)
 	if err != nil {
 		return err

@@ -14,7 +14,7 @@ import (
 // which becomes the child's stdin and controlling terminal. Neither becomes the controlling terminal of this process (O_NOCTTY).
 // The peer is reached through the master (TIOCGPTPEER, Linux 4.13), never by a path under /dev/pts.
 func openTerm(ptmx string) (master, peer *os.File, err error) {
-	master, err = os.OpenFile(ptmx, os.O_RDWR|unix.O_NOCTTY|unix.O_CLOEXEC, 0)
+	master, err = os.OpenFile(ptmx, os.O_RDWR|unix.O_NOCTTY|unix.O_CLOEXEC, 0) //nolint:gosec // the Runner's fixed /dev/ptmx (a test points it elsewhere), never input
 	if err != nil {
 		return nil, nil, err
 	}

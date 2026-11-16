@@ -36,6 +36,14 @@ func (c *fakeCore) waitProgress(t *testing.T, ok func(sensorlink.JobProgress) bo
 const gate = `while [ ! -f "$DIR/go" ]; do sleep 0.02; done
 `
 
+// started lets a fake tool that waits for $DIR/started print its first lines: after the test saw the report of the starting phase.
+func started(t *testing.T, dir string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, "started"), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func release(t *testing.T, dir string) {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(dir, "go"), nil, 0o600); err != nil {
@@ -45,7 +53,10 @@ func release(t *testing.T, dir string) {
 
 func TestNmapProgressIsReportedFromItsXML(t *testing.T) {
 	t.Parallel()
-	nm := writeNmap(t, `cat <<'EOF'
+	// The progress lines wait for the test to see the first report (first gate): printed at once they could reach the worker before
+	// its first tick, and that report would carry them instead of the starting phase (CI shard 1, #857).
+	nm := writeNmap(t, `while [ ! -f "$DIR/started" ]; do sleep 0.02; done
+cat <<'EOF'
 <?xml version="1.0"?>
 <nmaprun>
 <taskprogress task="Unknown Task" time="1700000000" percent="50.00" remaining="10"/>
@@ -61,6 +72,7 @@ EOF
 	if p := r.core.waitProgress(t, func(sensorlink.JobProgress) bool { return true }); p != (sensorlink.JobProgress{Phase: "discovery", Percent: -1}) {
 		t.Fatalf("first report = %+v, want the phase nmap starts with", p)
 	}
+	started(t, nm.dir)
 	p := r.core.waitProgress(t, func(p sensorlink.JobProgress) bool { return p.Percent >= 0 })
 	if want := (sensorlink.JobProgress{Phase: "ports", Percent: 42.5, RemainingS: 60}); p != want {
 		t.Fatalf("progress = %+v, want %+v (an unknown task and a percent over 100 are not reported)", p, want)
@@ -75,7 +87,8 @@ EOF
 // command line starts with as soon as nmap starts, then the port scan once nmap's XML says discovery found the host.
 func TestNmapPhaseMovesWithoutItsProgressLines(t *testing.T) {
 	t.Parallel()
-	nm := writeNmap(t, `cat <<'EOF'
+	nm := writeNmap(t, `while [ ! -f "$DIR/started" ]; do sleep 0.02; done
+cat <<'EOF'
 <?xml version="1.0"?>
 <nmaprun>
 <hosthint><status state="up" reason="arp-response" reason_ttl="0"/>
@@ -93,6 +106,7 @@ EOF
 	if p := r.core.waitProgress(t, func(sensorlink.JobProgress) bool { return true }); p != (sensorlink.JobProgress{Phase: "discovery", Percent: -1}) {
 		t.Fatalf("first report = %+v, want discovery", p)
 	}
+	started(t, nm.dir) // only now the host hint: it could otherwise beat the worker's first tick (#857 CI)
 	if p := r.core.waitProgress(t, func(p sensorlink.JobProgress) bool { return p.Phase != "discovery" }); p != (sensorlink.JobProgress{Phase: "ports", Percent: -1}) {
 		t.Fatalf("next report = %+v, want ports (no percent)", p)
 	}

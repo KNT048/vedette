@@ -43616,6 +43616,42 @@
                         ],
                         "description": "Device type (content/devicetypes/types.json, D-511)"
                       }
+                    },
+                    "possible_same": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "The other device, named as every page names it (D-471)"
+                          },
+                          "why": {
+                            "type": "string",
+                            "description": "What the two share, in plain words to show as is, e.g. Same name \"iPhone\", never online at the same time, and a private Wi-Fi address (phones and laptops change it)."
+                          },
+                          "approved": {
+                            "type": "boolean"
+                          },
+                          "last_seen": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "name",
+                          "why",
+                          "approved",
+                          "last_seen"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Devices that may be this same machine (D-599), the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was"
                     }
                   },
                   "required": [
@@ -43623,7 +43659,8 @@
                     "suspicious",
                     "findings_count",
                     "observations",
-                    "kinds"
+                    "kinds",
+                    "possible_same"
                   ],
                   "additionalProperties": false
                 }
@@ -43856,6 +43893,159 @@
                   },
                   "required": [
                     "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/devices/{id}/keep-separate": {
+      "post": {
+        "operationId": "inventory_post_inventory_devices_id_keep_separate",
+        "summary": "Two machines: the pair is never offered as possibly the same device again, until either is deleted or merged (D-599). Saying it again changes nothing. 400 invalid, 404 not_found, 409 box_device as for merge",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-3"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "other": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 96,
+                    "description": "The other device of the pair"
+                  }
+                },
+                "required": [
+                  "other"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/devices/{id}/merge": {
+      "post": {
+        "operationId": "inventory_post_inventory_devices_id_merge",
+        "summary": "The same machine: device `from` joins this device and is gone (D-599). This device keeps its id, approval (it becomes approved when `from` was, and loses a suspicious mark as on Approve), notes (both kept), findings and settings; the MACs, sources, software and open ports of `from` move to it, and its address when it was seen later and this device was found by a sensor (a device added by hand keeps the address typed). 400 invalid: the same device twice. 404 not_found: either device. 409 box_device: either is the Vedette box. 409 not_same_device: two agents, or two different burned-in MACs, say two machines",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-3"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 96,
+                    "description": "The device that goes into the device of the path"
+                  }
+                },
+                "required": [
+                  "from"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id"
                   ],
                   "additionalProperties": false
                 }
@@ -44481,6 +44671,121 @@
                   },
                   "required": [
                     "enabled"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/possible-same": {
+      "get": {
+        "operationId": "inventory_get_inventory_possible_same",
+        "summary": "Every pair of devices that may be the same machine, for a person to merge or keep separate (D-599)",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-3"
+        ],
+        "x-min-role": "viewer",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "a": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string",
+                                "description": "The other device, named as every page names it (D-471)"
+                              },
+                              "approved": {
+                                "type": "boolean"
+                              },
+                              "last_seen": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "approved",
+                              "last_seen"
+                            ],
+                            "additionalProperties": false,
+                            "description": "The approved device when one is, else the one seen first: the one a merge most likely keeps"
+                          },
+                          "b": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "name": {
+                                "type": "string",
+                                "description": "The other device, named as every page names it (D-471)"
+                              },
+                              "approved": {
+                                "type": "boolean"
+                              },
+                              "last_seen": {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "name",
+                              "approved",
+                              "last_seen"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "why": {
+                            "type": "string",
+                            "description": "What the two share, in plain words to show as is, e.g. Same name \"iPhone\", never online at the same time, and a private Wi-Fi address (phones and laptops change it)."
+                          }
+                        },
+                        "required": [
+                          "a",
+                          "b",
+                          "why"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Every pair of devices that may be one machine (D-599), the pair seen last first"
+                    }
+                  },
+                  "required": [
+                    "items"
                   ],
                   "additionalProperties": false
                 }
@@ -45503,6 +45808,37 @@
                           "secret_lost": {
                             "type": "boolean",
                             "description": "A saved secret of it cannot be opened on this box (a backup restored without its decryption key, or the box key changed, #868): it is sent nowhere (Test and Read now answer 409 secret_lost, the scan window skips it) until Edit saves it with the secret typed again"
+                          },
+                          "moved_out": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "device_id": {
+                                  "type": "string"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "description": "How a person knows the device: host name, else model, else vendor; empty when none"
+                                },
+                                "ip": {
+                                  "type": "string",
+                                  "description": "Its address now, outside the credential's scope"
+                                },
+                                "message": {
+                                  "type": "string",
+                                  "description": "Plain words, e.g. \"ipchg-c4 moved to 192.168.18.206, outside the scope of this credential. If it is still ipchg-c4, add the address to the scope to keep reading it. Nothing is sent there until then.\""
+                                }
+                              },
+                              "required": [
+                                "device_id",
+                                "name",
+                                "ip",
+                                "message"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "description": "Devices that answered with it and moved out of its scope (#829 C4); empty on add and edit responses"
                           }
                         },
                         "required": [
@@ -45518,7 +45854,8 @@
                           "created_at",
                           "last_answer_at",
                           "answered",
-                          "secret_lost"
+                          "secret_lost",
+                          "moved_out"
                         ],
                         "additionalProperties": false
                       },
@@ -45746,6 +46083,37 @@
                     "secret_lost": {
                       "type": "boolean",
                       "description": "A saved secret of it cannot be opened on this box (a backup restored without its decryption key, or the box key changed, #868): it is sent nowhere (Test and Read now answer 409 secret_lost, the scan window skips it) until Edit saves it with the secret typed again"
+                    },
+                    "moved_out": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "device_id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "How a person knows the device: host name, else model, else vendor; empty when none"
+                          },
+                          "ip": {
+                            "type": "string",
+                            "description": "Its address now, outside the credential's scope"
+                          },
+                          "message": {
+                            "type": "string",
+                            "description": "Plain words, e.g. \"ipchg-c4 moved to 192.168.18.206, outside the scope of this credential. If it is still ipchg-c4, add the address to the scope to keep reading it. Nothing is sent there until then.\""
+                          }
+                        },
+                        "required": [
+                          "device_id",
+                          "name",
+                          "ip",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Devices that answered with it and moved out of its scope (#829 C4); empty on add and edit responses"
                     }
                   },
                   "required": [
@@ -45761,7 +46129,8 @@
                     "created_at",
                     "last_answer_at",
                     "answered",
-                    "secret_lost"
+                    "secret_lost",
+                    "moved_out"
                   ],
                   "additionalProperties": false
                 }
@@ -46016,6 +46385,37 @@
                     "secret_lost": {
                       "type": "boolean",
                       "description": "A saved secret of it cannot be opened on this box (a backup restored without its decryption key, or the box key changed, #868): it is sent nowhere (Test and Read now answer 409 secret_lost, the scan window skips it) until Edit saves it with the secret typed again"
+                    },
+                    "moved_out": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "device_id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string",
+                            "description": "How a person knows the device: host name, else model, else vendor; empty when none"
+                          },
+                          "ip": {
+                            "type": "string",
+                            "description": "Its address now, outside the credential's scope"
+                          },
+                          "message": {
+                            "type": "string",
+                            "description": "Plain words, e.g. \"ipchg-c4 moved to 192.168.18.206, outside the scope of this credential. If it is still ipchg-c4, add the address to the scope to keep reading it. Nothing is sent there until then.\""
+                          }
+                        },
+                        "required": [
+                          "device_id",
+                          "name",
+                          "ip",
+                          "message"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "description": "Devices that answered with it and moved out of its scope (#829 C4); empty on add and edit responses"
                     }
                   },
                   "required": [
@@ -46031,7 +46431,8 @@
                     "created_at",
                     "last_answer_at",
                     "answered",
-                    "secret_lost"
+                    "secret_lost",
+                    "moved_out"
                   ],
                   "additionalProperties": false
                 }
@@ -46144,7 +46545,7 @@
                           "type": "integer",
                           "minimum": -9007199254740991,
                           "maximum": 9007199254740991,
-                          "description": "Devices of the inventory in the credential's scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is sent to them, nor to an address with no device"
+                          "description": "Devices of the inventory in the credential's scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope; and devices that answered it and moved out of its scope (#829 C4). Nothing is sent to them, nor to an address with no device"
                         },
                         "results": {
                           "type": "array",
@@ -46260,7 +46661,7 @@
                             ],
                             "additionalProperties": false
                           },
-                          "description": "One row per device read so far, as Test answers it"
+                          "description": "One row per device read so far, as Test answers it; a device that answered this credential and moved out of its scope is a row with reason not_for_this_credential at its new address, counted in skipped, and is not read (#829 C4)"
                         }
                       },
                       "required": [
@@ -46389,7 +46790,7 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991,
-                      "description": "Devices of the inventory in the credential's scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope. Nothing is sent to them, nor to an address with no device"
+                      "description": "Devices of the inventory in the credential's scope that are not read: not approved yet (approve them under To review first), added manually, set to never, the box, or outside the scan scope; and devices that answered it and moved out of its scope (#829 C4). Nothing is sent to them, nor to an address with no device"
                     },
                     "results": {
                       "type": "array",
@@ -46505,7 +46906,7 @@
                         ],
                         "additionalProperties": false
                       },
-                      "description": "One row per device read so far, as Test answers it"
+                      "description": "One row per device read so far, as Test answers it; a device that answered this credential and moved out of its scope is a row with reason not_for_this_credential at its new address, counted in skipped, and is not read (#829 C4)"
                     }
                   },
                   "required": [

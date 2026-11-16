@@ -209,6 +209,15 @@ const (
 	flagStats         = "--stats-every" // #830: nmap adds a <taskprogress> element to its XML this often; no packet more is sent
 	flagScript        = "--script"
 	flagScriptTimeout = "--script-timeout"
+	// flagVersionAll (--version-intensity 9) makes -sV try every probe of nmap-service-probes on a port no earlier probe matched
+	// (M2-7, J6): only the two full shapes have it. nmap stops at a port's first hard match, so an identified service costs what it
+	// did; only an unidentified one gets the 74 probes of rarity 8 and 9 too (104 TCP probes in all instead of 30, nmap 7.95). A
+	// port that accepts and never answers waits each probe's totalwaitms: about 2.6 minutes at the default intensity 7, 9 minutes
+	// with every probe. nmap reads up to 20 ports at once at the default timing, so the believable worst case (40 such ports,
+	// commonports.MaxBelievableOpen) is about 18 minutes of -sV, which with the port scan (at most 11) and the scripts (each at most
+	// fullScriptTimeout, in parallel) stays inside FullHostTimeout. The External shape keeps the default: its host timeout is 3
+	// minutes. https://nmap.org/book/man-version-detection.html, https://nmap.org/book/vscan-technique.html
+	flagVersionAll = "--version-all"
 )
 
 // Scripts is the exact NSE script list of the normal and versions shapes. D-504: two scripts that send an NTLM NEGOTIATE (type 1)
@@ -324,7 +333,7 @@ func Flags(kind Kind, rate int) ([]string, error) {
 			scripts = DisruptiveScripts
 		}
 		// The reviewed explicit script lists of scripts.go, never a category expression (FORBID-3, D-526); one argv element, never through a shell.
-		return []string{flagPrivileged, "-sS", "-sV", "-Pn", flagNoDNS, "-p-", flagScript, scripts, flagScriptTimeout, fullScriptTimeout,
+		return []string{flagPrivileged, "-sS", "-sV", flagVersionAll, "-Pn", flagNoDNS, "-p-", flagScript, scripts, flagScriptTimeout, fullScriptTimeout,
 			flagMaxRate, r, flagMaxRetries, fullRetries, flagHostTimeout, fullHostTimeout}, nil
 	}
 	return nil, errors.New("nmapargv: unknown scan kind")

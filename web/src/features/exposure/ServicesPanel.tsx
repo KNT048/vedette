@@ -7,7 +7,8 @@ import { dateText, dateTimeText } from './dates'
 import { PortMark } from './PortMark'
 import { InfoLine } from './InfoLine'
 import type { ServiceRow, Snapshot, TemplateRow, VulnRow } from './types'
-import { InfoTip } from '@/components/common/InfoTip'
+import { serviceIdent, serviceText } from './services'
+import { PortHints, ServiceCell } from './PortIdent'
 
 const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4, unknown: 5 } as const
 
@@ -27,9 +28,14 @@ export function VulnSection({ s, domain = false }: { s: Snapshot; domain?: boole
   const serviceCols: ColumnDef<ServiceRow>[] = [
     ...ipCol<ServiceRow>(),
     { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="grid gap-1"><span className="tabular-nums">{row.original.port}</span>{mark(row.original.ip, row.original.port)}</span> },
-    { id: 'service', header: t('col.service'), accessorFn: (r) => r.name, cell: ({ row }) => row.original.name === 'tcpwrapped' ? <span className="inline-flex items-center gap-1">{t('vulns.tcpwrappedShort')}<InfoTip topic={t('vulns.tcpwrappedShort')}>{t('vulns.tcpwrapped')}</InfoTip></span> : row.original.name },
-    { id: 'product', header: t('col.product'), accessorFn: (r) => r.product, cell: ({ row }) => row.original.product || <span className="text-muted">{t('vulns.noProduct')}</span> },
-    { id: 'version', header: t('col.version'), accessorFn: (r) => r.version, cell: ({ row }) => row.original.version || <span className="text-muted">{t('vulns.noVersion')}</span> },
+    // M2-7: a person's name for the service, "Probably SIP" when only the port number says so, "Service not identified" when nothing does
+    { id: 'service', header: t('col.service'), accessorFn: (r) => serviceText(r.name, serviceIdent(r)).name, cell: ({ row }) => <ServiceCell service={row.original.name} ident={serviceIdent(row.original)} port={row.original.port} /> },
+    { id: 'product', header: t('col.product'), accessorFn: (r) => r.product, cell: ({ row }) => {
+      const port = s.ports.find((x) => x.ip === row.original.ip && x.port === row.original.port)
+      return row.original.product || <span className="grid gap-0.5"><span className="text-muted">{t('vulns.noProduct')}</span>{port ? <PortHints p={port} className="text-caption text-muted" /> : null}</span>
+    } },
+    // a version is "not sent" only by a service a probe named; nmap read none of an unconfirmed or unknown one
+    { id: 'version', header: t('col.version'), accessorFn: (r) => r.version, cell: ({ row }) => row.original.version || <span className="text-muted">{t(serviceIdent(row.original) === 'port' || serviceIdent(row.original) === 'none' ? 'vulns.notRead' : 'vulns.noVersion')}</span> },
     { id: 'cves', header: t('col.exploited'), accessorFn: count, cell: ({ row }) => {
       const n = count(row.original), m = maybe(row.original)
       return n + m > 0 ? <span className="flex flex-wrap gap-1">{n > 0 ? <Chip tone="warn">{t('vulns.count', { count: n })}</Chip> : null}{m > 0 ? <Chip tone="off">{t('vulns.countBackport', { count: m })}</Chip> : null}</span> : null

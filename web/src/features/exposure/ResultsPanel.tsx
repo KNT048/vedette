@@ -8,7 +8,8 @@ import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Field, Select } from '@/components/ui/input'
 import { InfoTip } from '@/components/common/InfoTip'
 import { dateText } from './dates'
-import { riskOf } from './services'
+import { identOf, riskOf, serviceText } from './services'
+import { PortHints, RiskChip, ServiceCell } from './PortIdent'
 import { useDiff, useSnapshot, useSnapshots } from './api'
 import { ChecksSection, VulnSection } from './ServicesPanel'
 import { WebSection } from './WebPanel'
@@ -64,14 +65,16 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
   const portCols: ColumnDef<PortRow>[] = [
     { id: 'ip', header: t('col.ip'), accessorFn: (r) => r.ip },
     { id: 'port', header: t('col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="tabular-nums">{row.original.port}</span> },
-    { id: 'service', header: t('col.service'), accessorFn: (r) => r.service },
-    { id: 'product', header: t('col.product'), accessorFn: (r) => r.product ?? '', cell: ({ row }) => row.original.product ?? <span className="text-muted">{t('common:unknown')}</span> },
+    { id: 'service', header: t('col.service'), accessorFn: (r) => serviceText(r.service, identOf(r)).name, cell: ({ row }) => <ServiceCell service={row.original.service} ident={identOf(row.original)} port={row.original.port} /> },
+    { id: 'product', header: t('col.product'), accessorFn: (r) => r.product ?? '', cell: ({ row }) => (
+      <span className="grid gap-0.5">{row.original.product ?? <span className="text-muted">{t('common:unknown')}</span>}<PortHints p={row.original} className="text-caption text-muted" /></span>
+    ) },
     { id: 'note', header: t('col.note'), enableSorting: false, cell: ({ row }) => {
       const risk = riskOf(row.original)
       if (!risk && !row.original.last_seen) return null
       return <span className="grid gap-1">
         {row.original.last_seen ? <><PortMark p={row.original} /><PortMarkNote p={row.original} at={s.scanned_at} /></> : null}
-        {risk ? <span className="flex items-center gap-1"><Chip tone="warn">{t('open.attacked')}</Chip><InfoTip topic={t('open.attacked')}><p>{t(`risky.${risk}`)}</p><p>{t('open.purposePlain')}</p></InfoTip></span> : null}
+        <RiskChip p={row.original} purpose />
       </span>
     } },
   ]

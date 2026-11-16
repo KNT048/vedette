@@ -115,14 +115,18 @@ export function scanContent(t: { kind: TargetKind; value: string }): Content {
 
 const S = (ip: string, port: number, name: string, product = '', version = '', cpe = '', extra = ''): ServiceRow => ({ ip, port, name, product, version, cpe, extra })
 
-/** The box's own IP (203.0.113.10): a FortiGate SSL VPN that hides its version, an old Apache forwarded to a LAN server, and a port
- * that closes every connection. The sample of S-EXP-2: two exploited CVEs by version and one service that needs its version. */
+/** The box's own IP (203.0.113.10): a FortiGate SSL VPN that hides its version, an old Apache forwarded to a LAN server, a port
+ * that closes every connection, a SIP port only the port number names and a TLS port nothing identified, whose certificate names
+ * the device (M2-7). The sample of S-EXP-2: two exploited CVEs by version and one service that needs its version. */
 function boxIpNow(): Content {
   const ip = BOX_EGRESS_IP
+  const probed = (r: ServiceRow, conf = 10): ServiceRow => ({ ...r, method: 'probed', conf })
   return {
     hosts: [], admin_panels: [], certs: [{ host: ip, issuer: 'Fortinet (self-signed)', expires_at: inDays(120) }],
-    ports: [P(ip, 443, 'https', 'FortiGate SSL-VPN'), P(ip, 8443, 'https'), P(ip, 18443, 'http', 'Apache/2.4.49 (Unix)')],
-    services: [S(ip, 443, 'https', 'Fortinet FortiGate SSL VPN', '', 'cpe:/o:fortinet:fortios'), S(ip, 8443, 'tcpwrapped'), S(ip, 18443, 'http', 'Apache httpd', '2.4.49', 'cpe:/a:apache:http_server:2.4.49', '(Unix)')],
+    ports: [{ ...P(ip, 443, 'https', 'FortiGate SSL-VPN'), ident: 'probed' }, { ...P(ip, 8443, 'tcpwrapped'), ident: 'none' }, { ...P(ip, 18443, 'http', 'Apache/2.4.49 (Unix)'), ident: 'probed', title: 'Index of /' },
+      { ip, port: 5060, service: 'sip', ident: 'port' }, { ip, port: 11443, service: 'ssl/unknown', ident: 'none', cert_names: ['nas01.acme.example', 'backup.acme.example'] }],
+    services: [probed(S(ip, 443, 'https', 'Fortinet FortiGate SSL VPN', '', 'cpe:/o:fortinet:fortios')), probed(S(ip, 8443, 'tcpwrapped'), 8), probed(S(ip, 18443, 'http', 'Apache httpd', '2.4.49', 'cpe:/a:apache:http_server:2.4.49', '(Unix)')),
+      { ...S(ip, 5060, 'sip'), method: 'table', conf: 3 }, { ...S(ip, 11443, 'ssl/unknown'), method: 'table', conf: 3 }],
   }
 }
 

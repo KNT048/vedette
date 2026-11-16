@@ -112,9 +112,9 @@ var (
 	shapePortVersions = []string{"--privileged", "-sS", "-sV", "--script", "rdp-ntlm-info,http-ntlm-info,http-title,ssl-cert", "-n", "--max-rate", "50",
 		"--max-retries", "3", "-p", "22222,40000", "--host-timeout", "30m", "--stats-every", "5s", "-oX", "-", "192.168.10.20"}
 	// D-526: the two full shapes of a target whose testing terms are accepted.
-	shapeFull = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "-p-", "--script", FullScripts,
+	shapeFull = []string{"--privileged", "-sS", "-sV", "--version-all", "-Pn", "-n", "-p-", "--script", FullScripts,
 		"--script-timeout", "5m", "--max-rate", "300", "--max-retries", "2", "--host-timeout", "60m", "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
-	shapeDisruptive = []string{"--privileged", "-sS", "-sV", "-Pn", "-n", "-p-", "--script", DisruptiveScripts,
+	shapeDisruptive = []string{"--privileged", "-sS", "-sV", "--version-all", "-Pn", "-n", "-p-", "--script", DisruptiveScripts,
 		"--script-timeout", "5m", "--max-rate", "300", "--max-retries", "2", "--host-timeout", "60m", "--stats-every", "5s", "-oX", "-", "8.8.8.8"}
 )
 
@@ -616,8 +616,12 @@ func TestNoShapeWidensScripts(t *testing.T) {
 		for i, a := range f {
 			switch {
 			case a == "--allports", a == "-A", a == "-sC", a == "--script-args", a == "--script-args-file", a == "--script-updatedb",
-				strings.HasPrefix(a, "--script="), strings.HasPrefix(a, "--version-all"), strings.HasPrefix(a, "--version-intensity"):
+				strings.HasPrefix(a, "--script="), strings.HasPrefix(a, "--version-intensity"):
 				t.Errorf("%s has %q", k.Name(), a)
+			case strings.HasPrefix(a, "--version-all"): // M2-7: every probe on a port nothing matched, only in the deep scans of the box's own IP
+				if !k.IsFull() || a != "--version-all" {
+					t.Errorf("%s has %q", k.Name(), a)
+				}
 			case a == "--script" && k.IsFull():
 				if f[i+1] != expr[k] {
 					t.Errorf("%s: --script %q is not its fixed expression", k.Name(), f[i+1])

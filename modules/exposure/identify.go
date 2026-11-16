@@ -32,6 +32,10 @@ type (
 		Version string `json:"version"` // "2.4.49"; "" when the service sent none
 		CPE     string `json:"cpe"`     // the application CPE 2.2 URI nmap printed ("cpe:/a:apache:http_server:2.4.49"); "" when none
 		Extra   string `json:"extra"`   // nmap's extrainfo ("(Debian)", "Ubuntu Linux; protocol 2.0"); "" when none
+		// Method is how nmap named the service (M2-7): "probed" (a probe's answer matched), "table" (only the usual service of the
+		// port number: not confirmed), "" when not known (a snapshot from before M2-7). Conf is nmap's confidence 1..10, 0 when absent.
+		Method string `json:"method,omitempty"`
+		Conf   int    `json:"conf,omitempty"`
 	}
 	// CheckRow is one kind of probe a scan sent, or one comparison it made, with what it found and when (RFC 3339, UTC).
 	CheckRow struct {
@@ -259,12 +263,13 @@ func (s *Service) identify(ctx context.Context, st ScanTarget, c Content) (Conte
 	c, err = s.identifyIP(ctx, st, ip, c)
 	// N44-5: a port only service identification found (a deep scan probes every TCP port, the runner a fixed list) is an open port
 	// of the target too: the counts, the first sentence, the day diff, INV-22 and the outside view (INV-21) read the ports.
-	c.Ports = addServicePorts(c.Ports, c.Services, ip.String())
+	c.Ports = addServicePorts(c.Ports, c.Services, c.Scripts, ip.String())
 	return c, err
 }
 
-// addServicePorts appends a PortRow for each service on ip whose port the rows do not have yet.
-func addServicePorts(ports []PortRow, services []ServiceRow, ip string) []PortRow {
+// addServicePorts appends a PortRow for each service on ip whose port the rows do not have yet, then says on each row of ip how its
+// service was identified and what the deep scan's scripts read there (identifyPorts, M2-7).
+func addServicePorts(ports []PortRow, services []ServiceRow, scripts []ScriptRow, ip string) []PortRow {
 	have := map[string]bool{}
 	for _, p := range ports {
 		have[fmt.Sprintf("%s:%d", ipKey(p.IP), p.Port)] = true
@@ -275,7 +280,7 @@ func addServicePorts(ports []PortRow, services []ServiceRow, ip string) []PortRo
 			ports = append(ports, PortRow{IP: r.IP, Port: r.Port, Service: r.Name, Product: strings.TrimSpace(r.Product + " " + r.Version)})
 		}
 	}
-	return ports
+	return identifyPorts(ports, services, scripts, ip)
 }
 
 // identifyIP is service identification of one address, then its templates (INV-19, INV-23): an IP target's own address, or one address
@@ -526,7 +531,8 @@ func sanitizeServices(in []ServiceRow) []ServiceRow {
 		}
 		seen[key] = true
 		out = append(out, ServiceRow{IP: ip.String(), Port: r.Port, Name: field(r.Name, maxServiceName), Product: field(r.Product, maxProduct),
-			Version: field(r.Version, maxVersion), CPE: cpeURI(r.CPE), Extra: field(r.Extra, maxProduct)})
+			Version: field(r.Version, maxVersion), CPE: cpeURI(r.CPE), Extra: field(r.Extra, maxProduct), Method: serviceMethod(r.Method),
+			Conf: min(max(r.Conf, 0), 10)})
 	}
 	return out
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/xml"
 	"errors"
+	"maps"
 	"net/netip"
 	"os"
 	"slices"
@@ -124,7 +125,7 @@ func TestContract_INV19_NoServiceScannerSaysNotSetUp(t *testing.T) {
 	e := newEnv(t)
 	m := &fakeMatcher{}
 	e.svc.cfg.Matcher = m
-	s := e.scanIP(Content{Ports: []PortRow{{ipA, 443, "https", "nginx", "", 0, false}}})
+	s := e.scanIP(Content{Ports: []PortRow{{ipA, 443, "https", "nginx", "", 0, false, "", nil, "", ""}}})
 	if len(s.Ports) != 1 || len(s.Services) != 0 || len(s.Vulns) != 0 || len(s.VersionGaps) != 0 {
 		t.Fatalf("snapshot = %+v", s)
 	}
@@ -230,7 +231,7 @@ func TestContract_INV19_UnavailableAndFailedSteps(t *testing.T) {
 			if !tc.noMatch {
 				e.svc.cfg.Matcher = &fakeMatcher{err: tc.matchErr}
 			}
-			s := e.scanIP(Content{Ports: []PortRow{{ipA, 22, "ssh", "", "", 0, false}}})
+			s := e.scanIP(Content{Ports: []PortRow{{ipA, 22, "ssh", "", "", 0, false, "", nil, "", ""}}})
 			if !slices.Contains(notChecked(s), tc.want) || len(s.Ports) != 1 || len(s.Vulns) != 0 {
 				t.Fatalf("snapshot = %+v", s)
 			}
@@ -430,5 +431,67 @@ func TestDeepOnlyPortIsKeptByScansThatDoNotProbeIt(t *testing.T) {
 		if p.Port != 10022 || !p.Unchecked || p.Misses != 0 || len(got.Vulns) != 1 || got.Vulns[0].Port != 10022 {
 			t.Fatalf("non-deep scan %d: port %+v, ports %+v, vulns %+v", i+1, p, got.Ports, got.Vulns)
 		}
+	}
+}
+
+// M2-7 (J6): each open port says how its service was named. A probe's answer is "probed" (the surface's port-list name stays when
+// it is the same service), nmap's table name is "port" (not confirmed), "unknown", a bare TLS layer and tcpwrapped are "none" and
+// replace the port list's guess; a surface GET that read a product keeps the port identified. The deep scan's ssl-cert, http-title
+// and http-server-header outputs become the port's certificate names, title and Server header, which are sanitized when stored.
+func TestPortIdentFromMethodAndScripts(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	deep := false
+	e.terms = &deep
+	cert := "Subject: commonName=gw.example.net/organizationName=Example\nSubject Alternative Name: DNS:gw.example.net, DNS:vpn.example.net, IP Address:203.0.113.10\nIssuer: commonName=gw.example.net"
+	e.svc.cfg.Services = &fakeServices{scan: ServiceScan{Ports: 65535, Services: []ServiceRow{
+		{IP: ipA, Port: 10022, Name: "ssh", Product: "OpenSSH", Version: "9.6p1 Ubuntu 3ubuntu13.20", Method: "probed", Conf: 10},
+		{IP: ipA, Port: 10443, Name: "ssl/http", Product: "nginx", Method: "probed", Conf: 10},
+		{IP: ipA, Port: 5060, Name: "sip", Method: "table", Conf: 3},
+		{IP: ipA, Port: 2000, Name: "cisco-sccp", Method: "table", Conf: 3},
+		{IP: ipA, Port: 11080, Name: "unknown", Method: "table", Conf: 3},
+		{IP: ipA, Port: 11443, Name: "ssl/unknown", Method: "table", Conf: 3},
+		{IP: ipA, Port: 8443, Name: "tcpwrapped", Method: "probed", Conf: 8},
+		{IP: ipA, Port: 8080, Name: "http-proxy", Method: "table", Conf: 3},
+		{IP: ipA, Port: 9000, Name: "http", Product: "Go", Method: "bogus", Conf: 99},
+	}, Scripts: []ScriptRow{
+		{IP: ipA, Port: 11443, ID: "ssl-cert", Output: cert},
+		{IP: ipA, Port: 10443, ID: "http-title", Output: "Sign in · GitLab\nRequested resource was /users/sign_in"},
+		{IP: ipA, Port: 11080, ID: "http-title", Output: "Site doesn't have a title (text/html)."},
+		{IP: ipA, Port: 11080, ID: "http-server-header", Output: "Caddy"},
+		{IP: ipB, Port: 11443, ID: "ssl-cert", Output: "Subject: commonName=other.example"},
+	}}}
+	s := e.scanIP(Content{Ports: []PortRow{
+		{IP: ipA, Port: 10443, Service: "https", Product: "nginx"}, {IP: ipA, Port: 5060, Service: "sip"},
+		{IP: ipA, Port: 8443, Service: "https"}, {IP: ipA, Port: 8080, Service: "http", Product: "Jetty"},
+	}})
+	type row struct{ service, ident, title, server, certs string }
+	got := map[int]row{}
+	for _, p := range s.Ports {
+		got[p.Port] = row{p.Service, p.Ident, p.Title, p.Server, strings.Join(p.CertNames, ",")}
+	}
+	want := map[int]row{
+		10022: {"ssh", IdentProbed, "", "", ""},
+		10443: {"https", IdentProbed, "Sign in · GitLab", "", ""}, // the same service: the surface's name stays
+		5060:  {"sip", IdentPort, "", "", ""},
+		2000:  {"cisco-sccp", IdentPort, "", "", ""},
+		11080: {"unknown", IdentNone, "", "Caddy", ""},
+		11443: {"ssl/unknown", IdentNone, "", "", "gw.example.net,vpn.example.net"},
+		8443:  {"tcpwrapped", IdentNone, "", "", ""}, // the port list's "https" is not kept
+		8080:  {"http", IdentProbed, "", "", ""},     // the surface's GET read Jetty
+		9000:  {"http", "", "", "", ""},              // a method nmap never prints is not trusted either way
+	}
+	if !maps.Equal(got, want) {
+		t.Fatalf("ports:\n got %+v\nwant %+v", got, want)
+	}
+	for _, r := range s.Services {
+		if r.Port == 9000 && (r.Method != "" || r.Conf != 10) {
+			t.Fatalf("service 9000 kept method %q conf %d", r.Method, r.Conf)
+		}
+	}
+	// a hostile row is cut to what sanitize allows
+	bad := sanitizePortIdent(PortRow{}, PortRow{Ident: "maybe", Title: "a‮b", Server: strings.Repeat("x", maxHint+1), CertNames: []string{"a", "b", "c", "d", "e", "f", "\x00"}})
+	if bad.Ident != "" || bad.Title != "" || bad.Server != "" || len(bad.CertNames) != maxCertNames {
+		t.Fatalf("sanitized = %+v", bad)
 	}
 }

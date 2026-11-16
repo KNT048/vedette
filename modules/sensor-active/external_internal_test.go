@@ -357,3 +357,39 @@ func TestExternalSkippedWhenTooLittleTimeIsLeft(t *testing.T) {
 		}
 	})
 }
+
+// M2-7 (J6): how nmap named each service reaches exposure. method="probed" is a probe's answer, method="table" only nmap-services'
+// usual name of the port number (conf 3), and any other method word is not passed on.
+func TestExternalServiceMethodAndConf(t *testing.T) {
+	t.Parallel()
+	data := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<nmaprun scanner="nmap" args="nmap" version="7.95" xmloutputversion="1.05">
+<host><status state="up" reason="user-set"/><address addr="8.8.8.8" addrtype="ipv4"/><ports>
+<port protocol="tcp" portid="22"><state state="open" reason="syn-ack"/><service name="ssh" product="OpenSSH" version="9.6p1 Ubuntu 3ubuntu13.20" method="probed" conf="10"/></port>
+<port protocol="tcp" portid="2000"><state state="open" reason="syn-ack"/><service name="cisco-sccp" method="table" conf="3"/></port>
+<port protocol="tcp" portid="5060"><state state="open" reason="syn-ack"/><service name="sip" method="table" conf="3"/></port>
+<port protocol="tcp" portid="11443"><state state="open" reason="syn-ack"/><service name="unknown" tunnel="ssl" method="table" conf="3"/></port>
+<port protocol="tcp" portid="11080"><state state="open" reason="syn-ack"/><service name="unknown" method="guessed" conf="11"/></port>
+</ports></host></nmaprun>`)
+	all, err := parseNmapXML(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := externalOf(all, ownIP, nmapargv.ExternalFull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	type mc struct {
+		name, method string
+		conf         int
+	}
+	want := map[int]mc{22: {"ssh", "probed", 10}, 2000: {"cisco-sccp", "table", 3}, 5060: {"sip", "table", 3}, 11443: {"ssl/unknown", "table", 3}, 11080: {"unknown", "", 10}}
+	if len(got.Services) != len(want) {
+		t.Fatalf("services: %+v", got.Services)
+	}
+	for _, s := range got.Services {
+		if w := want[s.Port]; (mc{s.Name, s.Method, s.Conf}) != w {
+			t.Errorf("port %d: %q %q %d, want %+v", s.Port, s.Name, s.Method, s.Conf, w)
+		}
+	}
+}

@@ -34,7 +34,7 @@ export function TwoStepPrompt() {
     setLaterFor(me.id)
   }
   return (
-    <Notice tone="warn" role="status" className="mb-6" title={t('twoStepPrompt.title')}
+    <Notice tone="warn" role="status" className="mb-6" title={t('twoStepPrompt.title')} info={t('twoStepPrompt.bodyInfo')}
       actions={<>
         <Button asChild size="sm" variant="primary"><Link to="/settings/account?tab=sign-in">{t('twoStepPrompt.go')}</Link></Button>
         <Button size="sm" variant="ghost" onClick={remind}>{t('twoStepPrompt.later', { count: TWO_STEP_SNOOZE_DAYS })}</Button>

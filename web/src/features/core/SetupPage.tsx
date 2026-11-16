@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Check, Plus, Trash2 } from 'lucide-react'
 import { ErrorState, Loading } from '@/components/common/States'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Button } from '@/components/ui/button'
 import { Checkbox, RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Field, Input } from '@/components/ui/input'
@@ -57,6 +58,7 @@ export default function SetupPage() {
   const [restoring, setRestoring] = useState(false) // D-518: restore from a backup instead of a new organization
   const heading = useRef<HTMLHeadingElement>(null)
   const idx = STEPS.indexOf(step)
+  const stepInfo = t(`setup.${step}.descInfo`, { defaultValue: '' })
   useEffect(() => { heading.current?.focus() }, [step])
 
   if (status.isPending) return <div className="p-8"><Loading /></div>
@@ -154,9 +156,11 @@ export default function SetupPage() {
       <main className="mx-auto min-h-dvh w-full max-w-2xl px-4 py-10">
         <h1 className="text-2xl font-semibold tracking-[-0.01em]">{t('setup.title')}</h1>
         <section className="mt-6 rounded-md border border-rule bg-surface p-5" aria-labelledby="restore-title">
-          <h2 id="restore-title" className="text-lg font-semibold">{t('setup.restore.title')}</h2>
+          <div className="flex items-center gap-1">
+            <h2 id="restore-title" className="text-lg font-semibold">{t('setup.restore.title')}</h2>
+            <InfoTip topic={t('setup.restore.title')}><p>{t('setup.restore.descInfo')}</p><p>{t('setup.restore.terms')}</p></InfoTip>
+          </div>
           <p className="mt-1 text-sm text-muted">{t('setup.restore.desc')}</p>
-          <p className="mt-1 text-[13px] text-muted">{t('setup.restore.terms')}</p>
           <SetupRestore install={install} termsAccepted={s.terms} onBack={() => setRestoring(false)} />
         </section>
       </main>
@@ -165,7 +169,10 @@ export default function SetupPage() {
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-2xl px-4 py-10">
-      <h1 className="text-2xl font-semibold tracking-[-0.01em]">{t('setup.title')}</h1>
+      <div className="flex items-center gap-1">
+        <h1 className="text-2xl font-semibold tracking-[-0.01em]">{t('setup.title')}</h1>
+        <InfoTip topic={t('setup.title')}>{t('setup.subtitleInfo')}</InfoTip>
+      </div>
       <p className="mt-1 text-sm text-muted">{t('setup.subtitle')}</p>
 
       <ol aria-label={t('setup.steps')} className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm">
@@ -180,7 +187,10 @@ export default function SetupPage() {
       {step === 'account' && import.meta.env.VITE_API_MOCK !== 'off' ? (
         <section className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-dashed border-rule px-5 py-3" aria-labelledby="sample-title">
           <div className="grid max-w-md gap-0.5">
-            <h2 id="sample-title" className="text-sm font-semibold">{t('setup.sample.title')}</h2>
+            <div className="flex items-center gap-1">
+              <h2 id="sample-title" className="text-sm font-semibold">{t('setup.sample.title')}</h2>
+              <InfoTip topic={t('setup.sample.title')}>{t('setup.sample.descInfo')}</InfoTip>
+            </div>
             <p className="text-[13px] text-muted">{t('setup.sample.desc')}</p>
           </div>
           <Button onClick={() => void startWithSample()} disabled={submit.isPending}>{t('setup.sample.button')}</Button>
@@ -189,7 +199,10 @@ export default function SetupPage() {
       {step === 'account' ? (
         <section className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-md border border-rule px-5 py-3" aria-labelledby="restore-entry">
           <div className="grid max-w-md gap-0.5">
-            <h2 id="restore-entry" className="text-sm font-semibold">{t('setup.restore.entryTitle')}</h2>
+            <div className="flex items-center gap-1">
+              <h2 id="restore-entry" className="text-sm font-semibold">{t('setup.restore.entryTitle')}</h2>
+              <InfoTip topic={t('setup.restore.entryTitle')}>{t('setup.restore.entryInfo')}</InfoTip>
+            </div>
             <p className="text-[13px] text-muted">{t('setup.restore.entryDesc')}</p>
           </div>
           <Button onClick={() => setRestoring(true)}>{t('setup.restore.entryButton')}</Button>
@@ -197,7 +210,10 @@ export default function SetupPage() {
       ) : null}
       <section className="mt-6 rounded-md border border-rule bg-surface p-5" aria-labelledby="step-title">
         <form noValidate onSubmit={(e) => { e.preventDefault(); if (step === 'modules') void finish(); else next() }}>
-        <h2 id="step-title" ref={heading} tabIndex={-1} className="text-lg font-semibold outline-none">{t(`setup.${step}.title`)}</h2>
+        <div className="flex items-center gap-1">
+          <h2 id="step-title" ref={heading} tabIndex={-1} className="text-lg font-semibold outline-none">{t(`setup.${step}.title`)}</h2>
+          {stepInfo ? <InfoTip topic={t(`setup.${step}.title`)}>{stepInfo}</InfoTip> : null}
+        </div>
         <p className="mt-1 text-sm text-muted">{t(`setup.${step}.desc`)}</p>
 
         {step === 'terms' ? (
@@ -216,11 +232,11 @@ export default function SetupPage() {
 
         {step === 'account' ? (
           <div className="mt-4 grid gap-4">
-            <Field label={t('setup.account.code')} hint={t(install === 'container' ? 'setup.account.codeHintContainer' : install === 'appliance' ? 'setup.account.codeHintAppliance' : 'setup.account.codeHint')} htmlFor="s-code" error={errors.code}><Input id="s-code" autoComplete="off" spellCheck={false} value={s.code} aria-invalid={!!errors.code} onChange={(e) => set({ code: e.target.value })} /></Field>
+            <Field label={t('setup.account.code')} hint={t('setup.account.codeHint')} info={t(install === 'container' ? 'setup.account.codeInfoContainer' : install === 'appliance' ? 'setup.account.codeInfoAppliance' : 'setup.account.codeInfo')} htmlFor="s-code" error={errors.code}><Input id="s-code" autoComplete="off" spellCheck={false} value={s.code} aria-invalid={!!errors.code} onChange={(e) => set({ code: e.target.value })} /></Field>
             <Field label={t('setup.account.org')} htmlFor="s-org" error={errors.org}><Input id="s-org" autoComplete="organization" value={s.org} aria-invalid={!!errors.org} onChange={(e) => set({ org: e.target.value })} /></Field>
             <Field label={t('setup.account.name')} htmlFor="s-name" error={errors.name}><Input id="s-name" autoComplete="name" value={s.name} aria-invalid={!!errors.name} onChange={(e) => set({ name: e.target.value })} /></Field>
             <Field label={t('setup.account.email')} htmlFor="s-email" error={errors.email}><Input id="s-email" type="email" autoComplete="username" value={s.email} aria-invalid={!!errors.email} onChange={(e) => set({ email: e.target.value })} /></Field>
-            <Field label={t('setup.account.password')} hint={t('setup.account.passwordHint', { min: MIN_PASSWORD })} htmlFor="s-pw" error={errors.password}><Input id="s-pw" type="password" autoComplete="new-password" value={s.password} aria-invalid={!!errors.password} onChange={(e) => set({ password: e.target.value })} /></Field>
+            <Field label={t('setup.account.password')} hint={t('setup.account.passwordHint', { min: MIN_PASSWORD })} info={t('setup.account.passwordInfo')} htmlFor="s-pw" error={errors.password}><Input id="s-pw" type="password" autoComplete="new-password" value={s.password} aria-invalid={!!errors.password} onChange={(e) => set({ password: e.target.value })} /></Field>
             <Field label={t('setup.account.again')} htmlFor="s-again" error={errors.again}><Input id="s-again" type="password" autoComplete="new-password" value={s.again} aria-invalid={!!errors.again} onChange={(e) => set({ again: e.target.value })} /></Field>
           </div>
         ) : null}
@@ -228,7 +244,7 @@ export default function SetupPage() {
         {step === 'network' ? (
           <div className="mt-4 grid gap-4">
             <fieldset className="grid gap-2">
-              <legend className="text-sm font-medium">{t('setup.network.lan')}</legend>
+              <legend className="flex items-center gap-1 text-sm font-medium">{t('setup.network.lan')}<InfoTip topic={t('setup.network.lan')}><p>{t('setup.network.lanInfo')}</p>{boxLan && s.lan[0] === boxLan ? <p>{t('setup.network.lanFromBoxInfo', { lan: boxLan })}</p> : null}</InfoTip></legend>
               <p className="text-[13px] text-muted">{t('setup.network.lanHint')}{boxLan && s.lan[0] === boxLan ? ` ${t('setup.network.lanFromBox', { lan: boxLan })}` : ''}</p>
               {s.lan.map((v, i) => (
                 <div key={i} className="grid gap-1">
@@ -255,7 +271,10 @@ export default function SetupPage() {
                 <Checkbox id="s-commit" checked={s.commitment} onCheckedChange={(v) => set({ commitment: v === true })} className="mt-0.5" />
                 <label htmlFor="s-commit" className="text-sm">{t('setup.network.commitment')}</label>
               </div>
-              <p className="text-[13px] text-muted">{t(s.commitment ? 'setup.network.firstPass' : 'setup.network.passiveOnly')}</p>{/* D-501 */}
+              <div className="flex items-center gap-1">{/* D-501 */}
+                <p className="text-[13px] text-muted">{t(s.commitment ? 'setup.network.firstPass' : 'setup.network.passiveOnly')}</p>
+                <InfoTip topic={t('setup.network.scanTopic')}>{t(s.commitment ? 'setup.network.firstPassInfo' : 'setup.network.passiveOnlyInfo')}</InfoTip>
+              </div>
               <p className="text-[13px] text-muted">{t('setup.network.license')}</p>
             </div>
           </div>
@@ -305,18 +324,19 @@ function ModulesStep({ s, set, error }: { s: State; set: (p: Partial<State>) => 
         {(['smb', 'mid', 'custom'] as const).map((b) => (
           <div key={b} className={cn('flex items-start gap-3 rounded-md border p-3', s.bundle === b ? 'border-accent bg-accent-soft' : 'border-rule')}>
             <RadioItem id={`bundle-${b}`} value={b} className="mt-0.5" />
-            <label htmlFor={`bundle-${b}`} className="grid gap-0.5 text-sm">
+            <label htmlFor={`bundle-${b}`} className="grid flex-1 gap-0.5 text-sm">
               <span className="font-medium">{t(`setup.modules.${b}.name`)}</span>
-              <span className="text-[13px] text-muted">{t(b === 'smb' && !here('honeypot') ? 'setup.modules.smb.descNoTraps' : `setup.modules.${b}.desc`)}</span>
+              <span className="text-[13px] text-muted">{t(`setup.modules.${b}.desc`)}</span>
               {b !== 'custom' ? <span className="text-[13px] text-muted">{bundle(b).filter((m) => m !== 'core').map(name).join(', ')}</span> : null}
             </label>
+            {b !== 'custom' ? <InfoTip topic={t(`setup.modules.${b}.name`)}>{t(b === 'smb' && !here('honeypot') ? 'setup.modules.smb.descNoTrapsInfo' : `setup.modules.${b}.descInfo`)}</InfoTip> : null}
           </div>
         ))}
       </RadioGroup>
-      {notHere.length ? <p className="text-[13px] text-muted">{t('setup.modules.notHere', { list: notHere.map(name).join(', ') })}</p> : null}
+      {notHere.length ? <div className="flex items-center gap-1"><p className="text-[13px] text-muted">{t('setup.modules.notHere', { list: notHere.map(name).join(', ') })}</p><InfoTip topic={t('setup.modules.notHereOne')}>{t('setup.modules.notHereInfo')}</InfoTip></div> : null}
       {s.bundle === 'custom' ? (
         <fieldset className="grid gap-2 rounded-md border border-rule p-3">
-          <legend className="px-1 text-sm font-medium">{t('setup.modules.pick')}</legend>
+          <legend className="flex items-center gap-1 px-1 text-sm font-medium">{t('setup.modules.pick')}<InfoTip topic={t('setup.modules.pick')}>{t('setup.modules.pickInfo')}</InfoTip></legend>
           <p className="text-[13px] text-muted">{t('setup.modules.pickHint')}</p>
           {all.filter((m) => m.tier !== 'core').map((m) => (
             <div key={m.id} className="flex items-start gap-2.5">

@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Notice, PageHeader, Section, Panel } from '@/components/common/PageHeader'
 import { DataTable } from '@/components/common/DataTable'
 import { EmptyState, Loading, QueryState } from '@/components/common/States'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
@@ -77,7 +78,7 @@ export default function AiSettings() {
       <QueryState query={cfg}>
         {(c) => (
           <>
-            <PageHeader title={t('settings.title')} meta={allFailed(c) ? t('settings.statusAllFailed') : c.configured ? t('settings.statusOn') : t('settings.statusOff')} />
+            <PageHeader title={t('settings.title')} meta={allFailed(c) ? t('settings.statusAllFailed') : c.configured ? t('settings.statusOn') : t('settings.statusOff')} info={allFailed(c) ? t('settings.statusAllFailedInfo') : undefined} />
             <div className="mb-6">
               <Segmented label={t('harness.tabs.label')} value={tab} options={TABS.map((v) => ({ value: v, label: t(`harness.tabs.${v}`) }))}
                 onChange={(v) => setParams((p) => { const n = new URLSearchParams(p); if (v === 'profiles') n.delete('tab'); else n.set('tab', v); return n }, { replace: true })} />
@@ -108,11 +109,11 @@ function Flow({ profiles }: { profiles: AiProfile[] }) {
   const { t } = useTranslation('ai')
   const cloud = [...new Set(profiles.filter((p) => p.location === 'cloud').map((p) => hostOf(p.base_url)))]
   return (
-    <Section title={t('settings.flow.title')} stories={['S-AI-1']}>
+    <Section title={t('settings.flow.title')} stories={['S-AI-1']} info={<><p>{cloud.length ? t('settings.flow.remoteInfo') : t('settings.flow.noneRemoteInfo')}</p><p>{t('settings.flow.rules')}</p></>}>
       <Panel className="grid gap-2 p-4 text-sm">
         <p>{cloud.length ? t('settings.flow.remote', { hosts: cloud.join(', ') }) : t('settings.flow.noneRemote')}</p>
-        {cloud.length ? <p>{t('settings.flow.abroad')}</p> : null}
-        <p className="text-muted">{t('settings.flow.rules')}</p>
+        {/* Legal risk (Vietnam PDPL cross-border transfer): one visible line, the law and what to do behind the ⓘ (#824) */}
+        {cloud.length ? <div className="flex items-center gap-1"><p>{t('settings.flow.abroad')}</p><InfoTip topic={t('settings.flow.abroadTopic')}>{t('settings.flow.abroadInfo')}</InfoTip></div> : null}
       </Panel>
     </Section>
   )
@@ -148,10 +149,10 @@ function ProfilesSection({ profiles, assign }: { profiles: AiProfile[]; assign: 
     : p.last_test.ok ? <span className="text-ok">{t('profiles.lastOk', { time: fmtDateTime(p.last_test.at) })}</span>
       : <span className="font-medium text-danger">{t('profiles.lastFail', { time: fmtDateTime(p.last_test.at), reason: p.last_test.detail })}</span>
   return (
-    <Section id="ai-profiles" title={t('profiles.title')} description={t('profiles.description')} stories={['S-AI-1']}
+    <Section id="ai-profiles" title={t('profiles.title')} description={t('profiles.description')} info={t('profiles.descriptionInfo')} stories={['S-AI-1']}
       actions={<Button variant="primary" onClick={() => setEdit('new')} disabled={!admin} title={reason}>{t('profiles.add')}</Button>}>
       {profiles.length === 0 ? (
-        <EmptyState title={t('profiles.empty')} action={<Button variant="primary" onClick={() => setEdit('new')} disabled={!admin} title={reason}>{t('profiles.add')}</Button>}>{t('profiles.emptyBody')}</EmptyState>
+        <EmptyState title={t('profiles.empty')} info={t('profiles.emptyBodyInfo')} action={<Button variant="primary" onClick={() => setEdit('new')} disabled={!admin} title={reason}>{t('profiles.add')}</Button>}>{t('profiles.emptyBody')}</EmptyState>
       ) : (
         <DataTable<AiProfile> caption={t('profiles.caption')} data={profiles}
           mobileRow={(p) => (
@@ -293,11 +294,14 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
       <DialogContent title={profile ? t('profiles.editTitle', { name: profile.name }) : t('profiles.addTitle')} description={t('profiles.dialogBody')}>
         <form noValidate onSubmit={submit} className="grid gap-4" aria-label={profile ? t('profiles.editTitle', { name: profile.name }) : t('profiles.addTitle')}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={t('profiles.f.kind')} htmlFor="pf-kind" hint={preset === 'opencode' ? t('profiles.f.opencodeHint') : undefined} className="sm:col-span-2">
+            <Field label={t('profiles.f.kind')} htmlFor="pf-kind" hint={preset === 'opencode' ? t('profiles.f.opencodeHint') : undefined} info={preset === 'opencode' ? t('profiles.f.opencodeInfo') : undefined} className="sm:col-span-2">
               <Select id="pf-kind" value={preset} onChange={(e) => pickKind(e.target.value as Preset)}>{PRESETS.map((k) => <option key={k} value={k}>{t(`profiles.kind.${k}`)}</option>)}</Select>
             </Field>
             <div className="grid gap-1.5 sm:col-span-2">
-              <Label id="pf-location-label">{t('profiles.f.location')}</Label>
+              <div className="flex items-center gap-1">
+                <Label id="pf-location-label">{t('profiles.f.location')}</Label>
+                <InfoTip topic={t('profiles.f.location')}><p>{t('profiles.f.locationInfo')}</p>{cloudOnly ? <p>{t('profiles.f.cloudOnlyInfo')}</p> : null}</InfoTip>
+              </div>
               <RadioGroup value={location} onValueChange={(v) => { setLocation(v as 'internal' | 'cloud'); models.reset(); setErrs((x) => ({ ...x, base_url: undefined, key: undefined })); clearLocalDefaults(v as 'internal' | 'cloud') }} aria-labelledby="pf-location-label" disabled={cloudOnly}>
                 {(['internal', 'cloud'] as const).map((l) => (
                   <div key={l} className="flex items-start gap-3 rounded-md border border-rule bg-surface p-3">
@@ -307,12 +311,12 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
                 ))}
               </RadioGroup>
               {cloudOnly ? <p className="text-[13px] text-muted">{t('profiles.f.cloudOnly')}</p> : null}
-              {notEncrypted ? <p role="note" className="text-[13px] text-warn">{t('profiles.f.notEncrypted')}</p> : null}
+              {notEncrypted ? <div role="note" className="flex items-center gap-1 text-[13px] text-warn"><p>{t('profiles.f.notEncrypted')}</p><InfoTip topic={t('profiles.f.baseUrl')}>{t('profiles.f.notEncryptedInfo')}</InfoTip></div> : null}
             </div>
             <Field label={t('profiles.f.key')} htmlFor="pf-key" error={err('key')} hint={keptKey ? t('profiles.f.keySaved', { last4: keptKey }) : location === 'internal' ? t('profiles.f.keyOptional') : t('profiles.f.keyHint')} className="sm:col-span-2">
               <Input id="pf-key" type="password" value={key} onChange={(e) => { setKey(e.target.value); upd('key'); models.reset() }} autoComplete="off" placeholder={keptKey ? `••••${keptKey}` : ''} {...aria('key', true)} />
             </Field>
-            <Field label={t('profiles.f.model')} htmlFor="pf-model" hint={models.data ? t('profiles.f.modelsFound', { count: models.data.models.length }) : t('profiles.f.modelHint')} error={err('model')} className="sm:col-span-2">
+            <Field label={t('profiles.f.model')} htmlFor="pf-model" hint={models.data ? t('profiles.f.modelsFound', { count: models.data.models.length }) : t('profiles.f.modelHint')} info={t('profiles.f.modelInfo')} error={err('model')} className="sm:col-span-2">
               <div className="flex gap-2">
                 <Input id="pf-model" list="pf-models" value={model} onChange={(e) => { setModel(e.target.value); upd('model') }} autoComplete="off" className="min-w-0 flex-1" {...aria('model', true)} />
                 <Button type="button" onClick={listModels} disabled={models.isPending}>{models.isPending ? t('profiles.f.listing') : t('profiles.f.listModels')}</Button>
@@ -320,7 +324,7 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
               <datalist id="pf-models">{models.data?.models.map((m) => <option key={m} value={m} />)}</datalist>
             </Field>
             {models.error && !serverField(models.error) ? <div className="sm:col-span-2"><ActionError error={models.error} /></div> : null}
-            <Field label={t('profiles.f.name')} htmlFor="pf-name" hint={t('profiles.f.nameHint')} error={err('name')} className="sm:col-span-2">
+            <Field label={t('profiles.f.name')} htmlFor="pf-name" hint={t('profiles.f.nameHint')} info={t('profiles.f.nameInfo')} error={err('name')} className="sm:col-span-2">
               <Input id="pf-name" value={name} maxLength={40} onChange={(e) => { setName(e.target.value); upd('name') }} autoComplete="off" {...aria('name', true)} />
             </Field>
             <details className="grid gap-4 sm:col-span-2" open={adv} onToggle={(e) => setAdv((e.currentTarget as HTMLDetailsElement).open)}>
@@ -332,10 +336,10 @@ function ProfileDialog({ profile, existing, onClose }: { profile: AiProfile | nu
                     <Select id="pf-style" value={style} onChange={(e) => setStyle(e.target.value as ApiStyle)}>{(['openai', 'anthropic', 'gemini'] as const).map((st) => <option key={st} value={st}>{t(`profiles.style.${st}`)}</option>)}</Select>
                   </Field>
                 ) : null}
-                <Field label={t('profiles.f.baseUrl')} htmlFor="pf-base_url" hint={location === 'internal' ? t(container ? 'profiles.f.baseUrlInternalContainer' : 'profiles.f.baseUrlInternal') : t('profiles.f.baseUrlCloud')} error={err('base_url')}>
+                <Field label={t('profiles.f.baseUrl')} htmlFor="pf-base_url" hint={location === 'internal' ? t(container ? 'profiles.f.baseUrlInternalContainer' : 'profiles.f.baseUrlInternal') : t('profiles.f.baseUrlCloud')} info={location === 'internal' ? t(container ? 'profiles.f.baseUrlInternalContainerInfo' : 'profiles.f.baseUrlInternalInfo') : undefined} error={err('base_url')}>
                   <Input id="pf-base_url" value={baseUrl} onChange={(e) => { setBaseUrl(e.target.value); upd('base_url'); models.reset() }} autoComplete="off" inputMode="url" placeholder={container && preset === 'openai-compatible' && location === 'internal' ? t('profiles.f.baseUrlLanPlaceholder') : undefined} {...aria('base_url', true)} />
                 </Field>
-                <Field label={t('profiles.f.cap')} htmlFor="pf-cap" hint={t('profiles.f.capHint')} error={err('cap')}>
+                <Field label={t('profiles.f.cap')} htmlFor="pf-cap" hint={t('profiles.f.capHint')} info={t('profiles.f.capInfo')} error={err('cap')}>
                   <Input id="pf-cap" type="number" min={1000} max={150000000} step={1000} value={cap} onChange={(e) => { setCap(e.target.value); upd('cap') }} {...aria('cap', true)} />
                 </Field>
               </div>
@@ -368,7 +372,7 @@ function RemoveDialog({ profile, assign, onClose }: { profile: AiProfile; assign
   const used = JOBS.filter((j) => assign?.jobs[j.id]?.primary === profile.id || assign?.jobs[j.id]?.fallback === profile.id)
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent title={t('profiles.removeTitle', { name: profile.name })} description={used.length ? t('profiles.removeBodyUsed', { jobs: used.map((j) => t(`jobs.${j.id}.name`)).join(', ') }) : t('profiles.removeBody')}>
+      <DialogContent title={t('profiles.removeTitle', { name: profile.name })} description={used.length ? t('profiles.removeBodyUsed', { jobs: used.map((j) => t(`jobs.${j.id}.name`)).join(', ') }) : t('profiles.removeBody')} info={used.length ? t('profiles.removeBodyUsedInfo') : undefined}>
         <ActionError error={remove.error} />
         <DialogFooter>
           <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
@@ -426,18 +430,21 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
   }
   const noProfiles = profiles.filter(usable).length === 0
   return (
-    <Section id="ai-routing" title={t('assign.title')} description={t('assign.description')} stories={['S-AI-4']}
+    <Section id="ai-routing" title={t('assign.title')} description={t('assign.description')} info={<><p>{t('assign.descriptionInfo')}</p><p>{t('assign.fallbackNote')}</p></>} stories={['S-AI-4']}
       actions={<Button onClick={() => void suggest()} disabled={!admin || noProfiles} title={reason ?? (noProfiles ? t('assign.needProfile') : undefined)}>{t('assign.suggest')}</Button>}>
       <div className="grid gap-4">
         <div className="flex items-start gap-3 rounded-md border border-rule bg-surface p-3">
           <Switch id="ai-internal-only" checked={draft.internal_only} onCheckedChange={toggleRule} disabled={!admin} title={reason} className="mt-0.5" />
           <div className="grid gap-0.5">
-            <Label htmlFor="ai-internal-only">{t('assign.rule')}</Label>
+            <div className="flex items-center gap-1">
+              <Label htmlFor="ai-internal-only">{t('assign.rule')}</Label>
+              <InfoTip topic={t('assign.rule')}>{t('assign.ruleInfo')}</InfoTip>
+            </div>
             <p className="text-[13px] text-muted">{t('assign.ruleBody')}</p>
           </div>
         </div>
         {note ? <p role="status" className="text-sm">{note}</p> : null}
-        {noProfiles ? <EmptyState title={t('assign.noProfiles')}>{t('assign.noProfilesBody')}</EmptyState> : (
+        {noProfiles ? <EmptyState title={t('assign.noProfiles')} info={t('assign.noProfilesInfo')}>{t('assign.noProfilesBody')}</EmptyState> : (
           <div className="overflow-x-auto rounded-md border border-rule bg-surface">
             <table className="w-full min-w-[760px] border-collapse text-sm">
               <caption className="sr-only">{t('assign.caption')}</caption>
@@ -476,7 +483,6 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
             </table>
           </div>
         )}
-        <p className="text-[13px] text-muted">{t('assign.fallbackNote')}</p>
         <ActionError error={save.error} />
         <div className="flex flex-wrap gap-3">
           <Button variant="primary" disabled={!admin || !dirty || save.isPending} title={reason ?? (!dirty ? t('assign.nothingToSave') : undefined)}
@@ -510,7 +516,7 @@ function TierForm({ cfg }: { cfg: AiConfigView }) {
   const pct = budgetPct(cfg.month_used, cfg.monthly_budget)
   return (
     <form onSubmit={submit} noValidate aria-label={t('settings.tier.title')}>
-      <Section title={t('settings.tier.title')} description={t('settings.tier.intro')} stories={['S-AI-4']}>
+      <Section title={t('settings.tier.title')} description={t('settings.tier.intro')} info={<><p>{t('settings.tier.introInfo')}</p><p>{t('settings.tier.maxInfo')}</p></>} stories={['S-AI-4']}>
         <RadioGroup value={tier} onValueChange={(v) => setTier(v as AiTier)} aria-label={t('settings.tier.title')} disabled={!admin}>
           {TIERS.map((k) => (
             <div key={k} className="flex items-start gap-3 rounded-md border border-rule bg-surface p-3">
@@ -524,17 +530,21 @@ function TierForm({ cfg }: { cfg: AiConfigView }) {
           ))}
         </RadioGroup>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label={t('settings.cap')} htmlFor="ai-cap" hint={t('settings.capHint')} error={err || undefined}>
+          <Field label={t('settings.cap')} htmlFor="ai-cap" hint={t('settings.capHint')} info={t('settings.capInfo')} error={err || undefined}>
             <Input id="ai-cap" type="number" min={1000} max={150000000} step={1000} value={cap} onChange={(e) => { setCap(e.target.value); setCapErr('') }} disabled={!admin} aria-invalid={err ? true : undefined} aria-describedby={err ? 'ai-cap-error' : 'ai-cap-hint'} />
             <p className="text-[13px]">{t('settings.budgetNow')}{' '}
               <BudgetUse used={cfg.month_used} budget={cfg.monthly_budget} />{' '}<span className="text-muted">{t('settings.budgetRenews', { date: fmtDate(cfg.renews_on) })}</span>
             </p>
-            {pct >= 80 ? <p role="status" className={`text-[13px] ${pct >= 100 ? 'text-danger' : 'text-warn'}`}>{pct >= 100 ? t('settings.budgetStop', { date: fmtDate(cfg.renews_on) }) : t('settings.budgetWarn')}</p> : null}
+            {pct >= 100 ? <p role="status" className="text-[13px] text-danger">{t('settings.budgetStop', { date: fmtDate(cfg.renews_on) })}</p>
+              : pct >= 80 ? <div role="status" className="flex items-center gap-1 text-[13px] text-warn"><p>{t('settings.budgetWarn')}</p><InfoTip topic={t('settings.cap')}>{t('settings.budgetWarnInfo')}</InfoTip></div> : null}
           </Field>
           <div className="flex items-start gap-3 pt-6">
             <Switch id="ai-redact" checked={redact} onCheckedChange={setRedact} disabled={!admin} />
             <div className="grid gap-0.5">
-              <Label htmlFor="ai-redact">{t('settings.redact')}</Label>
+              <div className="flex items-center gap-1">
+                <Label htmlFor="ai-redact">{t('settings.redact')}</Label>
+                <InfoTip topic={t('settings.redact')}>{t('settings.redactInfo')}</InfoTip>
+              </div>
               <p className="text-[13px] text-muted">{t('settings.redactHint')}</p>
             </div>
           </div>
@@ -558,7 +568,7 @@ function RetentionForm() {
   const err = !Number.isInteger(n) || n < 90 ? t('settings.retention.err') : ''
   return (
     <form noValidate aria-label={t('settings.retention.title')} onSubmit={(e) => { e.preventDefault(); if (!err) save.mutate({ retention_days: n }, { onSuccess: () => { setDays(null); toast.success(t('settings.saved')) } }) }}>
-      <Section title={t('settings.retention.title')} description={t('settings.retention.intro')} stories={['S-AI-8']}>
+      <Section title={t('settings.retention.title')} description={t('settings.retention.intro')} info={t('settings.retention.introInfo')} stories={['S-AI-8']}>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t('settings.retention.label')} htmlFor="ai-retention" hint={t('settings.retention.hint')} error={err || undefined}>
             <Input id="ai-retention" type="number" min={90} max={3650} value={value} onChange={(e) => setDays(e.target.value)} disabled={!admin} aria-invalid={err ? true : undefined} />

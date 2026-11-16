@@ -1,11 +1,12 @@
 // What a container-only install (no vedette-host, D-168) shows instead of the controls of the appliance (D-381): what
 // the customer does on their own machine, with the commands of docs/INSTALL-CONTAINER.md. The pages never call the
 // host endpoints there, which can only answer 409 not_appliance.
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { Notice, Section } from '@/components/common/PageHeader'
 import { CodeBlock } from '@/components/common/CodeBlock'
+import { InfoTip } from '@/components/common/InfoTip'
 import { QueryState } from '@/components/common/States'
 import { Segmented } from '@/components/ui/segmented'
 import { useModules } from '@/lib/modules'
@@ -77,7 +78,7 @@ export function ContainerUpdates() {
   const offer = q.data?.available.find((a) => a.component === 'software')
   return (
     <>
-      <Section title={t('container.updates.title')} description={t('container.updates.desc')}>
+      <Section title={t('container.updates.title')} description={t('container.updates.desc')} info={t('container.updates.descInfo')}>
         <div className="grid min-w-0 max-w-3xl gap-3">
           <Segmented label={t('container.updates.engine')} value={engine} onChange={setEngine} className="justify-self-start"
             options={[{ value: 'docker', label: 'Docker' }, { value: 'podman', label: 'Podman' }]} />
@@ -85,13 +86,26 @@ export function ContainerUpdates() {
           {offer ? <OfferSteps offer={offer} running={q.data?.components.find((c) => c.id === 'software')?.version ?? ''} engine={engine} /> : !q.data && !q.error ? null : (
             <>
               <CodeBlock label={t('container.updates.label')} code={forEngine(UPDATE_CMD, engine)} />
-              <p className="text-[13px] text-muted">{t('container.updates.again', { files: ADDON_FILES })}</p>
+              <div className="flex items-center gap-1">
+                <p className="text-[13px] text-muted">{t('container.updates.again')}</p>
+                <InfoTip topic={t('container.updates.label')}>{t('container.updates.againInfo', { files: ADDON_FILES })}</InfoTip>
+              </div>
             </>
           )}
         </div>
       </Section>
-      <Section title={t('container.os.title')} description={t('container.os.desc')}>{null}</Section>
+      <Section title={t('container.os.title')} description={t('container.os.desc')} info={t('container.os.descInfo')}>{null}</Section>
     </>
+  )
+}
+
+/** One short line of a step with its detail behind ⓘ (#824). */
+function Step({ info, muted, children }: { info: string; muted?: boolean; children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-1">
+      <p className={muted ? 'text-[13px] text-muted' : undefined}>{children}</p>
+      <InfoTip>{info}</InfoTip>
+    </div>
   )
 }
 
@@ -105,8 +119,16 @@ function ReleaseStatus({ s }: { s: UpdatesState }) {
       {offer.note ? <p className="whitespace-pre-line">{offer.note}</p> : null}
     </Notice>
   ) : !s.check_enabled ? (
-    <p className="text-sm">{t('container.updates.checkOff')} <Link to="/settings/privacy" className="text-accent underline-offset-4 hover:underline">{t('container.updates.privacyLink')}</Link>.</p>
-  ) : !s.last_check ? <p className="text-sm">{t(s.last_check_error ? 'container.updates.notYetFailed' : 'container.updates.notYet')}</p>
+    <div className="flex items-center gap-1">
+      <p className="text-sm">{t('container.updates.checkOff')} <Link to="/settings/privacy" className="text-accent underline-offset-4 hover:underline">{t('container.updates.privacyLink')}</Link>.</p>
+      <InfoTip topic={t('container.updates.title')}>{t('container.updates.checkOffInfo')}</InfoTip>
+    </div>
+  ) : !s.last_check ? (
+    <div className="flex items-center gap-1">
+      <p className="text-sm">{t(s.last_check_error ? 'container.updates.notYetFailed' : 'container.updates.notYet')}</p>
+      <InfoTip topic={t('container.updates.title')}>{t(s.last_check_error ? 'container.updates.notYetFailedInfo' : 'container.updates.notYetInfo')}</InfoTip>
+    </div>
+  )
   : <p className="text-sm">{t('container.updates.latest')}</p>
   // The running version and the last check, always (the offer and "never" texts alone do not say both); a failed check
   // says why itself, so "never read" then drops its guess at the cause (D-392).
@@ -140,7 +162,10 @@ function OfferSteps({ offer, running, engine }: { offer: UpdateAvailable; runnin
   if (!SAFE_VERSION.test(version) || !SAFE_VERSION.test(running)) return (
     <>
       {heading}
-      <p className="text-sm [overflow-wrap:anywhere]">{running ? t('container.updates.unsafe', { version, running }) : t('container.updates.unsafeUnknown')}</p>
+      <div className="flex items-center gap-1">
+        <p className="text-sm [overflow-wrap:anywhere]">{t('container.updates.unsafe')}</p>
+        <InfoTip topic={t('container.updates.block1', { version })}>{running ? t('container.updates.unsafeInfo', { version, running }) : t('container.updates.unsafeUnknownInfo')}</InfoTip>
+      </div>
     </>
   )
   const kept = `vedette-${running}`
@@ -150,34 +175,34 @@ function OfferSteps({ offer, running, engine }: { offer: UpdateAvailable; runnin
       {heading}
       <ol className="grid list-decimal gap-3 pl-5 text-sm [overflow-wrap:anywhere]">
         <li><div className="grid gap-1.5">
-          {t('container.updates.stepKeep', { kept })}
+          <Step info={t('container.updates.stepKeepInfo')}>{t('container.updates.stepKeep', { kept })}</Step>
           <CodeBlock label={t('container.updates.keepLabel')} code={keepCmd(kept)} />
           {/* QA r2: a kept folder left by a stopped update holds the good files and the folder holds unchecked ones: put the good
               ones back before moving the folder aside, so step 1 never keeps unchecked files as the way back. */}
-          <span className="text-[13px] text-muted">{t('container.updates.keptThere', { kept })}</span>
+          <Step info={t('container.updates.keptThereInfo')} muted>{t('container.updates.keptThere', { kept })}</Step>
           <CodeBlock label={t('container.updates.keptThereLabel', { kept })} code={`cp ${kept}/* .\nmv ${kept} ${kept}-before`} />
         </div></li>
         <li><div className="grid gap-1.5">
-          {t('container.updates.stepFetch', { version })}
+          <Step info={t('container.updates.stepFetchInfo')}>{t('container.updates.stepFetch', { version })}</Step>
           <CodeBlock label={t('container.updates.fetchLabel')} code={fetchCmd(version)} />
-          {t('container.updates.stepVerify', { version })}
+          <Step info={t('container.updates.stepVerifyInfo', { version })}>{t('container.updates.stepVerify')}</Step>
           <CodeBlock label={t('container.updates.checkLabel')} code={checkCmd(version)} />
         </div></li>
         {images.length ? (
           <li><div className="grid gap-1.5">
-            {t('container.updates.verifyWhy', { version })}
+            <Step info={t('container.updates.verifyWhyInfo')}>{t('container.updates.verifyWhy', { version })}</Step>
             <CodeBlock label={t('container.updates.verifyLabel')} code={verifyCmd(images)} />
             {t('container.updates.matchWhy', { count: images.length })}
             <CodeBlock label={t('container.updates.matchLabel')} code={matchCmd(images)} />
           </div></li>
         ) : null}
         <li><div className="grid gap-1.5">
-          {t('container.updates.stepLines', { kept, files: ADDON_FILES })}
+          <Step info={t('container.updates.stepLinesInfo', { files: ADDON_FILES })}>{t('container.updates.stepLines', { kept })}</Step>
           <CodeBlock label={t('container.updates.pullLabel')} code={forEngine(UPDATE_CMD, engine)} />
         </div></li>
       </ol>
       <p className="text-sm font-medium">{t('container.updates.failStop')}</p>
-      <p className="text-[13px] text-muted">{t('container.updates.backOffer', { files: ADDON_FILES })}</p>
+      <Step info={t('container.updates.backOfferInfo', { files: ADDON_FILES })} muted>{t('container.updates.backOffer')}</Step>
       <CodeBlock label={t('container.updates.backLabel', { kept })} code={forEngine(`cp ${kept}/* .\n${UPDATE_CMD}`, engine)} />
     </>
   )
@@ -188,14 +213,14 @@ export function ContainerBackup() {
   const { t } = useTranslation('core')
   const [engine, setEngine] = useState<Engine>('docker')
   return (
-    <Section title={t('container.backup.title')} description={t('container.backup.desc')}>
+    <Section title={t('container.backup.title')} description={t('container.backup.desc')} info={t('container.backup.descInfo')}>
       <div className="grid max-w-3xl gap-2">
         <Segmented label={t('container.updates.engine')} value={engine} onChange={setEngine} className="justify-self-start"
           options={[{ value: 'docker', label: 'Docker' }, { value: 'podman', label: 'Podman' }]} />
         <CodeBlock label={t('container.backup.label')} code={forEngine(BACKUP_CMD, engine)} />
-        <p className="text-[13px] text-muted">{t('container.backup.keep')}</p>
+        <Step info={t('container.backup.keepInfo')} muted>{t('container.backup.keep')}</Step>
         <CodeBlock label={t('container.backup.restoreLabel')} code={forEngine(RESTORE_CMD, engine)} />
-        {engine === 'podman' ? <p className="text-[13px] text-muted">{t('container.backup.podmanNote')}</p> : null}
+        {engine === 'podman' ? <Step info={t('container.backup.podmanNoteInfo')} muted>{t('container.backup.podmanNote')}</Step> : null}
       </div>
     </Section>
   )
@@ -204,5 +229,5 @@ export function ContainerBackup() {
 /** Settings → Box network on a container-only install (S-CORE-9 G2, G6): the machine's network is the customer's. */
 export function ContainerNetwork() {
   const { t } = useTranslation('core')
-  return <Section title={t('container.network.title')} description={t(SPAN_IN_UI ? 'container.network.desc' : 'container.network.descNoSpan')}>{null}</Section>
+  return <Section title={t('container.network.title')} description={t('container.network.desc')} info={t(SPAN_IN_UI ? 'container.network.descInfo' : 'container.network.descNoSpanInfo')}>{null}</Section>
 }

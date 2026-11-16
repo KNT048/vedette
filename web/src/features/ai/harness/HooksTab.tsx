@@ -44,7 +44,7 @@ export default function HooksTab() {
               ))}
             </List>
           </Section>
-          <Section title={t('harness.hooks.customTitle')} description={t('harness.hooks.customBody')} actions={<Button variant="primary" onClick={() => setEdit('new')}>{t('harness.hooks.add')}</Button>}>
+          <Section title={t('harness.hooks.customTitle')} description={t('harness.hooks.customBody')} info={t('harness.hooks.customInfo')} actions={<Button variant="primary" onClick={() => setEdit('new')}>{t('harness.hooks.add')}</Button>}>
             {h.custom.length === 0 ? <EmptyState title={t('harness.hooks.empty')} action={<Button variant="primary" onClick={() => setEdit('new')}>{t('harness.hooks.add')}</Button>}>{t('harness.hooks.emptyBody')}</EmptyState> : (
               <List label={t('harness.hooks.customTitle')}>
                 {h.custom.map((x) => (

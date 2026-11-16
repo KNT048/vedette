@@ -6,6 +6,7 @@ import { Notice, PageHeader, Section, KeyValue } from '@/components/common/PageH
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { CodeBlock } from '@/components/common/CodeBlock'
 import { Chip } from '@/components/common/StatusChip'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Loading, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -33,6 +34,7 @@ function McpSwitch({ on }: { on: boolean }) {
       <label htmlFor="mcp-switch" className="text-sm font-medium">{on ? t('mcp.switchOff') : t('mcp.switch')}</label>
       {on ? <Chip tone="ok">{t('mcp.readOnly')}</Chip> : null}
       <span className="text-[13px] text-muted">{on ? t(container ? 'mcp.onHintContainer' : 'mcp.onHint') : t('mcp.offHint')}</span>
+      {on && container ? <InfoTip topic={t('mcp.onHintContainer')}>{t('mcp.onHintContainerInfo')}</InfoTip> : null}
     </div>
   )
 }
@@ -78,15 +80,13 @@ function Body({ s }: { s: McpState }) {
       <McpSwitch on />
       {s.enabled ? (
         <>
-          {!s.listening ? <Notice tone="danger" role="alert" className="mb-6" title={s.listen_error ?? t('mcp.notListening')}>{t('mcp.notListeningHint')}</Notice> : null}
-          <Section title={t('mcp.connect')} description={t('mcp.connectDesc')}>
+          {!s.listening ? <Notice tone="danger" role="alert" className="mb-6" title={s.listen_error ?? t('mcp.notListening')} info={t('mcp.notListeningInfo')}>{t('mcp.notListeningHint')}</Notice> : null}
+          <Section title={t('mcp.connect')} description={t('mcp.connectDesc')} info={<><p>{t(container ? 'mcp.remoteContainer' : 'mcp.remote')}</p><p>{t('mcp.verify')}</p></>}>
             <KeyValue items={[
               { label: t('mcp.bind'), value: <span><span className="font-mono text-[12.5px]">{s.bind}:{s.port}</span> {t('mcp.bindNote')}</span> },
               { label: t('mcp.endpoint'), value: <span className="font-mono text-[12.5px]">{s.endpoint}</span> },
             ]} />
             <div className="mt-3"><CodeBlock label={t('mcp.clientConfig')} code={JSON.stringify({ mcpServers: { vedette: { type: 'http', url: s.endpoint, headers: { Authorization: 'Bearer <token>' } } } }, null, 2)} /></div>
-            <p className="mt-2 text-[13px] text-muted">{t(container ? 'mcp.remoteContainer' : 'mcp.remote')}</p>
-            <p className="mt-1 text-[13px] text-muted">{t('mcp.verify')}</p>
           </Section>
 
           <Section title={t('mcp.token.title')} description={t('mcp.token.desc')}>
@@ -106,14 +106,14 @@ function Body({ s }: { s: McpState }) {
             <DataTable data={s.tokens} columns={tokenCols} caption={t('mcp.token.title')} empty={t('mcp.token.empty')} />
           </Section>
 
-          <Section title={t('mcp.tools.title')} description={t('mcp.tools.desc')}>
+          <Section title={t('mcp.tools.title')} description={t('mcp.tools.desc')} info={t('mcp.tools.info')}>
             <DataTable data={s.tools} columns={toolCols} caption={t('mcp.tools.title')} />
           </Section>
         </>
       ) : null}
 
       <Dialog open={!!askRevoke} onOpenChange={(o) => !o && setAskRevoke(null)}>
-        <DialogContent title={t('mcp.token.revokeAsk.title', { name: askRevoke?.name ?? '' })} description={t('mcp.token.revokeAsk.body')}>
+        <DialogContent title={t('mcp.token.revokeAsk.title', { name: askRevoke?.name ?? '' })} description={t('mcp.token.revokeAsk.body')} info={t('mcp.token.revokeAsk.info')}>
           <DialogFooter>
             <Button onClick={() => setAskRevoke(null)}>{t('common:cancel')}</Button>
             <Button variant="danger" disabled={m.revoke.isPending} onClick={() => askRevoke && void revoke(askRevoke)}>{t('mcp.token.revoke')}</Button>
@@ -122,7 +122,7 @@ function Body({ s }: { s: McpState }) {
       </Dialog>
 
       <Dialog open={!!created} onOpenChange={(o) => !o && setCreated(null)}>
-        <DialogContent title={t('mcp.token.createdTitle', { name: created?.name ?? '' })} description={t('mcp.token.createdBody')}>
+        <DialogContent title={t('mcp.token.createdTitle', { name: created?.name ?? '' })} description={t('mcp.token.createdBody')} info={t('mcp.token.createdInfo')}>
           {created ? <CodeBlock label={t('mcp.token.label')} code={created.token} /> : null}
           <DialogFooter><Button variant="primary" onClick={() => setCreated(null)}>{t('mcp.token.done')}</Button></DialogFooter>
         </DialogContent>
@@ -138,7 +138,7 @@ export default function McpSection() {
   const title = on === false ? t('mcp.titleOff') : q.data ? t('mcp.titleOn', { count: q.data.tokens.length }) : t('settings.mcp')
   return (
     <>
-      <PageHeader title={title} meta={t('mcp.meta')} stories={['S-MCP-1']} />
+      <PageHeader title={title} meta={t('mcp.meta')} info={t('mcp.metaInfo')} stories={['S-MCP-1']} />
       {on === undefined ? <Loading /> : on ? <QueryState query={q}>{(s) => <Body s={s} />}</QueryState> : <McpSwitch on={false} />}
     </>
   )

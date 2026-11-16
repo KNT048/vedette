@@ -14,7 +14,7 @@ export function OidcCaField({ cfg, value, error, onChange }: { cfg: OidcConfig; 
   const edited = value !== undefined && value !== cfg.ca_pem
   const now = Date.now()
   return (
-    <Field label={t('oidc.ca')} hint={t('oidc.caHint')} htmlFor="oidc-ca" error={error}>
+    <Field label={t('oidc.ca')} hint={t('oidc.caHint')} info={t('oidc.caInfo')} htmlFor="oidc-ca" error={error}>
       <Textarea id="oidc-ca" className="font-mono text-[12px]" rows={text ? 6 : 3} spellCheck={false} autoComplete="off" value={text} aria-invalid={!!error} onChange={(e) => onChange(e.target.value)} placeholder="-----BEGIN CERTIFICATE-----" />
       {cfg.ca_certs.length > 0 && !edited ? (
         <ul className="grid gap-0.5 text-[13px]" aria-label={t('oidc.caSavedList')}>

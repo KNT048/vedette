@@ -29,15 +29,15 @@ function Panels({ id }: { id: string }) {
   const nw = news.data ?? cached.data?.news ?? null
   return (
     <>
-      <Section title={t('cve.explainTitle')} description={t('cve.explainDesc')} stories={['S-AI-3']}
+      <Section title={t('cve.explainTitle')} description={t('cve.explainDesc')} info={t('cve.explainDescInfo')} stories={['S-AI-3']}
         actions={<Button onClick={() => explain.mutate()} disabled={!gateExplain.canRun || explain.isPending} title={gateExplain.reason}>{explain.isPending ? t('cve.working') : ex ? t('cve.explainAgain') : t('cve.explain')}</Button>}>
-        {blocked(gateExplain.state) ? <EmptyState title={t(`gate.${gateExplain.state}`)}>{t(`gate.${gateExplain.state}Body`)} <ToSettings /></EmptyState> : null}
+        {blocked(gateExplain.state) ? <EmptyState title={t(`gate.${gateExplain.state}`)} info={t(`gate.${gateExplain.state}Info`, { defaultValue: '' }) || undefined}>{t(`gate.${gateExplain.state}Body`)} <ToSettings /></EmptyState> : null}
         <ActionError error={explain.error} />
         {ex ? <Explain r={ex} /> : !blocked(gateExplain.state) && !explain.error ? <p className="text-sm text-muted">{t('cve.explainEmpty')}</p> : null}
       </Section>
-      <Section title={t('cve.newsTitle')} description={t('cve.newsDesc')} stories={['S-AI-3']}
+      <Section title={t('cve.newsTitle')} description={t('cve.newsDesc')} info={t('cve.newsDescInfo')} stories={['S-AI-3']}
         actions={<Button onClick={() => news.mutate()} disabled={!gateNews.canRun || news.isPending} title={gateNews.reason}>{news.isPending ? t('cve.working') : nw ? t('cve.newsAgain') : t('cve.news')}</Button>}>
-        {blocked(gateNews.state) ? <EmptyState title={t(`gate.${gateNews.state}`)}>{t(`gate.${gateNews.state}Body`)} <ToSettings /></EmptyState> : null}
+        {blocked(gateNews.state) ? <EmptyState title={t(`gate.${gateNews.state}`)} info={t(`gate.${gateNews.state}Info`, { defaultValue: '' }) || undefined}>{t(`gate.${gateNews.state}Body`)} <ToSettings /></EmptyState> : null}
         <ActionError error={news.error} />
         {nw ? <News r={nw} /> : !blocked(gateNews.state) && !news.error ? <p className="text-sm text-muted">{t('cve.newsEmpty')}</p> : null}
       </Section>

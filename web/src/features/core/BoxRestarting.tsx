@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
+import { InfoTip } from '@/components/common/InfoTip'
 import { Button } from '@/components/ui/button'
 import { api } from '@/lib/api'
 import type { SetupStatus } from './types'
@@ -54,7 +55,10 @@ export function BoxRestarting() {
   ) : (
     <>
       <p role="status" className="text-base font-medium">{t('data.purge.restarting.title')}</p>
-      <p className="text-[13px] text-muted">{t('data.purge.restarting.body')}</p>
+      <div className="flex items-center justify-center gap-1">
+        <p className="text-[13px] text-muted">{t('data.purge.restarting.body')}</p>
+        <InfoTip topic={t('data.purge.restarting.title')}>{t('data.purge.restarting.bodyInfo')}</InfoTip>
+      </div>
     </>
   )
   return (

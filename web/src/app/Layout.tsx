@@ -5,8 +5,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Bug, LogOut, Menu, Settings, UserCog, UserRound } from 'lucide-react'
 import { BugReportDialog } from '@/features/core/BugReportDialog'
 import { RevokedBanner, RunningVersion } from '@/features/core/UpdateSignals'
-import { navItems, type NavGroup } from './feature'
+import { navItems, type NavGroup, type NavItem } from './feature'
 import { useModules } from '@/lib/modules'
+import { PageModule, scopeOf } from '@/lib/v1'
+import { ScopeBadge } from '@/components/common/V1Scope'
 import { useMe } from '@/lib/session'
 import { api } from '@/lib/api'
 import { setTheme, useTheme, type ThemePref } from '@/lib/theme'
@@ -21,19 +23,22 @@ function Nav({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useTranslation()
   const { data } = useModules()
   const enabled = new Set(data?.modules.filter((m) => m.enabled).map((m) => m.id))
-  const items = navItems.filter((n) => !data || enabled.has(n.module))
-  const link = (isActive: boolean) => cn('flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm text-muted hover:bg-sunken hover:text-ink [&_svg]:size-4', isActive && 'bg-accent-soft font-medium text-ink [&_svg]:text-accent')
+  // D-624: a module left out of v1 has no entry unless this box has it on (#819); while loading, it is not shown either.
+  const scope = (n: NavItem) => scopeOf(n.module, data ? enabled.has(n.module) : undefined)
+  const items = navItems.filter((n) => (!data || enabled.has(n.module)) && scope(n) !== 'hidden')
+  const link = (isActive: boolean) => cn('flex min-h-9 items-center gap-2.5 rounded-md px-2.5 py-1.5 leading-tight text-sm text-muted hover:bg-sunken hover:text-ink [&_svg]:size-4', isActive && 'bg-accent-soft font-medium text-ink [&_svg]:text-accent')
   return (
-    <nav aria-label={t('layout.nav')} className="grid gap-5">
+    <nav aria-label={t('layout.nav')} className="grid grid-cols-[minmax(0,1fr)] gap-5">
       {GROUPS.map((g) => {
         const list = items.filter((n) => n.group === g)
         if (!list.length) return null
         return (
-          <div key={g} className="grid gap-0.5">
+          <div key={g} className="grid grid-cols-[minmax(0,1fr)] gap-0.5">
             <p className="px-2.5 pb-1 text-[12px] text-muted">{t(`layout.group.${g}`)}</p>
             {list.map((n) => (
               <NavLink key={n.to} to={n.to} end={n.end} onClick={onNavigate} className={({ isActive }) => link(isActive)}>
-                <n.icon aria-hidden />{t(n.label)}
+                <n.icon aria-hidden /><span className="min-w-0">{t(n.label)}</span>{' '}
+                <ScopeBadge scope={scope(n)} className="-mr-1 ml-auto h-5 shrink-0 px-1.5 text-[11px]" />
               </NavLink>
             ))}
           </div>
@@ -101,6 +106,12 @@ function Brand() {
   )
 }
 
+/** The nav entry a path belongs to (the longest match), none under /settings. */
+const byLength = [...navItems].sort((a, b) => b.to.length - a.to.length)
+function navItemOf(p: string) {
+  return p.startsWith('/settings') ? undefined : byLength.find((n) => (n.to === '/' ? p === '/' : p === n.to || p.startsWith(`${n.to}/`)))
+}
+
 /** Tiêu đề tab trình duyệt theo trang (WCAG 2.4.2) và focus vào nội dung khi đổi trang (trình đọc màn hình đọc trang mới). */
 function usePageChrome() {
   const { t, i18n } = useTranslation()
@@ -108,7 +119,7 @@ function usePageChrome() {
   const first = useRef(true)
   useEffect(() => {
     const p = loc.pathname
-    const item = p.startsWith('/settings') ? null : [...navItems].sort((a, b) => b.to.length - a.to.length).find((n) => (n.to === '/' ? p === '/' : p === n.to || p.startsWith(`${n.to}/`)))
+    const item = navItemOf(p)
     const label = item ? t(item.label) : p.startsWith('/settings/account') ? t('layout.myAccount') : p.startsWith('/settings') ? t('layout.settings') : null
     document.title = label ? `${label} | Vedette` : 'Vedette'
     if (first.current) { first.current = false; return }
@@ -151,7 +162,7 @@ export function Layout() {
       <div className="min-w-0">
         <RevokedBanner />
         <main id="main" tabIndex={-1} key={loc.pathname} className="mx-auto w-full max-w-[1280px] px-4 py-6 outline-none sm:px-6 lg:px-10 lg:py-8">
-          <Outlet />
+          <PageModule.Provider value={navItemOf(loc.pathname)?.module ?? null}><Outlet /></PageModule.Provider>
         </main>
       </div>
       <ScrollRestoration />

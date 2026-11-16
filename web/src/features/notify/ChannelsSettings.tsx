@@ -15,6 +15,7 @@ import { Switch } from '@/components/ui/switch'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
+import { useScope } from '@/lib/v1'
 import { useUsers } from '@/features/core/api'
 import { checkFeedUrl } from '@/features/feeds/defaults'
 import History from './History'
@@ -78,6 +79,9 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
   const type = opened.type
   // The channel as the box has it now: a Zalo personal dialog stays open after Save to show each approver's link state (D-447).
   const channel = useChannels().data?.channels.find((c) => c.type === type) ?? opened
+  // D-624 (#819): approving actions from a channel belongs to the response module, not offered in v1. A channel that already
+  // has approvals on keeps the section, so they can be turned off.
+  const showApprovals = useScope('response') !== 'hidden' || channel.approvals
   const name = t(`ch.${type}`)
   const [enabled, setEnabled] = useState(channel.configured ? channel.enabled : true)
   const [fields, setFields] = useState<Record<string, string>>(() => ({ ...(type === 'email' ? { port: '587', security: 'starttls', provider: 'custom' } : {}), ...(type === 'webhook' ? {} : channel.fields) })) // the webhook URL is a secret: only its masked form comes back, so the field starts empty (empty = keep)
@@ -282,7 +286,7 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
               </div>
             </Field>
           )}
-          <fieldset className="grid gap-3 rounded-md border border-rule bg-sunken p-3">
+          {showApprovals ? (<fieldset className="grid gap-3 rounded-md border border-rule bg-sunken p-3">
             <legend className="flex items-center gap-1 px-1 text-sm font-medium">{t('approve.title')}
               <InfoTip topic={t('approve.title')}>{APPROVAL_CHANNELS.includes(type) ? (
                 <>
@@ -352,7 +356,7 @@ function ChannelDialog({ channel: opened, codeUsers, onClose, onSaved }: { chann
                 ) : null}
               </>
             ) : <p className="text-[13px] text-muted">{t('approve.linkOnly')}</p>}
-          </fieldset>
+          </fieldset>) : null}
           <Field label={t('channels.minSeverity')} hint={t('channels.minSeverityHint')} htmlFor={`ch-${type}-min`}>
             <Select id={`ch-${type}-min`} value={min} onChange={(e) => setMin(e.target.value as RouteSeverity)} aria-describedby={`ch-${type}-min-hint`}>
               {ROUTE_SEVERITIES.map((s) => <option key={s} value={s}>{t('channels.min', { sev: t(`common:severity.${s}`) })}</option>)}

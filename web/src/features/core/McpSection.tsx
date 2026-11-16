@@ -16,6 +16,7 @@ import { Switch } from '@/components/ui/switch'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useMcp, useMcpMutations, useToggleModule } from './api'
 import { useInstallKind, useModuleEnabled } from '@/lib/modules'
+import { useScope } from '@/lib/v1'
 import { errMsg, useGate } from './parts'
 import type { McpState, McpToken } from './types'
 
@@ -134,12 +135,15 @@ function Body({ s }: { s: McpState }) {
 export default function McpSection() {
   const { t } = useTranslation('core')
   const on = useModuleEnabled('mcp-server')
-  const q = useMcp(on === true)
+  // D-624 (#819): left out of v1. A box that has it on keeps the switch to turn it off and nothing else; the line under the
+  // title says so (PageHeader, PageModule from the section).
+  const leaving = useScope('mcp-server') === 'leaving'
+  const q = useMcp(on === true && !leaving)
   const title = on === false ? t('mcp.titleOff') : q.data ? t('mcp.titleOn', { count: q.data.tokens.length }) : t('settings.mcp')
   return (
     <>
       <PageHeader title={title} meta={t('mcp.meta')} info={t('mcp.metaInfo')} stories={['S-MCP-1']} />
-      {on === undefined ? <Loading /> : on ? <QueryState query={q}>{(s) => <Body s={s} />}</QueryState> : <McpSwitch on={false} />}
+      {on === undefined ? <Loading /> : leaving ? <McpSwitch on /> : on ? <QueryState query={q}>{(s) => <Body s={s} />}</QueryState> : <McpSwitch on={false} />}
     </>
   )
 }

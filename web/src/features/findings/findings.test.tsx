@@ -476,6 +476,10 @@ describe('findings: CVSS score (#825)', () => {
     expect(within(table).queryByText('0.0')).toBeNull()
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'Sort by CVSS')
     await waitFor(() => expect(cves(screen.getByRole('table'))).toEqual(['CVE-2022-27593', 'CVE-2026-119977', 'CVE-2026-96951']))
+    // review r1 L5: "Sort by Last seen" puts the newest first
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'Sort by Last seen')
+    await waitFor(() => expect(cves(screen.getByRole('table'))[0]).toBe('CVE-2022-27593'))
+    expect(within(screen.getByRole('table')).getByRole('columnheader', { name: /Last seen/ })).toHaveAttribute('aria-sort', 'descending')
     // the header still sorts by the exploited risk, and the box follows it
     await userEvent.click(within(screen.getByRole('table')).getByRole('button', { name: 'Severity' }))
     expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('severity')
@@ -514,7 +518,7 @@ describe('findings: CVSS score (#825)', () => {
     renderApp('/findings/f-3')
     expect(await screen.findByText('No CVSS score')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'About No CVSS score' }))
-    expect(await screen.findByRole('dialog')).toHaveTextContent('NVD gives no CVSS base score for this CVE yet.')
+    expect(await screen.findByRole('dialog')).toHaveTextContent('No CVSS score in the data this box has.')
   })
 })
 

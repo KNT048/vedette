@@ -47,19 +47,22 @@ type NVDPage struct {
 	Affected map[string][]AffectedRow // CVE -> vulnerable entries; a CVE with none is present with an empty list
 	// Published is the day NVD published each accepted CVE ("2017-03-14", D-615); a record without a readable date is absent.
 	Published map[string]string
-	// CVSS is the base score of each accepted CVE (INV-28: newest version, NVD's own before the CNA's); a CVE without one is absent.
+	// CVSS is the base score of each CVE read with a valid id (INV-28, cvssOf), also of one rejected for its affected entries (review
+	// r1 L2: the score does not depend on them); a CVE without one is absent. Seen lists every such CVE, so an update knows whose
+	// score NVD took away.
 	CVSS map[string]CVSS
+	Seen map[string]bool
 	Stats
 }
 
-// CVSS is the CVSS base score of a CVE as NVD's record gives it (INV-28): the newest version present, NVD's own ("Primary")
-// before the CNA's ("Secondary"). The band (Low … Critical) follows from Score by FIRST's table, so it is not kept.
+// CVSS is the CVSS base score of a CVE as NVD's record gives it (INV-28, cvssOf): the newest version present, NVD's own ("Primary")
+// before another scorer's ("Secondary"), always with its vector (FIRST: a score is shown with its vector). The band follows from Score
+// and Version (FIRST's table, NVD's v2 table), so it is not kept.
 type CVSS struct {
-	Score   float64 // 0.0 … 10.0
-	Version string  // "4.0", "3.1", "3.0" or "2.0" (only when NVD has nothing newer); "" for a row nvd-recent stored before migration 0015
-	Source  string  // "nvd" (Primary) or "cna" (Secondary); "" as Version
-	Vector  string  // NVD's vector string of that score ("CVSS:3.1/AV:N/…", v2 "AV:N/AC:L/…"); "" when none usable or as Version (FIRST asks that a
-	// score be shown with its vector)
+	Score   float64 // 0.0 … 10.0, one decimal
+	Version string  // "4.0", "3.1", "3.0" or "2.0" (only when NVD has nothing newer)
+	Source  string  // "nvd" (Primary) or "cna" (Secondary: the CNA or CISA's ADP)
+	Vector  string  // NVD's vector string of that score ("CVSS:3.1/AV:N/…", v2 "AV:N/AC:L/…")
 }
 
 // NVDPageURL builds the request for one page: base?hasKev&resultsPerPage=N&startIndex=I, plus the lastMod window
@@ -83,9 +86,9 @@ type nvdAnswer struct {
 	TotalResults    *int `json:"totalResults"`
 	Vulnerabilities []struct {
 		CVE struct {
-			ID             string      `json:"id"`
-			Published      string      `json:"published"`
-			Metrics        cvssMetrics `json:"metrics"`
+			ID             string          `json:"id"`
+			Published      string          `json:"published"`
+			Metrics        json.RawMessage `json:"metrics"` // decoded per record: metricsOf
 			Configurations []struct {
 				Nodes []struct {
 					Negate   bool `json:"negate"`
@@ -116,7 +119,7 @@ func ParseNVD(data []byte) (NVDPage, error) {
 	if err := dec.Decode(&a); err != nil || a.TotalResults == nil {
 		return NVDPage{}, fail(ErrBadSample, "The NVD answer is not the CVE API 2.0 format.")
 	}
-	out := NVDPage{Total: *a.TotalResults, Returned: len(a.Vulnerabilities), Affected: map[string][]AffectedRow{}, Published: map[string]string{}, CVSS: map[string]CVSS{}}
+	out := NVDPage{Total: *a.TotalResults, Returned: len(a.Vulnerabilities), Affected: map[string][]AffectedRow{}, Published: map[string]string{}, CVSS: map[string]CVSS{}, Seen: map[string]bool{}}
 	tl := newTally()
 	for i, v := range a.Vulnerabilities {
 		row := i + 1
@@ -124,6 +127,10 @@ func ParseNVD(data []byte) (NVDPage, error) {
 		if !cveRE.MatchString(id) {
 			tl.reject(row, "id: %s is not a CVE ID", quoteVal(v.CVE.ID))
 			continue
+		}
+		out.Seen[id] = true
+		if c, ok := cvssOf(metricsOf(v.CVE.Metrics)); ok {
+			out.CVSS[id] = c
 		}
 		rows, bad := []AffectedRow{}, ""
 	entries:
@@ -155,9 +162,6 @@ func ParseNVD(data []byte) (NVDPage, error) {
 		out.Affected[id] = rows
 		if d, ok := publishedDay(v.CVE.Published); ok {
 			out.Published[id] = d
-		}
-		if c := severityOf(v.CVE.Metrics); c.Score != nil {
-			out.CVSS[id] = CVSS{Score: *c.Score, Version: c.Version, Source: c.Source, Vector: c.Vector}
 		}
 	}
 	out.Stats = tl.stats()

@@ -276,14 +276,7 @@ func (a findingsFeeds) CVSS(ctx context.Context, cves []string) (map[string]find
 	}
 	out := make(map[string]findings.CVSS, len(got))
 	for cve, c := range got {
-		v := findings.CVSS{Score: c.Score}
-		if c.Version != "" && c.Source != "" {
-			v.Version, v.Source = &c.Version, &c.Source
-		}
-		if c.Vector != "" {
-			v.Vector = &c.Vector
-		}
-		out[cve] = v
+		out[cve] = findings.CVSS{Score: c.Score, Version: c.Version, Source: c.Source, Vector: c.Vector}
 	}
 	return out, nil
 }

@@ -120,8 +120,8 @@ func TestContract_INV8_KevComesFromFeeds(t *testing.T) {
 	}
 }
 
-// INV-22 (#825): every finding carries feeds' CVSS base score with its version and source, on the list and the page; no score known is
-// null ("No score"), never 0; a score feeds stored without its version keeps the score with a null version and source.
+// INV-22 (#825): every finding carries feeds' CVSS base score with its version, source and vector, on the list and the page; no score
+// known is null ("No CVSS score"), never 0; a real 0.0 is a score.
 func TestContract_INV22_CvssComesFromFeeds(t *testing.T) {
 	t.Parallel()
 	e := newHTTPEnv(t)
@@ -150,15 +150,15 @@ func TestContract_INV22_CvssComesFromFeeds(t *testing.T) {
 		}
 	}
 	ver, src, vec := "3.1", "nvd", "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
-	e.feeds.cvss = map[string]CVSS{"CVE-2022-27593": {Score: 9.8, Version: &ver, Source: &src, Vector: &vec}}
+	e.feeds.cvss = map[string]CVSS{"CVE-2022-27593": {Score: 9.8, Version: ver, Source: src, Vector: vec}}
 	for _, p := range []string{"/findings", "/findings/" + id} {
 		if c, _ := cvssOf(p).(map[string]any); c["score"] != 9.8 || c["version"] != "3.1" || c["source"] != "nvd" || c["vector"] != vec {
 			t.Fatalf("%s: cvss = %v", p, c)
 		}
 	}
-	e.feeds.cvss = map[string]CVSS{"CVE-2022-27593": {Score: 0}}
-	if c, _ := cvssOf("/findings").(map[string]any); c == nil || c["score"] != 0.0 || c["version"] != nil || c["source"] != nil || c["vector"] != nil {
-		t.Fatalf("a score without its version: cvss = %v", c)
+	e.feeds.cvss = map[string]CVSS{"CVE-2022-27593": {Score: 0, Version: "3.1", Source: "cna", Vector: "CVSS:3.1/AV:N/AC:H/PR:H/UI:R/S:U/C:N/I:N/A:N"}}
+	if c, _ := cvssOf("/findings").(map[string]any); c == nil || c["score"] != 0.0 || c["version"] != "3.1" || c["source"] != "cna" {
+		t.Fatalf("a real 0.0: cvss = %v", c)
 	}
 }
 

@@ -173,7 +173,7 @@ function List() {
     // hidden, sorted from "Sort by": highest first, no score last both ways
     { id: 'cvss', header: t('col.cvss'), accessorFn: (r) => r.cvss?.score, sortUndefined: 'last', sortDescFirst: true },
     { id: 'basis', header: t('col.basis'), accessorFn: (r) => r.basis, cell: ({ row: { original: r } }) => <span className={unverified(r) ? 'text-[13px] text-muted' : 'text-[13px]'}>{t(basisKey(r.basis))}</span> },
-    { id: 'seen', header: t('col.lastSeen'), accessorFn: (r) => r.last_seen, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap text-[13px] text-muted" title={fmtDateTime(r.last_seen)}>{fmtRelative(r.last_seen)}</span> },
+    { id: 'seen', header: t('col.lastSeen'), accessorFn: (r) => r.last_seen, sortDescFirst: true, cell: ({ row: { original: r } }) => <span className="whitespace-nowrap text-[13px] text-muted" title={fmtDateTime(r.last_seen)}>{fmtRelative(r.last_seen)}</span> },
   ]
 
   const panel = (tab: Tab) => (

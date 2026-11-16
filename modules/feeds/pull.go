@@ -127,6 +127,7 @@ type pullPlan struct {
 	affectedFull bool                     // a full pull: CVEs not in affected are dropped
 	published    map[string]string        // nvd-kev: the day NVD published each CVE (D-615)
 	cvss         map[string]CVSS          // nvd-kev: the CVSS base score of each CVE that has one (INV-28)
+	cvssSeen     map[string]bool          // nvd-kev: every CVE NVD answered for (INV-28)
 	hasAffected  bool
 
 	cveOrg        map[string]CVEOrgResult // cve-org (D-556): the CVEs whose record gave ranges
@@ -620,8 +621,13 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 				if err = applyPublished(ctx, tx, p.published); err != nil {
 					return err
 				}
-				if err = applyCVSS(ctx, tx, p.affected, p.cvss, p.affectedFull); err != nil {
+				if err = applyCVSS(ctx, tx, p.cvssSeen, p.cvss, p.affectedFull); err != nil {
 					return err
+				}
+				if p.affectedFull { // the one full pull migration 0015 asked for is done (INV-28)
+					if _, err = tx.ExecContext(ctx, `UPDATE feeds_source SET full_due = 0 WHERE id = ? AND full_due = 1`, src.ID); err != nil {
+						return fmt.Errorf("feeds: full pull done: %w", err)
+					}
 				}
 				p.out.Records = total // the CVEs the box has versions for, not only those this (incremental) pull got
 			case p.hasCVEOrg:

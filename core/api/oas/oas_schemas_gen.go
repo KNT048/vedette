@@ -63510,18 +63510,18 @@ func (s *FindingsGetFindingsIDOKCompromiseIndicatorsItemKind) UnmarshalText(data
 // #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
 // reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
 type FindingsGetFindingsIDOKCvss struct {
-	// The CVSS base score (0.0 to 10.0); its band follows from FIRST's table (3.x, 4.0) or NVD's v2 table
-	// (2.0: Low, Medium, High; no Critical).
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
 	Score float64 `json:"score"`
 	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
-	// Authority or CISA's ADP), used only when NVD gives none for that version; null as version.
-	Source NilFindingsGetFindingsIDOKCvssSource `json:"source"`
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsGetFindingsIDOKCvssSource `json:"source"`
 	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
-	// that a score be shown with its vector; null when feeds kept none.
-	Vector NilString `json:"vector"`
-	// The newest CVSS version NVD lists for the CVE (2.0 only when NVD has nothing newer); null for a
-	// score feeds stored before it kept the version (nvd-recent).
-	Version NilFindingsGetFindingsIDOKCvssVersion `json:"version"`
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsGetFindingsIDOKCvssVersion `json:"version"`
 }
 
 // GetScore returns the value of Score.
@@ -63530,17 +63530,17 @@ func (s *FindingsGetFindingsIDOKCvss) GetScore() float64 {
 }
 
 // GetSource returns the value of Source.
-func (s *FindingsGetFindingsIDOKCvss) GetSource() NilFindingsGetFindingsIDOKCvssSource {
+func (s *FindingsGetFindingsIDOKCvss) GetSource() FindingsGetFindingsIDOKCvssSource {
 	return s.Source
 }
 
 // GetVector returns the value of Vector.
-func (s *FindingsGetFindingsIDOKCvss) GetVector() NilString {
+func (s *FindingsGetFindingsIDOKCvss) GetVector() string {
 	return s.Vector
 }
 
 // GetVersion returns the value of Version.
-func (s *FindingsGetFindingsIDOKCvss) GetVersion() NilFindingsGetFindingsIDOKCvssVersion {
+func (s *FindingsGetFindingsIDOKCvss) GetVersion() FindingsGetFindingsIDOKCvssVersion {
 	return s.Version
 }
 
@@ -63550,20 +63550,22 @@ func (s *FindingsGetFindingsIDOKCvss) SetScore(val float64) {
 }
 
 // SetSource sets the value of Source.
-func (s *FindingsGetFindingsIDOKCvss) SetSource(val NilFindingsGetFindingsIDOKCvssSource) {
+func (s *FindingsGetFindingsIDOKCvss) SetSource(val FindingsGetFindingsIDOKCvssSource) {
 	s.Source = val
 }
 
 // SetVector sets the value of Vector.
-func (s *FindingsGetFindingsIDOKCvss) SetVector(val NilString) {
+func (s *FindingsGetFindingsIDOKCvss) SetVector(val string) {
 	s.Vector = val
 }
 
 // SetVersion sets the value of Version.
-func (s *FindingsGetFindingsIDOKCvss) SetVersion(val NilFindingsGetFindingsIDOKCvssVersion) {
+func (s *FindingsGetFindingsIDOKCvss) SetVersion(val FindingsGetFindingsIDOKCvssVersion) {
 	s.Version = val
 }
 
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
 type FindingsGetFindingsIDOKCvssSource string
 
 const (
@@ -63605,6 +63607,8 @@ func (s *FindingsGetFindingsIDOKCvssSource) UnmarshalText(data []byte) error {
 	}
 }
 
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
 type FindingsGetFindingsIDOKCvssVersion string
 
 const (
@@ -66189,18 +66193,18 @@ func (s *FindingsGetFindingsOKItemsItemBasis) UnmarshalText(data []byte) error {
 // #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
 // reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
 type FindingsGetFindingsOKItemsItemCvss struct {
-	// The CVSS base score (0.0 to 10.0); its band follows from FIRST's table (3.x, 4.0) or NVD's v2 table
-	// (2.0: Low, Medium, High; no Critical).
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
 	Score float64 `json:"score"`
 	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
-	// Authority or CISA's ADP), used only when NVD gives none for that version; null as version.
-	Source NilFindingsGetFindingsOKItemsItemCvssSource `json:"source"`
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsGetFindingsOKItemsItemCvssSource `json:"source"`
 	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
-	// that a score be shown with its vector; null when feeds kept none.
-	Vector NilString `json:"vector"`
-	// The newest CVSS version NVD lists for the CVE (2.0 only when NVD has nothing newer); null for a
-	// score feeds stored before it kept the version (nvd-recent).
-	Version NilFindingsGetFindingsOKItemsItemCvssVersion `json:"version"`
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsGetFindingsOKItemsItemCvssVersion `json:"version"`
 }
 
 // GetScore returns the value of Score.
@@ -66209,17 +66213,17 @@ func (s *FindingsGetFindingsOKItemsItemCvss) GetScore() float64 {
 }
 
 // GetSource returns the value of Source.
-func (s *FindingsGetFindingsOKItemsItemCvss) GetSource() NilFindingsGetFindingsOKItemsItemCvssSource {
+func (s *FindingsGetFindingsOKItemsItemCvss) GetSource() FindingsGetFindingsOKItemsItemCvssSource {
 	return s.Source
 }
 
 // GetVector returns the value of Vector.
-func (s *FindingsGetFindingsOKItemsItemCvss) GetVector() NilString {
+func (s *FindingsGetFindingsOKItemsItemCvss) GetVector() string {
 	return s.Vector
 }
 
 // GetVersion returns the value of Version.
-func (s *FindingsGetFindingsOKItemsItemCvss) GetVersion() NilFindingsGetFindingsOKItemsItemCvssVersion {
+func (s *FindingsGetFindingsOKItemsItemCvss) GetVersion() FindingsGetFindingsOKItemsItemCvssVersion {
 	return s.Version
 }
 
@@ -66229,20 +66233,22 @@ func (s *FindingsGetFindingsOKItemsItemCvss) SetScore(val float64) {
 }
 
 // SetSource sets the value of Source.
-func (s *FindingsGetFindingsOKItemsItemCvss) SetSource(val NilFindingsGetFindingsOKItemsItemCvssSource) {
+func (s *FindingsGetFindingsOKItemsItemCvss) SetSource(val FindingsGetFindingsOKItemsItemCvssSource) {
 	s.Source = val
 }
 
 // SetVector sets the value of Vector.
-func (s *FindingsGetFindingsOKItemsItemCvss) SetVector(val NilString) {
+func (s *FindingsGetFindingsOKItemsItemCvss) SetVector(val string) {
 	s.Vector = val
 }
 
 // SetVersion sets the value of Version.
-func (s *FindingsGetFindingsOKItemsItemCvss) SetVersion(val NilFindingsGetFindingsOKItemsItemCvssVersion) {
+func (s *FindingsGetFindingsOKItemsItemCvss) SetVersion(val FindingsGetFindingsOKItemsItemCvssVersion) {
 	s.Version = val
 }
 
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
 type FindingsGetFindingsOKItemsItemCvssSource string
 
 const (
@@ -66284,6 +66290,8 @@ func (s *FindingsGetFindingsOKItemsItemCvssSource) UnmarshalText(data []byte) er
 	}
 }
 
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
 type FindingsGetFindingsOKItemsItemCvssVersion string
 
 const (
@@ -70214,18 +70222,18 @@ func (s *FindingsPostFindingsIDAiOKCompromiseIndicatorsItemKind) UnmarshalText(d
 // #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
 // reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
 type FindingsPostFindingsIDAiOKCvss struct {
-	// The CVSS base score (0.0 to 10.0); its band follows from FIRST's table (3.x, 4.0) or NVD's v2 table
-	// (2.0: Low, Medium, High; no Critical).
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
 	Score float64 `json:"score"`
 	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
-	// Authority or CISA's ADP), used only when NVD gives none for that version; null as version.
-	Source NilFindingsPostFindingsIDAiOKCvssSource `json:"source"`
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsPostFindingsIDAiOKCvssSource `json:"source"`
 	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
-	// that a score be shown with its vector; null when feeds kept none.
-	Vector NilString `json:"vector"`
-	// The newest CVSS version NVD lists for the CVE (2.0 only when NVD has nothing newer); null for a
-	// score feeds stored before it kept the version (nvd-recent).
-	Version NilFindingsPostFindingsIDAiOKCvssVersion `json:"version"`
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsPostFindingsIDAiOKCvssVersion `json:"version"`
 }
 
 // GetScore returns the value of Score.
@@ -70234,17 +70242,17 @@ func (s *FindingsPostFindingsIDAiOKCvss) GetScore() float64 {
 }
 
 // GetSource returns the value of Source.
-func (s *FindingsPostFindingsIDAiOKCvss) GetSource() NilFindingsPostFindingsIDAiOKCvssSource {
+func (s *FindingsPostFindingsIDAiOKCvss) GetSource() FindingsPostFindingsIDAiOKCvssSource {
 	return s.Source
 }
 
 // GetVector returns the value of Vector.
-func (s *FindingsPostFindingsIDAiOKCvss) GetVector() NilString {
+func (s *FindingsPostFindingsIDAiOKCvss) GetVector() string {
 	return s.Vector
 }
 
 // GetVersion returns the value of Version.
-func (s *FindingsPostFindingsIDAiOKCvss) GetVersion() NilFindingsPostFindingsIDAiOKCvssVersion {
+func (s *FindingsPostFindingsIDAiOKCvss) GetVersion() FindingsPostFindingsIDAiOKCvssVersion {
 	return s.Version
 }
 
@@ -70254,20 +70262,22 @@ func (s *FindingsPostFindingsIDAiOKCvss) SetScore(val float64) {
 }
 
 // SetSource sets the value of Source.
-func (s *FindingsPostFindingsIDAiOKCvss) SetSource(val NilFindingsPostFindingsIDAiOKCvssSource) {
+func (s *FindingsPostFindingsIDAiOKCvss) SetSource(val FindingsPostFindingsIDAiOKCvssSource) {
 	s.Source = val
 }
 
 // SetVector sets the value of Vector.
-func (s *FindingsPostFindingsIDAiOKCvss) SetVector(val NilString) {
+func (s *FindingsPostFindingsIDAiOKCvss) SetVector(val string) {
 	s.Vector = val
 }
 
 // SetVersion sets the value of Version.
-func (s *FindingsPostFindingsIDAiOKCvss) SetVersion(val NilFindingsPostFindingsIDAiOKCvssVersion) {
+func (s *FindingsPostFindingsIDAiOKCvss) SetVersion(val FindingsPostFindingsIDAiOKCvssVersion) {
 	s.Version = val
 }
 
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
 type FindingsPostFindingsIDAiOKCvssSource string
 
 const (
@@ -70309,6 +70319,8 @@ func (s *FindingsPostFindingsIDAiOKCvssSource) UnmarshalText(data []byte) error 
 	}
 }
 
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
 type FindingsPostFindingsIDAiOKCvssVersion string
 
 const (
@@ -73620,18 +73632,18 @@ func (s *FindingsPostFindingsIDAppliedOKCompromiseIndicatorsItemKind) UnmarshalT
 // #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
 // reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
 type FindingsPostFindingsIDAppliedOKCvss struct {
-	// The CVSS base score (0.0 to 10.0); its band follows from FIRST's table (3.x, 4.0) or NVD's v2 table
-	// (2.0: Low, Medium, High; no Critical).
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
 	Score float64 `json:"score"`
 	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
-	// Authority or CISA's ADP), used only when NVD gives none for that version; null as version.
-	Source NilFindingsPostFindingsIDAppliedOKCvssSource `json:"source"`
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsPostFindingsIDAppliedOKCvssSource `json:"source"`
 	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
-	// that a score be shown with its vector; null when feeds kept none.
-	Vector NilString `json:"vector"`
-	// The newest CVSS version NVD lists for the CVE (2.0 only when NVD has nothing newer); null for a
-	// score feeds stored before it kept the version (nvd-recent).
-	Version NilFindingsPostFindingsIDAppliedOKCvssVersion `json:"version"`
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsPostFindingsIDAppliedOKCvssVersion `json:"version"`
 }
 
 // GetScore returns the value of Score.
@@ -73640,17 +73652,17 @@ func (s *FindingsPostFindingsIDAppliedOKCvss) GetScore() float64 {
 }
 
 // GetSource returns the value of Source.
-func (s *FindingsPostFindingsIDAppliedOKCvss) GetSource() NilFindingsPostFindingsIDAppliedOKCvssSource {
+func (s *FindingsPostFindingsIDAppliedOKCvss) GetSource() FindingsPostFindingsIDAppliedOKCvssSource {
 	return s.Source
 }
 
 // GetVector returns the value of Vector.
-func (s *FindingsPostFindingsIDAppliedOKCvss) GetVector() NilString {
+func (s *FindingsPostFindingsIDAppliedOKCvss) GetVector() string {
 	return s.Vector
 }
 
 // GetVersion returns the value of Version.
-func (s *FindingsPostFindingsIDAppliedOKCvss) GetVersion() NilFindingsPostFindingsIDAppliedOKCvssVersion {
+func (s *FindingsPostFindingsIDAppliedOKCvss) GetVersion() FindingsPostFindingsIDAppliedOKCvssVersion {
 	return s.Version
 }
 
@@ -73660,20 +73672,22 @@ func (s *FindingsPostFindingsIDAppliedOKCvss) SetScore(val float64) {
 }
 
 // SetSource sets the value of Source.
-func (s *FindingsPostFindingsIDAppliedOKCvss) SetSource(val NilFindingsPostFindingsIDAppliedOKCvssSource) {
+func (s *FindingsPostFindingsIDAppliedOKCvss) SetSource(val FindingsPostFindingsIDAppliedOKCvssSource) {
 	s.Source = val
 }
 
 // SetVector sets the value of Vector.
-func (s *FindingsPostFindingsIDAppliedOKCvss) SetVector(val NilString) {
+func (s *FindingsPostFindingsIDAppliedOKCvss) SetVector(val string) {
 	s.Vector = val
 }
 
 // SetVersion sets the value of Version.
-func (s *FindingsPostFindingsIDAppliedOKCvss) SetVersion(val NilFindingsPostFindingsIDAppliedOKCvssVersion) {
+func (s *FindingsPostFindingsIDAppliedOKCvss) SetVersion(val FindingsPostFindingsIDAppliedOKCvssVersion) {
 	s.Version = val
 }
 
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
 type FindingsPostFindingsIDAppliedOKCvssSource string
 
 const (
@@ -73715,6 +73729,8 @@ func (s *FindingsPostFindingsIDAppliedOKCvssSource) UnmarshalText(data []byte) e
 	}
 }
 
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
 type FindingsPostFindingsIDAppliedOKCvssVersion string
 
 const (
@@ -77047,18 +77063,18 @@ func (s *FindingsPostFindingsIDStatusOKCompromiseIndicatorsItemKind) UnmarshalTe
 // #825 (findings INV-22, feeds INV-28): the CVSS base score from the same NVD records feeds already
 // reads (nvd-kev, else nvd-recent). Shown next to the exploited status, never instead of it.
 type FindingsPostFindingsIDStatusOKCvss struct {
-	// The CVSS base score (0.0 to 10.0); its band follows from FIRST's table (3.x, 4.0) or NVD's v2 table
-	// (2.0: Low, Medium, High; no Critical).
+	// The CVSS base score (0.0 to 10.0, one decimal); its band follows from FIRST's table (3.x, 4.0) or
+	// NVD's v2 table (2.0: Low, Medium, High; no Critical).
 	Score float64 `json:"score"`
 	// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
-	// Authority or CISA's ADP), used only when NVD gives none for that version; null as version.
-	Source NilFindingsPostFindingsIDStatusOKCvssSource `json:"source"`
+	// Authority or CISA's ADP), used only when NVD gives none for that version.
+	Source FindingsPostFindingsIDStatusOKCvssSource `json:"source"`
 	// NVD's vector string of the score ("CVSS:3.1/AV:N/AC:L/…"; 2.0: "AV:N/AC:L/Au:N/…"): FIRST asks
-	// that a score be shown with its vector; null when feeds kept none.
-	Vector NilString `json:"vector"`
-	// The newest CVSS version NVD lists for the CVE (2.0 only when NVD has nothing newer); null for a
-	// score feeds stored before it kept the version (nvd-recent).
-	Version NilFindingsPostFindingsIDStatusOKCvssVersion `json:"version"`
+	// that a score be shown with its vector, so a score without a valid one is not shown.
+	Vector string `json:"vector"`
+	// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+	// nothing newer).
+	Version FindingsPostFindingsIDStatusOKCvssVersion `json:"version"`
 }
 
 // GetScore returns the value of Score.
@@ -77067,17 +77083,17 @@ func (s *FindingsPostFindingsIDStatusOKCvss) GetScore() float64 {
 }
 
 // GetSource returns the value of Source.
-func (s *FindingsPostFindingsIDStatusOKCvss) GetSource() NilFindingsPostFindingsIDStatusOKCvssSource {
+func (s *FindingsPostFindingsIDStatusOKCvss) GetSource() FindingsPostFindingsIDStatusOKCvssSource {
 	return s.Source
 }
 
 // GetVector returns the value of Vector.
-func (s *FindingsPostFindingsIDStatusOKCvss) GetVector() NilString {
+func (s *FindingsPostFindingsIDStatusOKCvss) GetVector() string {
 	return s.Vector
 }
 
 // GetVersion returns the value of Version.
-func (s *FindingsPostFindingsIDStatusOKCvss) GetVersion() NilFindingsPostFindingsIDStatusOKCvssVersion {
+func (s *FindingsPostFindingsIDStatusOKCvss) GetVersion() FindingsPostFindingsIDStatusOKCvssVersion {
 	return s.Version
 }
 
@@ -77087,20 +77103,22 @@ func (s *FindingsPostFindingsIDStatusOKCvss) SetScore(val float64) {
 }
 
 // SetSource sets the value of Source.
-func (s *FindingsPostFindingsIDStatusOKCvss) SetSource(val NilFindingsPostFindingsIDStatusOKCvssSource) {
+func (s *FindingsPostFindingsIDStatusOKCvss) SetSource(val FindingsPostFindingsIDStatusOKCvssSource) {
 	s.Source = val
 }
 
 // SetVector sets the value of Vector.
-func (s *FindingsPostFindingsIDStatusOKCvss) SetVector(val NilString) {
+func (s *FindingsPostFindingsIDStatusOKCvss) SetVector(val string) {
 	s.Vector = val
 }
 
 // SetVersion sets the value of Version.
-func (s *FindingsPostFindingsIDStatusOKCvss) SetVersion(val NilFindingsPostFindingsIDStatusOKCvssVersion) {
+func (s *FindingsPostFindingsIDStatusOKCvss) SetVersion(val FindingsPostFindingsIDStatusOKCvssVersion) {
 	s.Version = val
 }
 
+// Nvd = NVD's own score ("Primary"); cna = another scorer NVD lists as "Secondary" (the CVE Numbering
+// Authority or CISA's ADP), used only when NVD gives none for that version.
 type FindingsPostFindingsIDStatusOKCvssSource string
 
 const (
@@ -77142,6 +77160,8 @@ func (s *FindingsPostFindingsIDStatusOKCvssSource) UnmarshalText(data []byte) er
 	}
 }
 
+// The newest CVSS version NVD lists for the CVE with a usable score and vector (2.0 only when NVD has
+// nothing newer).
 type FindingsPostFindingsIDStatusOKCvssVersion string
 
 const (
@@ -113276,96 +113296,6 @@ func (o NilFindingsGetFindingsIDOKCvss) Or(d FindingsGetFindingsIDOKCvss) Findin
 	return d
 }
 
-// NewNilFindingsGetFindingsIDOKCvssSource returns new NilFindingsGetFindingsIDOKCvssSource with value set to v.
-func NewNilFindingsGetFindingsIDOKCvssSource(v FindingsGetFindingsIDOKCvssSource) NilFindingsGetFindingsIDOKCvssSource {
-	return NilFindingsGetFindingsIDOKCvssSource{
-		Value: v,
-	}
-}
-
-// NilFindingsGetFindingsIDOKCvssSource is nullable FindingsGetFindingsIDOKCvssSource.
-type NilFindingsGetFindingsIDOKCvssSource struct {
-	Value FindingsGetFindingsIDOKCvssSource
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilFindingsGetFindingsIDOKCvssSource) SetTo(v FindingsGetFindingsIDOKCvssSource) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilFindingsGetFindingsIDOKCvssSource) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilFindingsGetFindingsIDOKCvssSource) SetToNull() {
-	o.Null = true
-	var v FindingsGetFindingsIDOKCvssSource
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilFindingsGetFindingsIDOKCvssSource) Get() (v FindingsGetFindingsIDOKCvssSource, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilFindingsGetFindingsIDOKCvssSource) Or(d FindingsGetFindingsIDOKCvssSource) FindingsGetFindingsIDOKCvssSource {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilFindingsGetFindingsIDOKCvssVersion returns new NilFindingsGetFindingsIDOKCvssVersion with value set to v.
-func NewNilFindingsGetFindingsIDOKCvssVersion(v FindingsGetFindingsIDOKCvssVersion) NilFindingsGetFindingsIDOKCvssVersion {
-	return NilFindingsGetFindingsIDOKCvssVersion{
-		Value: v,
-	}
-}
-
-// NilFindingsGetFindingsIDOKCvssVersion is nullable FindingsGetFindingsIDOKCvssVersion.
-type NilFindingsGetFindingsIDOKCvssVersion struct {
-	Value FindingsGetFindingsIDOKCvssVersion
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilFindingsGetFindingsIDOKCvssVersion) SetTo(v FindingsGetFindingsIDOKCvssVersion) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilFindingsGetFindingsIDOKCvssVersion) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilFindingsGetFindingsIDOKCvssVersion) SetToNull() {
-	o.Null = true
-	var v FindingsGetFindingsIDOKCvssVersion
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilFindingsGetFindingsIDOKCvssVersion) Get() (v FindingsGetFindingsIDOKCvssVersion, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilFindingsGetFindingsIDOKCvssVersion) Or(d FindingsGetFindingsIDOKCvssVersion) FindingsGetFindingsIDOKCvssVersion {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewNilFindingsGetFindingsIDOKEvidence returns new NilFindingsGetFindingsIDOKEvidence with value set to v.
 func NewNilFindingsGetFindingsIDOKEvidence(v FindingsGetFindingsIDOKEvidence) NilFindingsGetFindingsIDOKEvidence {
 	return NilFindingsGetFindingsIDOKEvidence{
@@ -113630,96 +113560,6 @@ func (o NilFindingsGetFindingsOKItemsItemCvss) Get() (v FindingsGetFindingsOKIte
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsGetFindingsOKItemsItemCvss) Or(d FindingsGetFindingsOKItemsItemCvss) FindingsGetFindingsOKItemsItemCvss {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilFindingsGetFindingsOKItemsItemCvssSource returns new NilFindingsGetFindingsOKItemsItemCvssSource with value set to v.
-func NewNilFindingsGetFindingsOKItemsItemCvssSource(v FindingsGetFindingsOKItemsItemCvssSource) NilFindingsGetFindingsOKItemsItemCvssSource {
-	return NilFindingsGetFindingsOKItemsItemCvssSource{
-		Value: v,
-	}
-}
-
-// NilFindingsGetFindingsOKItemsItemCvssSource is nullable FindingsGetFindingsOKItemsItemCvssSource.
-type NilFindingsGetFindingsOKItemsItemCvssSource struct {
-	Value FindingsGetFindingsOKItemsItemCvssSource
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilFindingsGetFindingsOKItemsItemCvssSource) SetTo(v FindingsGetFindingsOKItemsItemCvssSource) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilFindingsGetFindingsOKItemsItemCvssSource) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilFindingsGetFindingsOKItemsItemCvssSource) SetToNull() {
-	o.Null = true
-	var v FindingsGetFindingsOKItemsItemCvssSource
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilFindingsGetFindingsOKItemsItemCvssSource) Get() (v FindingsGetFindingsOKItemsItemCvssSource, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilFindingsGetFindingsOKItemsItemCvssSource) Or(d FindingsGetFindingsOKItemsItemCvssSource) FindingsGetFindingsOKItemsItemCvssSource {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilFindingsGetFindingsOKItemsItemCvssVersion returns new NilFindingsGetFindingsOKItemsItemCvssVersion with value set to v.
-func NewNilFindingsGetFindingsOKItemsItemCvssVersion(v FindingsGetFindingsOKItemsItemCvssVersion) NilFindingsGetFindingsOKItemsItemCvssVersion {
-	return NilFindingsGetFindingsOKItemsItemCvssVersion{
-		Value: v,
-	}
-}
-
-// NilFindingsGetFindingsOKItemsItemCvssVersion is nullable FindingsGetFindingsOKItemsItemCvssVersion.
-type NilFindingsGetFindingsOKItemsItemCvssVersion struct {
-	Value FindingsGetFindingsOKItemsItemCvssVersion
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilFindingsGetFindingsOKItemsItemCvssVersion) SetTo(v FindingsGetFindingsOKItemsItemCvssVersion) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilFindingsGetFindingsOKItemsItemCvssVersion) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilFindingsGetFindingsOKItemsItemCvssVersion) SetToNull() {
-	o.Null = true
-	var v FindingsGetFindingsOKItemsItemCvssVersion
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilFindingsGetFindingsOKItemsItemCvssVersion) Get() (v FindingsGetFindingsOKItemsItemCvssVersion, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilFindingsGetFindingsOKItemsItemCvssVersion) Or(d FindingsGetFindingsOKItemsItemCvssVersion) FindingsGetFindingsOKItemsItemCvssVersion {
 	if v, ok := o.Get(); ok {
 		return v
 	}
@@ -114131,96 +113971,6 @@ func (o NilFindingsPostFindingsIDAiOKCvss) Or(d FindingsPostFindingsIDAiOKCvss) 
 	return d
 }
 
-// NewNilFindingsPostFindingsIDAiOKCvssSource returns new NilFindingsPostFindingsIDAiOKCvssSource with value set to v.
-func NewNilFindingsPostFindingsIDAiOKCvssSource(v FindingsPostFindingsIDAiOKCvssSource) NilFindingsPostFindingsIDAiOKCvssSource {
-	return NilFindingsPostFindingsIDAiOKCvssSource{
-		Value: v,
-	}
-}
-
-// NilFindingsPostFindingsIDAiOKCvssSource is nullable FindingsPostFindingsIDAiOKCvssSource.
-type NilFindingsPostFindingsIDAiOKCvssSource struct {
-	Value FindingsPostFindingsIDAiOKCvssSource
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilFindingsPostFindingsIDAiOKCvssSource) SetTo(v FindingsPostFindingsIDAiOKCvssSource) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilFindingsPostFindingsIDAiOKCvssSource) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilFindingsPostFindingsIDAiOKCvssSource) SetToNull() {
-	o.Null = true
-	var v FindingsPostFindingsIDAiOKCvssSource
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilFindingsPostFindingsIDAiOKCvssSource) Get() (v FindingsPostFindingsIDAiOKCvssSource, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilFindingsPostFindingsIDAiOKCvssSource) Or(d FindingsPostFindingsIDAiOKCvssSource) FindingsPostFindingsIDAiOKCvssSource {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilFindingsPostFindingsIDAiOKCvssVersion returns new NilFindingsPostFindingsIDAiOKCvssVersion with value set to v.
-func NewNilFindingsPostFindingsIDAiOKCvssVersion(v FindingsPostFindingsIDAiOKCvssVersion) NilFindingsPostFindingsIDAiOKCvssVersion {
-	return NilFindingsPostFindingsIDAiOKCvssVersion{
-		Value: v,
-	}
-}
-
-// NilFindingsPostFindingsIDAiOKCvssVersion is nullable FindingsPostFindingsIDAiOKCvssVersion.
-type NilFindingsPostFindingsIDAiOKCvssVersion struct {
-	Value FindingsPostFindingsIDAiOKCvssVersion
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilFindingsPostFindingsIDAiOKCvssVersion) SetTo(v FindingsPostFindingsIDAiOKCvssVersion) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilFindingsPostFindingsIDAiOKCvssVersion) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilFindingsPostFindingsIDAiOKCvssVersion) SetToNull() {
-	o.Null = true
-	var v FindingsPostFindingsIDAiOKCvssVersion
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilFindingsPostFindingsIDAiOKCvssVersion) Get() (v FindingsPostFindingsIDAiOKCvssVersion, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilFindingsPostFindingsIDAiOKCvssVersion) Or(d FindingsPostFindingsIDAiOKCvssVersion) FindingsPostFindingsIDAiOKCvssVersion {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewNilFindingsPostFindingsIDAiOKEvidence returns new NilFindingsPostFindingsIDAiOKEvidence with value set to v.
 func NewNilFindingsPostFindingsIDAiOKEvidence(v FindingsPostFindingsIDAiOKEvidence) NilFindingsPostFindingsIDAiOKEvidence {
 	return NilFindingsPostFindingsIDAiOKEvidence{
@@ -114626,96 +114376,6 @@ func (o NilFindingsPostFindingsIDAppliedOKCvss) Or(d FindingsPostFindingsIDAppli
 	return d
 }
 
-// NewNilFindingsPostFindingsIDAppliedOKCvssSource returns new NilFindingsPostFindingsIDAppliedOKCvssSource with value set to v.
-func NewNilFindingsPostFindingsIDAppliedOKCvssSource(v FindingsPostFindingsIDAppliedOKCvssSource) NilFindingsPostFindingsIDAppliedOKCvssSource {
-	return NilFindingsPostFindingsIDAppliedOKCvssSource{
-		Value: v,
-	}
-}
-
-// NilFindingsPostFindingsIDAppliedOKCvssSource is nullable FindingsPostFindingsIDAppliedOKCvssSource.
-type NilFindingsPostFindingsIDAppliedOKCvssSource struct {
-	Value FindingsPostFindingsIDAppliedOKCvssSource
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilFindingsPostFindingsIDAppliedOKCvssSource) SetTo(v FindingsPostFindingsIDAppliedOKCvssSource) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilFindingsPostFindingsIDAppliedOKCvssSource) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilFindingsPostFindingsIDAppliedOKCvssSource) SetToNull() {
-	o.Null = true
-	var v FindingsPostFindingsIDAppliedOKCvssSource
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilFindingsPostFindingsIDAppliedOKCvssSource) Get() (v FindingsPostFindingsIDAppliedOKCvssSource, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilFindingsPostFindingsIDAppliedOKCvssSource) Or(d FindingsPostFindingsIDAppliedOKCvssSource) FindingsPostFindingsIDAppliedOKCvssSource {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilFindingsPostFindingsIDAppliedOKCvssVersion returns new NilFindingsPostFindingsIDAppliedOKCvssVersion with value set to v.
-func NewNilFindingsPostFindingsIDAppliedOKCvssVersion(v FindingsPostFindingsIDAppliedOKCvssVersion) NilFindingsPostFindingsIDAppliedOKCvssVersion {
-	return NilFindingsPostFindingsIDAppliedOKCvssVersion{
-		Value: v,
-	}
-}
-
-// NilFindingsPostFindingsIDAppliedOKCvssVersion is nullable FindingsPostFindingsIDAppliedOKCvssVersion.
-type NilFindingsPostFindingsIDAppliedOKCvssVersion struct {
-	Value FindingsPostFindingsIDAppliedOKCvssVersion
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilFindingsPostFindingsIDAppliedOKCvssVersion) SetTo(v FindingsPostFindingsIDAppliedOKCvssVersion) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilFindingsPostFindingsIDAppliedOKCvssVersion) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilFindingsPostFindingsIDAppliedOKCvssVersion) SetToNull() {
-	o.Null = true
-	var v FindingsPostFindingsIDAppliedOKCvssVersion
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilFindingsPostFindingsIDAppliedOKCvssVersion) Get() (v FindingsPostFindingsIDAppliedOKCvssVersion, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilFindingsPostFindingsIDAppliedOKCvssVersion) Or(d FindingsPostFindingsIDAppliedOKCvssVersion) FindingsPostFindingsIDAppliedOKCvssVersion {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
 // NewNilFindingsPostFindingsIDAppliedOKEvidence returns new NilFindingsPostFindingsIDAppliedOKEvidence with value set to v.
 func NewNilFindingsPostFindingsIDAppliedOKEvidence(v FindingsPostFindingsIDAppliedOKEvidence) NilFindingsPostFindingsIDAppliedOKEvidence {
 	return NilFindingsPostFindingsIDAppliedOKEvidence{
@@ -115115,96 +114775,6 @@ func (o NilFindingsPostFindingsIDStatusOKCvss) Get() (v FindingsPostFindingsIDSt
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsPostFindingsIDStatusOKCvss) Or(d FindingsPostFindingsIDStatusOKCvss) FindingsPostFindingsIDStatusOKCvss {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilFindingsPostFindingsIDStatusOKCvssSource returns new NilFindingsPostFindingsIDStatusOKCvssSource with value set to v.
-func NewNilFindingsPostFindingsIDStatusOKCvssSource(v FindingsPostFindingsIDStatusOKCvssSource) NilFindingsPostFindingsIDStatusOKCvssSource {
-	return NilFindingsPostFindingsIDStatusOKCvssSource{
-		Value: v,
-	}
-}
-
-// NilFindingsPostFindingsIDStatusOKCvssSource is nullable FindingsPostFindingsIDStatusOKCvssSource.
-type NilFindingsPostFindingsIDStatusOKCvssSource struct {
-	Value FindingsPostFindingsIDStatusOKCvssSource
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilFindingsPostFindingsIDStatusOKCvssSource) SetTo(v FindingsPostFindingsIDStatusOKCvssSource) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilFindingsPostFindingsIDStatusOKCvssSource) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilFindingsPostFindingsIDStatusOKCvssSource) SetToNull() {
-	o.Null = true
-	var v FindingsPostFindingsIDStatusOKCvssSource
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilFindingsPostFindingsIDStatusOKCvssSource) Get() (v FindingsPostFindingsIDStatusOKCvssSource, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilFindingsPostFindingsIDStatusOKCvssSource) Or(d FindingsPostFindingsIDStatusOKCvssSource) FindingsPostFindingsIDStatusOKCvssSource {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewNilFindingsPostFindingsIDStatusOKCvssVersion returns new NilFindingsPostFindingsIDStatusOKCvssVersion with value set to v.
-func NewNilFindingsPostFindingsIDStatusOKCvssVersion(v FindingsPostFindingsIDStatusOKCvssVersion) NilFindingsPostFindingsIDStatusOKCvssVersion {
-	return NilFindingsPostFindingsIDStatusOKCvssVersion{
-		Value: v,
-	}
-}
-
-// NilFindingsPostFindingsIDStatusOKCvssVersion is nullable FindingsPostFindingsIDStatusOKCvssVersion.
-type NilFindingsPostFindingsIDStatusOKCvssVersion struct {
-	Value FindingsPostFindingsIDStatusOKCvssVersion
-	Null  bool
-}
-
-// SetTo sets value to v.
-func (o *NilFindingsPostFindingsIDStatusOKCvssVersion) SetTo(v FindingsPostFindingsIDStatusOKCvssVersion) {
-	o.Null = false
-	o.Value = v
-}
-
-// IsNull returns true if value is Null.
-func (o NilFindingsPostFindingsIDStatusOKCvssVersion) IsNull() bool { return o.Null }
-
-// SetToNull sets value to null.
-func (o *NilFindingsPostFindingsIDStatusOKCvssVersion) SetToNull() {
-	o.Null = true
-	var v FindingsPostFindingsIDStatusOKCvssVersion
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o NilFindingsPostFindingsIDStatusOKCvssVersion) Get() (v FindingsPostFindingsIDStatusOKCvssVersion, ok bool) {
-	if o.Null {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o NilFindingsPostFindingsIDStatusOKCvssVersion) Or(d FindingsPostFindingsIDStatusOKCvssVersion) FindingsPostFindingsIDStatusOKCvssVersion {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -125365,7 +125365,7 @@ func (s *FindingsGetFindingsIDOKCvss) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("vector")
-		s.Vector.Encode(e)
+		e.Str(s.Vector)
 	}
 	{
 		e.FieldStart("version")
@@ -125414,7 +125414,9 @@ func (s *FindingsGetFindingsIDOKCvss) Decode(d *jx.Decoder) error {
 		case "vector":
 			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				if err := s.Vector.Decode(d); err != nil {
+				v, err := d.Str()
+				s.Vector = string(v)
+				if err != nil {
 					return err
 				}
 				return nil
@@ -129890,7 +129892,7 @@ func (s *FindingsGetFindingsOKItemsItemCvss) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("vector")
-		s.Vector.Encode(e)
+		e.Str(s.Vector)
 	}
 	{
 		e.FieldStart("version")
@@ -129939,7 +129941,9 @@ func (s *FindingsGetFindingsOKItemsItemCvss) Decode(d *jx.Decoder) error {
 		case "vector":
 			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				if err := s.Vector.Decode(d); err != nil {
+				v, err := d.Str()
+				s.Vector = string(v)
+				if err != nil {
 					return err
 				}
 				return nil
@@ -135672,7 +135676,7 @@ func (s *FindingsPostFindingsIDAiOKCvss) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("vector")
-		s.Vector.Encode(e)
+		e.Str(s.Vector)
 	}
 	{
 		e.FieldStart("version")
@@ -135721,7 +135725,9 @@ func (s *FindingsPostFindingsIDAiOKCvss) Decode(d *jx.Decoder) error {
 		case "vector":
 			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				if err := s.Vector.Decode(d); err != nil {
+				v, err := d.Str()
+				s.Vector = string(v)
+				if err != nil {
 					return err
 				}
 				return nil
@@ -142155,7 +142161,7 @@ func (s *FindingsPostFindingsIDAppliedOKCvss) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("vector")
-		s.Vector.Encode(e)
+		e.Str(s.Vector)
 	}
 	{
 		e.FieldStart("version")
@@ -142204,7 +142210,9 @@ func (s *FindingsPostFindingsIDAppliedOKCvss) Decode(d *jx.Decoder) error {
 		case "vector":
 			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				if err := s.Vector.Decode(d); err != nil {
+				v, err := d.Str()
+				s.Vector = string(v)
+				if err != nil {
 					return err
 				}
 				return nil
@@ -148644,7 +148652,7 @@ func (s *FindingsPostFindingsIDStatusOKCvss) encodeFields(e *jx.Encoder) {
 	}
 	{
 		e.FieldStart("vector")
-		s.Vector.Encode(e)
+		e.Str(s.Vector)
 	}
 	{
 		e.FieldStart("version")
@@ -148693,7 +148701,9 @@ func (s *FindingsPostFindingsIDStatusOKCvss) Decode(d *jx.Decoder) error {
 		case "vector":
 			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				if err := s.Vector.Decode(d); err != nil {
+				v, err := d.Str()
+				s.Vector = string(v)
+				if err != nil {
 					return err
 				}
 				return nil
@@ -193936,94 +193946,6 @@ func (s *NilFindingsGetFindingsIDOKCvss) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode encodes FindingsGetFindingsIDOKCvssSource as json.
-func (o NilFindingsGetFindingsIDOKCvssSource) Encode(e *jx.Encoder) {
-	if o.Null {
-		e.Null()
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes FindingsGetFindingsIDOKCvssSource from json.
-func (o *NilFindingsGetFindingsIDOKCvssSource) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode NilFindingsGetFindingsIDOKCvssSource to nil")
-	}
-	if d.Next() == jx.Null {
-		if err := d.Null(); err != nil {
-			return err
-		}
-
-		var v FindingsGetFindingsIDOKCvssSource
-		o.Value = v
-		o.Null = true
-		return nil
-	}
-	o.Null = false
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NilFindingsGetFindingsIDOKCvssSource) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NilFindingsGetFindingsIDOKCvssSource) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes FindingsGetFindingsIDOKCvssVersion as json.
-func (o NilFindingsGetFindingsIDOKCvssVersion) Encode(e *jx.Encoder) {
-	if o.Null {
-		e.Null()
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes FindingsGetFindingsIDOKCvssVersion from json.
-func (o *NilFindingsGetFindingsIDOKCvssVersion) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode NilFindingsGetFindingsIDOKCvssVersion to nil")
-	}
-	if d.Next() == jx.Null {
-		if err := d.Null(); err != nil {
-			return err
-		}
-
-		var v FindingsGetFindingsIDOKCvssVersion
-		o.Value = v
-		o.Null = true
-		return nil
-	}
-	o.Null = false
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NilFindingsGetFindingsIDOKCvssVersion) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NilFindingsGetFindingsIDOKCvssVersion) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode encodes FindingsGetFindingsIDOKEvidence as json.
 func (o NilFindingsGetFindingsIDOKEvidence) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -194284,94 +194206,6 @@ func (s NilFindingsGetFindingsOKItemsItemCvss) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilFindingsGetFindingsOKItemsItemCvss) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes FindingsGetFindingsOKItemsItemCvssSource as json.
-func (o NilFindingsGetFindingsOKItemsItemCvssSource) Encode(e *jx.Encoder) {
-	if o.Null {
-		e.Null()
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes FindingsGetFindingsOKItemsItemCvssSource from json.
-func (o *NilFindingsGetFindingsOKItemsItemCvssSource) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode NilFindingsGetFindingsOKItemsItemCvssSource to nil")
-	}
-	if d.Next() == jx.Null {
-		if err := d.Null(); err != nil {
-			return err
-		}
-
-		var v FindingsGetFindingsOKItemsItemCvssSource
-		o.Value = v
-		o.Null = true
-		return nil
-	}
-	o.Null = false
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NilFindingsGetFindingsOKItemsItemCvssSource) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NilFindingsGetFindingsOKItemsItemCvssSource) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes FindingsGetFindingsOKItemsItemCvssVersion as json.
-func (o NilFindingsGetFindingsOKItemsItemCvssVersion) Encode(e *jx.Encoder) {
-	if o.Null {
-		e.Null()
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes FindingsGetFindingsOKItemsItemCvssVersion from json.
-func (o *NilFindingsGetFindingsOKItemsItemCvssVersion) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode NilFindingsGetFindingsOKItemsItemCvssVersion to nil")
-	}
-	if d.Next() == jx.Null {
-		if err := d.Null(); err != nil {
-			return err
-		}
-
-		var v FindingsGetFindingsOKItemsItemCvssVersion
-		o.Value = v
-		o.Null = true
-		return nil
-	}
-	o.Null = false
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NilFindingsGetFindingsOKItemsItemCvssVersion) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NilFindingsGetFindingsOKItemsItemCvssVersion) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -194772,94 +194606,6 @@ func (s *NilFindingsPostFindingsIDAiOKCvss) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode encodes FindingsPostFindingsIDAiOKCvssSource as json.
-func (o NilFindingsPostFindingsIDAiOKCvssSource) Encode(e *jx.Encoder) {
-	if o.Null {
-		e.Null()
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes FindingsPostFindingsIDAiOKCvssSource from json.
-func (o *NilFindingsPostFindingsIDAiOKCvssSource) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode NilFindingsPostFindingsIDAiOKCvssSource to nil")
-	}
-	if d.Next() == jx.Null {
-		if err := d.Null(); err != nil {
-			return err
-		}
-
-		var v FindingsPostFindingsIDAiOKCvssSource
-		o.Value = v
-		o.Null = true
-		return nil
-	}
-	o.Null = false
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NilFindingsPostFindingsIDAiOKCvssSource) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NilFindingsPostFindingsIDAiOKCvssSource) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes FindingsPostFindingsIDAiOKCvssVersion as json.
-func (o NilFindingsPostFindingsIDAiOKCvssVersion) Encode(e *jx.Encoder) {
-	if o.Null {
-		e.Null()
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes FindingsPostFindingsIDAiOKCvssVersion from json.
-func (o *NilFindingsPostFindingsIDAiOKCvssVersion) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode NilFindingsPostFindingsIDAiOKCvssVersion to nil")
-	}
-	if d.Next() == jx.Null {
-		if err := d.Null(); err != nil {
-			return err
-		}
-
-		var v FindingsPostFindingsIDAiOKCvssVersion
-		o.Value = v
-		o.Null = true
-		return nil
-	}
-	o.Null = false
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NilFindingsPostFindingsIDAiOKCvssVersion) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NilFindingsPostFindingsIDAiOKCvssVersion) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode encodes FindingsPostFindingsIDAiOKEvidence as json.
 func (o NilFindingsPostFindingsIDAiOKEvidence) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -195256,94 +195002,6 @@ func (s *NilFindingsPostFindingsIDAppliedOKCvss) UnmarshalJSON(data []byte) erro
 	return s.Decode(d)
 }
 
-// Encode encodes FindingsPostFindingsIDAppliedOKCvssSource as json.
-func (o NilFindingsPostFindingsIDAppliedOKCvssSource) Encode(e *jx.Encoder) {
-	if o.Null {
-		e.Null()
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes FindingsPostFindingsIDAppliedOKCvssSource from json.
-func (o *NilFindingsPostFindingsIDAppliedOKCvssSource) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode NilFindingsPostFindingsIDAppliedOKCvssSource to nil")
-	}
-	if d.Next() == jx.Null {
-		if err := d.Null(); err != nil {
-			return err
-		}
-
-		var v FindingsPostFindingsIDAppliedOKCvssSource
-		o.Value = v
-		o.Null = true
-		return nil
-	}
-	o.Null = false
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NilFindingsPostFindingsIDAppliedOKCvssSource) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NilFindingsPostFindingsIDAppliedOKCvssSource) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes FindingsPostFindingsIDAppliedOKCvssVersion as json.
-func (o NilFindingsPostFindingsIDAppliedOKCvssVersion) Encode(e *jx.Encoder) {
-	if o.Null {
-		e.Null()
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes FindingsPostFindingsIDAppliedOKCvssVersion from json.
-func (o *NilFindingsPostFindingsIDAppliedOKCvssVersion) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode NilFindingsPostFindingsIDAppliedOKCvssVersion to nil")
-	}
-	if d.Next() == jx.Null {
-		if err := d.Null(); err != nil {
-			return err
-		}
-
-		var v FindingsPostFindingsIDAppliedOKCvssVersion
-		o.Value = v
-		o.Null = true
-		return nil
-	}
-	o.Null = false
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NilFindingsPostFindingsIDAppliedOKCvssVersion) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NilFindingsPostFindingsIDAppliedOKCvssVersion) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
 // Encode encodes FindingsPostFindingsIDAppliedOKEvidence as json.
 func (o NilFindingsPostFindingsIDAppliedOKEvidence) Encode(e *jx.Encoder) {
 	if o.Null {
@@ -195736,94 +195394,6 @@ func (s NilFindingsPostFindingsIDStatusOKCvss) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *NilFindingsPostFindingsIDStatusOKCvss) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes FindingsPostFindingsIDStatusOKCvssSource as json.
-func (o NilFindingsPostFindingsIDStatusOKCvssSource) Encode(e *jx.Encoder) {
-	if o.Null {
-		e.Null()
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes FindingsPostFindingsIDStatusOKCvssSource from json.
-func (o *NilFindingsPostFindingsIDStatusOKCvssSource) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode NilFindingsPostFindingsIDStatusOKCvssSource to nil")
-	}
-	if d.Next() == jx.Null {
-		if err := d.Null(); err != nil {
-			return err
-		}
-
-		var v FindingsPostFindingsIDStatusOKCvssSource
-		o.Value = v
-		o.Null = true
-		return nil
-	}
-	o.Null = false
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NilFindingsPostFindingsIDStatusOKCvssSource) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NilFindingsPostFindingsIDStatusOKCvssSource) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes FindingsPostFindingsIDStatusOKCvssVersion as json.
-func (o NilFindingsPostFindingsIDStatusOKCvssVersion) Encode(e *jx.Encoder) {
-	if o.Null {
-		e.Null()
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes FindingsPostFindingsIDStatusOKCvssVersion from json.
-func (o *NilFindingsPostFindingsIDStatusOKCvssVersion) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode NilFindingsPostFindingsIDStatusOKCvssVersion to nil")
-	}
-	if d.Next() == jx.Null {
-		if err := d.Null(); err != nil {
-			return err
-		}
-
-		var v FindingsPostFindingsIDStatusOKCvssVersion
-		o.Value = v
-		o.Null = true
-		return nil
-	}
-	o.Null = false
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s NilFindingsPostFindingsIDStatusOKCvssVersion) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *NilFindingsPostFindingsIDStatusOKCvssVersion) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

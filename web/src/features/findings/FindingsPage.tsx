@@ -235,7 +235,7 @@ function List() {
           <EmptyState art="no-findings" title={t('emptyOpen')} info={t('emptyHelpInfo')}
             action={<span className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-sm">
               <Link to="/devices" className="text-accent underline underline-offset-4">{t('emptyDevices')}</Link>
-              <Link to="/scans" className="text-accent underline underline-offset-4">{t('emptyScan')}</Link>
+              <Link to="/settings/scanning" className="text-accent underline underline-offset-4">{t('emptyScan')}</Link>
             </span>}>
             {t('emptyHelp')}
           </EmptyState>

@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { InfoTip } from '@/components/common/InfoTip'
+import { Notice } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { fmtDate, fmtNumber } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
@@ -45,22 +45,17 @@ export function AiBudgetPrompt() {
   }
   if (lines.length === 0) return null
   const stop = lines.some((l) => l.stop)
+  // §0: the raise lands on the field: the box's budget, or the profiles table (each profile has its own budget in Edit)
+  const raise = me?.role === 'admin'
+    ? <Button asChild size="sm" variant="primary"><Link to={lines.some((l) => l.key === 'box') ? '/settings/ai#ai-cap' : '/settings/ai#ai-profiles'}>{t('budget.home.raise')}</Link></Button>
+    : <p className="text-meta text-muted">{t('budget.home.askAdmin')}</p>
   return (
-    <div role={stop ? 'alert' : 'status'} className={`mb-6 rounded-md border px-4 py-3 text-sm ${stop ? 'border-danger/50 bg-danger-soft/60' : 'border-warn/50 bg-warn-soft/60'}`}>
-      {lines.map((l) => (
-        <div key={l.key} className="mb-2 last:mb-0">
-          <div className="flex items-center gap-1">
-            <p className="font-medium">{l.title}</p>
-            <InfoTip topic={l.title}>{l.info}</InfoTip>
-          </div>
-          <p className="mt-1 max-w-prose">{l.body}</p>
-        </div>
+    <div role={stop ? 'alert' : 'status'} className="mb-6 grid gap-2">
+      {lines.map((l, i) => (
+        <Notice key={l.key} tone={l.stop ? 'danger' : 'warn'} className="mb-0" title={l.title} info={l.info} actions={i === lines.length - 1 ? raise : undefined}>
+          {l.body}
+        </Notice>
       ))}
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-        {me?.role === 'admin'
-          ? <Button asChild size="sm" variant="primary"><Link to="/settings/ai">{t('budget.home.raise')}</Link></Button>
-          : <p className="text-[13px] text-muted">{t('budget.home.askAdmin')}</p>}
-      </div>
     </div>
   )
 }

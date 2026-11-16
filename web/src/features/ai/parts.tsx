@@ -1,16 +1,22 @@
+import { lazy, Suspense, useState } from 'react'
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
+import { Notice } from '@/components/common/PageHeader'
+import { Button } from '@/components/ui/button'
 import { ApiError } from '@/lib/api'
 import { useCan } from '@/lib/session'
 import { useModuleEnabled } from '@/lib/modules'
-import { useAiConfig } from './api'
+import { useAiConfig, useProfiles } from './api'
 import type { AiJob } from './types'
+
+// The profile dialog lives with Settings, AI assistant; loaded only when a page opens it to add the first profile.
+const ProfileDialog = lazy(() => import('./AiSettings').then((m) => ({ default: m.ProfileDialog })))
 
 /** Lỗi của một thao tác (không phải lỗi tải trang): nói cái gì sai, kèm cách sửa từ máy chủ. */
 export function ActionError({ error }: { error: unknown }) {
   if (!error) return null
   const msg = error instanceof ApiError ? error.message : error instanceof Error ? error.message : String(error)
-  return <p role="alert" className="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-sm">{msg}</p>
+  return <Notice tone="danger" role="alert" className="mb-0" title={msg} />
 }
 
 /** Việc AI chỉ chạy được khi module bật, có hồ sơ AI dùng được và việc đó được gán hồ sơ (kể cả luật riêng tư). `reason` giải thích nút bị khoá. */
@@ -20,15 +26,40 @@ export function useAiGate(minRole: 'operator' | 'viewer' = 'operator', job?: AiJ
   const cfg = useAiConfig(on === true) // with the module off the route is 404: not asked (S-CORE-9, 2026-11-12 walk)
   const can = useCan(minRole)
   const unassigned = !!job && !!cfg.data?.configured && cfg.data.jobs_ready[job] === false
-  const state: 'loading' | 'off' | 'unconfigured' | 'unassigned' | 'ready' = on === undefined || (on && cfg.isPending) ? 'loading' : !on ? 'off' : !cfg.data?.configured ? 'unconfigured' : unassigned ? 'unassigned' : 'ready'
-  const reason = state !== 'ready' ? t(`gate.${state}`) : !can ? t('common:needRole', { role: t(`common:role.${minRole}`) }) : undefined
-  return { state, canRun: state === 'ready' && can, reason, cfg: cfg.data }
+  // J7 (#847): after a restore without the key every profile is key_lost, so none is usable and the box reads "not configured". The
+  // profiles are still there (and assigned): the way out is their key, never a second profile. Asked only in that case.
+  const unconf = on === true && cfg.data?.configured === false
+  const profiles = useProfiles(unconf)
+  const items = profiles.data?.items ?? []
+  const keyLost = unconf && items.length > 0 && !items.some((p) => p.usable) && items.some((p) => p.key_lost)
+  const state: 'loading' | 'off' | 'unconfigured' | 'unassigned' | 'ready' = on === undefined || (on && cfg.isPending) || (unconf && profiles.isPending) ? 'loading' : !on ? 'off' : !cfg.data?.configured ? 'unconfigured' : unassigned ? 'unassigned' : 'ready'
+  /** The words of the state: 'keyLost' for an unconfigured box whose profiles lost their key (gate.keyLost*, ToSettings). */
+  const text = state === 'unconfigured' && keyLost ? 'keyLost' : state
+  const reason = state !== 'ready' ? t(`gate.${text}`) : !can ? t('common:needRole', { role: t(`common:role.${minRole}`) }) : undefined
+  return { state, text, canRun: state === 'ready' && can, reason, cfg: cfg.data }
 }
 
-export function ToSettings({ className }: { className?: string }) {
+/** Where a blocked AI task is unblocked (docs/UI.md §0): no profile yet → "Add an AI profile" right here (the profile dialog of Settings,
+ *  AI assistant, which still edits it there), with the link to the profiles; a profile exists but this task has none → the task's
+ *  primary-profile select in the routing table; else `to` (default: the profiles). A non-administrator is told to ask one. */
+export function ToSettings({ className, state, job, to }: { className?: string; state?: string; job?: AiJob; to?: string }) {
   const { t } = useTranslation('ai')
   const admin = useCan('admin')
-  return admin
-    ? <Link to="/settings/ai" className={className ?? 'text-accent underline underline-offset-4'}>{t('gate.toSettings')}</Link>
-    : <span className="text-muted">{t('gate.askAdmin')}</span>
+  const [adding, setAdding] = useState(false)
+  const profiles = useProfiles(admin && adding)
+  const link = className ?? 'text-accent underline underline-offset-4'
+  if (!admin) return <span className="text-muted">{t(state === 'keyLost' ? 'gate.askAdminKey' : 'gate.askAdmin')}</span>
+  if (state === 'unassigned' && job) return <Link to={`/settings/ai#ai-job-${job}`} className={link}>{t('gate.toAssign')}</Link>
+  // J7: the lost profiles' notices (Enter the key) are at the top of the profiles; a new profile would only duplicate one.
+  if (state === 'keyLost') return <Link to="/settings/ai#ai-profiles" className={link}>{t('gate.toKey')}</Link>
+  if (state === 'unconfigured') {
+    return (
+      <span className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Button variant="primary" size="sm" onClick={() => setAdding(true)}>{t('profiles.add')}</Button>
+        <Link to="/settings/ai#ai-profiles" className={link}>{t('gate.toSettings')}</Link>
+        {adding && !profiles.isPending ? <Suspense fallback={null}><ProfileDialog profile={null} existing={profiles.data?.items ?? []} onClose={() => setAdding(false)} /></Suspense> : null}
+      </span>
+    )
+  }
+  return <Link to={to ?? '/settings/ai#ai-profiles'} className={link}>{t('gate.toSettings')}</Link>
 }

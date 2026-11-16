@@ -838,7 +838,7 @@ describe("exposure: an administrator's first Scan now is the confirmation (D-473
     renderApp(`/exposure/${id}`)
     await userEvent.click(await screen.findByRole('button', { name: 'Scan now' }))
     expect(await screen.findByText(/Turn on two-step sign-in for your account before the first scan/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Turn on two-step sign-in' })).toHaveAttribute('href', '/account#two-step')
+    expect(screen.getByRole('link', { name: 'Turn on two-step sign-in' })).toHaveAttribute('href', '/settings/account?tab=sign-in#two-step') // §0: the exact tab and field
     const r = await call('POST', `/exposure/targets/${id}/scan`, { notice_version: '2026-11-13' })
     expect(r.status).toBe(403)
     expect(r.json.error.code).toBe('twofa_required')
@@ -952,7 +952,7 @@ describe('exposure: QA pass fixes (paused IP, copy, dates, IPv6, remove dialog, 
     renderApp('/exposure/xt-2?tab=ownership')
     expect(await screen.findByRole('heading', { level: 1, name: /203\.0\.113\.10 is paused/ })).toBeInTheDocument()
     expect(screen.getByText(/Scans paused: the box no longer reaches the Internet through this IP \(last seen \d{1,2} \w{3} \d{4}, \d{2}:\d{2}\)/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Scan now' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Deep scan now' })).toBeDisabled()
     expect(document.getElementById('scan-reason')?.textContent).toMatch(/no longer goes out through 203\.0\.113\.10/)
     expect(screen.queryByText(/The box reaches the Internet via 203\.0\.113\.10/)).toBeNull() // the stale green "Verified" card is gone
     expect(screen.queryByText(/is ready for its first scan/)).toBeNull()
@@ -1352,14 +1352,16 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
       http.get('*/api/v1/exposure/targets/xt-2/snapshots', () => HttpResponse.json({ items: [{ id: snap.id, date, scanned_at: at, counts: snap.counts }] })),
       http.get('*/api/v1/exposure/targets/xt-2/snapshots/:date', () => HttpResponse.json(snap)),
     )
-    renderApp('/exposure/xt-2')
+    const first = renderApp('/exposure/xt-2')
     const section = await screen.findByRole('region', { name: 'Web findings (passive)' })
     expect(await within(section).findByText('No page was scanned')).toBeInTheDocument()
     expect(within(section).getByText('Passive web scan (ZAP) is not set up on this box yet.')).toBeInTheDocument()
     expect(within(section).queryByRole('table')).toBeNull()
+    first.unmount() // one app at a time: two mounted apps doubled the work and ran past the 1 s default wait on a busy CI runner
     snap.checks = [{ kind: 'web', text: 'Passive web scan (ZAP baseline: spider and passive rules, no form sent) of 1 page: https://203.0.113.10/. 0 alerts.', at }]
     renderApp('/exposure/xt-2')
-    expect((await screen.findAllByText('ZAP noticed nothing on the pages it looked at')).length).toBeGreaterThan(0)
+    const again = await screen.findByRole('region', { name: 'Web findings (passive)' }, { timeout: 5000 })
+    expect(await within(again).findByText('ZAP noticed nothing on the pages it looked at', {}, { timeout: 5000 })).toBeInTheDocument()
   })
 
   it('INV-24: a domain gets web findings for its own names', async () => {
@@ -1766,7 +1768,7 @@ describe('exposure: deep scan of a domain\'s addresses (S-EXP-2, FULL-5 slice 3,
     const v = (await call('GET', '/exposure/targets/xt-1')).json as { terms_notice: { version: string } }
     expect((await call('PUT', '/exposure/targets/xt-1/terms', { version: v.terms_notice.version, disruptive: false })).status).toBe(200)
     renderApp('/exposure/xt-1')
-    await userEvent.click(await screen.findByRole('button', { name: 'Scan now' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Deep scan now' })) // #850: the terms make it a deep scan, and the button says so
     expect(await screen.findByText('Scan of acme.example finished. The new result is below.', {}, { timeout: 8000 })).toBeInTheDocument()
     const deep = await screen.findByRole('table', { name: "Addresses of this domain's names and their deep scan" }, { timeout: 5000 })
     const row = (ip: string) => within(deep).getByRole('row', { name: new RegExp(`^${ip.replaceAll('.', '\\.')} `) })

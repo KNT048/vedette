@@ -230,6 +230,23 @@ func (s *Service) runTemplates(ctx context.Context, st ScanTarget, ip netip.Addr
 	case skipped > 0:
 		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: fmt.Sprintf("Safe templates for exploited vulnerabilities: %s were not run, over the limit of %d jobs a scan.", plural(skipped, "exploited CVE"), maxTemplateJobs)})
 	}
+	// INV-31: the shared speed only lowers each job's rate; a block that cannot be read sends nothing
+	sf, err := s.safety(ctx)
+	if err != nil {
+		if ctx.Err() != nil {
+			return c, ctx.Err()
+		}
+		s.cfg.Log.ErrorContext(ctx, "exposure: reading the shared safety settings failed", "target", st.Value, "error", err)
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: notSafetyRead})
+		return c, nil
+	}
+	if ip.IsValid() && sf.excluded(ip) { // excluded while the scan ran (review L3): nothing more goes to it
+		c.NotChecked = append(c.NotChecked, NotCheckedRow{Kind: "templates", Text: clipText(fmt.Sprintf(notDeepExcluded, ip), maxLineText)})
+		return c, nil
+	}
+	for i := range jobs {
+		jobs[i].RPS = sf.rps(jobs[i].RPS)
+	}
 	if len(jobs) == 0 {
 		c.Checks = append(c.Checks, CheckRow{Kind: "templates", At: store.FormatTS(s.clock()),
 			Text: "Safe templates for exploited vulnerabilities: none needed, no identified service matched an exploited CVE."})
@@ -426,22 +443,30 @@ func schemeOf(r ServiceRow) string {
 	return ""
 }
 
+// jobsRPS is the rate the jobs of a step ran at (INV-31: the shared speed may have lowered it), def when there is no job.
+func jobsRPS(jobs []TemplateJob, def int) int {
+	if len(jobs) == 0 {
+		return def
+	}
+	return jobs[0].RPS
+}
+
 // probesOf is the probe log of the step: one row per CVE to be checked (the CVE id names the template: nuclei names the template of a CVE
 // after it), written before the scanner is called.
 func probesOf(ip netip.Addr, jobs []TemplateJob) []TemplateProbe {
 	var out []TemplateProbe
-	add := func(port int, name string) {
+	add := func(port int, name string, rps int) {
 		out = append(out, TemplateProbe{ID: store.NewID("tp"), IP: ip.String(), Label: fmt.Sprintf("%s:%d", ip, port), Template: "exposure: template " + name,
-			Request: fmt.Sprintf("planned: asked the scanner to check %s with its safe template, if it has one, on %s:%d (own IP, at most %d requests a second)", name, ip, port, TemplateRPS)})
+			Request: fmt.Sprintf("planned: asked the scanner to check %s with its safe template, if it has one, on %s:%d (own IP, at most %d requests a second)", name, ip, port, rps)})
 	}
 	for _, j := range jobs {
 		if j.Depth == DepthFull { // FULL-4 (Trưởng), for Mlee: one planned row per port; the scanner logs each template before it sends it
 			out = append(out, TemplateProbe{ID: store.NewID("tp"), IP: ip.String(), Label: fmt.Sprintf("%s:%d", ip, j.Port), Template: "exposure: deep templates",
-				Request: fmt.Sprintf("planned: asked the scanner for the deep templates (testing terms accepted) of %s:%d, %d exploited CVEs among them (own IP, at most %d requests a second)", ip, j.Port, len(j.CVEs), FullTemplateRPS)})
+				Request: fmt.Sprintf("planned: asked the scanner for the deep templates (testing terms accepted) of %s:%d, %d exploited CVEs among them (own IP, at most %d requests a second)", ip, j.Port, len(j.CVEs), j.RPS)})
 			continue
 		}
 		for _, c := range j.CVEs {
-			add(j.Port, c)
+			add(j.Port, c, j.RPS)
 		}
 	}
 	return out
@@ -551,7 +576,7 @@ func templatesLine(jobs []TemplateJob, rs []TemplateResult, sent []string, notKe
 			names = append(names, r.Template)
 		}
 	}
-	head := fmt.Sprintf("Safe templates for exploited vulnerabilities (nuclei, at most %d requests a second, own IP only)", TemplateRPS)
+	head := fmt.Sprintf("Safe templates for exploited vulnerabilities (nuclei, at most %d requests a second, own IP only)", jobsRPS(jobs, TemplateRPS))
 	if len(rs) == 0 && len(names) == 0 {
 		return fmt.Sprintf("%s: the scanner reported no result for the %s asked about on %s.", head, plural(asked, "exploited CVE"), plural(len(ports), "port"))
 	}
@@ -581,7 +606,7 @@ func fullLine(jobs []TemplateJob, rs []TemplateResult, sent []string) string {
 			found = append(found, r.Template)
 		}
 	}
-	head := fmt.Sprintf(fullHead, FullTemplateRPS)
+	head := fmt.Sprintf(fullHead, jobsRPS(jobs, FullTemplateRPS))
 	if len(sent) == 0 && len(rs) == 0 {
 		return fmt.Sprintf("%s: the scanner reported no result for %s.", head, plural(len(ports), "port"))
 	}

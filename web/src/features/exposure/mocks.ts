@@ -180,6 +180,21 @@ function settledRun(): ScanRun | null {
   return next
 }
 
+/** #850, for the scan module's engine list (Settings › Scanning): the exposure scan that runs now or ran last, and OpenVAS's state and switch. */
+export const exposureMockRun = () => settledRun()
+export const greenboneMock = {
+  view: () => greenboneView(),
+  /** The same as PUT /exposure/greenbone: null when done, else the refusal's code and text. */
+  set(enabled: boolean): { code: string; message: string } | null {
+    const before = greenboneView()
+    if (enabled === before.enabled) return null
+    if (enabled && !before.preflight.ok) return { code: before.preflight.reason!.includes(' of memory') ? 'low_memory' : 'low_disk', message: before.preflight.reason! }
+    greenbone.set({ enabled, changed_by: currentUser()?.email ?? null, changed_at: nowIso() })
+    audit('exposure.greenbone', 'OpenVAS', enabled ? `enabled (memory ${gbText(before.preflight.memory_bytes!)}, free disk ${gbText(before.preflight.disk_free_bytes!)})` : 'disabled (data kept)')
+    return null
+  },
+}
+
 function view(t: StoredTarget): Target {
   const commitment = commitments.get()[t.id] ?? null
   const terms = termsStore.get()[t.id] ?? null

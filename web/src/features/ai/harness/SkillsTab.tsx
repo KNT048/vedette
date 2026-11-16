@@ -21,7 +21,7 @@ export default function SkillsTab() {
                 actions={<Toggle checked={s.enabled} label={t('harness.skills.enable', { name: s.name })} onChange={(enabled) => toggle.mutate({ id: s.id, enabled }, { onError: (e) => toast.error(e instanceof Error ? e.message : String(e)) })} />}>
                 <p className="font-medium">{s.name} {!s.enabled ? <Chip tone="off">{t('harness.off')}</Chip> : null}</p>
                 <p className="text-muted">{s.what}</p>
-                <p className="text-[13px] text-muted">{s.jobs.length ? t('harness.skills.usedBy', { jobs: s.jobs.map((j) => t(`jobs.${j}.name`)).join(', ') }) : t('harness.skills.batch')}</p>
+                <p className="text-meta text-muted">{s.jobs.length ? t('harness.skills.usedBy', { jobs: s.jobs.map((j) => t(`jobs.${j}.name`)).join(', ') }) : t('harness.skills.batch')}</p>
               </Row>
             ))}
           </List>

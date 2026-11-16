@@ -184,7 +184,9 @@
     "noticeChangedInfo": "It now names service identification, safe checks for known exploited vulnerabilities and a passive web scan.",
     "noticeWho": "Vedette keeps who confirmed it, when, for which target and this exact sentence.",
     "needTwoStep": "Turn on two-step sign-in for your account before the first scan of {{value}}: that scan records your confirmation of ownership and authorization.",
-    "needTwoStepLink": "Turn on two-step sign-in"
+    "needTwoStepLink": "Turn on two-step sign-in",
+    "deepButton": "Deep scan now",
+    "acceptTerms": "For a deep scan, accept the testing terms: Ownership tab"
   },
   "step": {
     "verify": "Step 1. Verify ownership",
@@ -700,7 +702,9 @@
       "notesHeader": "Hardening suggestions, such as weak SSH settings or TCP timestamps.",
       "notesHeaderInfo": "The Low results of OpenVAS are not alerts and are not counted anywhere.",
       "notesCaption": "OpenVAS hardening notes on this IP"
-    }
+    },
+    "offReason": "OpenVAS is off on this box.",
+    "offLink": "Turn it on: External exposure, Optional deep scan"
   },
   "web": {
     "title": "Web findings (passive)",

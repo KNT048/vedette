@@ -42,5 +42,5 @@ export function sampleContainment(f: Finding, asset: Asset, name: string): { rea
     return { reads, path, contain: { kind: 'contain', title: `Turn off virtual IP ${vip.name} on ${fw}`, detail: `Stops the Internet from reaching ${name} while you patch. Existing LAN access is not affected. Side effect: anyone using the published address ${vip.extip}:${vip.extport} loses access until you turn it back on.`,
       proposal: { id: `pr-${f.id}-${vip.name}`.toLowerCase(), title: `Turn off virtual IP ${vip.name} on ${fw}`, tool_key: `${conn.id}/${write.name}`, tool: write.name, connector_id: conn.id, connection: conn.name, asset_id: conn.asset_id ?? '', asset_name: fw, change } } }
   }
-  return { reads, path, contain: { kind: 'contain', title: `Limit who can reach ${name}`, detail: vip ? 'No write tool is connected for this, so do it by hand on the firewall.' : 'Allow only the admin workstations to connect until the fix is installed.', proposal: null } }
+  return { reads, path, contain: { kind: 'contain', title: `Limit who can reach ${name}`, detail: vip ? 'No write tool is connected for this, so do it manually on the firewall.' : 'Allow only the admin workstations to connect until the fix is installed.', proposal: null } }
 }

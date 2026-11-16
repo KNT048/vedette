@@ -11,6 +11,7 @@ import { makeQueryClient } from '@/app/App'
 import { assetsStore, auditStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { seedAssets } from '@/mocks/seed/assets'
 import DevicePanel from './DevicePanel'
+import TrapIpsTab from './TrapIps'
 import { feature } from './index'
 
 // D-466: the page is the D-464 frame with tabs in ?tab= (overview, trap-ips, services, tokens, hits).
@@ -230,7 +231,7 @@ describe('honeypot: hit detail', () => {
   it('a missing hit is reported with a way back', async () => {
     renderApp('/honeypot/hits/khong-co')
     expect(await screen.findByText(/No such trap hit/)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Back to internal traps' })).toHaveAttribute('href', '/honeypot')
+    expect(within(screen.getByRole('navigation', { name: 'Breadcrumb' })).getByRole('link', { name: 'Internal traps' })).toHaveAttribute('href', '/honeypot')
   })
 
   it('an opened test hit is labelled as a test and has no "What to do" section', async () => {
@@ -452,5 +453,23 @@ describe('honeypot: Trap IP and honey token form matrix (docs/QA.md §2)', () =>
     await userEvent.type(within(form).getByLabelText('Address'), '192.168.10.248')
     await userEvent.click(within(form).getByRole('button', { name: 'Add Trap IP' }))
     expect(await within(form).findByText('Pick at least one service.')).toBeInTheDocument()
+  })
+})
+
+describe('honeypot: the LAN range is not known yet (#875 r1)', () => {
+  it('an administrator gets the link to the range field; anyone else is told to ask one, never sent to a forbidden page', async () => {
+    for (const [userId, admin] of [['u-op', false], ['u-admin', true]] as const) {
+      sessionStore.set({ userId })
+      const qc = makeQueryClient()
+      const v = render(<QueryClientProvider client={qc}><MemoryRouter><TrapIpsTab hits={[]} lan="" lanKnown={false} smbName={null} /></MemoryRouter></QueryClientProvider>)
+      await waitFor(() => expect(qc.getQueryData(['me'])).toBeTruthy())
+      if (admin) {
+        expect(await screen.findByRole('link', { name: 'Add your LAN range in Devices, Scope and sensors' })).toHaveAttribute('href', '/devices/setup?tab=scope#range-input')
+      } else {
+        expect(await screen.findByText(/Ask an administrator to add it in Devices, Scope and sensors\./)).toBeInTheDocument()
+        expect(screen.queryByRole('link', { name: /LAN range/ })).toBeNull()
+      }
+      v.unmount()
+    }
   })
 })

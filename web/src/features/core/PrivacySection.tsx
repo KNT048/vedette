@@ -32,6 +32,7 @@ function Body({ d }: { d: PrivacyState }) {
   // S-CORE-4 (walk 4): a container-only install has no vedette-host, apt, scan image build or chrony; flows 6 and 10 then
   // read as the container-only rows of PRIVACY.md (D-381). undefined while GET /modules loads: the appliance text.
   const container = useInstallKind() === 'container'
+  const oidcShown = useScope('auth-oidc') !== 'hidden' // post-v1: its switch is not on Settings, Modules in a v1 build
   const mcpShown = useScope('mcp-server') !== 'hidden' // D-624 (#819): no link to a Settings page this build does not offer
   const txt = (id: number, part: 'what' | 'to' | 'control') => t(container && (id === 6 || id === 10) ? `privacy.flow.${id}.container.${part}` : `privacy.flow.${id}.${part}`)
   // #824: a long cell shows its one-line summary (privacy.flowShort) and the full PRIVACY.md text behind ⓘ; the full text stays
@@ -60,43 +61,43 @@ function Body({ d }: { d: PrivacyState }) {
   const control = (f: PrivacyFlow) => {
       if (f.id === 6) return (
         <div className="flex items-center gap-2">
-          <Switch checked={d.update_check} disabled={gate.disabled || save.isPending} title={gate.title} aria-label={t('privacy.flow.6.switch')} onCheckedChange={(v) => void set({ update_check: v })} />
-          <span className="max-w-[220px] text-[13px] text-muted">{brief(6, 'control', txt(6, 'control'))}</span>
+          <Switch id="privacy-update-check" checked={d.update_check} disabled={gate.disabled || save.isPending} title={gate.title} aria-label={t('privacy.flow.6.switch')} onCheckedChange={(v) => void set({ update_check: v })} />
+          <span className="max-w-[220px] text-meta text-muted">{brief(6, 'control', txt(6, 'control'))}</span>
         </div>
       )
       return (
-        <span className="block max-w-[240px] text-[13px] text-muted">
+        <span className="block max-w-[240px] text-meta text-muted">
           {brief(f.id, 'control', txt(f.id, 'control'))}{' '}
           {f.id === 3 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/ai">{t('privacy.flow.3.link')}</Link> : null}
           {f.id === 5 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/channels">{t('privacy.flow.5.link')}</Link> : null}
           {f.id === 7 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/siem">{t('privacy.flow.7.link')}</Link> : null}
-          {f.id === 8 || f.id === 9 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules">{t(`privacy.flow.${f.id}.link`)}</Link> : null}
+          {f.id === 8 || f.id === 9 ? <Link className="text-accent underline-offset-4 hover:underline" to={`/settings/modules#module-${f.id === 8 ? 'ai' : 'exposure'}`}>{t(`privacy.flow.${f.id}.link`)}</Link> : null}
           {f.id === 12 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/connections">{t('privacy.flow.12.link')}</Link> : null}
           {f.id === 13 && mcpShown ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/mcp">{t('privacy.flow.13.link')}</Link> : null}
-          {f.id === 11 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules">{t('privacy.flow.11.link')}</Link> : null}
-          {f.id === 10 && !container ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/network">{t('privacy.flow.10.link')}</Link> : null}
+          {f.id === 11 && oidcShown ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules#module-auth-oidc">{t('privacy.flow.11.link')}</Link> : null}
+          {f.id === 10 && !container ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/network?tab=time#ntp-mode">{t('privacy.flow.10.link')}</Link> : null}
           {f.id === 1 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/feeds">{t('privacy.flow.1.link')}</Link> : null}
           {f.id === 15 || f.id === 16 ? <Link className="text-accent underline-offset-4 hover:underline" to="/exposure">{t(`privacy.flow.${f.id}.link`)}</Link> : null}
         </span>
       )
   }
   const columns: ColumnDef<PrivacyFlow>[] = [
-    { id: 'flow', header: t('privacy.col.flow'), accessorFn: (f) => f.id, cell: ({ row }) => <span className="font-medium">{row.original.id}. {t(`privacy.flow.${row.original.id}.name`)}</span> },
-    { id: 'what', header: t('privacy.col.what'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => <div className="max-w-sm text-[13px]">{whatCell(row.original)}</div> },
-    { id: 'to', header: t('privacy.col.to'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => <span className="block max-w-[200px] text-[13px]">{toCell(row.original)}</span> },
+    { id: 'flow', header: t('privacy.col.flow'), accessorFn: (f) => f.id, cell: ({ row }) => <span id={`flow-${row.original.id}`} className="font-medium">{row.original.id}. {t(`privacy.flow.${row.original.id}.name`)}</span> },
+    { id: 'what', header: t('privacy.col.what'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => <div className="max-w-sm text-meta">{whatCell(row.original)}</div> },
+    { id: 'to', header: t('privacy.col.to'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => <span className="block max-w-[200px] text-meta">{toCell(row.original)}</span> },
     { id: 'state', header: t('privacy.col.state'), accessorFn: (f) => f.state, cell: ({ row }) => stateChip(row.original) },
     { id: 'control', header: t('privacy.col.control'), enableSorting: false, accessorFn: (f) => f.id, cell: ({ row }) => control(row.original) },
   ]
   return (
     <>
       <ReadOnlyNote role="admin" />
-      <Section title={t('privacy.flows')} description={t('privacy.flowsDesc')} info={t('privacy.flowsInfo')}>
+      <Section id="flows" title={t('privacy.flows')} description={t('privacy.flowsDesc')} info={t('privacy.flowsInfo')}>
         <DataTable data={d.flows} columns={columns} caption={t('privacy.flows')} pageSize={20} mobileRow={(f) => (
           <div className="grid gap-1.5">
-            <div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{f.id}. {t(`privacy.flow.${f.id}.name`)}</span>{stateChip(f)}</div>
-            <div className="text-[13px]">{whatCell(f)}</div>
-            <div className="text-[13px] text-muted"><span className="font-medium text-ink">{t('privacy.col.to')}: </span>{toCell(f)}</div>
-            <div className="text-[13px] text-muted"><span className="font-medium text-ink">{t('privacy.col.control')}: </span>{control(f)}</div>
+            <div className="flex flex-wrap items-center justify-between gap-2"><span id={`flow-${f.id}`} className="font-medium">{f.id}. {t(`privacy.flow.${f.id}.name`)}</span>{stateChip(f)}</div>
+            <div className="text-meta">{whatCell(f)}</div>
+            <div className="text-meta text-muted"><span className="font-medium text-ink">{t('privacy.col.to')}: </span>{toCell(f)}</div>
+            <div className="text-meta text-muted"><span className="font-medium text-ink">{t('privacy.col.control')}: </span>{control(f)}</div>
           </div>
         )} />
       </Section>

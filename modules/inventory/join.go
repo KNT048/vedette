@@ -169,6 +169,11 @@ const (
 // its id; in a chassis join also its address and MAC; in a machine join it takes from's address when from was seen later and into is
 // a discovered device (a person's address and the box's stay). The fields are folded again by the usual rules (RecomputeAsset).
 func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why string, mode joinMode) error {
+	return s.joinAs(ctx, tx, from, into, why, mode, systemActor)
+}
+
+// joinAs is joinInto with the audit row written as actor: systemActor for the join rules, the person who merged two rows (D-599).
+func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string, mode joinMode, actor string) error {
 	fromName, intoName := deviceName(ctx, tx, from), deviceName(ctx, tx, into)
 	rows, err := tx.QueryContext(ctx, `SELECT field, value, source, confidence, seen_at, evidence FROM inv_observation WHERE asset_id = ?`, from)
 	if err != nil {
@@ -207,10 +212,10 @@ func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why stri
 			return err
 		}
 	}
-	var fromIP, fromSeen, fromAgent, fromAgentIP sql.NullString
+	var fromIP, fromSeen, fromAgent, fromAgentIP, fromConfirmed sql.NullString
 	var newer bool // from was seen after into (before the join folds their times)
-	if err := tx.QueryRowContext(ctx, `SELECT f.ip, f.last_seen, f.agent_key, f.agent_ip, f.last_seen >= i.last_seen FROM inv_asset f, inv_asset i WHERE f.id = ? AND i.id = ?`,
-		from, into).Scan(&fromIP, &fromSeen, &fromAgent, &fromAgentIP, &newer); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT f.ip, f.last_seen, f.agent_key, f.agent_ip, f.ip_confirmed_at, f.last_seen >= i.last_seen FROM inv_asset f, inv_asset i WHERE f.id = ? AND i.id = ?`,
+		from, into).Scan(&fromIP, &fromSeen, &fromAgent, &fromAgentIP, &fromConfirmed, &newer); err != nil {
 		return fmt.Errorf("inventory: read device: %w", err)
 	}
 	for _, q := range []string{
@@ -237,13 +242,15 @@ func (s *Service) joinInto(ctx context.Context, tx *sql.Tx, from, into, why stri
 			return fmt.Errorf("inventory: move the agent: %w", err)
 		}
 	}
-	if mode == joinMachine && fromIP.Valid { // from is deleted: its address is free
-		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = ? WHERE id = ? AND origin = 'discovered' AND is_box = 0 AND (ip IS NULL OR ?)`,
-			fromIP.String, into, newer); err != nil {
+	// from is deleted: its address is free. A hand-added row bound to a MAC or an agent moves like a discovered one (#829).
+	if mode == joinMachine && fromIP.Valid {
+		if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET ip = ?, ip_confirmed_at = ? WHERE id = ? AND is_box = 0
+			AND (origin = 'discovered' OR mac IS NOT NULL OR agent_key IS NOT NULL) AND (ip IS NULL OR ?)`,
+			fromIP.String, fromConfirmed, into, newer); err != nil {
 			return fmt.Errorf("inventory: move the address: %w", err)
 		}
 	}
-	return s.auditTx(ctx, tx, systemActor, "inventory.merge", intoName, fromName+" is the same device: "+why)
+	return s.auditTx(ctx, tx, actor, "inventory.merge", intoName, fromName+" is the same device: "+why)
 }
 
 // chassisOwner is the device a join left the chassis MAC mac on, when it still has an address: an observation that names only that
@@ -333,20 +340,43 @@ func (s *Service) joinSame(ctx context.Context, tx *sql.Tx, o *outbox, touched [
 	return gone, joined, nil
 }
 
-// sameAs finds the pair of rows a touched row is part of: from goes into into. "" when none fits.
+// sameAs finds the pair of rows a touched row is part of: from goes into into. "" when none fits. A pair a person kept separate
+// (D-599, inv_separate) is never joined by any rule.
 func sameAs(ctx context.Context, tx *sql.Tx, id string, now time.Time) (from, into, why string, mode joinMode, err error) {
-	if into, why, err = sameDevice(ctx, tx, id); into != "" || err != nil {
-		return id, into, why, joinChassis, err
+	if into, why, err = sameDevice(ctx, tx, id); err != nil {
+		return "", "", "", 0, err
+	}
+	if into != "" {
+		if apart, err := keptApart(ctx, tx, id, into); err != nil || !apart {
+			return id, into, why, joinChassis, err
+		}
+	}
+	if from, why, err = handBound(ctx, tx, id); err != nil {
+		return "", "", "", 0, err
+	}
+	if from != "" { // #829 C1: the hand-added device keeps its id
+		if apart, err := keptApart(ctx, tx, from, id); err != nil || !apart {
+			return from, id, why, joinMachine, err
+		}
 	}
 	var orphan string
 	if orphan, why, err = agentOrphan(ctx, tx, id); err != nil {
 		return "", "", "", 0, err
 	} else if orphan != "" {
-		from, into, err = keptOrder(ctx, tx, orphan, id) // an approval the enrolment gave the orphan stays (review #831 L5)
-		return from, into, why, joinMachine, err
+		if apart, err := keptApart(ctx, tx, orphan, id); err != nil {
+			return "", "", "", 0, err
+		} else if !apart {
+			from, into, err = keptOrder(ctx, tx, orphan, id) // an approval the enrolment gave the orphan stays (review #831 L5)
+			return from, into, why, joinMachine, err
+		}
 	}
-	if from, into, why, err = sameMAC(ctx, tx, id, now); from != "" || err != nil {
-		return from, into, why, joinMachine, err
+	if from, into, why, err = sameMAC(ctx, tx, id, now); err != nil {
+		return "", "", "", 0, err
+	}
+	if from != "" {
+		if apart, err := keptApart(ctx, tx, from, into); err != nil || !apart {
+			return from, into, why, joinMachine, err
+		}
 	}
 	from, into, why, err = sameMachine(ctx, tx, id, now)
 	return from, into, why, joinMachine, err
@@ -454,6 +484,10 @@ func sameMachine(ctx context.Context, tx *sql.Tx, id string, now time.Time) (fro
 	}
 	if len(fits) != 1 {
 		return "", "", "", nil
+	}
+	// A pair a person kept separate (D-599) still counts above: it keeps the name ambiguous for any third row (review r2 of #871 M1).
+	if apart, err := keptApart(ctx, tx, id, fits[0]); apart || err != nil {
+		return "", "", "", err
 	}
 	if together, err := onlineTogether(ctx, tx, id, fits[0], now); together || err != nil {
 		return "", "", "", err

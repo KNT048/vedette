@@ -256,6 +256,10 @@ function CredentialRow({ c, index, onEdit, onDelete }: { c: SnmpCredential; inde
         </div>
       </div>
       {c.secret_lost ? <Notice tone="danger" role="alert" className="mb-0" title={t('snmp.secretLost')}>{t('snmp.secretLostBody')}</Notice> : null}
+      {c.moved_out.map((m) => (
+        <Notice key={m.device_id} tone="warn" role="status" className="mb-0" title={t('snmp.movedOut', { name: m.name, ip: m.ip })}
+          actions={<Link to={`/devices/${encodeURIComponent(m.device_id)}`} className="text-[13px] underline">{t('snmp.movedOutDevice')}</Link>}>{m.message}</Notice>
+      ))}
       <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[max-content_1fr]">
         {c.version === 'v2c' ? (
           <><dt className="text-[13px] text-muted">{t('snmp.form.community')}</dt><dd><SecretMask last4={c.secret_last4} /></dd></>

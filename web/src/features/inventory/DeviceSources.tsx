@@ -113,6 +113,9 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
   const canOp = useCan('operator')
   const approve = useDeviceAction(d.asset.id).approve
   const a = d.asset
+  // #829 C4: credentials this device answered before it moved out of their scope (the list is admin-only).
+  const snmpList = useSnmp(snmpOn && admin)
+  const movedOut = (snmpList.data?.credentials ?? []).flatMap((c) => c.moved_out.filter((m) => m.device_id === a.id).map((m) => ({ cred: c.name, ...m })))
   const feeds = feedsOf(d)
   const ip = a.ip && IPV4.test(a.ip) ? a.ip : ''
   const declared = a.origin === 'manual'
@@ -163,6 +166,7 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
                 {action(f)}
               </div>
               <p className="text-meta text-muted">{t(`sources.what.${f}`)}</p>
+              {f === 'snmp' ? movedOut.map((m) => <p key={m.cred} role="status" className="text-meta text-warn">{t('sources.snmp.movedOut', { ip: m.ip, name: m.cred })}</p>) : null}
               {f === 'snmp' && reading && ip ? <SnmpRead ip={ip} /> : null}
             </li>
           )

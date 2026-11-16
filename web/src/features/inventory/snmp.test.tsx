@@ -186,6 +186,25 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     expect((await call('GET', '/snmp')).json!.credentials[0]).toMatchObject({ id: 'snmp-1', secret_lost: false, secret_last4: 'pass' })
   })
 
+  it('#829 C4: a device that moved out of a credential\'s scope is named on the credential, in Read now and on the device page; nothing is read there', async () => {
+    const message = 'nas02 moved to 192.168.10.21, outside the scope of this credential. If it is still nas02, add the address to the scope to keep reading it. Nothing is sent there until then.'
+    snmpStore.update((l) => l.map((x) => (x.id === 'snmp-1' ? { ...x, scope: ['192.168.10.200/32'], moved_out: [{ device_id: 'a-nas02', name: 'nas02', ip: '192.168.10.21', message }] } : x)))
+    expect((await call('GET', '/snmp')).json!.credentials[0].moved_out).toEqual([{ device_id: 'a-nas02', name: 'nas02', ip: '192.168.10.21', message }])
+    const run = await call('POST', '/snmp/snmp-1/read')
+    expect(run.status).toBe(202)
+    expect(run.json).toMatchObject({ total: 0, skipped: 1, results: [{ ip: '192.168.10.21', ok: false, reason: 'not_for_this_credential', device_id: 'a-nas02', message }] })
+    const { unmount } = renderApp('/devices/setup?tab=snmp')
+    const li = await row('Core switches (v3)')
+    expect(within(li).getByRole('status')).toHaveTextContent('nas02 moved to 192.168.10.21, outside this credential\'s scope')
+    expect(within(li).getByRole('status')).toHaveTextContent(message)
+    expect(within(li).getByRole('link', { name: 'Open the device' })).toHaveAttribute('href', '/devices/a-nas02')
+    unmount()
+    renderApp('/devices/a-nas02', { role: 'admin' })
+    const sources = await screen.findByRole('list', { name: 'Sources' }, T)
+    const snmp = within(sources).getByText('SNMP').closest('li') as HTMLElement
+    expect(await within(snmp).findByText(/^This device moved to 192\.168\.10\.21, outside the scope of SNMP credential Core switches \(v3\)/, undefined, T)).toBeInTheDocument()
+  })
+
   it('says why SNMP reads are not available, and adding still works', async () => {
     server.use(http.get('*/api/v1/inventory/snmp', () => HttpResponse.json({ credentials: [], ready: false, message: 'The scan container has not reported yet.' })))
     renderSnmp()

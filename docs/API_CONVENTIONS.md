@@ -388,7 +388,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `unknown` | 404 | This link is not valid. | `POST /response/approve/{token}` |
 | `unknown_cve` | 404 | This CVE is not on the exploited list the box holds. The AI only explains CVEs the box has data for. | `POST /ai/cve/{id}/explain`; `POST /ai/cve/{id}/news` |
 
-#### HTTP 409 (104 mã)
+#### HTTP 409 (105 mã)
 
 | Code | HTTP | Thông điệp mẫu (EN, từ mock) | Endpoint dùng |
 |---|---|---|---|
@@ -400,7 +400,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `already_requested` | 409 | This action already has an open request or has already been carried out. | `POST /response/proposals/{id}/request`; `POST /response/incidents/{id}/request` (D-509) |
 | `already_running` | 409 | A scan is already running. Wait for it to finish or press Stop now. | `POST /scans/runs`; `POST /scanning/engines/nmap-discovery/run` (#850) |
 | `already_setup` | 409 | This box is already set up. Sign in with the administrator account. | `POST /core/setup` |
-| `box_device` | 409 | This is the Vedette box itself, so it cannot be deleted. It is always the first device in the list. Its packages come fr | `DELETE /inventory/devices/{id}` |
+| `box_device` | 409 | This is the Vedette box itself, so it cannot be deleted. It is always the first device in the list. Its packages come fr | `DELETE /inventory/devices/{id}`; `POST /inventory/devices/{id}/merge`, `POST /inventory/devices/{id}/keep-separate` (D-599: "…so it cannot be merged with another device / compared with another device. It is always its own device.") |
 | `circuit_open` | 409 | The circuit breaker is open: too many actions in one hour, so everything is paused. An admin can resume it in Settings, AI response. | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/proposals/{id}/request`; rule runs (resp_log); the emergency stop opens it too (D-88 amendment 2026-11-09); `POST /response/incidents/{id}/request` (D-509) |
 | `connection_changed` | 409 | The connection "…" was changed after the request was made. Nothing was changed. Ask again. (another connection, address or version than the one the request was rendered against) | `POST /response/actions/{id}/approve` (item refused right before it runs); `POST /response/actions/{id}/rollback`; `POST /core/connections/{id}/test` (the connection was edited while the test ran, so the result was not saved) |
 | `builtin` | 409 | Built-in actions cannot be deleted. Disable it instead. | `DELETE /response/catalog/{id}` |
@@ -431,6 +431,7 @@ Mã dựng bởi hàm kiểm tra có bảng riêng (`response/state.ts` `checkCa
 | `no_devices` | 409 | No device in the inventory matches (agent sample data). | `POST /inventory/agents/tokens/{id}/sample-data`; `POST /inventory/agents/wazuh/sample-data` |
 | `no_source` | 409 | This incident names no single address Vedette can act on. Nothing was requested. | `POST /response/incidents/{id}/request` (D-509): not a trap incident, a test hit, or the hit is gone |
 | `incident_resolved` | 409 | This incident is resolved, so nothing is offered. Reopen it in Incidents to act on it. | `POST /response/incidents/{id}/request` (D-509) |
+| `not_same_device` | 409 | These are two machines: an agent reports from each of them. / These are two machines: each has its own hardware MAC address (aa:… and bb:…). Keep them separate; delete a device only when its machine is gone. | `POST /inventory/devices/{id}/merge` (D-599) |
 | `not_toggleable` | 409 | This engine has no switch of its own: it follows nmap-discovery / it runs as a step of another scan. (#850) | `PATCH /scanning/engines/{id}` (nmap-versions, snmp, zap) |
 | `source_unconfirmed` | 409 | The source of a scan or of a UDP request can be forged: it completed no connection, so this address may belong to someone innocent. Confirm on the device first. Nothing is offered for it. | `POST /response/incidents/{id}/request` (D-509, honeypot D-467): a scan hit, or a UDP trap hit (TFTP, NTP, SIP), whose source has no TCP service hit within the hour around it |
 | `no_pending` | 409 | No key is waiting for confirmation. Click "Turn on two-factor authentication" to create one. | `POST /core/account/2fa/confirm` |

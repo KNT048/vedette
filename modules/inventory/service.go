@@ -79,6 +79,9 @@ type Service struct {
 
 	retMu sync.Mutex
 	ret   retention // the prune job's unbroken-run state (retention.go)
+
+	staleMu sync.Mutex
+	stale   map[string]time.Time // device → when staleLog last logged it
 }
 
 // New returns the service.

@@ -1,11 +1,16 @@
 // #847 (J7 #812): after a backup restored without its decryption key, the box cannot read the block list token. The Block list tab
 // shows the box's sentence (the firewall keeps its address) and keeps Regenerate token reachable; Regenerate shows the new address.
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { renderApp } from '@/test/render'
 import { server } from '@/test/server'
+
+// D-624 (#819, #841): AI response is hidden in the v1 GUI (POST_V1_IN_UI false) but its screens are kept; run them as offered,
+// as response.test.tsx does.
+const postV1 = vi.hoisted(() => ({ POST_V1_IN_UI: true }))
+vi.mock('@/lib/postV1', () => postV1)
 
 const LOST = 'The block list address could not be read on this box (it was restored without the decryption key, or the box key changed). Your firewall keeps using its current address. Press Regenerate token to make a new one, then paste it into the firewall.'
 const T = { timeout: 5000 }

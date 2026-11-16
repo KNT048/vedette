@@ -46,6 +46,8 @@
       "none": "No SNMP credential is saved yet.",
       "addFor": "Add an SNMP credential for {{ip}}",
       "addAnother": "Add a credential for this address",
+      "addToScope": "Add {{ip}} to {{name}}",
+      "addToScopeHint": "Vedette asks for the credential's community or passwords again before it sends them to one more address.",
       "credential": "Credential",
       "read": "Read this device now",
       "scopeHint": "In the scan window Vedette reads the device again with every credential whose scope holds its address. A credential whose scope does not hold it says so here."

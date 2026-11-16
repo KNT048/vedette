@@ -37,3 +37,26 @@ func TestContract_D598_AnEnrolledMachineThatMovesStaysOneDevice(t *testing.T) {
 		t.Fatalf("after the move: at %s %v id %s (want %s), %d devices", peerB, ok, d.ID, scanned.ID, w.deviceCount())
 	}
 }
+
+// D-598, review #831 M4: a machine that enrols again (same token and host_identifier) gets a new node; the old node's binding is
+// released, so the new node's first report binds the same device: when the machine then moves to another address before any sensor
+// sees it, its report still lands on that device.
+func TestContract_D598_ReEnrolmentRebindsTheDevice(t *testing.T) {
+	w := newWorld(t)
+	const card, peerB = "00:16:3e:aa:bb:01", "192.0.2.44"
+	report := func(key, peer string) map[string]any {
+		return logBody(key, snap("interfaces", ifaceRow(card, peer)), snap("system_info", map[string]string{"hostname": "srv-1"}))
+	}
+	_, secret := w.token("srv", 7)
+	first := w.enroll(secret, "srv-1", peerA)
+	w.post("/intake/osquery/log", peerA, report(first, peerA))
+	d, _ := w.device(peerA)
+	w.clock.Advance(2 * time.Minute)
+	second := w.enroll(secret, "srv-1", peerA)
+	w.post("/intake/osquery/log", peerA, report(second, peerA))
+	w.clock.Advance(time.Hour)
+	w.post("/intake/osquery/log", peerB, report(second, peerB))
+	if moved, ok := w.device(peerB); !ok || moved.ID != d.ID || w.deviceCount() != 1 {
+		t.Errorf("after the move: at %s %v id %s (want %s), %d devices", peerB, ok, moved.ID, d.ID, w.deviceCount())
+	}
+}

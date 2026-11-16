@@ -152,6 +152,13 @@ type Approver interface {
 	ApproveEnrolled(ctx context.Context, hint AssetHint, mac, reason string, agentSaw bool) (found bool, err error)
 }
 
+// AgentReleaser is told the agents (AssetHint.Agent) that no longer exist: a node replaced by a re-enrolment, revoked with its token, or
+// pruned. The devices bound to them can then be bound by the next agent that reports on them (D-598). Optional: the inventory
+// implements it next to Approver.
+type AgentReleaser interface {
+	ReleaseAgents(ctx context.Context, agents []string) error
+}
+
 // SoftwareSink receives the full software list of one device from one source. The list replaces the
 // rows that source reported before (rows of other sources are untouched).
 type SoftwareSink interface {

@@ -441,7 +441,9 @@ func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.Asse
 	if _, ok := parseWinOS(in.snaps["os_revision"]); ok { // stored on the node before deliver (nodeWindows); only a usable one counts
 		taken = append(taken, "os_revision")
 	}
-	if obs := observations(hint, in.snaps, mac); len(obs) > 0 {
+	obs := observations(hint, in.snaps, mac)
+	recorded := len(obs) > 0
+	if recorded {
 		if err := s.record(ctx, obs); err != nil {
 			return nil, err
 		}
@@ -468,6 +470,13 @@ func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.Asse
 	// the first hour keeps asking for it, so the row comes within minutes, not with the next hourly list (D-546, review M3).
 	if len(in.snaps["programs"]) == 0 || in.snaps["windows_os"] != nil {
 		taken = append(taken, "packages")
+	}
+	if !recorded && mac != "" {
+		// The card's MAC goes in before the list (D-598, review #831 M3): the inventory checks the device the node is bound to against
+		// the MACs of the node's observation batch, and a list carries none.
+		if err := s.record(ctx, []observe.Observation{{AssetHint: hint, Field: observe.MAC, Value: mac, Source: observe.Agent, Confidence: 0.9}}); err != nil {
+			return nil, err
+		}
 	}
 	if err := s.cfg.Software.ReplaceSoftware(ctx, hint, observe.Agent, items); err != nil {
 		if transient(err) {

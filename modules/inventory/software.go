@@ -368,12 +368,12 @@ func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, c cleanO
 	}
 	find := c
 	find.source = "" // a list moves no address by its source (as before D-598); the agent bound to a device does, in resolve
-	id, isNew, err := s.resolve(ctx, tx, find)
-	if err == nil && c.agent != "" {
-		err = bindAgent(ctx, tx, id, c.agent)
+	id, isNew, err := s.resolve(ctx, tx, find) // binds no agent: the observation batch of the same report does (Record)
+	if err != nil {
+		return "", err
 	}
-	if err != nil || !isNew {
-		return id, err
+	if !isNew {
+		return s.settle(ctx, tx, o, id, false)
 	}
 	notify, err := notifyNew(ctx, tx)
 	if err != nil {
@@ -394,6 +394,39 @@ func (s *Service) deviceFor(ctx context.Context, tx *sql.Tx, o *outbox, c cleanO
 	if err := s.auditTx(ctx, tx, systemActor, "inventory.discover", target, id); err != nil {
 		return "", err
 	}
+	kept, err := s.settle(ctx, tx, o, id, true)
+	if err != nil || kept != id { // joined into a known device in the same write: never announced
+		return kept, err
+	}
 	o.add(EventAssetDiscovered, AssetEvent{AssetID: id, Notify: notify, Learning: learning})
+	return id, nil
+}
+
+// settle runs the join rules (joinSame) on the device a list reached, as Record does for its batch (D-598, review #831 L6): finding
+// the device may have taken an address from another row (claimIP), which a join then resolves. It returns the device the list
+// belongs to: the one a joined row went into. A device that received another is folded again and announced updated.
+func (s *Service) settle(ctx context.Context, tx *sql.Tx, o *outbox, id string, isNew bool) (string, error) {
+	view, err := matchView(ctx, tx, id)
+	if err != nil {
+		return "", err
+	}
+	before := map[string]string{id: view}
+	created := map[string]string{}
+	if isNew {
+		created[id] = "list"
+	}
+	gone, joined, err := s.joinSame(ctx, tx, o, []string{id}, created, before)
+	if err != nil {
+		return "", err
+	}
+	for _, j := range joined {
+		if _, err := s.RecomputeAsset(ctx, tx, j); err != nil {
+			return "", err
+		}
+		o.add(EventAssetUpdated, AssetEvent{AssetID: j, Match: true})
+	}
+	if gone[id] && len(joined) > 0 {
+		return joined[len(joined)-1], nil
+	}
 	return id, nil
 }

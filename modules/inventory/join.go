@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/knt048/vedette/content/devicetypes"
 	"github.com/knt048/vedette/core/store"
@@ -304,7 +305,7 @@ func (s *Service) joinSame(ctx context.Context, tx *sql.Tx, o *outbox, touched [
 		if gone[id] {
 			continue
 		}
-		from, into, why, mode, err := sameAs(ctx, tx, id)
+		from, into, why, mode, err := sameAs(ctx, tx, id, s.clock())
 		if err != nil {
 			return nil, nil, err
 		}
@@ -333,31 +334,42 @@ func (s *Service) joinSame(ctx context.Context, tx *sql.Tx, o *outbox, touched [
 }
 
 // sameAs finds the pair of rows a touched row is part of: from goes into into. "" when none fits.
-func sameAs(ctx context.Context, tx *sql.Tx, id string) (from, into, why string, mode joinMode, err error) {
+func sameAs(ctx context.Context, tx *sql.Tx, id string, now time.Time) (from, into, why string, mode joinMode, err error) {
 	if into, why, err = sameDevice(ctx, tx, id); into != "" || err != nil {
 		return id, into, why, joinChassis, err
 	}
-	if from, why, err = agentOrphan(ctx, tx, id); from != "" || err != nil {
-		return from, id, why, joinMachine, err
+	var orphan string
+	if orphan, why, err = agentOrphan(ctx, tx, id); err != nil {
+		return "", "", "", 0, err
+	} else if orphan != "" {
+		from, into, err = keptOrder(ctx, tx, orphan, id) // an approval the enrolment gave the orphan stays (review #831 L5)
+		return from, into, why, joinMachine, err
 	}
-	from, into, why, err = sameMachine(ctx, tx, id)
+	from, into, why, err = sameMachine(ctx, tx, id, now)
 	return from, into, why, joinMachine, err
 }
 
-// genericNames are host names many machines carry out of the box (D-598): two devices that share one are not the same device.
-var genericNames = append(slices.Clone(defaultNames), "android", "client", "debian", "desktop", "device", "esp32", "esp8266", "espressif",
-	"galaxy", "host", "imac", "ipad", "iphone", "laptop", "mac", "macbook", "macbook-air", "macbook-pro", "none", "pc", "raspberrypi",
-	"tasmota", "ubuntu", "unknown", "windows")
+// genericNames are host names many machines carry out of the box (D-598), with or without a number a name service added
+// ("MacBook-Pro-2", Bonjour's answer to a clash): two devices that share one are not the same device.
+var genericNames = regexp.MustCompile(`^(iphone|ipad|ipod|imac|mac|macbook|macbook-air|macbook-pro|mac-mini|mac-studio|mac-pro|android|galaxy|pixel|` +
+	`pc|desktop|laptop|notebook|windows|ubuntu|debian|fedora|raspberrypi|host|client|device|unknown|none|localhost|esp32|esp8266|espressif|tasmota|` +
+	`switch|router|ap|gateway|mikrotik|amnesiac|k8s-worker|k8s-master|node|worker|vm)(-\d+)?$`)
+
+// defaultPrefixes are names a system makes from its model or a random suffix (Samsung "Galaxy-A52", Google "Pixel-7", Windows
+// "DESKTOP-7GH2K1L", "LAPTOP-…", "WIN-…", Android "android-<hex>"): the model is shared by many devices, the suffix is not chosen
+// by a person, so such a name says nothing about one machine.
+var defaultPrefixes = regexp.MustCompile(`^(galaxy|pixel|redmi|oneplus|xiaomi|huawei|oppo|vivo|desktop|laptop|win|android)-`)
 
 // ipLikeName is a name made from an address ("dhcp-192-168-1-20"): it names the lease, not the machine.
 var ipLikeName = regexp.MustCompile(`\d{1,3}[-._]\d{1,3}[-._]\d{1,3}[-._]\d{1,3}`)
 
 // machineName is the part of a host name that identifies a machine (D-598): its first label, lower case ("Kiens-MacBook-Air.local" ->
-// "kiens-macbook-air"); "" for a name too short, generic, made of an address, or only an identifier (uuidName).
+// "kiens-macbook-air"); "" for a name too short, generic or made by the system (genericNames, defaultPrefixes), made of an address,
+// or only an identifier (uuidName).
 func machineName(h string) string {
 	l, _, _ := strings.Cut(strings.TrimSpace(h), ".")
 	l = strings.ToLower(l)
-	if len(l) < 3 || slices.Contains(genericNames, l) || uuidName.MatchString(l) || ipLikeName.MatchString(l) {
+	if len(l) < 3 || genericNames.MatchString(l) || defaultPrefixes.MatchString(l) || uuidName.MatchString(l) || ipLikeName.MatchString(l) {
 		return ""
 	}
 	return l
@@ -380,14 +392,18 @@ func macKinds(ctx context.Context, tx *sql.Tx, id string) (burned, private bool,
 	return b > 0, p > 0, nil
 }
 
-// sameMachine finds the other row of a machine that has no burned-in MAC (D-598): a phone or laptop with a private Wi-Fi address
-// (macOS, iOS, Android and Windows pick a locally administered MAC per network or per day, DHCP then gives a new address, and every
-// new MAC made a new row). Two rows are one machine when neither has a MAC its maker burned in, one of them has a private one (two
-// rows known only by address, a server with two addresses on a routed subnet, stay two), they carry the same host name
-// (machineName: first label, any case; not generic) and state no other model or OS (facts, differ), and exactly one other row
-// carries that name; never the box, never two rows a person declared. The row that stays: one a person declared, else an approved
-// one, else the older one (first_seen, then the smaller id); so a person's approval and address stay where they are.
-func sameMachine(ctx context.Context, tx *sql.Tx, id string) (from, into, why string, err error) {
+// rotationQuiet is how long the row a private address left must have been silent before another row of its name joins it (D-598,
+// review #831 M2): a rotation never shows the old and the new address at once, two machines of one name do.
+const rotationQuiet = 5 * time.Minute
+
+// sameMachine finds the other row of a machine whose Wi-Fi address is private (D-598): macOS, iOS, Android and Windows pick a locally
+// administered MAC per network or per day, DHCP then gives a new address, and every new MAC made a new row. Two rows are one machine
+// when **both** carry a private MAC and neither a burned-in one (a row known only by address, a declared row without a MAC, a server:
+// never; review #831 H1), they carry the same host name (machineName: first label, any case; not generic or system-made) and state
+// no other model or OS (facts, differ), exactly one other row carries that name, and they were not online at once: when both hold
+// different addresses, the row last seen earlier must have gone silent before the other row first appeared and for rotationQuiet
+// (two phones of one name, cloned VMs; review #831 M2). Never the box, never two rows a person declared. The row that stays: keptOrder.
+func sameMachine(ctx context.Context, tx *sql.Tx, id string, now time.Time) (from, into, why string, err error) {
 	var isBox bool
 	if err := tx.QueryRowContext(ctx, `SELECT is_box FROM inv_asset WHERE id = ?`, id).Scan(&isBox); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -406,8 +422,7 @@ func sameMachine(ctx context.Context, tx *sql.Tx, id string) (from, into, why st
 	if name == "" {
 		return "", "", "", nil
 	}
-	burned, private, err := macKinds(ctx, tx, id)
-	if burned || err != nil {
+	if burned, private, err := macKinds(ctx, tx, id); burned || !private || err != nil {
 		return "", "", "", err
 	}
 	ids, err := candidates(ctx, tx, `SELECT id FROM inv_asset WHERE id <> ? AND is_box = 0 AND (lower(hostname) = ? OR (lower(hostname) >= ? AND lower(hostname) < ?))`,
@@ -428,13 +443,52 @@ func sameMachine(ctx context.Context, tx *sql.Tx, id string) (from, into, why st
 		if err != nil {
 			return "", "", "", err
 		}
-		if !b && (private || p) {
+		if !b && p {
 			fits = append(fits, other)
 		}
 	}
 	if len(fits) != 1 {
 		return "", "", "", nil
 	}
+	if together, err := onlineTogether(ctx, tx, id, fits[0], now); together || err != nil {
+		return "", "", "", err
+	}
+	if from, into, err = keptOrder(ctx, tx, id, fits[0]); from == "" || err != nil {
+		return "", "", "", err
+	}
+	return from, into, "the same host name " + name + " and a private Wi-Fi address", nil
+}
+
+// onlineTogether reports whether two rows holding different addresses may be two machines online at the same time: the one last seen
+// earlier was seen after the other first appeared, or less than rotationQuiet ago (it may still answer). Rows without an address, or
+// with the same one, are not both online.
+func onlineTogether(ctx context.Context, tx *sql.Tx, a, b string, now time.Time) (bool, error) {
+	var ipA, ipB sql.NullString
+	var firstA, lastA, firstB, lastB string
+	if err := tx.QueryRowContext(ctx, `SELECT x.ip, x.first_seen, x.last_seen, y.ip, y.first_seen, y.last_seen FROM inv_asset x, inv_asset y WHERE x.id = ? AND y.id = ?`,
+		a, b).Scan(&ipA, &firstA, &lastA, &ipB, &firstB, &lastB); err != nil {
+		return false, fmt.Errorf("inventory: read devices: %w", err)
+	}
+	if !ipA.Valid || !ipB.Valid || ipA.String == ipB.String {
+		return false, nil
+	}
+	if lastB < lastA { // a is the row last seen earlier
+		firstB, lastA = firstA, lastB
+	}
+	if lastA >= firstB {
+		return true, nil
+	}
+	t, err := time.Parse(time.RFC3339Nano, lastA)
+	if err != nil {
+		return true, nil // an unreadable time: do not join
+	}
+	return now.Sub(t) < rotationQuiet, nil
+}
+
+// keptOrder orders two rows of one machine (D-598): the row that stays is one a person declared, else an approved one, else the older
+// one (first_seen, then the smaller id); so a person's approval, an enrolment's and a declared address stay where they are. "" when
+// both were declared (a person keeps them apart).
+func keptOrder(ctx context.Context, tx *sql.Tx, x, y string) (from, into string, err error) {
 	type row struct {
 		id, origin, first string
 		approved          bool
@@ -442,34 +496,37 @@ func sameMachine(ctx context.Context, tx *sql.Tx, id string) (from, into, why st
 	read := func(id string) (row, error) {
 		r := row{id: id}
 		err := tx.QueryRowContext(ctx, `SELECT origin, approved, first_seen FROM inv_asset WHERE id = ?`, id).Scan(&r.origin, &r.approved, &r.first)
+		if err != nil {
+			err = fmt.Errorf("inventory: read device: %w", err)
+		}
 		return r, err
 	}
-	a, err := read(id)
+	a, err := read(x)
 	if err != nil {
-		return "", "", "", fmt.Errorf("inventory: read device: %w", err)
+		return "", "", err
 	}
-	b, err := read(fits[0])
+	b, err := read(y)
 	if err != nil {
-		return "", "", "", fmt.Errorf("inventory: read device: %w", err)
+		return "", "", err
 	}
 	if a.origin == "manual" && b.origin == "manual" {
-		return "", "", "", nil
+		return "", "", nil
 	}
-	stays := func(x, y row) bool { // x is kept over y
+	stays := func(p, q row) bool { // p is kept over q
 		switch {
-		case (x.origin == "manual") != (y.origin == "manual"):
-			return x.origin == "manual"
-		case x.approved != y.approved:
-			return x.approved
-		case x.first != y.first:
-			return x.first < y.first
+		case (p.origin == "manual") != (q.origin == "manual"):
+			return p.origin == "manual"
+		case p.approved != q.approved:
+			return p.approved
+		case p.first != q.first:
+			return p.first < q.first
 		}
-		return x.id < y.id
+		return p.id < q.id
 	}
 	if stays(a, b) {
-		a, b = b, a
+		return b.id, a.id, nil
 	}
-	return a.id, b.id, "the same host name " + name + " and no burned-in MAC (a private Wi-Fi address)", nil
+	return a.id, b.id, nil
 }
 
 // agentOrphan finds the row an agent made at an address no device held yet, which has since lost that address (D-598): the agent

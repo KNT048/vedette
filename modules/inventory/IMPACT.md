@@ -3,7 +3,7 @@
 ## Modifying: one machine one device (`sameMachine`, `agentOrphan`, `machineName`, `macKinds`, `bindAgent`, `inv_asset.agent_key`, `AssetHint.Agent`; D-598, INV-31)
 - **Counting devices**: loosening the name rule (generic names, burned-in MACs, address-only rows) joins machines that are not one; tightening it brings back one device and one "new unknown device" incident per private Wi-Fi address (issue #829).
 - **notify**: closes the joined row's new-device incident on `inventory.asset.merged` (D-554); **findings** moves its findings (`OnAssetMerged`); a join must keep publishing merged before deleted.
-- **agent-intake** sends `AssetHint.Agent` = `osquery:<node id>` (`nodeAgent`, INV-12); changing the prefix or the id unbinds every machine until its next report rebinds it. Wazuh sends none (agent ids are per manager and may be reused).
+- **agent-intake** calls `ReleaseAgents` (`observe.AgentReleaser`) for nodes it deletes; without it a re-enrolled machine stays found by address only (a binding is never overwritten). It also sends `AssetHint.Agent` = `osquery:<node id>` (`nodeAgent`, INV-12); changing the prefix or the id unbinds every machine until its next report rebinds it. Wazuh sends none (agent ids are per manager and may be reused).
 - **`modules/core/export_policy.go`** lists `agent_key` (JSON export).
 
 ## Modifying: naming (`DisplayName`, `Device.Name`, `Names`, `deviceName`), `approved_at`, `SetSoftwareVersion`, `AddManualDevice` id (D-471, INV-26)

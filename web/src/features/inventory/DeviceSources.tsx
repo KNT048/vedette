@@ -11,8 +11,8 @@ import { useMe } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { useSnmp, useSnmpActions } from './api'
 import { errMsg } from './kinds'
-import { SnmpAnswer } from './SnmpSection'
-import type { DeviceDetail, SnmpTestResult } from './types'
+import { CredentialDialog, SnmpAnswer } from './SnmpSection'
+import type { DeviceDetail, SnmpCredential, SnmpTestResult } from './types'
 
 /** The five ways a device is fed (D-598, issue #829): scan, passive sensor, SNMP, agent (osquery or Wazuh), the person. */
 const FEEDS = ['scan', 'passive', 'snmp', 'agent', 'manual'] as const
@@ -36,7 +36,11 @@ function feedsOf(d: DeviceDetail): Map<Feed, string | null> {
 
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/
 
-/** Read this device now with one saved SNMP credential (the same Test as Scope and sensors → SNMP, with this device's address). */
+/** The most credentials the box keeps (SnmpSection's SNMP_MAX; 409 too_many on the server). */
+const SNMP_MAX = 8
+
+/** Read this device now with one saved SNMP credential (the same Test as Scope and sensors → SNMP, with this device's address); add a
+ *  credential for this address, or add the address to a credential whose scope does not hold it, without leaving the page. */
 function SnmpRead({ ip }: { ip: string }) {
   const { t } = useTranslation('inventory')
   const q = useSnmp(true)
@@ -44,18 +48,18 @@ function SnmpRead({ ip }: { ip: string }) {
   const [cred, setCred] = useState('')
   const [result, setResult] = useState<SnmpTestResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [form, setForm] = useState<{ current: SnmpCredential | null; scope: string; widen: boolean } | null>(null)
   const creds = q.data?.credentials ?? []
-  const add = `/devices/setup?tab=snmp&snmp_ip=${encodeURIComponent(ip)}`
   if (q.isPending) return <p className="text-[13px] text-muted">{t('sources.snmp.loading')}</p>
+  const dialog = form ? <CredentialDialog current={form.current} scope={form.scope} widen={form.widen} onClose={() => setForm(null)} /> : null
+  const addNew = creds.length < SNMP_MAX
+    ? <Button size="sm" variant="link" onClick={() => setForm({ current: null, scope: ip, widen: false })}>{creds.length ? t('sources.snmp.addAnother') : t('sources.snmp.addFor', { ip })}</Button>
+    : null
   if (!creds.length) {
-    return (
-      <p className="text-[13px] text-muted">
-        {t('sources.snmp.none')}{' '}
-        <Link to={add} className="font-medium text-accent underline-offset-4 hover:underline">{t('sources.snmp.addFor', { ip })}</Link>
-      </p>
-    )
+    return <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted">{t('sources.snmp.none')} {addNew}{dialog}</div>
   }
   const chosen = cred || (creds[0]?.id ?? '')
+  const chosenCred = creds.find((c) => c.id === chosen)
   function submit(e: FormEvent) {
     e.preventDefault(); setResult(null); setError(null)
     test.mutate({ id: chosen, ip }, { onSuccess: setResult, onError: (er) => setError(errMsg(er)) })
@@ -64,18 +68,27 @@ function SnmpRead({ ip }: { ip: string }) {
     <div className="grid min-w-0 gap-2">
       <form onSubmit={submit} noValidate className="flex flex-wrap items-end gap-2">
         <Field label={t('sources.snmp.credential')} htmlFor="device-snmp-cred">
-          <Select id="device-snmp-cred" className="w-auto" value={chosen} onChange={(e) => setCred(e.target.value)}>
+          <Select id="device-snmp-cred" className="w-auto" value={chosen} onChange={(e) => { setCred(e.target.value); setResult(null) }}>
             {creds.map((c) => <option key={c.id} value={c.id}>{`${c.name} (${t(`snmp.version.${c.version}`)})`}</option>)}
           </Select>
         </Field>
         <Button type="submit" size="sm" variant="primary" disabled={test.isPending}>{test.isPending ? t('snmp.run.running') : t('sources.snmp.read')}</Button>
-        <Link to={add} className={cn(buttonVariants({ variant: 'link', size: 'sm' }))}>{t('sources.snmp.addAnother')}</Link>
+        {addNew}
       </form>
       {q.data && !q.data.ready ? <p className="text-[13px] text-warn">{q.data.message ?? t('snmp.notReady')}</p> : null}
       {test.isPending ? <p role="status" aria-live="polite" className="text-[13px] text-muted">{t('snmp.run.pending', { ip })}</p> : null}
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       {result && !test.isPending ? <SnmpAnswer r={result} ip={ip} /> : null}
+      {result?.reason === 'not_for_this_credential' && chosenCred && chosenCred.scope.length < 16 ? (
+        <div>
+          <Button size="sm" onClick={() => setForm({ current: chosenCred, scope: [...chosenCred.scope, ip].join('\n'), widen: true })}>
+            {t('sources.snmp.addToScope', { ip, name: chosenCred.name })}
+          </Button>
+          <p className="mt-1 text-[12px] text-muted">{t('sources.snmp.addToScopeHint')}</p>
+        </div>
+      ) : null}
       <p className="text-[12px] text-muted">{t('sources.snmp.scopeHint')}</p>
+      {dialog}
     </div>
   )
 }

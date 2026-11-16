@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Search } from 'lucide-react'
 import { PageHeader, Section } from '@/components/common/PageHeader'
-import { KpiStrip, type Kpi } from '@/components/common/PageFrame'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
@@ -17,12 +16,11 @@ import { useSetup } from '@/app/RequireSession'
 import { ApiError } from '@/lib/api'
 import { useAnswerWeekly, useFeedStatus, useHot, useWeekly } from './api'
 import { YouHaveCell } from './YouHaveCell'
+import { HomeDashboard, isFirstRun, useHome } from './HomeDashboard'
+import { useModuleEnabled } from '@/lib/modules'
 import { TwoStepPrompt } from '@/features/core/TwoStepPrompt'
 import { AlertChannelPrompt } from '@/features/core/AlertChannelPrompt'
 import { AiBudgetPrompt } from '@/features/ai/Budget'
-import { useFindings } from '@/features/findings/api'
-import { useDevices } from '@/features/inventory/api'
-import { useIncidents } from '@/features/notify/api'
 import type { HotRow } from './types'
 
 function SearchBox() {
@@ -159,46 +157,32 @@ function Weekly() {
   )
 }
 
-/** S-UI-1: four numbers that Home's own queries and three light list endpoints already answer. A cell whose module is off or whose query
- *  has not answered is left out (never a 0 that is really "unknown"). */
-function HomeKpis({ exploited }: { exploited: number }) {
-  const { t } = useTranslation('feeds')
-  const findings = useFindings()
-  const devices = useDevices()
-  const incidents = useIncidents()
-  const items: Kpi[] = []
-  if (findings.data) items.push({ value: findings.data.items.filter((f) => f.status === 'confirmed').length, label: t('home.kpi.confirmed'), to: '/findings?tab=open&status=confirmed' })
-  items.push({ value: exploited, label: t('home.kpi.exploited'), to: '/#hot' })
-  if (devices.data) items.push({ value: devices.data.counts.pending, label: t('home.kpi.review'), to: '/devices?tab=review' })
-  if (incidents.data) items.push({ value: incidents.data.incidents.filter((i) => i.status !== 'resolved').length, label: t('home.kpi.incidents'), to: '/incidents?tab=open' })
-  return <KpiStrip label={t('home.kpi.label')} items={items} />
-}
-
 export default function HomePage() {
   const { t } = useTranslation('feeds')
   const status = useFeedStatus()
   const setup = useSetup()
   const hot = useHot('7d')
+  const findingsOn = useModuleEnabled('findings')
+  const summary = useHome(findingsOn === true)
   const rows = hot.data?.rows ?? []
   const cves = rows.reduce((n, r) => n + r.cves.length, 0)
   const matched = rows.filter((r) => r.you_have === 'yes').length
   const { never, notice: kevTitle } = useKevNotice()
-  const title = !hot.data ? t('home.titleLoading') : kevTitle ? kevTitle : never ? t('home.titleNone') : status.data?.inventory_on === false ? t('home.titleNoInv', { count: cves }) : t('home.title', { count: cves, matched })
+  const s = summary.data
+  // #825: with findings on, the headline answers "is anything I run being exploited?" from the summary; the week's new CVEs are the board below.
+  const answer = s ? (isFirstRun(s) ? t('home.titleFirstRun') : s.open.total ? t('home.titleOpen', { count: s.open.devices }) : t('home.titleClear')) : null
+  const loading = !hot.data || (findingsOn === true && summary.isPending)
+  const title = loading ? t('home.titleLoading') : kevTitle ? kevTitle : never ? t('home.titleNone') : answer ? answer : status.data?.inventory_on === false ? t('home.titleNoInv', { count: cves }) : t('home.title', { count: cves, matched })
   return (
     <>
       <PageHeader
         title={title}
-        stories={['S-FEED-1', 'S-FEED-3']}
+        stories={['S-FEED-1', 'S-FEED-3', 'S-UI-1']}
         meta={never ? t('home.metaNone') : status.data ? <>{t('home.meta', { time: fmtStamp(status.data.generated_at), sources: status.data.sources.map((s) => s.name).join(', ') })}{setup.data?.data_mode === 'sample' ? ` ${t('home.sampleInventory')}` : ''}</> : null}
         actions={<SearchBox />}
       />
-      {hot.data ? <HomeKpis exploited={cves} /> : null}
       <AiBudgetPrompt />
-      <AlertChannelPrompt />
-      <TwoStepPrompt />
-      {matched > 0 ? (
-        <p className="-mt-2 mb-6 text-sm"><Link to="/findings" className="text-accent underline-offset-4 hover:underline">{t('home.toFindings')}</Link></p>
-      ) : null}
+      <HomeDashboard kevNotice={kevTitle} prompts={<><AlertChannelPrompt /><TwoStepPrompt /></>} />
       <HotBoard />
       <Weekly />
     </>

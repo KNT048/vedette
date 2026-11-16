@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
@@ -6,25 +6,128 @@ import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { eachOption } from '@/test/formMatrix'
 import { server } from '@/test/server'
 import { api } from '@/lib/api'
-import { assetsStore, modulesStore, sessionStore } from '@/mocks/stores'
+import { assetsStore, findingsStore, modulesStore, sessionStore } from '@/mocks/stores'
 
 describe('feeds: home (S-FEED-1, S-FEED-2)', () => {
+  // The first-run card remembers per user in this browser (#825): each test starts as a new visitor.
+  afterEach(() => { for (const k of Object.keys(localStorage)) if (k.startsWith('vedette.home.')) localStorage.removeItem(k) })
+
   it('shows the answer line and the hot board from real KEV data, a11y clean', async () => {
     renderApp('/')
-    expect(await screen.findByRole('heading', { level: 1, name: /^Today: \d+ vulnerabilit/ })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: /^Today: / })).toBeInTheDocument()
     const table = await screen.findByRole('table', { name: 'Newly exploited' })
     expect(within(table).getAllByRole('row').length).toBeGreaterThan(1)
     expect(await screen.findByText(/Sources: CISA KEV/)).toBeInTheDocument()
     await expectNoA11yViolations()
   })
 
-  it('the strip under the title links to findings, this week\'s exploited CVEs, devices to review and incidents (S-UI-1)', async () => {
+  it('Home at a glance comes from one read: tiles link to the lists they count, Fix first shows CVSS next to the exploited list (#825)', async () => {
+    const seen: string[] = []
+    server.events.on('request:start', ({ request }) => { seen.push(new URL(request.url).pathname) })
+    renderApp('/')
+    expect(await screen.findByRole('heading', { level: 1, name: /^Today: \d+ of your devices runs? software being exploited$/ })).toBeInTheDocument()
+    const strip = await screen.findByRole('list', { name: 'Today at a glance' })
+    const tiles = within(strip).getAllByRole('listitem')
+    expect(tiles).toHaveLength(4)
+    expect(within(tiles[0]!).getByRole('link', { name: /^\d+ open exploited findings? on \d+ devices?$/ })).toHaveAttribute('href', '/findings?tab=open')
+    expect(within(tiles[0]!).getByRole('link', { name: /confirmed by scan$/ })).toHaveAttribute('href', '/findings?tab=open&status=confirmed')
+    expect(within(tiles[0]!).getByRole('img', { name: /^Open exploited findings over 30 days: \d+ then, \d+ now$/ })).toBeInTheDocument()
+    expect(within(tiles[1]!).getByRole('link', { name: /devices? watched$/ })).toHaveAttribute('href', '/devices')
+    expect(within(tiles[2]!).getByRole('link', { name: /alerts? sent, last 7 days$/ })).toHaveAttribute('href', '/settings/channels#history')
+    expect(within(tiles[3]!).getByRole('link', { name: /open incidents?$/ })).toHaveAttribute('href', '/incidents?tab=open')
+    const fix = await screen.findByRole('region', { name: 'Fix first' })
+    const rows = within(fix).getAllByRole('listitem')
+    expect(rows.length).toBeGreaterThan(0)
+    expect(rows.length).toBeLessThanOrEqual(5)
+    expect(within(rows[0]!).getAllByRole('link')[0]).toHaveAttribute('href', expect.stringMatching(/^\/findings\//))
+    expect(within(rows[0]!).getAllByText(/^In (CISA|VulnCheck) KEV$/).length).toBe(1)
+    // Every row has its CVSS line: a score with its band, or "No CVSS score", never 0.
+    for (const r of rows) expect(within(r).getByText(/^(CVSS|No CVSS score)$/)).toBeInTheDocument()
+    expect(within(fix).queryByText(/^0\.0$/)).toBeNull()
+    // Home no longer lists every finding, device and incident just to count them; the shell's badges share the same read.
+    expect(seen.filter((p) => p === '/api/v1/findings/summary')).toHaveLength(1)
+    expect(seen).not.toContain('/api/v1/findings')
+    expect(seen).not.toContain('/api/v1/inventory/devices')
+    expect(seen).not.toContain('/api/v1/notify/incidents')
+    server.events.removeAllListeners()
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+
+  it('the trend reads day by day from the keyboard (#825)', async () => {
+    renderApp('/')
+    const chart = await screen.findByRole('img', { name: /^Open exploited findings over 30 days/ })
+    chart.focus()
+    expect(await screen.findByText(/^Now: \d+ open$/)).toBeInTheDocument()
+    await userEvent.keyboard('{Home}')
+    expect(screen.getByText(/^\d{1,2} [A-Z][a-z]{2}: \d+ open$/)).toBeInTheDocument()
+  })
+
+  it('with Notifications off there is no alert or incident tile, never a 0 that means "unknown" (#825)', async () => {
+    modulesStore.update((l) => l.map((m) => (m.id === 'notify' ? { ...m, enabled: false } : m)))
     renderApp('/')
     const strip = await screen.findByRole('list', { name: 'Today at a glance' })
-    await waitFor(() => expect(within(strip).getAllByRole('link')).toHaveLength(4))
-    const hrefs = within(strip).getAllByRole('link').map((a) => a.getAttribute('href'))
-    expect(hrefs).toEqual(['/findings?tab=open&status=confirmed', '/#hot', '/devices?tab=review', '/incidents?tab=open'])
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+    expect(within(strip).getAllByRole('listitem')).toHaveLength(2)
+    expect(within(strip).queryByText(/alerts? sent/)).toBeNull()
+    expect(within(strip).queryByText(/incidents?/)).toBeNull()
+  })
+
+  it('nothing open: the good-news state, no Fix first list (#825)', async () => {
+    findingsStore.set([])
+    renderApp('/')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today: nothing you run is being exploited' })).toBeInTheDocument()
+    expect(await screen.findByText('Nothing you run is being exploited')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Fix first' })).toBeNull()
+  })
+
+  it('first run: the steps instead of tiles of zeros; a device is added right on Home; done steps say so (#825, docs/UI.md §0)', async () => {
+    findingsStore.set([])
+    assetsStore.set([])
+    renderApp('/')
+    expect(await screen.findByRole('heading', { level: 1, name: 'Today: add your devices so Vedette can check them' })).toBeInTheDocument()
+    const card = await screen.findByRole('region', { name: 'Get started' })
+    expect(screen.queryByRole('list', { name: 'Today at a glance' })).toBeNull()
+    expect(within(card).getByText('Find your devices')).toBeInTheDocument()
+    expect(within(card).getByRole('link', { name: 'Set the network range' })).toHaveAttribute('href', '/devices/setup#range-input')
+    expect(await within(card).findByText('Get alerts')).toBeInTheDocument()
+    expect(await within(card).findByText('Turn on two-step sign-in')).toBeInTheDocument()
+    // A step not done yet links to its exact place; a done one says so instead.
+    const twofa = within(card).getByText('Turn on two-step sign-in').closest('li')!
+    expect(within(twofa).queryByRole('link', { name: 'Turn on two-step' }) ?? within(twofa).getByText('Two-step sign-in is on.')).toBeInTheDocument()
+    // The card holds the alert and two-step steps, so their notices are not shown twice.
+    expect(screen.queryByRole('link', { name: 'Set up an alert channel' })).toBeNull()
+    await userEvent.click(within(card).getByRole('button', { name: 'Add a device' }))
+    expect(await screen.findByRole('dialog', { name: /Add a device/ })).toBeInTheDocument()
+    await expectNoA11yViolations()
+  })
+
+  it('first run: a viewer sees the steps but cannot add a device (#825)', async () => {
+    findingsStore.set([])
+    assetsStore.set([])
+    renderApp('/', { role: 'viewer' })
+    const card = await screen.findByRole('region', { name: 'Get started' })
+    expect(within(card).getByRole('button', { name: 'Add a device' })).toBeDisabled()
+    expect(within(card).queryByRole('link', { name: 'Set the network range' })).toBeNull()
+  })
+
+  it('Hide keeps the first-run card away (#825)', async () => {
+    findingsStore.set([])
+    assetsStore.set([])
+    renderApp('/')
+    const card = await screen.findByRole('region', { name: 'Get started' })
+    await userEvent.click(within(card).getByRole('button', { name: 'Hide' }))
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Get started' })).toBeNull())
+    cleanup()
+    renderApp('/')
+    await screen.findByRole('heading', { level: 1, name: /^Today: add your devices/ })
+    expect(screen.queryByRole('region', { name: 'Get started' })).toBeNull()
+  })
+
+  it('the summary failing shows its error, the rest of Home still works (#825)', async () => {
+    server.use(http.get('*/api/v1/findings/summary', () => HttpResponse.json({ error: { code: 'x', message: 'The summary is not available.' } }, { status: 503 })))
+    renderApp('/')
+    expect(await screen.findByText('The summary is not available.')).toBeInTheDocument()
+    expect(await screen.findByRole('table', { name: 'Newly exploited' })).toBeInTheDocument()
   })
 
   it('"I have this" adds a manual device', async () => {
@@ -204,7 +307,8 @@ describe('feeds: what the real backend needs from the GUI (mock → real)', () =
     first.unmount()
     server.use(http.get('*/api/v1/feeds/status', () => HttpResponse.json({ generated_at: '2026-11-09T10:00:00Z', kev_catalog_version: '', sources: [], inventory_on: true, kev: { state: 'loaded', error: null } })))
     renderApp('/')
-    expect(await screen.findByRole('heading', { level: 1, name: /Today: 0 vulnerabilities newly exploited/ })).toBeInTheDocument()
+    // Loaded: the headline is the answer from the findings summary (#825), not the CISA notice.
+    expect(await screen.findByRole('heading', { level: 1, name: /^Today: \d+ of your devices runs? software being exploited$/ })).toBeInTheDocument()
   })
 
   it('D-134 (4): the hot board does not read as "none" when the CISA list never loaded; it says why and links to Settings, Feeds', async () => {

@@ -245,5 +245,8 @@
     "clear": "Clear search",
     "suggestions": "Filters",
     "chips": "Common filters"
+  },
+  "creatable": {
+    "added": "{{label}} added and selected."
   }
 }

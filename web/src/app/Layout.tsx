@@ -7,6 +7,7 @@ import { PageModule } from '@/lib/v1'
 import { Button } from '@/components/ui/button'
 import { Logo } from '@/components/brand/Logo'
 import { Slot } from '@/components/common/Slot'
+import { useDeepLinkTarget } from '@/components/common/DependencyLink'
 import { Dialog, DialogTrigger, DrawerContent } from '@/components/ui/dialog'
 import { Brand, NavList, Sidebar, UserMenu } from './Sidebar'
 import { navItemOf, useNavState } from './nav'
@@ -35,6 +36,7 @@ export function Layout() {
   const nav = useNavState()
   const loc = useLocation()
   usePageChrome()
+  useDeepLinkTarget() // docs/UI.md §0: a deep link's #field is focused once its page has drawn it
   const closeByLink = () => { byLink.current = true; setOpen(false) }
   return (
     <div className={cn('min-h-dvh lg:grid', nav.rail ? 'lg:grid-cols-[56px_1fr]' : 'lg:grid-cols-[240px_1fr]')}>

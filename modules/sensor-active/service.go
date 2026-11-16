@@ -422,6 +422,24 @@ func (s *Service) probe(ctx context.Context, jobID string, kind nmapargv.Kind, r
 	if slices.ContainsFunc(targets, func(t netip.Addr) bool { return !sc.contains(t) }) {
 		return nil, ErrStopped
 	}
+	// A device run: the device must still be at the address, read again after the targets were published (#882, review #881 r2
+	// L2). Between two scans of one run (probeDevice's Extra run, the -sV of every-port scan) the targets are cleared, so checkRun
+	// could not compare a move with them; a move before this read is seen here, one after it reaches checkRun.
+	s.mu.Lock()
+	var asset string
+	if s.cur != nil {
+		asset = s.cur.asset
+	}
+	s.mu.Unlock()
+	if asset != "" {
+		a, err := s.inv.Asset(ctx, asset)
+		switch {
+		case errors.Is(err, ErrNotFound), err == nil && !slices.Contains(targets, a.IP), err != nil && ctx.Err() != nil:
+			return nil, ErrStopped
+		case err != nil:
+			return nil, err
+		}
+	}
 	rate = min(rate, st.Rate)
 	args, err := nmapargv.BuildFor(kind, rate, ports, targets)
 	if err != nil {

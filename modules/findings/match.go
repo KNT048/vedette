@@ -563,10 +563,7 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 	case tri == Unknown && !in.given && !every:
 		return Match{}, outNeedVersion // D-500: one "add the version" item per software, not one finding per CVE
 	}
-	sw := clean(s.Display)
-	if s.Version != "" {
-		sw += " " + clean(s.Version)
-	}
+	sw := withVersion(s.Display, s.Version) // M2-6: a scan row's display already ends with its version ("OpenSSH 10.2")
 	name := clean(a.Name)
 	m := Match{
 		CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Basis: BasisProduct, Confidence: ConfProduct,
@@ -633,8 +630,8 @@ func agentSummary(name string, s Software, in swInfo, v Vuln, within VersionRang
 		}
 		return fmt.Sprintf("The agent on %s reports %s build %s, inside the builds NVD lists as affected by %s (%s%s).", name, sw, build, v.CVE, clean(within.String()), via)
 	}
-	return fmt.Sprintf("The agent on %s reports %s %s installed. That version is inside the range %s lists as affected by %s (%s).",
-		name, sw, clean(in.ver), v.rangesBy(false), v.CVE, clean(within.String()))
+	return fmt.Sprintf("The agent on %s reports %s installed. That version is inside the range %s lists as affected by %s (%s).",
+		name, withVersion(s.Display, in.ver), v.rangesBy(false), v.CVE, clean(within.String()))
 }
 
 // decide evaluates the NVD configurations for one software. Yes carries the
@@ -1141,6 +1138,27 @@ func endsBefore(a, b VersionRange) bool {
 
 // clean removes control characters and caps the length: names, versions and
 // ranges come from agents and feeds (untrusted) and end up in evidence text.
+// softwareName is a row's display name without the version it may already end with: a scan row is named as nmap reads it,
+// "OpenSSH 10.2" (M2-6: "runs OpenSSH 10.2 10.2").
+func softwareName(display, version string) string {
+	d, v := clean(display), clean(version)
+	if v != "" && d != v {
+		if t, ok := strings.CutSuffix(d, " "+v); ok {
+			return strings.TrimSpace(t)
+		}
+	}
+	return d
+}
+
+// withVersion is "<software> <version>", the version once.
+func withVersion(display, version string) string {
+	d := softwareName(display, version)
+	if v := clean(version); v != "" {
+		d += " " + v
+	}
+	return d
+}
+
 func clean(s string) string {
 	var sb strings.Builder
 	n := 0

@@ -20,7 +20,7 @@ import { fmtDate, fmtDateTime, fmtPercent } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useModuleEnabled } from '@/lib/modules'
 import { AcceptUntil, FindingStatusChip } from './AcceptRisk'
-import { untilOk } from './accept'
+import { overdue, untilOk } from './accept'
 import { useFinding, useSetStatus } from './api'
 import { basisKey, deviceName, hasIp, isOpen, unverified } from './basis'
 import { errMsg } from './errors'
@@ -229,7 +229,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
             {unverified(f) ? <span className="inline-flex items-center gap-1 text-muted">{t('risk.unverifiedLine')}<InfoTip topic={t('risk.unverifiedLine')}>{t('risk.unverifiedLineInfo')}</InfoTip></span> : null}
             {f.kev?.ransomware ? <Chip tone="danger">{t('meta.ransomware')}</Chip> : null}
             <span>{t('meta.seen', { first: fmtDate(f.first_seen), last: fmtDateTime(f.last_seen) })}</span>
-            {f.kev?.due_date && isOpen(f.status) ? <span>{t('meta.due', { date: fmtDate(f.kev.due_date) })}</span> : null}
+            {f.kev?.due_date && isOpen(f.status) ? <span>{t(overdue(f.kev.due_date) ? 'meta.duePassed' : 'meta.due', { date: fmtDate(f.kev.due_date) })}</span> : null}
             {f.status === 'risk_accepted' ? (
               <span className="basis-full [overflow-wrap:anywhere]">{t('accept.line', { date: fmtDate(f.accepted_until), who: f.resolved_by ?? '' })}{f.resolution_note ? ` ${f.resolution_note}` : ''}</span>
             ) : null}

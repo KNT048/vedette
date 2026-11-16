@@ -6,7 +6,6 @@ import { Plus } from 'lucide-react'
 import { Notice, PageHeader, Section, Panel } from '@/components/common/PageHeader'
 import { KpiStrip, PageTabs } from '@/components/common/PageFrame'
 import { EmptyState, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
-import { Chip } from '@/components/common/StatusChip'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogTrigger } from '@/components/ui/dialog'
@@ -23,7 +22,8 @@ import { ScanProgress } from './ScanProgress'
 import { useAddTarget, useTargets } from './api'
 import { OutsideList } from './OutsidePanel'
 import { PortMark, PortMarkNote } from './PortMark'
-import { portLabel, riskOf } from './services'
+import { identOf, portLabel, serviceName } from './services'
+import { PortHints, RiskChip } from './PortIdent'
 import type { Gateway, PortRow, Target } from './types'
 import { blockedKey } from './types'
 
@@ -102,14 +102,17 @@ function OpenPorts({ ports, total, gateway }: { ports: (PortRow & { target: Targ
       {gateway ? <GatewayNote g={gateway} /> : null}
       <Panel className="divide-y divide-rule">
         {ports.map((p) => {
-          const risk = riskOf(p)
+          const ident = identOf(p)
           return (
             <div key={`${p.target.id}|${p.ip}|${p.port}`} className="grid gap-1 px-4 py-3">
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="font-medium">{portLabel(p)}</span>
                 <span className="text-muted">{t('open.on', { ip: p.ip })}</span>
                 {p.product ? <span className="text-muted">{t('open.software', { product: p.product })}</span> : null}
-                {risk ? <span className="flex items-center gap-1"><Chip tone="warn">{t('open.attacked')}</Chip><InfoTip topic={t('open.attacked')}>{t(`risky.${risk}`)}</InfoTip></span> : null}
+                {ident === 'port' ? <span className="inline-flex items-center gap-1 text-muted">{t('open.byPort')}<InfoTip topic={t('open.byPort')}>{t('open.byPortInfo', { port: p.port, service: serviceName(p.service) })}</InfoTip></span> : null}
+                {ident === 'none' ? <InfoTip topic={portLabel(p)}>{p.service === 'tcpwrapped' ? t('vulns.tcpwrapped') : t('open.notIdentifiedInfo')}</InfoTip> : null}
+                <PortHints p={p} className="text-muted" />
+                <RiskChip p={p} />
                 <PortMark p={p} />
                 <Link className="text-meta text-accent underline-offset-4 hover:underline" to={`/exposure/${p.target.id}`}>{t('open.details')}</Link>
               </div>
@@ -124,14 +127,18 @@ function OpenPorts({ ports, total, gateway }: { ports: (PortRow & { target: Targ
   )
 }
 
+/** The gateway as the note names it: "name (ip)", or the IP alone when the device is named by its IP or has no name (M2-8). */
+const gatewayLabel = (name: string, ip: string) => (name && name !== ip ? `${name} (${ip})` : ip)
+
 /** D-492: which device probably answers the open ports, and what is exploited on it. Never says for sure (a router can forward a port to another device). */
 function GatewayNote({ g }: { g: Gateway }) {
   const { t } = useTranslation('exposure')
   const name = g.name ?? ''
   const ip = g.ip ?? ''
   const known = g.device_id !== null
+  const label = gatewayLabel(name, ip) // M2-8: "192.168.18.1", not "192.168.18.1 (192.168.18.1)"
   const text = !g.ip ? t('gateway.unknown') : !known ? t('gateway.notListed', { ip })
-    : g.open_exploited > 0 ? t('gateway.known', { name, ip, count: g.open_exploited }) : t('gateway.none', { name, ip })
+    : g.open_exploited > 0 ? t('gateway.known', { label, count: g.open_exploited }) : t('gateway.none', { label })
   const info = !g.ip ? t('gateway.unknownInfo') : !known ? t('gateway.notListedInfo') : g.open_exploited > 0 ? t('gateway.knownInfo') : t('gateway.noneInfo', { name })
   return (
     <Notice tone="accent" data-testid="gateway-note" title={text} info={info}

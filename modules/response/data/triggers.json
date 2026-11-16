@@ -321,6 +321,17 @@
      "choices": []
     },
     {
+     "key": "identified",
+     "label": "How the service was named",
+     "type": "choice",
+     "example": "probed",
+     "choices": [
+      "probed",
+      "port",
+      "none"
+     ]
+    },
+    {
      "key": "device",
      "label": "Device behind it",
      "type": "text",

@@ -448,7 +448,13 @@ func contentOf(r surface.Result) exposure.Content {
 	}
 	c.Unresolved = r.Unresolved // exposure carries their previous rows forward and says so (INV-27)
 	for _, p := range r.Ports {
-		c.Ports = append(c.Ports, exposure.PortRow{IP: p.IP.String(), Port: p.Port, Service: p.Service, Product: p.Product})
+		// M2-7 (review r1 M1): the surface scan names a port from its number (surface's port list); only a product its GET read
+		// identifies it. nmap -sV, when it runs on the address, overrides this (exposure identifyPorts).
+		ident := exposure.IdentPort
+		if p.Product != "" {
+			ident = exposure.IdentProbed
+		}
+		c.Ports = append(c.Ports, exposure.PortRow{IP: p.IP.String(), Port: p.Port, Service: p.Service, Product: p.Product, Ident: ident})
 	}
 	for _, a := range r.Admin {
 		risk := "warn"

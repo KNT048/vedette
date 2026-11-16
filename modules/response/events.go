@@ -93,6 +93,11 @@ type PortOpenedEvent struct {
 	IP       string `json:"ip"`
 	Port     int    `json:"port"`
 	Service  string `json:"service"`
+	// M2-7 (#899 review r2 M1): Service stays nmap's or the port list's name (rules compare it, "service eq sip"); Label is the
+	// person's wording for the summary ("probably SIP", "service not identified"), Identified how the name was read: probed (a
+	// probe's answer or the page's Server header), port (only the port number: not confirmed), none; "" from an older producer.
+	Label      string `json:"label,omitempty"`
+	Identified string `json:"identified,omitempty"`
 }
 
 // decode reads event data, whatever Go type the producer used, through its JSON form: this module does not import the
@@ -494,12 +499,20 @@ func (s *Service) portEvent(ctx context.Context, data any) error {
 	}
 	port := strconv.Itoa(e.Port)
 	service := oneLine(cleanLine(e.Service), 60) // cleanLine also drops bidi and other invisible characters a banner may carry
+	label := oneLine(cleanLine(e.Label), 60)
+	if label == "" {
+		label = service
+	}
+	identified := ""
+	if e.Identified == "probed" || e.Identified == "port" || e.Identified == "none" {
+		identified = e.Identified
+	}
 	summary := "New open port " + port + " on public IP " + ip
-	if service != "" {
-		summary += " (" + service + ")"
+	if label != "" {
+		summary += " (" + label + ")"
 	}
 	return s.StoreEvent(ctx, Det{ID: "port:" + e.TargetID + ":" + e.Date + ":" + ip + ":" + port, Trigger: "new_port", TS: s.ts(),
-		Summary: oneLine(summary, 300), Fields: map[string]string{"ip": ip, "port": port, "service": service, "device": ""}})
+		Summary: oneLine(summary, 300), Fields: map[string]string{"ip": ip, "port": port, "service": service, "identified": identified, "device": ""}})
 }
 
 func addrOf(s string) netip.Addr { a, _ := netip.ParseAddr(s); return a }

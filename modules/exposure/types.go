@@ -228,6 +228,14 @@ type (
 		Misses   int    `json:"misses,omitempty"`
 		// Unchecked: the newest scan did not check the address, so the row (and Misses) is as an earlier scan left it.
 		Unchecked bool `json:"unchecked,omitempty"`
+		// Ident is how service identification named the port's service (M2-7, identifyPorts): IdentProbed, IdentPort (only the
+		// usual service of the port number), IdentNone (nothing identified); "" when it did not run on the port or the row is older.
+		Ident string `json:"ident,omitempty"`
+		// What the deep scan's scripts read on the port (M2-7): the names of its TLS certificate (subject common name, then the
+		// DNS names of its subject alternative names), its web page's title and its HTTP Server header. Untrusted, sanitized.
+		CertNames []string `json:"cert_names,omitempty"`
+		Title     string   `json:"title,omitempty"`
+		Server    string   `json:"server,omitempty"`
 	}
 	// AdminRow is an admin page that is open to the Internet. Risk is "danger" or "warn".
 	AdminRow struct {

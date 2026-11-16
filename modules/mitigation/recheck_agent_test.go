@@ -51,3 +51,49 @@ func TestGenericRecheck_N52_AgentRowProductMatchDoesNotAskForTheVersion(t *testi
 		t.Fatalf("typed row: %s", got)
 	}
 }
+
+// M2-3 (walk n74): a version the box has from any source (SNMP, LLDP, a scan, a person, an agent) is never asked for again: the first
+// step names the version and who gave it, the second how a newer one reaches Vedette. The device and the software are never glued.
+func TestGenericRecheck_M23_KnownVersionFromEverySource(t *testing.T) {
+	row := func(basis, ip string, tmpl bool, k *findings.KnownVersion) findings.Row {
+		var r findings.Row
+		doc := `{"basis":"` + basis + `","evidence":{"summary":"s","checked_at":"2026-11-15T00:00:00Z"},
+			"asset":{"id":"a","name":"Juniper Networks EX4200-48T","hostname":null,"ip":"` + ip + `","kind":"switch","display":"Juniper Junos OS"},
+			"kev":{"display":"Juniper Junos OS","vendor":"Juniper","product":"Junos OS","has_template":` + map[bool]string{true: "true", false: "false"}[tmpl] + `}}`
+		if err := json.Unmarshal([]byte(doc), &r); err != nil {
+			t.Fatal(err)
+		}
+		r.Known = k
+		return r
+	}
+	kv := func(src string) *findings.KnownVersion {
+		return &findings.KnownVersion{Software: "Juniper Junos OS", Version: "15.1R7.9", Source: src}
+	}
+	for _, c := range []struct {
+		src, first, again string
+	}{
+		{findings.VersionBySNMP, "Nothing to look up: Vedette read Juniper Junos OS 15.1R7.9 from Juniper Networks EX4200-48T over SNMP. Vedette compared it", `press "Read with SNMP now" on its device page`},
+		{findings.VersionByStated, "Nothing to look up: Juniper Networks EX4200-48T states on the network (LLDP) that it runs Juniper Junos OS 15.1R7.9", "states the new one on the network by itself"},
+		{findings.VersionByScan, "Nothing to look up: a network scan read Juniper Junos OS 15.1R7.9 from Juniper Networks EX4200-48T", "rescan it with the button below"},
+		{findings.VersionByManual, "Nothing to look up: Juniper Junos OS 15.1R7.9 was entered for Juniper Networks EX4200-48T on the Devices page", `press "I updated Juniper Junos OS" at the top of this page`},
+		{findings.VersionByAgent, "Nothing to look up: the agent on Juniper Networks EX4200-48T reports Juniper Junos OS 15.1R7.9", "its agent reports the new one by itself"},
+	} {
+		steps := genericRecheck(row("version", "192.168.18.47", true, kv(c.src))).Steps
+		got := strings.Join(steps, " ")
+		if len(steps) != 3 || !strings.HasPrefix(steps[0], c.first) || !strings.Contains(steps[1], c.again) || !strings.Contains(steps[1], `it can prove that version fixes. If this one stays open, press "Mark as handled" and choose Patched.`) || !strings.Contains(steps[2], `"Rescan this device" to confirm`) {
+			t.Errorf("%s: %q", c.src, steps)
+		}
+		if strings.Contains(got, "About screen") || strings.Contains(got, "Check which version") || strings.Contains(got, "OS Juniper Networks") {
+			t.Errorf("%s asks for the version or glues the names: %s", c.src, got)
+		}
+	}
+	// No template, a product-only match, a scan-read version on a device without an IP.
+	steps := genericRecheck(row("product", "—", false, kv(findings.VersionByScan))).Steps
+	if !strings.Contains(steps[0], "cannot compare it with the versions NVD lists") || !strings.Contains(steps[1], "the next network scan of it reads the new one") || !strings.Contains(steps[2], "concludes from the version alone") {
+		t.Errorf("product, no IP, no template: %q", steps)
+	}
+	// No version known: the old steps, worded without gluing the software to the device.
+	if got := genericRecheck(row("version", "192.168.18.47", false, nil)).Steps[0]; got != "Check which version of Juniper Junos OS runs on Juniper Networks EX4200-48T (in its settings, its admin page or its About screen)." {
+		t.Errorf("unknown version: %q", got)
+	}
+}

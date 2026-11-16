@@ -30,3 +30,6 @@ export type Plan = z.infer<typeof C.Plan>
 export type PlanItem = z.infer<typeof C.PlanItem>
 export type PlanCve = z.infer<typeof C.PlanCve>
 export type PlanFilter = z.infer<typeof C.PlanFilter>
+/** #825: Home's one read: open findings, the few to fix first, the 30-day trend, device and alert counts. */
+export type HomeSummary = z.infer<typeof C.HomeSummary>
+export type SummaryItem = z.infer<typeof C.SummaryItem>

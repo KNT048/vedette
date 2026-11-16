@@ -84,6 +84,7 @@
   "GET /feeds/weekly": "feeds",
   "GET /findings": "findings",
   "GET /findings/plan": "findings",
+  "GET /findings/summary": "findings",
   "GET /findings/{id}": "findings",
   "GET /honeypot": "honeypot",
   "GET /honeypot/hits": "honeypot",

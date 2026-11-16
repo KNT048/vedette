@@ -17,8 +17,17 @@ import (
 
 	"github.com/knt048/vedette/core/apierr"
 	"github.com/knt048/vedette/core/audit"
+	"github.com/knt048/vedette/core/conn"
 	"github.com/knt048/vedette/core/secrets"
 )
+
+// siemLostMsg is the answer of Test and Save, and the state of the SIEM page, when the saved signing key of the webhook is sealed under
+// another master key: a backup restored without its decryption key, or a key file made again (#847). The key is gone for good; typing it
+// again seals it under this box's key and forwarding starts again.
+const siemLostMsg = "The saved signing key of the SIEM webhook was not restored (the backup was restored without its decryption key, or the box key changed). Enter the signing key again (the one your SIEM checks, or press Generate random and put the new key in the SIEM) and press Save. Nothing is sent to the SIEM until then."
+
+// siemLost uses core/conn's code, so every secret this box cannot open answers with one code the UI handles once (#847).
+func siemLost() error { return apierr.New(409, conn.CodeSecretLost, siemLostMsg) }
 
 // SIEM forwarding (L5, S-LOG-3, INV-8..10). The configuration is one row of logs_siem in the main database; the signing key is a
 // sealed core_secret (SYS-4) that the API never returns (FORBID-2).
@@ -61,16 +70,22 @@ type SiemTestRecord struct {
 
 // SiemView is the configuration as the API shows it (SiemConfig of contract.ts): never the key, only its last four characters.
 type SiemView struct {
-	Enabled     bool            `json:"enabled"`
-	Format      string          `json:"format"`
-	Host        string          `json:"host"`
-	Port        int             `json:"port"`
-	Proto       string          `json:"proto"`
-	URL         string          `json:"url"`
-	SecretLast4 *string         `json:"secret_last4"`
-	Events      []string        `json:"events"`
-	LastTest    *SiemTestRecord `json:"last_test"`
+	Enabled     bool    `json:"enabled"`
+	Format      string  `json:"format"`
+	Host        string  `json:"host"`
+	Port        int     `json:"port"`
+	Proto       string  `json:"proto"`
+	URL         string  `json:"url"`
+	SecretLast4 *string `json:"secret_last4"`
+	// SecretLost: a signing key is saved but this box cannot open it (sealed under another master key, #847). Only the JSON webhook
+	// signs with it: while the format is json, Test answers 409 secret_lost and the forwarder sends nothing until a key is saved again.
+	SecretLost bool            `json:"secret_lost"`
+	Events     []string        `json:"events"`
+	LastTest   *SiemTestRecord `json:"last_test"`
 }
+
+// stopped reports whether this configuration cannot be sent with: the webhook signs every request with a key the box cannot open.
+func (v SiemView) stopped() bool { return v.Format == "json" && v.SecretLost }
 
 // siemRow is the stored row plus the opened key (never serialised: secrets.Value redacts itself).
 type siemRow struct {
@@ -111,6 +126,11 @@ func (s *Service) loadSiem(ctx context.Context, q interface {
 			return r, errors.New("logs: reading the SIEM key: no secret store is wired")
 		}
 		pt, err := s.cfg.Secrets.Open(ctx, s.cfg.Config.Reader(), r.secretID, siemSecretPurpose)
+		if secrets.IsWrongKey(err) {
+			// Sealed under another master key (#847): not an error of the read. The row says so; the callers refuse to send with it.
+			r.SecretLost = true
+			return r, nil
+		}
 		if err != nil {
 			return r, fmt.Errorf("logs: reading the SIEM key: %w", err)
 		}
@@ -119,10 +139,16 @@ func (s *Service) loadSiem(ctx context.Context, q interface {
 	return r, nil
 }
 
-// Siem returns the configuration (GET /logs/siem).
+// Siem returns the configuration (GET /logs/siem). It says whether the saved key can be opened (secret_lost), never the key; a key that
+// cannot be read for another reason leaves the page as it was (the forwarder and Test report that one).
 func (s *Service) Siem(ctx context.Context) (SiemView, error) {
 	r, err := s.loadSiem(ctx, s.cfg.Config.Reader(), false)
-	return r.SiemView, err
+	if err != nil || r.secretID == "" || s.cfg.Secrets == nil {
+		return r.SiemView, err
+	}
+	_, oerr := s.cfg.Secrets.Open(ctx, s.cfg.Config.Reader(), r.secretID, siemSecretPurpose)
+	r.SecretLost = secrets.IsWrongKey(oerr)
+	return r.SiemView, nil
 }
 
 var siemHostRE = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$`)
@@ -271,6 +297,17 @@ func (s *Service) SetSiem(ctx context.Context, user string, in SiemInput) (SiemV
 		if err != nil {
 			return err
 		}
+		// #847: a saved key kept as it is may be one this box cannot open. Only the wrong-key answer counts (any other error of the open
+		// leaves the save as it always was); only a save that turns the webhook on with it is refused, since it would sign with nothing.
+		// Turning forwarding off, or another URL or events, saves; the answer says the key is still lost.
+		lost := false
+		if in.Secret == "" && cur.secretID != "" {
+			_, oerr := s.cfg.Secrets.Open(ctx, s.cfg.Config.Reader(), cur.secretID, siemSecretPurpose)
+			lost = secrets.IsWrongKey(oerr)
+		}
+		if lost && in.Format == "json" && in.Enabled {
+			return siemLost()
+		}
 		id, last4 := cur.secretID, ""
 		if cur.SecretLast4 != nil {
 			last4 = *cur.SecretLast4
@@ -309,7 +346,7 @@ func (s *Service) SetSiem(ctx context.Context, user string, in SiemInput) (SiemV
 		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: "logs.siem_save", Target: siemTargetLabel(in.Format, in.Host, in.Port, in.URL), Detail: in.Format + ", " + state}); err != nil {
 			return err
 		}
-		out = SiemView{Enabled: in.Enabled, Format: in.Format, Host: in.Host, Port: in.Port, Proto: in.Proto, URL: in.URL, Events: events}
+		out = SiemView{Enabled: in.Enabled, Format: in.Format, Host: in.Host, Port: in.Port, Proto: in.Proto, URL: in.URL, Events: events, SecretLost: lost}
 		if last4 != "" {
 			out.SecretLast4 = &last4
 		}
@@ -364,6 +401,16 @@ func (s *Service) TestSiem(ctx context.Context, user string) (SiemTestRecord, er
 	}
 	if cfg.Host == "" && cfg.URL == "" {
 		return SiemTestRecord{}, apierr.New(400, "not_configured", "No SIEM destination is saved. Enter and save the configuration before sending a test.")
+	}
+	if cfg.stopped() {
+		// #847: nothing is sent. The attempt is on record like any other test; last_test keeps the last real send (the page says the key
+		// is lost from secret_lost).
+		if err := s.cfg.Config.Write(ctx, func(tx *sql.Tx) error {
+			return s.cfg.Audit.Append(ctx, tx, audit.Entry{User: user, Action: "logs.siem_test", Target: siemTargetLabel(cfg.Format, cfg.Host, cfg.Port, cfg.URL), Detail: "failed: " + conn.CodeSecretLost})
+		}); err != nil {
+			return SiemTestRecord{}, err
+		}
+		return SiemTestRecord{}, siemLost()
 	}
 	rec := newSiemRecord("siem.test", "info", s.now(), siemField{Key: "message", Val: "Vedette SIEM test record"})
 	ctx, cancel := context.WithTimeout(ctx, 3*siemTimeout)

@@ -3,26 +3,38 @@ import { useTranslation } from 'react-i18next'
 import { PageHeader } from '@/components/common/PageHeader'
 import { OldHashToTab, PageTabs } from '@/components/common/PageFrame'
 import { EmptyState, Loading, ModuleOff, QueryState, RequireModule, SampleDataNote } from '@/components/common/States'
-import { useModuleEnabled } from '@/lib/modules'
 import { useMe } from '@/lib/session'
 import { AgentsSection } from './AgentsSection'
 import { useSettings } from './api'
 import { NetworkForm } from './NetworkForm'
 import { SensorsSection } from './SensorsSection'
-import { SnmpSection } from './SnmpSection'
+import { Navigate, useLocation } from 'react-router'
 
 // "Add devices" links to #agents (D-471) and SNMP to #snmp (D-512); those and the other section ids open their tab (D-519).
-const OLD_HASH: Record<string, string> = { ranges: 'scope', active: 'scope', fragile: 'scope', scope: 'scope', sensors: 'sensor', snmp: 'snmp', agents: 'agents' }
+const OLD_HASH: Record<string, string> = { ranges: 'scope', active: 'scope', fragile: 'scope', scope: 'scope', sensors: 'sensor', agents: 'agents' }
+
+/** #850: SNMP credentials live on the SNMP card of Settings › Scanning; ?tab=snmp, #snmp and ?snmp_ip= (a device page's "Add SNMP
+ *  for <ip>") land there, the address kept for the add form. */
+function snmpMoved(search: string, hash: string): string | null {
+  const p = new URLSearchParams(search)
+  if (p.get('tab') !== 'snmp' && hash !== '#snmp' && !p.get('snmp_ip')) return null
+  const q = new URLSearchParams({ tab: 'engines' })
+  const ip = p.get('snmp_ip')
+  if (ip) q.set('snmp_ip', ip)
+  return `/settings/scanning?${q}#snmp`
+}
 
 function Body() {
   const { t } = useTranslation('inventory')
   const me = useMe()
   const settings = useSettings()
+  const { search, hash } = useLocation()
   const admin = me.data?.role === 'admin'
-  const snmpOn = useModuleEnabled('sensor-active') === true
-  // UI.md §3: breadcrumbs (parents only) above the title. #849 keeps SNMP credentials here until #850 moves them to Settings › Scanning.
+  const moved = snmpMoved(search, hash)
+  // UI.md §3: breadcrumbs (parents only) above the title.
   const crumbs = [{ label: t('nav.devices'), to: '/devices' }]
   const back = <Breadcrumbs items={crumbs} />
+  if (moved) return <Navigate to={moved} replace />
   if (me.isPending) return <>{back}<Loading /></>
   if (!admin) {
     return <>{back}<PageHeader title={t('setup.forbiddenTitle')} /><EmptyState title={t('setup.forbidden')}>{t('setup.forbiddenBody', { role: t('common:role.admin') })}</EmptyState></>
@@ -40,7 +52,6 @@ function Body() {
         { id: 'scope', label: t('setup.tabs.scope'), panel: <QueryState query={settings}>{(s) => <NetworkForm key={JSON.stringify(s)} settings={s} />}</QueryState> },
         { id: 'sensor', label: t('setup.tabs.sensor'), panel: <SensorsSection /> },
         // SNMP reads run in the active scanner: with sensor-active off the area does not exist (D-512), so neither does its tab.
-        ...(snmpOn ? [{ id: 'snmp', label: t('setup.tabs.snmp'), panel: <SnmpSection /> }] : []),
         { id: 'agents', label: t('setup.tabs.agents'), panel: <AgentsSection /> },
       ]} />
     </>

@@ -28,7 +28,7 @@ type Kind = SafetyInput['fragile']['kinds'][number]
  * network discovery, version scans, SNMP and the vulnerability checks on the LAN obey it; scans of public targets follow their own
  * testing terms and are not covered by it in this version (review r1 H4). The ranges and the commitment are edited here too (§0).
  */
-function Form({ s }: { s: Safety }) {
+function Form({ s, devices, onSaved }: { s: Safety; devices: number; onSaved: (r: Safety) => void }) {
   const { t } = useTranslation('scanning')
   const admin = useCan('admin')
   const save = useSaveSafety()
@@ -51,7 +51,7 @@ function Form({ s }: { s: Safety }) {
     save.mutate({
       scope: { lan_ranges: lines(ranges), confirmed }, window: { days, from, to }, speed: { packets_per_s: pps, requests_per_s: rps },
       exclusions: lines(excl), fragile: { kinds, regular_scan_kinds: regular.filter((k) => kinds.includes(k)) },
-    }, { onSuccess: (r) => toast.success(r.adjusted.length ? t('safety.savedAdjusted', { list: r.adjusted.map((a) => `${a.from} → ${a.to}`).join(', ') }) : t('safety.saved')), onError: (err) => setError(errMsg(err)) })
+    }, { onSuccess: (r) => { onSaved(r); toast.success(r.adjusted.length ? t('safety.savedAdjusted', { list: r.adjusted.map((a) => `${a.from} → ${a.to}`).join(', ') }) : t('safety.saved')) }, onError: (err) => setError(errMsg(err)) })
   }
   return (
     <form onSubmit={submit} className="grid max-w-3xl gap-8" noValidate>
@@ -65,7 +65,7 @@ function Form({ s }: { s: Safety }) {
           </Field>
           <div className="flex items-start gap-3">
             <Checkbox id="scope-confirm" className="mt-0.5" checked={confirmed} disabled={dis} onCheckedChange={(v) => setConfirmed(v === true)} aria-describedby="scope-status" />
-            <Label htmlFor="scope-confirm" className="font-normal">{t('scope.confirm')}</Label>
+            <Label htmlFor="scope-confirm" className="font-normal">{t('inventory:scope.confirm')}</Label>
           </div>
           <p id="scope-status" className={s.scope.confirmed_at && !rangesChanged ? 'text-meta text-muted' : 'text-meta text-warn'}>
             {s.scope.confirmed_at && !rangesChanged ? t('safety.confirmedBy', { date: fmtDate(s.scope.confirmed_at), by: s.scope.confirmed_by ?? '' }) : rangesChanged ? t('safety.confirmAgain') : t('safety.notConfirmed')}
@@ -136,7 +136,7 @@ function Form({ s }: { s: Safety }) {
               ))}
             </div>
           </fieldset>
-          <Link to="/devices?show=fragile" className="w-fit text-meta text-accent underline-offset-4 hover:underline">{t('safety.fragileDevices', { count: s.fragile.devices })}</Link>
+          <Link to="/devices?show=fragile" className="w-fit text-meta text-accent underline-offset-4 hover:underline">{t('safety.fragileDevices', { count: devices })}</Link>
         </Card>
       </Section>
 
@@ -158,6 +158,8 @@ function Form({ s }: { s: Safety }) {
 }
 
 export function SafetyTab({ s }: { s: Safety }) {
-  // the form starts again from the box's answer after a save (the server may normalize ranges)
-  return <Form key={JSON.stringify(s)} s={s} />
+  // review r2 L-g: the form starts from the block once, and again only from the answer of its own save (the server may normalize
+  // ranges); the page's regular reads (a new fragile device, a run) never wipe what is being typed
+  const [base, setBase] = useState<{ v: number; s: Safety }>({ v: 0, s })
+  return <Form key={base.v} s={base.s} devices={s.fragile.devices} onSaved={(r) => setBase((b) => ({ v: b.v + 1, s: r }))} />
 }

@@ -55,7 +55,7 @@ function Form({ data }: { data: ScanConfigResponse }) {
             <Input id="sch-at" type="time" value={sch.at} onChange={(e) => setSch((s) => ({ ...s, at: e.target.value }))} disabled={dis || !sch.enabled} />
           </Field>
         </div>
-        <p className="text-[13px] text-muted">{data.schedule_blocked_reason ? data.schedule_blocked_reason : !data.can_scan && sch.enabled ? t(data.scope.commitment ? 'safety.nextScannerDown' : 'safety.nextBlocked') : data.next_run ? t('safety.next', { time: fmtDateTime(data.next_run) }) : t('safety.nextNone')}</p>
+        <p className="text-meta text-muted">{data.schedule_blocked_reason ? data.schedule_blocked_reason : !data.can_scan && sch.enabled ? t(data.scope.commitment ? 'safety.nextScannerDown' : 'safety.nextBlocked') : data.next_run ? t('safety.next', { time: fmtDateTime(data.next_run) }) : t('safety.nextNone')}</p>
         {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
         <div><Button type="submit" disabled={dis || save.isPending}>{t('nuclei.saveSchedule')}</Button></div>
       </form>
@@ -68,7 +68,7 @@ function Form({ data }: { data: ScanConfigResponse }) {
         </div>
         {!data.config.auto_rescan ? <Notice tone="warn" className="mb-0 max-w-xl" title={t('auto.offNote')} info={t('auto.offNoteInfo')} /> : null}
       </div>
-      {dis ? <p className="text-[13px] text-muted">{t('common:needRole', { role: t('common:role.admin') })}</p> : null}
+      {dis ? <p className="text-meta text-muted">{t('common:needRole', { role: t('common:role.admin') })}</p> : null}
     </div>
   )
 }

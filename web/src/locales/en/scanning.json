@@ -7,7 +7,7 @@
     "metaRunning_one": "{{count}} scan running now.",
     "metaRunning_other": "{{count}} scans running now.",
     "info": "Every way the box finds devices, identifies them and checks them for vulnerabilities, with the memory each takes and when it runs. The scope, window, speed, exclusions and fragile types are set once, under Safety, for every engine on your LAN.",
-    "infoContext": "To scan now: Scan the LAN now on the Network discovery card, Rescan this device on a finding, Deep scan now on a public target.",
+    "infoContext": "To scan now: Scan the LAN now on the Network discovery card or the Devices list, Scan selected on the Devices list, Check this device now on a device, Deep scan now on a public target.",
     "tabs": "Sections of Scanning",
     "tab": {
       "engines": "Engines",
@@ -31,7 +31,7 @@
     "vuln": {
       "title": "Check vulnerabilities",
       "description": "Confirm known vulnerabilities with safe checks.",
-      "info": "Checks only read or confirm; none is meant to change anything. On your LAN they follow the shared safety settings; on your public IPs and domains they also need the target's testing terms."
+      "info": "Checks only read or confirm; none is meant to change anything. On your LAN they follow the shared safety settings. Scans of your public IPs and domains follow each target's own testing terms instead."
     },
     "traps": {
       "title": "Traps",
@@ -135,7 +135,8 @@
     "stops": "The scan running now stops; what it found so far is kept.",
     "offConfirm": "Turn off",
     "depsTitle": "Turn on {{name}} and what it needs?",
-    "depsConfirm": "Turn on together"
+    "depsConfirm": "Turn on together",
+    "needs": "It also needs: {{list}}."
   },
   "run": {
     "stop": "Stop now",
@@ -145,10 +146,20 @@
   },
   "fix": {
     "newSnmp": "Add an SNMP credential",
-    "osquery": "Create an osquery token: Devices, Scope and sensors, Agents",
-    "wazuh": "Connect your Wazuh server: Devices, Scope and sensors, Agents",
     "target": "Add and verify a public target: External exposure, Targets",
-    "trapIp": "Add a Trap IP: Internal traps, Trap IPs"
+    "trapIp": "Add a Trap IP: Internal traps, Trap IPs",
+    "osqueryTitle": "Install osquery on a server",
+    "osqueryDescription": "Create a token, then run the command on the server. The token is shown once.",
+    "newOsquery": "Create an osquery token",
+    "newWazuh": "Connect your Wazuh server",
+    "wazuhTitle": "Connect your Wazuh server",
+    "wazuhDescription": "Vedette reads the software list your Wazuh server keeps.",
+    "wazuhSaved": "Wazuh connected",
+    "loading": "Loading…",
+    "nucleiWindow": "The schedule needs a time inside the shared window.",
+    "nucleiWindowLink": "Check the window: Safety, Time window",
+    "noDays": "The shared window has no day yet.",
+    "noDaysLink": "Choose its days: Safety, Time window"
   },
   "own": {
     "snmpAdmin": "SNMP credentials need the Admin role."
@@ -166,9 +177,12 @@
     "dialogInfo": "Internal IPv4 ranges only (RFC 1918 or 100.64.0.0/10). They stay editable under Settings, Scanning, Safety and Devices, Scope and sensors.",
     "ranges": "Network ranges, one per line",
     "rangesHint": "For example 192.168.10.0/24.",
-    "confirm": "I confirm these ranges belong to my company and I am allowed to scan them.",
     "save": "Save and confirm",
-    "saved": "Network ranges saved and confirmed"
+    "saved": "Network ranges saved and confirmed",
+    "fixExclusions": "The exclusion list has more lines than a save takes (at most 200).",
+    "fixExclusionsLink": "Shorten it: Safety, Exclusions",
+    "fixWindow": "The shared window needs at least one day.",
+    "fixWindowLink": "Choose its days: Safety, Time window"
   },
   "module": {
     "turnOn": "Turn on {{name}}",
@@ -231,7 +245,11 @@
     "none": "Select at least one device.",
     "needsScope": "The network ranges are not confirmed yet.",
     "discoveryOff": "Network discovery is off.",
-    "turnOnDiscovery": "Turn it on: Engines, Network discovery"
+    "turnOnDiscovery": "Turn it on: Engines, Network discovery",
+    "tooMany": "One run takes at most {{max}} devices; {{count}} are selected.",
+    "finished": "Finished.",
+    "seeDevices": "See the devices",
+    "seeDevice": "See the device"
   },
   "running": {
     "count_one": "{{count}} scan running",

@@ -16,6 +16,9 @@ import { runPlace } from './places'
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
+/** The most devices one run takes (contract.ts DiscoveryRunInput.targets max). */
+const MAX_RUN_TARGETS = 64
+
 type Look = { label?: string; variant?: 'primary' | 'secondary'; size?: 'sm' | 'md'; className?: string }
 
 /** Any other job (the exposure deep scan): the caller starts it and owns its state; this gives it the same button and progress. */
@@ -67,7 +70,9 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
   const disc = q.data?.engines.find((e) => e.id === 'nmap-discovery')
   const running = q.data?.running ?? []
   const ours = running.find((j) => j.id === mine) ?? null
-  const other = running.find((j) => j.engine === 'nmap-discovery' && j.id !== mine) ?? null
+  // nmap is busy with any sensor-active job (a sweep, a version scan, an SNMP round), not only a person's run (review r2 L-h)
+  const other = running.find((j) => (j.engine === 'nmap-discovery' || j.engine === 'nmap-versions' || j.engine === 'snmp') && j.id !== mine) ?? null
+  const finished = !!mine && !ours && !!q.data && !run.isPending
   const ids = targets === 'lan' ? [] : targets
   const text = label ?? (targets === 'lan' ? t('scanNow.lan') : ids.length === 1 ? t('scanNow.device') : t('scanNow.selected', { count: ids.length }))
   const needsScope = !!q.data && !q.data.safety.scope.confirmed_at
@@ -78,7 +83,8 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
     : !disc.enabled ? t('scanNow.discoveryOff')
     : disc.state === 'unavailable' || disc.state === 'error' ? disc.reason
     : other ? t('scanNow.otherRunning')
-    : targets !== 'lan' && ids.length === 0 ? t('scanNow.none') : null
+    : targets !== 'lan' && ids.length === 0 ? t('scanNow.none')
+    : ids.length > MAX_RUN_TARGETS ? t('scanNow.tooMany', { max: MAX_RUN_TARGETS, count: ids.length }) : null
   return (
     <div className={cn('grid min-w-0 gap-2', className)}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -95,6 +101,7 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
           </span>
         ) : null}
       </div>
+      {finished ? <p role="status" className="text-meta text-muted">{t('scanNow.finished')} <Link to={targets === 'lan' || ids.length !== 1 ? '/devices' : `/devices/${encodeURIComponent(ids[0]!)}`} className="text-accent underline-offset-4 hover:underline">{t(targets === 'lan' || ids.length !== 1 ? 'scanNow.seeDevices' : 'scanNow.seeDevice')}</Link></p> : null}
       {ours && showProgress ? (
         <Card className="grid gap-2">
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">

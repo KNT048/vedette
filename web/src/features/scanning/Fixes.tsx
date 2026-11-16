@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { DependencyLink } from '@/components/common/DependencyLink'
 import { Notice } from '@/components/common/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -20,14 +21,14 @@ const lines = (v: string) => v.split('\n').map((l) => l.trim()).filter(Boolean)
  * place that needs them (an engine that needs setup, Scan now, the Safety tab). It saves the whole shared block with
  * PUT /scanning/safety, as the Safety tab does; the ranges stay editable there and under Devices, Scope and sensors.
  */
-export function ScopeDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function ScopeDialog({ open, onOpenChange, onSaved }: { open: boolean; onOpenChange: (v: boolean) => void; /** Runs after the save, e.g. to retry the switch that needed it (review r2 N1). */ onSaved?: () => void }) {
   const { t } = useTranslation('scanning')
   const q = useScanning()
   const save = useSaveSafety()
   const s = q.data?.safety
   const [ranges, setRanges] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ message: string; code?: string } | null>(null)
   const text = ranges ?? s?.scope.lan_ranges.join('\n') ?? ''
   const id = useId()
   const close = (v: boolean) => { if (!v) { setRanges(null); setConfirmed(false); setError(null) } onOpenChange(v) }
@@ -36,8 +37,8 @@ export function ScopeDialog({ open, onOpenChange }: { open: boolean; onOpenChang
     if (!s) return
     setError(null)
     save.mutate(safetyInput(s, { scope: { lan_ranges: lines(text), confirmed } }), {
-      onSuccess: () => { toast.success(t('scope.saved')); close(false) },
-      onError: (err) => setError(errMsg(err)),
+      onSuccess: () => { toast.success(t('scope.saved')); close(false); onSaved?.() },
+      onError: (err) => setError({ message: errMsg(err), code: err instanceof ApiError ? err.code : undefined }),
     })
   }
   return (
@@ -49,9 +50,12 @@ export function ScopeDialog({ open, onOpenChange }: { open: boolean; onOpenChang
           </Field>
           <div className="flex items-start gap-3">
             <Checkbox id={`${id}-confirm`} className="mt-0.5" checked={confirmed} onCheckedChange={(v) => setConfirmed(v === true)} />
-            <Label htmlFor={`${id}-confirm`} className="font-normal">{t('scope.confirm')}</Label>
+            <Label htmlFor={`${id}-confirm`} className="font-normal">{t('inventory:scope.confirm')}</Label>
           </div>
-          {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
+          {error ? <Notice tone="danger" role="alert" className="mb-0" title={error.message} /> : null}
+          {/* what the dialog cannot fix itself, with the exact field (§0) */}
+          {error?.code === 'too_many_exclusions' ? <DependencyLink reason={t('scope.fixExclusions')} to="/settings/scanning?tab=safety#excl" label={t('scope.fixExclusionsLink')} /> : null}
+          {error?.code === 'no_days' || error?.code === 'bad_window' ? <DependencyLink reason={t('scope.fixWindow')} to="/settings/scanning?tab=safety#win-from" label={t('scope.fixWindowLink')} /> : null}
           <DialogFooter>
             <Button onClick={() => close(false)}>{t('common:cancel')}</Button>
             <Button type="submit" variant="primary" disabled={!s || save.isPending || !confirmed || lines(text).length === 0}>{t('scope.save')}</Button>
@@ -63,13 +67,13 @@ export function ScopeDialog({ open, onOpenChange }: { open: boolean; onOpenChang
 }
 
 /** The button that opens ScopeDialog (admin only; others get the reason as text from the caller). */
-export function ScopeButton({ label, size = 'sm' }: { label?: string; size?: 'sm' | 'md' }) {
+export function ScopeButton({ label, size = 'sm', onSaved }: { label?: string; size?: 'sm' | 'md'; onSaved?: () => void }) {
   const { t } = useTranslation('scanning')
   const [open, setOpen] = useState(false)
   return (
     <>
       <Button size={size} onClick={() => setOpen(true)}>{label ?? t('scope.open')}</Button>
-      {open ? <ScopeDialog open onOpenChange={setOpen} /> : null}
+      {open ? <ScopeDialog open onOpenChange={setOpen} onSaved={onSaved} /> : null}
     </>
   )
 }

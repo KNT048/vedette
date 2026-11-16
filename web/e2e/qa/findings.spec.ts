@@ -162,7 +162,7 @@ test.describe('findings: IT operator', () => {
 
   test('links: device, CVE page, rescan; a missing finding says so', async ({ page }) => {
     await page.goto('/findings/f-1')
-    await expect(page.getByRole('link', { name: 'Rescan this device' })).toHaveAttribute('href', '/scans?target=a-nas02')
+    await expect(page.getByRole('link', { name: 'Rescan this device' })).toHaveAttribute('href', '/devices/a-nas02')
     await page.getByRole('link', { name: /Open CVE-2022-27593 page/ }).click()
     await expect(page).toHaveURL(/\/cve\/CVE-2022-27593/)
     await page.goto('/devices/a-nas02')

@@ -37,7 +37,18 @@ function useScanMutation<V, R>(fn: (v: V) => Promise<R>, extra: string[] = []) {
 }
 
 export const useSaveConfig = () => useScanMutation((c: Partial<ScanConfig>) => api.put<ScanConfigResponse>('/scans/config', c))
-export const useStartRun = () => useScanMutation((targets: string[]) => api.post<ScanRun>('/scans/runs', { targets }))
+export function useStartRun() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (targets: string[]) => api.post<ScanRun>('/scans/runs', { targets }),
+    // the new run goes into the list at once, so a button never says "finished" before the next read
+    onSuccess: (r) => {
+      qc.setQueryData<{ items: ScanRun[]; engine_busy: boolean }>(['scan', 'runs'], (d) => (d ? { ...d, items: [r, ...d.items.filter((x) => x.id !== r.id)] } : d))
+      void qc.invalidateQueries({ queryKey: ['scan'] })
+      void qc.invalidateQueries({ queryKey: ['scanning'] })
+    },
+  })
+}
 export const useStopRun = () => useScanMutation((id: string) => api.post<ScanRun>(`/scans/runs/${encodeURIComponent(id)}/stop`), ['findings'])
 export const useAddCred = () => useScanMutation((v: { asset_id: string; port: number; username: string; private_key: string }) => api.post<CredTarget>('/scans/credentialed', v))
 export const useDelCred = () => useScanMutation((id: string) => api.del<void>(`/scans/credentialed/${encodeURIComponent(id)}`))

@@ -14,14 +14,17 @@ import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Switch } from '@/components/ui/switch'
 import { GreenboneSetting } from '@/features/exposure/GreenbonePanel'
 import { CredentialDialog, SnmpSection } from '@/features/inventory/SnmpSection'
+import { OsqueryEnrol, WazuhForm } from '@/features/inventory/AgentsSection'
+import { useAgents } from '@/features/inventory/api'
 import { NucleiSettings } from '@/features/scan/NucleiSettings'
+import { VulnChecksButton } from '@/features/scan/VulnChecksButton'
 import { useStopRun } from '@/features/scan/api'
 import { ApiError } from '@/lib/api'
 import { fmtDateTime, fmtRelative } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
 import { useCan } from '@/lib/session'
 import { useSetEngine } from './api'
-import { ScopeButton, TurnOnModule } from './Fixes'
+import { ScopeButton, ScopeDialog, TurnOnModule } from './Fixes'
 import { runPlace } from './places'
 import { ScanNowButton } from './ScanNow'
 import type { Engine, EngineId, Scanning } from './types'
@@ -40,23 +43,60 @@ const PLACE: Partial<Record<EngineId, string>> = {
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e))
 const mb = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)} GB` : `${n} MB`)
 
+/** osquery: the token and its install commands, made here (Trưởng's 10:53 map: POST /inventory/agents/tokens; §0). */
+function OsqueryDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation('scanning')
+  const q = useAgents()
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v) onClose() }}>
+      <DialogContent wide title={t('fix.osqueryTitle')} description={t('fix.osqueryDescription')}>
+        {q.data ? <OsqueryEnrol data={q.data} /> : <p className="text-meta text-muted">{t('fix.loading')}</p>}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Wazuh: the server connection, tested and saved here (POST /inventory/agents/wazuh/test, PUT /inventory/agents/wazuh; §0). */
+function WazuhDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation('scanning')
+  return (
+    <Dialog open onOpenChange={(v) => { if (!v) onClose() }}>
+      <DialogContent title={t('fix.wazuhTitle')} description={t('fix.wazuhDescription')}>
+        <WazuhForm current={null} onSaved={() => { toast.success(t('fix.wazuhSaved')); onClose() }} />
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 /** The fix of an engine that needs setup, where it is: a dialog when the thing can be made here, else the exact place (§0). */
-function SetupFix({ e }: { e: Engine }) {
+function SetupFix({ e, d }: { e: Engine; d: Scanning }) {
   const { t } = useTranslation('scanning')
   const admin = useCan('admin')
-  const [snmp, setSnmp] = useState(false)
+  const [open, setOpen] = useState<'snmp' | 'osquery' | 'wazuh' | null>(null)
   if (e.state !== 'needs_setup' || !admin) return null
-  if (e.id === 'nmap-discovery') return <ScopeButton /> // the others of sensor-active follow it
+  const scopeMissing = !d.safety.scope.confirmed_at || d.safety.scope.lan_ranges.length === 0
+  if (e.id === 'nmap-discovery' || (e.id === 'nuclei' && scopeMissing)) return <ScopeButton /> // the others of sensor-active follow it
+  if (e.id === 'nuclei') return <DependencyLink reason={t('fix.nucleiWindow')} to="/settings/scanning?tab=safety#win-from" label={t('fix.nucleiWindowLink')} />
   if (e.id === 'snmp') return (
     <>
-      <Button size="sm" onClick={() => setSnmp(true)}>{t('fix.newSnmp')}</Button>
-      {snmp ? <CredentialDialog current={null} onClose={() => setSnmp(false)} /> : null}
+      <Button size="sm" onClick={() => setOpen('snmp')}>{t('fix.newSnmp')}</Button>
+      {open === 'snmp' ? <CredentialDialog current={null} onClose={() => setOpen(null)} /> : null}
     </>
   )
-  if (e.id === 'osquery') return <DependencyLink reason="" to="/devices/setup?tab=agents#agents" label={t('fix.osquery')} />
-  if (e.id === 'wazuh') return <DependencyLink reason="" to="/devices/setup?tab=agents#agents" label={t('fix.wazuh')} />
+  if (e.id === 'osquery') return (
+    <>
+      <Button size="sm" onClick={() => setOpen('osquery')}>{t('fix.newOsquery')}</Button>
+      {open === 'osquery' ? <OsqueryDialog onClose={() => setOpen(null)} /> : null}
+    </>
+  )
+  if (e.id === 'wazuh') return (
+    <>
+      <Button size="sm" onClick={() => setOpen('wazuh')}>{t('fix.newWazuh')}</Button>
+      {open === 'wazuh' ? <WazuhDialog onClose={() => setOpen(null)} /> : null}
+    </>
+  )
   if (e.id === 'zap' || e.id === 'openvas') return <DependencyLink reason="" to="/exposure?tab=targets#targets" label={t('fix.target')} />
-  if (e.id === 'honeypot') return <DependencyLink reason="" to="/honeypot?tab=trap-ips" label={t('fix.trapIp')} />
+  if (e.id === 'honeypot') return <DependencyLink reason="" to="/honeypot?tab=trap-ips#trap-ips" label={t('fix.trapIp')} />
   return null
 }
 
@@ -115,6 +155,9 @@ function EngineRow({ e, d, open, onOpen }: { e: Engine; d: Scanning; open: boole
   const admin = useCan('admin')
   const set = useSetEngine()
   const [ask, setAsk] = useState<{ off: boolean; deps?: string } | null>(null)
+  // review r2 N1: a switch refused for a missing scope opens the scope dialog and is tried again on save; no days links to the field
+  const [needScope, setNeedScope] = useState(false)
+  const [noDays, setNoDays] = useState(false)
   const nameId = useId()
   const panelId = useId()
   const name = (id: EngineId) => t(`engines.${id}.name`)
@@ -125,8 +168,13 @@ function EngineRow({ e, d, open, onOpen }: { e: Engine; d: Scanning; open: boole
   const change = (enabled: boolean, withDependencies = false) => set.mutate({ id: e.id, enabled, withDependencies }, {
     onSuccess: () => { setAsk(null); toast.success(t(enabled ? 'toast.on' : 'toast.off', { name: name(e.id) })) },
     onError: (err) => {
-      if (err instanceof ApiError && err.code === 'missing_dependencies') { setAsk({ off: false, deps: err.message }); return }
+      if (err instanceof ApiError && err.code === 'missing_dependencies') {
+        const list = ((err.details.missing ?? err.details.lacking ?? []) as string[]).map((m) => t(`common:modules.${m}.name`)).join(', ')
+        setAsk({ off: false, deps: list ? t('ask.needs', { list }) : err.message }); return
+      }
       setAsk(null)
+      if (err instanceof ApiError && (err.code === 'scope_not_confirmed' || err.code === 'no_ranges')) { setNeedScope(true); return }
+      if (err instanceof ApiError && err.code === 'no_days') { setNoDays(true); return }
       toast.error(errMsg(err))
     },
   })
@@ -152,15 +200,18 @@ function EngineRow({ e, d, open, onOpen }: { e: Engine; d: Scanning; open: boole
         <div className="flex items-center gap-2 sm:justify-end">
           {e.can_toggle ? (
             <>
-              <Switch id={`engine-${e.id}-switch`} checked={e.enabled} aria-labelledby={`${nameId} engine-${e.id}-on`} disabled={!admin || set.isPending || e.state === 'unavailable'} onCheckedChange={onSwitch} />
+              <Switch id={`engine-${e.id}-switch`} checked={e.enabled} aria-labelledby={`${nameId} engine-${e.id}-on`} disabled={!admin || set.isPending || (!e.enabled && e.state === 'unavailable')} onCheckedChange={onSwitch} />
               <span id={`engine-${e.id}-on`} className="text-sm">{e.enabled ? t('on') : t('off')}</span>
             </>
           ) : <span className="text-meta text-muted">{e.follows ? t('follows', { name: name(e.follows) }) : t('noSwitch')}</span>}
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-3"><SetupFix e={e} />{exposureOff ? <TurnOnModule module="exposure" name={t('common:modules.exposure.name')} /> : null}</div>
+      {needScope ? <ScopeDialog open onOpenChange={setNeedScope} onSaved={() => change(true)} /> : null}
+      {noDays ? <DependencyLink reason={t('fix.noDays')} to="/settings/scanning?tab=safety#win-from" label={t('fix.noDaysLink')} /> : null}
+      <div className="flex flex-wrap items-center gap-3"><SetupFix e={e} d={d} />{exposureOff ? <TurnOnModule module="exposure" name={t('common:modules.exposure.name')} /> : null}</div>
       <Runs e={e} d={d} />
       {e.id === 'nmap-discovery' && e.state !== 'needs_setup' ? <ScanNowButton targets="lan" variant="secondary" size="sm" /> : null}
+      {e.id === 'nuclei' && e.enabled ? <VulnChecksButton targets="lan" /> : null}
       {own ? (
         <div className="grid gap-3">
           <Button variant="ghost" size="sm" className="w-fit" aria-expanded={open} aria-controls={panelId} onClick={() => onOpen(!open)}>

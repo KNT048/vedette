@@ -77,7 +77,7 @@ describe('Settings › Scanning: every engine on one page (#850, D-627)', () => 
     await userEvent.click(within(row).getByRole('button', { name: 'Set the network ranges' }))
     const dlg = await screen.findByRole('dialog', { name: 'Network ranges you may scan' })
     expect(within(dlg).getByRole('button', { name: 'Save and confirm' })).toBeDisabled()
-    await userEvent.click(within(dlg).getByRole('checkbox', { name: /I confirm these ranges belong to my company/ }))
+    await userEvent.click(within(dlg).getByRole('checkbox', { name: /I confirm these network ranges belong to my company/ }))
     await userEvent.click(within(dlg).getByRole('button', { name: 'Save and confirm' }))
     await waitFor(() => expect(inventorySettingsStore.get().scope_confirmed_at).not.toBeNull())
     await waitFor(() => expect(within(row).queryByText('Needs setup')).toBeNull())
@@ -107,7 +107,7 @@ describe('Settings › Scanning: every engine on one page (#850, D-627)', () => 
     renderApp('/settings/scanning?tab=safety')
     const r = await screen.findByLabelText('Network ranges, one per line')
     await userEvent.type(r, '{enter}10.20.0.0/24')
-    expect(screen.getByRole('checkbox', { name: /I confirm these ranges/ })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: /I confirm these network ranges/ })).not.toBeChecked()
     expect(screen.getByText('The ranges changed: tick the confirmation again to save.')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Save settings' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/Tick the confirmation/)
@@ -121,7 +121,7 @@ describe('Settings › Scanning: every engine on one page (#850, D-627)', () => 
     expect((await fetch(`${base()}/scanning/engines/passive`, json('PATCH', { enabled: false }))).status).toBe(403)
   })
 
-  it('the old Vulnerability scans links land on their new place; ?target= lands on the device with its Check now button', async () => {
+  it('the old Vulnerability scans links land on their new place; ?target= lands on the device page with its buttons', async () => {
     for (const [from, want] of [['/scans', 'Engines'], ['/scans?tab=safety', 'Safety'], ['/scans?tab=probes', 'Probe log'], ['/scans?tab=auto', 'History']] as const) {
       const view = renderApp(from)
       expect(await screen.findByRole('tab', { name: want, selected: true })).toBeInTheDocument()
@@ -130,10 +130,9 @@ describe('Settings › Scanning: every engine on one page (#850, D-627)', () => 
     const v2 = renderApp('/scans?target=a-nas02&run=run-seed-3') // ?run= wins (review r1 L5)
     expect(within(await screen.findByRole('dialog')).getByText('You pressed Stop now.')).toBeInTheDocument()
     v2.unmount()
-    renderApp('/scans?target=a-nas02')
-    expect(await screen.findByRole('heading', { level: 1, name: 'Check NAS-PHOTOS now' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Check this device now' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open NAS-PHOTOS' })).toHaveAttribute('href', '/devices/a-nas02')
+    renderApp('/scans?target=a-nas02') // the device page, with its buttons (slot device.actions)
+    expect(await screen.findByRole('button', { name: 'Check this device now' }, { timeout: 4000 })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Run vulnerability checks now' })).toBeInTheDocument()
   })
 })
 
@@ -181,5 +180,68 @@ describe('Scan now in context: ScanNowButton and ScansRunningIndicator (#850)', 
     expect((await fetch(`${base()}/scanning/engines/nmap-discovery/run`, json('POST', { targets: ['a-web01'] }))).status).toBe(202)
     renderHere(<ScansRunningIndicator />, 'viewer')
     expect(await screen.findByRole('link', { name: '1 scan running' })).toHaveAttribute('href', '/devices/a-web01')
+  })
+})
+
+describe('#850 review r2: dead ends and the buttons of the Devices pages', () => {
+  it('N1: turning on Network discovery with the scope not confirmed opens the scope dialog, and the switch is tried again on save', async () => {
+    unconfirm()
+    inventorySettingsStore.update((s) => ({ ...s, active: { ...s.active, enabled: false } }))
+    renderApp('/settings/scanning')
+    const row = await card(/Network discovery \(nmap\)/)
+    await userEvent.click(within(row).getByRole('switch'))
+    const dlg = await screen.findByRole('dialog', { name: 'Network ranges you may scan' })
+    await userEvent.click(within(dlg).getByRole('checkbox', { name: /I confirm these network ranges/ }))
+    await userEvent.click(within(dlg).getByRole('button', { name: 'Save and confirm' }))
+    await waitFor(() => expect(within(row).getByRole('switch')).toBeChecked())
+    expect(inventorySettingsStore.get().active.enabled).toBe(true)
+  })
+
+  it('N2: an engine that is on but not available can still be turned off', async () => {
+    const { server } = await import('@/test/server')
+    const { http, HttpResponse } = await import('msw')
+    const { scanningView } = await import('./mocks')
+    server.use(http.get('*/api/v1/scanning', () => {
+      const v = scanningView()
+      return HttpResponse.json({ ...v, engines: v.engines.map((e) => (e.id === 'nuclei' ? { ...e, state: 'unavailable', reason: 'The scanner is missing.' } : e)) })
+    }))
+    renderApp('/settings/scanning')
+    const row = await card(/Vulnerability checks \(Nuclei\)/)
+    expect(within(row).getByRole('switch')).toBeChecked()
+    expect(within(row).getByRole('switch')).toBeEnabled()
+  })
+
+  it('the Devices list carries "Scan the LAN now" and, with a selection, "Scan selected (N)" (slot devices.actions)', async () => {
+    renderApp('/devices')
+    expect(await screen.findByRole('button', { name: 'Scan the LAN now' }, { timeout: 4000 })).toBeInTheDocument()
+    const boxes = await screen.findAllByRole('checkbox', { name: /^Select / })
+    await userEvent.click(boxes[1]!)
+    await userEvent.click(boxes[2]!)
+    expect(await screen.findByRole('button', { name: 'Scan selected (2)' })).toBeEnabled()
+  })
+
+  it('SNMP credentials moved here: /devices/setup?tab=snmp and ?snmp_ip= land on the SNMP card, the address kept for the add form', async () => {
+    const v = renderApp('/devices/setup?tab=snmp')
+    const row = await card(/SNMP reading/)
+    expect(await within(row).findByRole('heading', { name: 'SNMP credentials' })).toBeInTheDocument()
+    v.unmount()
+    renderApp('/devices/setup?snmp_ip=192.168.10.21')
+    expect(await screen.findByRole('dialog', {}, { timeout: 4000 })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'SNMP credentials' })).toBeNull()
+  })
+
+  it('osquery needs a token: it is made right on the card (§0)', async () => {
+    modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: true } : m)))
+    const { server } = await import('@/test/server')
+    const { http, HttpResponse } = await import('msw')
+    const { scanningView } = await import('./mocks')
+    server.use(http.get('*/api/v1/scanning', () => {
+      const v = scanningView()
+      return HttpResponse.json({ ...v, engines: v.engines.map((e) => (e.id === 'osquery' ? { ...e, enabled: true, state: 'needs_setup', reason: 'No osquery token yet.' } : e)) })
+    }))
+    renderApp('/settings/scanning')
+    const row = await card(/osquery agents/)
+    await userEvent.click(within(row).getByRole('button', { name: 'Create an osquery token' }))
+    expect(await screen.findByRole('dialog', { name: 'Install osquery on a server' })).toBeInTheDocument()
   })
 })

@@ -306,5 +306,13 @@
   "nuclei": {
     "inWindow": "Inside the time window, {{from}} to {{to}}.",
     "saveSchedule": "Save the schedule"
+  },
+  "checks": {
+    "button": "Run vulnerability checks now",
+    "running": "Checking…",
+    "otherRunning": "Vulnerability checks are already running.",
+    "openRun": "Open the run",
+    "none": "No device can be checked without your own pick yet.",
+    "finished": "Vulnerability checks finished."
   }
 }

@@ -16,10 +16,10 @@ import { fmtRelative } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { AnchorRedirect, ScrollToHash } from './anchors'
 import { BoxIpPanel } from './BoxIpPanel'
+import { GreenboneSetting } from './GreenbonePanel'
 import { InfoLine } from './InfoLine'
 import { CommitChip, OwnerChip } from './OwnerChip'
 import { ScanProgress } from './ScanProgress'
-import { GreenboneSetting } from './GreenbonePanel'
 import { useAddTarget, useTargets } from './api'
 import { OutsideList } from './OutsidePanel'
 import { PortMark, PortMarkNote } from './PortMark'
@@ -210,4 +210,3 @@ function AddTarget() {
     </Dialog>
   )
 }
-

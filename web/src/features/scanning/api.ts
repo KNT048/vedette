@@ -44,7 +44,7 @@ export function useSaveSafety() {
 export function safetyInput(s: Safety, patch: Partial<SafetyInput> = {}): SafetyInput {
   return {
     scope: { lan_ranges: s.scope.lan_ranges, confirmed: !!s.scope.confirmed_at },
-    window: { days: s.window.days.length ? s.window.days : [1, 2, 3, 4, 5, 6, 7], from: s.window.from, to: s.window.to },
+    window: { days: s.window.days, from: s.window.from, to: s.window.to }, // as they are: an empty list is the server's no_days to fix, never a window nobody chose
     speed: s.speed, exclusions: s.exclusions, fragile: { kinds: s.fragile.kinds, regular_scan_kinds: s.fragile.regular_scan_kinds },
     ...patch,
   }
@@ -55,6 +55,10 @@ export function useRunDiscovery() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (targets?: string[]) => api.post<RunningJob>('/scanning/engines/nmap-discovery/run', targets?.length ? { targets } : {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['scanning'] }),
+    // the 202 run goes into the page at once, so the button shows it (and never "finished") before the next read
+    onSuccess: (j) => {
+      qc.setQueryData<Scanning>(['scanning'], (d) => (d && !d.running.some((r) => r.id === j.id) ? { ...d, running: [...d.running, j] } : d))
+      return qc.invalidateQueries({ queryKey: ['scanning'] })
+    },
   })
 }

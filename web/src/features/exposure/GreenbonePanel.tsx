@@ -63,7 +63,7 @@ function GreenboneBody({ g, embedded = false }: { g: Greenbone; embedded?: boole
       {heldOn ? (embedded ? null : (
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={() => change(false)} disabled={!can || set.isPending} title={locked}>{t('greenbone.disable')}</Button>
-          <span className="text-[12px] text-muted">{t('greenbone.heldOn')}</span>
+          <span className="text-caption text-muted">{t('greenbone.heldOn')}</span>
         </div>
       )) : g.state === 'unavailable' ? null : (
         <>
@@ -78,8 +78,8 @@ function GreenboneBody({ g, embedded = false }: { g: Greenbone; embedded?: boole
             ...(f.last_at ? [{ label: t('greenbone.feedLast'), value: `${dateTimeText(f.last_at)}. ${f.note ?? ''}` }] : []),
             ...(f.next_at ? [{ label: t('greenbone.feedNext'), value: dateTimeText(f.next_at) }] : []),
           ]} />
-          {!on ? <InfoLine className="text-[13px]" topic={t('greenbone.needsTopic')} info={t('greenbone.needsInfo')}>{t('greenbone.needs')}</InfoLine> : null}
-          {(!on || (g.state === 'loading' && !f.last_at)) && p.ok && p.memory_bytes != null && p.memory_bytes < SWAP_BELOW ? <InfoLine className="text-[13px] text-muted" topic={t('greenbone.memory')} info={t('greenbone.swapNoteInfo')}>{t('greenbone.swapNote')}</InfoLine> : null}
+          {!on ? <InfoLine className="text-meta" topic={t('greenbone.needsTopic')} info={t('greenbone.needsInfo')}>{t('greenbone.needs')}</InfoLine> : null}
+          {(!on || (g.state === 'loading' && !f.last_at)) && p.ok && p.memory_bytes != null && p.memory_bytes < SWAP_BELOW ? <InfoLine className="text-meta text-muted" topic={t('greenbone.memory')} info={t('greenbone.swapNoteInfo')}>{t('greenbone.swapNote')}</InfoLine> : null}
           {!on && !p.ok ? <p role="alert" className="text-sm text-warn">{p.reason}</p> : null}
           {embedded ? null : <div className="flex flex-wrap items-center gap-3">
             {on ? (
@@ -87,9 +87,9 @@ function GreenboneBody({ g, embedded = false }: { g: Greenbone; embedded?: boole
             ) : (
               <Button variant="primary" onClick={() => change(true)} disabled={!can || !p.ok || set.isPending} title={locked ?? (p.ok ? undefined : p.reason ?? undefined)}>{t('greenbone.enable')}</Button>
             )}
-            {g.changed_by && g.changed_at ? <span className="text-[12px] text-muted">{t(on ? 'greenbone.changedOn' : 'greenbone.changedOff', { by: g.changed_by, time: dateTimeText(g.changed_at) })}</span> : null}
+            {g.changed_by && g.changed_at ? <span className="text-caption text-muted">{t(on ? 'greenbone.changedOn' : 'greenbone.changedOff', { by: g.changed_by, time: dateTimeText(g.changed_at) })}</span> : null}
           </div>}
-          {locked && !embedded ? <p className="text-[13px] text-muted">{locked}</p> : null}
+          {locked && !embedded ? <p className="text-meta text-muted">{locked}</p> : null}
         </>
       )}
     </Box>
@@ -170,9 +170,9 @@ export function GreenboneSection({ s }: { s: Snapshot }) {
     { id: 'port', header: t('greenbone.col.port'), accessorFn: (r) => r.port, cell: ({ row }) => <span className="tabular-nums">{row.original.port || t('common:unknown')}</span> },
     { id: 'qod', header: t('greenbone.col.qod'), accessorFn: (r) => r.qod, cell: ({ row }) => <span className="tabular-nums">{row.original.qod}%</span> },
     { id: 'cves', header: t('greenbone.col.cves'), enableSorting: false, accessorFn: (r) => r.cves.join(' '), cell: ({ row }) => (
-      row.original.cves.length > 0 ? <span className="grid gap-0.5 text-[12px]">{row.original.cves.map((c) => <span key={c}>{c}</span>)}</span> : <span className="text-[12px] text-muted">{t('greenbone.noCve')}</span>
+      row.original.cves.length > 0 ? <span className="grid gap-0.5 text-caption">{row.original.cves.map((c) => <span key={c}>{c}</span>)}</span> : <span className="text-caption text-muted">{t('greenbone.noCve')}</span>
     ) },
-    { id: 'solution', header: t('greenbone.col.solution'), enableSorting: false, accessorFn: (r) => r.solution, cell: ({ row }) => <span className="text-[13px]">{row.original.solution}</span> },
+    { id: 'solution', header: t('greenbone.col.solution'), enableSorting: false, accessorFn: (r) => r.solution, cell: ({ row }) => <span className="text-meta">{row.original.solution}</span> },
   ]
   const emptyBody = run.state === 'running' ? (started ? t('greenbone.results.runningBody', { time: started }) : t('greenbone.results.runningBodyNoTime'))
     : run.state === 'done' ? t('greenbone.results.noneBody')
@@ -188,7 +188,7 @@ export function GreenboneSection({ s }: { s: Snapshot }) {
         ) : (
           <EmptyState title={t(EMPTY_TITLE[run.state])} info={emptyInfo}>{emptyBody}{run.state === 'not_run' ? <OpenVasOffLink /> : null}</EmptyState>
         )}
-        {started && run.state !== 'running' ? <p className="mt-2 text-[12px] text-muted">{t('greenbone.results.startedAt', { time: started })}</p> : null}
+        {started && run.state !== 'running' ? <p className="mt-2 text-caption text-muted">{t('greenbone.results.startedAt', { time: started })}</p> : null}
       </Section>
       {read && notes.length > 0 ? (
         <Section id="greenbone-notes" title={t('greenbone.results.notesTitle')} description={t('greenbone.results.notesHeader')} info={t('greenbone.results.notesHeaderInfo')}>

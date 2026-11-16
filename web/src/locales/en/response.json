@@ -853,6 +853,7 @@
     "sentToast": "Request sent for approval",
     "toRequests": "Open Requests",
     "lanNothing": "Vedette cannot cut this machine off for you yet.",
+    "askAdmin": "To let Vedette block it next time, ask an administrator to connect your firewall or switch and turn on a trap rule.",
     "doNow": "Do this now:",
     "letVedette": "To let Vedette block it next time: connect your firewall or switch in",
     "toConnections": "Settings, Connections",

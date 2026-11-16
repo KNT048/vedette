@@ -34,10 +34,12 @@ const INPUT_ID: Record<Exclude<FieldId, 'form'>, string> = { preset: 'tip-preset
 export default function TrapIpsTab({ hits, lan, lanKnown = true, smbName }: { hits: Hit[]; lan: string; lanKnown?: boolean; smbName: string | null }) {
   const { t } = useTranslation('honeypot')
   const q = useTrapIps()
+  const admin = useCan('admin') // /devices/setup is the administrator's (#875 r1)
   return (
     <Section id="trap-ips" title={t('trapIp.title')} description={t('trapIp.description', { lan })} info={t('trapIp.descriptionInfo')}>
       {/* §0: a Trap IP goes on the LAN range; while the box does not know it, the way to the exact field */}
-      {lanKnown ? null : <DependencyLink className="mb-4" reason={t('trapIp.noLan')} to="/devices/setup?tab=scope#range-input" label={t('trapIp.noLanLink')} />}
+      {lanKnown ? null : admin ? <DependencyLink className="mb-4" reason={t('trapIp.noLan')} to="/devices/setup?tab=scope#range-input" label={t('trapIp.noLanLink')} />
+        : <p className="mb-4 text-meta text-muted">{t('trapIp.noLan')} {t('trapIp.noLanAskAdmin')}</p>}
       <QueryState query={q}>{(d) => <Inner data={d} hits={hits} smbName={smbName} />}</QueryState>
     </Section>
   )

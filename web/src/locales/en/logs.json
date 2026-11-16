@@ -61,6 +61,7 @@
     "descriptionNoIp": "Box address unknown: add your LAN range first (Devices, Scope and sensors).",
     "noIpReason": "The box takes its address from your LAN range.",
     "noIpLink": "Add the LAN range in Devices, Scope and sensors",
+    "noIpAskAdmin": "Ask an administrator to add the LAN range in Devices, Scope and sensors.",
     "descriptionNoIpInfo": "Devices that send syslog to the box. The box only accepts logs from the IPs declared here.",
     "descriptionNoIpLan": "Point devices at the address of the machine that runs Vedette.",
     "descriptionNoIpLanInfo": "Devices that send syslog to the box. The box cannot see its own address in your LAN range {{lan}}, as when it runs in a container: point devices at the address of the machine that runs Vedette, the one you open this page on. The box only accepts logs from the IPs declared here."

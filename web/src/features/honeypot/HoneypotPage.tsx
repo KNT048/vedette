@@ -97,10 +97,11 @@ function HoneypotBody() {
 
 function OverviewTab({ data, lan }: { data: HpOverview; lan: string }) {
   const { t } = useTranslation('honeypot')
+  const admin = useCan('admin') // #trap-ip-add is an administrator's button: anyone else lands on the tab (#875 r1)
   return (
     <>
       {data.trap_ips.total === 0 ? (
-        <EmptyState title={t('start.title')} info={t('start.info', { lan })} action={<Link className="text-sm font-medium text-accent underline underline-offset-4" to="?tab=trap-ips#trap-ip-add">{t('start.action')}</Link>}>
+        <EmptyState title={t('start.title')} info={t('start.info', { lan })} action={<Link className="text-sm font-medium text-accent underline underline-offset-4" to={admin ? '?tab=trap-ips#trap-ip-add' : '?tab=trap-ips'}>{t('start.action')}</Link>}>
           <ol className="mt-1 grid list-decimal gap-1 pl-5">
             <li>{t('start.step1', { lan })}</li>
             <li>{t('start.step2')}</li>
@@ -191,6 +192,7 @@ function ExclusionSection({ data }: { data: HpOverview }) {
 
 export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn?: boolean }) {
   const { t } = useTranslation('honeypot')
+  const admin = useCan('admin')
   const respond = useScope('response') !== 'hidden' // D-624 (#819): no Respond link while the response module is hidden
   const columns: ColumnDef<Hit>[] = [
     { id: 'ts', header: t('hits.col.time'), accessorFn: (r) => r.ts, cell: ({ row }) => (
@@ -215,7 +217,7 @@ export function HitsTable({ items, anyTrapOn = true }: { items: Hit[]; anyTrapOn
   // UI.md §6: no hit at all yet is "nothing yet" (the drawing, and the way to the step it waits for); the table's own filter keeps its text-only state.
   if (items.length === 0) return (
     <EmptyState art="no-alerts" title={t('hits.emptyTitle')} info={anyTrapOn ? t('hits.emptyBodyInfo') : t('hits.emptyBodyOffInfo')}
-      action={<Link className="text-sm font-medium text-accent underline underline-offset-4" to={anyTrapOn ? '?tab=services#services' : '?tab=trap-ips#trap-ip-add'}>{anyTrapOn ? t('hits.emptyActionTest') : t('hits.emptyActionAdd')}</Link>}>
+      action={<Link className="text-sm font-medium text-accent underline underline-offset-4" to={anyTrapOn ? '?tab=services#services' : admin ? '?tab=trap-ips#trap-ip-add' : '?tab=trap-ips'}>{anyTrapOn ? t('hits.emptyActionTest') : t('hits.emptyActionAdd')}</Link>}>
       {anyTrapOn ? t('hits.emptyBody') : t('hits.emptyBodyOff')}
     </EmptyState>
   )

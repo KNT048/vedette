@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
+import { useCan } from '@/lib/session'
 import { useAddSource, useDeleteSource, useEditSource } from './api'
 import { CATALOG, GROUP_LABEL, GROUPS, searchCatalog } from './catalog'
 import { LAN_RANGE } from './places'
@@ -161,6 +162,7 @@ export function SourceFormDialog({ open, onOpenChange, source, sender, onAdded }
 
 export function ConfigDialog({ source, boxIp, lan, onClose }: { source: LogSource | null; boxIp: string | null; lan: string | null; onClose: () => void }) {
   const { t } = useTranslation('logs')
+  const admin = useCan('admin') // /devices/setup is the administrator's (#875 r1)
   return (
     <Dialog open={source !== null} onOpenChange={(o) => { if (!o) onClose() }}>
       {source ? (() => {
@@ -171,7 +173,7 @@ export function ConfigDialog({ source, boxIp, lan, onClose }: { source: LogSourc
           <DialogContent wide title={t('config.title', { name: source.name })} description={t('config.target', { ip, port: source.port, proto: source.proto.toUpperCase(), sender: source.sender_ip })}>
             {boxIp ? null : <Notice tone="warn" role="alert" title={lan ? t('config.noIpLan', { lan, placeholder: BOX_PLACEHOLDER }) : t('config.noIp', { placeholder: BOX_PLACEHOLDER })}
               info={lan ? t('config.noIpLanInfo', { lan, placeholder: BOX_PLACEHOLDER }) : t('config.noIpInfo', { placeholder: BOX_PLACEHOLDER })}
-              actions={lan ? undefined : <Link to={LAN_RANGE} className="text-sm font-medium text-accent underline underline-offset-4">{t('sources.noIpLink')}</Link>} />}
+              actions={lan ? undefined : admin ? <Link to={LAN_RANGE} className="text-sm font-medium text-accent underline underline-offset-4">{t('sources.noIpLink')}</Link> : <span className="text-sm text-muted">{t('sources.noIpAskAdmin')}</span>} />}
             {source.proto === 'tls' ? (
               <div className="flex items-start gap-1 rounded-md border border-rule bg-sunken px-3 py-2 text-meta">
                 <p>{t(source.client_cert_sha256 ? 'config.tlsTrustPinned' : 'config.tlsTrust')}</p>

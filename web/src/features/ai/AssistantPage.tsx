@@ -30,7 +30,7 @@ export default function AssistantPage() {
   const cfg = useAiConfig(on)
   const u = usage.data
   const title = gate.state === 'off' ? t('page.titleOff')
-    : gate.state === 'unconfigured' ? t('page.titleUnconfigured')
+    : gate.state === 'unconfigured' ? t(gate.text === 'keyLost' ? 'page.titleKeyLost' : 'page.titleUnconfigured')
       : u ? t('page.title', { used: fmtNumber(u.month.total), cap: fmtNumber(u.monthly_budget) }) : t('page.titleLoading')
   const tabs: PageTab[] = [{ id: 'ask', label: t('page.tabAsk'), panel: <Ask /> }]
   // Chưa nối AI và chưa từng chạy: đồng hồ 0/trần và nhật ký trống chỉ gây nhiễu; màn trống ở tab Ask đã nói việc cần làm.
@@ -72,7 +72,7 @@ function Ask() {
   return (
     <Section title={t('ask.title')} description={t('ask.description')} info={t('ask.descriptionInfo')} stories={['S-AI-5']}>
       {gate.state === 'unconfigured' || gate.state === 'unassigned' ? (
-        <EmptyState title={t(`gate.${gate.state}`)} info={t(`gate.${gate.state}Info`, { defaultValue: '' }) || undefined}>{t(`gate.${gate.state}Body`)} <ToSettings state={gate.state} job="ask-my-data" /></EmptyState>
+        <EmptyState title={t(`gate.${gate.text}`)} info={t(`gate.${gate.text}Info`, { defaultValue: '' }) || undefined}>{t(`gate.${gate.text}Body`)} <ToSettings state={gate.text} job="ask-my-data" /></EmptyState>
       ) : (
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <form className="grid grid-cols-[minmax(0,1fr)] gap-3" onSubmit={(e) => { e.preventDefault(); run(q) }}>

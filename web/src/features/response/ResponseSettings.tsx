@@ -39,7 +39,7 @@ export function EnableDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         <Notice tone="danger" className="mb-0" title={t('risk.statement')} />
         <div className="grid gap-1 text-sm">
           <p className="flex flex-wrap items-center gap-2">{t('enable.twofa')} <Chip tone={twofa ? 'ok' : 'danger'}>{twofa ? t('enable.twofaOn') : t('enable.twofaOff')}</Chip></p>
-          {!twofa ? <p className="text-meta"><Link to="/settings/account?tab=sign-in#two-step" className="text-accent underline underline-offset-4" onClick={() => onOpenChange(false)}>{t('enable.toAccount')}</Link></p> : null}
+          {!twofa ? <p className="text-meta"><Link to="/settings/account?tab=sign-in#twofa-start-pw" className="text-accent underline underline-offset-4" onClick={() => onOpenChange(false)}>{t('enable.toAccount')}</Link></p> : null}
         </div>
         <Field htmlFor="risk-phrase" label={t('enable.phraseLabel', { phrase: RISK_PHRASE })} error={error}>
           <Input id="risk-phrase" value={phrase} autoComplete="off" spellCheck={false} onChange={(e) => { setPhrase(e.target.value); setError(undefined) }} aria-invalid={!!error} aria-describedby={error ? 'risk-phrase-error' : undefined} />

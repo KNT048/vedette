@@ -26,9 +26,17 @@ export function useAiGate(minRole: 'operator' | 'viewer' = 'operator', job?: AiJ
   const cfg = useAiConfig(on === true) // with the module off the route is 404: not asked (S-CORE-9, 2026-11-12 walk)
   const can = useCan(minRole)
   const unassigned = !!job && !!cfg.data?.configured && cfg.data.jobs_ready[job] === false
-  const state: 'loading' | 'off' | 'unconfigured' | 'unassigned' | 'ready' = on === undefined || (on && cfg.isPending) ? 'loading' : !on ? 'off' : !cfg.data?.configured ? 'unconfigured' : unassigned ? 'unassigned' : 'ready'
-  const reason = state !== 'ready' ? t(`gate.${state}`) : !can ? t('common:needRole', { role: t(`common:role.${minRole}`) }) : undefined
-  return { state, canRun: state === 'ready' && can, reason, cfg: cfg.data }
+  // J7 (#847): after a restore without the key every profile is key_lost, so none is usable and the box reads "not configured". The
+  // profiles are still there (and assigned): the way out is their key, never a second profile. Asked only in that case.
+  const unconf = on === true && cfg.data?.configured === false
+  const profiles = useProfiles(unconf)
+  const items = profiles.data?.items ?? []
+  const keyLost = unconf && items.length > 0 && !items.some((p) => p.usable) && items.some((p) => p.key_lost)
+  const state: 'loading' | 'off' | 'unconfigured' | 'unassigned' | 'ready' = on === undefined || (on && cfg.isPending) || (unconf && profiles.isPending) ? 'loading' : !on ? 'off' : !cfg.data?.configured ? 'unconfigured' : unassigned ? 'unassigned' : 'ready'
+  /** The words of the state: 'keyLost' for an unconfigured box whose profiles lost their key (gate.keyLost*, ToSettings). */
+  const text = state === 'unconfigured' && keyLost ? 'keyLost' : state
+  const reason = state !== 'ready' ? t(`gate.${text}`) : !can ? t('common:needRole', { role: t(`common:role.${minRole}`) }) : undefined
+  return { state, text, canRun: state === 'ready' && can, reason, cfg: cfg.data }
 }
 
 /** Where a blocked AI task is unblocked (docs/UI.md §0): no profile yet → "Add an AI profile" right here (the profile dialog of Settings,
@@ -40,14 +48,16 @@ export function ToSettings({ className, state, job, to }: { className?: string; 
   const [adding, setAdding] = useState(false)
   const profiles = useProfiles(admin && adding)
   const link = className ?? 'text-accent underline underline-offset-4'
-  if (!admin) return <span className="text-muted">{t('gate.askAdmin')}</span>
+  if (!admin) return <span className="text-muted">{t(state === 'keyLost' ? 'gate.askAdminKey' : 'gate.askAdmin')}</span>
   if (state === 'unassigned' && job) return <Link to={`/settings/ai#ai-job-${job}`} className={link}>{t('gate.toAssign')}</Link>
+  // J7: the lost profiles' notices (Enter the key) are at the top of the profiles; a new profile would only duplicate one.
+  if (state === 'keyLost') return <Link to="/settings/ai#ai-profiles" className={link}>{t('gate.toKey')}</Link>
   if (state === 'unconfigured') {
     return (
       <span className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
         <Button variant="primary" size="sm" onClick={() => setAdding(true)}>{t('profiles.add')}</Button>
         <Link to="/settings/ai#ai-profiles" className={link}>{t('gate.toSettings')}</Link>
-        {adding && profiles.data ? <Suspense fallback={null}><ProfileDialog profile={null} existing={profiles.data.items} onClose={() => setAdding(false)} /></Suspense> : null}
+        {adding && !profiles.isPending ? <Suspense fallback={null}><ProfileDialog profile={null} existing={profiles.data?.items ?? []} onClose={() => setAdding(false)} /></Suspense> : null}
       </span>
     )
   }

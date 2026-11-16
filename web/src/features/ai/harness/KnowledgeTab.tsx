@@ -8,6 +8,8 @@ import { Chip } from '@/components/common/StatusChip'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Select } from '@/components/ui/input'
+import { DependencyLink } from '@/components/common/DependencyLink'
+import { useCan } from '@/lib/session'
 import { fmtNumber, fmtRelative } from '@/lib/format'
 import { useProfiles } from '../api'
 import { fileBase64, useAddDoc, useDocJobs, useIndexProfile, useKnowledge, useRemoveDoc } from '../harness-api'
@@ -24,6 +26,7 @@ export default function KnowledgeTab() {
   const { t } = useTranslation('ai')
   const kb = useKnowledge()
   const profiles = useProfiles()
+  const admin = useCan('admin')
   const index = useIndexProfile()
   const add = useAddDoc()
   const remove = useRemoveDoc()
@@ -60,6 +63,9 @@ export default function KnowledgeTab() {
                     {list.map((p) => <option key={p.id} value={p.id} disabled={!p.usable}>{p.name} ({t(`profiles.location.${p.location}`)}){!p.usable ? ` - ${t('assign.optNoKey')}` : ''}</option>)}
                   </Select>
                 </Field>
+                {/* §0: no profile can index yet: the way to add one (the administrator's), not a select that offers only None */}
+                {profiles.data && !list.some((p) => p.usable) ? (admin ? <DependencyLink reason={t('harness.knowledge.noProfile')} to="/settings/ai?tab=profiles#ai-profiles" label={t('harness.knowledge.toProfiles')} />
+                  : <p className="text-meta text-muted">{t('harness.knowledge.noProfile')} {t('gate.askAdmin')}</p>) : null}
                 {chosen?.location === 'cloud' ? <Notice tone="warn" role="alert" title={t('harness.knowledge.cloudWarn', { host: hostOf(chosen.base_url) })} info={t('harness.knowledge.cloudWarnInfo')} /> : null}
                 {chosen?.location === 'internal' ? <p className="text-meta text-muted">{t('harness.knowledge.internalNote')}</p> : null}
                 <ActionError error={index.error} />

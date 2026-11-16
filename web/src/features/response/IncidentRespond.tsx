@@ -21,6 +21,7 @@ const link = 'text-accent underline underline-offset-4'
 export function IncidentRespond({ id }: { id: string }) {
   const { t } = useTranslation('response')
   const q = useIncidentPanel(id)
+  const admin = useCan('admin') // Settings, Connections and the Actions tab are the administrator's (#875 r1)
   const [sent, setSent] = useState<string | null>(null)
   if (q.isPending) return <Loading />
   if (q.error) return <div className="mb-6"><ErrorState error={q.error} onRetry={() => void q.refetch()} /></div>
@@ -47,7 +48,7 @@ export function IncidentRespond({ id }: { id: string }) {
             <Notice tone="off" className="mb-0" title={t('incident.lanNothing')}>
               <ol className="ml-5 grid list-decimal gap-1 text-ink">
                 <li>{t('incident.doNow')} {incident.action}</li>
-                <li>{t('incident.letVedette')} <Link className={link} to="/settings/connections#connections-add">{t('incident.toConnections')}</Link>{t('incident.thenCatalog')} <Link className={link} to="/response?tab=actions#catalog">{t('incident.toCatalog')}</Link>{t('incident.thenRule')} <Link className={link} to="/response?tab=rules">{t('incident.toRules')}</Link></li>
+                {admin ? <li>{t('incident.letVedette')} <Link className={link} to="/settings/connections#connections-add">{t('incident.toConnections')}</Link>{t('incident.thenCatalog')} <Link className={link} to="/response?tab=actions#catalog">{t('incident.toCatalog')}</Link>{t('incident.thenRule')} <Link className={link} to="/response?tab=rules">{t('incident.toRules')}</Link></li> : <li>{t('incident.askAdmin')}</li>}
               </ol>
             </Notice>
           ) : null}

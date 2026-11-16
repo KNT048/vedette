@@ -127,7 +127,9 @@ function SourcesSection() {
           return (
             <>
               {/* docs/UI.md §0: the missing LAN range is one link away, on its field */}
-              {!d.box.ip && !d.box.lan ? <DependencyLink className="mb-3" reason={t('sources.noIpReason')} to={LAN_RANGE} label={t('sources.noIpLink')} /> : null}
+              {/* /devices/setup is the administrator's: anyone else is told who can add it, not sent to a forbidden page (#875 r1) */}
+              {!d.box.ip && !d.box.lan ? (isAdmin ? <DependencyLink className="mb-3" reason={t('sources.noIpReason')} to={LAN_RANGE} label={t('sources.noIpLink')} />
+                : <p className="mb-3 text-meta text-muted">{t('sources.noIpReason')} {t('sources.noIpAskAdmin')}</p>) : null}
               {d.sources.length === 0 ? (
                 <EmptyState title={t('sources.emptyTitle')} info={t('sources.emptyBodyInfo')} action={addButton}>{t('sources.emptyBody')}</EmptyState>
               ) : (

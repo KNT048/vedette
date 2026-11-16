@@ -100,7 +100,7 @@ function ProfilesTab({ cfg }: { cfg: AiConfigView }) {
     <>
       <Flow profiles={profiles.data?.items ?? []} />
       <QueryState query={profiles}>{(p) => <ProfilesSection profiles={p.items} assign={assign.data} />}</QueryState>
-      <QueryState query={assign}>{(a) => <AssignSection key={JSON.stringify(a)} profiles={profiles.data?.items ?? []} assign={a} />}</QueryState>
+      <QueryState query={assign}>{(a) => <AssignSection profiles={profiles.data?.items ?? []} assign={a} />}</QueryState>
       <TierForm key={`${cfg.tier}|${cfg.monthly_budget}|${cfg.redact_pii}`} cfg={cfg} />
       <RetentionForm />
     </>
@@ -404,11 +404,29 @@ function RemoveDialog({ profile, assign, onClose }: { profile: AiProfile; assign
 }
 
 // ---------- Phân việc
+/** A refetch of the assignments (a profile added from "+ New AI profile" takes every job without a primary; a save) keeps what the
+ *  customer changed: a row they edited stays theirs, an untouched row takes the server's value. With the privacy rule changed in the
+ *  draft, the draft stays whole (the server's rows follow the saved rule, not the draft's). Never a remount: focus and the "added
+ *  and selected" status stay on the select (#875 r1). */
+function mergeAssignments(draft: Assignments, was: Assignments, now: Assignments): Assignments {
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+  if (same(draft, was)) return now
+  if (draft.internal_only !== was.internal_only) return draft
+  const jobs = { ...draft.jobs }
+  for (const j of Object.keys(now.jobs) as AiJob[]) if (same(draft.jobs[j], was.jobs[j])) jobs[j] = now.jobs[j]
+  return { ...draft, jobs }
+}
+
 function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: Assignments }) {
   const { t } = useTranslation('ai')
   const admin = useCan('admin')
   const save = useSaveAssignments()
   const [draft, setDraft] = useState<Assignments>(assign)
+  const [base, setBase] = useState<Assignments>(assign)
+  if (JSON.stringify(assign) !== JSON.stringify(base)) { // adjust state to a new prop during render (react.dev, "You might not need an effect")
+    setBase(assign)
+    setDraft((d) => mergeAssignments(d, base, assign))
+  }
   const [note, setNote] = useState('')
   const reason = admin ? undefined : t('common:needRole', { role: t('common:role.admin') })
   const dirty = JSON.stringify(draft) !== JSON.stringify(assign)
@@ -452,7 +470,12 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
   const allLost = profiles.filter(usable).length === 0 && profiles.some((p) => p.key_lost)
   const noProfiles = profiles.filter(usable).length === 0 && !allLost
   const [adding, setAdding] = useState(false)
-  const newProfile = ({ open, onOpenChange, onCreated }: CreateDialogProps) => (open ? <ProfileDialog profile={null} existing={profiles} onClose={() => onOpenChange(false)} onSaved={(p) => onCreated({ value: p.id, label: p.name })} /> : null)
+  // §0: the new profile is selected in the row it was made from only when that row may use it; otherwise the row keeps its value
+  // and says why, so Save never fails on a profile the privacy rule or a missing key forbids (#875 r1).
+  const newProfile = (data: 'internal' | 'public') => ({ open, onOpenChange, onCreated }: CreateDialogProps) => (open ? <ProfileDialog profile={null} existing={profiles} onClose={() => onOpenChange(false)} onSaved={(p) => {
+    if (p.usable && !blocked(p, data)) { onCreated({ value: p.id, label: p.name }); return }
+    setNote(t('assign.addedNotSelected', { name: p.name, why: blocked(p, data) ? t('assign.notSelectedCloud') : t('assign.notSelectedUnusable') }))
+  }} /> : null)
   return (
     <Section id="ai-routing" title={t('assign.title')} description={t('assign.description')} info={<><p>{t('assign.descriptionInfo')}</p><p>{t('assign.fallbackNote')}</p></>} stories={['S-AI-4']}
       actions={<Button onClick={() => void suggest()} disabled={!admin || noProfiles || allLost} title={reason ?? (noProfiles || allLost ? t('assign.needProfile') : undefined)}>{t('assign.suggest')}</Button>}>
@@ -494,7 +517,7 @@ function AssignSection({ profiles, assign }: { profiles: AiProfile[]; assign: As
                       <td className="px-3 py-2">
                         {/* §0: the profile a task needs is created right here and selected */}
                         <CreatableSelect id={`ai-job-${j.id}`} className="min-w-[11rem]" aria-label={t('assign.primaryFor', { job: t(`jobs.${j.id}.name`) })} value={s.primary ?? ''} onChange={(v) => setSlot(j.id, 'primary', v)} disabled={!admin} title={reason}
-                          options={opts('primary')} newLabel={t('assign.newProfile')} canCreate={admin} renderCreate={newProfile} />
+                          options={opts('primary')} newLabel={t('assign.newProfile')} canCreate={admin} renderCreate={newProfile(j.data)} />
                       </td>
                       <td className="px-3 py-2">
                         <Select className="min-w-[11rem]" aria-label={t('assign.fallbackFor', { job: t(`jobs.${j.id}.name`) })} value={s.fallback ?? ''} onChange={(e) => setSlot(j.id, 'fallback', e.target.value)} disabled={!admin || !s.primary} title={reason ?? (!s.primary ? t('assign.fallbackNeedsPrimary') : undefined)}>

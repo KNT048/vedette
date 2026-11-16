@@ -11,6 +11,11 @@
     "toSettings": "Open Settings, AI assistant",
     "toAssign": "Assign a profile in Settings, AI assistant",
     "askAdmin": "Ask an administrator to add an AI profile.",
+    "keyLost": "The AI key was not restored",
+    "keyLostBody": "The backup was restored without its decryption key, so no AI profile can be used until its key is entered again.",
+    "keyLostInfo": "Your AI profiles and the tasks assigned to them are kept. Enter each key again in Settings, AI assistant (Enter the key on the profile); a new profile is not needed.",
+    "toKey": "Enter the key again in Settings, AI assistant",
+    "askAdminKey": "Ask an administrator to enter the AI key again.",
     "unassigned": "No AI profile is assigned to this task",
     "unassignedBody": "No AI profile is assigned to this task.",
     "unassignedInfo": "A profile exists, but this task has none assigned, or the privacy rule excludes it. Assign one in the job routing table."
@@ -20,6 +25,7 @@
     "info": "Ask about your own devices and findings in plain words. The AI reads data through read-only tools, changes nothing, and every token it uses counts against the monthly budget.",
     "titleOff": "AI assistant is off, existing data is kept",
     "titleUnconfigured": "No AI profile yet: add one in Settings to ask your data",
+    "titleKeyLost": "The AI key was not restored: enter it again in Settings to ask your data",
     "title": "{{used}} of {{cap}} tokens used this month. The AI only reads data and changes nothing.",
     "meta": "{{tier}} level. Every answer needs a person to confirm before acting on it.",
     "tabs": "Assistant sections",
@@ -409,6 +415,9 @@
     },
     "none": "None",
     "newProfile": "New AI profile",
+    "addedNotSelected": "{{name}} added, not selected for this task: {{why}}",
+    "notSelectedCloud": "the privacy rule allows only a profile inside your network for this data.",
+    "notSelectedUnusable": "it cannot be used until its key is entered.",
     "primaryFor": "Primary profile for {{job}}",
     "fallbackFor": "Fallback profile for {{job}}",
     "fallbackNeedsPrimary": "Pick a primary profile first",
@@ -555,6 +564,8 @@
       "batch": "Runs in batches during inventory, not from a button."
     },
     "knowledge": {
+      "noProfile": "The index needs an AI profile that can be used.",
+      "toProfiles": "Add an AI profile in Profiles",
       "indexTitle": "Index",
       "indexBody": "Built on this box with full-text search; building sends nothing out.",
       "indexInfo": "The index is built on this box with full-text search, and building it sends nothing out. Document text leaves the box only when a job a document is assigned to runs: the few passages that match go to that job's AI profile with the call. A profile for the index is still required for now.",

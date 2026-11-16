@@ -32,6 +32,7 @@ function Body({ d }: { d: PrivacyState }) {
   // S-CORE-4 (walk 4): a container-only install has no vedette-host, apt, scan image build or chrony; flows 6 and 10 then
   // read as the container-only rows of PRIVACY.md (D-381). undefined while GET /modules loads: the appliance text.
   const container = useInstallKind() === 'container'
+  const oidcShown = useScope('auth-oidc') !== 'hidden' // post-v1: its switch is not on Settings, Modules in a v1 build
   const mcpShown = useScope('mcp-server') !== 'hidden' // D-624 (#819): no link to a Settings page this build does not offer
   const txt = (id: number, part: 'what' | 'to' | 'control') => t(container && (id === 6 || id === 10) ? `privacy.flow.${id}.container.${part}` : `privacy.flow.${id}.${part}`)
   // #824: a long cell shows its one-line summary (privacy.flowShort) and the full PRIVACY.md text behind ⓘ; the full text stays
@@ -73,7 +74,7 @@ function Body({ d }: { d: PrivacyState }) {
           {f.id === 8 || f.id === 9 ? <Link className="text-accent underline-offset-4 hover:underline" to={`/settings/modules#module-${f.id === 8 ? 'ai' : 'exposure'}`}>{t(`privacy.flow.${f.id}.link`)}</Link> : null}
           {f.id === 12 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/connections">{t('privacy.flow.12.link')}</Link> : null}
           {f.id === 13 && mcpShown ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/mcp">{t('privacy.flow.13.link')}</Link> : null}
-          {f.id === 11 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules#module-auth-oidc">{t('privacy.flow.11.link')}</Link> : null}
+          {f.id === 11 && oidcShown ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/modules#module-auth-oidc">{t('privacy.flow.11.link')}</Link> : null}
           {f.id === 10 && !container ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/network?tab=time#ntp-mode">{t('privacy.flow.10.link')}</Link> : null}
           {f.id === 1 ? <Link className="text-accent underline-offset-4 hover:underline" to="/settings/feeds">{t('privacy.flow.1.link')}</Link> : null}
           {f.id === 15 || f.id === 16 ? <Link className="text-accent underline-offset-4 hover:underline" to="/exposure">{t(`privacy.flow.${f.id}.link`)}</Link> : null}

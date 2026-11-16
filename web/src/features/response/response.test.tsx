@@ -1356,7 +1356,7 @@ describe('response: screens', () => {
     await userEvent.click(sw)
     const dialog = await screen.findByRole('dialog')
     expect(dialog).toHaveTextContent('This is a high-risk feature. Your AI can be wrong and can change your network devices. You carry the risk yourself. Vedette is provided as is under the Apache-2.0 license; its author, Kien Nguyen, is not responsible for actions your AI takes.')
-    expect(screen.getByRole('link', { name: 'Turn it on in My account' })).toHaveAttribute('href', '/settings/account?tab=sign-in#two-step')
+    expect(screen.getByRole('link', { name: 'Turn it on in My account' })).toHaveAttribute('href', '/settings/account?tab=sign-in#twofa-start-pw')
     await userEvent.type(screen.getByLabelText(`Type ${PHRASE} to confirm`), PHRASE)
     expect(screen.getByRole('button', { name: 'Turn on AI execution' })).toBeDisabled() // two-step sign-in is off
   })
@@ -1997,9 +1997,18 @@ describe('response: Respond from an incident (S-RESP-3, D-509)', () => {
     expect(await within(panel).findByText('192.168.10.107')).toBeInTheDocument()
     expect(within(panel).getByText('On your network')).toBeInTheDocument()
     expect(within(panel).getByText('Vedette cannot cut this machine off for you yet.')).toBeInTheDocument()
-    expect(within(panel).getByRole('link', { name: 'Settings, Connections' })).toHaveAttribute('href', '/settings/connections#connections-add')
+    // Settings, Connections and the Actions tab are the administrator's: an operator is told to ask one, not sent there (#875 r1)
+    expect(within(panel).getByText(/ask an administrator to connect your firewall or switch and turn on a trap rule/)).toBeInTheDocument()
+    expect(within(panel).queryByRole('link', { name: 'Settings, Connections' })).toBeNull()
     expect(within(panel).getByText(/The block list only carries public addresses, so it cannot hold 192.168.10.107/)).toBeInTheDocument()
     for (const b of within(panel).getAllByRole('button', { name: 'Ask for approval' })) expect(b).toBeDisabled()
+  })
+
+  it('the panel for an administrator: the links to Connections, the action catalog and the rule templates', async () => {
+    renderApp('/response?incident=al-4', { role: 'admin' })
+    const panel = await screen.findByRole('region', { name: 'Respond to this incident' })
+    expect(await within(panel).findByRole('link', { name: 'Settings, Connections' })).toHaveAttribute('href', '/settings/connections#connections-add')
+    expect(within(panel).getByRole('link', { name: 'the action catalog' })).toHaveAttribute('href', '/response?tab=actions#catalog')
   })
 
   it('the response module off (the default): Respond still shows what to do by hand and how to let Vedette help (W7-1)', async () => {

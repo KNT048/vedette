@@ -391,7 +391,13 @@ func sanitize(c Content) Content {
 	}
 	for _, p := range c.Ports {
 		if len(out.Ports) < maxContentRows && p.Port >= 1 && p.Port <= 65535 {
-			out.Ports = append(out.Ports, sanitizePortIdent(PortRow{IP: txt(p.IP), Port: p.Port, Service: txt(p.Service), Product: txt(p.Product)}, p))
+			row := PortRow{IP: txt(p.IP), Port: p.Port, Service: txt(p.Service), Product: txt(p.Product)}
+			// INV-22: the marks of a port kept from an earlier scan survive a re-save (the Greenbone step re-sanitizes the stored content).
+			if _, err := time.Parse(time.DateOnly, p.LastSeen); err == nil {
+				row.LastSeen, row.Unchecked = p.LastSeen, p.Unchecked
+				row.Misses = max(p.Misses, 0)
+			}
+			out.Ports = append(out.Ports, sanitizePortIdent(row, p))
 		}
 	}
 	for _, a := range c.AdminPanels {

@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createBrowserRouter, createMemoryRouter } from 'react-router'
 import { Toaster } from 'sonner'
 import { buildRoutes } from './router'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { ApiError } from '@/lib/api'
 import { BoxRestarting, resetBoxRestart, useBoxRestarting } from '@/features/core/BoxRestarting'
 
@@ -20,7 +21,7 @@ export function App({ initialPath }: { initialPath?: string }) {
   useEffect(() => resetBoxRestart, [])
   return (
     <QueryClientProvider client={qc}>
-      {restarting ? <BoxRestarting /> : <RouterProvider router={router} />}
+      <TooltipProvider>{restarting ? <BoxRestarting /> : <RouterProvider router={router} />}</TooltipProvider>
       <Toaster position="bottom-right" toastOptions={{ className: '!rounded-md !border !border-rule !bg-surface !text-ink !font-sans', classNames: { title: '!text-ink', description: '!text-muted' } }}
         style={{ '--normal-bg': 'var(--surface)', '--normal-text': 'var(--ink)', '--normal-border': 'var(--rule)' } as CSSProperties} />
     </QueryClientProvider>

@@ -24,15 +24,20 @@ function useNarrow() {
  * Bảng là thành phần chính (FRONTEND §3): 40px/dòng, header dính, sắp xếp, lọc chữ, phân trang 50.
  * `rowTone` tô viền trái cho dòng cần chú ý (ví dụ "Anh có" + đang bị khai thác).
  */
-export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, rowTone, empty, emptyFiltered, toolbar, pageSize = 50, initialSort, caption, mobileRow, sortSelect, hiddenColumns }: {
+export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, rowTone, empty, emptyFiltered, filtered, onClearFilters, toolbar, pageSize = 50, initialSort, caption, mobileRow, sortSelect, hiddenColumns }: {
   data: T[]
   columns: ColumnDef<T, any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
   filterPlaceholder?: string
   onRowClick?: (row: T) => void
   rowTone?: (row: T) => 'danger' | 'warn' | undefined
   empty?: ReactNode
-  /** Shown instead of `empty` when there are rows but the text filter hides them all (docs/UI.md §6: text only). */
+  /** docs/UI.md §6: shown instead of `empty` when filters hide every row, the table's own text filter or the page's (`filtered`).
+   *  Default: "No rows match these filters." and a "Clear filters" button. */
   emptyFiltered?: ReactNode
+  /** The page filtered `data` itself (a segment, a select, its own search): an empty table then means "no match", not "nothing yet". */
+  filtered?: boolean
+  /** Clears the page's filters; the default empty-filtered state calls it from "Clear filters" (the table's own filter is cleared too). */
+  onClearFilters?: () => void
   toolbar?: ReactNode
   pageSize?: number
   initialSort?: SortingState
@@ -55,7 +60,16 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
     getPaginationRowModel: getPaginationRowModel(), initialState: { pagination: { pageSize }, columnVisibility: Object.fromEntries((hiddenColumns ?? []).map((id) => [id, false])) },
   })
   const rows = table.getRowModel().rows
-  const none = data.length > 0 && filter ? (emptyFiltered ?? empty ?? t('table.emptyFiltered')) : (empty ?? t('table.empty'))
+  const noMatch = filtered || (data.length > 0 && !!filter)
+  const clear = () => { setFilter(''); onClearFilters?.() }
+  const none = noMatch
+    ? (emptyFiltered ?? (
+      <span className="inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+        {t('table.emptyFiltered')}
+        {filter || onClearFilters ? <Button size="sm" variant="link" onClick={clear}>{t('table.clearFilters')}</Button> : null}
+      </span>
+    ))
+    : (empty ?? t('table.empty'))
   // Chỉ dựng MỘT bố cục (danh sách trên màn hẹp, bảng trên màn rộng): không có nút trùng lặp trong DOM.
   const narrow = useNarrow()
   const asList = !!mobileRow && narrow

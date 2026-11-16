@@ -34,9 +34,15 @@
 /* Page title (docs/UI.md §1): PageHeader and StandalonePage; no arbitrary tracking in pages. */
 @utility page-title {
   font-size: var(--text-xl);
-  line-height: 1.25;
+  line-height: var(--text-xl--line-height);
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+
+/* The current entry of a nav or link row (docs/UI.md §1): a 3 px accent bar at the leading edge, so the state never rests on the
+   1.2:1 accent-soft fill alone. Sidebar and UnderlineNav (vertical) use it. */
+@utility nav-current {
+  box-shadow: inset 3px 0 0 var(--color-accent);
 }
 
 /* Trước khi JS chạy (hoặc khi chọn "Theo hệ thống"): theo cài đặt máy, tránh nháy nền sáng. */

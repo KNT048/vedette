@@ -42,7 +42,8 @@
     "next": "Next",
     "emptyFiltered": "No rows match these filters.",
     "sortBy": "Sort by",
-    "sortOption": "Sort by {{column}}"
+    "sortOption": "Sort by {{column}}",
+    "clearFilters": "Clear filters"
   },
   "status": {
     "confirmed": "Confirmed",
@@ -208,9 +209,11 @@
     "version": "Version",
     "badge": {
       "findings": "confirmed to handle",
-      "devices": "to review"
+      "devices": "to review",
+      "incidents": "high or critical open"
     },
-    "groupWaiting": "{{group}}: {{parts}}"
+    "groupWaiting": "{{group}}: {{parts}}",
+    "groupHere": "holds this page"
   },
   "login": {
     "subtitle": "Sign in to see exploited vulnerabilities that match your devices.",
@@ -239,5 +242,8 @@
     "leavingLine": "Not part of v1: you can turn it off; once off it is hidden.",
     "leavingInfo": "This box turned it on before v1 left it out. It keeps working as set and its data is kept. This build does not offer it, so once it is off it cannot be turned on again here; it comes back in a later release.",
     "turnOff": "Turn off in Settings, Modules"
+  },
+  "creatable": {
+    "added": "{{label}} added and selected."
   }
 }

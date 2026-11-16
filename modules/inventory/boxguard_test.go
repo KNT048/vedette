@@ -58,8 +58,9 @@ func TestSensorsCannotChangeTheBox(t *testing.T) {
 	}
 }
 
-// A device a person declared keeps its address against what a sensor sees (L10); an agent may move it.
-func TestSensorsCannotMoveADeclaredDevice(t *testing.T) {
+// A device a person declared and a sensor bound to a MAC follows that MAC like any device (#829, C1; before, L10 held its address
+// against every sensor, so it stayed at an address it had left); an agent moves it too.
+func TestADeclaredDeviceFollowsItsMAC(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	ctx := e.ctx()
@@ -75,20 +76,20 @@ func TestSensorsCannotMoveADeclaredDevice(t *testing.T) {
 		}
 		return *v
 	}
-	moved := observe.AssetHint{MAC: "02:00:00:00:0d:0d", IP: netip.MustParseAddr("192.168.10.99")}
-	obs := func(src observe.Source) []observe.Observation {
+	obs := func(src observe.Source, at string) []observe.Observation {
+		moved := observe.AssetHint{MAC: "02:00:00:00:0d:0d", IP: netip.MustParseAddr(at)}
 		return []observe.Observation{{AssetHint: moved, Field: observe.Hostname, Value: "fw", Source: src, Confidence: 0.6}}
 	}
-	if err := e.svc.Record(ctx, obs(observe.Passive)); err != nil {
-		t.Fatal(err)
-	}
-	if got := ip(); got != "192.168.10.20" {
-		t.Fatalf("a sensor moved the declared device to %s", got)
-	}
-	if err := e.svc.Record(ctx, obs(observe.Agent)); err != nil {
+	if err := e.svc.Record(ctx, obs(observe.Passive, "192.168.10.99")); err != nil {
 		t.Fatal(err)
 	}
 	if got := ip(); got != "192.168.10.99" {
+		t.Fatalf("the declared device did not follow its MAC: %s", got)
+	}
+	if err := e.svc.Record(ctx, obs(observe.Agent, "192.168.10.98")); err != nil {
+		t.Fatal(err)
+	}
+	if got := ip(); got != "192.168.10.98" {
 		t.Errorf("an agent could not move it: %s", got)
 	}
 }

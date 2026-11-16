@@ -564,7 +564,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	if d.AI, err = newAI(ctx, d, d.AIFacts, aiAsk{fs.Store(), d.Findings, d.Inventory}); err != nil {
 		return fmt.Errorf("ai: %w", err)
 	}
-	aiDoor := aiMitigation{d.AI}
+	aiDoor := aiMitigation{d.AI, d.Inventory}
 	provider, err := mitigation.NewProvider(d.DB, mitigationVendors{d.Inventory}, aiDoor)
 	if err != nil {
 		return err

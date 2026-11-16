@@ -288,6 +288,11 @@ describe('findings: f-2, f-3 chưa có khuyến nghị đã xác nhận (D-21)',
     const block = label.closest('[data-ai="true"]') as HTMLElement
     expect(within(block).getByText('AI-generated, needs human review')).toBeInTheDocument()
     expect(within(block).getByText(/Update WordPress to the latest release/)).toBeInTheDocument()
+    // M2-2: the config skill answers with a config block to copy, with its source and side effect
+    expect(within(block).getByText('Configuration to paste')).toBeInTheDocument()
+    expect(within(block).getByText(/^nft add rule inet filter forward/)).toBeInTheDocument()
+    expect(within(block).getByText('Based on: general hardening')).toBeInTheDocument()
+    expect(within(block).getByRole('button', { name: 'Copy' })).toBeInTheDocument()
     expect(within(block).queryByText('Drafted by Vedette with AI')).not.toBeInTheDocument()
     expect(screen.queryByText('Confirmed by Vedette maintainers')).not.toBeInTheDocument()
     const runs = aiRunsStore.get()

@@ -136,10 +136,11 @@ func cleanText(s string) string {
 // cleanLine is cleanText cut to n characters.
 func cleanLine(s string, n int) string { return clipRunes(cleanText(s), n) }
 
+// cleanList cleans a list item by item, each cut at a sentence end (clipSentence, never mid-sentence), and keeps at most maxListItems.
 func cleanList(in []string) []string {
 	out := []string{}
 	for _, s := range in {
-		if s = cleanLine(s, maxItemChars); s != "" && len(out) < maxListItems {
+		if s, _ = clipSentence(cleanText(s), maxItemChars); s != "" && len(out) < maxListItems {
 			out = append(out, s)
 		}
 	}

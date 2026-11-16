@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
@@ -154,7 +155,12 @@ func aiBoxID(inv *inventory.Service) func(context.Context) (string, error) {
 
 // aiMitigation is mitigation's door to the AI (mitigation.AI): it turns a finding into data blocks for ai.Service.Brief and the
 // answer back into text. The AI never gets a write tool here (SYS-8); mitigation stores the answer as an AI result.
-type aiMitigation struct{ svc *ai.Service }
+type aiMitigation struct {
+	svc *ai.Service
+	// inv gives the device's own facts (vendor, model, OS, software, open ports) and the firewalls and routers of the network, so the
+	// AI writes config for what is there (M2-2); nil = the facts of the finding row only.
+	inv *inventory.Service
+}
 
 func jobOf(s mitigation.Skill) ai.Job {
 	if s == mitigation.SkillConfig {
@@ -167,44 +173,199 @@ func (m aiMitigation) Available(_ context.Context, s mitigation.Skill) bool {
 	return m.svc.Available(jobOf(s))
 }
 
+// aiMaxFirewalls is how many firewalls and routers the config skill is told about: one config block each, so a network with many
+// gets the first ones by id (the device list's order); the answer has room for about eight blocks.
+const aiMaxFirewalls = 6
+
 func (m aiMitigation) Run(ctx context.Context, req mitigation.AIRequest) (mitigation.AIOutput, error) {
 	row := req.Finding
-	var feed, dev strings.Builder
-	var links []string
-	if k := row.Kev; k != nil {
-		fmt.Fprintf(&feed, "CVE: %s\nVendor: %s\nProduct: %s\nName: %s\nExploited-list source: %s\nRequired action (from that source): %s\nAdded to the exploited list: %s\nUsed in ransomware campaigns: %t\nPublic check template exists: %t\nLinks: %s\n",
-			row.CVE, k.Vendor, k.Product, k.Name, ai.ListLabel(k.Source), k.RequiredAction, k.DateAdded, k.Ransomware, k.HasTemplate, strings.Join(k.Links, " "))
-		links = k.Links
-	} else {
-		fmt.Fprintf(&feed, "CVE: %s\n", row.CVE)
-	}
-	if a := row.Asset; a != nil {
-		name := a.IP
-		if a.Hostname != nil && *a.Hostname != "" {
-			name = *a.Hostname
+	var dev *inventory.Device
+	var walls []inventory.Device
+	if m.inv != nil {
+		if d, err := m.inv.Device(ctx, row.AssetID); err == nil {
+			dev = &d
+		} else if !errors.Is(err, inventory.ErrNotFound) { // a device deleted meanwhile: the row's own facts are what is left
+			return mitigation.AIOutput{}, fmt.Errorf("ai mitigation: device: %w", err)
 		}
-		fmt.Fprintf(&dev, "Device: %s, IP %s, kind %s, %s\n", name, a.IP, a.Kind, a.Display)
+		if req.Skill == mitigation.SkillConfig {
+			kd, err := m.inv.DevicesOfKind(ctx, []string{"firewall", "router"}) // the kinds mitigation.Vendors reads (INV-5)
+			if err != nil {
+				return mitigation.AIOutput{}, fmt.Errorf("ai mitigation: firewalls: %w", err)
+			}
+			for _, k := range kd {
+				if len(walls) == aiMaxFirewalls {
+					break
+				}
+				if d, err := m.inv.Device(ctx, k.ID); err == nil {
+					walls = append(walls, d)
+				} else if !errors.Is(err, inventory.ErrNotFound) {
+					return mitigation.AIOutput{}, fmt.Errorf("ai mitigation: firewall: %w", err)
+				}
+			}
+		}
 	}
-	fmt.Fprintf(&dev, "Finding status: %s, severity %s, matched by %s, confidence %.2f\nA confirmed recommendation pack exists: %t\n", row.Status, row.Severity, row.Basis, row.Confidence, req.HasPack)
+	data := aiFindingData(req, dev, walls)
 	q := "Explain this finding."
 	if req.Skill == mitigation.SkillConfig {
-		q = "Draft a recommendation for this finding."
+		q = "Write the configuration for this finding: the device's own workaround and a rule for each firewall in the network block."
 	}
-	ans, err := m.svc.Brief(ctx, ai.BriefRequest{Job: jobOf(req.Skill), Actor: req.User, Target: row.CVE, Question: q,
-		Data: []ai.DataBlock{{Kind: ai.DataFeed, Source: "exploited list entry " + row.CVE, Text: feed.String()}, {Kind: "inventory", Source: "the device of the finding", Text: dev.String()}}})
+	ans, err := m.svc.Brief(ctx, ai.BriefRequest{Job: jobOf(req.Skill), Actor: req.User, Target: row.CVE, Question: q, Data: data})
 	if err != nil {
 		// the ai module's own error (not set up, cut off, wrong format, a hook, the provider, the cap) goes to the page as it is: the
 		// handler answers with it, so the person reads what really happened (beta 0.1.0-beta.1: a cut answer read "No AI profile is
 		// assigned")
 		return mitigation.AIOutput{}, err
 	}
-	out := mitigation.AIOutput{Model: ans.Model, Profile: ans.Profile, InputTok: ans.TokensIn, OutputTok: ans.TokensOut, Paragraphs: ans.Paragraphs, Steps: ans.Steps, ActivityID: ans.ActivityID}
-	for _, l := range links { // the box builds the sources from the feed entry; a model never supplies a link
-		if u, err := url.Parse(l); err == nil && (u.Scheme == "https" || u.Scheme == "http") && u.Host != "" && len(out.Citations) < 2 {
-			out.Citations = append(out.Citations, findings.Citation{Title: strings.TrimPrefix(u.Hostname(), "www."), URL: l})
+	out := mitigation.AIOutput{Model: ans.Model, Profile: ans.Profile, InputTok: ans.TokensIn, OutputTok: ans.TokensOut, Paragraphs: ans.Paragraphs, Steps: ans.Steps,
+		Shortened: ans.Shortened, ActivityID: ans.ActivityID}
+	for _, c := range ans.Configs {
+		note := ""
+		if c.BasedOn != "" {
+			note = "Based on: " + c.BasedOn
+		}
+		out.Configs = append(out.Configs, findings.CodeStep{Title: c.Title, Code: c.Code, Note: note, SideEffect: c.SideEffect})
+	}
+	if k := row.Kev; k != nil {
+		for _, l := range k.Links { // the box builds the sources from the feed entry; a model never supplies a link
+			if u, err := url.Parse(l); err == nil && (u.Scheme == "https" || u.Scheme == "http") && u.Host != "" && len(out.Citations) < 2 {
+				out.Citations = append(out.Citations, findings.Citation{Title: strings.TrimPrefix(u.Hostname(), "www."), URL: l})
+			}
 		}
 	}
 	return out, nil
+}
+
+// Caps on what one finding sends, so a device with a thousand packages does not fill the prompt.
+const (
+	aiMaxSoftware = 20
+	aiMaxPorts    = 30
+)
+
+// aiFindingData is what the AI gets for a finding: the same facts the finding page shows (M2-2: the answer said "the data does not
+// list affected versions" while the Evidence named "before 20.4"). The exploited-list entry; the device with its vendor, model, OS,
+// software and open ports, the Evidence sentence (the installed version and the affected range), the fixed release or the fix of each
+// release line, the basis and confidence; and for the config skill the firewalls and routers of the inventory, whose vendor decides the
+// syntax of the firewall rule. Device data is the customer's own network data, as before: the job carries internal data (INV-3 of ai)
+// and goes through the privacy rule and the before_ai hooks like every call.
+func aiFindingData(req mitigation.AIRequest, dev *inventory.Device, walls []inventory.Device) []ai.DataBlock {
+	row := req.Finding
+	var feed, d strings.Builder
+	if k := row.Kev; k != nil {
+		fmt.Fprintf(&feed, "CVE: %s\nVendor: %s\nProduct: %s\nName: %s\nExploited-list source: %s\nRequired action (from that source): %s\nAdded to the exploited list: %s\nUsed in ransomware campaigns: %t\nPublic check template exists: %t\nLinks: %s\n",
+			row.CVE, k.Vendor, k.Product, k.Name, ai.ListLabel(k.Source), k.RequiredAction, k.DateAdded, k.Ransomware, k.HasTemplate, strings.Join(k.Links, " "))
+	} else {
+		fmt.Fprintf(&feed, "CVE: %s\n", row.CVE)
+	}
+	if c := row.CVSS; c != nil {
+		fmt.Fprintf(&feed, "CVSS %s base score: %.1f (%s)\n", c.Version, c.Score, c.Vector)
+	}
+	if a := row.Asset; a != nil {
+		fmt.Fprintf(&d, "Device: %s, IP %s, kind %s, %s\n", a.Name, a.IP, a.Kind, a.Display)
+	}
+	if dev != nil {
+		if v := aiDeviceFacts(*dev); v != "" {
+			fmt.Fprintf(&d, "%s\n", v)
+		}
+		var sw []string
+		for _, s := range dev.Software[:min(len(dev.Software), aiMaxSoftware)] {
+			sw = append(sw, strings.TrimSpace(s.Display+" "+aiStr(s.Version)))
+		}
+		if len(sw) > 0 {
+			fmt.Fprintf(&d, "Installed software: %s\n", strings.Join(sw, "; "))
+		}
+		fmt.Fprintf(&d, "Open ports: %s\n", aiPorts(*dev))
+	}
+	if e := row.Evidence; e != nil && e.Summary != "" {
+		fmt.Fprintf(&d, "Evidence (installed version and affected range): %s\n", e.Summary)
+	}
+	fmt.Fprintf(&d, "%s\n", aiFixedIn(req.FixedIn))
+	fmt.Fprintf(&d, "Finding status: %s, severity %s, matched by %s, confidence %.2f\nA confirmed recommendation pack exists: %t\n", row.Status, row.Severity, row.Basis, row.Confidence, req.HasPack)
+	blocks := []ai.DataBlock{{Kind: ai.DataFeed, Source: "exploited list entry " + row.CVE, Text: feed.String()}, {Kind: "inventory", Source: "the device of the finding", Text: d.String()}}
+	if req.Skill != mitigation.SkillConfig {
+		return blocks
+	}
+	var n strings.Builder
+	if len(walls) == 0 {
+		n.WriteString("No firewall or router is in the inventory.\n")
+	} else {
+		n.WriteString("Firewalls and routers in the inventory:\n")
+		for _, w := range walls {
+			fmt.Fprintf(&n, "- %s, IP %s, kind %s; %s\n", aiDeviceName(w), w.IP, w.Kind, cmp.Or(aiDeviceFacts(w), "vendor not known"))
+		}
+	}
+	return append(blocks, ai.DataBlock{Kind: "inventory", Source: "the firewalls of the network", Text: n.String()})
+}
+
+// aiDeviceFacts is "Vendor: …; Model: …; Operating system: …" with the values the inventory has, "" when it has none.
+func aiDeviceFacts(d inventory.Device) string {
+	var f []string
+	for _, kv := range [][2]string{{"Vendor", aiObserved(d.Vendor)}, {"Model", aiObserved(d.Model)}, {"Operating system", aiObserved(d.OS)}} {
+		if kv[1] != "" {
+			f = append(f, kv[0]+": "+kv[1])
+		}
+	}
+	return strings.Join(f, "; ")
+}
+
+// aiPorts lists the device's open ports with the service and product a scan read ("80/tcp http (Apache httpd 2.4.58)").
+func aiPorts(d inventory.Device) string {
+	if len(d.Services) == 0 {
+		return "none known"
+	}
+	var ps []string
+	for _, sv := range d.Services[:min(len(d.Services), aiMaxPorts)] {
+		p := fmt.Sprintf("%d/%s %s", sv.Port, sv.Proto, sv.Name)
+		if prod := strings.TrimSpace(aiStr(sv.Product) + " " + aiStr(sv.Version)); prod != "" {
+			p += " (" + prod + ")"
+		}
+		ps = append(ps, p)
+	}
+	return strings.Join(ps, "; ")
+}
+
+// aiFixedIn is the page's "Fixed version" fact in one line.
+func aiFixedIn(f *findings.FixedIn) string {
+	if f == nil {
+		return "Fixed version: NVD's affected versions name none; the vendor advisory in the links names it."
+	}
+	var b strings.Builder
+	b.WriteString("Fixed version (" + f.Source + "): ")
+	if f.Version != "" {
+		b.WriteString("installed " + f.Version + "; ")
+	}
+	switch f.Kind {
+	case "fixed":
+		b.WriteString("fixed in " + f.Fixed)
+	case "up_to":
+		b.WriteString("affected up to and including " + f.Fixed + ", no fixed release named")
+	case "distro":
+		b.WriteString("install the security updates of " + cmp.Or(f.Distro, "the distribution"))
+		if f.DistroFixed != "" {
+			b.WriteString(", fixed package " + f.DistroFixed + " for release " + f.DistroRelease)
+		}
+	case "feature_update", "esu":
+		b.WriteString("fixed in build " + f.Fixed + " (" + f.Kind + ")")
+	}
+	var br []string
+	for _, x := range f.Branches {
+		br = append(br, cmp.Or(x.Branch, "a release line")+" fixed in "+x.Fixed)
+	}
+	if len(br) > 0 {
+		if f.Kind != "branches" {
+			b.WriteString("; ")
+		}
+		b.WriteString("fix per release line: " + strings.Join(br, ", "))
+	}
+	if f.More > 0 {
+		fmt.Fprintf(&b, "; %d more release lines have a fix", f.More)
+	}
+	if f.NoFix > 0 {
+		fmt.Fprintf(&b, "; %d release lines have no fixed release", f.NoFix)
+	}
+	if strings.HasSuffix(b.String(), ": ") {
+		b.WriteString("not named; the vendor advisory in the links names it")
+	}
+	return b.String()
 }
 
 // aiChainPruner hands the retention prune of the activity log to core's chainhead.Prune, which moves the anchor and lowers the head in

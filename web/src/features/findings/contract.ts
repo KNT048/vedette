@@ -101,6 +101,8 @@ export const AiResult = z.object({
   tokens: z.object({ input: z.number(), output: z.number() }),
   paragraphs: z.array(z.string()), steps: z.array(z.string()),
   citations: z.array(z.object({ title: z.string(), url: z.string().optional() })),
+  configs: z.array(CodeStep).optional().describe('mitigation-config (M2-2): config blocks to paste as they are, the device\'s own workaround first, then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is based on, `side_effect` what it can break. Absent for explain and for answers stored before'),
+  shortened: z.boolean().optional().describe('M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence (never in the middle of one) or a config block was left out whole'),
 })
 export const AppliedEntry = z.object({ item: z.string(), ts: iso, user: z.string() })
 

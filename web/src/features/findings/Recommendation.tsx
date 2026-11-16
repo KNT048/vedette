@@ -203,10 +203,14 @@ export function PackView({ finding }: { finding: FindingDetail }) {
 
 /** Kết quả AI của khách: luôn trong AiBlock origin="customer", không bao giờ giống khuyến nghị của dự án. */
 export function AiOutput({ r }: { r: AiResult }) {
+  const { t } = useTranslation('findings')
   return (
     <AiBlock origin="customer" model={r.profile ? `${r.model} (${r.profile})` : r.model} tokens={r.tokens} citations={r.citations}>
       {r.paragraphs.map((p) => <p key={p}>{p}</p>)}
       <ol className="grid list-decimal gap-1 pl-5">{r.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+      {/* M2-2: the config blocks to paste, each copyable, with what it is based on and its side effect */}
+      {r.configs?.length ? <div className="grid gap-2"><p className="text-sm font-medium">{t('ai.configsTitle')}</p><Steps steps={r.configs} /></div> : null}
+      {r.shortened ? <p className="text-meta text-muted">{t('ai.shortened')}</p> : null}
     </AiBlock>
   )
 }

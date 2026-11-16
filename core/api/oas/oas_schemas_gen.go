@@ -62321,20 +62321,32 @@ func (s *FindingsGetFindingsIDOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsGetFindingsIDOKAiConfig struct {
-	Citations  []FindingsGetFindingsIDOKAiConfigCitationsItem `json:"citations"`
-	Model      string                                         `json:"model"`
-	Paragraphs []string                                       `json:"paragraphs"`
+	Citations []FindingsGetFindingsIDOKAiConfigCitationsItem `json:"citations"`
+	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
+	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
+	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs    []FindingsGetFindingsIDOKAiConfigConfigsItem `json:"configs"`
+	Model      string                                       `json:"model"`
+	Paragraphs []string                                     `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
-	Profile OptString                             `json:"profile"`
-	Skill   FindingsGetFindingsIDOKAiConfigSkill  `json:"skill"`
-	Steps   []string                              `json:"steps"`
-	Tokens  FindingsGetFindingsIDOKAiConfigTokens `json:"tokens"`
-	Ts      time.Time                             `json:"ts"`
+	Profile OptString `json:"profile"`
+	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
+	// (never in the middle of one) or a config block was left out whole.
+	Shortened OptBool                               `json:"shortened"`
+	Skill     FindingsGetFindingsIDOKAiConfigSkill  `json:"skill"`
+	Steps     []string                              `json:"steps"`
+	Tokens    FindingsGetFindingsIDOKAiConfigTokens `json:"tokens"`
+	Ts        time.Time                             `json:"ts"`
 }
 
 // GetCitations returns the value of Citations.
 func (s *FindingsGetFindingsIDOKAiConfig) GetCitations() []FindingsGetFindingsIDOKAiConfigCitationsItem {
 	return s.Citations
+}
+
+// GetConfigs returns the value of Configs.
+func (s *FindingsGetFindingsIDOKAiConfig) GetConfigs() []FindingsGetFindingsIDOKAiConfigConfigsItem {
+	return s.Configs
 }
 
 // GetModel returns the value of Model.
@@ -62350,6 +62362,11 @@ func (s *FindingsGetFindingsIDOKAiConfig) GetParagraphs() []string {
 // GetProfile returns the value of Profile.
 func (s *FindingsGetFindingsIDOKAiConfig) GetProfile() OptString {
 	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsGetFindingsIDOKAiConfig) GetShortened() OptBool {
+	return s.Shortened
 }
 
 // GetSkill returns the value of Skill.
@@ -62377,6 +62394,11 @@ func (s *FindingsGetFindingsIDOKAiConfig) SetCitations(val []FindingsGetFindings
 	s.Citations = val
 }
 
+// SetConfigs sets the value of Configs.
+func (s *FindingsGetFindingsIDOKAiConfig) SetConfigs(val []FindingsGetFindingsIDOKAiConfigConfigsItem) {
+	s.Configs = val
+}
+
 // SetModel sets the value of Model.
 func (s *FindingsGetFindingsIDOKAiConfig) SetModel(val string) {
 	s.Model = val
@@ -62390,6 +62412,11 @@ func (s *FindingsGetFindingsIDOKAiConfig) SetParagraphs(val []string) {
 // SetProfile sets the value of Profile.
 func (s *FindingsGetFindingsIDOKAiConfig) SetProfile(val OptString) {
 	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsGetFindingsIDOKAiConfig) SetShortened(val OptBool) {
+	s.Shortened = val
 }
 
 // SetSkill sets the value of Skill.
@@ -62435,6 +62462,54 @@ func (s *FindingsGetFindingsIDOKAiConfigCitationsItem) SetTitle(val string) {
 // SetURL sets the value of URL.
 func (s *FindingsGetFindingsIDOKAiConfigCitationsItem) SetURL(val OptString) {
 	s.URL = val
+}
+
+type FindingsGetFindingsIDOKAiConfigConfigsItem struct {
+	Code string    `json:"code"`
+	Note OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsGetFindingsIDOKAiConfigConfigsItem) SetTitle(val string) {
+	s.Title = val
 }
 
 type FindingsGetFindingsIDOKAiConfigSkill string
@@ -62504,20 +62579,32 @@ func (s *FindingsGetFindingsIDOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsGetFindingsIDOKAiExplain struct {
-	Citations  []FindingsGetFindingsIDOKAiExplainCitationsItem `json:"citations"`
-	Model      string                                          `json:"model"`
-	Paragraphs []string                                        `json:"paragraphs"`
+	Citations []FindingsGetFindingsIDOKAiExplainCitationsItem `json:"citations"`
+	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
+	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
+	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs    []FindingsGetFindingsIDOKAiExplainConfigsItem `json:"configs"`
+	Model      string                                        `json:"model"`
+	Paragraphs []string                                      `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
-	Profile OptString                              `json:"profile"`
-	Skill   FindingsGetFindingsIDOKAiExplainSkill  `json:"skill"`
-	Steps   []string                               `json:"steps"`
-	Tokens  FindingsGetFindingsIDOKAiExplainTokens `json:"tokens"`
-	Ts      time.Time                              `json:"ts"`
+	Profile OptString `json:"profile"`
+	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
+	// (never in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                `json:"shortened"`
+	Skill     FindingsGetFindingsIDOKAiExplainSkill  `json:"skill"`
+	Steps     []string                               `json:"steps"`
+	Tokens    FindingsGetFindingsIDOKAiExplainTokens `json:"tokens"`
+	Ts        time.Time                              `json:"ts"`
 }
 
 // GetCitations returns the value of Citations.
 func (s *FindingsGetFindingsIDOKAiExplain) GetCitations() []FindingsGetFindingsIDOKAiExplainCitationsItem {
 	return s.Citations
+}
+
+// GetConfigs returns the value of Configs.
+func (s *FindingsGetFindingsIDOKAiExplain) GetConfigs() []FindingsGetFindingsIDOKAiExplainConfigsItem {
+	return s.Configs
 }
 
 // GetModel returns the value of Model.
@@ -62533,6 +62620,11 @@ func (s *FindingsGetFindingsIDOKAiExplain) GetParagraphs() []string {
 // GetProfile returns the value of Profile.
 func (s *FindingsGetFindingsIDOKAiExplain) GetProfile() OptString {
 	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsGetFindingsIDOKAiExplain) GetShortened() OptBool {
+	return s.Shortened
 }
 
 // GetSkill returns the value of Skill.
@@ -62560,6 +62652,11 @@ func (s *FindingsGetFindingsIDOKAiExplain) SetCitations(val []FindingsGetFinding
 	s.Citations = val
 }
 
+// SetConfigs sets the value of Configs.
+func (s *FindingsGetFindingsIDOKAiExplain) SetConfigs(val []FindingsGetFindingsIDOKAiExplainConfigsItem) {
+	s.Configs = val
+}
+
 // SetModel sets the value of Model.
 func (s *FindingsGetFindingsIDOKAiExplain) SetModel(val string) {
 	s.Model = val
@@ -62573,6 +62670,11 @@ func (s *FindingsGetFindingsIDOKAiExplain) SetParagraphs(val []string) {
 // SetProfile sets the value of Profile.
 func (s *FindingsGetFindingsIDOKAiExplain) SetProfile(val OptString) {
 	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsGetFindingsIDOKAiExplain) SetShortened(val OptBool) {
+	s.Shortened = val
 }
 
 // SetSkill sets the value of Skill.
@@ -62618,6 +62720,54 @@ func (s *FindingsGetFindingsIDOKAiExplainCitationsItem) SetTitle(val string) {
 // SetURL sets the value of URL.
 func (s *FindingsGetFindingsIDOKAiExplainCitationsItem) SetURL(val OptString) {
 	s.URL = val
+}
+
+type FindingsGetFindingsIDOKAiExplainConfigsItem struct {
+	Code string    `json:"code"`
+	Note OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsGetFindingsIDOKAiExplainConfigsItem) SetTitle(val string) {
+	s.Title = val
 }
 
 type FindingsGetFindingsIDOKAiExplainSkill string
@@ -70420,20 +70570,32 @@ func (s *FindingsPostFindingsIDAiOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsPostFindingsIDAiOKAiConfig struct {
-	Citations  []FindingsPostFindingsIDAiOKAiConfigCitationsItem `json:"citations"`
-	Model      string                                            `json:"model"`
-	Paragraphs []string                                          `json:"paragraphs"`
+	Citations []FindingsPostFindingsIDAiOKAiConfigCitationsItem `json:"citations"`
+	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
+	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
+	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs    []FindingsPostFindingsIDAiOKAiConfigConfigsItem `json:"configs"`
+	Model      string                                          `json:"model"`
+	Paragraphs []string                                        `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
-	Profile OptString                                `json:"profile"`
-	Skill   FindingsPostFindingsIDAiOKAiConfigSkill  `json:"skill"`
-	Steps   []string                                 `json:"steps"`
-	Tokens  FindingsPostFindingsIDAiOKAiConfigTokens `json:"tokens"`
-	Ts      time.Time                                `json:"ts"`
+	Profile OptString `json:"profile"`
+	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
+	// (never in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                  `json:"shortened"`
+	Skill     FindingsPostFindingsIDAiOKAiConfigSkill  `json:"skill"`
+	Steps     []string                                 `json:"steps"`
+	Tokens    FindingsPostFindingsIDAiOKAiConfigTokens `json:"tokens"`
+	Ts        time.Time                                `json:"ts"`
 }
 
 // GetCitations returns the value of Citations.
 func (s *FindingsPostFindingsIDAiOKAiConfig) GetCitations() []FindingsPostFindingsIDAiOKAiConfigCitationsItem {
 	return s.Citations
+}
+
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDAiOKAiConfig) GetConfigs() []FindingsPostFindingsIDAiOKAiConfigConfigsItem {
+	return s.Configs
 }
 
 // GetModel returns the value of Model.
@@ -70449,6 +70611,11 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) GetParagraphs() []string {
 // GetProfile returns the value of Profile.
 func (s *FindingsPostFindingsIDAiOKAiConfig) GetProfile() OptString {
 	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDAiOKAiConfig) GetShortened() OptBool {
+	return s.Shortened
 }
 
 // GetSkill returns the value of Skill.
@@ -70476,6 +70643,11 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) SetCitations(val []FindingsPostFind
 	s.Citations = val
 }
 
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDAiOKAiConfig) SetConfigs(val []FindingsPostFindingsIDAiOKAiConfigConfigsItem) {
+	s.Configs = val
+}
+
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDAiOKAiConfig) SetModel(val string) {
 	s.Model = val
@@ -70489,6 +70661,11 @@ func (s *FindingsPostFindingsIDAiOKAiConfig) SetParagraphs(val []string) {
 // SetProfile sets the value of Profile.
 func (s *FindingsPostFindingsIDAiOKAiConfig) SetProfile(val OptString) {
 	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDAiOKAiConfig) SetShortened(val OptBool) {
+	s.Shortened = val
 }
 
 // SetSkill sets the value of Skill.
@@ -70534,6 +70711,54 @@ func (s *FindingsPostFindingsIDAiOKAiConfigCitationsItem) SetTitle(val string) {
 // SetURL sets the value of URL.
 func (s *FindingsPostFindingsIDAiOKAiConfigCitationsItem) SetURL(val OptString) {
 	s.URL = val
+}
+
+type FindingsPostFindingsIDAiOKAiConfigConfigsItem struct {
+	Code string    `json:"code"`
+	Note OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDAiOKAiConfigConfigsItem) SetTitle(val string) {
+	s.Title = val
 }
 
 type FindingsPostFindingsIDAiOKAiConfigSkill string
@@ -70603,20 +70828,32 @@ func (s *FindingsPostFindingsIDAiOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsPostFindingsIDAiOKAiExplain struct {
-	Citations  []FindingsPostFindingsIDAiOKAiExplainCitationsItem `json:"citations"`
-	Model      string                                             `json:"model"`
-	Paragraphs []string                                           `json:"paragraphs"`
+	Citations []FindingsPostFindingsIDAiOKAiExplainCitationsItem `json:"citations"`
+	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
+	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
+	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs    []FindingsPostFindingsIDAiOKAiExplainConfigsItem `json:"configs"`
+	Model      string                                           `json:"model"`
+	Paragraphs []string                                         `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
-	Profile OptString                                 `json:"profile"`
-	Skill   FindingsPostFindingsIDAiOKAiExplainSkill  `json:"skill"`
-	Steps   []string                                  `json:"steps"`
-	Tokens  FindingsPostFindingsIDAiOKAiExplainTokens `json:"tokens"`
-	Ts      time.Time                                 `json:"ts"`
+	Profile OptString `json:"profile"`
+	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
+	// (never in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                   `json:"shortened"`
+	Skill     FindingsPostFindingsIDAiOKAiExplainSkill  `json:"skill"`
+	Steps     []string                                  `json:"steps"`
+	Tokens    FindingsPostFindingsIDAiOKAiExplainTokens `json:"tokens"`
+	Ts        time.Time                                 `json:"ts"`
 }
 
 // GetCitations returns the value of Citations.
 func (s *FindingsPostFindingsIDAiOKAiExplain) GetCitations() []FindingsPostFindingsIDAiOKAiExplainCitationsItem {
 	return s.Citations
+}
+
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDAiOKAiExplain) GetConfigs() []FindingsPostFindingsIDAiOKAiExplainConfigsItem {
+	return s.Configs
 }
 
 // GetModel returns the value of Model.
@@ -70632,6 +70869,11 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) GetParagraphs() []string {
 // GetProfile returns the value of Profile.
 func (s *FindingsPostFindingsIDAiOKAiExplain) GetProfile() OptString {
 	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDAiOKAiExplain) GetShortened() OptBool {
+	return s.Shortened
 }
 
 // GetSkill returns the value of Skill.
@@ -70659,6 +70901,11 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) SetCitations(val []FindingsPostFin
 	s.Citations = val
 }
 
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDAiOKAiExplain) SetConfigs(val []FindingsPostFindingsIDAiOKAiExplainConfigsItem) {
+	s.Configs = val
+}
+
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDAiOKAiExplain) SetModel(val string) {
 	s.Model = val
@@ -70672,6 +70919,11 @@ func (s *FindingsPostFindingsIDAiOKAiExplain) SetParagraphs(val []string) {
 // SetProfile sets the value of Profile.
 func (s *FindingsPostFindingsIDAiOKAiExplain) SetProfile(val OptString) {
 	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDAiOKAiExplain) SetShortened(val OptBool) {
+	s.Shortened = val
 }
 
 // SetSkill sets the value of Skill.
@@ -70717,6 +70969,54 @@ func (s *FindingsPostFindingsIDAiOKAiExplainCitationsItem) SetTitle(val string) 
 // SetURL sets the value of URL.
 func (s *FindingsPostFindingsIDAiOKAiExplainCitationsItem) SetURL(val OptString) {
 	s.URL = val
+}
+
+type FindingsPostFindingsIDAiOKAiExplainConfigsItem struct {
+	Code string    `json:"code"`
+	Note OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDAiOKAiExplainConfigsItem) SetTitle(val string) {
+	s.Title = val
 }
 
 type FindingsPostFindingsIDAiOKAiExplainSkill string
@@ -73830,20 +74130,32 @@ func (s *FindingsPostFindingsIDAppliedOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsPostFindingsIDAppliedOKAiConfig struct {
-	Citations  []FindingsPostFindingsIDAppliedOKAiConfigCitationsItem `json:"citations"`
-	Model      string                                                 `json:"model"`
-	Paragraphs []string                                               `json:"paragraphs"`
+	Citations []FindingsPostFindingsIDAppliedOKAiConfigCitationsItem `json:"citations"`
+	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
+	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
+	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs    []FindingsPostFindingsIDAppliedOKAiConfigConfigsItem `json:"configs"`
+	Model      string                                               `json:"model"`
+	Paragraphs []string                                             `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
-	Profile OptString                                     `json:"profile"`
-	Skill   FindingsPostFindingsIDAppliedOKAiConfigSkill  `json:"skill"`
-	Steps   []string                                      `json:"steps"`
-	Tokens  FindingsPostFindingsIDAppliedOKAiConfigTokens `json:"tokens"`
-	Ts      time.Time                                     `json:"ts"`
+	Profile OptString `json:"profile"`
+	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
+	// (never in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                       `json:"shortened"`
+	Skill     FindingsPostFindingsIDAppliedOKAiConfigSkill  `json:"skill"`
+	Steps     []string                                      `json:"steps"`
+	Tokens    FindingsPostFindingsIDAppliedOKAiConfigTokens `json:"tokens"`
+	Ts        time.Time                                     `json:"ts"`
 }
 
 // GetCitations returns the value of Citations.
 func (s *FindingsPostFindingsIDAppliedOKAiConfig) GetCitations() []FindingsPostFindingsIDAppliedOKAiConfigCitationsItem {
 	return s.Citations
+}
+
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDAppliedOKAiConfig) GetConfigs() []FindingsPostFindingsIDAppliedOKAiConfigConfigsItem {
+	return s.Configs
 }
 
 // GetModel returns the value of Model.
@@ -73859,6 +74171,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) GetParagraphs() []string {
 // GetProfile returns the value of Profile.
 func (s *FindingsPostFindingsIDAppliedOKAiConfig) GetProfile() OptString {
 	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDAppliedOKAiConfig) GetShortened() OptBool {
+	return s.Shortened
 }
 
 // GetSkill returns the value of Skill.
@@ -73886,6 +74203,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetCitations(val []FindingsPos
 	s.Citations = val
 }
 
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetConfigs(val []FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) {
+	s.Configs = val
+}
+
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetModel(val string) {
 	s.Model = val
@@ -73899,6 +74221,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetParagraphs(val []string) {
 // SetProfile sets the value of Profile.
 func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetProfile(val OptString) {
 	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDAppliedOKAiConfig) SetShortened(val OptBool) {
+	s.Shortened = val
 }
 
 // SetSkill sets the value of Skill.
@@ -73944,6 +74271,54 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfigCitationsItem) SetTitle(val stri
 // SetURL sets the value of URL.
 func (s *FindingsPostFindingsIDAppliedOKAiConfigCitationsItem) SetURL(val OptString) {
 	s.URL = val
+}
+
+type FindingsPostFindingsIDAppliedOKAiConfigConfigsItem struct {
+	Code string    `json:"code"`
+	Note OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDAppliedOKAiConfigConfigsItem) SetTitle(val string) {
+	s.Title = val
 }
 
 type FindingsPostFindingsIDAppliedOKAiConfigSkill string
@@ -74013,20 +74388,32 @@ func (s *FindingsPostFindingsIDAppliedOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsPostFindingsIDAppliedOKAiExplain struct {
-	Citations  []FindingsPostFindingsIDAppliedOKAiExplainCitationsItem `json:"citations"`
-	Model      string                                                  `json:"model"`
-	Paragraphs []string                                                `json:"paragraphs"`
+	Citations []FindingsPostFindingsIDAppliedOKAiExplainCitationsItem `json:"citations"`
+	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
+	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
+	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs    []FindingsPostFindingsIDAppliedOKAiExplainConfigsItem `json:"configs"`
+	Model      string                                                `json:"model"`
+	Paragraphs []string                                              `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
-	Profile OptString                                      `json:"profile"`
-	Skill   FindingsPostFindingsIDAppliedOKAiExplainSkill  `json:"skill"`
-	Steps   []string                                       `json:"steps"`
-	Tokens  FindingsPostFindingsIDAppliedOKAiExplainTokens `json:"tokens"`
-	Ts      time.Time                                      `json:"ts"`
+	Profile OptString `json:"profile"`
+	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
+	// (never in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                        `json:"shortened"`
+	Skill     FindingsPostFindingsIDAppliedOKAiExplainSkill  `json:"skill"`
+	Steps     []string                                       `json:"steps"`
+	Tokens    FindingsPostFindingsIDAppliedOKAiExplainTokens `json:"tokens"`
+	Ts        time.Time                                      `json:"ts"`
 }
 
 // GetCitations returns the value of Citations.
 func (s *FindingsPostFindingsIDAppliedOKAiExplain) GetCitations() []FindingsPostFindingsIDAppliedOKAiExplainCitationsItem {
 	return s.Citations
+}
+
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDAppliedOKAiExplain) GetConfigs() []FindingsPostFindingsIDAppliedOKAiExplainConfigsItem {
+	return s.Configs
 }
 
 // GetModel returns the value of Model.
@@ -74042,6 +74429,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) GetParagraphs() []string {
 // GetProfile returns the value of Profile.
 func (s *FindingsPostFindingsIDAppliedOKAiExplain) GetProfile() OptString {
 	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDAppliedOKAiExplain) GetShortened() OptBool {
+	return s.Shortened
 }
 
 // GetSkill returns the value of Skill.
@@ -74069,6 +74461,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetCitations(val []FindingsPo
 	s.Citations = val
 }
 
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetConfigs(val []FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) {
+	s.Configs = val
+}
+
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetModel(val string) {
 	s.Model = val
@@ -74082,6 +74479,11 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetParagraphs(val []string) {
 // SetProfile sets the value of Profile.
 func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetProfile(val OptString) {
 	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDAppliedOKAiExplain) SetShortened(val OptBool) {
+	s.Shortened = val
 }
 
 // SetSkill sets the value of Skill.
@@ -74127,6 +74529,54 @@ func (s *FindingsPostFindingsIDAppliedOKAiExplainCitationsItem) SetTitle(val str
 // SetURL sets the value of URL.
 func (s *FindingsPostFindingsIDAppliedOKAiExplainCitationsItem) SetURL(val OptString) {
 	s.URL = val
+}
+
+type FindingsPostFindingsIDAppliedOKAiExplainConfigsItem struct {
+	Code string    `json:"code"`
+	Note OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDAppliedOKAiExplainConfigsItem) SetTitle(val string) {
+	s.Title = val
 }
 
 type FindingsPostFindingsIDAppliedOKAiExplainSkill string
@@ -77261,20 +77711,32 @@ func (s *FindingsPostFindingsIDStatusOKAiAvailable) SetExplain(val bool) {
 }
 
 type FindingsPostFindingsIDStatusOKAiConfig struct {
-	Citations  []FindingsPostFindingsIDStatusOKAiConfigCitationsItem `json:"citations"`
-	Model      string                                                `json:"model"`
-	Paragraphs []string                                              `json:"paragraphs"`
+	Citations []FindingsPostFindingsIDStatusOKAiConfigCitationsItem `json:"citations"`
+	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
+	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
+	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs    []FindingsPostFindingsIDStatusOKAiConfigConfigsItem `json:"configs"`
+	Model      string                                              `json:"model"`
+	Paragraphs []string                                            `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
-	Profile OptString                                    `json:"profile"`
-	Skill   FindingsPostFindingsIDStatusOKAiConfigSkill  `json:"skill"`
-	Steps   []string                                     `json:"steps"`
-	Tokens  FindingsPostFindingsIDStatusOKAiConfigTokens `json:"tokens"`
-	Ts      time.Time                                    `json:"ts"`
+	Profile OptString `json:"profile"`
+	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
+	// (never in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                      `json:"shortened"`
+	Skill     FindingsPostFindingsIDStatusOKAiConfigSkill  `json:"skill"`
+	Steps     []string                                     `json:"steps"`
+	Tokens    FindingsPostFindingsIDStatusOKAiConfigTokens `json:"tokens"`
+	Ts        time.Time                                    `json:"ts"`
 }
 
 // GetCitations returns the value of Citations.
 func (s *FindingsPostFindingsIDStatusOKAiConfig) GetCitations() []FindingsPostFindingsIDStatusOKAiConfigCitationsItem {
 	return s.Citations
+}
+
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDStatusOKAiConfig) GetConfigs() []FindingsPostFindingsIDStatusOKAiConfigConfigsItem {
+	return s.Configs
 }
 
 // GetModel returns the value of Model.
@@ -77290,6 +77752,11 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) GetParagraphs() []string {
 // GetProfile returns the value of Profile.
 func (s *FindingsPostFindingsIDStatusOKAiConfig) GetProfile() OptString {
 	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDStatusOKAiConfig) GetShortened() OptBool {
+	return s.Shortened
 }
 
 // GetSkill returns the value of Skill.
@@ -77317,6 +77784,11 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) SetCitations(val []FindingsPost
 	s.Citations = val
 }
 
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDStatusOKAiConfig) SetConfigs(val []FindingsPostFindingsIDStatusOKAiConfigConfigsItem) {
+	s.Configs = val
+}
+
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDStatusOKAiConfig) SetModel(val string) {
 	s.Model = val
@@ -77330,6 +77802,11 @@ func (s *FindingsPostFindingsIDStatusOKAiConfig) SetParagraphs(val []string) {
 // SetProfile sets the value of Profile.
 func (s *FindingsPostFindingsIDStatusOKAiConfig) SetProfile(val OptString) {
 	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDStatusOKAiConfig) SetShortened(val OptBool) {
+	s.Shortened = val
 }
 
 // SetSkill sets the value of Skill.
@@ -77375,6 +77852,54 @@ func (s *FindingsPostFindingsIDStatusOKAiConfigCitationsItem) SetTitle(val strin
 // SetURL sets the value of URL.
 func (s *FindingsPostFindingsIDStatusOKAiConfigCitationsItem) SetURL(val OptString) {
 	s.URL = val
+}
+
+type FindingsPostFindingsIDStatusOKAiConfigConfigsItem struct {
+	Code string    `json:"code"`
+	Note OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDStatusOKAiConfigConfigsItem) SetTitle(val string) {
+	s.Title = val
 }
 
 type FindingsPostFindingsIDStatusOKAiConfigSkill string
@@ -77444,20 +77969,32 @@ func (s *FindingsPostFindingsIDStatusOKAiConfigTokens) SetOutput(val float64) {
 }
 
 type FindingsPostFindingsIDStatusOKAiExplain struct {
-	Citations  []FindingsPostFindingsIDStatusOKAiExplainCitationsItem `json:"citations"`
-	Model      string                                                 `json:"model"`
-	Paragraphs []string                                               `json:"paragraphs"`
+	Citations []FindingsPostFindingsIDStatusOKAiExplainCitationsItem `json:"citations"`
+	// Mitigation-config (M2-2): config blocks to paste as they are, the device's own workaround first,
+	// then a rule for each firewall vendor in Devices (nftables when none); `note` says what the change is
+	// based on, `side_effect` what it can break. Absent for explain and for answers stored before.
+	Configs    []FindingsPostFindingsIDStatusOKAiExplainConfigsItem `json:"configs"`
+	Model      string                                               `json:"model"`
+	Paragraphs []string                                             `json:"paragraphs"`
 	// Name of the AI profile that answered (D-29).
-	Profile OptString                                     `json:"profile"`
-	Skill   FindingsPostFindingsIDStatusOKAiExplainSkill  `json:"skill"`
-	Steps   []string                                      `json:"steps"`
-	Tokens  FindingsPostFindingsIDStatusOKAiExplainTokens `json:"tokens"`
-	Ts      time.Time                                     `json:"ts"`
+	Profile OptString `json:"profile"`
+	// M2-2: a part of the answer was longer than Vedette keeps: a text was cut at the end of a sentence
+	// (never in the middle of one) or a config block was left out whole.
+	Shortened OptBool                                       `json:"shortened"`
+	Skill     FindingsPostFindingsIDStatusOKAiExplainSkill  `json:"skill"`
+	Steps     []string                                      `json:"steps"`
+	Tokens    FindingsPostFindingsIDStatusOKAiExplainTokens `json:"tokens"`
+	Ts        time.Time                                     `json:"ts"`
 }
 
 // GetCitations returns the value of Citations.
 func (s *FindingsPostFindingsIDStatusOKAiExplain) GetCitations() []FindingsPostFindingsIDStatusOKAiExplainCitationsItem {
 	return s.Citations
+}
+
+// GetConfigs returns the value of Configs.
+func (s *FindingsPostFindingsIDStatusOKAiExplain) GetConfigs() []FindingsPostFindingsIDStatusOKAiExplainConfigsItem {
+	return s.Configs
 }
 
 // GetModel returns the value of Model.
@@ -77473,6 +78010,11 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) GetParagraphs() []string {
 // GetProfile returns the value of Profile.
 func (s *FindingsPostFindingsIDStatusOKAiExplain) GetProfile() OptString {
 	return s.Profile
+}
+
+// GetShortened returns the value of Shortened.
+func (s *FindingsPostFindingsIDStatusOKAiExplain) GetShortened() OptBool {
+	return s.Shortened
 }
 
 // GetSkill returns the value of Skill.
@@ -77500,6 +78042,11 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) SetCitations(val []FindingsPos
 	s.Citations = val
 }
 
+// SetConfigs sets the value of Configs.
+func (s *FindingsPostFindingsIDStatusOKAiExplain) SetConfigs(val []FindingsPostFindingsIDStatusOKAiExplainConfigsItem) {
+	s.Configs = val
+}
+
 // SetModel sets the value of Model.
 func (s *FindingsPostFindingsIDStatusOKAiExplain) SetModel(val string) {
 	s.Model = val
@@ -77513,6 +78060,11 @@ func (s *FindingsPostFindingsIDStatusOKAiExplain) SetParagraphs(val []string) {
 // SetProfile sets the value of Profile.
 func (s *FindingsPostFindingsIDStatusOKAiExplain) SetProfile(val OptString) {
 	s.Profile = val
+}
+
+// SetShortened sets the value of Shortened.
+func (s *FindingsPostFindingsIDStatusOKAiExplain) SetShortened(val OptBool) {
+	s.Shortened = val
 }
 
 // SetSkill sets the value of Skill.
@@ -77558,6 +78110,54 @@ func (s *FindingsPostFindingsIDStatusOKAiExplainCitationsItem) SetTitle(val stri
 // SetURL sets the value of URL.
 func (s *FindingsPostFindingsIDStatusOKAiExplainCitationsItem) SetURL(val OptString) {
 	s.URL = val
+}
+
+type FindingsPostFindingsIDStatusOKAiExplainConfigsItem struct {
+	Code string    `json:"code"`
+	Note OptString `json:"note"`
+	// Side effect that must be stated before the user pastes the command.
+	SideEffect OptString `json:"side_effect"`
+	Title      string    `json:"title"`
+}
+
+// GetCode returns the value of Code.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) GetCode() string {
+	return s.Code
+}
+
+// GetNote returns the value of Note.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) GetNote() OptString {
+	return s.Note
+}
+
+// GetSideEffect returns the value of SideEffect.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) GetSideEffect() OptString {
+	return s.SideEffect
+}
+
+// GetTitle returns the value of Title.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) GetTitle() string {
+	return s.Title
+}
+
+// SetCode sets the value of Code.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) SetCode(val string) {
+	s.Code = val
+}
+
+// SetNote sets the value of Note.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) SetNote(val OptString) {
+	s.Note = val
+}
+
+// SetSideEffect sets the value of SideEffect.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) SetSideEffect(val OptString) {
+	s.SideEffect = val
+}
+
+// SetTitle sets the value of Title.
+func (s *FindingsPostFindingsIDStatusOKAiExplainConfigsItem) SetTitle(val string) {
+	s.Title = val
 }
 
 type FindingsPostFindingsIDStatusOKAiExplainSkill string

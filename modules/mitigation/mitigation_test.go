@@ -531,6 +531,43 @@ func TestContract_INV3_AIResultIsLabelledStoredAndGated(t *testing.T) {
 	}
 }
 
+// M2-2: the config skill's answer keeps its config blocks (copyable code with the side effect and the source) and says when a part
+// was shortened; the AI is given the page's fixed-version fact.
+func TestContract_INV3_M2_2_ConfigAnswerKeepsItsConfigBlocks(t *testing.T) {
+	t.Parallel()
+	r := newRig(t)
+	id := r.ids[otherCVE]
+	r.ai.avail[SkillConfig] = true
+	r.ai.out = AIOutput{Model: "m1", Paragraphs: []string{"Junos 15.1R7.9 is inside the range."}, Steps: []string{"Back up."}, Shortened: true,
+		Configs: []findings.CodeStep{
+			{Title: "Juniper EX4200-48T", Code: "delete system services web-management\ncommit", Note: "Based on: the vendor advisory", SideEffect: "J-Web stops."},
+			{Title: "Too big", Code: strings.Repeat("x", maxAICode+1)},
+			{Title: "Blank", Code: "  \n "},
+		}}
+	code, b := r.call("POST", "/findings/"+id+"/ai", "operator", `{"skill":"mitigation-config"}`)
+	if code != 200 {
+		t.Fatalf("%d %v", code, b)
+	}
+	cfg := b["ai"].(map[string]any)["config"].(map[string]any)
+	blocks := cfg["configs"].([]any)
+	if len(blocks) != 1 || cfg["shortened"] != true {
+		t.Fatalf("config = %v", cfg)
+	}
+	c := blocks[0].(map[string]any)
+	if c["code"] != "delete system services web-management\ncommit" || c["side_effect"] != "J-Web stops." || c["note"] != "Based on: the vendor advisory" || c["title"] != "Juniper EX4200-48T" {
+		t.Fatalf("block = %v", c)
+	}
+	_, b = r.call("GET", "/findings/"+id, "viewer", "")
+	if got := b["ai"].(map[string]any)["config"].(map[string]any)["configs"].([]any); len(got) != 1 {
+		t.Fatalf("config blocks lost on reload: %v", got)
+	}
+	want, _ := json.Marshal(b["fixed_in"])
+	got, _ := json.Marshal(r.ai.calls[0].FixedIn)
+	if string(got) != string(want) {
+		t.Fatalf("the AI got fixed_in %s, the page shows %s", got, want)
+	}
+}
+
 func TestSanitizeAICapsUntrustedOutput(t *testing.T) {
 	t.Parallel()
 	big := strings.Repeat("é", maxAIText+10) + "\x00"

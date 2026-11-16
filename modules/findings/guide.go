@@ -127,6 +127,11 @@ type AIResult struct {
 	Paragraphs []string   `json:"paragraphs"`
 	Steps      []string   `json:"steps"`
 	Citations  []Citation `json:"citations"`
+	// Configs are the ready config blocks of a mitigation-config answer (M2-2): the device's own workaround and a rule per firewall
+	// vendor, each with its side effect; absent for explain and for answers stored before them.
+	Configs []CodeStep `json:"configs,omitempty"`
+	// Shortened: a part of the answer was longer than Vedette keeps, so the page says it was shortened (never cut mid-sentence).
+	Shortened bool `json:"shortened,omitempty"`
 }
 
 // AIResults holds the last result per skill.

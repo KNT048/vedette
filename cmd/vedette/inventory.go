@@ -38,7 +38,7 @@ func newInventory(d *deps) *inventory.Service {
 		return append(d.Honeypot.DecoyIPs(ctx), d.Honeypot.TrapIPAddrs(ctx)...) // a Trap IP not handed over yet is the box's too (B2 lab)
 	}
 	cfg := inventory.Config{DB: d.DB, Audit: d.Audit, Modules: d.Reg, Clock: d.Clock, Log: d.Log, Events: pub, KEV: feedsKEV{d}, BoxOwnedIPs: owned,
-		Findings: findingCounts{d}}
+		Findings: findingCounts{d}, WazuhAgents: wazuhAgents{d}.addresses}
 	// The box's own MACs (its cards and the decoys' macvlan links): a foreign MAC on a decoy address is a device (WP-31 M7). Without a
 	// host there is no decoy on the wire, and the MACs stay unknown, so nothing changes.
 	if d.HostSocket != "" {
@@ -184,6 +184,18 @@ func (f findingCounts) CountByAsset(ctx context.Context) (map[string]int, error)
 		return map[string]int{}, nil
 	}
 	return f.d.Findings.CountByAsset(ctx)
+}
+
+// wazuhAgents is inventory.Config.WazuhAgents (#849): the addresses and MACs agent-intake's Wazuh pulls delivered to, so the Devices
+// list tells a Wazuh machine from an osquery one. agent-intake is built after the inventory, so it is asked when needed; none while it
+// is not built or is off (what it delivered stays in the inventory, as source agent with no word).
+type wazuhAgents struct{ d *deps }
+
+func (w wazuhAgents) addresses(ctx context.Context) ([]string, []string, error) {
+	if w.d == nil || w.d.AgentIntake == nil || (w.d.Reg != nil && !w.d.Reg.Enabled("agent-intake")) {
+		return nil, nil, nil
+	}
+	return w.d.AgentIntake.WazuhAgentAddresses(ctx)
 }
 
 // gatewayCache is inventory.Config.Gateway (D-511): the box's IPv4 default gateway from vedette-host state/net, kept for a minute so

@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -21,6 +22,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/knt048/vedette/core/audit"
 	"github.com/knt048/vedette/core/store"
 	"github.com/knt048/vedette/core/store/coredb"
 )
@@ -42,6 +44,20 @@ var (
 	// ErrRestricted is returned by Store.Open for a purpose whose reading was handed to one holder with Restrict.
 	ErrRestricted = errors.New("secrets: this purpose can only be read by its holder")
 )
+
+// wrongKey is the ErrDecrypt of a row of this key version and purpose whose ciphertext this master key does not authenticate:
+// sealed under another master key (a backup restored without its key, a key file made again) or changed at rest. It is the
+// only case OpenOrCreate replaces a key on; a row of another key version (a newer core's, after a rollback) is left alone.
+type wrongKey struct{}
+
+func (wrongKey) Error() string        { return ErrDecrypt.Error() }
+func (wrongKey) Is(target error) bool { return target == ErrDecrypt }
+
+// IsWrongKey reports whether err (or an error it wraps) is the ErrDecrypt of a row of this key version and purpose whose ciphertext this
+// master key does not authenticate: a secret sealed under another master key (a backup restored without its decryption key, a key file
+// made again). It is the rule OpenOrCreate replaces a key on; a caller uses it to tell "this secret is lost, type it again" apart from
+// any other failure (a row of another key version, a read error), which it must not treat as lost.
+func IsWrongKey(err error) bool { return errors.As(err, new(wrongKey)) }
 
 var purposeRE = regexp.MustCompile(`^[a-z][a-z0-9_.]{0,63}$`)
 
@@ -190,6 +206,7 @@ func LoadKeyFile(path string) ([]byte, error) {
 type Store struct {
 	aead cipher.AEAD
 	now  func() time.Time
+	log  *slog.Logger // OpenOrCreate's warning when it replaces a key; slog.Default until SetLog
 
 	mu         sync.RWMutex
 	restricted map[string]bool // purposes only their Opener may decrypt
@@ -253,7 +270,14 @@ func New(key []byte) (*Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("secrets: gcm: %w", err)
 	}
-	return &Store{aead: aead, now: time.Now}, nil
+	return &Store{aead: aead, now: time.Now, log: slog.Default()}, nil
+}
+
+// SetLog sets the logger of the store's warnings (OpenOrCreate replacing a key). Call it before the store is shared.
+func (s *Store) SetLog(l *slog.Logger) {
+	if l != nil {
+		s.log = l
+	}
 }
 
 func aad(id, purpose string) []byte { return []byte(id + "|" + purpose) }
@@ -345,7 +369,7 @@ func (s *Store) open(ctx context.Context, q coredb.DBTX, id, purpose string) ([]
 	}
 	pt, err := s.aead.Open(nil, row.Nonce, row.Ciphertext, aad(row.ID, purpose))
 	if err != nil {
-		return nil, ErrDecrypt
+		return nil, wrongKey{}
 	}
 	return pt, nil
 }
@@ -427,6 +451,13 @@ func (s *Store) Delete(ctx context.Context, tx *sql.Tx, id string) error {
 // first time it is asked for. It is for keys the box makes for itself (an HMAC key), not for secrets a user
 // supplies: there is exactly one row per purpose, and callers racing on first use all get the same bytes
 // (the check and the insert run in one write transaction).
+//
+// A row of this key version that this master key does not authenticate (a backup restored without its decryption key, or a
+// key file made again: both leave rows sealed under another master key) holds a key nobody can read again: it is replaced in
+// place by a new random key, in the same transaction, with one WARN naming the purpose and one audit row box-key.replace
+// (actor system), instead of failing every caller for good. Nothing a user typed is lost; what the old key signed (device
+// cookies, pending email codes, approval links) stops being accepted. Any other error (a read error, a cancelled context, a
+// row of another key version) is returned and the row is left as it is.
 func (s *Store) OpenOrCreate(ctx context.Context, db *store.DB, purpose string, size int) ([]byte, error) {
 	if err := checkPurpose(purpose); err != nil {
 		return nil, err
@@ -435,29 +466,52 @@ func (s *Store) OpenOrCreate(ctx context.Context, db *store.DB, purpose string, 
 		return nil, fmt.Errorf("%w: key size %d, want 16 to 64", ErrInvalid, size)
 	}
 	if id, err := coredb.New(db.Reader()).GetSecretIDByPurpose(ctx, purpose); err == nil {
-		return s.Open(ctx, db.Reader(), id, purpose)
+		if k, err := s.Open(ctx, db.Reader(), id, purpose); !IsWrongKey(err) {
+			return k, err
+		}
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("secrets: find %s: %w", purpose, err)
 	}
 	var key []byte
+	replaced := false
 	err := db.Write(ctx, func(tx *sql.Tx) error {
 		id, err := coredb.New(tx).GetSecretIDByPurpose(ctx, purpose)
-		if err == nil { // another caller made it between our read and this transaction
+		if err == nil { // another caller made (or replaced) it between our read and this transaction
 			key, err = s.Open(ctx, tx, id, purpose)
-			return err
-		}
-		if !errors.Is(err, sql.ErrNoRows) {
+			if !IsWrongKey(err) {
+				return err
+			}
+		} else if !errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("secrets: find %s: %w", purpose, err)
 		}
 		k := make([]byte, size)
 		if _, err := io.ReadFull(rand.Reader, k); err != nil {
 			return fmt.Errorf("secrets: random key: %w", err)
 		}
-		if _, _, err := s.Seal(ctx, tx, purpose, k, false); err != nil {
+		if id == "" {
+			if _, _, err := s.Seal(ctx, tx, purpose, k, false); err != nil {
+				return err
+			}
+			key = k
+			return nil
+		}
+		// Sealed under another master key: the same row gets the new key, and the audit log says so.
+		if _, err := s.Replace(ctx, tx, id, purpose, k, false); err != nil {
 			return err
 		}
-		key = k
+		entry := audit.Entry{User: "system", Target: purpose, Detail: "reason=cannot_decrypt (restored without the decryption key, or the box key changed)"}
+		entry.Action = "box-key.replace"
+		if err := audit.New(s.now).Append(ctx, tx, entry); err != nil {
+			return fmt.Errorf("secrets: audit the key replacement: %w", err)
+		}
+		key, replaced = k, true
 		return nil
 	})
-	return key, err
+	if err != nil {
+		return nil, err
+	}
+	if replaced {
+		s.log.WarnContext(ctx, "a box key could not be opened with this box's master key and was replaced by a new one (restored without the decryption key, or the key file was made again)", "purpose", purpose)
+	}
+	return key, nil
 }

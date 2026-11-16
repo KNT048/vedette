@@ -268,6 +268,19 @@ func (a findingsFeeds) KevInfo(ctx context.Context, cves []string) (map[string]f
 	return out, nil
 }
 
+// CVSS is feeds' CVSS base score of each CVE that has one (findings INV-22, feeds INV-28).
+func (a findingsFeeds) CVSS(ctx context.Context, cves []string) (map[string]findings.CVSS, error) {
+	got, err := a.st.CVSSOf(ctx, cves)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]findings.CVSS, len(got))
+	for cve, c := range got {
+		out[cve] = findings.CVSS{Score: c.Score, Version: c.Version, Source: c.Source, Vector: c.Vector}
+	}
+	return out, nil
+}
+
 // TierStatus is feeds' state of the tier feeds (D-613, D-616) for GET /findings/plan.
 func (a findingsFeeds) TierStatus(ctx context.Context) (findings.TierStatus, error) {
 	st, err := a.st.TierStatus(ctx, time.Now())
@@ -558,6 +571,7 @@ func buildServices(ctx context.Context, d *deps) error {
 	}
 	registerLogSources(d)
 	subscribe(*d)
+	mergeScanningSafety(ctx, d) // #850: once, the scan module's own window, rate and exclusions into the inventory
 	return nil
 }
 

@@ -3,6 +3,7 @@ package agentintake
 import (
 	"context"
 	"crypto/x509"
+	"net/netip"
 	"time"
 )
 
@@ -32,3 +33,8 @@ func (s *Service) SetMirrorEventForTest(f func(key string, held bool)) { s.mirro
 
 // AllowedWazuhCall is the allow-list of FORBID-4.
 func AllowedWazuhCall(method, path string) bool { return allowedCall(method, path) }
+
+// WazuhAgentSeenForTest is the pull's record of where it delivered an agent (a pull of an older connection still running).
+func (s *Service) WazuhAgentSeenForTest(ctx context.Context, id string, generation int64, ip netip.Addr) error {
+	return s.wazuhAgentSeen(ctx, id, generation, ip, "")
+}

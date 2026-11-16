@@ -48,8 +48,11 @@ type Config struct {
 	// Gateway is the box's IPv4 default gateway (vedette-host state/net), one signal of the identification rules (D-511): the
 	// zero address when it is not known (no host, or the host did not answer). nil means never known.
 	Gateway func(ctx context.Context) netip.Addr
-	Clock   func() time.Time
-	Log     *slog.Logger
+	// WazuhAgents lists the addresses and MACs of the agents the saved Wazuh connection delivered (agent-intake): a device at one of
+	// them with data of source agent is reported by Wazuh (#849 DeviceRow.sources). nil means none; an error is logged and means none.
+	WazuhAgents func(ctx context.Context) (ips, macs []string, err error)
+	Clock       func() time.Time
+	Log         *slog.Logger
 }
 
 // Service is the only writer of the inv_* tables (INV-2). Create it with New.
@@ -65,6 +68,7 @@ type Service struct {
 	boxMACs  func(ctx context.Context, fresh bool) ([]string, error)
 	decoyMAC func(ctx context.Context, fresh bool) (map[netip.Addr]string, error)
 	gateway  func(ctx context.Context) netip.Addr
+	wazuh    func(ctx context.Context) (ips, macs []string, err error)
 	ownedHit atomic.Int64 // observations ignored because their address is box-owned
 	clock    func() time.Time
 	log      *slog.Logger
@@ -82,7 +86,7 @@ func New(cfg Config) (*Service, error) {
 	if cfg.DB == nil || cfg.Audit == nil {
 		return nil, errors.New("inventory: New needs DB and Audit")
 	}
-	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, findings: cfg.Findings, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, boxMACs: cfg.BoxOwnedMACs, decoyMAC: cfg.BoxDecoyMACs, gateway: cfg.Gateway, clock: cfg.Clock, log: cfg.Log}
+	s := &Service{db: cfg.DB, audit: cfg.Audit, events: cfg.Events, kev: cfg.KEV, box: cfg.Box, findings: cfg.Findings, modules: cfg.Modules, boxOwned: cfg.BoxOwnedIPs, boxMACs: cfg.BoxOwnedMACs, decoyMAC: cfg.BoxDecoyMACs, gateway: cfg.Gateway, wazuh: cfg.WazuhAgents, clock: cfg.Clock, log: cfg.Log}
 	if s.clock == nil {
 		s.clock = time.Now
 	}

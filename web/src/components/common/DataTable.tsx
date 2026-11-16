@@ -5,7 +5,7 @@ import {
   type ColumnDef, type SortingState, type Row,
 } from '@tanstack/react-table'
 import { ArrowDown, ArrowUp } from 'lucide-react'
-import { Input } from '@/components/ui/input'
+import { Input, Select } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -24,7 +24,7 @@ function useNarrow() {
  * Bảng là thành phần chính (FRONTEND §3): 40px/dòng, header dính, sắp xếp, lọc chữ, phân trang 50.
  * `rowTone` tô viền trái cho dòng cần chú ý (ví dụ "Anh có" + đang bị khai thác).
  */
-export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, rowTone, empty, emptyFiltered, filtered, onClearFilters, toolbar, pageSize = 50, initialSort, caption, mobileRow }: {
+export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, rowTone, empty, emptyFiltered, filtered, onClearFilters, toolbar, pageSize = 50, initialSort, caption, mobileRow, sortSelect, hiddenColumns }: {
   data: T[]
   columns: ColumnDef<T, any>[] // eslint-disable-line @typescript-eslint/no-explicit-any
   filterPlaceholder?: string
@@ -44,6 +44,11 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
   caption: string
   /** Màn hẹp (< 768 px): hiện danh sách thay cho bảng. Nội dung tự lo link/nút; lọc, sắp xếp, phân trang dùng chung. */
   mobileRow?: (row: T) => ReactNode
+  /** Ô chọn "Sort by" trên bảng (mọi độ rộng): các cột sắp xếp được có tiêu đề chữ, kể cả cột ẩn, mỗi cột theo chiều bấm đầu tiên của nó.
+   *  Màn hẹp không có tiêu đề cột để bấm; cột ẩn chỉ sắp được từ đây. Bật theo trang (#825: danh sách finding sắp theo CVSS). */
+  sortSelect?: boolean
+  /** Cột chỉ để sắp xếp (qua `sortSelect`), không hiện: giá trị của nó đã nằm trong ô của cột khác (#825: CVSS dưới mức rủi ro). */
+  hiddenColumns?: string[]
 }) {
   const { t } = useTranslation()
   const [sorting, setSorting] = useState<SortingState>(initialSort ?? [])
@@ -52,7 +57,7 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
     data, columns, state: { sorting, globalFilter: filter },
     onSortingChange: setSorting, onGlobalFilterChange: setFilter,
     getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(), initialState: { pagination: { pageSize } },
+    getPaginationRowModel: getPaginationRowModel(), initialState: { pagination: { pageSize }, columnVisibility: Object.fromEntries((hiddenColumns ?? []).map((id) => [id, false])) },
   })
   const rows = table.getRowModel().rows
   const noMatch = filtered || (data.length > 0 && !!filter)
@@ -69,6 +74,7 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
   const narrow = useNarrow()
   const asList = !!mobileRow && narrow
   const pages = table.getPageCount()
+  const sortable = sortSelect ? table.getAllLeafColumns().filter((c) => c.getCanSort() && typeof c.columnDef.header === 'string') : []
 
   return (
     <div className="grid gap-3">
@@ -77,6 +83,13 @@ export function DataTable<T>({ data, columns, filterPlaceholder, onRowClick, row
           {filterPlaceholder ? <Input className="h-9 max-w-xs sm:h-8" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={filterPlaceholder} aria-label={filterPlaceholder} /> : null}
           {toolbar}
         </div>
+      ) : null}
+      {sortable.length > 0 ? (
+        <Select className="w-full sm:w-auto sm:max-w-64" aria-label={t('table.sortBy')} value={sorting[0]?.id ?? ''}
+          onChange={(e) => { const c = table.getColumn(e.target.value); setSorting(c ? [{ id: c.id, desc: c.getFirstSortDir() === 'desc' }] : []) }}>
+          {sorting.length === 0 ? <option value="">{t('table.sortBy')}</option> : null}
+          {sortable.map((c) => <option key={c.id} value={c.id}>{t('table.sortOption', { column: c.columnDef.header as string })}</option>)}
+        </Select>
       ) : null}
       {asList && mobileRow ? (
         <ul aria-label={caption} className="grid divide-y divide-rule rounded-md border border-rule bg-surface">

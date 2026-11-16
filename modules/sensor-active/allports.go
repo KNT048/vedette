@@ -88,7 +88,7 @@ func (s *Service) allPortsRound(ctx context.Context) error {
 			return nil // outside the window, scanning off, nmap missing: nothing now
 		}
 		start, _, _ := st.window(s.local())
-		end, ok := s.windowNow(st)
+		end, ok := s.windowNow(ctx, st)
 		if !ok || end.Sub(s.clock()) < nmapargv.AllPortsWindowRoom || st.Rate < nmapargv.AllPortsMinRate {
 			return nil // not enough window left for a whole run and its follow-up (review r2 L2), or a rate too low (Health says so)
 		}

@@ -410,23 +410,19 @@ func ipOwner(ctx context.Context, q querier, ip string) (string, error) {
 	return n, nil
 }
 
-// ExportCSV writes the device list as CSV, UTF-8 with a BOM so Excel opens it right (INV-13). Values that
-// start like a formula are defused (csvCell).
-func (s *Service) ExportCSV(ctx context.Context, actor string) (io.Reader, error) {
-	items, err := s.loadDevices(ctx, s.db.Reader(), "", 0)
+// ExportCSV writes the devices f keeps (the Devices search, #849; the zero filter: all) as CSV, UTF-8 with a BOM so Excel opens it
+// right (INV-13). Values that start like a formula are defused (csvCell).
+func (s *Service) ExportCSV(ctx context.Context, actor string, f DeviceFilter) (io.Reader, error) {
+	items, err := s.filtered(ctx, s.db.Reader(), f, 0, false) // the CSV has no sources column
 	if err != nil {
 		return nil, err
 	}
 	var b strings.Builder
 	b.WriteString(bom)
 	b.WriteString("name,ip,mac,kind,vendor,model,os,software,approved,fragile,origin,source,confidence,last_seen\r\n")
-	now := s.now()
 	for i := range items {
 		d := &items[i]
-		if d.IsBox {
-			d.LastSeen = now
-		}
-		sum := summaryOf(d)
+		sum := d.Summary
 		var sw []string
 		for _, x := range d.Software {
 			t := x.Display

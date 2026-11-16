@@ -1419,17 +1419,17 @@ func (UnimplementedHandler) ExposurePostExposureTargetsIDOutside(ctx context.Con
 // target whose commitment is of the current sentence records nothing again; one of an older sentence
 // (D-559) is asked again once: it counts as missing (operators get 400 commitment_required "the
 // confirmation text changed"), a request without notice_version gets 409 notice_changed, and the
-// administrator's press replaces it. After those checks the Vulnerability scans module does the scan
-// (D-229, D-57 (7)): ports are scanned only on the box's own verified public IPs; a domain's names
-// from certificate transparency, its MX and NS records and a list of common names (looked up through
-// the box's DNS resolver) are listed with the kind of each address (INV-27) and get one GET of / by
-// name on ports 80 and 443; only the box's own address is scanned beyond that. 409 module_off while
-// that module is off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes
-// of the target's last scan. Failures that come while the scan runs (400 too_many when the domain has
-// more than 300 names in the logs; 502 unreachable when the certificate-transparency search (crt.sh)
-// does not answer or the scan does not finish within 5 minutes; module_off when the module is switched
-// off meanwhile) end the run as status failed with that code and text, and nothing is saved. Every
-// attempt is audited.
+// administrator's press replaces it. After those checks the scan module's runner does the scan (D-229,
+// D-57 (7); it follows this module's switch, so the Vulnerability scans module may be off): ports are
+// scanned only on the box's own verified public IPs; a domain's names from certificate transparency,
+// its MX and NS records and a list of common names (looked up through the box's DNS resolver) are
+// listed with the kind of each address (INV-27) and get one GET of / by name on ports 80 and 443; only
+// the box's own address is scanned beyond that. 409 module_off while the External exposure module is
+// off; 409 busy while another scan runs on the box; 429 rate_limited within 10 minutes of the target's
+// last scan. Failures that come while the scan runs (400 too_many when the domain has more than 300
+// names in the logs; 502 unreachable when the certificate-transparency search (crt.sh) does not answer
+// or the scan does not finish within 5 minutes; module_off when the module is switched off meanwhile)
+// end the run as status failed with that code and text, and nothing is saved. Every attempt is audited.
 //
 // POST /exposure/targets/{id}/scan
 func (UnimplementedHandler) ExposurePostExposureTargetsIDScan(ctx context.Context, req OptExposurePostExposureTargetsIDScanReq, params ExposurePostExposureTargetsIDScanParams) (r *ExposurePostExposureTargetsIDScanAccepted, _ error) {
@@ -1919,10 +1919,10 @@ func (UnimplementedHandler) InventoryGetInventoryCatalog(ctx context.Context, pa
 
 // InventoryGetInventoryDevices implements inventory_get_inventory_devices operation.
 //
-// List devices with counts per filter.
+// List devices matching the filters (all when none), with counts per tab over the whole inventory.
 //
 // GET /inventory/devices
-func (UnimplementedHandler) InventoryGetInventoryDevices(ctx context.Context) (r *InventoryGetInventoryDevicesOK, _ error) {
+func (UnimplementedHandler) InventoryGetInventoryDevices(ctx context.Context, params InventoryGetInventoryDevicesParams) (r *InventoryGetInventoryDevicesOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1937,10 +1937,11 @@ func (UnimplementedHandler) InventoryGetInventoryDevicesID(ctx context.Context, 
 
 // InventoryGetInventoryExportCsv implements inventory_get_inventory_export_csv operation.
 //
-// Download the device list as CSV (UTF-8 with BOM, opens in Excel).
+// Download the device list as CSV (UTF-8 with BOM, opens in Excel); the filters of GET
+// /inventory/devices export what the page shows.
 //
 // GET /inventory/export.csv
-func (UnimplementedHandler) InventoryGetInventoryExportCsv(ctx context.Context) (r InventoryGetInventoryExportCsvOK, _ error) {
+func (UnimplementedHandler) InventoryGetInventoryExportCsv(ctx context.Context, params InventoryGetInventoryExportCsvParams) (r InventoryGetInventoryExportCsvOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -1979,6 +1980,15 @@ func (UnimplementedHandler) InventoryGetInventorySettings(ctx context.Context) (
 //
 // GET /inventory/snmp
 func (UnimplementedHandler) InventoryGetInventorySnmp(ctx context.Context) (r *InventoryGetInventorySnmpOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// InventoryGetInventorySnmpIDRead implements inventory_get_inventory_snmp_id_read operation.
+//
+// The read of this credential that runs now, or the last one; null when none since the box started.
+//
+// GET /inventory/snmp/{id}/read
+func (UnimplementedHandler) InventoryGetInventorySnmpIDRead(ctx context.Context, params InventoryGetInventorySnmpIDReadParams) (r NilInventoryGetInventorySnmpIDReadOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -2141,6 +2151,18 @@ func (UnimplementedHandler) InventoryPostInventoryImport(ctx context.Context, re
 //
 // POST /inventory/snmp
 func (UnimplementedHandler) InventoryPostInventorySnmp(ctx context.Context, req *InventoryPostInventorySnmpReq) (r *InventoryPostInventorySnmpCreated, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// InventoryPostInventorySnmpIDRead implements inventory_post_inventory_snmp_id_read operation.
+//
+// Read now every approved device in this credential's scope (read-only GETs from the scan container,
+// logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the
+// window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent;
+// 409 stopped when active discovery was turned off while the read started.
+//
+// POST /inventory/snmp/{id}/read
+func (UnimplementedHandler) InventoryPostInventorySnmpIDRead(ctx context.Context, params InventoryPostInventorySnmpIDReadParams) (r *InventoryPostInventorySnmpIDReadAccepted, _ error) {
 	return r, ht.ErrNotImplemented
 }
 
@@ -3184,6 +3206,63 @@ func (UnimplementedHandler) ScanPostScansRunsIDStop(ctx context.Context, params 
 //
 // PUT /scans/config
 func (UnimplementedHandler) ScanPutScansConfig(ctx context.Context, req *ScanPutScansConfigReq) (r *ScanPutScansConfigOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ScanningGetScanning implements scanning_get_scanning operation.
+//
+// Every scanning engine with its switch, state, memory cost, last and next run, the jobs running now,
+// and the shared safety settings (scope, window, speed, exclusions, fragile types).
+//
+// GET /scanning
+func (UnimplementedHandler) ScanningGetScanning(ctx context.Context) (r *ScanningGetScanningOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ScanningPatchScanningEnginesID implements scanning_patch_scanning_engines_id operation.
+//
+// Turn an engine on or off: its module switch (passive, osquery, wazuh, nuclei, honeypot), active
+// discovery (nmap-discovery: on turns sensor-active on first when with_dependencies is set, off never
+// turns the module off) or the OpenVAS flag (openvas). Audited by the switch it moves. 409
+// not_toggleable (nmap-versions, snmp, zap), missing_dependencies, not_appliance, module_off (openvas
+// while External exposure is off), low_memory, low_disk; 400 no_ranges, no_days, scope_not_confirmed
+// (nmap-discovery on, checked before anything moves), core_module. Returns the whole page, since one
+// switch can change several engines.
+//
+// PATCH /scanning/engines/{id}
+func (UnimplementedHandler) ScanningPatchScanningEnginesID(ctx context.Context, req *ScanningPatchScanningEnginesIDReq, params ScanningPatchScanningEnginesIDParams) (r *ScanningPatchScanningEnginesIDOK, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ScanningPostScanningEnginesNmapDiscoveryRun implements scanning_post_scanning_engines_nmap_discovery_run operation.
+//
+// Scan the LAN now (no targets: a sweep of the whole scope, then the scans of the devices it queued)
+// or check these devices now (targets), whatever the window, for at most one hour (devices not reached
+// by then wait for the window). Audited before anything is sent (scanning.run: the run id and the
+// ranges or devices; no audit row, no run). Runs in the background: the answer is the run, which GET
+// /scanning lists in running[] with its progress until it ends. Works while the Vulnerability scans
+// module is off. 400 unknown_device, out_of_scope (outside the ranges, excluded, or the box),
+// scope_not_confirmed, not_scannable (the device's safety rules refuse it); 409 module_off
+// (sensor-active off), engine_off (active discovery off), already_running (a run a person started),
+// busy (discovery is running nmap now), too_soon (a sweep less than 10 minutes ago; retry_after in
+// seconds); 503 scanner_unavailable (nmap is not available).
+//
+// POST /scanning/engines/nmap-discovery/run
+func (UnimplementedHandler) ScanningPostScanningEnginesNmapDiscoveryRun(ctx context.Context, req *ScanningPostScanningEnginesNmapDiscoveryRunReq) (r *ScanningPostScanningEnginesNmapDiscoveryRunAccepted, _ error) {
+	return r, ht.ErrNotImplemented
+}
+
+// ScanningPutScanningSafety implements scanning_put_scanning_safety operation.
+//
+// Save the shared safety settings every LAN engine obeys (one writer; GET/PUT /inventory/settings and
+// the window, rate and exclusions of /scans/config read and write the same values). 400 as PUT
+// /inventory/settings: too_many_ranges, no_prefix, bad_cidr, public_range, overlap_range, bad_days,
+// no_days, bad_time, bad_window, bad_rate (packets_per_s 1 to 1000, requests_per_s 1 to 20),
+// bad_exclusion, too_many_exclusions, bad_kinds, scope_not_confirmed (while nmap-discovery is on).
+// Publishes inventory.settings.changed: a run that the new values no longer allow stops.
+//
+// PUT /scanning/safety
+func (UnimplementedHandler) ScanningPutScanningSafety(ctx context.Context, req *ScanningPutScanningSafetyReq) (r *ScanningPutScanningSafetyOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

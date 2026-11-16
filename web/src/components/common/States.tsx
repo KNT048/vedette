@@ -118,7 +118,7 @@ function ModuleOffBox({ module, children }: { module: ModuleId; children?: React
     <div className="rounded-md border border-rule bg-off-soft px-4 py-3 text-sm">
       <p className="font-medium">{t('moduleOff.title', { name: t(`modules.${module}.name`) })}</p>
       <p className="mt-1 text-muted">{children ?? t('moduleOff.body')}</p>
-      <Link to="/settings/modules" className="mt-2 inline-block text-accent underline-offset-4 hover:underline">{t('moduleOff.enable')}</Link>
+      <Link to={`/settings/modules#module-${module}`} className="mt-2 inline-block text-accent underline-offset-4 hover:underline">{t('moduleOff.enable')}</Link>
     </div>
   )
 }

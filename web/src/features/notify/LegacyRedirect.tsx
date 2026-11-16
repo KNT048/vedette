@@ -9,5 +9,5 @@ function Target() {
   return <QueryState query={q}>{(d) => <Navigate to={d.to} replace />}</QueryState>
 }
 export default function LegacyRedirect() {
-  return <RequireModule module="notify"><Target /></RequireModule>
+  return <RequireModule module="notify" page><Target /></RequireModule>
 }

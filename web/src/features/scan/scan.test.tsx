@@ -602,7 +602,7 @@ describe('scan: quét có tài khoản (S-SCAN-5)', () => {
   it('module tắt mặc định thì nói rõ và chỉ chỗ bật', async () => {
     renderApp('/settings/scanning?tab=credentialed')
     expect(await screen.findByText('Credentialed scan module is off')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open module settings' })).toHaveAttribute('href', '/settings/modules')
+    expect(screen.getByRole('link', { name: 'Open module settings' })).toHaveAttribute('href', '/settings/modules#module-scan-credentialed')
   })
 
   it('hiện hướng dẫn chuẩn bị máy đích, mỗi lệnh một khung; không lỗi a11y', async () => {

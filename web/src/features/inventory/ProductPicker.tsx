@@ -106,7 +106,7 @@ export function ProductPicker({ value, onChange, label, listOpenRef }: { value: 
             </ul>
             <div className="grid gap-0.5 border-t border-rule px-2 py-1">
               {total > items.length ? <span className="text-[12px] text-muted">{t('picker.more', { count: total - items.length })}</span> : null}
-              <div><Button size="sm" variant="link" onMouseDown={(e) => e.preventDefault()} onClick={() => { setCustom(true); setOpen(false) }}>{t('picker.notListed')}</Button></div>
+              <div><Button size="sm" variant="link" className="h-auto whitespace-normal text-left" onMouseDown={(e) => e.preventDefault()} onClick={() => { setCustom(true); setOpen(false) }}>{t('picker.notListed')}</Button></div>
             </div>
           </div>
         ) : null}
@@ -114,7 +114,7 @@ export function ProductPicker({ value, onChange, label, listOpenRef }: { value: 
       <div className="text-[13px] text-muted" role="status">
         {value ? t('picker.chosen', { hint: value.hint }) : open && typed && !res.isPending && items.length === 0 ? t('picker.none') : t('picker.hint')}
       </div>
-      {value || listVisible ? null : <div><Button size="sm" variant="link" onClick={() => { setCustom(true); setOpen(false) }}>{t('picker.notListed')}</Button></div>}
+      {value || listVisible ? null : <div><Button size="sm" variant="link" className="h-auto whitespace-normal text-left" onClick={() => { setCustom(true); setOpen(false) }}>{t('picker.notListed')}</Button></div>}
     </div>
   )
 }

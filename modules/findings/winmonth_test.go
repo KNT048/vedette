@@ -19,8 +19,10 @@ func winlab01() Asset {
 
 // WIN-NOISE-2 (D-618): WINLAB01 had 17 open "suspected, Vedette cannot compare version" findings. With NVD's real rows (testdata,
 // as the feeds module stores them), the 11 that Microsoft fixed in or before September 2024 close as not affected, naming the build and
-// the month; CVE-2024-43572 and CVE-2024-43573 (October 2024) stay and name the update that fixes them; CVE-2015-1671 (.NET, Lync,
-// Silverlight) and CVE-2021-43890 (App Installer) stay. The two Edge Legacy (EdgeHTML) entries on the Chromium Edge row close by D-619.
+// the month; CVE-2024-43572 and CVE-2024-43573 (October 2024) stay and name the update that fixes them. CVE-2015-1671 (.NET, Lync,
+// Silverlight, Live Meeting) and CVE-2021-43890 (App Installer) are CISA "Microsoft Windows" entries whose NVD list names only other
+// products: the agent's build is compared with nothing, so they are no agent evidence and the D-615 age rule drops them (#904). The two
+// Edge Legacy (EdgeHTML) entries on the Chromium Edge row close by D-619.
 func TestMatchAsset_D618_WinLab01(t *testing.T) {
 	vulns := loadGolden(t, "testdata/kev-nvd-winlab01-n55.json")
 	have := map[string]bool{}
@@ -60,13 +62,63 @@ func TestMatchAsset_D618_WinLab01(t *testing.T) {
 			}
 		}
 	}
-	for _, c := range []string{"CVE-2015-1671", "CVE-2021-43890"} {
-		if _, ok := stay[c]; !ok {
-			t.Errorf("%s does not stay open", c)
+	if len(stay) != 2 {
+		t.Errorf("%d stay open, want 2: %v", len(stay), stay)
+	}
+	aged := map[string]string{}
+	for _, m := range res.Aged {
+		aged[m.CVE] = m.Evidence.Summary
+	}
+	for c, s := range map[string]string{"CVE-2015-1671": "NVD lists it for .net framework, live meeting, lync and 1 more, not Windows Server 2025, so no version could be compared. Vedette reopens this finding if NVD's data names this software or a scan finds it.",
+		"CVE-2021-43890": "NVD lists it for app installer, not Windows Server 2025, so no version could be compared."} {
+		if !strings.HasPrefix(aged[c], AgedNote) || !strings.Contains(aged[c], s) || len([]rune(aged[c])) > MaxNote {
+			t.Errorf("%s: aged %q (%d runes), want it to say %q", c, aged[c], len([]rune(aged[c])), s)
 		}
 	}
-	if len(stay) != 4 {
-		t.Errorf("%d stay open, want 4: %v", len(stay), stay)
+	if len(aged) != 2 {
+		t.Errorf("%d aged, want 2: %v", len(aged), aged)
+	}
+}
+
+// #904: a recent CISA "Microsoft Windows" entry whose NVD list names only other products stays a product finding on the agent's row (the
+// age rule does not apply yet) and says what NVD lists instead (D-505's sentence); its agent row stays (the page does not ask for the
+// version), but it is no agent evidence: once the entry is 12 months old it ages out. A list naming the component Windows' update
+// services (SMBv1) or any Windows release is the row's own and keeps D-617's agent evidence.
+func TestMatchAsset_904_WindowsEntryNVDListsOthersOnly(t *testing.T) {
+	t.Parallel()
+	appInstaller := Vuln{CVE: "CVE-2026-43890", Vendor: "Microsoft", Product: "Windows", Affected: []Affected{
+		{CPE: "cpe:2.3:a:microsoft:app_installer:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "1.16"}}}}
+	now := winDay("2026-11-15")
+	recent := appInstaller
+	recent.Published, recent.DateAdded = now.AddDate(0, -2, 0), now.AddDate(0, -2, 0)
+	res := MatchAsset(winlab01(), []Vuln{recent}, nil, now)
+	if len(res.New) != 1 || len(res.Aged) != 0 {
+		t.Fatalf("recent: %+v", res)
+	}
+	m := res.New[0]
+	want := "CISA lists this flaw for Microsoft Windows, but NVD lists CVE-2026-43890 for app installer only, not Windows Server 2025; check the vendor advisory and close it if it does not apply."
+	if m.Basis != BasisProduct || !m.Evidence.AgentRow || confirmedMatch(m) || !strings.Contains(m.Evidence.Summary, want) {
+		t.Errorf("recent: basis %s agent_row %v confirmed %v %q", m.Basis, m.Evidence.AgentRow, confirmedMatch(m), m.Evidence.Summary)
+	}
+	old := appInstaller
+	old.Published, old.DateAdded = now.AddDate(-3, 0, 0), now.AddDate(-3, 0, 0)
+	if res := MatchAsset(winlab01(), []Vuln{old}, map[string]bool{old.CVE: true}, now); len(res.Aged) != 1 || len(res.Existing) != 0 {
+		t.Errorf("old: %+v", res)
+	}
+	// the row's own: SMBv1 (winOSComponents) or another Windows release without a range Vedette reads keeps the agent evidence
+	for _, cpe := range []string{"cpe:2.3:a:microsoft:server_message_block:1.0:*:*:*:*:*:*:*", "cpe:2.3:o:microsoft:windows:-:*:*:*:*:*:*:*"} {
+		own := old
+		own.Affected = []Affected{{CPE: cpe}}
+		res := MatchAsset(winlab01(), []Vuln{own}, nil, now)
+		if len(res.Aged) != 0 || len(res.New) == 1 && (!res.New[0].Evidence.AgentRow || res.New[0].others != "") {
+			t.Errorf("%s: %+v", cpe, res)
+		}
+	}
+	// no NVD data yet: CISA's own naming of the product is all there is, and the agent row keeps it (TestContract_D615_AgentRowNeverAges)
+	none := old
+	none.Affected = nil
+	if res := MatchAsset(winlab01(), []Vuln{none}, nil, now); len(res.Aged) != 0 || len(res.New) != 1 || !confirmedMatch(res.New[0]) {
+		t.Errorf("no NVD data: %+v", res)
 	}
 }
 

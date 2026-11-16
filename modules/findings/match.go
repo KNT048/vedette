@@ -196,6 +196,9 @@ type Match struct {
 	Evidence        Evidence
 	why             string // D-547: the platform sentence of a match ruled out by the platform (MatchResult.OtherPlatform)
 	every           bool   // NVD lists every version of the product as affected: the version cannot change it (review r1 #3 of #803)
+	// others: a product match whose NVD list names only other products than the row (#904, nvdOthersOnly): those products ("app
+	// installer"), "" otherwise. The agent's version is then compared with nothing, so an agent row is no evidence (confirmedMatch).
+	others string
 }
 
 // MatchResult separates what is new from what the asset already has, so the
@@ -256,15 +259,24 @@ func aged(v Vuln, now time.Time) bool {
 // CVE-2018-13379 on an unpatched FortiGate stays. Labels are unchanged (a banner or a typed version stays suspected). A product
 // match on a row the device's own agent reported (Evidence.AgentRow, D-612) stands too: the agent gave the installed version and only
 // Vedette could not compare it, which is agent evidence, not a guess (N100 n54: an unpatched Windows Server 2025 build 26100.1742 had
-// CVE-2024-43572 and CVE-2024-43573 closed for their age).
+// CVE-2024-43572 and CVE-2024-43573 closed for their age). Not when NVD's list names only other products than the row (#904,
+// Match.others: CVE-2015-1671 lists .NET Framework, Lync, Silverlight and Live Meeting, CISA "Microsoft Windows"): the agent's
+// version is then compared with nothing NVD names, so the age rule drops it like any product-only guess.
 func confirmedMatch(m Match) bool {
-	return m.Basis != BasisProduct || m.every || m.Evidence.AgentRow
+	return m.Basis != BasisProduct || m.every || m.Evidence.AgentRow && m.others == ""
 }
 
 // agedSummary is the note of a finding the age rule closes.
 func agedSummary(v Vuln) string {
 	return fmt.Sprintf("%s: %s was published on %s and added to %s's list on %s, both more than 12 months ago, and Vedette could not compare a version (it matched the product name only). Vedette reopens this finding when it can compare the version (from the agent, the device or one you enter) or a scan that reads the version finds it.",
 		AgedNote, v.CVE, FmtDay(v.Published), v.listName(), FmtDay(v.DateAdded))
+}
+
+// agedOthersSummary is the note of a finding the age rule closes because NVD's list names only other products than its row (#904).
+// It names the software once; a very long display or product list is clipped by AutoResolve (MaxNote) like any note.
+func agedOthersSummary(v Vuln, m Match) string {
+	return fmt.Sprintf("%s: %s was published on %s and added to %s's list on %s, both more than 12 months ago, and NVD lists it for %s, not %s, so no version could be compared. Vedette reopens this finding if NVD's data names this software or a scan finds it.",
+		AgedNote, v.CVE, FmtDay(v.Published), v.listName(), FmtDay(v.DateAdded), m.others, m.SoftwareDisplay)
 }
 
 // SettledKEV is how long a "Multiple Products" entry must have been in KEV before NVD's product list for it is taken as
@@ -386,8 +398,11 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 				}
 			case outMatch:
 				// on a tie, a confirmed match wins (NVD says every version, or the agent's row, D-612): it keeps an old CVE whatever
-				// the order of the rows (review r2 #5 of #803; review r2 #1 of #804: an nmap row sorted before the agent's)
-				if best == nil || rank(m.Basis) > rank(best.Basis) || rank(m.Basis) == rank(best.Basis) && confirmedMatch(m) && !confirmedMatch(*best) {
+				// the order of the rows (review r2 #5 of #803; review r2 #1 of #804: an nmap row sorted before the agent's); when neither is
+				// confirmed (#904: NVD lists only other products), the agent's row still wins, so its note and agent_row do not depend on
+				// the order (review r1 M2 of #909)
+				if best == nil || rank(m.Basis) > rank(best.Basis) || rank(m.Basis) == rank(best.Basis) && !confirmedMatch(*best) &&
+					(confirmedMatch(m) || m.Evidence.AgentRow && !best.Evidence.AgentRow) {
 					best = &m
 				}
 			case outNeedVersion:
@@ -427,6 +442,9 @@ func MatchAsset(a Asset, vulns []Vuln, have map[string]bool, now time.Time) Matc
 		if aged(v, now) && !confirmedMatch(*best) && !v.HasTemplate { // D-615, D-616: an old KEV CVE only with a version compared or a scan hit; a scannable one stays for the scan
 			r := *best
 			r.Evidence.Summary = agedSummary(v)
+			if r.others != "" { // #904: why the agent's version was compared with nothing
+				r.Evidence.Summary = agedOthersSummary(v, r)
+			}
 			res.Aged = append(res.Aged, r)
 			continue
 		}
@@ -569,6 +587,10 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 		CVE: v.CVE, SoftwareID: s.ID, SoftwareDisplay: clean(s.Display), Basis: BasisProduct, Confidence: ConfProduct,
 		Severity: SeverityMedium,
 	}
+	others := ""
+	if tri != Yes && !multi {
+		others = nvdOthersOnly(in, v)
+	}
 	switch {
 	case tri == Yes:
 		m.Basis, m.Confidence, m.Severity = BasisVersion, ConfVersion, SeverityHigh
@@ -592,6 +614,10 @@ func matchOne(a Asset, s Software, in swInfo, v Vuln, now time.Time) (Match, out
 	case multi:
 		m.Confidence = ConfVendorOnly
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists this flaw for several %s products; check the advisory to see whether yours is one of them.", name, sw, v.listName(), clean(v.Vendor))
+	case others != "": // #904: CISA names the product, NVD's list only others (D-505's sentence for a keyed entry)
+		m.others = others
+		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s lists this flaw for %s, but NVD lists %s for %s only, not %s; check the vendor advisory and close it if it does not apply.",
+			name, sw, v.listName(), clean(v.Vendor+" "+v.Product), v.CVE, m.others, clean(s.Display))
 	case w.note != "": // D-546: why NVD's Windows data does not decide it
 		m.Evidence.Summary = fmt.Sprintf("%s runs %s. %s", name, sw, w.note)
 	case len(v.Affected) == 0: // N45-3: no "run a scan" (the page may show the result of the scan that just ran)
@@ -693,6 +719,66 @@ func newSWInfo(s Software, osName string) swInfo {
 		in.ids = append(append(in.ids, n), cpeAliases[n]...)
 	}
 	return in
+}
+
+// nvdOthersOnly names the products of NVD's list for v (nvdProducts) when it has entries and every one is readable and names
+// another product than the software (#904): not its own identity (CPE, name or alias, appliesTo), not the KEV entry's own vendor and
+// product (decide's key), not a product of its vendor whose name starts with the software's (NVD's microsoft:edge_chromium for an
+// Edge row: maybe the same product under NVD's other name), and, for a Windows row (a Windows CPE, or keyed to CISA's "Microsoft
+// Windows"), no Windows row of any release or family (winListedOf) and no component Windows' monthly update services
+// (winOSComponents), and no row of the device's own operating system (an Ubuntu release for a kernel row on Ubuntu, review r1 M1 of
+// #909). "" otherwise: no NVD data yet, an entry that may be this software (vendor or product ANY, unreadable), or one that applies. D-617's case keeps its agent evidence: CVE-2024-43572 lists Windows 11 24H2.
+func nvdOthersOnly(in swInfo, v Vuln) string {
+	if len(v.Affected) == 0 {
+		return ""
+	}
+	_, win := windowsProduct(in.cpe)
+	win = win && in.hasCPE || norm(v.Vendor) == "microsoft" && norm(v.Product) == "windows"
+	ids := in.ids
+	if in.hasCPE {
+		cv, okV := in.cpe.Vendor.Literal()
+		cp, okP := in.cpe.Product.Literal()
+		if okV && okP {
+			ids = append(slices.Clip(ids), identity{vendor: norm(cv), product: norm(cp)})
+		}
+	}
+	var key []identity
+	if n := (identity{vendor: norm(v.Vendor), product: norm(v.Product)}); !isMultiProduct(v.Product) && n.ok() {
+		key = []identity{n}
+	}
+	for _, af := range v.Affected {
+		c, err := af.cpe()
+		if err != nil || c.Part.Kind == NA {
+			return ""
+		}
+		if win {
+			if _, ok := winListedOf(c); ok {
+				return ""
+			}
+			if vn, okV := c.Vendor.Literal(); okV && norm(vn) == "microsoft" {
+				if p, okP := c.Product.Literal(); okP && winOSComponents[p] {
+					return ""
+				}
+			}
+		}
+		own, known := appliesTo(c, in.cpe, in.hasCPE, in.ids)
+		byKey, _ := appliesTo(c, CPE{}, false, key)
+		if own || byKey || !known {
+			return ""
+		}
+		cv, _ := c.Vendor.Literal()
+		cp, _ := c.Product.Literal()
+		if slices.ContainsFunc(ids, func(i identity) bool { return i.ok() && i.vendor == norm(cv) && strings.HasPrefix(norm(cp), i.product) }) {
+			return ""
+		}
+		if distroRelease(c) && !in.os.ok() { // a distribution's row on a device whose distribution is not read (Mint, Pop!_OS, "Ubuntu", none) may be its own (review r2 M1 of #909)
+			return ""
+		}
+		if in.os.ok() && in.os.matches(norm(cv), norm(cp)) { // the device's own OS (osRulesOut's identity): CVE-2021-3493 lists Ubuntu releases for a kernel flaw (review r1 M1 of #909)
+			return ""
+		}
+	}
+	return nvdProducts(v.Vendor, v.Affected)
 }
 
 // listsOthersOnly reports whether every NVD entry of v is readable and names another product than the software (D-505).

@@ -412,3 +412,81 @@ func TestContract_D615_AgentRowWinsTheTieInBothOrders(t *testing.T) {
 		t.Fatalf("an agent-evidence finding closed for its age: %+v", r.Finding)
 	}
 }
+
+// #904: a finding stored with the agent row's evidence (as N100's WINLAB01 has CVE-2015-1671 and CVE-2021-43890) closes for its age
+// when the agent row's own match now says NVD's list names only other products: the closeAged guard keeps only real agent evidence.
+func TestContract_904_AgentRowOthersOnlyAgesOut(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	srv := winlab01()
+	srv.ID = "a-1"
+	v := Vuln{CVE: "CVE-2021-43890", Vendor: "Microsoft", Product: "Windows", Published: t0.AddDate(0, -1, 0), DateAdded: t0.AddDate(0, -1, 0),
+		Affected: []Affected{{CPE: "cpe:2.3:a:microsoft:app_installer:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "1.16"}}}}
+	if _, err := e.svc.UpsertFromMatch(t.Context(), srv, []Vuln{v}); err != nil {
+		t.Fatal(err)
+	}
+	r, err := loadByPair(t.Context(), e.db.Reader(), "a-1", v.CVE)
+	if err != nil || r.Status != StatusSuspected || r.Evidence == nil || !r.Evidence.AgentRow {
+		t.Fatalf("recent: %+v %v", r.Finding, err)
+	}
+	v.Published, v.DateAdded = t0.AddDate(-5, 0, 0), t0.AddDate(-5, 0, 0) // the same entry, past 12 months
+	e.advance(time.Minute)
+	if _, err := e.svc.UpsertFromMatch(t.Context(), srv, []Vuln{v}); err != nil {
+		t.Fatal(err)
+	}
+	r, _ = loadByPair(t.Context(), e.db.Reader(), "a-1", v.CVE)
+	if r.Status != StatusNotRelevant || !strings.Contains(r.ResolutionNote, "NVD lists it for app installer, not Windows Server 2025") {
+		t.Fatalf("not aged out: %+v", r.Finding)
+	}
+}
+
+// Review r1 M1 of #909: a kernel CVE whose NVD list names only Ubuntu releases (CVE-2021-3493, NVD's real rows) names the device's own
+// OS on an Ubuntu 20.04 host: the agent's kernel row is evidence and the finding stays past 12 months (no distro verdict here). On a
+// Debian 13 host NVD names another distribution, so it ages out.
+func TestMatchAsset_904_OwnOSIsNotAnotherProduct(t *testing.T) {
+	t.Parallel()
+	v := Vuln{CVE: "CVE-2021-3493", Vendor: "Linux", Product: "Kernel", Published: t0.AddDate(-5, 0, 0), DateAdded: t0.AddDate(-4, 0, 0), Affected: []Affected{
+		{CPE: "cpe:2.3:o:canonical:ubuntu_linux:*:*:*:*:lts:*:*:*", Range: VersionRange{EndIncl: "18.04"}},
+		{CPE: "cpe:2.3:o:canonical:ubuntu_linux:*:*:*:*:lts:*:*:*", Range: VersionRange{StartIncl: "18.04.1", EndIncl: "20.04"}},
+		{CPE: "cpe:2.3:o:canonical:ubuntu_linux:*:*:*:*:-:*:*:*", Range: VersionRange{EndIncl: "20.10"}}}}
+	host := func(os, ver string) Asset {
+		return Asset{ID: "a-1", Name: "host", OS: os, AgentOS: os, Software: []Software{{ID: "s-k", Display: "Linux Kernel", Vendor: "Linux", Product: "Kernel",
+			Version: ver, KevKeys: []string{"linux|kernel"}, Source: "agent"}}}
+	}
+	r := MatchAsset(host("Ubuntu 20.04.6 LTS", "5.4.0"), []Vuln{v}, nil, t0)
+	if len(r.Aged) != 0 || len(r.New) != 1 || !confirmedMatch(r.New[0]) {
+		t.Errorf("Ubuntu 20.04: %+v", r)
+	}
+	if r := MatchAsset(host("Debian GNU/Linux 13 (trixie)", "6.12.57"), []Vuln{v}, nil, t0); len(r.Aged) != 1 || len(r.New) != 0 {
+		t.Errorf("Debian 13: %+v", r)
+	}
+	// review r2 M1: a distribution the OS check does not read may be the one NVD names (Mint 20 runs Ubuntu 20.04's kernel): never aged
+	for _, os := range []string{"Linux Mint 20.3", "Pop!_OS 20.04 LTS", "Ubuntu", ""} {
+		if r := MatchAsset(host(os, "5.4.0-42-generic"), []Vuln{v}, nil, t0); len(r.Aged) != 0 || len(r.New) != 1 {
+			t.Errorf("%q: %+v", os, r)
+		}
+	}
+}
+
+// Review r1 M2 of #909: when neither match is confirmed (NVD lists only other products), the agent's row still wins the tie whatever
+// the order of the rows: an old entry ages on the agent's row (closeAged then closes the stored agent finding), and a recent one keeps
+// agent_row (the page does not ask for the version).
+func TestMatchAsset_904_AgentRowWinsAnUnconfirmedTie(t *testing.T) {
+	t.Parallel()
+	agent := Software{ID: "s-agent", Display: "Microsoft Exchange Server 2019", Vendor: "Microsoft", Product: "Exchange Server", Version: "15.2.1118.7",
+		KevKeys: []string{"microsoft|exchange server"}, Source: "agent"}
+	banner := Software{ID: "s-nmap", Display: "Exchange", Vendor: "Microsoft", Product: "Exchange Server", Version: "15.2", KevKeys: []string{"microsoft|exchange server"}, Source: "nmap"}
+	v := Vuln{CVE: "CVE-2021-26855", Vendor: "Microsoft", Product: "Exchange Server", Affected: []Affected{{CPE: "cpe:2.3:a:microsoft:sharepoint_server:2019:*:*:*:*:*:*:*"}}}
+	old, recent := v, v
+	old.Published, old.DateAdded = t0.AddDate(-5, 0, 0), t0.AddDate(-5, 0, 0)
+	recent.Published, recent.DateAdded = t0.AddDate(0, -1, 0), t0.AddDate(0, -1, 0)
+	for name, rows := range map[string][]Software{"agent first": {agent, banner}, "banner first": {banner, agent}} {
+		a := Asset{ID: "a-1", Name: "mail01", AgentOS: "Microsoft Windows Server 2019", Software: rows}
+		if m := MatchAsset(a, []Vuln{old}, map[string]bool{v.CVE: true}, t0); len(m.Aged) != 1 || m.Aged[0].SoftwareID != "s-agent" || m.Aged[0].others == "" {
+			t.Errorf("%s, old: %+v", name, m)
+		}
+		if m := MatchAsset(a, []Vuln{recent}, nil, t0); len(m.New) != 1 || m.New[0].SoftwareID != "s-agent" || !m.New[0].Evidence.AgentRow {
+			t.Errorf("%s, recent: %+v", name, m)
+		}
+	}
+}

@@ -5,6 +5,7 @@
 - **sensor-active** reads the same `active` (window, exclusions, rate) through `sensorInventory.Settings`: the exclusions merged from the scan module now bind discovery too.
 - **core** (`GET/PUT /scanning*`, `PATCH /scanning/engines/nmap-discovery`) reads and writes through `cmd/vedette` `scanningSafety` and `SetDiscovery`.
 - **`GET/PUT /inventory/settings`** must keep `check_rate` out (the generated decoder refuses an unknown field) and keep the stored value on save.
+
 ## Modifying: the Devices search (`DeviceFilter`, `ParseDeviceFilter`, `deviceSources`, `Device.Sources`, `Config.WazuhAgents`; #849, INV-33)
 - **Web** (Mlee; the Devices page of #849/#842, `web/src/features/inventory/{contract,mocks}.ts`): the page keeps the filter in the URL and sends it to `GET /inventory/devices` and `/inventory/export.csv`; the mock (`deviceFilter`, `sourcesOf`) follows the same words and refusals (`search.test.ts`). Adding or renaming a source word changes `DeviceSource` in `contract.ts`, the chips and tokens of the page, and saved URLs.
 - **agent-intake** (`WazuhAgentAddresses`, table `intake_wazuh_agent`, wired in `cmd/vedette/inventory.go` `wazuhAgents`): the only marker of a Wazuh device. Wazuh still sends no agent key (ids are per manager), so a change to how the pull records where it delivered (`wazuhAgentSeen`, the clean-up at the end of a pass) changes which devices say `wazuh`.

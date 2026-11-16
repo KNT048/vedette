@@ -43,7 +43,7 @@ function TypeCell({ d, dense }: { d: DeviceRow; dense?: boolean }) {
   const cat = kind === 'unknown' ? '' : categoryLabel(categoryOf(kind))
   const saysMore = cat && !cat.toLowerCase().startsWith(type.toLowerCase().slice(0, 4))
   return (
-    <span className="inline-flex items-center gap-x-1.5 whitespace-nowrap" title={[guessed ? d.guess?.evidence : '', cat].filter(Boolean).join(' ') || undefined}>
+    <span className="inline-flex items-center gap-x-1.5 whitespace-nowrap" title={cat && guessed && d.guess?.evidence ? `${cat}: ${d.guess.evidence}` : (guessed ? d.guess?.evidence : cat) || undefined}>
       {createElement(kindIcon(kind), { className: 'size-4 shrink-0 text-muted', 'aria-hidden': true })}
       <span>{type}</span>
       {guessed ? <Chip tone="off">{t('guess.likely')}</Chip> : null}
@@ -52,7 +52,16 @@ function TypeCell({ d, dense }: { d: DeviceRow; dense?: boolean }) {
   )
 }
 
-const FEED_ORDER = ['osquery', 'snmp', 'scan', 'passive', 'manual'] as const
+/** Maker and model, without saying the maker twice when the model already starts with it ("Fortinet FortiGate 60F" stays, a
+ *  model "HP LaserJet Pro" under maker "HP" is not "HP HP LaserJet Pro"). */
+function hardwareLine(d: DeviceRow) {
+  const vendor = d.vendor?.value ?? ''
+  const model = d.model?.value ?? ''
+  if (vendor && model.toLowerCase().startsWith(vendor.toLowerCase())) return model
+  return [vendor, model].filter(Boolean).join(' ')
+}
+
+const FEED_ORDER = ['osquery', 'wazuh', 'snmp', 'scan', 'passive', 'manual'] as const
 /** Sources cell (#849): which feeds report on the device, in the order they win (agent, SNMP, scan, passive), and "low confidence"
  *  when the weakest value is a guess. The device page has every value with its own source and confidence. */
 function SourcesCell({ d, compact }: { d: DeviceRow; compact?: boolean }) {
@@ -63,14 +72,16 @@ function SourcesCell({ d, compact }: { d: DeviceRow; compact?: boolean }) {
   const low = (d.summary?.confidence ?? 1) < 0.5
   const lowNote = low ? <span className="text-warn"> {t('search.lowConfidence')}</span> : null
   if (!compact || list.length === 1) return <span className="whitespace-nowrap text-meta text-muted">{list.join(', ')}{lowNote}</span>
-  // One line on a desktop row (#849 review): the source that wins, "+2", the whole list on hover or focus (and the device page).
+  // One line on a desktop row (#849 review): the source that wins and "+2" for the eye; the whole list is read out (sr-only), the mouse
+  // gets it in a tooltip that does not repeat it to a screen reader (describe={false}); no extra Tab stop. The device page has each value.
   const all = list.join(', ')
   return (
-    <Tooltip content={all} side="top">
-      <span tabIndex={0} aria-label={t('search.sourcesAll', { list: all })} className="inline-flex items-center gap-1 whitespace-nowrap rounded-sm text-meta text-muted">
-        <span>{list[0]}</span><span className="tabular-nums">{`+${list.length - 1}`}</span>{lowNote}
-      </span>
-    </Tooltip>
+    <span className="whitespace-nowrap text-meta text-muted">
+      <Tooltip content={all} side="top" describe={false}>
+        <span aria-hidden className="inline-flex items-center gap-1"><span>{list[0]}</span><span className="tabular-nums">{`+${list.length - 1}`}</span></span>
+      </Tooltip>
+      <span className="sr-only">{all}</span>{lowNote}
+    </span>
   )
 }
 
@@ -85,15 +96,18 @@ function shortAgo(iso: string, now: number, locale: string) {
   return rtf.format(Math.round(diff / 86400), 'day')
 }
 
-/** `dense` (a desktop row, one line): the chips carry their explanation as a title instead of an ⓘ; the device page has the ⓘ. */
+/** `dense` (a desktop row, one line): no ⓘ; the explanation is read out with the chip (sr-only) and shown to the mouse in a Tooltip that
+ *  does not repeat it (#849 review L1). Elsewhere (phone rows) the chip keeps its ⓘ; the device page too. */
 function NameChips({ d, dense }: { d: DeviceRow; dense?: boolean }) {
   const { t } = useTranslation('inventory')
-  const tip = (chip: React.ReactNode, topic: string, text: string) => (dense ? chip : <span className="inline-flex items-center gap-1">{chip}<InfoTip topic={topic}>{text}</InfoTip></span>)
+  const tip = (chip: React.ReactNode, topic: string, text: string) => (dense
+    ? <span className="inline-flex"><Tooltip content={text} side="top" describe={false}><span>{chip}</span></Tooltip><span className="sr-only">{text}</span></span>
+    : <span className="inline-flex items-center gap-1">{chip}<InfoTip topic={topic}>{text}</InfoTip></span>)
   return (
     <>
-      {d.is_box ? tip(<Chip tone="accent" title={dense ? t('box.noDelete') : undefined}>{t('box.badge')}</Chip>, t('box.badge'), t('box.noDelete')) : null}
+      {d.is_box ? tip(<Chip tone="accent">{t('box.badge')}</Chip>, t('box.badge'), t('box.noDelete')) : null}
       {d.suspicious ? <Chip tone="warn">{t('chip.suspicious')}</Chip> : null}
-      {d.fragile ? tip(<Chip tone="off" title={dense ? t('chip.fragileHint') : undefined}>{t('chip.fragile')}</Chip>, t('chip.fragile'), t('chip.fragileHint')) : null}
+      {d.fragile ? tip(<Chip tone="off">{t('chip.fragile')}</Chip>, t('chip.fragile'), t('chip.fragileHint')) : null}
     </>
   )
 }
@@ -144,7 +158,7 @@ function DeviceSearch({ rows, now, query }: { rows: DeviceRow[]; now: number; qu
 function MatchLine({ q, shown, total, onClear }: { q: string; shown: number; total: number; onClear: () => void }) {
   const { t } = useTranslation('inventory')
   return (
-    <div className="flex flex-wrap items-center gap-x-3 text-meta text-muted empty:hidden">
+    <div className={q ? 'flex flex-wrap items-center gap-x-3 text-meta text-muted' : 'sr-only'}>
       <span role="status" aria-live="polite" className="tabular-nums">{q ? t('search.matches', { shown, count: total }) : ''}</span>
       {q && shown ? <Button size="sm" variant="link" onClick={onClear}>{t('search.clear')}</Button> : null}
     </div>
@@ -178,13 +192,16 @@ function DevicesList({ rows, now, query }: { rows: DeviceRow[]; now: number; que
     // #849 review: one line per row at 1280. Make, model and OS share a column, cut with an ellipsis (the whole text on hover, the
     // device page has each value); the OS in muted text after the model.
     { id: 'hw', header: t('col.device'), accessorFn: (d) => [d.vendor?.value, d.model?.value, d.os?.value].filter(Boolean).join(' '), cell: ({ row }) => {
+      // #849 review r2 M1: the OS or firmware version decides the CVE match, so it is never the part cut: the maker and model shrink
+      // (ellipsis), the OS keeps its width. The whole text stays in the DOM (screen readers read it) and the name opens the device.
       const d = row.original
-      const hw = [d.vendor?.value, d.model?.value].filter(Boolean).join(' ')
+      const hw = hardwareLine(d)
       const os = d.os?.value ?? ''
       if (!hw && !os) return dash
       return (
-        <span className="block max-w-56 truncate" title={[hw, os].filter(Boolean).join(', ')}>
-          {hw}{hw && os ? ' ' : ''}{os ? <span className="text-muted">{os}</span> : null}
+        <span className="flex max-w-64 items-baseline gap-1.5 2xl:max-w-md" title={[hw, os].filter(Boolean).join(', ')}>
+          {hw ? <span className="min-w-0 truncate">{hw}</span> : null}
+          {os ? <span className="shrink-0 whitespace-nowrap text-muted">{os}</span> : null}
         </span>
       )
     } },
@@ -228,6 +245,11 @@ function DevicesList({ rows, now, query }: { rows: DeviceRow[]; now: number; que
                 {d.ip && d.ip !== '—' ? <span className="tabular-nums">{d.ip}</span> : null}
                 {hw ? <span className="min-w-0 [overflow-wrap:anywhere]">{hw}</span> : null}
               </div>
+              {swWanted.length ? (() => {
+                // the phone's Matched software line (#849 review r2 M2): what software: found on this device, with its version
+                const m = matchSoftware(d, swWanted)
+                return m.length ? <p className="text-meta">{m.map((x) => `${x.display} ${x.version ?? t('software.noVersion')}`).join(', ')}</p> : null
+              })() : null}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted">
                 <SourcesCell d={d} />
                 <time dateTime={d.last_seen}>{fmtRelative(d.last_seen)}</time>

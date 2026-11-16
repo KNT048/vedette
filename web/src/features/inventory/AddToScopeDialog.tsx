@@ -51,7 +51,7 @@ export function AddToScopeDialog({ entry, onClose, onDone }: { entry: string | n
           </div>
           {problem ? <Notice tone="danger" role="alert" className="mb-0" title={t(`network.problem.${problem}`, { value: range, net: range ? cidrRange(range).network : '', other: overlapping(range ?? '', s?.lan_ranges ?? []) ?? '' })} /> : null}
           {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-          <DependencyLink reason={t('toScope.restWhy')} to="/devices/setup?tab=scope#active-enabled" label={t('toScope.rest')} />
+          <DependencyLink reason={t('toScope.restWhy')} to="/devices/setup?tab=scope#active-from" label={t('toScope.rest')} />
           <DialogFooter>
             <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
             <Button variant="primary" disabled={!confirmed || !s || !!problem || save.isPending} onClick={submit}>{range ? t('toScope.add') : t('toScope.confirm')}</Button>

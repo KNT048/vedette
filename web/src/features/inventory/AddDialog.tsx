@@ -94,8 +94,8 @@ function SnmpMethod() {
     e.preventDefault(); setResult(null); setError(null)
     if (!isIp && !isRange) { setTargetErr(t('addDialog.snmp.targetBad')); return }
     if (notLocal) { setTargetErr(t('snmp.error.scopeNotLocal', { entry: v, ranges: LOCAL_RANGE_NAMES })); return }
+    if (!chosen) { setTargetErr(t('addDialog.snmp.needCredential')); return } // Enter with no credential says what is missing (r2 L5)
     setTargetErr(null)
-    if (!chosen) return
     if (isRange) { if (outsideLan) setToScope(v); else if (!covered) setForm({ current: chosen, widen: true, scope: [...chosen.scope, v].join('\n') }); return }
     read(chosen.id, raw)
   }
@@ -121,7 +121,7 @@ function SnmpMethod() {
                   onSaved={(c) => { p.onCreated({ value: c.id, label: label(c) }); saved(c) }} /> : null)} />
             </Field>
             {chosen ? <div><Button size="sm" variant="link" onClick={() => setForm({ current: chosen })}>{t('addDialog.snmp.editCredential', { name: chosen.name })}</Button></div> : null}
-            {creds.length >= SNMP_MAX ? <DependencyLink reason={t('addDialog.snmp.capWhy', { count: SNMP_MAX })} to="/devices/setup?tab=snmp" label={t('addDialog.snmp.capLink')} /> : null}
+            {creds.length >= SNMP_MAX ? <DependencyLink reason={t('addDialog.snmp.capWhy', { count: SNMP_MAX })} to="/devices/setup?tab=snmp#snmp" label={t('addDialog.snmp.capLink')} /> : null}
           </div>
         </div>
         {q.data && !q.data.ready ? <p className="text-meta text-warn">{q.data.message ?? t('snmp.notReady')}</p> : null}

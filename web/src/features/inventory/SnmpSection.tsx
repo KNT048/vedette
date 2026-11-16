@@ -160,7 +160,7 @@ export function CredentialForm({ current, scope, widen = false, onCancel, onSave
             </>
           )}
           <Field label={t('snmp.form.scope')} htmlFor={`${idPrefix}-scope`} hint={t('snmp.form.scopeHint')} info={t('snmp.form.scopeHintInfo')} error={errors.scope}>
-            <Textarea id={`${idPrefix}-scope`} rows={3} value={scopeText} placeholder={'192.168.10.0/24\n192.168.20.5'} spellCheck={false} onChange={(e) => setScopeText(e.target.value)} aria-invalid={!!errors.scope} aria-describedby={described(`${idPrefix}-scope`, errors.scope)} className="font-mono text-[13px]" />
+            <Textarea id={`${idPrefix}-scope`} rows={3} value={scopeText} placeholder={'192.168.10.0/24\n192.168.20.5'} spellCheck={false} onChange={(e) => setScopeText(e.target.value)} aria-invalid={!!errors.scope} aria-describedby={described(`${idPrefix}-scope`, errors.scope)} className="font-mono text-meta" />
           </Field>
           <p className="text-[12px] text-muted">{t('snmp.form.insecure')}</p>
           {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}

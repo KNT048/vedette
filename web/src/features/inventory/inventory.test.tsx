@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
@@ -20,6 +20,7 @@ import { normalizeRange, rangeProblem } from './validate'
 vi.setConfig({ testTimeout: 30_000 })
 // The box is always the first device; the store gets it on the first inventory call, so counts taken before the page loads need it already there.
 beforeEach(() => ensureBox())
+afterEach(() => { server.events.removeAllListeners() }) // #849 review r2 L8: a failing test never leaks its request listener
 
 const BASE = `${location.origin}/api/v1/inventory`
 const T = { timeout: 5000 }
@@ -259,6 +260,15 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(within(dlg).getByRole('radio', { name: /^CSV import/ })).toBeEnabled()
   })
 
+  it('#849 review r2 L7: turning a module on here says which modules it also turns on', async () => {
+    enableModule('agent-intake', false)
+    enableModule('notify', false)
+    modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, depends: ['inventory', 'notify'] } : m)))
+    renderApp('/devices?add=osquery')
+    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
+    expect(await within(dlg).findByText(/also turns on Notifications, which it needs/, undefined, T)).toBeInTheDocument()
+  })
+
   it('#849, kien 2026-11-16: a module the method needs is off: the admin turns it on right in the dialog, and the method opens', async () => {
     const user = userEvent.setup()
     enableModule('agent-intake', false)
@@ -294,7 +304,6 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     const made = (await (await fetch(`${BASE}/snmp`)).json() as { credentials: { id: string; name: string }[] }).credentials.find((c) => c.name === 'Switch room')!
     expect(tests).toEqual([made.id]) // once, never with the credential selected before
     expect(screen.getAllByRole('dialog')).toHaveLength(1) // no scope or widen dialog opened behind
-    server.events.removeAllListeners()
   })
 
   it('#849 review H3: a new credential saved with nothing typed reads nothing and raises no error behind the dialog', async () => {
@@ -311,7 +320,6 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add SNMP credential' })).toBeNull(), T)
     expect(tests).toEqual([])
     expect(within(dlg).queryByText(/Enter one IP address/)).toBeNull()
-    server.events.removeAllListeners()
   })
 
   it('#849 review M1: a viewer\'s old ?tab=add link lands on the list, not on a form that ends in 403', async () => {
@@ -529,7 +537,7 @@ describe('inventory: device types in two levels (D-511)', () => {
     const row = within(table).getByRole('link', { name: /192\.168\.10\.251|Fortinet/ }).closest('tr')!
     expect(within(row).getByText('Firewall')).toBeInTheDocument()
     expect(within(row).getByText('likely')).toBeInTheDocument()
-    expect(within(row).getByTitle(/Security$/)).toBeInTheDocument() // #849: one line per desktop row, the category on hover (the phone list and the device page show it)
+    expect(within(row).getByTitle(/^Security: /)).toBeInTheDocument() // #849: one line per desktop row, the category on hover (the phone list and the device page show it)
     expect(within(row).getByTitle(/Fortinet network card and port 22/)).toBeInTheDocument()
     const nas = within(table).getByRole('link', { name: 'NAS-PHOTOS' }).closest('tr')!
     expect(within(nas).getByTitle('Storage')).toBeInTheDocument()

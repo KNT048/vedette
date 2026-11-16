@@ -922,7 +922,8 @@
       "capReason": "{{count}} credentials at most",
       "capWhy": "The box keeps {{count}} credentials at most.",
       "capLink": "Remove one in Scope, sensors and agents, SNMP",
-      "first": "Add the credential your devices use: choose New credential below."
+      "first": "Add the credential your devices use: choose New credential below.",
+      "needCredential": "Add a credential first: choose + New credential."
     },
     "osquery": {
       "noMac": "macOS is not supported: osquery runs on Linux and Windows servers.",
@@ -983,14 +984,14 @@
     },
     "anyType": "Any {{category}} device",
     "short": {
-      "osquery": "Agent",
+      "osquery": "osquery",
+      "wazuh": "Wazuh",
       "snmp": "SNMP",
       "scan": "Scan",
       "passive": "Passive",
       "manual": "Manual"
     },
-    "lowConfidence": "(low confidence)",
-    "sourcesAll": "Sources: {{list}}"
+    "lowConfidence": "(low confidence)"
   },
   "declaredPage": {
     "nav": "Declared software",
@@ -1049,7 +1050,10 @@
     "notListedWhy": "Vedette has not found this address yet. The next scan or the sensor finds it; approve it under To review, then read it here.",
     "notListed": "Open To review",
     "manualWhy": "This device was added manually, so Vedette never probes it.",
-    "manual": "Open the device"
+    "manual": "Open the device",
+    "publicWhy": "{{ip}} is a public address: Vedette only reads devices inside your own network.",
+    "excludedWhy": "{{ip}} is inside the scan scope but excluded from it.",
+    "excluded": "Change the exclusions in Scope"
   },
   "toScope": {
     "title": "Add {{range}} to the scan scope",

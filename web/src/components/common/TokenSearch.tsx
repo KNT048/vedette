@@ -194,7 +194,7 @@ export function TokenSearch({ value, onChange, keys, chips, label, placeholder, 
             const on = hasToken(value, c.token)
             return (
               <button key={c.token} type="button" aria-pressed={on} onClick={() => onChange(toggleToken(value, c.token))}
-                className={cn('inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-meta sm:h-8',
+                className={cn('inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-meta',
                   on ? 'border-accent bg-accent-soft font-medium text-ink' : 'border-rule bg-surface text-muted hover:text-ink')}>
                 {c.label}
                 {c.count !== undefined ? <>{' '}<span className="tabular-nums text-muted">{c.count}</span></> : null}

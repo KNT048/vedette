@@ -8,27 +8,11 @@ import type { DeviceRow } from './types'
 // The Devices search (#849): free text over name, IP, MAC, vendor, model and OS, plus tokens. Same key twice = either
 // (`source:snmp source:osquery`), different keys = both. The list is bounded (MaxListed = 2000) and loaded whole, so this runs in the client.
 
-/** The six feeds a customer names (#849). osquery and Wazuh both report as source `agent` today (DeviceRow has no agent kind):
- *  until the API says which agent fed a device, each of the two matches every agent-fed device. */
+/** The six feeds a customer names (#849): DeviceRow.sources from the box (#855: osquery is a bound node key, wazuh an address the Wazuh
+ *  connection delivered), so `source:osquery` and `source:wazuh` are exact. */
 export const SOURCES = ['snmp', 'osquery', 'wazuh', 'scan', 'passive', 'manual'] as const
 export type SourceToken = (typeof SOURCES)[number]
-const OF_OBS: Record<string, SourceToken[]> = { snmp: ['snmp'], agent: ['osquery', 'wazuh'], nmap: ['scan'], scan: ['scan'], passive: ['passive'], manual: ['manual'] }
-
-/** The feeds that reported on a row: from every value's source, its software and ports, and a declared row is "manual". Kept per row
- *  object (a refetch makes new ones): an osquery host can list 1000+ packages, and the list, the chips and the search ask for it often. */
-const feedCache = new WeakMap<DeviceRow, Set<SourceToken>>()
-export function feedsOfRow(d: DeviceRow): Set<SourceToken> {
-  const hit = feedCache.get(d)
-  if (hit) return hit
-  const out = new Set<SourceToken>()
-  const add = (s: string | null | undefined) => { for (const f of (s ? OF_OBS[s] : undefined) ?? []) out.add(f) }
-  add(d.vendor?.source); add(d.model?.source); add(d.os?.source); add(d.kind_source); add(d.summary?.source)
-  for (const s of d.software) add(s.source)
-  for (const s of d.services) add(s.source)
-  if (d.origin === 'manual') out.add('manual')
-  feedCache.set(d, out)
-  return out
-}
+export const feedsOfRow = (d: DeviceRow): ReadonlySet<SourceToken> => new Set(d.sources)
 
 /** The software rows of a device that `software:` values match (the "Matched software" column, #849 review M2). */
 export const matchSoftware = (d: DeviceRow, values: string[]) =>
@@ -86,6 +70,16 @@ export function filterDevices(rows: DeviceRow[], q: string, now: number): Device
 
 const t = (k: string, o?: Record<string, string>) => i18n.t(`inventory:search.${k}`, o)
 
+/** The 12 software names most devices have, for `software:` suggestions (#849 review r2 M2). */
+function topSoftware(rows: DeviceRow[]): TokenValue[] {
+  const n = new Map<string, { label: string; count: number }>()
+  for (const d of rows) for (const name of new Set(d.software.map((s) => s.display))) {
+    const k = name.toLowerCase()
+    n.set(k, { label: name, count: (n.get(k)?.count ?? 0) + 1 })
+  }
+  return [...n].sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0])).slice(0, 12).map(([value, v]) => ({ value, label: v.label, count: v.count }))
+}
+
 /** The keys, with the values offered for each counted over `rows` (only types some device has; every source, so `source:wazuh` is findable). */
 export function deviceKeys(rows: DeviceRow[], now: number): TokenKey[] {
   const types = new Map<string, number>()
@@ -105,7 +99,8 @@ export function deviceKeys(rows: DeviceRow[], now: number): TokenKey[] {
     { key: 'source', label: t('key.source'), values: SOURCES.map((s) => ({ value: s, label: t(`source.${s}`), count: count('source', s) })) },
     { key: 'fragile', label: t('key.fragile') },
     { key: 'has', label: t('key.has'), values: (['findings', 'software', 'ports'] as const).map((v) => ({ value: v, label: t(`has.${v}`), count: count('has', v) })) },
-    { key: 'software', label: t('key.software'), values: [], free: true },
+    // the software most devices run, as examples; any text still works (free)
+    { key: 'software', label: t('key.software'), values: topSoftware(rows), free: true },
     { key: 'suspicious', label: t('key.suspicious') },
     { key: 'approved', label: t('key.approved'), values: (['24h', '7d'] as const).map((v) => ({ value: v, label: t(`approved.${v}`), count: count('approved', v) })) },
   ]

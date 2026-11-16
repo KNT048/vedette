@@ -59,12 +59,12 @@ function SnmpRead({ ip }: { ip: string }) {
   const read = (id: string) => { setResult(null); setError(null); test.mutate({ id, ip }, { onSuccess: setResult, onError: (er) => setError(errMsg(er)) }) }
   // #842 "do it where you are": a credential made or fixed here is selected and this device is read with it at once.
   const saved = (c: SnmpCredential) => { setCred(c.id); read(c.id) }
-  if (q.isPending) return <p className="text-[13px] text-muted">{t('sources.snmp.loading')}</p>
+  if (q.isPending) return <p className="text-meta text-muted">{t('sources.snmp.loading')}</p>
   const dialog = form ? <CredentialDialog key={form.current?.id ?? 'new'} current={form.current} scope={form.scope} widen={form.widen} onClose={() => setForm(null)} onSaved={saved} /> : null
   const addNew = creds.length < SNMP_MAX ? () => setForm({ current: null, scope: ip, widen: false }) : undefined
   if (!creds.length) {
     return (
-      <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted">
+      <div className="flex flex-wrap items-center gap-2 text-meta text-muted">
         {t('sources.snmp.none')} <Button size="sm" variant="primary" onClick={addNew}>{t('sources.snmp.addFor', { ip })}</Button>{dialog}
       </div>
     )
@@ -85,8 +85,8 @@ function SnmpRead({ ip }: { ip: string }) {
         <Button type="submit" size="sm" variant="primary" disabled={test.isPending}>{test.isPending ? t('snmp.run.running') : t('sources.snmp.read')}</Button>
         {chosenCred ? <Button size="sm" variant="link" onClick={() => setForm({ current: chosenCred, scope: chosenCred.scope.join('\n'), widen: false })}>{t('addDialog.snmp.editCredential', { name: chosenCred.name })}</Button> : null}
       </form>
-      {q.data && !q.data.ready ? <p className="text-[13px] text-warn">{q.data.message ?? t('snmp.notReady')}</p> : null}
-      {test.isPending ? <p role="status" aria-live="polite" className="text-[13px] text-muted">{t('snmp.run.pending', { ip })}</p> : null}
+      {q.data && !q.data.ready ? <p className="text-meta text-warn">{q.data.message ?? t('snmp.notReady')}</p> : null}
+      {test.isPending ? <p role="status" aria-live="polite" className="text-meta text-muted">{t('snmp.run.pending', { ip })}</p> : null}
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       {result && !test.isPending ? <SnmpAnswer r={result} ip={ip} /> : null}
       {result && !test.isPending && !result.ok ? (
@@ -94,8 +94,8 @@ function SnmpRead({ ip }: { ip: string }) {
           onWiden={() => chosenCred && setForm({ current: chosenCred, scope: [...chosenCred.scope, ip].join('\n'), widen: true })}
           onEdit={() => chosenCred && setForm({ current: chosenCred, scope: chosenCred.scope.join('\n'), widen: false })} />
       ) : null}
-      {result?.reason === 'not_for_this_credential' ? <p className="text-[12px] text-muted">{t('sources.snmp.addToScopeHint')}</p> : null}
-      <p className="text-[12px] text-muted">{t('sources.snmp.scopeHint')}</p>
+      {result?.reason === 'not_for_this_credential' ? <p className="text-caption text-muted">{t('sources.snmp.addToScopeHint')}</p> : null}
+      <p className="text-caption text-muted">{t('sources.snmp.scopeHint')}</p>
       {dialog}
     </div>
   )
@@ -120,24 +120,24 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
   const action = (f: Feed): React.ReactNode => {
     if (f === 'snmp') {
       if (!snmpOn) return <TurnOnModule id="sensor-active" reason={t('sources.snmp.off')} />
-      if (declared) return <span className="text-[13px] text-muted">{t('sources.snmp.declared')}</span>
-      if (!ip) return <span className="text-[13px] text-muted">{t('sources.noIp')}</span>
+      if (declared) return <span className="text-meta text-muted">{t('sources.snmp.declared')}</span>
+      if (!ip) return <span className="text-meta text-muted">{t('sources.noIp')}</span>
       if (!a.approved) {
         // SNMP reads only approved devices (D-512): approve it here, then add SNMP (#842 "do it where you are").
         return (
           <span className="flex flex-wrap items-center gap-2">
-            <span className="text-[13px] text-muted">{t('sources.snmp.approveFirst')}</span>
+            <span className="text-meta text-muted">{t('sources.snmp.approveFirst')}</span>
             <Button size="sm" disabled={!canOp || approve.isPending} title={canOp ? undefined : t('common:needRole', { role: t('common:role.operator') })}
               onClick={() => approve.mutate(undefined, { onSuccess: () => toast.success(t('pending.approved', { name: nameOf(a, kindLabel(a.kind)) })), onError: (e) => toast.error(errMsg(e)) })}>{t('sources.snmp.approveHere')}</Button>
           </span>
         )
       }
-      if (!admin) return <span className="text-[13px] text-muted">{t('sources.adminOnly')}</span>
+      if (!admin) return <span className="text-meta text-muted">{t('sources.adminOnly')}</span>
       return reading ? null : <Button size="sm" onClick={() => setReading(true)}>{feeds.has('snmp') ? t('sources.snmp.readAgain') : t('sources.snmp.add')}</Button>
     }
     if (f === 'agent') {
       if (!agentsOn) return <TurnOnModule id="agent-intake" reason={t('sources.agent.off')} />
-      if (!admin) return <span className="text-[13px] text-muted">{t('sources.adminOnly')}</span>
+      if (!admin) return <span className="text-meta text-muted">{t('sources.adminOnly')}</span>
       // #849: installing osquery opens the Add a device dialog's osquery method here; managing tokens stays on the agents page.
       return feeds.has('agent')
         ? <Link to="/devices/setup?tab=agents" className={cn(buttonVariants({ size: 'sm' }))}>{t('sources.agent.manage')}</Link>
@@ -158,17 +158,17 @@ export function DeviceSources({ d }: { d: DeviceDetail }) {
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <span className="text-sm font-medium">{t(`sources.name.${f}`)}</span>
                   {on ? <Chip tone="ok">{t('sources.feeds')}</Chip> : <Chip tone="off">{t('sources.notYet')}</Chip>}
-                  {at ? <time className="text-[12px] text-muted" dateTime={at} title={fmtDateTime(at)}>{t('sources.lastSeen', { when: fmtRelative(at) })}</time> : null}
+                  {at ? <time className="text-caption text-muted" dateTime={at} title={fmtDateTime(at)}>{t('sources.lastSeen', { when: fmtRelative(at) })}</time> : null}
                 </div>
                 {action(f)}
               </div>
-              <p className="text-[13px] text-muted">{t(`sources.what.${f}`)}</p>
+              <p className="text-meta text-muted">{t(`sources.what.${f}`)}</p>
               {f === 'snmp' && reading && ip ? <SnmpRead ip={ip} /> : null}
             </li>
           )
         })}
       </ul>
-      <p className="mt-3 max-w-3xl text-[13px] text-muted">{t('sources.both')}</p>
+      <p className="mt-3 max-w-3xl text-meta text-muted">{t('sources.both')}</p>
       {enrol ? <AddDialog open method="osquery" onOpenChange={(o) => { if (!o) setEnrol(false) }} /> : null}
     </Section>
   )

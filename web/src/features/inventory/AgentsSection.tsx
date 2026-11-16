@@ -211,7 +211,7 @@ export function OsqueryEnrol({ data, onCreated }: { data: AgentsResponse; onCrea
     return (
       <div className="grid min-w-0 gap-4 [&>*]:min-w-0">
         <CodeBlock label={t('agents.tokenLabel')} code={result.secret} />
-        <div className="flex items-center gap-1"><p className="text-[13px] text-warn">{t('agents.tokenOnce')}</p><InfoTip>{t('agents.tokenOnceInfo')}</InfoTip></div>
+        <div className="flex items-center gap-1"><p className="text-meta text-warn">{t('agents.tokenOnce')}</p><InfoTip>{t('agents.tokenOnceInfo')}</InfoTip></div>
         <InstallPanel data={data} token={result.secret} />
         <DialogFooter><DialogClose asChild><Button variant="primary">{t('agents.done')}</Button></DialogClose></DialogFooter>
       </div>
@@ -219,7 +219,7 @@ export function OsqueryEnrol({ data, onCreated }: { data: AgentsResponse; onCrea
   }
   return (
     <form onSubmit={submit} className="grid gap-4" noValidate>
-      <p className="text-[13px] text-muted">{t('agents.serverOnly')}</p>
+      <p className="text-meta text-muted">{t('agents.serverOnly')}</p>
       <Field label={t('agents.name')} htmlFor="agent-name" hint={t('agents.nameHint')}><Input id="agent-name" value={name} maxLength={64} onChange={(e) => setName(e.target.value)} aria-describedby="agent-name-hint" /></Field>
       <Field label={t('agents.expiry')} htmlFor="agent-expiry" hint={t('agents.expiryHint')}>
         <Select id="agent-expiry" className="max-w-xs" value={days} onChange={(e) => setDays(Number(e.target.value))} aria-describedby="agent-expiry-hint">

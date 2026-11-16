@@ -165,7 +165,7 @@ func serviceName(s string) string {
 		return ""
 	}
 	for _, r := range s {
-		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-' || r == '/' || r == '_' || r == '.') {
+		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && !strings.ContainsRune("-/_.", r) {
 			return ""
 		}
 	}
@@ -443,7 +443,6 @@ func genericGuide(c cfg) findings.FirewallGuide {
 
 // family is a software family the checks and the ports are written for. Only families the KEV entry names reliably.
 type family struct {
-	id    string
 	label string
 	self  string                   // the firewall guide that protects the device itself: "fortigate", "mikrotik" or ""
 	usual []findings.HardeningPort // the usual admin ports when the device is the firewall itself
@@ -505,32 +504,32 @@ func familyOf(r findings.Row) family {
 	}
 	switch {
 	case vendor == "fortinet" && hasAny(product, "fortios", "fortiproxy", "fortigate"):
-		return family{id: "fortios", label: "Fortinet FortiOS", self: "fortigate", service: isAdmin, checks: fortiosChecks,
+		return family{label: "Fortinet FortiOS", self: "fortigate", service: isAdmin, checks: fortiosChecks,
 			usual: []findings.HardeningPort{tcp(22, "ssh"), tcp(80, "http"), tcp(443, "https")}}
-	case vendor == "mikrotik" && strings.Contains(product, "routeros"):
-		return family{id: "routeros", label: "MikroTik RouterOS", self: "mikrotik", service: isAdmin, checks: routerosChecks,
+	case vendor == "mikrotik" && strings.Contains(product, "routeros"): //nolint:misspell // RouterOS is the product name
+		return family{label: "MikroTik RouterOS", self: "mikrotik", service: isAdmin, checks: routerosChecks,
 			usual: []findings.HardeningPort{tcp(21, "ftp"), tcp(22, "ssh"), tcp(23, "telnet"), tcp(80, "www"), tcp(443, "www-ssl"), tcp(8291, "winbox"), tcp(8728, "api"), tcp(8729, "api-ssl")}}
 	case vendor == "juniper" && strings.Contains(product, "junos"):
-		return family{id: "junos", label: "Juniper Junos OS", service: isAdmin, checks: junosChecks}
+		return family{label: "Juniper Junos OS", service: isAdmin, checks: junosChecks}
 	case vendor == "cisco" && (strings.HasPrefix(product, "ios") || strings.Contains(product, " ios")):
-		return family{id: "ciscoios", label: "Cisco IOS", service: isAdmin, checks: ciscoChecks}
+		return family{label: "Cisco IOS", service: isAdmin, checks: ciscoChecks}
 	case strings.Contains(product, "openssh"):
-		return family{id: "openssh", label: "OpenSSH", service: isSSH, checks: opensshChecks}
+		return family{label: "OpenSSH", service: isSSH, checks: opensshChecks}
 	case vendor == "microsoft" && hasAny(product, "exchange", "sharepoint", "internet information services", "iis"):
-		return family{id: "mswebapp", label: "Windows web server (IIS)", service: isWeb, checks: iisChecks}
+		return family{label: "Windows web server (IIS)", service: isWeb, checks: iisChecks}
 	case vendor == "microsoft":
-		return family{id: "windows", label: "Windows", service: isWindowsRemote, checks: windowsChecks}
+		return family{label: "Windows", service: isWindowsRemote, checks: windowsChecks}
 	case hasAny(vp, "http server", "httpd", "nginx", "tomcat", "struts", "weblogic", "confluence", "jira", "gitlab", "jenkins", "drupal",
 		"wordpress", "joomla", "magento", "coldfusion", "ofbiz", "moveit", "zimbra", "roundcube", "teamcity", "php", "atlassian"):
-		return family{id: "web", label: "Web server on Linux", service: isWeb, checks: webChecks}
+		return family{label: "Web server on Linux", service: isWeb, checks: webChecks}
 	case hasAny(vendor, "linux", "canonical", "debian", "red hat", "redhat", "suse", "gnu", "sudo", "polkit") || hasAny(product, "linux", "kernel", "glibc", "polkit"):
-		return family{id: "linux", label: "Linux", service: isLinuxRemote, checks: linuxChecks}
+		return family{label: "Linux", service: isLinuxRemote, checks: linuxChecks}
 	case hasAny(vendor, "fortinet", "juniper", "cisco", "palo alto", "citrix", "ivanti", "pulse secure", "sonicwall", "f5", "zyxel", "d-link",
 		"tp-link", "netgear", "draytek", "ubiquiti", "sophos", "watchguard", "array networks", "tenda", "totolink", "mikrotik", "check point") ||
 		slices.Contains([]string{"firewall", "router", "switch", "ap"}, kind):
-		return family{id: "netdevice", label: "Network device", service: isAdmin, checks: netdeviceChecks}
+		return family{label: "Network device", service: isAdmin, checks: netdeviceChecks}
 	}
-	return family{id: "generic", label: "General", checks: genericChecks}
+	return family{label: "General", checks: genericChecks}
 }
 
 // ---- "Have I been hit?": general signs per family (text only, INV-6, INV-8) ----

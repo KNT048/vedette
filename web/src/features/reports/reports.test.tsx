@@ -119,6 +119,23 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(((await res.json()) as { error: { message: string } }).error.message).toMatch(/Add an email/)
   })
 
+  it('operator (review r1 M3 of #879): no link to the administrator-only AI and email channel settings; the text says who sets them', async () => {
+    server.use(http.get('*/api/v1/reports/weekly/preview', () => HttpResponse.json({ report: buildWeekly(), ai_available: false })))
+    const { unmount } = renderApp('/reports', { role: 'operator' })
+    expect(await screen.findByText(/AI commentary needs an AI profile for this job\. An administrator sets it up in Settings, AI assistant\./)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Open AI assistant settings' })).toBeNull()
+    expect(await screen.findByText(/Sent through the email channel, which an administrator sets up/)).toBeInTheDocument()
+    const table = await screen.findByRole('table', { name: 'History of weekly reports sent' })
+    expect(within(table).getByText('Failed')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /email channel/ })).toBeNull()
+    unmount()
+    // the administrator, who can open them, gets the exact places
+    renderApp('/reports')
+    expect(await screen.findByRole('link', { name: 'Open AI assistant settings' })).toHaveAttribute('href', '/settings/ai#ai-profiles')
+    expect(await screen.findByRole('link', { name: 'Open the email channel' })).toHaveAttribute('href', '/settings/channels#channel-email')
+    expect(screen.getByRole('link', { name: 'email channel' })).toHaveAttribute('href', '/settings/channels#channel-email')
+  })
+
   it('viewer: cannot send or change the schedule; the server refuses too', async () => {
     renderApp('/reports', { role: 'viewer' })
     const send = await screen.findByRole('button', { name: 'Send now' })
@@ -146,13 +163,15 @@ describe('reports: weekly report (S-REP-1)', () => {
     expect(screen.getByText(/Next send:/)).toBeInTheDocument()
   })
 
-  it('schedule: with no email channel on, automatic sending warns and links to Alert channels instead of promising a next send', async () => {
+  it('schedule: with no email channel on, automatic sending warns and sets the email channel up right here instead of promising a next send', async () => {
     sessionStore.set({ userId: 'u-admin' })
     expect((await api('/notify/channels/email', { method: 'DELETE' })).status).toBe(204)
     renderApp('/reports')
-    const warn = await screen.findByText(/No email channel is on, so nothing will be sent/)
-    expect(within(warn.parentElement as HTMLElement).getByRole('link', { name: 'Set up the email channel' })).toHaveAttribute('href', '/settings/channels')
+    expect(await screen.findByText(/No email channel is on, so nothing will be sent/)).toBeInTheDocument()
     expect(screen.queryByText(/Next send:/)).toBeNull()
+    // docs/UI.md §0: the dependency is created in place, with the same form as Settings › Alert channels
+    await userEvent.click(screen.getByRole('button', { name: 'Set up the email channel' }))
+    expect(await screen.findByRole('dialog', { name: /Email/ })).toBeInTheDocument()
   })
 
   it('schedule: a bad email is flagged at once; a typed but un-added email blocks Save; the server refuses automatic sending with no recipients', async () => {

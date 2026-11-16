@@ -19,9 +19,9 @@ export default function History() {
   const can = useCan('operator')
   const resend = useResend()
   const where = (r: HistoryItem) => t('history.via', { channel: t(`ch.${r.channel}`), to: r.to })
-  const what = (r: HistoryItem) => <div className="grid"><Link to={r.link} className="text-accent underline-offset-4 hover:underline">{r.what}</Link><span className="text-[12px] text-muted">{t(`history.kind.${r.kind}`)}</span></div>
+  const what = (r: HistoryItem) => <div className="grid"><Link to={r.link} className="text-accent underline-offset-4 hover:underline">{r.what}</Link><span className="text-caption text-muted">{t(`history.kind.${r.kind}`)}</span></div>
   const result = (r: HistoryItem) => (
-    <div className="grid justify-items-start gap-1">{r.ok ? <Chip tone="ok">{t('history.ok')}</Chip> : r.delayed ? <Chip tone="accent">{t('history.delayed')}</Chip> : <Chip tone="warn">{t('history.failed')}</Chip>}{r.error ? <span className="min-w-[10rem] max-w-[48ch] text-[13px]">{r.error}</span> : null}</div>
+    <div className="grid justify-items-start gap-1">{r.ok ? <Chip tone="ok">{t('history.ok')}</Chip> : r.delayed ? <Chip tone="accent">{t('history.delayed')}</Chip> : <Chip tone="warn">{t('history.failed')}</Chip>}{r.error ? <span className="min-w-[10rem] max-w-[48ch] text-meta">{r.error}</span> : null}</div>
   )
   // A delayed message is sent again by the box itself once the provider's wait is over (D-483): no Send again.
   const again = (r: HistoryItem) => (r.delayed ? null :
@@ -35,7 +35,7 @@ export default function History() {
   // (walk 3 G13, D-423).
   const columns: ColumnDef<HistoryItem>[] = [
     { id: 'time', header: t('history.col.time'), accessorFn: (r) => r.at, cell: ({ row: { original: r } }) => (
-      <div className="grid"><span className="whitespace-nowrap">{fmtDateTime(r.at)}</span><span className="max-w-[12rem] break-words text-[12px] text-muted">{where(r)}</span></div>
+      <div className="grid"><span className="whitespace-nowrap">{fmtDateTime(r.at)}</span><span className="max-w-[12rem] break-words text-caption text-muted">{where(r)}</span></div>
     ) },
     { id: 'what', header: t('history.col.what'), accessorFn: (r) => r.what, cell: ({ row }) => what(row.original) },
     { id: 'result', header: t('history.col.result'), accessorFn: (r) => Number(r.ok), cell: ({ row }) => <div className="grid justify-items-start gap-2">{result(row.original)}{again(row.original)}</div> },
@@ -43,7 +43,7 @@ export default function History() {
   const mobileRow = (r: HistoryItem) => (
     <div className="grid gap-1.5 text-sm">
       {what(r)}
-      <p className="break-words text-[13px] text-muted">{fmtDateTime(r.at)}, {where(r)}</p>
+      <p className="break-words text-meta text-muted">{fmtDateTime(r.at)}, {where(r)}</p>
       {result(r)}
       <div>{again(r)}</div>
     </div>
@@ -53,7 +53,7 @@ export default function History() {
       <QueryState query={q}>
         {(d) => (
           <>
-            <p className="mb-3 max-w-3xl text-[13px] text-muted">{d.suppressed.count > 0 ? t('history.meta', { count: d.suppressed.count, days: d.suppressed.days }) : t('history.metaNone', { days: d.suppressed.days })}</p>
+            <p className="mb-3 max-w-3xl text-meta text-muted">{d.suppressed.count > 0 ? t('history.meta', { count: d.suppressed.count, days: d.suppressed.days }) : t('history.metaNone', { days: d.suppressed.days })}</p>
             {d.items.length === 0 ? <EmptyState title={t('history.emptyTitle')} info={t('history.emptyBodyInfo')}>{t('history.emptyBody')}</EmptyState>
               : <DataTable caption={t('history.caption')} data={d.items} columns={columns} mobileRow={mobileRow} initialSort={[{ id: 'time', desc: true }]} />}
           </>

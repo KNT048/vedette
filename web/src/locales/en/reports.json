@@ -31,7 +31,11 @@
       "button": "Write AI commentary",
       "working": "Writing",
       "done": "AI commentary added to the report",
-      "unavailable": "Connect AI in Settings, AI assistant"
+      "unavailable": "Connect AI in Settings, AI assistant",
+      "why": "AI commentary needs an AI profile for this job.",
+      "openAi": "Open AI assistant settings",
+      "openModules": "Turn on the AI assistant in Settings, Modules",
+      "askAdmin": "An administrator sets it up in Settings, AI assistant."
     },
     "send": {
       "button": "Send now",
@@ -67,7 +71,8 @@
       "noRecipients": "No recipients yet.",
       "next": "Next send: {{time}}.",
       "off": "Automatic sending is off.",
-      "channel": "Sent through the email channel in Settings, Alert channels.",
+      "channel": "Sent through the <a>email channel</a> in Settings, Alert channels.",
+      "channelByAdmin": "Sent through the email channel, which an administrator sets up in Settings, Alert channels.",
       "noChannel": "No email channel is on, so nothing will be sent until you set one up.",
       "setupChannel": "Set up the email channel",
       "saved": "Schedule saved",
@@ -86,6 +91,7 @@
       "emptyBody": "Use Send now in the preview, or turn on automatic sending.",
       "emptyBodyInfo": "Send now works once the report has content; each sent report starts the history.",
       "caption": "History of weekly reports sent",
+      "openChannel": "Open the email channel",
       "col": {
         "time": "Time",
         "trigger": "How sent",
@@ -399,7 +405,7 @@
       },
       "backup": {
         "title": "Data backups",
-        "unknown": "Vedette cannot see your backup system. The responsible person records this by hand."
+        "unknown": "Vedette cannot see your backup system. The responsible person records this manually."
       }
     },
     "obligation": {

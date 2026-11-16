@@ -31,6 +31,7 @@ import { VersionDialog } from './VersionDialog'
 import { errMsg } from './kinds'
 import { declaredSoftwareOnly, nameOf } from './nameOf'
 import { DeviceSources } from './DeviceSources'
+import { PossibleSameNotice } from './SameDevice'
 import type { DeviceDetail, Observation, RegularScan, SoftwareView } from './types'
 
 function Overview({ d }: { d: DeviceDetail }) {
@@ -336,7 +337,7 @@ function Body() {
   // Khung D-464 / D-543: tiêu đề → thông báo (máy là hộp, chưa duyệt) → dải số → tab ở ?tab=. Các khối module khác cắm vào (slot device.panels) nằm ở tab Overview.
   return (
     <>
-      <PageHeader breadcrumbs={crumbs} title={<span className="[overflow-wrap:anywhere]">{name}</span>} stories={['S-INV-1', 'S-INV-2']}
+      <PageHeader breadcrumbs={crumbs} title={<span className="[overflow-wrap:anywhere]">{name}</span>} stories={['S-INV-1', 'S-INV-2', 'S-INV-3']}
         meta={<span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<span>{t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
         actions={<>
           {/* #850: "Check this device now" plugs in here (slot device.actions, props { assetId }). */}
@@ -344,6 +345,8 @@ function Body() {
           <Button disabled={!can || a.is_box} title={a.is_box ? t('box.noDelete') : needRole} onClick={() => setDel(true)}><Trash2 />{t('detail.delete')}</Button>
         </>} />
       {a.is_box ? <BoxNotice findings={d.findings_count} /> : null}
+      {/* D-599 (#829): before the approval, since merging a new row into the known device answers its approval too */}
+      <PossibleSameNotice me={{ id: a.id, name, approved: a.approved }} list={d.possible_same ?? []} />
       {!a.approved ? <Approval d={d} /> : null}
       {declaredSoftwareOnly(a) ? <Notice tone="accent" title={t('declared.title')}>{t('declared.body')}</Notice> : null}
       <DeviceKpis d={d} />

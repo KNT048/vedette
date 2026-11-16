@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { RotateCcw } from 'lucide-react'
 import { KeyValue, Notice, PageHeader, Section } from '@/components/common/PageHeader'
+import { Breadcrumbs } from '@/components/common/Breadcrumbs'
+import { Card } from '@/components/common/Card'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, QueryState, RequireModule } from '@/components/common/States'
 import { Chip, SeverityChip } from '@/components/common/StatusChip'
@@ -16,6 +18,7 @@ import { useCan } from '@/lib/session'
 import { useScope } from '@/lib/v1'
 import { useIncident, useSetStatus } from './api'
 import { IncidentStatusChip, MessagePreview, NotSentFix, kindKey } from './shared'
+import { useNewChannel } from './NewChannel'
 import type { IncidentDetail, IncidentStatus, SendRecord } from './types'
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : String(e))
@@ -58,8 +61,13 @@ function Content() {
   const { id = '' } = useParams()
   const q = useIncident(id)
   const admin = useCan('admin') // the fix links open Settings, Alert channels: an admin's page
+  const newChannel = useNewChannel()
   const respond = useScope('response') !== 'hidden' // D-624 (#819): the response module is not offered in v1
+  // docs/UI.md §3: the parent above the title, also while the incident loads or is missing, so the way back is always there.
+  const crumbs = [{ label: t('nav.incidents'), to: '/incidents' }]
   return (
+    <>
+    {q.data ? null : <Breadcrumbs items={crumbs} />}
     <QueryState query={q}>
       {(d) => {
         const a = d.incident
@@ -68,15 +76,15 @@ function Content() {
           { id: 'channel', header: t('detail.log.channel'), accessorFn: (r) => r.channel, cell: ({ row }) => t(`ch.${row.original.channel}`) },
           { id: 'to', header: t('detail.log.to'), accessorFn: (r) => r.to },
           { id: 'result', header: t('detail.log.result'), accessorFn: (r) => Number(r.ok), cell: ({ row: { original: r } }) => (
-            <div className="grid gap-1">{r.ok ? <Chip tone="ok">{t('detail.ok')}</Chip> : <Chip tone="warn">{t('detail.failed')}</Chip>}{r.error ? <span className="max-w-[48ch] text-[13px]">{r.error}</span> : null}</div>
+            <div className="grid gap-1">{r.ok ? <Chip tone="ok">{t('detail.ok')}</Chip> : r.delayed ? <Chip tone="accent">{t('history.delayed')}</Chip> : <Chip tone="warn">{t('detail.failed')}</Chip>}{r.error ? <span className="max-w-[48ch] text-meta">{r.error}</span> : null}</div>
           ) },
         ]
         return (
           <>
-            <p className="mb-3 text-sm"><Link to="/incidents" className={link}>{t('detail.back')}</Link></p>
-            <PageHeader title={a.title} meta={t('detail.meta', { time: fmtDateTime(a.first_seen) })} stories={['S-ALERT-3']}
-              actions={respond ? <Link to={`/response?incident=${encodeURIComponent(a.id)}`} className="inline-flex h-9 items-center rounded-md border border-rule px-3 text-sm font-medium text-accent hover:bg-sunken">{t('detail.respond')}</Link> : undefined} />
+            <PageHeader breadcrumbs={crumbs} title={a.title} meta={t('detail.meta', { time: fmtDateTime(a.first_seen) })} stories={['S-ALERT-3']}
+              actions={respond ? <Button asChild><Link to={`/response?incident=${encodeURIComponent(a.id)}`}>{t('detail.respond')}</Link></Button> : undefined} />
             <Section id="summary" title={t('detail.summary')}>
+              <Card>
               <KeyValue items={[
                 { label: t('detail.kind'), value: t(kindKey(a)) },
                 { label: t('detail.severity'), value: <SeverityChip severity={a.severity} /> },
@@ -89,13 +97,14 @@ function Content() {
                 { label: t('detail.what'), value: a.what },
                 { label: t('detail.action'), value: a.action },
               ]} />
+              </Card>
             </Section>
             <Section id="sent" title={t('detail.sentTitle')} description={t('detail.sentDescription')}>
               {d.previews.length === 0 ? (
                 a.not_sent ? (
                   // D-551: why no channel has it, from the box's decision, and where to fix it
                   <EmptyState title={a.not_sent.reason === 'queued' || a.not_sent.reason === 'quiet_hours' ? t('detail.notYetTitle') : t('detail.noSendsTitle')} action={<NotSentFix notSent={a.not_sent} admin={admin} />}>{a.not_sent.text}</EmptyState>
-                ) : <EmptyState title={t('detail.noSendsTitle')} action={<Link to="/settings/channels" className={link}>{t('incidents.setupChannels')}</Link>} info={t('detail.noSendsBodyInfo')}>{t('detail.noSendsBody')}</EmptyState>
+                ) : <EmptyState title={t('detail.noSendsTitle')} action={newChannel.button(t('incidents.setupChannels'))} info={t('detail.noSendsBodyInfo')}>{t('detail.noSendsBody')}</EmptyState>
               ) : (
                 <Tabs defaultValue={d.previews[0]!.channel}>
                   <TabsList>{d.previews.map((p) => <TabsTrigger key={p.channel} value={p.channel}>{t(`ch.${p.channel}`)}</TabsTrigger>)}</TabsList>
@@ -112,6 +121,8 @@ function Content() {
         )
       }}
     </QueryState>
+    {newChannel.dialogs}
+    </>
   )
 }
 

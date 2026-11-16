@@ -2,7 +2,8 @@
 // last 12 months). Its devices are the items of Updates to plan that list it: never findings, never alerts.
 import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
-import { KeyValue, PageHeader, Panel, Section } from '@/components/common/PageHeader'
+import { KeyValue, PageHeader, Section } from '@/components/common/PageHeader'
+import { Card } from '@/components/common/Card'
 import { ModuleOff, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { fmtPercent } from '@/lib/format'
@@ -25,16 +26,16 @@ export function TierCvePage({ v }: { v: TierCve }) {
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div>
           <Section title={t('cve.facts')}>
-            <Panel className="p-4">
+            <Card>
               <KeyValue items={[
                 { label: t('tierCve.products'), value: v.products.length ? v.products.join(', ') : <span className="text-muted">{t('tierCve.productsNone')}</span> },
                 { label: t('cve.published'), value: v.published ? fmtDay(v.published) : <span className="text-muted">{t('tierCve.publishedNone')}</span> },
                 { label: t('tierCve.severity'), value: v.severity ? `${t(`tierCve.sev.${v.severity}`)}${v.score !== null ? ` ${v.score.toFixed(1)}` : ''}` : <span className="text-muted">{t('tierCve.notScored')}</span> },
-                { label: t('cve.epss'), value: v.epss === null ? <span className="text-muted">{t('tierCve.epssNone')}</span> : <>{fmtPercent(v.epss)} <span className="text-[12px] text-muted">{t('tierCve.epssHint', { date: fmtDay(v.epss_date) })}</span></> },
-                { label: t('tierCve.status'), value: v.nvd_status ? <>{v.nvd_status}{v.last_modified ? <span className="text-[12px] text-muted"> {t('tierCve.changed', { date: fmtDay(v.last_modified) })}</span> : null}</> : '–' },
+                { label: t('cve.epss'), value: v.epss === null ? <span className="text-muted">{t('tierCve.epssNone')}</span> : <>{fmtPercent(v.epss)} <span className="text-caption text-muted">{t('tierCve.epssHint', { date: fmtDay(v.epss_date) })}</span></> },
+                { label: t('tierCve.status'), value: v.nvd_status ? <>{v.nvd_status}{v.last_modified ? <span className="text-caption text-muted"> {t('tierCve.changed', { date: fmtDay(v.last_modified) })}</span> : null}</> : '–' },
                 { label: t('tierCve.ranges'), value: v.published ? t(v.ranges ? 'tierCve.rangesYes' : 'tierCve.rangesNo') : '–' },
               ]} />
-            </Panel>
+            </Card>
           </Section>
           <Section title={t('cve.links')}>
             <ul className="grid gap-1 text-sm">
@@ -67,15 +68,15 @@ function TierDevices({ cve }: { cve: string }) {
         if (hits.length === 0) return <p className="text-sm text-muted">{t('tierCve.noDevice')}</p>
         return (
           <>
-            <ul className="grid divide-y divide-rule rounded-md border border-rule bg-surface">
+            <Card flush><ul className="grid divide-y divide-rule">
               {hits.map(({ i, c }) => (
                 <li key={i.group} className="grid gap-1 px-4 py-2.5 text-sm">
                   <Link to={`/devices/${i.asset.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{i.asset.name}</Link>
-                  <span className="text-[13px]">{action(i)}</span>
+                  <span className="text-meta">{action(i)}</span>
                   <EvidenceChip basis={c.basis} />
                 </li>
               ))}
-            </ul>
+            </ul></Card>
             <Link to="/plan" className="mt-3 inline-block text-sm text-accent underline-offset-4 hover:underline">{t('tierCve.toPlan')}</Link>
           </>
         )

@@ -13,6 +13,7 @@ import { Segmented } from '@/components/ui/segmented'
 import { errMsg } from './errors'
 import { fmtDate, fmtDateTime } from '@/lib/format'
 import { useCan } from '@/lib/session'
+import { useModuleEnabled } from '@/lib/modules'
 import { useApplied, useAskAi } from './api'
 import type { AiResult, ApplyItem, CodeStep, FindingDetail, FirewallGuide, FirewallVendor, KevInfo } from './types'
 import { isOpen } from './basis'
@@ -20,7 +21,7 @@ import { softwareFor, useDeviceSoftware } from './rematch'
 
 function SideEffect({ text }: { text: string }) {
   const { t } = useTranslation('findings')
-  return <p className="rounded-md border border-dashed border-warn bg-warn-soft/60 px-3 py-2 text-[13px]"><span className="font-medium">{t('rec.sideEffect')}</span> {text}</p>
+  return <p className="rounded-md border border-warn/50 bg-warn-soft px-3 py-2 text-meta"><span className="font-medium">{t('rec.sideEffect')}</span> {text}</p>
 }
 
 function Steps({ steps }: { steps: CodeStep[] }) {
@@ -28,8 +29,8 @@ function Steps({ steps }: { steps: CodeStep[] }) {
     <div className="grid gap-3">
       {steps.map((s) => (
         <div key={s.title} className="grid gap-1.5">
-          {s.code ? <CodeBlock code={s.code} label={s.title} wrapOnPhone /> : <p className="text-[13px] font-medium">{s.title}</p>}
-          {s.note ? <p className="text-[13px] text-muted">{s.note}</p> : null}
+          {s.code ? <CodeBlock code={s.code} label={s.title} wrapOnPhone /> : <p className="text-meta font-medium">{s.title}</p>}
+          {s.note ? <p className="text-meta text-muted">{s.note}</p> : null}
           {s.side_effect ? <SideEffect text={s.side_effect} /> : null}
         </div>
       ))}
@@ -42,14 +43,14 @@ function ApplyButton({ finding, item }: { finding: FindingDetail; item: ApplyIte
   const can = useCan('operator')
   const apply = useApplied(finding.id)
   const done = finding.applied.find((a) => a.item === item)
-  if (done) return <p className="text-[13px] text-ok">{t('rec.appliedBy', { user: done.user, time: fmtDateTime(done.ts) })}</p>
+  if (done) return <p className="text-meta text-ok">{t('rec.appliedBy', { user: done.user, time: fmtDateTime(done.ts) })}</p>
   return (
     <div className="flex flex-wrap items-center gap-3">
       <Button size="sm" variant="primary" disabled={!can || apply.isPending} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
         onClick={() => apply.mutate(item, { onSuccess: () => toast.success(t('rec.appliedToast')), onError: (e) => toast.error(errMsg(e)) })}>
         {t('rec.applied')}
       </Button>
-      <span className="inline-flex items-center gap-1 text-[12px] text-muted">{t('rec.appliedHint')}<InfoTip topic={t('rec.applied')}>{t('rec.appliedHintInfo')}</InfoTip></span>
+      <span className="inline-flex items-center gap-1 text-caption text-muted">{t('rec.appliedHint')}<InfoTip topic={t('rec.applied')}>{t('rec.appliedHintInfo')}</InfoTip></span>
     </div>
   )
 }
@@ -85,8 +86,8 @@ export function FixedInNote({ finding }: { finding: FindingDetail }) {
   return (
     <div className="grid max-w-3xl gap-1" data-testid="fixed-in">
       <p className="text-sm font-medium">{text}</p>
-      {extra ? <p className="text-[13px]">{extra}</p> : null}
-      <p className="text-[12px] text-muted">{source}</p>
+      {extra ? <p className="text-meta">{extra}</p> : null}
+      <p className="text-caption text-muted">{source}</p>
     </div>
   )
 }
@@ -105,7 +106,7 @@ function Guide({ finding, g }: { finding: FindingDetail; g: FirewallGuide }) {
       {g.alternative ? (
         <div className="grid gap-3 border-t border-rule pt-3">
           <p className="text-sm font-medium">{g.alternative.title}</p>
-          <p className="text-[13px] text-muted">{g.alternative.intro}</p>
+          <p className="text-meta text-muted">{g.alternative.intro}</p>
           <Steps steps={g.alternative.steps} />
         </div>
       ) : null}
@@ -126,7 +127,7 @@ function Firewall({ finding }: { finding: FindingDetail }) {
   const any = guides.some((x) => x.detected)
   return (
     <div className="grid gap-3">
-      <div className="flex items-center gap-1 text-[13px] text-muted">
+      <div className="flex items-center gap-1 text-meta text-muted">
         <p>{any ? t('rec.fwDetected') : t('rec.fwNone')}</p>
         {any ? null : <InfoTip topic={t('rec.fwVendor')}>{t('rec.fwNoneInfo')}</InfoTip>}
       </div>
@@ -142,7 +143,7 @@ function Checklist({ items }: { items: string[] }) {
   const [done, setDone] = useState<Set<number>>(new Set())
   return (
     <div className="grid gap-2">
-      <p className="text-[12px] text-muted">{t('rec.checklistHint', { done: done.size, total: items.length })}</p>
+      <p className="text-caption text-muted">{t('rec.checklistHint', { done: done.size, total: items.length })}</p>
       <ul className="grid gap-2">
         {items.map((it, i) => (
           <li key={it} className="flex items-start gap-2.5 text-sm">
@@ -170,7 +171,7 @@ export function PackView({ finding }: { finding: FindingDetail }) {
           <H3 id="rec-patch">{t('rec.patchTitle')}</H3>
           <p>{p.patch.summary}</p>
           <FixedInNote finding={finding} />
-          <p className="text-[13px]"><span className="font-medium">{t('rec.fixedVersion')}</span> {p.patch.fixed}</p>
+          <p className="text-meta"><span className="font-medium">{t('rec.fixedVersion')}</span> {p.patch.fixed}</p>
           <ol className="grid list-decimal gap-1 pl-5">{p.patch.steps.map((s) => <li key={s}>{s}</li>)}</ol>
           <SideEffect text={p.patch.side_effect} />
           <a className="w-fit text-accent underline underline-offset-4" href={p.patch.url} target="_blank" rel="noopener noreferrer">{t('rec.vendorAdvisory')}</a>
@@ -188,7 +189,7 @@ export function PackView({ finding }: { finding: FindingDetail }) {
             <H3 id="rec-firewall">{t('rec.firewallTitle')}</H3>
             <InfoTip topic={t('rec.firewallTitle')}>{t('rec.firewallHintInfo')}</InfoTip>
           </div>
-          <p className="text-[13px] text-muted">{t('rec.firewallHint')}</p>
+          <p className="text-meta text-muted">{t('rec.firewallHint')}</p>
           <Firewall finding={finding} />
         </section>
         <section aria-labelledby="rec-checklist" className="grid gap-2 border-t border-rule pt-3">
@@ -216,6 +217,7 @@ export function AskAi({ finding, skill, result, label, hint }: { finding: Findin
   const ask = useAskAi(finding.id)
   const ready = skill === 'explain' ? finding.ai_available.explain : finding.ai_available.config
   const usable = can && ready
+  const aiOn = useModuleEnabled('ai') !== false
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -223,9 +225,10 @@ export function AskAi({ finding, skill, result, label, hint }: { finding: Findin
           onClick={() => ask.mutate(skill, { onError: (e) => toast.error(errMsg(e)) })}>
           {ask.isPending ? t('ai.running') : result ? t('ai.again', { label }) : label}
         </Button>
-        <p id={`ai-hint-${skill}`} className="max-w-xl text-[13px] text-muted">
+        <p id={`ai-hint-${skill}`} className="max-w-xl text-meta text-muted">
           {!ready
-            ? <>{t('ai.unavailable')} <Link to="/settings/ai" className="text-accent underline underline-offset-4">{t('ai.openSettings')}</Link></>
+            // docs/UI.md §0: the exact place: the profiles of Settings › AI assistant, or Settings › Modules while the module is off
+            ? <>{t('ai.unavailable')} <Link to={aiOn ? '/settings/ai#ai-profiles' : '/settings/modules'} className="text-accent underline underline-offset-4">{t(aiOn ? 'ai.openSettings' : 'ai.openModules')}</Link></>
             : !can ? t('common:needRole', { role: t('common:role.operator') }) : (hint ?? t('ai.privacy'))}
         </p>
         {ready && can && !hint ? <InfoTip topic={label}>{t('ai.privacyInfo')}</InfoTip> : null}
@@ -268,21 +271,21 @@ export function NoPack({ finding }: { finding: FindingDetail }) {
         <>
           <div className="grid gap-2">
             <h3 className="text-sm font-semibold">{t(vc ? 'rec.vulncheckTitle' : 'rec.cisaTitle')}</h3>
-            <p className="text-[13px] text-muted">{t(vc ? 'rec.sourceHintVulnCheck' : 'rec.sourceHint', { date: fmtDate(k.date_added) })}</p>
+            <p className="text-meta text-muted">{t(vc ? 'rec.sourceHintVulnCheck' : 'rec.sourceHint', { date: fmtDate(k.date_added) })}</p>
             <blockquote lang="en" className="max-w-3xl border-l-2 border-rule pl-3 text-sm">{k.required_action}</blockquote>
             {k.due_date ? <p className="text-sm font-medium">{t('rec.dueDate', { date: fmtDate(k.due_date) })}</p> : null}
-            {k.ransomware ? <p className="text-[13px]">{t('rec.ransomware')}</p> : null}
+            {k.ransomware ? <p className="text-meta">{t('rec.ransomware')}</p> : null}
           </div>
           <div className="grid gap-2">
             <h3 className="text-sm font-semibold">{t('rec.fixTitle')}</h3>
-            {finding.fixed_in ? <FixedInNote finding={finding} /> : <p className="max-w-3xl text-[13px] text-muted">{t('rec.noFixedVersion')}</p>}
+            {finding.fixed_in ? <FixedInNote finding={finding} /> : <p className="max-w-3xl text-meta text-muted">{t('rec.noFixedVersion')}</p>}
             {vendor.length > 0 ? (
               <ul className="grid gap-1 text-sm">
                 {vendor.map((u) => <li key={u}><a className="break-all text-accent underline underline-offset-4" href={u} target="_blank" rel="noopener noreferrer">{t('rec.vendorLink', { host: hostOf(u) })}</a></li>)}
               </ul>
             ) : <p className="text-sm">{t('rec.noVendorLink', { cve: finding.cve, product })}</p>}
             {other.length > 0 ? (
-              <ul className="grid gap-1 text-[13px]">
+              <ul className="grid gap-1 text-meta">
                 {other.map((u) => <li key={u}><a className="break-all text-accent underline underline-offset-4" href={u} target="_blank" rel="noopener noreferrer">{t(`rec.${linkKind(u)}Link`)}</a></li>)}
               </ul>
             ) : null}

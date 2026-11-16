@@ -106,7 +106,8 @@
   "box": {
     "memory": "The engines that are on can use up to {{used}} of this box's {{total}} of memory (upper limits, Vedette's core included).",
     "overTitle": "The engines' memory limits add up to more than this box has",
-    "over": "If every engine that is on reached its limit at the same time, they would need {{used}}; this box has {{total}}. The limits are upper bounds, not what the engines use all the time, so this is fine while the box stays responsive. If the box slows down or a scan stops for lack of memory, turn off an engine you do not need.",
+    "over": "If Vedette's core and every engine that is on reached their limits at the same time, they would need {{used}}; this box has {{total}}. The limits are upper bounds, not what they use all the time, so this is fine while the box stays responsive. If the box slows down or a scan stops for lack of memory, turn off an engine you do not need.",
+    "overViewer": "If Vedette's core and every engine that is on reached their limits at the same time, they would need {{used}}; this box has {{total}}. The limits are upper bounds, not what they use all the time, so this is fine while the box stays responsive. If the box slows down, an administrator can turn off an engine that is not needed.",
     "biggest": "{{name}} holds the most while it is on: up to {{size}}.",
     "goTo": "Go to the {{name}} switch"
   },

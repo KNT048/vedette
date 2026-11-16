@@ -260,9 +260,10 @@ function BoxMemory({ d }: { d: Scanning }) {
     sw?.focus()
   }
   return (
-    <Notice tone="warn" title={t('box.overTitle')}
+    // accent, not warn (review r1 of #890): on a small box with OpenVAS on this shows all the time; it informs, nothing is wrong yet
+    <Notice tone="accent" title={t('box.overTitle')}
       actions={biggest && admin ? <Button size="sm" onClick={() => go(biggest.id)}>{t('box.goTo', { name: t(`engines.${biggest.id}.name`) })}</Button> : null}>
-      {t('box.over', { used: mb(used), total: mb(total) })}{' '}
+      {t(admin ? 'box.over' : 'box.overViewer', { used: mb(used), total: mb(total) })}{' '}
       {biggest ? t('box.biggest', { name: t(`engines.${biggest.id}.name`), size: mb(biggest.cost.ram_mb ?? 0) }) : null}
     </Notice>
   )

@@ -56,8 +56,7 @@ type Summary struct {
 	Devices   SummaryDevices    `json:"devices"`
 	Alerts    *SummaryAlerts    `json:"alerts"`
 	Incidents *SummaryIncidents `json:"incidents"`
-	// Unchecked is the Findings "could not be checked" counts (#910 phase 1).
-	// TODO(#910): AI-Truong fills it from the matcher; zero until then.
+	// Unchecked is the Findings "could not be checked" counts (#910 phase 1): distinct CVEs and devices of GET /findings `unchecked`.
 	Unchecked   SummaryUnchecked `json:"unchecked"`
 	GeneratedAt string           `json:"generated_at"`
 }
@@ -254,6 +253,11 @@ func (h *FindingHandlers) computeSummary(ctx context.Context, src HomeSources, n
 		}
 		s.Devices.Total = len(all)
 	}
+	unchecked, err := h.unchecked(ctx, "")
+	if err != nil {
+		return nil, fmt.Errorf("findings: summary: %w", err)
+	}
+	s.Unchecked = uncheckedCounts(unchecked)
 	if src.Alerts != nil && notifyOn {
 		sent, failed, err := src.Alerts(ctx, now.Add(-alertDays*24*time.Hour))
 		if err != nil {

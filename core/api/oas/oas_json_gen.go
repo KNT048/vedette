@@ -142138,6 +142138,10 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) encodeFields(e *jx.
 		e.Str(s.SoftwareID)
 	}
 	{
+		e.FieldStart("source")
+		e.Str(s.Source)
+	}
+	{
 		e.FieldStart("suspected")
 		e.Int(s.Suspected)
 	}
@@ -142155,7 +142159,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) encodeFields(e *jx.
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemExploitedItem = [20]string{
+var jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemExploitedItem = [21]string{
 	0:  "action",
 	1:  "confirmed",
 	2:  "cves",
@@ -142172,10 +142176,11 @@ var jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemExploitedItem = [20]str
 	13: "reported",
 	14: "software",
 	15: "software_id",
-	16: "suspected",
-	17: "version",
-	18: "windows",
-	19: "worst",
+	16: "source",
+	17: "suspected",
+	18: "version",
+	19: "windows",
+	20: "worst",
 }
 
 // Decode decodes FindingsGetFindingsToFixOKDevicesItemExploitedItem from json.
@@ -142393,8 +142398,20 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) Decode(d *jx.Decode
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"software_id\"")
 			}
-		case "suspected":
+		case "source":
 			requiredBitSet[2] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Source = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"source\"")
+			}
+		case "suspected":
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.Suspected = int(v)
@@ -142406,7 +142423,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"suspected\"")
 			}
 		case "version":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -142418,7 +142435,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"version\"")
 			}
 		case "windows":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				v, err := d.Bool()
 				s.Windows = bool(v)
@@ -142430,7 +142447,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) Decode(d *jx.Decode
 				return errors.Wrap(err, "decode field \"windows\"")
 			}
 		case "worst":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Worst = string(v)
@@ -142453,7 +142470,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemExploitedItem) Decode(d *jx.Decode
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -142629,6 +142646,10 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) encodeFields(e *jx.E
 		e.Str(s.SoftwareID)
 	}
 	{
+		e.FieldStart("source")
+		e.Str(s.Source)
+	}
+	{
 		e.FieldStart("suspected")
 		e.Int(s.Suspected)
 	}
@@ -142646,7 +142667,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) encodeFields(e *jx.E
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemNoUpdateItem = [20]string{
+var jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemNoUpdateItem = [21]string{
 	0:  "action",
 	1:  "confirmed",
 	2:  "cves",
@@ -142663,10 +142684,11 @@ var jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemNoUpdateItem = [20]stri
 	13: "reported",
 	14: "software",
 	15: "software_id",
-	16: "suspected",
-	17: "version",
-	18: "windows",
-	19: "worst",
+	16: "source",
+	17: "suspected",
+	18: "version",
+	19: "windows",
+	20: "worst",
 }
 
 // Decode decodes FindingsGetFindingsToFixOKDevicesItemNoUpdateItem from json.
@@ -142884,8 +142906,20 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) Decode(d *jx.Decoder
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"software_id\"")
 			}
-		case "suspected":
+		case "source":
 			requiredBitSet[2] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Source = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"source\"")
+			}
+		case "suspected":
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.Suspected = int(v)
@@ -142897,7 +142931,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"suspected\"")
 			}
 		case "version":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -142909,7 +142943,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"version\"")
 			}
 		case "windows":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				v, err := d.Bool()
 				s.Windows = bool(v)
@@ -142921,7 +142955,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) Decode(d *jx.Decoder
 				return errors.Wrap(err, "decode field \"windows\"")
 			}
 		case "worst":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Worst = string(v)
@@ -142944,7 +142978,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemNoUpdateItem) Decode(d *jx.Decoder
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -143120,6 +143154,10 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) encodeFields(e *jx.En
 		e.Str(s.SoftwareID)
 	}
 	{
+		e.FieldStart("source")
+		e.Str(s.Source)
+	}
+	{
 		e.FieldStart("suspected")
 		e.Int(s.Suspected)
 	}
@@ -143137,7 +143175,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) encodeFields(e *jx.En
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemPlannedItem = [20]string{
+var jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemPlannedItem = [21]string{
 	0:  "action",
 	1:  "confirmed",
 	2:  "cves",
@@ -143154,10 +143192,11 @@ var jsonFieldsNameOfFindingsGetFindingsToFixOKDevicesItemPlannedItem = [20]strin
 	13: "reported",
 	14: "software",
 	15: "software_id",
-	16: "suspected",
-	17: "version",
-	18: "windows",
-	19: "worst",
+	16: "source",
+	17: "suspected",
+	18: "version",
+	19: "windows",
+	20: "worst",
 }
 
 // Decode decodes FindingsGetFindingsToFixOKDevicesItemPlannedItem from json.
@@ -143375,8 +143414,20 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) Decode(d *jx.Decoder)
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"software_id\"")
 			}
-		case "suspected":
+		case "source":
 			requiredBitSet[2] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Source = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"source\"")
+			}
+		case "suspected":
+			requiredBitSet[2] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int()
 				s.Suspected = int(v)
@@ -143388,7 +143439,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"suspected\"")
 			}
 		case "version":
-			requiredBitSet[2] |= 1 << 1
+			requiredBitSet[2] |= 1 << 2
 			if err := func() error {
 				v, err := d.Str()
 				s.Version = string(v)
@@ -143400,7 +143451,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"version\"")
 			}
 		case "windows":
-			requiredBitSet[2] |= 1 << 2
+			requiredBitSet[2] |= 1 << 3
 			if err := func() error {
 				v, err := d.Bool()
 				s.Windows = bool(v)
@@ -143412,7 +143463,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) Decode(d *jx.Decoder)
 				return errors.Wrap(err, "decode field \"windows\"")
 			}
 		case "worst":
-			requiredBitSet[2] |= 1 << 3
+			requiredBitSet[2] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.Worst = string(v)
@@ -143435,7 +143486,7 @@ func (s *FindingsGetFindingsToFixOKDevicesItemPlannedItem) Decode(d *jx.Decoder)
 	for i, mask := range [3]uint8{
 		0b11111111,
 		0b11111111,
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

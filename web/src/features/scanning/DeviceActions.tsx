@@ -3,28 +3,16 @@ import { useTranslation } from 'react-i18next'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/input'
 import type { DeviceRow } from '@/features/inventory/types'
-import { inRanges } from '@/features/inventory/AddToScopeDialog'
+import { deviceRefusal, type ScanFacts } from './canScan'
 import { useTargets } from '@/features/scan/api'
 import { VulnChecksButton } from '@/features/scan/VulnChecksButton'
 import { useModuleEnabled } from '@/lib/modules'
 import { useScanning } from './api'
 import { ScanNowButton } from './ScanNow'
-import type { Safety } from './types'
 
-/** What a device needs for "Check this device now" (nmap), as POST /scanning/engines/nmap-discovery/run refuses it (sensor-active
- *  runnow.go: the box and outside the scope are out_of_scope; never scan, added by hand, no address are not_scannable). */
-type Facts = { is_box: boolean; ip: string; origin: 'discovered' | 'manual'; regular_scan: 'follow' | 'allow' | 'never'; scan_source: 'on' | 'off' }
-type NmapRefusal = 'box' | 'no_ip' | 'manual' | 'never' | 'out_of_scope'
-function nmapRefusal(d: Facts, safety?: Safety): NmapRefusal | null {
-  if (d.is_box) return 'box'
-  if (!d.ip || d.ip === '—') return 'no_ip'
-  // D-601: the device's network scan, on or off on its Sources card (a device added by hand starts off; off is "never" to the server)
-  if (d.scan_source === 'off') return d.origin === 'manual' ? 'manual' : 'never'
-  if (d.regular_scan === 'never') return 'never'
-  // the scope check runs only once there are ranges: with none, the button already says the ranges are not confirmed
-  if (safety && safety.scope.lan_ranges.length && (!inRanges(d.ip, safety.scope.lan_ranges) || inRanges(d.ip, safety.exclusions))) return 'out_of_scope'
-  return null
-}
+// kien G12: the rule moved to canScan.ts, shared with the finding page, To fix and the device page's fragile line
+type Facts = ScanFacts
+const nmapRefusal = deviceRefusal
 
 /** "Not in Scan selected: the Vedette box, 2 added by hand." (#877 r1 M2): what a button left out of the selection, and why. */
 function useLeftOut() {

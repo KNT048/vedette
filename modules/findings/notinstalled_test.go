@@ -17,6 +17,9 @@ func TestContract_INV6c_NotInstalledClosesAndClearReopens(t *testing.T) {
 	run := func(a Asset) {
 		t.Helper()
 		e.advance(time.Minute)
+		e.inv.mu.Lock()
+		e.inv.match[a.ID] = a // the device as inventory gives it now
+		e.inv.mu.Unlock()
 		if _, err := e.svc.UpsertFromMatch(t.Context(), a, v); err != nil {
 			t.Fatal(err)
 		}
@@ -39,7 +42,7 @@ func TestContract_INV6c_NotInstalledClosesAndClearReopens(t *testing.T) {
 		return out
 	}
 	scanned := nas("6.1.1")
-	scanned.Software[0].Source = "nmap"
+	scanned.Software[0].Source, scanned.Software[0].Key = "nmap", nasKey("nmap", "6.1.1")
 	run(scanned)
 	if r := load(); r.Status != StatusSuspected {
 		t.Fatalf("seed: %+v", r.Finding)
@@ -48,7 +51,7 @@ func TestContract_INV6c_NotInstalledClosesAndClearReopens(t *testing.T) {
 
 	const said = "op@example.com said Photo Station 6.1.1 (nmap) is not installed on 17 Nov 2026"
 	gone := Asset{ID: "a-1", Name: "nas01", Software: []Software{}, NotInstalled: []Software{scanned.Software[0]}}
-	gone.NotInstalled[0].Correction = said
+	gone.NotInstalled[0].Correction, gone.NotInstalled[0].MarkedAt = said, *e.clock
 	run(gone)
 	r := load()
 	const note = "Closed: a person said the software is not installed. op@example.com said Photo Station 6.1.1 (nmap) is not installed on nas01 (17 Nov 2026)."
@@ -89,7 +92,7 @@ func TestContract_INV6c_NotInstalledClosesAndClearReopens(t *testing.T) {
 	run(gone)
 	reasons()
 	update := nas("6.1.0")
-	update.Software[0].ID, update.Software[0].Source = "s-2", "nmap"
+	update.Software[0].ID, update.Software[0].Source, update.Software[0].Key = "s-2", "nmap", nasKey("nmap", "6.1.0")
 	update.Software[0].Superseded = said + "; nmap now reads Photo Station 6.1.0, so Vedette uses that until the correction is set again"
 	run(update)
 	r = load()
@@ -131,6 +134,9 @@ func notInstalledEnv(t *testing.T) (e *env, v []Vuln, scanned, gone Asset, run f
 	run = func(a Asset) {
 		t.Helper()
 		e.advance(time.Minute)
+		e.inv.mu.Lock()
+		e.inv.match[a.ID] = a // the device as inventory gives it now
+		e.inv.mu.Unlock()
 		if _, err := e.svc.UpsertFromMatch(t.Context(), a, v); err != nil {
 			t.Fatal(err)
 		}
@@ -144,15 +150,16 @@ func notInstalledEnv(t *testing.T) (e *env, v []Vuln, scanned, gone Asset, run f
 		return r
 	}
 	scanned = nas("6.1.1")
-	scanned.Software[0].Source = "nmap"
+	scanned.Software[0].Source, scanned.Software[0].Key = "nmap", nasKey("nmap", "6.1.1")
+	run(scanned)
 	gone = Asset{ID: "a-1", Name: "nas01", Software: []Software{}, NotInstalled: []Software{scanned.Software[0]}}
 	gone.NotInstalled[0].Correction = "op@example.com said Photo Station 6.1.1 (nmap) is not installed on 17 Nov 2026"
-	run(scanned)
+	gone.NotInstalled[0].MarkedAt = e.clock.Add(time.Second) // the mark is made now
 	return e, v, scanned, gone, run, load
 }
 
-// INV-6c: like every close by Vedette, "Not installed" never closes again a finding a person reopened after it, nor one whose risk a
-// person accepted and whose acceptance expired; the history says once why it stays open.
+// INV-6c: "Not installed" never closes a finding a person reopened after the mark, nor one whose risk a person accepted after it and
+// whose acceptance expired (it reopened with a notice); the history says once why it stays open.
 func TestContract_INV6c_APersonsReopenAndAnExpiredAcceptanceStayOpen(t *testing.T) {
 	t.Parallel()
 	t.Run("reopen", func(t *testing.T) {
@@ -178,6 +185,7 @@ func TestContract_INV6c_APersonsReopenAndAnExpiredAcceptanceStayOpen(t *testing.
 	t.Run("expired acceptance", func(t *testing.T) {
 		t.Parallel()
 		e, _, _, gone, run, load := notInstalledEnv(t)
+		e.advance(time.Minute) // the person accepts the risk after the mark
 		until := dayOf(*e.clock).AddDate(0, 0, 30)
 		if _, err := e.svc.setStatus(t.Context(), load().ID, ActionAcceptRisk, "fixed next week", "kim@example.com", until); err != nil {
 			t.Fatal(err)
@@ -215,7 +223,7 @@ func TestContract_INV6c_ANewReadingReopensWithItsNotice(t *testing.T) {
 	}
 	agent := gone
 	agent.Software = []Software{scanned.Software[0]}
-	agent.Software[0].ID, agent.Software[0].Source = "s-agent", "agent"
+	agent.Software[0].ID, agent.Software[0].Source, agent.Software[0].Key = "s-agent", "agent", nasKey("agent", "6.1.1")
 	run(agent)
 	if r := load(); r.Status != StatusSuspected {
 		t.Fatalf("the agent's row reopens it: %+v", r.Finding)
@@ -223,17 +231,70 @@ func TestContract_INV6c_ANewReadingReopensWithItsNotice(t *testing.T) {
 	if got := reason(); got != ReasonMatchesAgain {
 		t.Fatalf("a new reading reopens with the usual notice: %q", got)
 	}
-	// the person's own row (they now say what is installed) reopens without one
+	// a person's own row is new evidence too (only Clear of the mark is silent)
 	run(gone)
 	e.pub.take()
 	mine := gone
 	mine.NotInstalled = nil
 	mine.Software = []Software{scanned.Software[0]}
-	mine.Software[0].ID, mine.Software[0].Source = "s-mine", "manual"
+	mine.Software[0].ID, mine.Software[0].Source, mine.Software[0].Key = "s-mine", "manual", nasKey("manual", "6.1.1")
 	run(mine)
-	if got := reason(); got != ReasonNotInstalledCleared {
-		t.Fatalf("a person's row reopens without a notice: %q", got)
+	if got := reason(); got != ReasonMatchesAgain {
+		t.Fatalf("a person's own row reopens with the usual notice: %q", got)
 	}
+	// Clear is told by the row's identity, not its name: the scan now names the same row differently
+	run(gone)
+	e.pub.take()
+	back := scanned
+	back.Software = []Software{scanned.Software[0]}
+	back.Software[0].Display = "QNAP Photo Station"
+	run(back)
+	if got := reason(); got != ReasonNotInstalledCleared {
+		t.Fatalf("the very row back (the person cleared the mark) reopens without a notice: %q", got)
+	}
+}
+
+// nasKey is inventory's identity of the Photo Station row of a source at a version (source, lower vendor, lower product, version).
+func nasKey(source, version string) string {
+	return source + "\x1f" + "qnap\x1fphoto station\x1f" + version
+}
+
+// INV-6c: the newer decision wins. A reopen made before the mark does not keep the finding open; and a match read before a person
+// cleared the mark does not close the finding again (the device is read again inside the write).
+func TestContract_INV6c_TheNewerDecisionWins(t *testing.T) {
+	t.Parallel()
+	t.Run("a reopen before the mark", func(t *testing.T) {
+		t.Parallel()
+		e, _, _, gone, run, load := notInstalledEnv(t)
+		if _, err := e.svc.SetStatus(t.Context(), load().ID, ActionNotRelevant, "not ours", "kim@example.com"); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := e.svc.SetStatus(t.Context(), load().ID, ActionReopen, "it is ours after all", "kim@example.com"); err != nil {
+			t.Fatal(err)
+		}
+		e.advance(time.Hour)
+		gone.NotInstalled[0].MarkedAt = *e.clock // a month later, the person says it is not installed
+		run(gone)
+		if r := load(); r.Status != StatusNotRelevant {
+			t.Fatalf("the mark is the newer decision: %+v", r.Finding)
+		}
+	})
+	t.Run("a stale match after Clear", func(t *testing.T) {
+		t.Parallel()
+		e, v, scanned, gone, run, load := notInstalledEnv(t)
+		run(gone)
+		run(scanned) // Clear: reopened
+		if r := load(); r.Status != StatusSuspected {
+			t.Fatalf("cleared: %+v", r.Finding)
+		}
+		// a scan's handler read the device while the mark was live and writes now
+		if _, err := e.svc.UpsertFromMatch(t.Context(), gone, v); err != nil {
+			t.Fatal(err)
+		}
+		if r := load(); r.Status != StatusSuspected {
+			t.Fatalf("a match read before Clear must not close it again: %+v", r.Finding)
+		}
+	})
 }
 
 // INV-6c: a finding a scan confirmed stays open on a row a person said is not installed, and To fix still names that row.

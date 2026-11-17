@@ -156,6 +156,16 @@ describe('Findings › Needs your input by device (kien G15)', () => {
     expect(within(srv).getByRole('button', { name: 'Not installed' })).toBeInTheDocument()
   })
 
+  it('a question about the platform or package release of a reported row offers Not installed too', async () => {
+    const cam = asset('a-cam01', 'CAM-GATE')
+    serve({ unchecked: [unc(cam, 'Hikvision camera', ['CVE-2026-41'], { software_id: 's-cam01', action: 'answer_platform', reason: 'package_unknown',
+      question: { text: 'Which firmware build does CAM-GATE run?', command: null, answers: [{ label: 'Enter the package release', ask: ['pkg_version'] }] } })] })
+    renderApp('/findings?tab=input')
+    const block = await expand('CAM-GATE')
+    expect(await within(block).findByText('Which firmware build does CAM-GATE run?', undefined, T)).toBeInTheDocument()
+    expect(await within(block).findByRole('button', { name: 'Not installed' }, T)).toBeInTheDocument()
+  })
+
   it('the box\'s own software is never offered Not installed: it reads its own package list', async () => {
     const box = asset('a-box', 'vedette')
     serve({ unchecked: [unc(box, 'OpenSSH server', ['CVE-2026-31'], { software_id: 's-box-openssh' })] })

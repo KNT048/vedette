@@ -68,6 +68,10 @@ type Software struct {
 	// Superseded names, on a reported row, a person's correction of an earlier reading of it that rests since the source moved on
 	// (inventory INV-41, review r2 M-B of #950); "" otherwise.
 	Superseded string
+	// Key is the row's identity in inventory (source, vendor, product, version): a row that comes back with the Key of a "not installed"
+	// mark is that very row (INV-6c). MarkedAt is, on a row of Asset.NotInstalled, when the person said it is not installed.
+	Key      string
+	MarkedAt time.Time
 }
 
 // builtBy is the source whose build rules the row follows: the reported row's for a person's correction of it, else its own.

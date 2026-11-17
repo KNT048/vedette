@@ -126,7 +126,7 @@ function DeviceBlock({ g, open, onToggle, risk }: { g: InputGroup; open: boolean
                 {g.unchecked.map((u) => (
                   <li key={`${u.software_id ?? u.software}/${u.reason}`} className="grid gap-2 py-3">
                     <UncheckedLine item={u} />
-                    {u.action === 'answer_platform' && u.question ? <PlatformQuestion u={u} question={u.question} /> : (
+                    {u.action === 'answer_platform' && u.question ? <><PlatformQuestion u={u} question={u.question} /><PlatformNotInstalled u={u} /></> : (
                       <NextStep assetId={u.asset_id} asset={u.asset} softwareId={u.software_id ?? ''} software={u.software} need={u.action === 'add_version' ? 'version' : 'nvd'}
                         waiting={u.cves.some((c) => c.nvd_pending)} />
                     )}
@@ -388,6 +388,20 @@ function NotAffected({ ids }: { ids: string[] }) {
  * release or the line the command prints). Each is an inventory correction (INV-41); the device is matched again, so the item leaves
  * (or comes back with the next question, or with `question.error` when the release could not be read).
  */
+/** INV-41 (6): an item that asks about the platform or the package release of a row a scan, SNMP or an agent reported also offers
+ *  Not installed (never on the box, never on a row a person added: that one is removed instead). */
+function PlatformNotInstalled({ u }: { u: UncheckedItem }) {
+  const { t } = useTranslation('findings')
+  const d = useDeviceSoftware(u.asset_id || undefined).data?.asset
+  const row = d?.software.find((s) => s.id === u.software_id)
+  if (!row || !u.asset || d?.is_box || (row.source === 'manual' && !row.correction)) return null
+  return (
+    <div className="pl-4">
+      <NotInstalled assetId={u.asset_id} software={row.display} softwareId={row.id} cves={row.kev_cves} device={deviceName(u.asset, t('removedDevice'))} wholeDevice={false} reported />
+    </div>
+  )
+}
+
 function PlatformQuestion({ u, question: q }: { u: UncheckedItem; question: NonNullable<UncheckedItem['question']> }) {
   const { t } = useTranslation('findings')
   const can = useCan('operator')

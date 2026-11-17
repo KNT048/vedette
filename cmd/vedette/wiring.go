@@ -257,8 +257,13 @@ func (a findingsInventory) MatchInput(ctx context.Context, assetID string) (find
 }
 
 func findingsSoftware(s inventory.MatchSoftware) findings.Software {
-	return findings.Software{ID: s.ID, Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, KevKeys: s.KevKeys, CPE: s.CPE,
-		Source: s.Source, Packaged: s.Packaged, PkgVersion: s.PkgVersion, PkgSource: s.PkgSource, ReportedSource: s.ReportedSource, Correction: s.Correction, Superseded: s.Superseded}
+	out := findings.Software{ID: s.ID, Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, KevKeys: s.KevKeys, CPE: s.CPE,
+		Source: s.Source, Packaged: s.Packaged, PkgVersion: s.PkgVersion, PkgSource: s.PkgSource, ReportedSource: s.ReportedSource, Correction: s.Correction, Superseded: s.Superseded,
+		Key: s.Key}
+	if t, err := time.Parse(time.RFC3339Nano, s.MarkedAt); err == nil {
+		out.MarkedAt = t
+	}
+	return out
 }
 
 type findingsFeeds struct {

@@ -105,6 +105,12 @@ type MatchSoftware struct {
 	// rests since the source moved on (review r2 M-B of #950): "op corrected OpenSSH 10.2 (nmap) to OpenSSH 10.2p1 on 17 Nov 2026;
 	// nmap now reads OpenSSH 10.3, so Vedette uses that until the correction is set again"; "" otherwise.
 	Superseded string
+	// Key is the row's identity: its source, lower(vendor), lower(product) and version, joined by char(31) (rowKey; a correction's
+	// own source is manual). On a row of MatchDevice.NotInstalled it is the key the mark covers: a later row with the same Key is that
+	// very row back (the person cleared the mark), anything else is a new reading.
+	Key string
+	// MarkedAt is, on a row of MatchDevice.NotInstalled, when the person said it is not installed (the mark's time, RFC 3339); "".
+	MarkedAt string
 }
 
 // MatchDevice is a device with its software, for the matcher of findings.
@@ -190,7 +196,7 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 		var key sql.NullString
 		var corrects, setBy, seenAt, lv, lp, pk string
 		if err := rows.Scan(&sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &sw.Version, &sw.CPE, &sw.Source, &sw.Packaged, &sw.PkgVersion, &sw.PkgSource,
-			&corrects, &setBy, &seenAt, &lv, &lp, &pk, &key); err != nil {
+			&corrects, &setBy, &seenAt, &lv, &lp, &pk, &sw.Key, &key); err != nil {
 			return MatchDevice{}, false, fmt.Errorf("inventory: read software: %w", err)
 		}
 		if corrects != "" {
@@ -254,13 +260,14 @@ func notInstalledRows(ctx context.Context, q querier, id string) ([]MatchSoftwar
 			sw.KevKeys = append(sw.KevKeys, key.String)
 		}
 		sw.Correction = correctionNote(sw.Display, sw.Version, sw.PkgVersion, corrects, setBy, setAt, true)
+		sw.Key, sw.MarkedAt = corrects, setAt
 		out = append(out, sw)
 	}
 	return out, rows.Err()
 }
 
 // matchSoftwareSQL reads the software MatchInput gives: every row liveSW keeps, with its correction and its productKey.
-var matchSoftwareSQL = matchSoftwareCols + productKey("s") + ", k.kev_key " + matchSoftwareFrom + liveSW + " ORDER BY s.display, s.id, k.kev_key" //nolint:gosec // G202: fixed SQL fragments, no input
+var matchSoftwareSQL = matchSoftwareCols + productKey("s") + ", " + rowKey("s") + ", k.kev_key " + matchSoftwareFrom + liveSW + " ORDER BY s.display, s.id, k.kev_key" //nolint:gosec // G202: fixed SQL fragments, no input
 
 const (
 	matchSoftwareCols = `SELECT s.id, s.display, s.vendor, s.product, ifnull(s.version, ''), ifnull(s.cpe, ''), s.source, s.packaged, ifnull(s.pkg_version, ''),

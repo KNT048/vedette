@@ -778,6 +778,10 @@
     "none": "No open finding was on it.",
     "keptScan_one": "{{count}} stays open: a scan confirmed it.",
     "keptScan_other": "{{count}} stay open: a scan confirmed them.",
+    "keptReopened_one": "{{count}} stays open: a person reopened it.",
+    "keptReopened_other": "{{count}} stay open: a person reopened them.",
+    "keptAccepted_one": "{{count}} stays open: a person accepted its risk.",
+    "keptAccepted_other": "{{count}} stay open: a person accepted their risk.",
     "keptOther_one": "{{count}} stays open: another source still reports the software.",
     "keptOther_other": "{{count}} stay open: another source still reports the software."
   }

@@ -263,6 +263,16 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 		} else if ig {
 			return nil
 		}
+		if len(a.NotInstalled) > 0 { // INV-6c: a match read before a person cleared a mark must not close its findings again; read the device now
+			fresh, ok, err := s.cfg.Inventory.MatchInput(ctx, a.ID)
+			if err != nil {
+				return fmt.Errorf("findings: reading the device again: %w", err)
+			}
+			if ok {
+				fresh.winList = a.winList
+				a = fresh
+			}
+		}
 		have, err := cvesOfAsset(ctx, tx, a.ID)
 		if err != nil {
 			return err
@@ -303,7 +313,10 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 			before := r.Finding
 			reopened := false
 			if f, h, ok := r.ReopenOnMatch(now); ok { // D-530: Vedette closed it by itself; it applies again
-				why := reopenReason(a, before, em.SoftwareID)
+				why, err := reopenReason(ctx, tx, a, r, em.SoftwareID)
+				if err != nil {
+					return err
+				}
 				r.Finding, reopened = f, true
 				h.Note = withCorrection(h.Note, correctionWhy(a, em.SoftwareID))
 				if err := insertHistory(ctx, tx, r.ID, h); err != nil {

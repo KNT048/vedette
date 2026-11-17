@@ -1,9 +1,11 @@
 package findings
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"maps"
 	"slices"
 	"strings"
@@ -29,16 +31,23 @@ const (
 	ReasonNotInstalledCleared = "not_installed_cleared"
 )
 
-// notInstalledCVEs is, per CVE, the person's words ("op said OpenSSH 10.2 (nmap) is not installed on 17 Nov 2026") for the CVEs that
-// the rows a person said are not installed would produce as a finding (or a closed or asked one), and that no row the match still
-// reads produces (live: the match of the device without them). nil when there are none.
-func notInstalledCVEs(a Asset, vulns []Vuln, have map[string]bool, live MatchResult, now time.Time) map[string]string {
+// notMark is why a CVE closes for "Not installed": the person's words ("op said OpenSSH 10.2 (nmap) is not installed on 17 Nov 2026"),
+// the identity of the row the mark covers (inventory's row key) and when the person made it.
+type notMark struct {
+	said, key string
+	at        time.Time
+}
+
+// notInstalledCVEs is, per CVE, the mark of the rows a person said are not installed whose CVEs they would produce as a finding (or a
+// closed or asked one) and that no row the match still reads produces (live: the match of the device without them). When several
+// marked rows produce a CVE, the first names it and the newest mark's time counts. nil when there are none.
+func notInstalledCVEs(a Asset, vulns []Vuln, have map[string]bool, live MatchResult, now time.Time) map[string]notMark {
 	if len(a.NotInstalled) == 0 {
 		return nil
 	}
-	said := make(map[string]string, len(a.NotInstalled))
+	marks := make(map[string]notMark, len(a.NotInstalled))
 	for _, sw := range a.NotInstalled {
-		said[sw.ID] = sw.Correction
+		marks[sw.ID] = notMark{said: sw.Correction, key: sw.Key, at: sw.MarkedAt}
 	}
 	gone := a
 	gone.Software, gone.NotInstalled = a.NotInstalled, nil
@@ -49,14 +58,21 @@ func notInstalledCVEs(a Asset, vulns []Vuln, have map[string]bool, live MatchRes
 			still[m.CVE] = true
 		}
 	}
-	out := map[string]string{}
+	out := map[string]notMark{}
 	for _, list := range [][]Match{r.New, r.Existing, r.NameOnly, r.Asked, r.Aged} {
 		for _, m := range list {
-			if note, ok := said[m.SoftwareID]; ok && !still[m.CVE] {
-				if _, done := out[m.CVE]; !done {
-					out[m.CVE] = note
-				}
+			mk, ok := marks[m.SoftwareID]
+			if !ok || still[m.CVE] {
+				continue
 			}
+			if done, seen := out[m.CVE]; seen {
+				if mk.at.After(done.at) {
+					done.at = mk.at
+					out[m.CVE] = done
+				}
+				continue
+			}
+			out[m.CVE] = mk
 		}
 	}
 	return out
@@ -82,7 +98,7 @@ func notInstalledNote(said, device string) string {
 // like every closed one (a person's status stands). Like every other close by Vedette, it never closes a finding a person reopened
 // after Vedette last closed it, or one whose risk a person accepted (an expired acceptance reopens it with a notice): those are
 // returned in kept, CVE -> the sentence noteNoLongerMatching writes once.
-func (s *Service) closeNotInstalled(ctx context.Context, tx *sql.Tx, assetID, device string, cves map[string]string, now time.Time, emit func(string, any)) (closed int, kept map[string]string, err error) {
+func (s *Service) closeNotInstalled(ctx context.Context, tx *sql.Tx, assetID, device string, cves map[string]notMark, now time.Time, emit func(string, any)) (closed int, kept map[string]string, err error) {
 	for _, cve := range slices.Sorted(maps.Keys(cves)) {
 		r, err := loadByPair(ctx, tx, assetID, cve)
 		if errors.Is(err, ErrNotFound) {
@@ -91,15 +107,16 @@ func (s *Service) closeNotInstalled(ctx context.Context, tx *sql.Tx, assetID, de
 		if err != nil {
 			return closed, kept, err
 		}
-		if r.Status == StatusSuspected && (reopenedByPerson(r.History) || acceptedByPerson(r.History)) {
+		mk := cves[cve]
+		if r.Status == StatusSuspected && keptAfter(r.History, mk.at) {
 			if kept == nil {
 				kept = map[string]string{}
 			}
-			kept[cve] = clipNote(cves[cve] + ". This finding stays open because a person reopened it or accepted its risk; close it yourself if the software is not there.")
+			kept[cve] = clipNote(mk.said + ". This finding stays open because a person reopened it or accepted its risk after that; close it yourself if the software is not there.")
 			continue
 		}
 		was := r.Status
-		f, h, ok := r.AutoResolve(notInstalledNote(cves[cve], device), now)
+		f, h, ok := r.AutoResolve(notInstalledNote(mk.said, device), now)
 		if !ok {
 			continue
 		}
@@ -110,8 +127,12 @@ func (s *Service) closeNotInstalled(ctx context.Context, tx *sql.Tx, assetID, de
 		if err := insertHistory(ctx, tx, r.ID, h); err != nil {
 			return closed, kept, err
 		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_not_installed (finding_id, mark) VALUES (?, ?) ON CONFLICT (finding_id) DO UPDATE SET mark = excluded.mark`,
+			r.ID, cmp.Or(mk.key, "?"+cve)); err != nil {
+			return closed, kept, fmt.Errorf("findings: recording the not-installed mark: %w", err)
+		}
 		if err := s.cfg.Audit.Append(ctx, tx, audit.Entry{User: SystemUser, Action: "findings.auto_resolved", Target: r.ID,
-			Detail: r.CVE + ": not installed (" + cves[cve] + ")"}); err != nil {
+			Detail: r.CVE + ": not installed (" + mk.said + ")"}); err != nil {
 			return closed, kept, err
 		}
 		emit(EventStatusChanged, StatusChangedEvent{FindingID: r.ID, From: was, To: r.Status, Reason: ReasonNotInstalled})
@@ -120,27 +141,35 @@ func (s *Service) closeNotInstalled(ctx context.Context, tx *sql.Tx, assetID, de
 	return closed, kept, nil
 }
 
-// acceptedByPerson reports whether a person ever accepted the finding's risk (its acceptance may have expired since).
-func acceptedByPerson(hist []HistoryEntry) bool {
-	return slices.ContainsFunc(hist, func(h HistoryEntry) bool { return h.User != SystemUser && h.Action == string(StatusRiskAccepted) })
+// keptAfter reports whether a person reopened the finding, or accepted its risk, after the mark (at): that newer decision stands
+// (INV-6c). One made before the mark does not: the mark is the person's newer word. A zero at (unknown) counts every such act.
+func keptAfter(hist []HistoryEntry, at time.Time) bool {
+	return slices.ContainsFunc(hist, func(h HistoryEntry) bool {
+		return h.User != SystemUser && (h.Action == "reopened" || h.Action == string(StatusRiskAccepted)) && !h.TS.Before(at)
+	})
 }
 
 // reopenReason is the StatusChangedEvent reason of a finding ReopenOnMatch reopens on the row softwareID, by what brought the row back.
-// ReasonNotInstalledCleared (no notice) when Vedette had closed it for "Not installed" and a person's own act did: the row that matches
-// again is the very row the person said was not installed (same name, version and source, as the close note names it: they cleared
-// the mark), or a person's row (they now say what is installed). Anything else is a new reading, ReasonMatchesAgain with its notice:
-// another source reports the product (an agent next to the scan), the source reads another version, or another row matches.
-func reopenReason(a Asset, closed Finding, softwareID string) string {
+// ReasonNotInstalledCleared (no notice) only when Vedette had closed it for "Not installed" and the row that matches again is the very
+// reported row the mark covered (the same identity: source, vendor, product and version; its display may differ): the person cleared
+// the mark. Anything else is new evidence, ReasonMatchesAgain with its notice: another source reports the product, the source reads
+// another version, a person's own row, or a change of the exploited list brings in another row. The recorded mark goes with the close.
+func reopenReason(ctx context.Context, tx *sql.Tx, a Asset, closed Record, softwareID string) (string, error) {
 	if !strings.HasPrefix(closed.ResolutionNote, NotInstalledNote) {
-		return ReasonMatchesAgain
+		return ReasonMatchesAgain, nil
+	}
+	var mark string
+	err := tx.QueryRowContext(ctx, `SELECT mark FROM fnd_not_installed WHERE finding_id = ?`, closed.ID).Scan(&mark)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return "", fmt.Errorf("findings: reading the not-installed mark: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM fnd_not_installed WHERE finding_id = ?`, closed.ID); err != nil {
+		return "", fmt.Errorf("findings: clearing the not-installed mark: %w", err)
 	}
 	for _, sw := range a.Software {
-		if sw.ID != softwareID {
-			continue
-		}
-		if sw.Source == "manual" || strings.Contains(closed.ResolutionNote, " said "+strings.TrimSpace(sw.Display+" "+sw.Version)+" ("+sw.Source+") is not installed") {
-			return ReasonNotInstalledCleared
+		if sw.ID == softwareID && sw.Source != "manual" && mark != "" && sw.Key == mark {
+			return ReasonNotInstalledCleared, nil
 		}
 	}
-	return ReasonMatchesAgain
+	return ReasonMatchesAgain, nil
 }

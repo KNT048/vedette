@@ -70345,7 +70345,7 @@ type FindingsGetFindingsOKUncheckedItemQuestionAnswersItem struct {
 	Ask []FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem `json:"ask"`
 	// The button: "Alpine Linux 3.23", "Another system", "Enter the package release".
 	Label string `json:"label"`
-	// One click: PATCH /inventory/devices/{asset_id} {os} with this value (INV-39).
+	// One click: PATCH /inventory/devices/{asset_id} {os} with this value (INV-41).
 	Os OptString `json:"os"`
 }
 
@@ -97463,7 +97463,7 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	Notes  OptString                                   `json:"notes"`
 	Origin InventoryGetInventoryDevicesIDOKAssetOrigin `json:"origin"`
 	Os     NilInventoryGetInventoryDevicesIDOKAssetOs  `json:"os"`
-	// The OS a person set (PATCH os, INV-39); absent when none: os is then what the sources read.
+	// The OS a person set (PATCH os, INV-41); absent when none: os is then what the sources read.
 	OsCorrection OptInventoryGetInventoryDevicesIDOKAssetOsCorrection `json:"os_correction"`
 	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
 	// never actively scanned again, for every kind of device (D-74).
@@ -100051,7 +100051,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOs) SetValue(val string) {
 	s.Value = val
 }
 
-// The OS a person set (PATCH os, INV-39); absent when none: os is then what the sources read.
+// The OS a person set (PATCH os, INV-41); absent when none: os is then what the sources read.
 type InventoryGetInventoryDevicesIDOKAssetOsCorrection struct {
 	// The OS the sources read without the correction (the value that would win); null when none reads one.
 	Detected NilInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected `json:"detected"`
@@ -100629,9 +100629,9 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSnmpSource) UnmarshalText(data []b
 type InventoryGetInventoryDevicesIDOKAssetSoftwareItem struct {
 	Confidence float64 `json:"confidence"`
 	// On a row a sensor or agent reported: the id of the person's correction that replaces it for matching
-	// (INV-39). Show it as replaced; Clear on the correction brings it back.
+	// (INV-41). Show it as replaced; Clear on the correction brings it back.
 	CorrectedBy OptString `json:"corrected_by"`
-	// On a person's correction of a reported row (INV-39): when it was set and what the sources read now.
+	// On a person's correction of a reported row (INV-41): when it was set and what the sources read now.
 	// Clear = DELETE the row.
 	Correction OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection `json:"correction"`
 	// Commercial name the user recognizes.
@@ -100757,21 +100757,32 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetVersion(val NilSt
 	s.Version = val
 }
 
-// On a person's correction of a reported row (INV-39): when it was set and what the sources read now.
+// On a person's correction of a reported row (INV-41): when it was set and what the sources read now.
 // Clear = DELETE the row.
 type InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection struct {
+	// True: the row it corrects is still reported and matching uses the correction. false: the source
+	// moved on (detected = what it reads now) or reports the product no more (detected null); matching
+	// uses the source's reading until the person sets the correction again (PATCH on detected.id, or on
+	// this row, which moves it onto what the source reads now). Show it as not in use: "You set X on ; the
+	// scan now reads Y (Vedette uses that)" with Set again and Clear.
+	Active bool `json:"active"`
 	// The corrected row when its source still reports it (it does not match while the correction stands),
 	// else that source's newest row of the product at another version (that one matches on its own: a
 	// second install or an update); null when the source reports the product no more: say "no scan or
 	// agent reports it now".
 	Detected NilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected `json:"detected"`
-	// The sources read another product, version or package release than the person: show "You set X on ;
-	// the last scan reads Y".
+	// The source reads another product, version or package release than the person (always true while
+	// active is false): show "You set X on ; the last scan reads Y".
 	Disagrees bool `json:"disagrees"`
 	// When the person set it (or last changed it).
 	SetAt time.Time `json:"set_at"`
 	// Who set it (email); "" for a correction stored without one.
 	SetBy string `json:"set_by"`
+}
+
+// GetActive returns the value of Active.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) GetActive() bool {
+	return s.Active
 }
 
 // GetDetected returns the value of Detected.
@@ -100792,6 +100803,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) GetSetAt()
 // GetSetBy returns the value of SetBy.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) GetSetBy() string {
 	return s.SetBy
+}
+
+// SetActive sets the value of Active.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) SetActive(val bool) {
+	s.Active = val
 }
 
 // SetDetected sets the value of Detected.
@@ -108022,7 +108038,7 @@ type InventoryPatchInventoryDevicesIDReq struct {
 	// default name). The host name the network reports is not changed.
 	Name  OptString `json:"name"`
 	Notes OptString `json:"notes"`
-	// Correct the operating system (INV-39): trimmed, at most 200 characters, no < or >; it wins over
+	// Correct the operating system (INV-41): trimmed, at most 200 characters, no < or >; it wins over
 	// every sensor and agent and drives matching until cleared. Empty clears it (back to what the sources
 	// read). 400 bad_os.
 	Os OptString `json:"os"`

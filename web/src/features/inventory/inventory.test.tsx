@@ -1557,7 +1557,7 @@ describe('inventory: agents (S-INV-4)', () => {
     const table = await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     expect(within(table).getByText(OSQ)).toBeInTheDocument()
     expect(within(table).getByText('••••k3Pq')).toBeInTheDocument()
-    expect(screen.getByText('Use osquery on your Linux and Windows servers. Already run Wazuh? Connect its API instead.')).toBeInTheDocument()
+    expect(screen.getByText('Use osquery on your Linux and Windows PCs and servers. Already run Wazuh? Connect its API instead.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Connect Wazuh' })).toBeInTheDocument()
     expect(screen.queryByText(/Trivy/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/macOS/i)).not.toBeInTheDocument()

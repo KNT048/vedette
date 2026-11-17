@@ -25585,7 +25585,7 @@ func (s *Server) handleInventoryDeleteInventoryDevicesIDRequest(args [1]string, 
 
 // handleInventoryDeleteInventoryDevicesIDSoftwareSidRequest handles inventory_delete_inventory_devices_id_software_sid operation.
 //
-// Remove manually declared software from a device; on a correction (INV-39) this clears it and the
+// Remove manually declared software from a device; on a correction (INV-41) this clears it and the
 // reported row matches again (audit inventory.clear_software_correction).
 //
 // DELETE /inventory/devices/{id}/software/{sid}
@@ -25665,7 +25665,7 @@ func (s *Server) handleInventoryDeleteInventoryDevicesIDSoftwareSidRequest(args 
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryDeleteInventoryDevicesIDSoftwareSidOperation,
-			OperationSummary: "Remove manually declared software from a device; on a correction (INV-39) this clears it and the reported row matches again (audit inventory.clear_software_correction)",
+			OperationSummary: "Remove manually declared software from a device; on a correction (INV-41) this clears it and the reported row matches again (audit inventory.clear_software_correction)",
 			OperationID:      "inventory_delete_inventory_devices_id_software_sid",
 			Body:             nil,
 			RawBody:          rawBody,
@@ -28020,7 +28020,7 @@ func (s *Server) handleInventoryPatchInventoryDevicesIDRequest(args [1]string, a
 
 // handleInventoryPatchInventoryDevicesIDSoftwareSidRequest handles inventory_patch_inventory_devices_id_software_sid operation.
 //
-// Change a software row (D-471, INV-39). A row a person declared changes in place. A row a sensor or
+// Change a software row (D-471, INV-41). A row a person declared changes in place. A row a sensor or
 // agent reported is corrected: the values go in a manual correction row (source manual, correction
 // set) that replaces exactly that row (its source, product and version, and its re-reports) for
 // matching until it is deleted; another install of the product (another version or source) keeps
@@ -28121,7 +28121,7 @@ func (s *Server) handleInventoryPatchInventoryDevicesIDSoftwareSidRequest(args [
 		mreq := middleware.Request{
 			Context:          ctx,
 			OperationName:    InventoryPatchInventoryDevicesIDSoftwareSidOperation,
-			OperationSummary: "Change a software row (D-471, INV-39). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software",
+			OperationSummary: "Change a software row (D-471, INV-41). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software",
 			OperationID:      "inventory_patch_inventory_devices_id_software_sid",
 			Body:             request,
 			RawBody:          rawBody,

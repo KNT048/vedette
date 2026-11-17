@@ -181643,6 +181643,10 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) Encode(e *
 // encodeFields encodes fields.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("active")
+		e.Bool(s.Active)
+	}
+	{
 		e.FieldStart("detected")
 		s.Detected.Encode(e)
 	}
@@ -181660,11 +181664,12 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) encodeFiel
 	}
 }
 
-var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection = [4]string{
-	0: "detected",
-	1: "disagrees",
-	2: "set_at",
-	3: "set_by",
+var jsonFieldsNameOfInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection = [5]string{
+	0: "active",
+	1: "detected",
+	2: "disagrees",
+	3: "set_at",
+	4: "set_by",
 }
 
 // Decode decodes InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection from json.
@@ -181676,8 +181681,20 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) Decode(d *
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "detected":
+		case "active":
 			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Bool()
+				s.Active = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"active\"")
+			}
+		case "detected":
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				if err := s.Detected.Decode(d); err != nil {
 					return err
@@ -181687,7 +181704,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) Decode(d *
 				return errors.Wrap(err, "decode field \"detected\"")
 			}
 		case "disagrees":
-			requiredBitSet[0] |= 1 << 1
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Bool()
 				s.Disagrees = bool(v)
@@ -181699,7 +181716,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) Decode(d *
 				return errors.Wrap(err, "decode field \"disagrees\"")
 			}
 		case "set_at":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := json.DecodeDateTime(d)
 				s.SetAt = v
@@ -181711,7 +181728,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) Decode(d *
 				return errors.Wrap(err, "decode field \"set_at\"")
 			}
 		case "set_by":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 4
 			if err := func() error {
 				v, err := d.Str()
 				s.SetBy = string(v)
@@ -181732,7 +181749,7 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) Decode(d *
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00011111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.

@@ -328,7 +328,7 @@ type UncheckedItem struct {
 }
 
 // UncheckedQuestion is contract.ts UncheckedQuestion (D-604): the question of a platform-limited CVE and the answers that settle it.
-// Every answer is a correction of inventory (INV-39), so the next match decides.
+// Every answer is a correction of inventory (INV-41), so the next match decides.
 type UncheckedQuestion struct {
 	Text string `json:"text"`
 	// Error says the last answer could not be read ("Vedette could not read the release you entered …"), nil otherwise.

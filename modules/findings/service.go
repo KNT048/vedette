@@ -267,6 +267,13 @@ func (s *Service) upsert(ctx context.Context, a Asset, vulns []Vuln, whole *Matc
 		}
 		hs := haveSet(have)
 		m := haveScope(a, vulns, MatchAsset(a, vulns, hs, now), since, hs, now)
+		for _, list := range [][]Match{m.New, m.Existing} { // a version a person gave is said to be theirs (review r2 M-B of #950)
+			for i := range list {
+				if why := usesCorrection(a, list[i].SoftwareID); why != "" && !strings.Contains(list[i].Evidence.Summary, why) {
+					list[i].Evidence.Summary = strings.TrimSpace(list[i].Evidence.Summary + " " + why)
+				}
+			}
+		}
 		for _, nm := range m.New {
 			f, h := NewFinding(nm, now)
 			if err := f.Validate(); err != nil {

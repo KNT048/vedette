@@ -25,7 +25,7 @@ import (
 //     audit detail). The distribution's own word (D-516) is read first and wins;
 //   - the platform is not known (nothing names a platform, D-604) → no finding: the CVE is "Could not be checked" (reason
 //     platform_unknown) with the entry's question, and an open finding closes into that list (MatchResult.Asked); the person's
-//     answer (the device's OS, inventory INV-39) decides at the next match;
+//     answer (the device's OS, inventory INV-41) decides at the next match;
 //   - the platform is one it affects and the entry has the distribution's fixed list (D-604): the package release decides. At or above
 //     the fix of the device's branch → proved not affected (closes, D-530 path); below it → a version finding; no release yet →
 //     "Could not be checked" (reason package_unknown) asking for it, unless the version is older than every fix (a finding);
@@ -204,7 +204,7 @@ func platformsIn(text string) []string {
 // Juniper network card (a Junos switch, networkStated), that statement counts for every row, since such gear runs no container behind
 // its own address.
 //
-// D-604: a person's answers. The OS a person set on the device (Asset.ManualOS, inventory INV-39) is the OS of an agent or SNMP row (as
+// D-604: a person's answers. The OS a person set on the device (Asset.ManualOS, inventory INV-41) is the OS of an agent or SNMP row (as
 // #950 already gives it). On a row a scan saw it only confirms a platform the CVE affects (platformCheck asks for the package release
 // then); it never rules the row out, since a Ubuntu host may forward the port to an Alpine container (review r1 M1 of #961). A row whose
 // package release a person gave (inventory's correction, a manual row with Software.PkgVersion) is an answer about that row: it takes

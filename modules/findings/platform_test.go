@@ -133,7 +133,7 @@ func TestPlatform_D604_UnknownPlatformAsks(t *testing.T) {
 // person's OS never rules a scanned row out (M1: the Docker host), and what `apk info -v` prints is read (M2).
 func TestPlatform_D604_PackageReleaseDecides(t *testing.T) {
 	t.Parallel()
-	mine := func(pkg string) Software { // inventory's correction of the scanned row (INV-39): manual, the scan's version, the release
+	mine := func(pkg string) Software { // inventory's correction of the scanned row (INV-41): manual, the scan's version, the release
 		s := sshRow("10.2", "", "manual")
 		s.ID, s.PkgVersion, s.ReportedSource = "s-mine", pkg, "nmap"
 		return s
@@ -410,7 +410,7 @@ func TestContract_D604_BN340PackageReleaseCloses(t *testing.T) {
 		t.Fatalf("could not be checked = %+v", u)
 	}
 
-	fixedRow := sshRow("10.2", "", "manual") // inventory's correction (INV-39) replaces the scanned row for matching
+	fixedRow := sshRow("10.2", "", "manual") // inventory's correction (INV-41) replaces the scanned row for matching
 	fixedRow.ID, fixedRow.PkgVersion, fixedRow.ReportedSource = "s-mine", "10.2_p1-r1", "nmap"
 	fixedRow.Correction = "op@example.com corrected OpenSSH 10.2 (nmap) to OpenSSH 10.2 (package 10.2_p1-r1) on 17 Nov 2026"
 	bn340.Software = []Software{fixedRow}

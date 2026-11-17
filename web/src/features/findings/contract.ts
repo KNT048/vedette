@@ -161,7 +161,7 @@ export const UncheckedCve = z.object({
 })
 export const UncheckedAnswer = z.object({
   label: z.string().describe('The button: "Alpine Linux 3.23", "Another system", "Enter the package release"'),
-  os: z.string().optional().describe('One click: PATCH /inventory/devices/{asset_id} {os} with this value (INV-39)'),
+  os: z.string().optional().describe('One click: PATCH /inventory/devices/{asset_id} {os} with this value (INV-41)'),
   ask: z.array(z.enum(['os', 'pkg_version'])).optional().describe('What the person types: os → PATCH /inventory/devices/{asset_id} {os}; pkg_version → PATCH /inventory/devices/{asset_id}/software/{software_id} {pkg_version} (apk info -v output is read as is). "Another system" asks both: on a row a scan saw only the row\'s release rules it out'),
 })
 export const UncheckedQuestion = z.object({

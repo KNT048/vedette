@@ -369,7 +369,7 @@
       "old": "Older than 12 months"
     },
     "notExploited": "Not on an exploited list",
-    "intro": "This CVE is on no exploited list (CISA KEV, or VulnCheck KEV when it is on). Vedette lists the devices it confirmed under Updates to plan, grouped by the update that fixes it; it is never a finding and never alerts.",
+    "intro": "This CVE is on no exploited list (CISA KEV, or VulnCheck KEV when it is on). Vedette lists the devices it confirmed under Recommended updates, grouped by the update that fixes it; it is never a finding and never alerts.",
     "introOld": "This CVE is on no exploited list and was published more than 12 months ago, or this box has no NVD record of it. Vedette lists such a CVE on a device only when a scan engine finds it there.",
     "products": "Products (NVD)",
     "productsNone": "NVD names none yet",
@@ -391,7 +391,7 @@
     "rangesYes": "NVD lists them, so Vedette can compare a device's exact version",
     "rangesNo": "NVD has not listed them yet, so Vedette cannot compare a version (it never lists a CVE by the product name alone)",
     "noDevice": "No device of yours is listed for it: Vedette found no confirmed version inside its affected versions.",
-    "toPlan": "See every update to plan"
+    "toPlan": "See every recommended update"
   },
   "dash": {
     "label": "Today at a glance",

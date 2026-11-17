@@ -96,7 +96,7 @@ Decisions from #842. Patterns: collapsible sections ([Atlassian navigation](http
 groups ([Primer NavList](https://primer.style/product/components/nav-list/)), icon rail and drawer ([Material rail](https://m3.material.io/components/navigation-rail/overview),
 [drawer](https://m3.material.io/components/navigation-drawer/overview)), a quiet dense sidebar ([Linear redesign](https://linear.app/now/how-we-redesigned-the-linear-ui)).
 
-- **Order**: logo and org; the always-visible block **Home**, **Findings**, **Updates to plan**, **Incidents** (decided
+- **Order**: logo and org; the always-visible block **Home**, **Findings**, **Recommended updates** (was "Updates to plan", kien G3), **Incidents** (decided
   2026-11-16: J3 "the alert arrives" is the P0 journey, and Wiz and CrowdStrike keep Issues and Detections top-level); then the
   groups **Assets** (Devices, External exposure, Vulnerability scans), **Intrusion detection** (Internal traps, Logs),
   **Assistant and reports** (AI assistant, Reports, Lookup); at the foot the `shell.status` slot, **Settings** (one entry,

@@ -142,8 +142,8 @@ func TestNVDPull_PausesAndResumesFromTheLastGoodPage(t *testing.T) {
 	if n.count(0) != 1 || n.count(100) != 5 || n.count(200) != 1 {
 		t.Fatalf("requests per page: %v", n.asked)
 	}
-	if f := e.feed("nvd-kev"); f.Status != "ok" || *f.Records != 250 || f.Error != nil {
-		t.Fatalf("feed = %+v", f)
+	if f := e.feed("nvd-kev"); f.Status != "ok" || *f.Records != 250 || f.Error == nil || *f.Error != "NVD records of 250 exploited CVEs; 250 of them name affected versions." {
+		t.Fatalf("feed = %+v %q", f, deref(f.Error))
 	}
 	if e.svc.nvdState() != nil {
 		t.Fatal("the finished pull is still kept")

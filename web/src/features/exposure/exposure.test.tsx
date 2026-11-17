@@ -1301,7 +1301,7 @@ describe('exposure: services and exploited vulnerabilities of the box IP (S-EXP-
     expect(within(services).queryByText(/^ssl\/unknown$|^sip$/)).toBeNull()
     const checked = screen.getByRole('list', { name: 'Checked' })
     expect(within(checked).getByText(/Service identification \(nmap -sV\) on 99 TCP ports: 2 services identified, 1 named by port number only, 2 not identified\./)).toBeInTheDocument()
-    expect(within(checked).getByText(/2 identified services of 5 compared with today's CISA list of exploited vulnerabilities/)).toBeInTheDocument()
+    expect(within(checked).getByText(/2 of 5 services compared with today's CISA list of exploited vulnerabilities/)).toBeInTheDocument()
     const not = screen.getByRole('list', { name: 'Not checked' })
     for (const line of ['UDP ports: the scan connects over TCP only.', 'TCP ports outside the fixed list of commonly exposed ports.', /only the CISA list of exploited vulnerabilities \(KEV\) is compared/]) expect(within(not).getByText(line)).toBeInTheDocument()
     await expectNoA11yViolations()

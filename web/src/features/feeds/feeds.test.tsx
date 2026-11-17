@@ -612,6 +612,16 @@ describe('feeds: a distribution feed no device needs is not pulled (LEAN)', () =
   })
 })
 
+describe('feeds: a feed whose count needs words says what it holds', () => {
+  it('CVE.org affected versions shows its note, and Fetch now confirms the pull with that note under it', async () => {
+    const note = /exploited CVEs have no affected versions from NVD; CVE\.org gives versions Vedette can compare for 41 of them/
+    renderApp('/settings/feeds')
+    expect((await screen.findAllByText(note)).length).toBeGreaterThan(0)
+    await userEvent.click(screen.getByRole('button', { name: /^Fetch now: CVE\.org affected versions$|^Fetch CVE\.org affected versions now$/ }))
+    expect(await screen.findByText('Fetched CVE.org affected versions: 41 records')).toBeInTheDocument()
+  })
+})
+
 describe('feeds: a custom vulnerability feed does not drive matching (S-FEED-4)', () => {
   const feed = (kind: 'ioc' | 'vulnerabilities') => ({ id: 'cf-x', builtin: false, name: 'Partner list', kind, format: 'json', url: 'https://feeds.partner.example/x.json', default_url: null, enabled: true, interval_hours: 24, auth: { type: 'none' }, parser: null, last_fetch: null, records: null, status: 'never', error: null, license: null, answered_by: null })
   const note = /does not create findings or alerts: only the exploited lists/

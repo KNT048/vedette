@@ -108,7 +108,7 @@ func (s *Service) watchKEV(ctx context.Context, pulled *sourceRow) error {
 		if err := s.st.setKEVWatch(ctx, w); err != nil {
 			return err
 		}
-		title, text := s.kevStaleNotice(r, since)
+		title, text := kevStaleTitle, s.kevStaleNotice(ctx, r, since)
 		if err := s.Alert(ctx, id, title, text, true); err != nil {
 			w.Alerted = nil
 			if rerr := s.st.setKEVWatch(ctx, w); rerr != nil {
@@ -157,10 +157,12 @@ func quietOff(err error) error {
 // stamp is a time in an alert: UTC, said so (an alert is read away from the box's own screen).
 func stamp(t time.Time) string { return t.UTC().Format("2 Jan 2006, 15:04") + " UTC" }
 
-// kevStaleNotice is the title and text of the alert: what failed, since when the list is not fresh, what it means, what to check
+// kevStaleTitle is the title of the alert.
+const kevStaleTitle = "Vedette cannot update the list of exploited vulnerabilities"
+
+// kevStaleNotice is the text of the alert: what failed, since when the list is not fresh, what it means, what to check
 // (the two hosts of the built-in address, or the admin's own host, #946 r1).
-func (s *Service) kevStaleNotice(r sourceRow, since time.Time) (title, text string) {
-	title = "Vedette cannot update the list of exploited vulnerabilities"
+func (s *Service) kevStaleNotice(ctx context.Context, r sourceRow, since time.Time) (text string) {
 	if r.Status == "error" && r.Error != nil && r.LastFetch != nil {
 		if e := oneLine(*r.Error, 300); e != nil {
 			text = fmt.Sprintf("The check at %s failed: %s. ", stamp(*r.LastFetch), *e)
@@ -172,13 +174,21 @@ func (s *Service) kevStaleNotice(r sourceRow, since time.Time) (title, text stri
 		text += fmt.Sprintf("No pull has worked since %s, so the box has no list yet.", stamp(since))
 	}
 	reach := "www.cisa.gov or raw.githubusercontent.com"
+	if r.URL == s.kevPrimary() { // a clock far from the servers' is the cause to name, not the network (#946 r2)
+		if cs, _, err := s.st.kevCopies(ctx); err == nil {
+			if clock := skewText(cs.SkewSecs); clock != "" {
+				return text + " Until it works again, vulnerabilities CISA newly lists do not reach your alerts. " + clock +
+					" You get one more message when the list is up to date again."
+			}
+		}
+	}
 	if r.URL != s.kevPrimary() {
 		reach = "the address set for this list"
 		if u, err := url.Parse(r.URL); err == nil && u.Hostname() != "" {
 			reach = u.Hostname() + ", the address set for this list"
 		}
 	}
-	return title, text + " Until it works again, vulnerabilities CISA newly lists do not reach your alerts. Vedette keeps trying " +
+	return text + " Until it works again, vulnerabilities CISA newly lists do not reach your alerts. Vedette keeps trying " +
 		every(r.IntervalHours) + ". Check that this box can reach " + reach + " (Settings, Feeds). " +
 		"You get one more message when the list is up to date again."
 }

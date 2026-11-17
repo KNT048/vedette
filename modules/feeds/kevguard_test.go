@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// #946 review r1: the CISA list never freezes on a bad catalog, never shrinks, and the watch survives a wrong clock and a person's
-// "Fetch now". The env's clock is 5 Nov 2026, 12:00 UTC.
+// #946 reviews r1 and r2: the CISA list never freezes on a bad catalog or a wrong clock, and the watch survives a wrong clock and a
+// person's "Fetch now". The env's clock (and the fake servers' Date header) is 5 Nov 2026, 12:00 UTC.
 
 // kevDoc is a KEV catalog with n valid entries (CVE-2026-3xxxx from base). version and released are raw JSON values ("" leaves the
 // field out), so a test can send a number or nothing.
@@ -77,32 +77,119 @@ func TestG13r1_AFutureVersionTypoHealsAtTheNextGoodCopy(t *testing.T) {
 	}
 }
 
-// High: KEV only grows. A copy with a newer version but fewer than 95 % of the entries held is refused with a note; both cut is a
-// failed check (so the alert of D-629 can fire), never a freeze with a green status.
-func TestG13r1_ACutCopyWithANewerVersionIsRefused(t *testing.T) {
+// r2 High: no count rule against the box's stored count (it froze the list). Of two copies in one check, the newer wins even with fewer
+// entries (apply is additive); of the same catalog the fuller one, then cisa.gov's.
+func TestG13r2_InOneCheckTheNewerThenTheFullerThenCISAWins(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
 	o.body(primaryPath, `"p1"`, kevDoc(`"2026.11.04"`, `"2026-11-04T10:00:00Z"`, 20, 0))
-	o.body(mirrorPath, `"m1"`, kevDoc(`"2026.11.04"`, `"2026-11-04T10:00:00Z"`, 20, 0))
-	e.fetch("cisa-kev")
+	o.body(mirrorPath, `"m1"`, kevDoc(`"2026.11.04"`, `"2026-11-04T10:00:00Z"`, 21, 0))
+	_, b := e.fetch("cisa-kev")
+	if at(b, "answered_by") != AnsweredMirror {
+		t.Errorf("same catalog, the GitHub copy fuller: newest from %v", at(b, "answered_by"))
+	}
+	if msg, _ := at(b, "error").(string); !strings.Contains(msg, "the same list with 20 and 21 entries; the fuller one counts") {
+		t.Errorf("note: %q", msg)
+	}
+	if _, found, _ := e.svc.st.VulnByCVE(t.Context(), "CVE-2026-30020"); !found {
+		t.Error("the entry only the fuller copy has is missing")
+	}
+	// a newer catalog with fewer entries is taken (additive): no count rule
 	o.body(primaryPath, `"p2"`, kevDoc(`"2026.11.05"`, `"2026-11-05T10:00:00Z"`, 10, 100))
 	e.setNow(e.clock().Add(time.Hour))
-	_, b := e.fetch("cisa-kev")
-	msg, _ := at(b, "error").(string)
-	if at(b, "status") != "ok" || !strings.HasPrefix(msg, "cisa.gov sent a list of 10 entries, fewer than 95% of the 20 on this box, so it was not used") {
-		t.Fatalf("cut copy: %v %q", at(b, "status"), msg)
+	if _, b := e.fetch("cisa-kev"); at(b, "answered_by") != AnsweredCISA || at(b, "status") != "ok" {
+		t.Errorf("newer and shorter: %v %v %v", at(b, "answered_by"), at(b, "status"), at(b, "error"))
 	}
-	if v, n := e.catalog(); v != "2026.11.04" || n != 20 {
-		t.Errorf("the cut list was taken: %q %d", v, n)
+	if v, _ := e.catalog(); v != "2026.11.05" {
+		t.Errorf("held %q", v)
 	}
-	if _, found, _ := e.svc.st.VulnByCVE(t.Context(), "CVE-2026-30100"); found {
-		t.Error("an entry of the cut list was stored")
+	if _, found, _ := e.svc.st.VulnByCVE(t.Context(), "CVE-2026-30000"); !found {
+		t.Error("an entry of the earlier list was deleted")
 	}
-	// the same cut body again (a 304) is still refused; the GitHub copy cut too: a failed check
-	o.body(mirrorPath, `"m2"`, kevDoc(`"2026.11.05"`, `"2026-11-05T10:00:00Z"`, 10, 100))
+	// the same catalog and count on both: cisa.gov's
+	e2, o2 := kevEnv(t)
+	o2.body(primaryPath, `"p1"`, kevDoc(`"2026.11.04"`, `"2026-11-04T10:00:00Z"`, 20, 0))
+	o2.body(mirrorPath, `"m1"`, kevDoc(`"2026.11.04"`, `"2026-11-04T10:00:00Z"`, 20, 0))
+	if _, b := e2.fetch("cisa-kev"); at(b, "answered_by") != AnsweredCISA {
+		t.Errorf("a full tie: %v", at(b, "answered_by"))
+	}
+}
+
+// r2 High, the reviewer's scenario: an admin's own 40-entry list, back to the built-in address, off and on: CISA's 30 entries load.
+func TestG13r2_ACountFromAnotherAddressNeverFreezesTheList(t *testing.T) {
+	t.Parallel()
+	e, o := kevEnv(t)
+	o.body("/own.json", `"o1"`, kevDoc(`"2026.11.04"`, `"2026-11-04T10:00:00Z"`, 40, 500))
+	e.mirror("cisa-kev", o.url("/own.json"))
+	e.fetch("cisa-kev")
+	if _, n := e.catalog(); n != 40 {
+		t.Fatalf("own list: %d", n)
+	}
+	o.body(primaryPath, `"p1"`, kevDoc(`"2026.11.04"`, `"2026-11-04T10:00:00Z"`, 30, 0))
+	o.body(mirrorPath, `"m1"`, kevDoc(`"2026.11.04"`, `"2026-11-04T10:00:00Z"`, 30, 0))
+	e.put("cisa-kev", fmt.Sprintf(`{"url":%q}`, o.url(primaryPath)))
+	e.put("cisa-kev", `{"enabled":false}`)
+	e.put("cisa-kev", `{"enabled":true}`)
 	e.setNow(e.clock().Add(time.Hour))
-	if _, b := e.fetch("cisa-kev"); at(b, "status") != "error" || !strings.Contains(at(b, "error").(string), "CISA's GitHub copy sent a list of 10 entries") {
-		t.Errorf("both cut: %v %v", at(b, "status"), at(b, "error"))
+	if _, b := e.fetch("cisa-kev"); at(b, "status") != "ok" || at(b, "answered_by") != AnsweredCISA {
+		t.Fatalf("CISA's list after the own address: %v %v %v", at(b, "status"), at(b, "answered_by"), at(b, "error"))
+	}
+	if v, n := e.catalog(); v != "2026.11.04" || n != 30 {
+		t.Errorf("held %q with %d entries", v, n)
+	}
+	if _, found, _ := e.svc.st.VulnByCVE(t.Context(), "CVE-2026-30029"); !found {
+		t.Error("CISA's entries were not loaded")
+	}
+}
+
+// r2 Medium: plausibility follows the servers' clock (their Date header). A box whose clock is days behind still loads a fresh list,
+// and the note says its clock is off.
+func TestG13r2_ABoxClockDaysBehindStillLoadsAndSaysSo(t *testing.T) {
+	t.Parallel()
+	e, o := kevEnv(t)
+	o.date = func() time.Time { return time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC) } // the servers: 9 Nov; the box: 5 Nov
+	o.body(primaryPath, `"p1"`, kevDoc(`"2026.11.09"`, `"2026-11-09T10:00:00Z"`, 20, 0))
+	o.body(mirrorPath, `"m1"`, kevDoc(`"2026.11.09"`, `"2026-11-09T10:00:00Z"`, 20, 0))
+	_, b := e.fetch("cisa-kev")
+	if at(b, "status") != "ok" || at(b, "answered_by") != AnsweredCISA {
+		t.Fatalf("clock behind: %v %v %v", at(b, "status"), at(b, "answered_by"), at(b, "error"))
+	}
+	if v, _ := e.catalog(); v != "2026.11.09" {
+		t.Errorf("held %q", v)
+	}
+	if msg, _ := at(b, "error").(string); !strings.Contains(msg, "This box's clock is 4 days behind the time the servers give; set its time (NTP).") {
+		t.Errorf("note: %q", msg)
+	}
+}
+
+// r2 Medium: a 304 is judged again from what the box knows of that body, never from a stored verdict. A copy not used because its
+// version was ahead of the server's clock is taken at a later check once that clock has caught up, read in full in that check.
+func TestG13r2_A304IsJudgedAgainAndHeals(t *testing.T) {
+	t.Parallel()
+	e, o := kevEnv(t)
+	o.serve(mirrorPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusServiceUnavailable) })
+	o.body(primaryPath, `"p1"`, kevDoc(`"2026.11.04"`, `"2026-11-04T10:00:00Z"`, 20, 0))
+	e.fetch("cisa-kev")
+	o.body(primaryPath, `"p2"`, kevDoc(`"2026.11.10"`, `"2026-11-10T10:00:00Z"`, 21, 0)) // 5 days ahead of every clock now
+	e.setNow(e.clock().Add(time.Hour))
+	if _, b := e.fetch("cisa-kev"); at(b, "status") != "error" || !strings.Contains(at(b, "error").(string), "cisa.gov sent a list with no readable version or release date") {
+		t.Fatalf("ahead of the clock: %v %v", at(b, "status"), at(b, "error"))
+	}
+	e.setNow(time.Date(2026, 11, 9, 12, 0, 0, 0, time.UTC)) // the clocks catch up: cisa.gov answers 304 to "p2"
+	if _, b := e.fetch("cisa-kev"); at(b, "status") != "ok" || at(b, "answered_by") != AnsweredCISA {
+		t.Fatalf("judged again: %v %v %v", at(b, "status"), at(b, "answered_by"), at(b, "error"))
+	}
+	if v, n := e.catalog(); v != "2026.11.10" || n != 21 {
+		t.Errorf("held %q with %d", v, n)
+	}
+	var asks []string
+	for _, h := range o.all() {
+		if h.path == primaryPath {
+			asks = append(asks, h.header.Get("If-None-Match"))
+		}
+	}
+	if got := strings.Join(asks, ","); got != `,"p1","p2",` { // the last check: a 304 to "p2", then the body in full
+		t.Errorf("cisa.gov asked with %q", got)
 	}
 }
 
@@ -260,29 +347,34 @@ func TestContract_D629_FetchNowDoesNotCount(t *testing.T) {
 	}
 }
 
-// Low: a box upgraded from before migration 0016 (answered_by the GitHub copy, both validators, no copies, no release date) reads both
-// copies in full once, with no flood of "new" entries.
+// Low: a box upgraded from main before this change (answered_by the GitHub copy, both validators, no copies, no release date) asks
+// both copies in full once (each copy's version is not known yet: main would send the GitHub copy its old validator and never ask
+// cisa.gov's copy plainly), with no flood of "new" entries.
 func TestG13r1_AnUpgradedBoxReadsBothCopiesOnceWithoutNews(t *testing.T) {
 	t.Parallel()
 	e, o := kevEnv(t)
-	o.body(primaryPath, `"p1"`, testFile(t, "kev.json"))
+	o.serve(primaryPath, func(w http.ResponseWriter, _ *http.Request) { answer(w, http.StatusForbidden) })
 	o.body(mirrorPath, `"m1"`, testFile(t, "kev.json"))
 	e.fetch("cisa-kev")
 	write(t, e.db, func(tx *sql.Tx) error {
 		_, err := tx.ExecContext(t.Context(), `UPDATE feeds_source SET kev_copies = NULL, catalog_released = NULL, answered_by = 'CISA GitHub mirror',
-etag = '"old"', mirror_etag = '"m1"' WHERE id = 'cisa-kev'`)
+etag = NULL, mirror_etag = '"m1"' WHERE id = 'cisa-kev'`)
 		return err
 	})
 	before := len(e.pub.named(EventNewKEV))
+	o.body(primaryPath, `"p1"`, testFile(t, "kev.json"))
+	n := len(o.all())
 	e.setNow(e.clock().Add(time.Hour))
 	c, b := e.fetch("cisa-kev")
 	if c != 200 || at(b, "status") != "ok" || at(b, "answered_by") != AnsweredCISA {
 		t.Fatalf("after the upgrade: %d %v %v", c, at(b, "status"), at(b, "answered_by"))
 	}
-	for _, h := range o.all()[2:] {
-		if h.header.Get("If-None-Match") != "" {
-			t.Errorf("%s asked conditionally before its version was known: %q", h.path, h.header.Get("If-None-Match"))
-		}
+	asks := map[string]string{}
+	for _, h := range o.all()[n:] {
+		asks[h.path] = h.header.Get("If-None-Match")
+	}
+	if len(asks) != 2 || asks[primaryPath] != "" || asks[mirrorPath] != "" {
+		t.Errorf("after the upgrade both copies are asked in full once: %v", asks)
 	}
 	if n := len(e.pub.named(EventNewKEV)); n != before {
 		t.Errorf("%d new_kev events after the upgrade", n-before)

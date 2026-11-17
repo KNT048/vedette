@@ -2,6 +2,8 @@ package feeds
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -776,6 +778,14 @@ func unreached(err error) string {
 		return "cut the connection"
 	case errors.Is(err, syscall.EHOSTUNREACH), errors.Is(err, syscall.ENETUNREACH):
 		return "could not be reached from this box"
+	}
+	var cv *tls.CertificateVerificationError
+	var rh tls.RecordHeaderError
+	var ua x509.UnknownAuthorityError
+	var hn x509.HostnameError
+	var ci x509.CertificateInvalidError
+	if errors.As(err, &cv) || errors.As(err, &rh) || errors.As(err, &ua) || errors.As(err, &hn) || errors.As(err, &ci) {
+		return "failed the secure connection (TLS certificate or handshake)"
 	}
 	return ""
 }

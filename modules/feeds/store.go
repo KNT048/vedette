@@ -312,10 +312,11 @@ func updateSettings(ctx context.Context, tx *sql.Tx, id string, enabled bool, ho
 	// turning a feed back on forgets its back-off: the admin fixed what failed
 	q := `UPDATE feeds_source SET rev = rev + 1, failures = CASE WHEN ? = 1 AND enabled = 0 THEN 0 ELSE failures END, enabled = ?, interval_hours = ? WHERE id = ?`
 	args := []any{boolInt(enabled), boolInt(enabled), hours, id}
-	if urlChanged { // a new address starts a new count of failures (#946 r1 Low) and forgets what the old one said
+	if urlChanged { // a new address starts a new count of failures (#946 r1 Low) and forgets what the old one said: its count, version
+		// and validators (#946 r2: a count from another address must never judge this one)
 		q = `UPDATE feeds_source SET rev = rev + 1, failures = 0, enabled = ?, interval_hours = ?, url = ?, etag = NULL, last_modified = NULL,
-answered_by = NULL, mirror_etag = NULL, mirror_last_modified = NULL, kev_copies = NULL, catalog_released = NULL, stale_failed_since = NULL,
-stale_failed_checks = 0 WHERE id = ?`
+answered_by = NULL, mirror_etag = NULL, mirror_last_modified = NULL, kev_copies = NULL, catalog_version = NULL, catalog_released = NULL,
+records = NULL, stale_failed_since = NULL, stale_failed_checks = 0 WHERE id = ?`
 		args = []any{boolInt(enabled), hours, url, id}
 	}
 	if _, err := tx.ExecContext(ctx, q, args...); err != nil {
@@ -325,15 +326,15 @@ stale_failed_checks = 0 WHERE id = ?`
 		return nil
 	}
 	// Turned on or off: the watch of the CISA list restarts (D-629: the checks count from when it is on again, and an alert open when it
-	// was turned off is not followed by "up to date again"), and the CISA list forgets its held version and every validator (#946 r1:
+	// was turned off is not followed by "up to date again"), and the CISA list forgets its held version, count and every validator (#946 r1:
 	// the way out of a catalog the box should not have kept; the next check reads both copies in full).
 	if _, err := tx.ExecContext(ctx, `UPDATE feeds_source SET stale_watch_from = NULL, stale_alerted_at = NULL, stale_failed_since = NULL,
 stale_failed_checks = 0 WHERE id = ?`, id); err != nil {
 		return fmt.Errorf("feeds: restart the watch: %w", err)
 	}
 	if id == kevFeedID {
-		if _, err := tx.ExecContext(ctx, `UPDATE feeds_source SET catalog_version = NULL, catalog_released = NULL, kev_copies = NULL, etag = NULL,
-last_modified = NULL, mirror_etag = NULL, mirror_last_modified = NULL WHERE id = ?`, id); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE feeds_source SET catalog_version = NULL, catalog_released = NULL, records = NULL, kev_copies = NULL,
+etag = NULL, last_modified = NULL, mirror_etag = NULL, mirror_last_modified = NULL WHERE id = ?`, id); err != nil {
 			return fmt.Errorf("feeds: forget the held CISA list version: %w", err)
 		}
 	}

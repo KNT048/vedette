@@ -34,6 +34,8 @@
 - **`MapDebPackages`** (D-470): người gọi là `cmd/vedette` `boxPackages` (danh sách dpkg của chính hộp). Đổi `mapPackages` cho `deb_packages` cũng đổi phần mềm của "This box"; hai bên phải giữ cùng dòng để một osquery cài trên hộp không đổi qua đổi lại danh sách. `mapPackages` nhận trần số dòng: agent và Wazuh truyền `maxRows` (5 000), `MapDebPackages` không cắt (inventory lưu cả hay từ chối cả).
 - **pkgmap.json**: mỗi cặp phải có trong `content/catalog` (test); đổi `kev-products.json`/`curated.json` có thể làm một cặp chết → test đỏ.
 
+- **`ReplaceServices`** (INV-22): `Config.Services` = inventory; danh sách cổng nguồn `agent` của osquery và Wazuh dùng chung một hàng nguồn (`agent`) trên thiết bị, bên ghi sau thắng như gói (D-169 (6)); hộp tự ghi cổng của nó cũng nguồn `agent` (inventory INV-3) nhưng theo id hộp, không qua module này. Giới hạn `maxServices`/`maxSvcName` của `services.go` phải bằng của `inventory` (INV-23).
+
 ## Modifying: chứng chỉ ghim (`GET /intake/ca.pem`, INV-11, D-169 (9), D-351) — `install.go` (`anchor`), `Config.TrustAnchor`; cmd/vedette/boxca.go, tls.go
 - **Mọi máy đã đăng ký**: tin cậy nằm ở CA riêng của hộp; đổi khoá CA = mọi máy phải cài lại. Gia hạn/đổi địa chỉ chỉ cấp lại lá (không ảnh hưởng máy). CA nằm trong `core_secret` (core INV-33): khôi phục `vedette.db` + `vedette.key` giữ nó; mất khoá chủ thì không.
 - **`Config.TrustAnchor`** (cmd/vedette `deps.TrustAnchor`): nil = 404. Bộ lọc khối `CERTIFICATE` ở `anchor` (`install.go`) là chốt duy nhất giữ khoá của tệp chủ hộp không ra ngoài (cmd/vedette chuyển nguyên byte tệp `-tls-cert`): bỏ nó = lộ khoá TLS của chủ hộp trên `ca.pem` và trong script, cả hai công khai (`TestContract_INV11_CaPemServesTheCertificateOnly`).

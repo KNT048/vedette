@@ -34,6 +34,11 @@ var schedule = []scheduleQuery{
 	// UBR) into os_version.revision, a Windows-only column: a query of its own, so the os_version query above stays valid on Linux
 	// and an older osquery without the column fails this query alone. No registry table in the schedule (D-169 (1)).
 	{name: "os_revision", query: "SELECT name, version, revision, arch FROM os_version;", interval: 3600, platform: "windows"},
+	// INV-22 (kien 2026-11-17): the ports the machine listens on and the program behind each, so a machine known only through its agent
+	// has Open services. Loopback is left out on the machine; on Linux only the host's own network namespace (pid 1's) counts, not the
+	// inside of its containers (net_namespace is a Linux-only column, so Windows has its own query without it).
+	{name: "listening_ports", query: "SELECT DISTINCT l.port, l.protocol, l.address, p.name FROM listening_ports l LEFT JOIN processes p USING (pid) WHERE l.port > 0 AND l.protocol IN (6, 17) AND l.address NOT LIKE '127.%' AND l.address != '::1' AND l.net_namespace = (SELECT net_namespace FROM process_namespaces WHERE pid = 1);", interval: 3600, platform: "linux"},
+	{name: "listening_ports_windows", query: "SELECT DISTINCT l.port, l.protocol, l.address, p.name FROM listening_ports l LEFT JOIN processes p USING (pid) WHERE l.port > 0 AND l.protocol IN (6, 17) AND l.address NOT LIKE '127.%' AND l.address != '::1';", interval: 3600, platform: "windows"},
 }
 
 // The first report (D-503). osquery 5.12 runs a scheduled query when the Unix time is a multiple of its (splayed, ±10 %) interval, never at
@@ -51,7 +56,10 @@ const (
 var firstReport = map[string]string{
 	"os_version": "os_version", "system_info": "system_info", "interfaces": "interfaces",
 	"deb_packages": "packages", "rpm_packages": "packages", "programs": "packages", "kernel_info": "packages",
-	"os_revision": "os_revision", // its own answer (D-524): asked every minute until a usable revision came, not until os_version did
+	// its own answer (D-524): asked every minute until a usable revision came, not until os_version did
+	"os_revision": "os_revision",
+	// INV-22: the open ports, taken when the inventory stored the list
+	"listening_ports": "services", "listening_ports_windows": "services",
 }
 
 // hasAnswer says whether the comma-separated list holds the answer.

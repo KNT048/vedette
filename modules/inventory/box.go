@@ -113,6 +113,38 @@ func (s *Service) RefreshBoxPackages(ctx context.Context) error {
 	return s.UpsertSoftware(ctx, id, items, "agent")
 }
 
+// RefreshBoxServices stores the ports the box listens on from outside as its open services (source agent, confidence 1.0; INV-3,
+// INV-23): the box is never scanned by its own sensor, so this is the only source of its Services tab. The list goes through the
+// same bounds as a sensor's (checkServices) and replaces the box's agent rows; rows of other sources stay. It does nothing without a
+// BoxPorts (a container-only install) or when it gives no list (nil: a host older than the read): what is stored stays. A failed
+// read changes nothing either. The box's addresses are never a device (INV-17), so the row is written by its id, not by a hint.
+func (s *Service) RefreshBoxServices(ctx context.Context) error {
+	if s.boxPorts == nil {
+		return nil
+	}
+	items, err := s.boxPorts(ctx)
+	if err != nil {
+		return fmt.Errorf("inventory: box ports: %w", err)
+	}
+	if items == nil {
+		return nil
+	}
+	for i := range items {
+		items[i].Confidence = 1
+	}
+	clean, err := s.checkServices(ctx, items)
+	if err != nil {
+		return err
+	}
+	return s.write(ctx, func(tx *sql.Tx, _ *outbox) error {
+		var id string
+		if err := tx.QueryRowContext(ctx, `SELECT id FROM inv_asset WHERE is_box = 1`).Scan(&id); err != nil {
+			return fmt.Errorf("inventory: find the box: %w", err)
+		}
+		return replaceServicesTx(ctx, tx, id, clean, string(observe.Agent), s.seen(s.clock()), true)
+	})
+}
+
 func mustAddr(ip string) netip.Addr {
 	a, _ := netip.ParseAddr(ip) // "" gives the zero Addr, which claimIP ignores
 	return a

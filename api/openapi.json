@@ -30874,16 +30874,51 @@
                           "description": "The CISA list (cisa-kev) for the Home count (D-92): \"off\" when an admin turned it off, else \"loaded\" once a pull has ever succeeded (even if a later pull failed), else \"never_loaded\""
                         },
                         "error": {
-                          "description": "One line, cleaned: why the last pull failed; null when it has not failed or has not been tried",
+                          "description": "One line, cleaned: why the last pull failed (also when an earlier pull had loaded the list); null when the last pull worked, has not been tried, or the list is off",
                           "type": [
                             "string",
                             "null"
                           ]
+                        },
+                        "interval_hours": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "How often the box pulls the CISA list (kien G11: Home says \"checked every hour\")"
+                        },
+                        "checked_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When the box last asked for the CISA list, whether the pull worked or not; null before the first pull"
+                        },
+                        "last_success": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When a pull of the CISA list last worked; null when none ever did"
                         }
                       },
                       "required": [
                         "state",
-                        "error"
+                        "error",
+                        "interval_hours",
+                        "checked_at",
+                        "last_success"
                       ],
                       "additionalProperties": false
                     }

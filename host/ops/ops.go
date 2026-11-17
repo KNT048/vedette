@@ -391,7 +391,7 @@ func (o *Ops) Commands() []server.Command {
 // Readers are the state endpoints of this part, for server.Options.Readers.
 func (o *Ops) Readers() server.Readers {
 	return server.Readers{
-		OS: o.readOS, Backups: o.readBackups, Net: o.readNet, Containers: o.readContainers, Host: o.readHost, Packages: o.readPackages, HPTouches: o.readHPTouches,
+		OS: o.readOS, Backups: o.readBackups, Net: o.readNet, Containers: o.readContainers, Host: o.readHost, Packages: o.readPackages, Ports: o.readPorts, HPTouches: o.readHPTouches,
 		BackupContent: o.backupContent, ExportContent: o.exportContent, ZapReport: o.zapReport,
 	}
 }

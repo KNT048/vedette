@@ -199,9 +199,21 @@ function Observations({ list }: { list: Observation[] }) {
   )
 }
 
-function Services({ list, fragile }: { list: Service[]; fragile: boolean }) {
+/** Who lists a device's open ports, for the empty state (kien 2026-11-17): the box lists its own, an agent lists its machine's, the active
+ *  sensor scans the rest. */
+type PortsBy = 'box' | 'boxContainer' | 'agent' | 'fragile' | 'scan'
+
+function Services({ list, by }: { list: Service[]; by: PortsBy }) {
   const { t } = useTranslation('inventory')
-  if (!list.length) return <EmptyState title={t('services.empty')} info={fragile ? t('services.emptyFragileInfo') : t('services.emptyBodyInfo')}>{fragile ? t('services.emptyFragile') : t('services.emptyBody')}</EmptyState>
+  if (!list.length) {
+    const [body, info] = {
+      box: [t('services.emptyBox'), t('services.emptyBoxInfo')],
+      boxContainer: [t('services.emptyBoxContainer'), t('services.emptyBoxContainerInfo')],
+      agent: [t('services.emptyAgent'), t('services.emptyAgentInfo')],
+      fragile: [t('services.emptyFragile'), t('services.emptyFragileInfo')], scan: [t('services.emptyBody'), t('services.emptyBodyInfo')],
+    }[by]
+    return <EmptyState title={t('services.empty')} info={info}>{body}</EmptyState>
+  }
   const columns: ColumnDef<Service>[] = [
     { id: 'port', header: t('services.port'), accessorFn: (s) => s.port, cell: ({ row }) => <span className="whitespace-nowrap">{row.original.port}/{row.original.proto}</span> },
     { id: 'name', header: t('services.name'), accessorFn: (s) => s.name },
@@ -422,7 +434,7 @@ function Body() {
           </Section>
         ) },
         { id: 'services', label: t('detail.tabs.services'), panel: (
-          <Section id="services" title={t('services.title')} description={t('services.description')} info={<><p>{t('services.descriptionInfo')}</p><p>{t('services.descriptionInfo2')}</p></>}><Services list={a.services} fragile={a.fragile} /></Section>
+          <Section id="services" title={t('services.title')} description={t('services.description')} info={<><p>{t('services.descriptionInfo')}</p><p>{t('services.descriptionInfo2')}</p></>}><Services list={a.services} by={a.is_box ? (/container-only/.test(a.model?.value ?? '') ? 'boxContainer' : 'box') : [...d.observations, ...a.software].some((x) => x.source === 'agent') ? 'agent' : a.fragile ? 'fragile' : 'scan'} /></Section>
         ) },
         { id: 'observations', label: t('detail.tabs.observations'), panel: (
           <Section id="obs" title={t('obs.title')} description={t('obs.description')} info={<><p>{t('obs.descriptionInfo')}</p><p>{t('detail.meta')}</p></>}>

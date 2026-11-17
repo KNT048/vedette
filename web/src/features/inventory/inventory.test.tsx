@@ -875,6 +875,26 @@ describe('inventory: device detail (S-INV-1)', () => {
     expect((await call('PATCH', '/devices/a-none', { notes: 'x' })).status).toBe(404)
   })
 
+  it('an empty Services tab says who lists the ports: the box itself, an agent, or the scan (kien 2026-11-17)', async () => {
+    asAdmin()
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-box' ? { ...a, services: [] } : a)))
+    renderApp('/devices/a-box?tab=services')
+    expect(await screen.findByText('The box lists the ports it listens on itself, every hour; none has come yet.', undefined, T)).toBeInTheDocument()
+    expect(screen.queryByText(/active sensor has not scanned/)).not.toBeInTheDocument()
+  })
+
+  it('an empty Services tab of a container-only box says it lists none, of an agent device that its agent has not reported yet', async () => {
+    asAdmin()
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-box' ? { ...a, services: [], model: a.model && { ...a.model, value: 'Security box (container-only)' } } : a)))
+    const { unmount } = renderApp('/devices/a-box?tab=services')
+    expect(await screen.findByText("A container-only install does not list the box's own ports.", undefined, T)).toBeInTheDocument()
+    unmount()
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-pc01' ? { ...a, fragile: false, services: [], software: [{ id: 's-agent', display: 'OpenSSH', vendor: 'OpenBSD', product: 'OpenSSH', version: '9.6p1', kev: [], source: 'agent', confidence: 0.95 }] } : a)))
+    renderApp('/devices/a-pc01?tab=services')
+    expect(await screen.findByText('Its agent lists the ports this machine listens on; none has come yet.', undefined, T)).toBeInTheDocument()
+    expect(screen.queryByText(/active sensor has not scanned/)).not.toBeInTheDocument()
+  })
+
   it('a detail load error shows the error state', async () => {
     server.use(http.get('*/api/v1/inventory/devices/:id', () => HttpResponse.json({ error: { code: 'x', message: 'Could not read the device data.' } }, { status: 500 })))
     renderApp('/devices/a-pc01')
@@ -2010,7 +2030,7 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(osquerySteps('windows', BOX, 't', []).map((s) => s.key)).toEqual(['secret', 'flags', 'service'])
 
     const sched = JSON.parse(OSQUERY_SCHEDULE).schedule as Record<string, { query: string; platform?: string }>
-    expect(Object.keys(sched).sort()).toEqual(['deb_packages', 'interfaces', 'kernel_info', 'os_revision', 'os_version', 'programs', 'rpm_packages', 'system_info']) // D-169 (7): identity query in, unused columns and patches out
+    expect(Object.keys(sched).sort()).toEqual(['deb_packages', 'interfaces', 'kernel_info', 'listening_ports', 'listening_ports_windows', 'os_revision', 'os_version', 'programs', 'rpm_packages', 'system_info']) // D-169 (7): identity query in, unused columns and patches out; INV-22: open ports
     expect(JSON.stringify(sched)).not.toMatch(/cpu_brand|physical_memory|patches/)
     expect(sched.interfaces!.query).toContain('interface_details')
     for (const q of Object.values(sched)) expect(q.query).toMatch(/^SELECT /) // read-only queries

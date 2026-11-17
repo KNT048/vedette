@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"net/netip"
@@ -120,6 +121,7 @@ type sockEntry struct {
 	port  uint16
 	udp   bool
 	inode uint64
+	peer  bool // a UDP socket connected to one peer (its remote port is set): a client, not a listener (GET /v1/state/ports)
 }
 
 // parseProcNet reads /proc/net/tcp, tcp6, udp or udp6 text: TCP sockets in LISTEN (0A), every UDP socket (a bound one holds its port
@@ -129,7 +131,8 @@ func parseProcNet(r io.Reader, udp bool) ([]sockEntry, error) {
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 0, 512), 4096)
 	var out []sockEntry
-	for n := 0; sc.Scan() && n < maxProcNetLines; n++ {
+	n := 0
+	for ; n < maxProcNetLines && sc.Scan(); n++ {
 		f := strings.Fields(sc.Text())
 		if len(f) < 10 || !strings.HasSuffix(f[0], ":") || (!udp && f[3] != "0A") {
 			continue
@@ -144,10 +147,20 @@ func parseProcNet(r io.Reader, udp bool) ([]sockEntry, error) {
 		if err != nil || perr != nil || ierr != nil || port == 0 {
 			continue
 		}
-		out = append(out, sockEntry{addr: addr, port: uint16(port), udp: udp, inode: inode})
+		_, rp, _ := strings.Cut(f[2], ":")
+		out = append(out, sockEntry{addr: addr, port: uint16(port), udp: udp, inode: inode, peer: rp != "" && strings.Trim(rp, "0") != ""})
 	}
-	return out, sc.Err()
+	if err := sc.Err(); err != nil {
+		return out, err
+	}
+	if n == maxProcNetLines && sc.Scan() {
+		return out, errProcNetCut
+	}
+	return out, nil
 }
+
+// errProcNetCut is a socket table longer than maxProcNetLines: what was read is not the whole table.
+var errProcNetCut = errors.New("the socket table is longer than the lines read")
 
 // procNetAddr reads an address of /proc/net/{tcp,udp}{,6}: the kernel prints each 32-bit word it holds in network order as a
 // hexadecimal number in host byte order (8 digits for IPv4, 4 words for IPv6). An IPv4-mapped IPv6 address is returned as IPv4.
@@ -172,14 +185,40 @@ func clashes(p hostPort, s sockEntry) bool {
 	return s.port == p.port && s.udp == p.udp && (!p.addr.IsValid() || s.addr.IsUnspecified() || s.addr == p.addr)
 }
 
+// socketTables are the kernel's socket tables, relative to the root.
+var socketTables = []struct {
+	rel string
+	udp bool
+}{{"proc/net/tcp", false}, {"proc/net/tcp6", false}, {"proc/net/udp", true}, {"proc/net/udp6", true}}
+
+// socketsWhole reads the four socket tables for GET /v1/state/ports, strictly (#933 review r2 L2): a table that is not there (no IPv6)
+// has nothing, the IPv4 TCP table must be there, and any table that exists but cannot be opened or read to its end fails the read,
+// so core keeps the box's list rather than replacing it with part of one. The port check of D-455 keeps its lenient sockets.
+func (o *Ops) socketsWhole() ([]sockEntry, error) {
+	var out []sockEntry
+	for i, t := range socketTables {
+		f, err := os.Open(o.path(t.rel))
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) && i > 0 {
+				continue
+			}
+			return nil, fmt.Errorf("ports: socket table %s: %w", t.rel, err)
+		}
+		s, err := parseProcNet(f, t.udp)
+		_ = f.Close()
+		if err != nil {
+			return nil, fmt.Errorf("ports: socket table %s: %w", t.rel, err)
+		}
+		out = append(out, s...)
+	}
+	return out, nil
+}
+
 // sockets reads the four socket tables under the root. A table that is not there (no IPv6) has nothing; one that cannot be read
 // is logged and has what was read of it.
 func (o *Ops) sockets(ctx context.Context) []sockEntry {
 	var out []sockEntry
-	for _, t := range []struct {
-		rel string
-		udp bool
-	}{{"proc/net/tcp", false}, {"proc/net/tcp6", false}, {"proc/net/udp", true}, {"proc/net/udp6", true}} {
+	for _, t := range socketTables {
 		f, err := os.Open(o.path(t.rel))
 		if err != nil {
 			if !errors.Is(err, fs.ErrNotExist) {

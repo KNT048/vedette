@@ -11364,6 +11364,97 @@ func decodeScanPostScansRunsIDStopParams(args [1]string, argsEscaped bool, r *ht
 	return params, nil
 }
 
+// ScanningGetScanningHistoryParams is parameters of scanning_get_scanning_history operation.
+type ScanningGetScanningHistoryParams struct {
+	Asset OptString `json:",omitempty,omitzero"`
+}
+
+func unpackScanningGetScanningHistoryParams(packed middleware.Parameters) (params ScanningGetScanningHistoryParams) {
+	{
+		key := middleware.ParameterKey{
+			Name: "asset",
+			In:   "query",
+		}
+		if v, ok := packed[key]; ok {
+			params.Asset = v.(OptString)
+		}
+	}
+	return params
+}
+
+func decodeScanningGetScanningHistoryParams(args [0]string, argsEscaped bool, r *http.Request) (params ScanningGetScanningHistoryParams, _ error) {
+	q := uri.NewQueryDecoder(r.URL.Query())
+	// Decode query: asset.
+	if err := func() error {
+		cfg := uri.QueryParameterDecodingConfig{
+			Name:    "asset",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.HasParam(cfg); err == nil {
+			if err := q.DecodeParam(cfg, func(d uri.Decoder) error {
+				var paramsDotAssetVal string
+				if err := func() error {
+					val, err := d.DecodeValue()
+					if err != nil {
+						return err
+					}
+
+					c, err := conv.ToString(val)
+					if err != nil {
+						return err
+					}
+
+					paramsDotAssetVal = c
+					return nil
+				}(); err != nil {
+					return err
+				}
+				params.Asset.SetTo(paramsDotAssetVal)
+				return nil
+			}); err != nil {
+				return err
+			}
+			if err := func() error {
+				if value, ok := params.Asset.Get(); ok {
+					if err := func() error {
+						if err := (validate.String{
+							MinLength:     0,
+							MinLengthSet:  false,
+							MaxLength:     96,
+							MaxLengthSet:  true,
+							Email:         false,
+							Hostname:      false,
+							Regex:         nil,
+							MinNumeric:    0,
+							MinNumericSet: false,
+							MaxNumeric:    0,
+							MaxNumericSet: false,
+						}).Validate(string(value)); err != nil {
+							return errors.Wrap(err, "string")
+						}
+						return nil
+					}(); err != nil {
+						return err
+					}
+				}
+				return nil
+			}(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}(); err != nil {
+		return params, &ogenerrors.DecodeParamError{
+			Name: "asset",
+			In:   "query",
+			Err:  err,
+		}
+	}
+	return params, nil
+}
+
 // ScanningPatchScanningEnginesIDParams is parameters of scanning_patch_scanning_engines_id operation.
 type ScanningPatchScanningEnginesIDParams struct {
 	ID ScanningPatchScanningEnginesIDID

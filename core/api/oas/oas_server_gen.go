@@ -2301,7 +2301,7 @@ type Handler interface {
 	// scans module is on.
 	//
 	// GET /scanning/history
-	ScanningGetScanningHistory(ctx context.Context) (*ScanningGetScanningHistoryOK, error)
+	ScanningGetScanningHistory(ctx context.Context, params ScanningGetScanningHistoryParams) (*ScanningGetScanningHistoryOK, error)
 	// ScanningPatchScanningEnginesID implements scanning_patch_scanning_engines_id operation.
 	//
 	// Turn an engine on or off: its module switch (passive, osquery, wazuh, nuclei, honeypot), active

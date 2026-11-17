@@ -76408,6 +76408,18 @@
           "S-INV-1"
         ],
         "x-min-role": "viewer",
+        "parameters": [
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "A device id (kien G7b/c, the device page's Last checks): only the runs that reached its address now, the identifications of that address (kind device) and the SNMP reads that asked it, at most 200 of each kind, from the year of runs the box keeps; no sweep, no public scan. An unknown device, or one without an address, gives an empty list",
+              "type": "string",
+              "maxLength": 96
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",

@@ -29,6 +29,8 @@ export const historyStore = collection<HistoryRow[]>('scanning_history', () => [
   { id: 'saj-h2', kind: 'sweep', engine: 'nmap-discovery', trigger: 'sweep', label: 'LAN 192.168.10.0/24', target_id: null, started_at: ago(20), ended_at: ago(19.9), outcome: 'ok', text: 'Swept 254 addresses: 12 hosts answered, 2 new devices' },
   { id: 'saj-h3', kind: 'snmp', engine: 'snmp', trigger: 'automatic', label: 'SNMP read', target_id: null, started_at: ago(21), ended_at: ago(20.95), outcome: 'partial', text: '2 of 3 devices answered over SNMP' },
 ], () => [])
+/** The addresses each mock SNMP read asked (the box keeps them in its probes; History shows only the count). */
+const snmpAsked: Record<string, string[]> = { 'saj-h3': ['192.168.10.1', '192.168.10.21', '192.168.10.30'] }
 
 interface Def { id: Id; group: EngineT['group']; module: ModuleId & EngineT['module']; follows?: Id; affects?: Id[]; preview?: boolean; cost: EngineT['cost'] }
 const DEFS: Def[] = [
@@ -144,7 +146,15 @@ const SCOPE_NOT_CONFIRMED = 'Tick the confirmation that these network ranges bel
 
 export const handlers = [
   http.get(`${API}/scanning`, () => guard('viewer') ?? HttpResponse.json(scanningView())),
-  http.get(`${API}/scanning/history`, () => guard('viewer') ?? HttpResponse.json({ items: [...historyStore.get()].sort((a, b) => b.started_at.localeCompare(a.started_at)) })),
+  http.get(`${API}/scanning/history`, ({ request }) => {
+    const denied = guard('viewer')
+    if (denied) return denied
+    // kien G7b/c: ?asset= keeps the runs that reached the device's address now: its checks and the SNMP reads that asked it
+    const asset = new URL(request.url).searchParams.get('asset')
+    const ip = asset === null ? null : assetsStore.get().find((a) => a.id === asset)?.ip ?? '—'
+    const rows = ip === null ? historyStore.get() : historyStore.get().filter((r) => ip !== '—' && ((r.kind === 'device' && r.label === ip) || (r.kind === 'snmp' && (snmpAsked[r.id] ?? []).includes(ip))))
+    return HttpResponse.json({ items: [...rows].sort((a, b) => b.started_at.localeCompare(a.started_at)) })
+  }),
 
   http.put(`${API}/scanning/safety`, async ({ request }) => {
     const denied = guard('admin'); if (denied) return denied

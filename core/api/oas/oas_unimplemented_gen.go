@@ -3320,7 +3320,7 @@ func (UnimplementedHandler) ScanningGetScanning(ctx context.Context) (r *Scannin
 // scans module is on.
 //
 // GET /scanning/history
-func (UnimplementedHandler) ScanningGetScanningHistory(ctx context.Context) (r *ScanningGetScanningHistoryOK, _ error) {
+func (UnimplementedHandler) ScanningGetScanningHistory(ctx context.Context, params ScanningGetScanningHistoryParams) (r *ScanningGetScanningHistoryOK, _ error) {
 	return r, ht.ErrNotImplemented
 }
 

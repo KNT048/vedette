@@ -224,7 +224,7 @@ type ScanningConfig struct {
 	Safety    SafetyStore
 	Engines   []ScanEngine
 	Discovery DiscoveryRunner                                 // nil: the run answers 501
-	History   func(ctx context.Context) ([]HistoryRun, error) // the runs of GET /scanning/history, newest first; nil: none
+	History   func(ctx context.Context, asset string) ([]HistoryRun, error) // the runs of GET /scanning/history (asset "": every run; a device id: the runs that reached it, kien G7b/c), newest first; nil: none
 	TimeZone  func(ctx context.Context) string                // the organization's zone; nil or "": UTC
 	MemoryMB  func() (int, bool)                              // MemTotal of the box; nil or false: unknown
 }
@@ -439,8 +439,8 @@ func (h *ScanningHandlers) ScanningGetScanning(ctx context.Context) (*oas.Scanni
 }
 
 // ScanningGetScanningHistory implements GET /scanning/history (viewer): the runs of the LAN engines and the stored public scans,
-// newest first, at most historyMax.
-func (h *ScanningHandlers) ScanningGetScanningHistory(ctx context.Context) (*oas.ScanningGetScanningHistoryOK, error) {
+// newest first, at most historyMax; with asset, only the runs that reached that device (the device page's Last checks, kien G7b/c).
+func (h *ScanningHandlers) ScanningGetScanningHistory(ctx context.Context, params oas.ScanningGetScanningHistoryParams) (*oas.ScanningGetScanningHistoryOK, error) {
 	type item struct {
 		ID        string  `json:"id"`
 		Kind      string  `json:"kind"`
@@ -457,13 +457,13 @@ func (h *ScanningHandlers) ScanningGetScanningHistory(ctx context.Context) (*oas
 		Items []item `json:"items"`
 	}{Items: []item{}}
 	if h.cfg.History != nil {
-		runs, err := h.cfg.History(ctx)
+		runs, err := h.cfg.History(ctx, params.Asset.Or(""))
 		if err != nil {
 			return nil, err
 		}
 		slices.SortStableFunc(runs, func(a, b HistoryRun) int { return b.StartedAt.Compare(a.StartedAt) })
 		for i, r := range runs {
-			if i == historyMax {
+			if i == historyMax && params.Asset.Or("") == "" { // a device's runs are capped per kind by the source
 				break
 			}
 			it := item{ID: r.ID, Kind: r.Kind, Engine: r.Engine, Trigger: r.Trigger, Label: r.Label, TargetID: strOrNil(r.TargetID), StartedAt: store.FormatTS(r.StartedAt), Outcome: r.Outcome, Text: r.Text}

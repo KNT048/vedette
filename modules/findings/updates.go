@@ -154,7 +154,7 @@ func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time) (fixe
 	rowOf := map[string]Software{} // CVE -> the row the matcher matches it on (the finding's row, as matchedRow reads it)
 	if len(mine) > 0 {
 		r := MatchAsset(a, mine, have, now)
-		for _, m := range slices.Concat(r.New, r.Existing) {
+		for _, m := range slices.Concat(r.New, r.Existing, r.NameOnly) { // NameOnly: a finding a person reopened keeps its row (D-602)
 			if sw, ok := sws[m.SoftwareID]; ok {
 				rowOf[m.CVE] = sw
 			} else if m.SoftwareID != "" {

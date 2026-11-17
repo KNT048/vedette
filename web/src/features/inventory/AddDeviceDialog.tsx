@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
 import { kindLabel } from '@/lib/deviceTypes'
-import { useAddDevice, useDeviceAction, useDevices } from './api'
+import { useAddDevice, useDeviceAction, useDevices, useIgnoredDevices } from './api'
 import { nameOf } from './nameOf'
 import { errMsg } from './kinds'
 import { ProductPicker, productFields, type ChosenProduct } from './ProductPicker'
@@ -27,8 +27,9 @@ export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode
   const [ip, setIp] = useState('')
   const [ipErr, setIpErr] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [dup, setDup] = useState<{ id: string; name: string } | null>(null)
+  const [dup, setDup] = useState<{ id: string; name: string; ignored?: boolean } | null>(null)
   const devices = useDevices()
+  const ignoredDevices = useIgnoredDevices(false) // D-630: read only when an address is taken by a device the list leaves out
   const addDevice = useAddDevice()
   const addSoftware = useDeviceAction(deviceId ?? '').addSoftware
   const pending = addDevice.isPending || addSoftware.isPending
@@ -63,8 +64,17 @@ export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode
       onError: (er) => {
         setError(errMsg(er))
         // 409 duplicate_ip: the device is already in the list; open it from here instead of searching for it (#842).
-        const same = er instanceof ApiError && er.code === 'duplicate_ip' ? devices.data?.items.find((d) => d.ip === ip.trim()) : undefined
+        const at = ip.trim()
+        const isDup = er instanceof ApiError && er.code === 'duplicate_ip'
+        const same = isDup ? devices.data?.items.find((d) => d.ip === at) : undefined
         setDup(same ? { id: same.id, name: nameOf(same, kindLabel(same.kind)) } : null)
+        // review r1 L9 of #945: an ignored device holds the address; the Devices list leaves it out, so look there and say so
+        if (isDup && !same) {
+          void ignoredDevices.refetch().then((r) => {
+            const hit = r.data?.items.find((d) => d.ip === at)
+            if (hit) setDup({ id: hit.id, name: nameOf(hit, kindLabel(hit.kind)), ignored: true })
+          })
+        }
       },
     })
   }
@@ -86,7 +96,7 @@ export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode
         <Input id="add-version" value={version} onChange={(e) => setVersion(e.target.value)} placeholder={t('add.versionPlaceholder')} maxLength={40} />
       </Field>
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error}
-        actions={dup ? <Link to={`/devices/${encodeURIComponent(dup.id)}`} onClick={onDone} className="text-sm font-medium text-accent underline-offset-4 hover:underline">{t('add.openExisting', { name: dup.name })}</Link> : undefined} /> : null}
+        actions={dup ? <Link to={`/devices/${encodeURIComponent(dup.id)}`} onClick={onDone} className="text-sm font-medium text-accent underline-offset-4 hover:underline">{t(dup.ignored ? 'add.openIgnored' : 'add.openExisting', { name: dup.name })}</Link> : undefined} /> : null}
       <DialogFooter>
         <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
         <Button type="submit" variant="primary" disabled={!product} busy={pending} busyLabel={t('common:busy.adding')}>{t('add.submit')}</Button>

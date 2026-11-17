@@ -24,6 +24,8 @@ type fakeInv struct {
 	assets map[string]AssetView
 	match  map[string]Asset
 	idsErr error
+	// ignored are the devices a person ignored (D-630); the test also removes them from match, as the inventory does.
+	ignored map[string]bool
 	// onMatch runs (without the lock) when MatchInput reads a device: a test can change the world while a pass reads it.
 	onMatch func(id string)
 }
@@ -52,6 +54,18 @@ func (f *fakeInv) MatchInput(_ context.Context, id string) (Asset, bool, error) 
 }
 
 // AssetIDs lists the devices that exist: the ones the matcher can read. idsErr makes the read fail.
+func (f *fakeInv) IgnoredIDs(context.Context) ([]string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Sorted(maps.Keys(f.ignored)), nil
+}
+
+func (f *fakeInv) IsIgnored(_ context.Context, id string) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.ignored[id], nil
+}
+
 func (f *fakeInv) AssetIDs(context.Context) ([]string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -171,6 +185,8 @@ type env struct {
 	feeds *fakeFeeds
 	pub   *fakePub
 	clock *time.Time
+	// parked keeps the match input of a device a test ignored (env.ignore), to give it back when it is watched again.
+	parked map[string]Asset
 }
 
 func newEnv(t testing.TB) *env {
@@ -189,7 +205,7 @@ func newEnv(t testing.TB) *env {
 	}
 	e.feeds = &fakeFeeds{
 		kev:   map[string]KevInfo{"CVE-2022-27593": {Name: "QNAP Photo Station External Reference", Vendor: "QNAP", Product: "Photo Station", RequiredAction: "Apply updates.", Links: []string{"https://example.test/a"}, DateAdded: "2022-09-01", Ransomware: true}},
-		vulns: []Vuln{qnapVuln()},
+		vulns: []Vuln{qnapScanned()},
 	}
 	svc, err := NewService(ServiceConfig{DB: db, Audit: audit.New(func() time.Time { return *e.clock }), Publisher: e.pub, Inventory: e.inv, Feeds: e.feeds, Log: slog.New(slog.DiscardHandler), Clock: func() time.Time { return *e.clock }})
 	if err != nil {
@@ -606,7 +622,7 @@ func TestContract_POST1_EventsSurviveACancelledContextAfterCommit(t *testing.T) 
 	defer cancel()
 	pub := &ctxPub{cancel: cancel}
 	e.svc.cfg.Publisher = pub
-	vulns := []Vuln{qnapVuln(), {CVE: "CVE-2021-0001", Vendor: "QNAP", Product: "Photo Station"}}
+	vulns := []Vuln{qnapScanned(), {CVE: "CVE-2021-0001", Vendor: "QNAP", Product: "Photo Station", HasTemplate: true}}
 	res, err := e.svc.UpsertFromMatch(ctx, nas("6.1.1"), vulns)
 	if err != nil || len(res.Created) != 2 {
 		t.Fatalf("result = %+v err=%v", res, err)
@@ -742,8 +758,8 @@ func TestUpsert_NoLongerMatchesThenMatchesAgain(t *testing.T) {
 	}
 	run(moved)
 	run(moved)
-	run(qnapVuln())
-	run(qnapVuln())
+	run(qnapScanned())
+	run(qnapScanned())
 	if count("no_longer_matches") != 1 || count("matches_again") != 1 {
 		t.Fatalf("rows: %d and %d, want 1 and 1", count("no_longer_matches"), count("matches_again"))
 	}
@@ -758,7 +774,8 @@ func TestUpsert_NoLongerMatchesThenMatchesAgain(t *testing.T) {
 func TestUpsert_NoVersionIsOneItemAndOldFindingsGetANote(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), e.feeds.vulns); err != nil { // the old flood: a product finding
+	e.feeds.vulns[0].Affected = []Affected{{CPE: qnapCPE, Range: VersionRange{EndExcl: "next"}}} // a version decides it (M3 of #939), 6.1.1 does not compare
+	if _, err := e.svc.UpsertFromMatch(t.Context(), nas("6.1.1"), e.feeds.vulns); err != nil {   // the old flood: a product finding
 		t.Fatal(err)
 	}
 	res, err := e.svc.UpsertFromMatch(t.Context(), nas(""), e.feeds.vulns)

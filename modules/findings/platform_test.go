@@ -84,7 +84,7 @@ func TestPlatform_OtherCVEsUnchanged(t *testing.T) {
 	v := sshhole()
 	v.CVE = "CVE-2024-6387"
 	res := MatchAsset(Asset{ID: "x", Name: "x", Software: []Software{sshRow("9.6p1 Ubuntu 3ubuntu13.20", "Ubuntu Linux; protocol 2.0", "")}}, []Vuln{v}, nil, t0)
-	if len(res.New) != 1 || len(res.OtherPlatform) != 0 || strings.Contains(res.New[0].Evidence.Summary, "affects only") {
+	if len(res.NameOnly) != 1 || len(res.OtherPlatform) != 0 || strings.Contains(res.NameOnly[0].said, "affects only") { // D-602: no finding
 		t.Fatalf("result %+v", res)
 	}
 }

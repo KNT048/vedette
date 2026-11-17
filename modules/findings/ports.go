@@ -12,7 +12,28 @@ const (
 	// EventSeverityRaised: a repeated match raised the severity of an open finding (review H2, M-a of #663): a
 	// product finding whose NVD ranges arrived and put its version inside (basis version), so it may now be critical.
 	EventSeverityRaised = "findings.finding.severity_raised"
+	// EventUncheckedAdded: exploited CVEs entered a device's "could not be checked" list for the first time (D-602, review r1 H2 of
+	// #939): one event per device and match write, listing them; never again for the same device and CVE, never for a CVE the device
+	// has or had a finding for. Published under the Backlog mark from Reconcile's backlog write, like findings.finding.created.
+	EventUncheckedAdded = "findings.unchecked.added"
 )
+
+// UncheckedAddedEvent is the payload of findings.unchecked.added.
+type UncheckedAddedEvent struct {
+	AssetID   string              `json:"asset_id"`
+	AssetName string              `json:"asset_name"` // the name the matcher gives the device (Asset.Name)
+	CVEs      []UncheckedAddedCVE `json:"cves"`       // in list order, each once
+}
+
+// UncheckedAddedCVE is one CVE of an UncheckedAddedEvent: the row it is listed on and why it could not be checked.
+type UncheckedAddedCVE struct {
+	CVE        string          `json:"cve"`
+	SoftwareID string          `json:"software_id"` // "os:<asset>" for the network OS a device states without a software row
+	Software   string          `json:"software"`
+	Version    string          `json:"version"`
+	Reason     UncheckedReason `json:"reason"`
+	NVDPending bool            `json:"nvd_pending,omitempty"` // no_nvd_data while NVD has not answered yet: say "waiting for NVD's data"
+}
 
 // CreatedEvent is the payload of findings.finding.created.
 type CreatedEvent struct {
@@ -84,6 +105,11 @@ type Inventory interface {
 	// AssetIDs returns the id of every device, with no cap. Reconcile matches each of them and treats a finding whose
 	// device is not in the list as orphaned, so a short answer must never be returned: any read error is an error.
 	AssetIDs(ctx context.Context) ([]string, error)
+	// IgnoredIDs returns the devices a person ignored (inventory INV-38, D-630), with no cap; any read error is an error. They are
+	// not in AssetIDs: reconcile closes their open findings and never treats their findings as orphaned.
+	IgnoredIDs(ctx context.Context) ([]string, error)
+	// IsIgnored says whether a person ignored the device; false when it does not exist. Asked inside a write (D-630).
+	IsIgnored(ctx context.Context, assetID string) (bool, error)
 }
 
 // KevInfo is the KEV entry shown with a finding (FindingRow.kev, INV-8).

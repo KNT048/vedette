@@ -55,7 +55,9 @@ func (f *fakeInv) MatchInput(context.Context, string) (findings.Asset, bool, err
 	return findings.Asset{}, false, nil
 }
 
-func (f *fakeInv) AssetIDs(context.Context) ([]string, error) { return nil, nil }
+func (f *fakeInv) AssetIDs(context.Context) ([]string, error)      { return nil, nil }
+func (f *fakeInv) IgnoredIDs(context.Context) ([]string, error)    { return nil, nil }
+func (f *fakeInv) IsIgnored(context.Context, string) (bool, error) { return false, nil }
 
 type fakeFeeds struct{}
 
@@ -179,7 +181,8 @@ func newRig(t *testing.T) *rig {
 		t.Fatal(err)
 	}
 	sw := []findings.Software{{ID: "s-1", Display: "Photo Station", Vendor: "QNAP", Product: "Photo Station", Version: "6.0.3", KevKeys: []string{"qnap|photo station"}}}
-	vulns := []findings.Vuln{{CVE: qnapCVE, Vendor: "QNAP", Product: "Photo Station"}, {CVE: otherCVE, Vendor: "QNAP", Product: "Photo Station"}}
+	// a scan template checks both: the product matches stay suspected findings (D-602), as before
+	vulns := []findings.Vuln{{CVE: qnapCVE, Vendor: "QNAP", Product: "Photo Station", HasTemplate: true}, {CVE: otherCVE, Vendor: "QNAP", Product: "Photo Station", HasTemplate: true}}
 	res, err := r.svc.UpsertFromMatch(t.Context(), findings.Asset{ID: "a-1", Name: "nas01", Software: sw}, vulns)
 	if err != nil || len(res.Created) != 2 {
 		t.Fatalf("seed findings: %+v %v", res, err)

@@ -246,6 +246,7 @@
   "POST /inventory/agents/wazuh/test": "agent-intake",
   "POST /inventory/devices": "inventory",
   "POST /inventory/devices/{id}/approve": "inventory",
+  "POST /inventory/devices/{id}/ignore": "inventory",
   "POST /inventory/devices/{id}/keep-separate": "inventory",
   "POST /inventory/devices/{id}/merge": "inventory",
   "POST /inventory/devices/{id}/software": "inventory",

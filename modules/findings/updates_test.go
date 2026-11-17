@@ -106,7 +106,7 @@ func TestDeviceUpdates_G9_ManualRowIsDetectedAndALeftCVEStays(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	v := Vuln{CVE: "CVE-2099-0001", Vendor: "QNAP", Product: "Photo Station", Affected: []Affected{{CPE: "cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "6.2.0"}}}}
-	e.feeds.vulns = []Vuln{v, qnapVuln()}
+	e.feeds.vulns = []Vuln{v, qnapScanned()} // the scannable one stays a product finding (D-602)
 	typed := nas("6.1.1")
 	typed.Software[0].Source = "manual"
 	e.inv.mu.Lock()

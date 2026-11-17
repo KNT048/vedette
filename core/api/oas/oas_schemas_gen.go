@@ -70843,11 +70843,14 @@ func (s *FindingsGetFindingsOKUncheckedItemAssetKind) UnmarshalText(data []byte)
 }
 
 type FindingsGetFindingsOKUncheckedItemCvesItem struct {
-	Advisory   NilURI    `json:"advisory"`
-	Cve        string    `json:"cve"`
-	DateAdded  time.Time `json:"date_added"`
-	Name       string    `json:"name"`
-	Ransomware bool      `json:"ransomware"`
+	Advisory  NilURI    `json:"advisory"`
+	Cve       string    `json:"cve"`
+	DateAdded time.Time `json:"date_added"`
+	Name      string    `json:"name"`
+	// D-602: reason no_nvd_data while Vedette has not read NVD's answer for this CVE yet (new box, NVD
+	// feed off or failing): say "waiting for NVD's data", not "NVD has not published".
+	NvdPending OptBool `json:"nvd_pending"`
+	Ransomware bool    `json:"ransomware"`
 }
 
 // GetAdvisory returns the value of Advisory.
@@ -70868,6 +70871,11 @@ func (s *FindingsGetFindingsOKUncheckedItemCvesItem) GetDateAdded() time.Time {
 // GetName returns the value of Name.
 func (s *FindingsGetFindingsOKUncheckedItemCvesItem) GetName() string {
 	return s.Name
+}
+
+// GetNvdPending returns the value of NvdPending.
+func (s *FindingsGetFindingsOKUncheckedItemCvesItem) GetNvdPending() OptBool {
+	return s.NvdPending
 }
 
 // GetRansomware returns the value of Ransomware.
@@ -70893,6 +70901,11 @@ func (s *FindingsGetFindingsOKUncheckedItemCvesItem) SetDateAdded(val time.Time)
 // SetName sets the value of Name.
 func (s *FindingsGetFindingsOKUncheckedItemCvesItem) SetName(val string) {
 	s.Name = val
+}
+
+// SetNvdPending sets the value of NvdPending.
+func (s *FindingsGetFindingsOKUncheckedItemCvesItem) SetNvdPending(val OptBool) {
+	s.NvdPending = val
 }
 
 // SetRansomware sets the value of Ransomware.
@@ -99447,6 +99460,12 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	// was added manually; read-only.
 	Hostname NilString `json:"hostname"`
 	ID       string    `json:"id"`
+	// D-630: when a person ignored the device (a staff phone: known, not watched); null = watched. An
+	// ignored device is out of To review, the counts and the Devices list (ignored=true lists them), sends
+	// no new-device alert, is not scanned or read over SNMP, its open findings are closed (what a person
+	// settled keeps its status) and none are made; a trap hit or an intrusion-detection incident from it
+	// still alerts.
+	IgnoredAt NilDateTime `json:"ignored_at"`
 	// "—" when declared manually and the IP is unknown.
 	IP string `json:"ip"`
 	// True for the Vedette box itself: the first device, always present, cannot be deleted (409).
@@ -99518,6 +99537,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) GetHostname() NilString {
 // GetID returns the value of ID.
 func (s *InventoryGetInventoryDevicesIDOKAsset) GetID() string {
 	return s.ID
+}
+
+// GetIgnoredAt returns the value of IgnoredAt.
+func (s *InventoryGetInventoryDevicesIDOKAsset) GetIgnoredAt() NilDateTime {
+	return s.IgnoredAt
 }
 
 // GetIP returns the value of IP.
@@ -99648,6 +99672,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) SetHostname(val NilString) {
 // SetID sets the value of ID.
 func (s *InventoryGetInventoryDevicesIDOKAsset) SetID(val string) {
 	s.ID = val
+}
+
+// SetIgnoredAt sets the value of IgnoredAt.
+func (s *InventoryGetInventoryDevicesIDOKAsset) SetIgnoredAt(val NilDateTime) {
+	s.IgnoredAt = val
 }
 
 // SetIP sets the value of IP.
@@ -103646,6 +103675,48 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetWhy(val string) {
 	s.Why = val
 }
 
+// D-630: true lists only the ignored devices; false or absent leaves them out.
+type InventoryGetInventoryDevicesIgnored string
+
+const (
+	InventoryGetInventoryDevicesIgnoredTrue  InventoryGetInventoryDevicesIgnored = "true"
+	InventoryGetInventoryDevicesIgnoredFalse InventoryGetInventoryDevicesIgnored = "false"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIgnored values.
+func (InventoryGetInventoryDevicesIgnored) AllValues() []InventoryGetInventoryDevicesIgnored {
+	return []InventoryGetInventoryDevicesIgnored{
+		InventoryGetInventoryDevicesIgnoredTrue,
+		InventoryGetInventoryDevicesIgnoredFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIgnored) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIgnoredTrue:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIgnoredFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIgnored) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIgnored(data) {
+	case InventoryGetInventoryDevicesIgnoredTrue:
+		*s = InventoryGetInventoryDevicesIgnoredTrue
+		return nil
+	case InventoryGetInventoryDevicesIgnoredFalse:
+		*s = InventoryGetInventoryDevicesIgnoredFalse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryGetInventoryDevicesOK struct {
 	Counts InventoryGetInventoryDevicesOKCounts      `json:"counts"`
 	Items  []InventoryGetInventoryDevicesOKItemsItem `json:"items"`
@@ -103697,6 +103768,8 @@ func (s *InventoryGetInventoryDevicesOK) SetNotifyNew(val bool) {
 type InventoryGetInventoryDevicesOKCounts struct {
 	All     int `json:"all"`
 	Fragile int `json:"fragile"`
+	// Ignored devices (D-630); no other count includes them.
+	Ignored int `json:"ignored"`
 	Manual  int `json:"manual"`
 	Pending int `json:"pending"`
 }
@@ -103709,6 +103782,11 @@ func (s *InventoryGetInventoryDevicesOKCounts) GetAll() int {
 // GetFragile returns the value of Fragile.
 func (s *InventoryGetInventoryDevicesOKCounts) GetFragile() int {
 	return s.Fragile
+}
+
+// GetIgnored returns the value of Ignored.
+func (s *InventoryGetInventoryDevicesOKCounts) GetIgnored() int {
+	return s.Ignored
 }
 
 // GetManual returns the value of Manual.
@@ -103729,6 +103807,11 @@ func (s *InventoryGetInventoryDevicesOKCounts) SetAll(val int) {
 // SetFragile sets the value of Fragile.
 func (s *InventoryGetInventoryDevicesOKCounts) SetFragile(val int) {
 	s.Fragile = val
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *InventoryGetInventoryDevicesOKCounts) SetIgnored(val int) {
+	s.Ignored = val
 }
 
 // SetManual sets the value of Manual.
@@ -103759,6 +103842,12 @@ type InventoryGetInventoryDevicesOKItemsItem struct {
 	// was added manually; read-only.
 	Hostname NilString `json:"hostname"`
 	ID       string    `json:"id"`
+	// D-630: when a person ignored the device (a staff phone: known, not watched); null = watched. An
+	// ignored device is out of To review, the counts and the Devices list (ignored=true lists them), sends
+	// no new-device alert, is not scanned or read over SNMP, its open findings are closed (what a person
+	// settled keeps its status) and none are made; a trap hit or an intrusion-detection incident from it
+	// still alerts.
+	IgnoredAt NilDateTime `json:"ignored_at"`
 	// "—" when declared manually and the IP is unknown.
 	IP string `json:"ip"`
 	// True for the Vedette box itself: the first device, always present, cannot be deleted (409).
@@ -103842,6 +103931,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) GetHostname() NilString {
 // GetID returns the value of ID.
 func (s *InventoryGetInventoryDevicesOKItemsItem) GetID() string {
 	return s.ID
+}
+
+// GetIgnoredAt returns the value of IgnoredAt.
+func (s *InventoryGetInventoryDevicesOKItemsItem) GetIgnoredAt() NilDateTime {
+	return s.IgnoredAt
 }
 
 // GetIP returns the value of IP.
@@ -103992,6 +104086,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItem) SetHostname(val NilString) {
 // SetID sets the value of ID.
 func (s *InventoryGetInventoryDevicesOKItemsItem) SetID(val string) {
 	s.ID = val
+}
+
+// SetIgnoredAt sets the value of IgnoredAt.
+func (s *InventoryGetInventoryDevicesOKItemsItem) SetIgnoredAt(val NilDateTime) {
+	s.IgnoredAt = val
 }
 
 // SetIP sets the value of IP.
@@ -107358,6 +107457,48 @@ func (s *InventoryGetInventoryExportCsvHasFindings) UnmarshalText(data []byte) e
 		return nil
 	case InventoryGetInventoryExportCsvHasFindingsFalse:
 		*s = InventoryGetInventoryExportCsvHasFindingsFalse
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// D-630: true lists only the ignored devices; false or absent leaves them out.
+type InventoryGetInventoryExportCsvIgnored string
+
+const (
+	InventoryGetInventoryExportCsvIgnoredTrue  InventoryGetInventoryExportCsvIgnored = "true"
+	InventoryGetInventoryExportCsvIgnoredFalse InventoryGetInventoryExportCsvIgnored = "false"
+)
+
+// AllValues returns all InventoryGetInventoryExportCsvIgnored values.
+func (InventoryGetInventoryExportCsvIgnored) AllValues() []InventoryGetInventoryExportCsvIgnored {
+	return []InventoryGetInventoryExportCsvIgnored{
+		InventoryGetInventoryExportCsvIgnoredTrue,
+		InventoryGetInventoryExportCsvIgnoredFalse,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryExportCsvIgnored) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryExportCsvIgnoredTrue:
+		return []byte(s), nil
+	case InventoryGetInventoryExportCsvIgnoredFalse:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryExportCsvIgnored) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryExportCsvIgnored(data) {
+	case InventoryGetInventoryExportCsvIgnoredTrue:
+		*s = InventoryGetInventoryExportCsvIgnoredTrue
+		return nil
+	case InventoryGetInventoryExportCsvIgnoredFalse:
+		*s = InventoryGetInventoryExportCsvIgnoredFalse
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -111268,6 +111409,34 @@ func (s *InventoryPostInventoryDevicesIDApproveOK) GetOk() bool {
 // SetOk sets the value of Ok.
 func (s *InventoryPostInventoryDevicesIDApproveOK) SetOk(val bool) {
 	s.Ok = val
+}
+
+type InventoryPostInventoryDevicesIDIgnoreOK struct {
+	Ok bool `json:"ok"`
+}
+
+// GetOk returns the value of Ok.
+func (s *InventoryPostInventoryDevicesIDIgnoreOK) GetOk() bool {
+	return s.Ok
+}
+
+// SetOk sets the value of Ok.
+func (s *InventoryPostInventoryDevicesIDIgnoreOK) SetOk(val bool) {
+	s.Ok = val
+}
+
+type InventoryPostInventoryDevicesIDIgnoreReq struct {
+	Ignored bool `json:"ignored"`
+}
+
+// GetIgnored returns the value of Ignored.
+func (s *InventoryPostInventoryDevicesIDIgnoreReq) GetIgnored() bool {
+	return s.Ignored
+}
+
+// SetIgnored sets the value of Ignored.
+func (s *InventoryPostInventoryDevicesIDIgnoreReq) SetIgnored(val bool) {
+	s.Ignored = val
 }
 
 type InventoryPostInventoryDevicesIDKeepSeparateOK struct {
@@ -146557,6 +146726,52 @@ func (o OptInventoryGetInventoryDevicesHasFindings) Or(d InventoryGetInventoryDe
 	return d
 }
 
+// NewOptInventoryGetInventoryDevicesIgnored returns new OptInventoryGetInventoryDevicesIgnored with value set to v.
+func NewOptInventoryGetInventoryDevicesIgnored(v InventoryGetInventoryDevicesIgnored) OptInventoryGetInventoryDevicesIgnored {
+	return OptInventoryGetInventoryDevicesIgnored{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesIgnored is optional InventoryGetInventoryDevicesIgnored.
+type OptInventoryGetInventoryDevicesIgnored struct {
+	Value InventoryGetInventoryDevicesIgnored
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesIgnored was set.
+func (o OptInventoryGetInventoryDevicesIgnored) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesIgnored) Reset() {
+	var v InventoryGetInventoryDevicesIgnored
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesIgnored) SetTo(v InventoryGetInventoryDevicesIgnored) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesIgnored) Get() (v InventoryGetInventoryDevicesIgnored, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesIgnored) Or(d InventoryGetInventoryDevicesIgnored) InventoryGetInventoryDevicesIgnored {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewOptInventoryGetInventoryExportCsvApproved returns new OptInventoryGetInventoryExportCsvApproved with value set to v.
 func NewOptInventoryGetInventoryExportCsvApproved(v InventoryGetInventoryExportCsvApproved) OptInventoryGetInventoryExportCsvApproved {
 	return OptInventoryGetInventoryExportCsvApproved{
@@ -146689,6 +146904,52 @@ func (o OptInventoryGetInventoryExportCsvHasFindings) Get() (v InventoryGetInven
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryGetInventoryExportCsvHasFindings) Or(d InventoryGetInventoryExportCsvHasFindings) InventoryGetInventoryExportCsvHasFindings {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryExportCsvIgnored returns new OptInventoryGetInventoryExportCsvIgnored with value set to v.
+func NewOptInventoryGetInventoryExportCsvIgnored(v InventoryGetInventoryExportCsvIgnored) OptInventoryGetInventoryExportCsvIgnored {
+	return OptInventoryGetInventoryExportCsvIgnored{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryExportCsvIgnored is optional InventoryGetInventoryExportCsvIgnored.
+type OptInventoryGetInventoryExportCsvIgnored struct {
+	Value InventoryGetInventoryExportCsvIgnored
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryExportCsvIgnored was set.
+func (o OptInventoryGetInventoryExportCsvIgnored) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryExportCsvIgnored) Reset() {
+	var v InventoryGetInventoryExportCsvIgnored
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryExportCsvIgnored) SetTo(v InventoryGetInventoryExportCsvIgnored) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryExportCsvIgnored) Get() (v InventoryGetInventoryExportCsvIgnored, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryExportCsvIgnored) Or(d InventoryGetInventoryExportCsvIgnored) InventoryGetInventoryExportCsvIgnored {
 	if v, ok := o.Get(); ok {
 		return v
 	}

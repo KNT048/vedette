@@ -46,7 +46,7 @@ func TestContract_D606_SQLServerVersionFromTheMachine(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer q.Close()
+		defer func() { _ = q.Close() }()
 		var out []sqlRow
 		for q.Next() {
 			var r sqlRow
@@ -54,6 +54,9 @@ func TestContract_D606_SQLServerVersionFromTheMachine(t *testing.T) {
 				t.Fatal(err)
 			}
 			out = append(out, r)
+		}
+		if err := q.Err(); err != nil {
+			t.Fatal(err)
 		}
 		return out
 	}

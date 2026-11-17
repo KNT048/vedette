@@ -4,6 +4,7 @@ import (
 	"net/netip"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/modules/inventory"
@@ -302,5 +303,58 @@ func TestContract_D630_AJoinKeepsTheWatchStateOfTheKeptDevice(t *testing.T) {
 				t.Fatalf("merge audit rows naming the watch state = %d", n)
 			}
 		})
+	}
+}
+
+// Review r1 L1 of #955, L2 of #959, end to end through joinSame: a hand-added server a person ignored, un-ignored (back in To review,
+// not approved) and ignored again gets an osquery agent. The enrolment approves the agent's row; a sensor then sees the server's MAC
+// at the agent's address, and agentOrphan joins the agent's row into the hand-added one. The hand-added row stays (its id and origin),
+// is watched again, and keeps the enrolment's approval: not a watched device in To review whose approval nobody gives again. The
+// merge audit row says so; no inventory.asset.approved goes out (no person approved it).
+func TestContract_D630_AnEnrolmentsApprovalSurvivesAJoinIntoADeclaredRow(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	const who = "it@acme.example"
+	declared := e.addDevice(inventory.AddInput{CatalogID: "fortigate", IP: "192.168.18.20"})
+	e.exec(`UPDATE inv_asset SET mac = ? WHERE id = ?`, burnt1, declared)
+	for _, ignored := range []bool{true, false, true} {
+		if err := e.svc.SetIgnored(e.ctx(), who, declared, ignored); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if d := e.detail(declared); d.Asset.Approved || d.Asset.IgnoredAt == nil {
+		t.Fatalf("before: approved %v, ignored %v", d.Asset.Approved, d.Asset.IgnoredAt)
+	}
+	e.tick(time.Hour)
+	e.record(osq("192.168.18.40")...)
+	orphan := e.idOf("192.168.18.40")
+	if orphan == declared {
+		t.Fatal("the agent's report reached the hand-added row by its card")
+	}
+	if found, err := e.svc.ApproveEnrolled(e.ctx(), observe.AssetHint{IP: netip.MustParseAddr("192.168.18.40"), Agent: "osquery:node-a"}, burnt1, "enrolled", false); err != nil || !found {
+		t.Fatalf("ApproveEnrolled: %v %v", found, err)
+	}
+	e.ev.reset()
+	e.tick(time.Minute)
+	e.record(dhcp(burnt1, "192.168.18.40", "")...)
+	d := e.only()
+	if d.ID != declared || d.Origin != "manual" || !d.Approved {
+		t.Fatalf("after the join: id %s (want the declared %s) origin %s approved %v", d.ID, declared, d.Origin, d.Approved)
+	}
+	if det := e.detail(declared); det.Asset.IgnoredAt != nil {
+		t.Errorf("the joined device stays ignored")
+	}
+	if n := e.count(`SELECT count(*) FROM core_audit WHERE action = 'inventory.merge' AND detail LIKE '%was approved, so%'`); n != 1 {
+		t.Errorf("merge audit rows naming the kept approval = %d", n)
+	}
+	if ev := e.ev.named(inventory.EventAssetApproved); len(ev) != 0 {
+		t.Errorf("a join published %v", ev)
+	}
+	var watched bool
+	for _, ev := range e.ev.named(inventory.EventAssetUnignored) {
+		watched = watched || ev.Data.(inventory.AssetEvent).AssetID == declared
+	}
+	if !watched {
+		t.Errorf("no inventory.asset.unignored for the kept row: the findings Ignore closed stay closed")
 	}
 }

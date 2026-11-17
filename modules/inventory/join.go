@@ -165,10 +165,13 @@ const (
 // joinInto moves device from into device into and deletes from (D-515, D-598): its observations (the MAC as the chassis mark in a
 // chassis join), software and open ports; the suspicious flag, the notes and the scan choices a person made on it when into has none;
 // the agent bound to it when into has none. The approval never moves (review H1 of #722): a device that joins an approved row would
-// otherwise be approved by a MAC anyone can pick, so a person approves the joined device. The one exception is a row a person
-// declared (origin manual, review r1 L1 of #955): keptOrder keeps it first, so an approved from (an agent enrolment's approval, a
-// person's) carries its approval onto it, unless a mark makes the joined row suspicious. No MAC picked a declared row; without this a
-// declared row Unignore left unapproved would drop the enrolment's approval for good. One audit row inventory.merge. into keeps
+// otherwise be approved by a MAC anyone can pick, so a person approves the joined device. The one exception is a machine join
+// (keptOrder's agentOrphan, sameMAC, sameMachine; handBound's from is never approved; a person's Merge approves on its own) that keeps
+// a row a person declared (origin manual, review r1 L1 of #955): keptOrder keeps it first, so a watched, approved from (an agent
+// enrolment's approval, a person's) carries its approval onto it, unless a mark makes the joined row suspicious. No MAC picked a
+// declared row; without this a declared row Unignore left unapproved would drop the enrolment's approval for good. An ignored from's
+// approval never carries (review r1 M1 of #959, D-630: a device a person stopped watching approves nothing), and a chassis join never
+// carries (review r1 L1 of #959: sameDevice picks into by LLDP name or MAC block, the H1 surface, not keptOrder). One audit row inventory.merge. into keeps
 // its id; in a chassis join also its address and MAC; in a machine join it takes from's address when from was seen later and into is
 // a discovered device (a person's address and the box's stay). The fields are folded again by the usual rules (RecomputeAsset).
 // A join never changes whether into is watched (D-630, review r1 M3 of #945): into keeps its own ignored_at. When the two rows
@@ -186,10 +189,11 @@ func (s *Service) joinAs(ctx context.Context, tx *sql.Tx, from, into, why string
 	var fromIgnored, intoIgnored, fromApproved, carry bool
 	var fromApprovedAt sql.NullString
 	if err := tx.QueryRowContext(ctx, `SELECT f.ignored_at IS NOT NULL, i.ignored_at IS NOT NULL, f.approved, f.approved_at,
-		f.approved = 1 AND i.approved = 0 AND i.origin = 'manual' AND i.is_box = 0 FROM inv_asset f, inv_asset i WHERE f.id = ? AND i.id = ?`, from, into).
+		f.approved = 1 AND f.ignored_at IS NULL AND i.approved = 0 AND i.origin = 'manual' AND i.is_box = 0 FROM inv_asset f, inv_asset i WHERE f.id = ? AND i.id = ?`, from, into).
 		Scan(&fromIgnored, &intoIgnored, &fromApproved, &fromApprovedAt, &carry); err != nil {
 		return "", fmt.Errorf("inventory: read devices: %w", err)
 	}
+	carry = carry && mode == joinMachine
 	watch := ""
 	switch {
 	case intoIgnored && !fromIgnored && fromApproved:
@@ -722,7 +726,7 @@ func keptOrder(ctx context.Context, tx *sql.Tx, x, y string) (from, into string,
 	stays := func(p, q row) bool { // p is kept over q
 		switch {
 		case (p.origin == "manual") != (q.origin == "manual"): // a declared row first: it keeps its origin and typed address; joinAs
-			return p.origin == "manual" // watches it again when the other row is approved and watched, and carries the other's approval
+			return p.origin == "manual" // watches it again when the other row is approved and watched, and carries that approval
 		case p.ignored != q.ignored && (!p.ignored && p.approved || !q.ignored && q.approved): // a watched, approved row over an ignored one
 			return !p.ignored
 		case p.approved != q.approved:

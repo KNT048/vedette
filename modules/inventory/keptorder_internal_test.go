@@ -64,7 +64,9 @@ func TestKeptOrderKeepsAWatchedApprovedRowOverAnIgnoredOne(t *testing.T) {
 // Review r1 L1 of #955: a hand-added device that was ignored, un-ignored (which clears its approval) and ignored again, joined to the
 // row an osquery enrolment approved (agentOrphan, sameMAC), stays the kept row with its origin and typed address, is watched again
 // and keeps the enrolment's approval: no watched, unapproved device in To review whose approval nobody will give again. The approval
-// still never moves onto a discovered row (review H1 of #722), and a suspicious mark keeps the declared row waiting for a person.
+// still never moves onto a discovered row (review H1 of #722), a suspicious mark on either row keeps the declared row waiting for a
+// person, an ignored row's approval never carries (D-630, review r1 M1 of #959) and a chassis join never carries (r1 L1 of #959).
+// The merge audit row says so only when the approval was kept (r1 L2 of #959).
 func TestAJoinCarriesTheApprovalOntoADeclaredRow(t *testing.T) {
 	t.Parallel()
 	db := storetest.Migrated(t, storetest.Migration{Module: "core", FS: core.Migrations}, storetest.Migration{Module: "inventory", FS: Migrations})
@@ -94,14 +96,21 @@ func TestAJoinCarriesTheApprovalOntoADeclaredRow(t *testing.T) {
 		s.ip, s.alive = ip.String, true
 		return s
 	}
+	carried := 0 // audit rows that say the approval was kept, so far
 	for _, c := range []struct {
 		name                 string
 		declared, suspicious bool // the kept row: hand-added, marked suspicious
+		fromSuspicious       bool // the approved row marked suspicious by a person
+		fromIgnored          bool // the approved row ignored, the declared row watched and unapproved (review r1 M1 of #959)
+		mode                 joinMode
 		wantApproved         bool
 	}{
-		{"declared", true, false, true},
-		{"declared and marked suspicious", true, true, false},
-		{"discovered (H1 of #722)", false, false, false},
+		{name: "declared", declared: true, mode: joinMachine, wantApproved: true},
+		{name: "declared and marked suspicious", declared: true, suspicious: true, mode: joinMachine},
+		{name: "the approved row marked suspicious", declared: true, fromSuspicious: true, mode: joinMachine},
+		{name: "the approved row ignored (D-630)", declared: true, fromIgnored: true, mode: joinMachine},
+		{name: "a chassis join (review r1 L1 of #959)", declared: true, mode: joinChassis},
+		{name: "discovered (H1 of #722)", mode: joinMachine},
 	} {
 		err := db.Write(ctx, func(tx *sql.Tx) error {
 			for _, q := range []struct {
@@ -123,8 +132,19 @@ func TestAJoinCarriesTheApprovalOntoADeclaredRow(t *testing.T) {
 					return err
 				}
 			}
-			if c.suspicious {
-				if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET suspicious = 1 WHERE id = 'a-kept'`); err != nil {
+			for _, q := range []struct {
+				on  bool
+				sql string
+			}{
+				{c.suspicious, `UPDATE inv_asset SET suspicious = 1 WHERE id = 'a-kept'`},
+				{c.fromSuspicious, `UPDATE inv_asset SET suspicious = 1 WHERE id = 'a-agent'`},
+				{c.fromIgnored, `UPDATE inv_asset SET ignored_at = last_seen WHERE id = 'a-agent'`},
+				{c.fromIgnored, `UPDATE inv_asset SET ignored_at = NULL WHERE id = 'a-kept'`},
+			} {
+				if !q.on {
+					continue
+				}
+				if _, err := tx.ExecContext(ctx, q.sql); err != nil {
 					return err
 				}
 			}
@@ -138,9 +158,20 @@ func TestAJoinCarriesTheApprovalOntoADeclaredRow(t *testing.T) {
 					t.Fatalf("%s: keptOrder keeps %s, want the declared row", c.name, into)
 				}
 			}
-			watch, err := svc.joinAs(ctx, tx, from, into, "test", joinMachine, systemActor)
+			watch, err := svc.joinAs(ctx, tx, from, into, "test", c.mode, systemActor)
 			if err != nil {
 				return err
+			}
+			if c.wantApproved {
+				carried++
+			}
+			var n int
+			if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM core_audit WHERE action = 'inventory.merge' AND detail LIKE ?`,
+				"%; a-agent was approved, so "+deviceName(ctx, tx, "a-kept")+" is approved%").Scan(&n); err != nil {
+				return err
+			}
+			if n != carried {
+				t.Errorf("%s: %d merge audit rows say the approval was kept, want %d", c.name, n, carried)
 			}
 			got := read(tx, "a-kept")
 			if watch != EventAssetUnignored || got.ignored || read(tx, "a-agent").alive || got.ip != "192.168.18.50" {

@@ -165,8 +165,14 @@ func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 				found = "scanned " + addr + ": it did not answer"
 			case m != nil:
 				found = "scanned " + addr + ": it answered (a check from before checks kept what they found)"
-				if j.AssetID != "" { // a check made since: recording its result failed
+				switch {
+				case j.AssetID == "": // a check stored before checks named their device
+				case j.Status == sensoractive.StatusRunning: // what it found is stored when it ends
+					found = "scanned " + addr + ": it answered; what it found is shown when the check ends"
+				case j.Status == sensoractive.StatusDone: // it finished, but storing its result failed
 					found = "scanned " + addr + ": it answered, but what it found could not be recorded"
+				default: // stopped or failed: the reason is the sentence; it recorded nothing
+					found = "scanned " + addr + ": it answered"
 				}
 			case strings.HasPrefix(j.Probes[0].Result, "failed"): // the failed reason is the text; nothing was found
 			default:
@@ -239,9 +245,12 @@ func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 	switch r.Outcome {
 	case "running":
 		r.Text = "Running"
-		if found != "" {
+		switch {
+		case found != "" && j.Kind == sensoractive.KindDevice: // one device: its sentence says what is still to come
+			r.Text += ": " + found
+		case found != "":
 			r.Text += ": " + found + " so far"
-		} else if len(j.Probes) == 0 && j.Kind == sensoractive.KindSweep {
+		case len(j.Probes) == 0 && j.Kind == sensoractive.KindSweep:
 			r.Text += ": sweeping"
 		}
 	case "failed", "stopped":

@@ -1260,6 +1260,13 @@ func (s *Service) probeDevice(ctx context.Context, jobID string, kind nmapargv.K
 	if !slices.ContainsFunc(hosts, func(h host) bool { return h.addr == ip }) {
 		return extra, nmapargv.Extra, false, nil
 	}
+	// The Extra run ended without an error but did not cover the device: its host discovery missed it, or nmap gave up on it at
+	// the host timeout (no port table). The check then covered the top 1000 only, as when the run failed.
+	j := slices.IndexFunc(extra, func(h host) bool { return h.addr == ip })
+	if j < 0 || extra[j].timedOut {
+		s.log.WarnContext(ctx, "sensoractive: the scan of the extra ports did not cover the device; the device keeps the top 1000 ports' result", "ip", ip.String())
+		return mergeExtra(hosts, extra, ip), kind, true, nil
+	}
 	return mergeExtra(hosts, extra, ip), kind, false, nil
 }
 

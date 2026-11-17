@@ -7,6 +7,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/knt048/vedette/core/exec/exectest"
 	sa "github.com/knt048/vedette/modules/sensor-active"
 )
 
@@ -138,5 +139,49 @@ func TestMergedDeviceKeepsTheChecksOfTheOther(t *testing.T) {
 	jobs, err = e.svc.JobsOf(e.ctx(), "a-kept", netip.MustParseAddr("192.168.10.20"), 10)
 	if err != nil || len(jobs) != 2 || jobs[0].Found == nil || !jobs[0].Found.Compared || len(jobs[0].Found.New) != 0 {
 		t.Fatalf("the kept device's next check is compared with the merged one's: %+v %v", jobs, err)
+	}
+}
+
+// The run over the extra ports can end without an error and still not cover the device: nmap's host discovery missed it there, or
+// it reached the host timeout (no port table). That check covered the top 1000 only: it is marked so, compared only outside the
+// extra ports, and its OS is not compared, exactly as when that run failed.
+func TestExtraRunThatDidNotCoverTheDeviceMarksTheCheck(t *testing.T) {
+	t.Parallel()
+	for _, extra := range []string{"down.xml", "timedout.xml"} {
+		t.Run(extra, func(t *testing.T) {
+			t.Parallel()
+			abs := func(name string) string {
+				p, err := filepath.Abs(filepath.Join("testdata", name))
+				if err != nil {
+					t.Fatal(err)
+				}
+				return p
+			}
+			e := newEnv(t, fakeOpts{})
+			if err := e.svc.ScanDevice(e.ctx(), "a-web", "check_now"); err != nil {
+				t.Fatal(err)
+			}
+			// the same nmap, but the extra-ports run (the only one with -p) prints a result without the device's ports
+			script := filepath.Join(t.TempDir(), "nmap")
+			exectest.WriteScript(t, script, `#!/bin/sh
+if [ "$1" = "--version" ]; then echo "Nmap version 7.95 ( https://nmap.org )"; exit 0; fi
+case " $* " in
+  *" -p "*) cat `+abs(extra)+`;;
+  *) cat `+abs("device.xml")+`;;
+esac
+`)
+			e.nm.path = script
+			e.build()
+			if err := e.svc.ScanDevice(e.ctx(), "a-web", "check_now"); err != nil {
+				t.Fatal(err)
+			}
+			jobs, err := e.svc.JobsOf(e.ctx(), "a-web", netip.MustParseAddr("192.168.10.20"), 10)
+			if err != nil || len(jobs) != 2 || jobs[0].Status != sa.StatusDone || jobs[0].Found == nil {
+				t.Fatalf("jobs: %+v %v", jobs, err)
+			}
+			if f := jobs[0].Found; !f.ExtraFailed || !f.Compared || !f.ComparedPart || f.OSWas != "" {
+				t.Fatalf("a check whose extra-ports run did not cover the device: %+v", f)
+			}
+		})
 	}
 }

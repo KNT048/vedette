@@ -56,6 +56,21 @@ func TestJobHistory_OutcomeInWords(t *testing.T) {
 	if r, _ := jobHistory(rec); r.Text != "Scanned 192.168.10.20: it answered, but what it found could not be recorded" {
 		t.Errorf("unrecorded check: %q", r.Text)
 	}
+	// only a finished check says that; one still running says when its result comes, a stopped or failed one gives its reason
+	for _, c := range []struct{ status, errText, outcome, text string }{
+		{"running", "", "running", "Running: scanned 192.168.10.20: it answered; what it found is shown when the check ends"},
+		{"failed", "nmap exited 1", "failed", "Failed: nmap exited 1. Scanned 192.168.10.20: it answered before it ended"},
+		{"stopped", "outside the window", "stopped", "Stopped: outside the window. Scanned 192.168.10.20: it answered before it ended"},
+	} {
+		j := job("device", c.status, "check_now", c.errText, 1, 0, p("192.168.10.20", "ok: 1 hosts up"))
+		j.AssetID = "a-1"
+		if c.status == "running" {
+			j.FinishedAt = nil
+		}
+		if r, _ := jobHistory(j); r.Outcome != c.outcome || r.Text != c.text {
+			t.Errorf("%s check: %s %q", c.status, r.Outcome, r.Text)
+		}
+	}
 	// the device page: in a round of several devices, its own read decides the outcome and the words
 	for _, c := range []struct{ own, outcome, text string }{
 		{"ok", "ok", "This device answered over SNMP (a round of 2 devices: 1 answered)"},

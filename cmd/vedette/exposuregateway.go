@@ -73,9 +73,10 @@ func (g exposureGateway) Gateway(ctx context.Context) (exposure.GatewayDevice, e
 
 // ApplianceDevices is exposure.Appliances: for every appliance family a port on the Internet may name (a FortiGate certificate on
 // the box's public IP), the inventory devices that are one, each with its open findings, in one read of the inventory. A device is
-// one by its own identity: its vendor, model or OS (the family's pattern), or a software row with one of the family's KEV keys (the
-// keys of the family's own OS; none a VPN client shares). A client device (a PC, a phone) never is, whatever software it runs, nor
-// the box itself or an ignored device. At most exposure.MaxApplianceDevices a family are listed, More counts the others.
+// one by its type (the family's device types: a firewall, a router, a VPN gateway…; never a PC, a phone, a switch of a vendor that
+// makes firewalls, an access point or a NAS) and its own identity: its vendor, model or OS (the family's pattern), or a software row
+// with one of the family's KEV keys (the keys of the family's own OS; none a VPN client shares). Never the box itself or an ignored
+// device. At most exposure.MaxApplianceDevices a family are listed, More counts the others.
 func (g exposureGateway) ApplianceDevices(ctx context.Context, qs []exposure.ApplianceQuery) (map[string]exposure.ApplianceMatch, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -85,11 +86,11 @@ func (g exposureGateway) ApplianceDevices(ctx context.Context, qs []exposure.App
 	}
 	ids := map[string][]string{}
 	for _, d := range devs {
-		if d.IsBox || d.IgnoredAt != nil || clientKinds[d.Kind] {
+		if d.IsBox || d.IgnoredAt != nil {
 			continue
 		}
 		for _, q := range qs {
-			if applianceDevice(d, q) {
+			if slices.Contains(q.Kinds, d.Kind) && applianceDevice(d, q) {
 				ids[q.Family] = append(ids[q.Family], d.ID)
 			}
 		}
@@ -124,10 +125,6 @@ func (g exposureGateway) ApplianceDevices(ctx context.Context, qs []exposure.App
 	}
 	return out, nil
 }
-
-// clientKinds are the device types that run a vendor's VPN client, never its appliance.
-var clientKinds = map[string]bool{"pc": true, "laptop": true, "workstation": true, "thin_client": true, "smartphone": true, "tablet": true,
-	"smartwatch": true, "pos_terminal": true, "kiosk": true, "smart_tv": true, "media_player": true, "game_console": true}
 
 // applianceDevice says whether a device is of the family: its own vendor, model or OS, or a software row (not marked not installed)
 // with one of the family's KEV keys.

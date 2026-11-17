@@ -39,8 +39,16 @@ func TestTable(t *testing.T) {
 		}
 	}
 	for _, f := range Families() {
-		if len(f.KevKeys) == 0 || f.Device == nil {
-			t.Errorf("family %s has no KEV key or no device pattern", f.ID)
+		if len(f.KevKeys) == 0 || f.Device == nil || len(f.Kinds) == 0 {
+			t.Errorf("family %s has no KEV key, device pattern or device type", f.ID)
+		}
+		for _, k := range f.Kinds {
+			if k == "pc" || k == "laptop" || k == "smartphone" || k == "nas" || k == "ap" || k == "printer" || k == "camera" {
+				t.Errorf("family %s: a %s is never a network appliance", f.ID, k)
+			}
+		}
+		if len(f.NotWebPorts) > 0 && f.NotWebSource == "" {
+			t.Errorf("family %s: ports that serve no web page without a source", f.ID)
 		}
 		for _, k := range f.KevKeys {
 			if !known[k] {
@@ -105,8 +113,10 @@ var cases = []pageCase{
 	{"Junos CPE", Page{Products: []string{"cpe:/o:juniper:junos"}}, "Juniper J-Web", EvProduct},
 	{"MikroTik", Page{Title: "RouterOS router configuration page"}, "MikroTik RouterOS", EvTitle},
 	{"Sophos", Page{Title: "Sophos Firewall"}, "Sophos Firewall", EvTitle},
-	{"Zyxel", Page{Title: "Zyxel USG FLEX 100"}, "", ""}, // a product line in the title is more than the brand, and no sign-in word
+	{"Zyxel firewall", Page{Title: "Zyxel USG FLEX 100"}, "Zyxel firewall", EvTitle},
 	{"Zyxel login", Page{Title: "Zyxel Login"}, "Zyxel", EvTitle},
+	{"a Zyxel NAS is not the firewall", Page{Title: "Zyxel NAS326"}, "Zyxel", EvTitle},
+	{"Cisco ASA CPE", Page{Products: []string{"cpe:/a:cisco:adaptive_security_appliance_software:9.16"}}, "Cisco ASA", EvProduct},
 	// What the surface scan knew stays known.
 	{"Synology", Page{Title: "synology diskstation - nas01"}, "Synology DSM", EvTitle},
 	{"Jenkins", Page{Title: "Dashboard [Jenkins]"}, "Jenkins", EvTitle},
@@ -118,6 +128,12 @@ var cases = []pageCase{
 	{"GPON", Page{Title: "GPON Home Gateway"}, "GPON home gateway", EvTitle},
 	{"Elasticsearch", Page{Body: `{"name":"x","tagline":"You Know, for Search"}`}, "Elasticsearch", EvBody},
 	{"router login", Page{Title: "Router Login"}, "Router login page", EvTitle},
+	// Titles the surface scan named before the shared table: they keep being named.
+	{"Plesk", Page{Title: "Plesk Obsidian 18.0.52"}, "Plesk", EvTitle},
+	{"vSphere", Page{Title: "vSphere Web Client"}, "VMware vCenter", EvTitle},
+	{"iLO 3", Page{Title: "HP Integrated Lights-Out 3"}, "HPE iLO", EvTitle},
+	{"Sophos UTM", Page{Title: "Sophos UTM WebAdmin"}, "Sophos Firewall", EvTitle},
+	{"phpMyAdmin", Page{Title: "localhost / 127.0.0.1 | phpMyAdmin 5.2.1"}, "phpMyAdmin", EvTitle},
 	// Not an admin page: a product word on an ordinary site, a part of a longer certificate name, a VPN title with no vendor.
 	{"a shop", Page{Title: "FortiGate 60F price | Example Shop"}, "", ""},
 	{"a how-to", Page{Title: "How to configure FortiOS 7.4"}, "", ""},
@@ -135,7 +151,15 @@ var cases = []pageCase{
 	{"partners", Page{Title: "our partners: cisco, fortinet", Body: "we resell fortinet and pfsense"}, "", ""},
 	{"laptops", Page{Title: "acme store - asus laptops"}, "", ""},
 	{"silo", Page{Title: "grain silo supplies"}, "", ""},
-	{"router deals", Page{Title: "Best router deals"}, "", ""},
+	{"stock news", Page{Title: "Palo Alto Networks stock"}, "", ""},
+	{"a review", Page{Title: "FortiGate review"}, "", ""},
+	{"best of", Page{Title: "Best FortiGate"}, "", ""},
+	{"a download page", Page{Title: "Download GlobalProtect"}, "", ""},
+	{"vendor news", Page{Title: "Pulse Secure news"}, "", ""},
+	{"a reseller", Page{Title: "Check Point gateway reseller"}, "", ""},
+	{"router deals", Page{Title: "FortiGate wireless router deals"}, "Router login page", EvTitle}, // not the FortiGate: only the generic row, as the surface scan always matched "router"
+	{"a search link", Page{Location: "/shop?q=/remote/login"}, "", ""},
+	{"a blog path", Page{Location: "https://www.example.com/blog/vpn/index.html"}, "", ""},
 	{"OpenSSH", Page{Products: []string{"OpenSSH 9.6p1 Ubuntu 3ubuntu13.20"}}, "", ""},
 }
 

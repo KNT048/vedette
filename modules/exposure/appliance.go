@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -131,8 +132,8 @@ func applianceAdmins(admins []AdminRow, ports []PortRow, services []ServiceRow) 
 			continue
 		}
 		a := applianceOf(p, svc[k])
-		if a == nil || a.Kind == ApplianceVPN {
-			continue
+		if a == nil || a.Kind == ApplianceVPN || !webPage(p, svc[k], a) {
+			continue // a VPN portal, or a service that is no web page (SSH, FTP, an API): the port is named, it is no admin page
 		}
 		have[k] = true
 		risk := "warn"
@@ -142,6 +143,26 @@ func applianceAdmins(admins []AdminRow, ports []PortRow, services []ServiceRow) 
 		out = append(out, AdminRow{URL: adminURL(p), Product: a.fp.Product, IP: p.IP, Port: p.Port, Risk: risk})
 	}
 	return out
+}
+
+// webPage says whether the port that named the appliance serves its web page: a web service, a statement only a web page makes
+// (its title, Server header or redirect), or the family's certificate on a TLS port nothing else identified, other than a port where
+// that certificate answers another protocol (FortiGate's FGFM on 541).
+func webPage(p PortRow, svc *ServiceRow, a *Appliance) bool {
+	web := func(name string) bool { return strings.HasPrefix(baseService(name), "http") }
+	switch {
+	case web(p.Service) || svc != nil && web(svc.Name):
+		return true
+	case a.Evidence == EvidenceTitle || a.Evidence == EvidenceServer || a.Evidence == EvidenceRedirect:
+		return true
+	case a.Evidence == EvidenceCert:
+		if f := a.fp.Family; f != nil && slices.Contains(f.NotWebPorts, p.Port) {
+			return false
+		}
+		tls := func(name string) bool { return name == "ssl" || name == "ssl/unknown" }
+		return tls(p.Service) && (svc == nil || tls(svc.Name) || svc.Name == "")
+	}
+	return false
 }
 
 // adminURL is the address of the page: https when the port speaks TLS (a certificate, a TLS service name), else http.
@@ -186,39 +207,60 @@ func nameAppliances(ports []PortRow, admins []AdminRow, services []ServiceRow) {
 
 // applianceCache is the last answer of the inventory about every appliance family.
 type applianceCache struct {
-	mu      sync.Mutex
-	at      time.Time
-	devs    map[string]ApplianceMatch
-	failing bool // the last read failed: logged once, until a read succeeds again
+	mu       sync.Mutex
+	at       time.Time // when devs was read
+	devs     map[string]ApplianceMatch
+	reading  bool      // a read runs now: other pages take the last answer instead of waiting for it
+	failedAt time.Time // when the last read failed: the next one waits applianceRetry
+	failing  bool      // the last read failed: logged once, until a read succeeds again
 }
 
-// familyDevices is the inventory's answer for every family: one read for every page read within applianceTTL. A failed read
-// keeps the last answer (nil before the first success: the page then makes no claim about the inventory).
+// applianceRetry is how long a failed read of the inventory waits before the next one; applianceReadTimeout bounds one read.
+const (
+	applianceRetry       = 10 * time.Second
+	applianceReadTimeout = 15 * time.Second
+)
+
+// familyDevices is the inventory's answer for every family: one read for every page read within applianceTTL, made without the
+// lock and apart from the request (a page that is closed does not cancel it). While it runs, and after a failure, pages take the
+// last answer (nil before the first success: the page then makes no claim about the inventory).
 func (s *Service) familyDevices(ctx context.Context) map[string]ApplianceMatch {
 	c := &s.appliances
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	now := s.clock()
-	if c.devs != nil && now.Sub(c.at) < applianceTTL {
-		return c.devs
+	c.mu.Lock()
+	fresh := c.devs != nil && now.Sub(c.at) < applianceTTL
+	waiting := c.failing && now.Sub(c.failedAt) < applianceRetry
+	if fresh || waiting || c.reading {
+		devs := c.devs
+		c.mu.Unlock()
+		return devs
 	}
+	c.reading = true
+	c.mu.Unlock()
+
 	fams := adminpages.Families()
 	qs := make([]ApplianceQuery, 0, len(fams))
 	for _, f := range fams {
-		qs = append(qs, ApplianceQuery{Family: f.ID, KevKeys: f.KevKeys, Device: f.Device})
+		qs = append(qs, ApplianceQuery{Family: f.ID, KevKeys: f.KevKeys, Device: f.Device, Kinds: f.Kinds})
 	}
-	got, err := s.cfg.Appliances.ApplianceDevices(ctx, qs)
+	rctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), applianceReadTimeout)
+	got, err := s.cfg.Appliances.ApplianceDevices(rctx, qs)
+	cancel()
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.reading = false
 	if err != nil {
 		if !c.failing {
 			s.cfg.Log.WarnContext(ctx, "exposure: reading the devices of the appliance families", "err", err)
 		}
-		c.failing = true
+		c.failing, c.failedAt = true, s.clock()
 		return c.devs
 	}
 	if c.failing {
 		s.cfg.Log.InfoContext(ctx, "exposure: reading the devices of the appliance families works again")
 	}
-	c.failing, c.at, c.devs = false, now, got
+	c.failing, c.at, c.devs = false, s.clock(), got
 	return got
 }
 

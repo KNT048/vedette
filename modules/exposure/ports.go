@@ -115,12 +115,14 @@ type Appliances interface {
 	ApplianceDevices(ctx context.Context, qs []ApplianceQuery) (map[string]ApplianceMatch, error)
 }
 
-// ApplianceQuery says what makes a device one of a family: its own vendor, model or OS that Device matches, or a software row with
-// one of KevKeys (KEV vendor|product of the family's own operating system, lower case). A client device (a PC, a phone) never is.
+// ApplianceQuery says what makes a device one of a family: a device type of Kinds ("" and "unknown" included when listed), and its own
+// vendor, model or OS that Device matches, or a software row with one of KevKeys (KEV vendor|product of the family's own OS, lower
+// case). A PC, a switch, an access point or a NAS of the same vendor is not the family's appliance.
 type ApplianceQuery struct {
 	Family  string
 	KevKeys []string
 	Device  *regexp.Regexp
+	Kinds   []string
 }
 
 // ApplianceMatch is the devices of one family: at most MaxApplianceDevices, More the others.

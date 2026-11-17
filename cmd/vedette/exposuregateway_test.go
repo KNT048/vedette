@@ -3,9 +3,9 @@ package main
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"testing"
 
+	"github.com/knt048/vedette/content/adminpages"
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/modules/exposure"
 	"github.com/knt048/vedette/modules/inventory"
@@ -57,11 +57,21 @@ func TestExposureApplianceDevices(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// A Zyxel switch and NAS and a SonicWall access point: the vendor of a firewall family, not its appliance.
+	for i, c := range []struct{ vendor, product, kind string }{{"Zyxel", "GS1900 switch", "switch"}, {"Zyxel", "NAS326", "nas"}, {"SonicWall", "SonicWave 621", "ap"}} {
+		r, err := s.d.Inventory.AddDevice(t.Context(), "it@acme.example", inventory.AddInput{Vendor: c.vendor, Product: c.product, IP: fmt.Sprintf("192.168.30.%d", 70+i)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		kind := c.kind
+		if err := s.d.Inventory.PatchDevice(t.Context(), "it@acme.example", r.ID, inventory.Patch{Kind: &kind}); err != nil {
+			t.Fatal(err)
+		}
+	}
 	g := exposureGateway{inv: s.d.Inventory, fnd: s.d.Findings}
-	qs := []exposure.ApplianceQuery{
-		{Family: "fortigate", KevKeys: []string{"fortinet|fortios"}, Device: regexp.MustCompile(`(?i)\bforti(gate|os|wifi)\b`)},
-		{Family: "cisco-asa", KevKeys: []string{"cisco|adaptive security appliance (asa)"}, Device: regexp.MustCompile(`(?i)\bcisco asa\b`)},
-		{Family: "paloalto", KevKeys: []string{"palo alto networks|pan-os"}, Device: regexp.MustCompile(`(?i)\bpan-os\b`)},
+	var qs []exposure.ApplianceQuery // the shipped table's families
+	for _, f := range adminpages.Families() {
+		qs = append(qs, exposure.ApplianceQuery{Family: f.ID, KevKeys: f.KevKeys, Device: f.Device, Kinds: f.Kinds})
 	}
 	got, err := g.ApplianceDevices(t.Context(), qs)
 	if err != nil {
@@ -70,9 +80,9 @@ func TestExposureApplianceDevices(t *testing.T) {
 	if fg := got["fortigate"]; len(fg.Devices) != 1 || fg.Devices[0].DeviceID != id || fg.Devices[0].OpenExploited != 3 || fg.Devices[0].Name == "" || fg.More != 0 {
 		t.Fatalf("FortiGate: %+v", fg)
 	}
-	for _, f := range []string{"cisco-asa", "paloalto"} {
+	for _, f := range []string{"cisco-asa", "paloalto", "zyxel", "sonicwall"} {
 		if m, ok := got[f]; !ok || m.Devices == nil || len(m.Devices) != 0 {
-			t.Fatalf("%s: %+v (a VPN client PC is not the appliance)", f, m)
+			t.Fatalf("%s: %+v (a VPN client PC, a switch, an access point or a NAS is not the appliance)", f, m)
 		}
 	}
 	// A large estate: the first exposure.MaxApplianceDevices are listed, the others counted.

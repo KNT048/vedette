@@ -38,7 +38,13 @@ type Family struct {
 	SharedVPN bool     `json:"shared_vpn"`
 	KevKeys   []string `json:"kev_keys"`
 	DeviceRe  string   `json:"device"`
-	Device    *regexp.Regexp
+	// Kinds are the device types a device of the family can be (a firewall, a router, a VPN gateway; a switch for Juniper): a
+	// switch, an access point or a NAS of the same vendor is not the family's appliance.
+	Kinds []string `json:"kinds"`
+	// NotWebPorts are ports where the family's certificate answers a protocol that is no web page (FortiGate's FGFM on 541).
+	NotWebPorts  []int  `json:"not_web_ports"`
+	NotWebSource string `json:"not_web_source"`
+	Device       *regexp.Regexp
 }
 
 // Fingerprint is one product's page. Admin false is a VPN portal: it faces the Internet by design, it names the port but is not an
@@ -48,19 +54,19 @@ type Fingerprint struct {
 	FamilyID string   `json:"family"`
 	Admin    bool     `json:"admin"`
 	Danger   bool     `json:"danger"`
-	TitleRe  string   `json:"title"`      // a title only that product has: enough by itself
-	BrandRe  string   `json:"brand"`      // a product word in a title: counts only on a sign-in page (Login) or a title that is little more than it
-	Login    bool     `json:"login"`      // the brand word counts only with a sign-in word beside it
-	ServerRe string   `json:"server"`     // over the Server header
-	BodyRe   string   `json:"body"`       // over the first page
-	LocRe    string   `json:"location"`   // over the redirect target
-	Headers  []string `json:"header"`     // a header only that product sends (lower case)
-	CertRe   string   `json:"cert"`       // over one whole certificate name
-	ProdRe   string   `json:"product_re"` // over a product, CPE or extra information
+	TitleRe  string   `json:"title"`       // a title only that product has: enough by itself
+	TitleLog string   `json:"title_login"` // a word that names the product only on a sign-in page (the title also has a sign-in word)
+	BrandRe  string   `json:"brand"`       // an appliance word an ordinary site also uses: counts only on its sign-in page or a title that is little more than it
+	ServerRe string   `json:"server"`      // over the Server header
+	BodyRe   string   `json:"body"`        // over the first page
+	LocRe    string   `json:"location"`    // over the redirect target
+	Headers  []string `json:"header"`      // a header only that product sends (lower case)
+	CertRe   string   `json:"cert"`        // over one whole certificate name
+	ProdRe   string   `json:"product_re"`  // over a product, CPE or extra information
 	Source   string   `json:"source"`
 	Family   *Family
 
-	title, brand, server, body, loc, cert, prod *regexp.Regexp
+	title, titleLog, brand, server, body, loc, cert, prod *regexp.Regexp
 }
 
 // Page is what a scan read on one port. Any field may be empty.
@@ -115,6 +121,7 @@ func load(b []byte) ([]Family, []Fingerprint, error) {
 			}
 		}
 		compile(&fp.title, fp.TitleRe)
+		compile(&fp.titleLog, fp.TitleLog)
 		compile(&fp.brand, fp.BrandRe)
 		compile(&fp.server, fp.ServerRe)
 		compile(&fp.body, fp.BodyRe)
@@ -192,7 +199,8 @@ func (f *Fingerprint) match(p Page) string {
 			}
 		}
 	}
-	if p.Title != "" && (f.title != nil && f.title.MatchString(p.Title) || f.brand != nil && f.brandTitle(p.Title)) {
+	if p.Title != "" && (f.title != nil && f.title.MatchString(p.Title) || f.titleLog != nil && f.titleLog.MatchString(p.Title) && Loginish(p.Title) ||
+		f.brand != nil && f.brandTitle(p.Title)) {
 		return EvTitle
 	}
 	if f.server != nil && p.Server != "" && f.server.MatchString(p.Server) {
@@ -217,26 +225,40 @@ func (f *Fingerprint) match(p Page) string {
 	return ""
 }
 
-// brandTitle: the title carries the product word and is a sign-in page, or (unless Login) is little more than the product word,
-// so a shop or a blog post that names the product ("FortiGate 60F price | Example Shop", "How to install GlobalProtect") is not one.
+// brandTitle: the title carries the appliance word and is its sign-in page, or has nothing else than host names, models or versions
+// beside it ("fw01 - FortiGate"), so a shop, a review or a post that names the product ("FortiGate 60F price | Example Shop", "Best
+// FortiGate", "How to install GlobalProtect") is not one.
 func (f *Fingerprint) brandTitle(title string) bool {
 	if !f.brand.MatchString(title) {
 		return false
 	}
 	rest := f.brand.ReplaceAllString(title, " ")
-	if Loginish(rest) {
+	if signIn.MatchString(rest) {
 		return true
 	}
-	return !f.Login && words(rest) <= 1
+	for _, w := range wordRe.FindAllString(rest, -1) {
+		if !strings.ContainsAny(w, "0123456789.-_") {
+			return false
+		}
+	}
+	return true
 }
 
 var (
-	loginWords = regexp.MustCompile(`\b(login|log in|logon|log on|sign in|signin|authentication|router|modem|gateway|wireless|web management|administration)\b`)
-	wordRe     = regexp.MustCompile(`[a-z0-9][a-z0-9._-]+`)
+	// loginWords are the surface scan's words of a page about signing in to a device (any part of the title, as it always matched).
+	loginWords = []string{"login", "log in", "sign in", "router", "modem", "gateway", "wireless", "web management"}
+	// signIn are the words of a sign-in page beside an appliance word: never one an appliance's own name or a shop uses ("gateway",
+	// "router", "wireless").
+	signIn = regexp.MustCompile(`\b(login|log in|logon|log on|sign in|signin|authentication|administration|portal)\b`)
+	wordRe = regexp.MustCompile(`[a-z0-9][a-z0-9._-]+`)
 )
 
 // Loginish says whether a lower-case title is about signing in to a device.
-func Loginish(t string) bool { return loginWords.MatchString(t) }
-
-// words counts the words of two characters or more.
-func words(s string) int { return len(wordRe.FindAllString(s, -1)) }
+func Loginish(t string) bool {
+	for _, w := range loginWords {
+		if strings.Contains(t, w) {
+			return true
+		}
+	}
+	return false
+}

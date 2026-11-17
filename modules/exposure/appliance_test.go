@@ -115,6 +115,40 @@ func TestApplianceAdmins_CountsAdminPagesOnce(t *testing.T) {
 	}
 }
 
+// A service that is no web page names its device but is no admin page: SSH, FTP and the API of a MikroTik, SSH of a Junos device,
+// FortiGate's FGFM port with its certificate. The FortiGate certificate on an unidentified TLS port is one.
+func TestApplianceAdmins_OnlyWebPages(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name  string
+		p     PortRow
+		svc   *ServiceRow
+		admin bool
+	}{
+		{"MikroTik SSH", PortRow{IP: ipA, Port: 22, Service: "ssh", Product: "MikroTik RouterOS sshd"}, nil, false},
+		{"MikroTik FTP", PortRow{IP: ipA, Port: 21, Service: "ftp", Product: "MikroTik router ftpd"}, nil, false},
+		{"MikroTik API", PortRow{IP: ipA, Port: 8728, Service: "mikrotik-api", Product: "MikroTik RouterOS API"}, nil, false},
+		{"Junos SSH", PortRow{IP: ipA, Port: 2222, Service: "ssh"}, &ServiceRow{IP: ipA, Port: 2222, Name: "ssh", CPE: "cpe:/o:juniper:junos"}, false},
+		{"FGFM", PortRow{IP: ipA, Port: 541, Service: "ssl/unknown", CertNames: []string{"FGT60FTK2109ABCD"}}, nil, false},
+		{"FortiGate certificate on 11443", PortRow{IP: ipA, Port: 11443, Service: "ssl/unknown", CertNames: []string{"FortiGate"}}, nil, true},
+		{"MikroTik web page", PortRow{IP: ipA, Port: 8080, Service: "http", Product: "MikroTik router config httpd"}, nil, true},
+	} {
+		var svc []ServiceRow
+		if c.svc != nil {
+			svc = []ServiceRow{*c.svc}
+		}
+		ports := []PortRow{c.p}
+		got := applianceAdmins(nil, ports, svc)
+		if (len(got) == 1) != c.admin {
+			t.Errorf("%s: admin rows %+v, want admin %v", c.name, got, c.admin)
+		}
+		nameAppliances(ports, nil, svc)
+		if ports[0].Appliance == nil {
+			t.Errorf("%s: the port is not named", c.name)
+		}
+	}
+}
+
 type fakeAppliances struct {
 	mu    sync.Mutex
 	devs  map[string]ApplianceMatch
@@ -131,8 +165,8 @@ func (f *fakeAppliances) ApplianceDevices(_ context.Context, qs []ApplianceQuery
 	}
 	out := map[string]ApplianceMatch{}
 	for _, q := range qs {
-		if q.Device == nil || len(q.KevKeys) == 0 {
-			return nil, errors.New("a family without its device pattern or KEV keys")
+		if q.Device == nil || len(q.KevKeys) == 0 || len(q.Kinds) == 0 {
+			return nil, errors.New("a family without its device pattern, KEV keys or device types")
 		}
 		out[q.Family] = f.devs[q.Family]
 	}
@@ -214,6 +248,10 @@ func TestAppliance_FailedReadKeepsTheLastAnswer(t *testing.T) {
 	}
 	fa.err = nil
 	fa.devs = map[string]ApplianceMatch{"fortigate": {Devices: []ApplianceDevice{{DeviceID: "dev-fw", Name: "Edge firewall", OpenExploited: 2}}}}
+	if a := read(); a.Devices != nil || fa.calls != 1 {
+		t.Fatalf("a failed read is retried only after applianceRetry: %+v (%d calls)", a, fa.calls)
+	}
+	at = at.Add(applianceRetry)
 	if a := read(); len(a.Devices) != 1 {
 		t.Fatalf("after a good read: %+v", a)
 	}

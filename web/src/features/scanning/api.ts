@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from '@/lib/api'
-import type { EngineId, RunningJob, SafetyInput, SafetySaved, Scanning } from './types'
+import type { EngineId, HistoryRun, RunningJob, SafetyInput, SafetySaved, Scanning } from './types'
 import type { z } from 'zod'
 import type { RangeAdd } from './contract'
 
@@ -12,6 +12,9 @@ export const useScanning = (enabled = true) => useQuery({
   queryKey: ['scanning'], queryFn: () => api.get<Scanning>('/scanning'), enabled,
   refetchInterval: (q) => (q.state.data?.running.length ? scanningPoll.runningMs : scanningPoll.idleMs),
 })
+
+/** GET /scanning/history (kien G7a): the LAN runs and public scans with their outcome; every 30 s while the tab is open. */
+export const useScanningHistory = () => useQuery({ queryKey: ['scanning', 'history'], queryFn: () => api.get<{ items: HistoryRun[] }>('/scanning/history'), refetchInterval: 30_000 })
 
 function useRefresh() {
   const qc = useQueryClient()

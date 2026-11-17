@@ -1,5 +1,11 @@
 # Core — Change Impact Map
 
+
+## Modifying: Settings › Scanning › History (`GET /scanning/history`, `ScanningConfig.History`, `HistoryRun`; INV-40 (5), kien G7a)
+- **cmd/vedette/scanninghistory.go** builds every row from sensor-active `Jobs` and exposure `RecentScans`; a new field of `HistoryRun` (or a new outcome) needs its builder there, `web/src/features/scanning/contract.ts` (`HistoryRun`), the mock (`scanning/mocks.ts` `historyStore`) and `RunHistory.tsx`.
+- **The rule of the list**: a row's text says only what its run stored (#940 review r1); a source that cannot say more must not invent it (an SNMP read is "n of m answered", never the targets it meant to reach).
+- **Cost**: the SPA reads it every 30 s while the History tab is open; the sources are bounded (sensor-active one indexed read per kind, exposure one read of `exp_snapshot`), core keeps the newest 200.
+
 ## Modifying: Settings › Scanning (`ScanningHandlers`, `ScanEngine`, `SafetyStore`, `DiscoveryRunner`; #850, INV-40)
 - **cmd/vedette/scanning.go** builds every port: a new field of `ScanEngine`/`EngineStatus` or a new refusal of `DiscoveryRunner` needs its adapter there; the engine list and its order are the page's.
 - **`core/server/modules.go`** maps `/scanning` to core (and `web/src/lib/apiModules.ts`, `api/route-modules.json`): moving it to a module would make the page 404 with that module off.

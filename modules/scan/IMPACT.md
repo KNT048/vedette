@@ -1,5 +1,9 @@
 # Scan — Change Impact Map
 
+
+## Modifying: the results of a run (`RunRow.Result`, `scan_run.results`, `stop_reason`, `identification`; kien G7a)
+- **The SPA** words a run from them (`web/src/features/scan/shared.tsx` `runOutcome`: "Checked 3 CVEs: 1 confirmed, 2 no check exists (still suspected)"; History's "What it found" and the "Last scan" line). A new result kind needs its words there (`scan.json` `outcome.part.*`), or History says less than the run found.
+
 ## Modifying: `DeviceChanged`, `Service.dev`, the per-device context of `scanTarget` (D-601, review r1 M2 of #932)
 - **cmd/vedette** `wiring.go` subscribes `inventory.asset.updated` (module on). A device's part stops alone (`noteTurnedOff`); the run's `status` stays `done`. Dropping the per-device context makes a scan turned off on the device page keep running until the run ends, which D-601 and the Sources card say does not happen.
 - **inventory** `VulnScanPolicy` (INV-37): a hand-added device whose network scan is off is refused even when picked; `targetReason` lists it as `regular_scan_never`.

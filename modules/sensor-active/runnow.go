@@ -3,10 +3,12 @@ package sensoractive
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/netip"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/knt048/vedette/core/progress"
@@ -493,4 +495,76 @@ func (st Settings) nextOpening(t time.Time) *time.Time {
 		}
 	}
 	return nil
+}
+
+// JobRow is an sa_job row for a list of past runs, with every probe it sent (kien G7a, read only): a sweep runs in batches, an SNMP
+// read records "ok: n of m answered", so what the run found is in its probes, never only in the row's target count.
+type JobRow struct {
+	JobHead
+	Probes []JobProbe // in the order they were sent; empty when it sent none
+}
+
+// JobProbe is one probe of a job: its targets (an address, or the ranges of a sweep batch) and its result as recorded ("ok: 3 hosts
+// up", "ok: 2 of 3 answered", "failed: …"; "" while it runs).
+type JobProbe struct{ Targets, Result string }
+
+// Jobs lists the newest sa_job rows of the LAN (sweep, device, snmp; external runs are part of exposure's scans), newest first, at
+// most limit (1..500), each with its probes. Read only: Settings › Scanning › History (kien G7a). One indexed read per kind
+// (sa_job (kind, started_at)), then the probes of the listed jobs in one read (sa_probe (job_id)).
+func (s *Service) Jobs(ctx context.Context, limit int) ([]JobRow, error) {
+	limit = clamp(limit, 1, 500)
+	db := s.db.Reader()
+	out := []JobRow{}
+	for _, kind := range []string{KindSweep, KindDevice, KindSNMP} {
+		rows, err := db.QueryContext(ctx, `SELECT id, kind, status, reason, started_at, finished_at, targets, new_devices, error FROM sa_job
+WHERE kind = ? ORDER BY started_at DESC LIMIT ?`, kind, limit)
+		if err != nil {
+			return nil, fmt.Errorf("sensoractive: list jobs: %w", err)
+		}
+		for rows.Next() {
+			var r JobRow
+			var reason, errText sql.NullString
+			if err := rows.Scan(&r.ID, &r.Kind, &r.Status, &reason, &r.StartedAt, &r.FinishedAt, &r.Targets, &r.NewDevices, &errText); err != nil {
+				_ = rows.Close()
+				return nil, fmt.Errorf("sensoractive: list jobs: %w", err)
+			}
+			r.Reason, r.Error = reason.String, errText.String
+			out = append(out, r)
+		}
+		if err := rows.Close(); err != nil {
+			return nil, fmt.Errorf("sensoractive: list jobs: %w", err)
+		}
+	}
+	slices.SortStableFunc(out, func(a, b JobRow) int { return strings.Compare(b.StartedAt, a.StartedAt) })
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	if len(out) == 0 {
+		return out, nil
+	}
+	at := make(map[string]int, len(out))
+	ids := make([]string, len(out))
+	for i, r := range out {
+		at[r.ID], ids[i] = i, r.ID
+	}
+	list, err := json.Marshal(ids)
+	if err != nil {
+		return nil, fmt.Errorf("sensoractive: list job probes: %w", err)
+	}
+	rows, err := db.QueryContext(ctx, `SELECT job_id, targets, result FROM sa_probe WHERE job_id IN (SELECT value FROM json_each(?)) ORDER BY id`, string(list))
+	if err != nil {
+		return nil, fmt.Errorf("sensoractive: list job probes: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var id string
+		var p JobProbe
+		if err := rows.Scan(&id, &p.Targets, &p.Result); err != nil {
+			return nil, fmt.Errorf("sensoractive: list job probes: %w", err)
+		}
+		if i, ok := at[id]; ok {
+			out[i].Probes = append(out[i].Probes, p)
+		}
+	}
+	return out, rows.Err()
 }

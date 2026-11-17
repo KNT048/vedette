@@ -112,9 +112,10 @@ describe('Findings › Needs your input by device (kien G15)', () => {
     expect(within(cam).getByRole('button', { name: 'Save and check' })).toBeInTheDocument() // the version can still be typed (a correction)
     await userEvent.click(within(cam).getByRole('button', { name: 'Not installed' }))
     const ask = within(cam).getByRole('group', { name: 'Not installed' })
-    expect(ask).toHaveTextContent('Say Hikvision camera is not installed on CAM-GATE? Its findings close. If a later scan or agent read finds it at another version, Vedette checks that version. Clear it on the device page to undo.')
+    expect(ask).toHaveTextContent('Say Hikvision camera is not installed on CAM-GATE? The findings only it produced close. If a later scan or agent read finds it at another version, Vedette checks that version. Clear it on the device page to undo.')
     await userEvent.click(within(ask).getByRole('button', { name: 'Not installed' }))
-    expect(await screen.findByText('Hikvision camera is marked not installed on CAM-GATE; its findings are closed.', undefined, T)).toBeInTheDocument()
+    // the toast says what happened: here no open finding was on the row
+    expect(await screen.findByText('Hikvision camera is marked not installed on CAM-GATE. No open finding was on it.', undefined, T)).toBeInTheDocument()
     expect(sent).toEqual({ not_installed: true })
     const row = assetsStore.get().find((a) => a.id === 'a-cam01')!.software
     expect(row.find((s) => s.corrects === 's-cam01')).toMatchObject({ source: 'manual', not_installed: true, display: 'Hikvision camera' })
@@ -151,7 +152,18 @@ describe('Findings › Needs your input by device (kien G15)', () => {
     const srv = await expand('SRV-ACCOUNTS')
     expect(await within(srv).findByText(/^Nothing to type here: read the advisories to check it yourself\. Vedette checks these again at the next NVD refresh, on .+\.$/, undefined, T)).toBeInTheDocument()
     expect(within(srv).queryByRole('button', { name: 'Save and check' })).toBeNull()
-    expect(within(srv).queryByRole('button', { name: 'Not installed' })).toBeNull()
+    // a row a scan reads, waiting for NVD: the person can still say it is not installed
+    expect(within(srv).getByRole('button', { name: 'Not installed' })).toBeInTheDocument()
+  })
+
+  it('the box\'s own software is never offered Not installed: it reads its own package list', async () => {
+    const box = asset('a-box', 'vedette')
+    serve({ unchecked: [unc(box, 'OpenSSH server', ['CVE-2026-31'], { software_id: 's-box-openssh' })] })
+    renderApp('/findings?tab=input')
+    const block = await expand('vedette')
+    expect((await within(block).findAllByText(/CVE-2026-31/, undefined, T)).length).toBeGreaterThan(0)
+    await waitFor(() => expect(within(block).queryByText(/Reading the device/)).toBeNull(), T)
+    expect(within(block).queryByRole('button', { name: 'Not installed' })).toBeNull()
   })
 
   it('the NVD feed off, and NVD not answered yet: it says so, with the way to turn it on', async () => {

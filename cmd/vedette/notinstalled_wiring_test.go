@@ -9,7 +9,7 @@ import (
 	"github.com/knt048/vedette/modules/findings"
 )
 
-// J3, kien G15 (inventory INV-41 (6), findings INV-6c): through the real API, inventory and bus, an operator says the FortiOS row a scan
+// Inventory INV-41 (6), findings INV-6c: through the real API, inventory and bus, an operator says the FortiOS row a scan
 // reported is not installed. Its finding closes with the person named; a viewer may not; the next scan at the same version keeps it
 // closed; Clear (DELETE on the correction) reopens it.
 func TestWiringNotInstalledClosesAReportedRowsFinding(t *testing.T) {
@@ -71,6 +71,23 @@ func TestWiringNotInstalledClosesAReportedRowsFinding(t *testing.T) {
 	if corr == nil || corr["not_installed"] != true || corr["active"] != true || corr["disagrees"] != false {
 		t.Fatalf("the device shows the row not installed: %v", corr)
 	}
+	// what the device runs, for the Ask context and the MCP asset data, leaves out the software a person said is not installed
+	dev, err := s.d.Inventory.Device(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := mcpAsset(dev).Software; len(got) != 0 {
+		t.Fatalf("the MCP asset must not list it: %+v", got)
+	}
+	rows, err := aiAsk{inv: s.d.Inventory}.Assets(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range rows {
+		if row.ID == id && len(row.Software) != 0 {
+			t.Fatalf("the Ask context must not list it: %+v", row.Software)
+		}
+	}
 	scan() // the same version again: it stays closed
 	if r := finding(); r.Status != findings.StatusNotRelevant {
 		t.Fatalf("the next scan must keep it closed: %+v", r.Finding)
@@ -86,6 +103,9 @@ func TestWiringNotInstalledClosesAReportedRowsFinding(t *testing.T) {
 	}
 	if r := finding(); r.Status != findings.StatusSuspected {
 		t.Fatalf("Clear must reopen it: %+v", r.Finding)
+	}
+	if dev, err := s.d.Inventory.Device(ctx, id); err != nil || len(mcpAsset(dev).Software) != 1 {
+		t.Fatalf("cleared: the software is listed again: %+v %v", dev.Software, err)
 	}
 	if n := s.count(`SELECT count(*) FROM core_audit WHERE action IN ('inventory.mark_not_installed', 'inventory.clear_software_correction')`); n != 2 {
 		t.Fatalf("audit rows %d", n)

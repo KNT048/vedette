@@ -227,6 +227,9 @@ type Software struct {
 	Kev        []string `json:"kev"`
 	Source     string   `json:"source"`
 	Confidence float64  `json:"confidence"`
+	// NotInstalled: a person said this software is not installed on the device (INV-41 (6)): the mark itself, or the reported row it
+	// covers. Readers that tell what the device runs (the Ask context, the MCP asset data) leave it out. Not in the API.
+	NotInstalled bool `json:"-"`
 }
 
 // SoftwareView is Software with CVE ids instead of keys (contract.ts SoftwareView).

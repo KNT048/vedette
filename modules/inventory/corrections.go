@@ -44,6 +44,10 @@ var correctionLive = `EXISTS (SELECT 1 FROM inv_software r WHERE r.asset_id = s.
 var liveSW = `(CASE WHEN s.corrects IS NOT NULL THEN s.not_installed = 0 AND ` + correctionLive + ` WHEN s.source = 'manual' THEN 1
 	ELSE NOT EXISTS (SELECT 1 FROM inv_software c WHERE c.asset_id = s.asset_id AND c.corrects = ` + rowKey("s") + `) END)`
 
+// notInstalledSW is the SQL condition on a software row (alias s) that a person said it is not installed (INV-41 (6)): the mark itself,
+// or the reported row a mark covers (a mark whose corrects is the row's key).
+var notInstalledSW = `(s.not_installed = 1 OR EXISTS (SELECT 1 FROM inv_software c WHERE c.asset_id = s.asset_id AND c.not_installed = 1 AND c.corrects = ` + rowKey("s") + `))`
+
 // pkgVersionRE is a distribution's full package version as a person copies it from the device: Debian's "1:9.6p1-3ubuntu13.14",
 // Alpine's "10.2_p1-r1", RPM's "8.7p1-38.el9_4.4".
 var pkgVersionRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.+~:-]{0,99}$`)
@@ -234,6 +238,15 @@ func (s *Service) EditSoftware(ctx context.Context, actor, assetID, softwareID s
 	}
 	if source == "manual" && !corrects.Valid && e.NotInstalled {
 		return badRequest("bad_edit", "A person added this software: remove it instead (Not installed on a row a person added deletes it).")
+	}
+	if e.NotInstalled {
+		var box bool
+		if err := s.db.Reader().QueryRowContext(ctx, `SELECT is_box FROM inv_asset WHERE id = ?`, assetID).Scan(&box); err != nil {
+			return fmt.Errorf("inventory: read device: %w", err)
+		}
+		if box { // the box reads its own package list: what it reports is installed
+			return conflict("box_device", "This is the Vedette box itself: it reads its own software, so a row cannot be marked not installed.")
+		}
 	}
 	if source == "manual" && !corrects.Valid && e.PkgVersion == nil && entry == nil {
 		return s.SetSoftwareVersion(ctx, actor, assetID, softwareID, *e.Version) // a declared row's version (D-471)
@@ -542,8 +555,8 @@ func correctionNote(display, version, pkg, corrects, setBy, setAt string, notIns
 	if !strings.EqualFold(strings.ToLower(display), product) && !strings.Contains(strings.ToLower(display), product) {
 		was = product
 	}
-	if notInstalled {
-		return cmp.Or(setBy, "a person") + " said " + swText(was, from, "") + " (" + src + ") is not installed on " + correctionDay(setAt)
+	if notInstalled { // the row's own name, as the reported row shows it: findings reads "said <name> <version> (<source>)" to tell a person's Clear from a new reading
+		return cmp.Or(setBy, "a person") + " said " + swText(display, from, "") + " (" + src + ") is not installed on " + correctionDay(setAt)
 	}
 	return cmp.Or(setBy, "a person") + " corrected " + swText(was, from, "") + " (" + src + ") to " + swText(display, version, pkg) + " on " + correctionDay(setAt)
 }

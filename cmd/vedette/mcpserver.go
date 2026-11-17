@@ -127,6 +127,9 @@ func mcpAsset(d inventory.Device) mcpserver.Asset {
 		a.Services = append(a.Services, mcpserver.NetService{Port: sv.Port, Proto: sv.Proto, Name: sv.Name, Product: sv.Product, Version: sv.Version})
 	}
 	for _, sw := range d.Software {
+		if sw.NotInstalled { // a person said it is not on the device (inventory INV-41 (6))
+			continue
+		}
 		a.Software = append(a.Software, mcpserver.Software{Name: sw.Display, Vendor: sw.Vendor, Product: sw.Product, Version: sw.Version})
 	}
 	return a

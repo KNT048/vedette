@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/modules/inventory"
 )
 
-// INV-41 (6) (J3, kien G15): a person says the OpenSSH row a scan reported is not installed. It is a correction of that row that
+// INV-41 (6): a person says the OpenSSH row a scan reported is not installed. It is a correction of that row that
 // replaces it with nothing: matching reads neither, MatchInput names the row for findings, a rescan at the same version keeps it, a
 // rescan at another version is a new install that matches (the correction rests and says so), Set again moves it onto the new reading,
 // a version edit makes it an ordinary correction, and Clear brings the row back. Audited; a row a person added is removed instead.
@@ -60,6 +60,9 @@ func TestINV41_NotInstalledReplacesTheReportedRowWithNothing(t *testing.T) {
 	if c := mine.Correction; c == nil || !c.NotInstalled || !c.Active || c.Disagrees || c.Detected == nil || c.Detected.ID != scanned.ID || c.SetBy != "op@example.com" ||
 		len(mine.KevCVEs) != 0 || sc.CorrectedBy == nil || *sc.CorrectedBy != mine.ID {
 		t.Fatalf("detail: scanned %+v, correction %+v %+v", sc, mine, mine.Correction)
+	}
+	if dev, err := e.svc.Device(e.ctx(), dev); err != nil || len(dev.Software) != 2 || !dev.Software[0].NotInstalled || !dev.Software[1].NotInstalled {
+		t.Fatalf("the device's software says both rows are not installed (the mark and the row it covers): %+v %v", dev.Software, err)
 	}
 	notInstalled(scanned.ID) // the same again writes nothing
 	if n := countOf(e.auditActions(), "inventory.mark_not_installed"); n != 1 {
@@ -133,4 +136,23 @@ func TestINV41_NotInstalledReplacesTheReportedRowWithNothing(t *testing.T) {
 			wantAPIError(t, e.svc.EditSoftware(e.ctx(), "op@example.com", dev, s.ID, inventory.SoftwareEdit{NotInstalled: true}), 400, "bad_edit")
 		}
 	}
+}
+
+// INV-41 (6): the box reads its own package list, so a row of its own software cannot be marked not installed (409 box_device).
+func TestINV41_TheBoxsOwnSoftwareIsNeverMarkedNotInstalled(t *testing.T) {
+	t.Parallel()
+	items := []inventory.SoftwareItem{{Display: "OpenSSH", Vendor: "OpenBSD", Product: "OpenSSH", Version: "9.6p1"}}
+	e := newEnv(t, withBox(swapBox{&items}))
+	box, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "vedette-hq", IP: "192.168.10.2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.svc.RefreshBoxPackages(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	d, err := e.svc.Detail(e.ctx(), box)
+	if err != nil || len(d.Asset.Software) == 0 {
+		t.Fatalf("box software %+v %v", d.Asset.Software, err)
+	}
+	wantAPIError(t, e.svc.EditSoftware(e.ctx(), "op@example.com", box, d.Asset.Software[0].ID, inventory.SoftwareEdit{NotInstalled: true}), 409, "box_device")
 }

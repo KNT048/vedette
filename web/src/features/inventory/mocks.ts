@@ -683,13 +683,15 @@ function recordSnmp(a: Asset, ans: NonNullable<SnmpTestResult['answer']>) {
 /** INV-41 (6): PATCH …/software/{sid} with `not_installed: true` (alone): a "not installed" correction of the reported row (or of the row
  *  a correction replaces) that holds what the source reads and matches nothing; findings closes what only that row produced
  *  (INV-6c). A row a person added is removed instead (DELETE). */
-function notInstalled(a: Asset, sid: string, b: { version?: string; pkg_version?: string }) {
-  if (b.version !== undefined || b.pkg_version !== undefined) return fail(400, 'bad_edit', '"Not installed" takes no version, package release or product: send it alone.')
+function notInstalled(a: Asset, sid: string, b: { version?: string; pkg_version?: string; catalog_id?: string; vendor?: string; product?: string }) {
+  if (b.version !== undefined || b.pkg_version !== undefined || b.catalog_id || b.vendor || b.product) return fail(400, 'bad_edit', '"Not installed" takes no version, package release or product: send it alone.')
   const sw = a.software.find((s) => s.id === sid)
   if (!sw) return fail(404, 'not_found', 'No such software on this device.')
   if (sw.source === 'manual' && !sw.corrects) return fail(400, 'bad_edit', 'A person added this software: remove it instead (Not installed on a row a person added deletes it).')
+  if (a.id === BOX_ID) return fail(409, 'box_device', 'This is the Vedette box itself: it reads its own software, so a row cannot be marked not installed.')
   const orig = sw.corrects ? a.software.find((x) => x.id === sw.corrects) : sw
   const have = sw.corrects ? sw : a.software.find((c) => c.corrects === sw.id)
+  if (have?.not_installed && (!orig || have.corrects === orig.id)) return HttpResponse.json({ ok: true }) // marked already: nothing changes, no audit row
   const base = orig ?? have!
   const corr: Software = { ...base, id: have?.id ?? newId('s'), source: 'manual', confidence: 1, corrects: orig?.id ?? have!.corrects, corrected_at: nowIso(), not_installed: true }
   assetsStore.update((l) => l.map((x) => (x.id === a.id ? { ...x, software: have ? x.software.map((s) => (s.id === have.id ? corr : s)) : [...x.software, corr] } : x)))
@@ -951,7 +953,7 @@ export const handlers = [
     const denied = guard('operator'); if (denied) return denied
     const a = find(String(params.id))
     if (!a) return notFound(request)
-    const b = await body<{ version?: string; pkg_version?: string; not_installed?: boolean }>(request)
+    const b = await body<{ version?: string; pkg_version?: string; catalog_id?: string; vendor?: string; product?: string; not_installed?: boolean }>(request)
     if (b.not_installed === true) return notInstalled(a, String(params.sid), b)
     if (b.version === undefined && b.pkg_version === undefined) return fail(400, 'bad_edit', 'Nothing to change: give a version or a package release.')
     const version = typeof b.version === 'string' ? b.version.trim() : b.version === undefined ? undefined : null

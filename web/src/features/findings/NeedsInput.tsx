@@ -24,6 +24,7 @@ import { useBulkStatus } from './api'
 import { deviceName, hasIp } from './basis'
 import { MAX_BULK } from './contract'
 import { errMsg } from './errors'
+import { notInstalledText, useNotInstalled } from './notInstalled'
 import { useDeviceSoftware } from './rematch'
 import { Worst, unproved } from './ToFix'
 import { UNCHECKED_ANCHOR, UncheckedLine } from './UncheckedList'
@@ -202,8 +203,9 @@ function NextStep({ assetId, asset, softwareId, software, need, sourceHint = '',
   const open = asset && softwareId ? <Link to={`/devices/${encodeURIComponent(asset.id)}?tab=software`} className="text-meta text-accent underline underline-offset-4">{t('needsInput.openRow', { software, device })}</Link> : null
   const notAffected = need === 'proof' ? <NotAffected ids={findingIds} /> : null
 
-  // INV-41 (6): on a row a scan, SNMP or an agent reads, Not installed is the person's word, kept while the source reads that row
-  const notInstalled = row && asset ? <NotInstalled assetId={assetId} software={row.display} softwareId={row.id} device={device} wholeDevice={false} reported /> : null
+  // INV-41 (6): on a row a scan, SNMP or an agent reads, Not installed is the person's word, kept while the source reads that row. Never
+  // on the box: it reads its own package list.
+  const notInstalled = row && asset && !d?.is_box ? <NotInstalled assetId={assetId} software={row.display} softwareId={row.id} cves={row.kev_cves} device={device} wholeDevice={false} reported /> : null
 
   if (row?.source === 'manual' && !row.correction) {
     return (
@@ -218,7 +220,7 @@ function NextStep({ assetId, asset, softwareId, software, need, sourceHint = '',
   }
   if (need === 'nvd') {
     // not_named, no NVD data or versions, or a version the box read that NVD's ranges cannot order: only NVD's data decides
-    return <Step text={<>{t('needsInput.next.nothing')} <NvdWhen waiting={waiting} /></>}>{open}</Step>
+    return <Step text={<>{t('needsInput.next.nothing')} <NvdWhen waiting={waiting} /></>}>{notInstalled}{open}</Step>
   }
   const proof = need === 'proof' ? ` ${t('needsInput.next.proof')}` : ''
   if (SCAN_READ.has(source) || source === 'snmp') {
@@ -313,15 +315,19 @@ function VersionForm({ assetId, sw }: { assetId: string; sw: { id: string; displ
  *  SNMP or an agent reads (`reported`), deleting would last only until the next read, so it is the person's word kept as an inventory
  *  correction (INV-41 (6), PATCH not_installed): the row stops matching while the source reads it and its findings close (findings
  *  INV-6c); Clear on the device page undoes it. */
-function NotInstalled({ assetId, software, softwareId, device, wholeDevice, reported = false }: { assetId: string; software: string; softwareId: string; device: string; wholeDevice: boolean; reported?: boolean }) {
+function NotInstalled({ assetId, software, softwareId, cves, device, wholeDevice, reported = false }: { assetId: string; software: string; softwareId: string; cves?: string[]; device: string; wholeDevice: boolean; reported?: boolean }) {
   const { t } = useTranslation('findings')
   const can = useCan('operator')
   const act = useDeviceAction(assetId)
+  const mark = useNotInstalled(assetId)
   const [asking, setAsking] = useState(false)
-  const pending = act.remove.isPending || act.removeSoftware.isPending || act.notInstalled.isPending
-  // mutateAsync: the item leaves the list once removed, which unmounts this control before mutate's own callbacks would run
-  const remove = () => (reported ? act.notInstalled.mutateAsync(softwareId) : wholeDevice ? act.remove.mutateAsync() : act.removeSoftware.mutateAsync(softwareId))
-    .then(() => toast.success(reported ? t('needsInput.notInstalledSaved', { software, device }) : wholeDevice ? t('needsInput.removedDevice', { device }) : t('needsInput.removed', { software, device })), (e: unknown) => toast.error(errMsg(e)))
+  const pending = act.remove.isPending || act.removeSoftware.isPending || mark.isPending
+  // async: the item leaves the list once removed, which unmounts this control before mutate's own callbacks would run
+  const remove = () => (reported
+    ? mark.mark({ id: softwareId, kev_cves: cves }).then((o) => toast.success(notInstalledText(t, software, device, o)))
+    : (wholeDevice ? act.remove.mutateAsync() : act.removeSoftware.mutateAsync(softwareId))
+      .then(() => toast.success(wholeDevice ? t('needsInput.removedDevice', { device }) : t('needsInput.removed', { software, device }))))
+    .catch((e: unknown) => toast.error(errMsg(e)))
   if (!asking) {
     return <Button size="sm" disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} onClick={() => setAsking(true)}>{t('needsInput.notInstalled')}</Button>
   }

@@ -244,8 +244,10 @@ export function markCurrent(list: StoredObs[]): Observation[] {
     const b = best.get(o.field)
     if (!b || compareObs(o, b) > 0) best.set(o.field, o)
   }
-  return list.map((o) => ({ ...o, current: best.get(o.field)?.id === o.id }))
+  return list.map((o) => ({ ...o, current: best.get(o.field)?.id === o.id, ...(o.field === 'os' && osGuess(o) ? { basis: 'guess' as const } : {}) }))
 }
+/** A network scan's OS fingerprint (never the device's own NTLM answer, "(build …)"): a guess (inventory osBasis). */
+const osGuess = (o: { source: ObsSource; value: string }) => o.source === 'nmap' && !o.value.includes('(build ')
 
 /** A device with no vendor, model or OS (seen only by ARP) takes its current hostname and MAC instead (source "–"). */
 function summaryOf(a: Asset): DeviceRow['summary'] {
@@ -268,7 +270,7 @@ const scanInfo = (a: Asset) => ({
 })
 // Hộp luôn "vừa thấy": nó là máy đang chạy Vedette.
 /** The wire shape adds the source of the kind and the rules' guess, only while the kind is unknown. */
-const live = (a: Asset) => ({ ...a, name: a.name ?? null, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null })
+const live = (a: Asset) => ({ ...a, name: a.name ?? null, ...(a.id === BOX_ID ? { last_seen: nowIso() } : {}), kind_source: a.kind_source ?? (a.kind === 'unknown' ? null : a.origin === 'manual' ? 'manual' as const : 'nmap' as const), guess: a.kind === 'unknown' ? a.guess ?? null : null, os: a.os && osGuess(a.os) ? { ...a.os, basis: 'guess' as const } : a.os })
 /** #849: what feeds a device, in the words of the Devices search. Agent data is osquery's when osquery reports the device (its node is
  * bound to it) and Wazuh's when the saved Wazuh connection delivered it (both when both do); not Wazuh's once that connection is gone. */
 const DEVICE_SOURCES: readonly DeviceSource[] = ['manual', 'passive', 'scan', 'snmp', 'osquery', 'wazuh']

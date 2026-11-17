@@ -115,6 +115,9 @@ function Overview({ d }: { d: DeviceDetail }) {
           {row(t('detail.firstScan'), a.first_scan_at ? fmtDateTime(a.first_scan_at) : <span className="text-muted">{t('detail.firstScanNone')}</span>)}
         </>
       ) : null}
+      {row(t('detail.maker'), <Identity v={a.vendor} />)}
+      {row(t('detail.model'), <Identity v={a.model} />)}
+      {row(t('detail.os'), <Identity v={a.os} />)}
       {row(t('detail.hostname'), <HostName d={d} />)}
       {row(t('detail.ip'), a.ip)}
       {row(t('detail.mac'), a.mac ?? <span className="text-muted">{t('common:unknown')}</span>)}
@@ -122,6 +125,19 @@ function Overview({ d }: { d: DeviceDetail }) {
       {row(t('detail.lastSeen'), `${fmtDateTime(a.last_seen)} (${fmtRelative(a.last_seen)})`)}
       {row(t('detail.origin'), a.is_box ? t('box.origin') : a.origin === 'manual' ? t('detail.originManual') : t('detail.originDiscovered'))}
     </dl>
+  )
+}
+
+/** Maker, model or OS as Vedette uses it everywhere (title, list, Software, matching: one ranking), with where it came from and how
+ *  sure: a network scan's OS fingerprint reads as a guess, an OS the device announces over LLDP says so. */
+function Identity({ v }: { v: DeviceDetail['asset']['os'] }) {
+  const { t } = useTranslation('inventory')
+  if (!v) return <span className="text-muted">{t('detail.notKnown')}</span>
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+      <span className="[overflow-wrap:anywhere]">{v.value}</span>
+      <SourceBadge source={v.source} confidence={v.confidence} basis={v.basis} />
+    </span>
   )
 }
 
@@ -193,7 +209,7 @@ function Observations({ list }: { list: Observation[] }) {
   const columns: ColumnDef<Observation>[] = [
     { id: 'field', header: t('obs.field'), accessorFn: (o) => t(`obs.fields.${o.field}`), cell: ({ getValue }) => <span className="whitespace-nowrap font-medium">{getValue() as string}</span> },
     { id: 'value', header: t('obs.value'), accessorFn: (o) => (o.field === 'kind' ? kindLabel(o.value) : o.value) },
-    { id: 'source', header: t('obs.source'), accessorFn: (o) => o.confidence, cell: ({ row }) => <SourceBadge source={row.original.source} confidence={row.original.confidence} /> },
+    { id: 'source', header: t('obs.source'), accessorFn: (o) => o.confidence, cell: ({ row }) => <SourceBadge source={row.original.source} confidence={row.original.confidence} basis={row.original.basis} /> },
     { id: 'at', header: t('obs.at'), accessorFn: (o) => new Date(o.seen_at).getTime(), cell: ({ row }) => <time dateTime={row.original.seen_at} className="whitespace-nowrap text-meta text-muted">{fmtDateTime(row.original.seen_at)}</time> },
     { id: 'current', header: t('obs.state'), enableSorting: false, accessorFn: (o) => Number(o.current), cell: ({ row }) => (row.original.current ? <Chip tone="ok">{t('obs.current')}</Chip> : <span className="text-meta text-muted">{t(row.original.contradicts_type ? 'obs.notUsedType' : 'obs.kept')}</span>) },
   ]
@@ -206,7 +222,7 @@ function Observations({ list }: { list: Observation[] }) {
             {o.current ? <Chip tone="ok">{t('obs.current')}</Chip> : null}
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted">
-            <SourceBadge source={o.source} confidence={o.confidence} />
+            <SourceBadge source={o.source} confidence={o.confidence} basis={o.basis} />
             <time dateTime={o.seen_at}>{fmtDateTime(o.seen_at)}</time>
             {o.current ? null : <span>{t(o.contradicts_type ? 'obs.notUsedType' : 'obs.kept')}</span>}
           </div>
@@ -274,7 +290,17 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
   // INV-41 (6): a reported row a person said is not installed is shown once, as that "not installed" row (with Clear)
   const notInstalledIn = (sw: SoftwareView) => !!sw.correction?.not_installed
   const list = d.asset.software.filter((sw) => !(sw.corrected_by && d.asset.software.some((c) => c.id === sw.corrected_by && notInstalledIn(c) && c.correction?.active)))
-  if (!list.length) return <EmptyState title={t('software.empty')} info={t('software.emptyBodyInfo')}>{t('software.emptyBody')}</EmptyState>
+  // The OS the device uses has a line of its own when no row shows it (an OS from the agent, SNMP or the device's LLDP statement);
+  // a network scan's OS guess is its own row, marked as a guess, never also a line. The box's own OS is its package list.
+  const os = d.asset.os
+  const osBox = os && os.basis !== 'guess' && !d.asset.is_box && !list.some((sw) => sw.display === os.value) ? (
+    <div className="mb-3 grid gap-1 rounded-md border border-rule bg-surface px-4 py-3 text-sm" data-testid="software-os">
+      <span className="font-medium">{t('software.os')}</span>
+      <span className="flex flex-wrap items-center gap-x-2 gap-y-1"><span className="[overflow-wrap:anywhere]">{os.value}</span><SourceBadge source={os.source} confidence={os.confidence} basis={os.basis} /></span>
+      <SoftwareNeeds assetId={d.asset.id} softwareId={`os:${d.asset.id}`} needs={needs} />
+    </div>
+  ) : null
+  if (!list.length) return <>{osBox}<EmptyState title={t('software.empty')} info={t('software.emptyBodyInfo')}>{t('software.emptyBody')}</EmptyState></>
   const needCount = (sw: SoftwareView) => (needs instanceof Map ? (needs.get(sw.id)?.exploited.reduce((n, a) => n + a.cves.length, 0) ?? 0) : 0)
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const version = (sw: SoftwareView) => {
@@ -294,7 +320,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
     const v = seen?.version ?? ''
     return (
       <div className="grid gap-1">
-        <span>{sw.version || <span className="text-muted">{t('software.noVersion')}</span>}</span>
+        <span>{sw.version || <span className="text-muted">{t(sw.basis === 'guess' ? 'software.guessNoVersion' : 'software.noVersion')}</span>}</span>
         {seen ? (
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-warn">
             {t('software.seen', { version: v, source: t(`common:source.${seen.source}`) })}
@@ -329,12 +355,12 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
     } },
     { id: 'version', header: t('software.version'), accessorFn: (s) => s.version ?? '', cell: ({ row }) => version(row.original) },
     { id: 'kev', header: t('findings:needs.column'), accessorFn: needCount, cell: ({ row }) => <SoftwareNeeds assetId={d.asset.id} softwareId={row.original.id} needs={needs} /> },
-    { id: 'source', header: t('obs.source'), accessorFn: (s) => s.confidence, cell: ({ row }) => (d.asset.is_box ? <span className="text-caption text-muted">{t('box.source')}</span> : <SourceBadge source={row.original.source} confidence={row.original.confidence} />) },
+    { id: 'source', header: t('obs.source'), accessorFn: (s) => s.confidence, cell: ({ row }) => (d.asset.is_box ? <span className="text-caption text-muted">{t('box.source')}</span> : <SourceBadge source={row.original.source} confidence={row.original.confidence} basis={row.original.basis} />) },
     { id: 'actions', header: () => <span className="sr-only">{t('software.actions')}</span>, enableSorting: false, cell: ({ row }) => actions(row.original) },
   ]
   return (
     <>
-      <OsNeeds assetId={d.asset.id} needs={needs} />
+      {osBox ?? <OsNeeds assetId={d.asset.id} needs={needs} />}
       <DataTable caption={t('software.caption')} data={list} columns={columns}
         mobileRow={(sw) => (
           <div className="flex items-start justify-between gap-3">
@@ -343,7 +369,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
               {rawProductLine(sw.display, sw.vendor, sw.product) ? <span className="text-caption text-muted">{rawProductLine(sw.display, sw.vendor, sw.product)}</span> : null}
               <div className="text-meta">{version(sw)}</div>
               <SoftwareNeeds assetId={d.asset.id} softwareId={sw.id} needs={needs} />
-              <span className="text-caption text-muted">{d.asset.is_box ? t('box.source') : <SourceBadge source={sw.source} confidence={sw.confidence} />}</span>
+              <span className="text-caption text-muted">{d.asset.is_box ? t('box.source') : <SourceBadge source={sw.source} confidence={sw.confidence} basis={sw.basis} />}</span>
             </div>
             {actions(sw)}
           </div>

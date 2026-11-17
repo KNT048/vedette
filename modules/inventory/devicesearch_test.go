@@ -80,7 +80,7 @@ func newSearchFleet(t *testing.T) (*env, searchFleet) {
 
 func search(t *testing.T, e *env, approved, fragile, hasFindings, types, sources, q string) []string {
 	t.Helper()
-	f, err := inventory.ParseDeviceFilter(approved, fragile, hasFindings, types, sources, q)
+	f, err := inventory.ParseDeviceFilter(approved, fragile, hasFindings, "", types, sources, q)
 	if err != nil {
 		t.Fatalf("ParseDeviceFilter: %v", err)
 	}
@@ -208,10 +208,10 @@ func TestDevicesSearchRefusesUnknownWords(t *testing.T) {
 		{"", "", "", "", "agent", ""},
 		{"", "", "", "", "", strings.Repeat("x", 81)},
 	} {
-		_, err := inventory.ParseDeviceFilter(c[0], c[1], c[2], c[3], c[4], c[5])
+		_, err := inventory.ParseDeviceFilter(c[0], c[1], c[2], "", c[3], c[4], c[5])
 		wantAPIError(t, err, 400, "bad_filter")
 	}
-	if f, err := inventory.ParseDeviceFilter("", "", "", " , ", ",", "  "); err != nil || len(f.Types) != 0 || len(f.Sources) != 0 || f.Q != "" {
+	if f, err := inventory.ParseDeviceFilter("", "", "", "", " , ", ",", "  "); err != nil || len(f.Types) != 0 || len(f.Sources) != 0 || f.Q != "" {
 		t.Fatalf("empty words are no filter: %+v %v", f, err)
 	}
 }

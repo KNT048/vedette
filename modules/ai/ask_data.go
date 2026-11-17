@@ -20,6 +20,8 @@ type AssetRow struct {
 	Model    string
 	OS       string
 	Approved bool
+	// Ignored marks a device a person said needs no watching (inventory D-630): not waiting for review, not scanned, no findings.
+	Ignored  bool
 	Ports    []string // "3389/tcp rdp"
 	Software []string // "Display name version"
 	LastSeen string

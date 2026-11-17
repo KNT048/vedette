@@ -7,6 +7,7 @@ import { PageTabs } from '@/components/common/PageFrame'
 import { QueryState, SampleDataNote } from '@/components/common/States'
 import { CredentialedTab } from '@/features/scan/CredentialedTab'
 import { HistoryTab } from '@/features/scan/HistoryTab'
+import { RunHistory } from './RunHistory'
 import { ProbesTab } from '@/features/scan/ProbesTab'
 import { useRuns } from '@/features/scan/api'
 import { CREDENTIALED_IN_UI } from '@/lib/credentialed'
@@ -59,7 +60,8 @@ function Page({ d }: { d: Scanning }) {
       <PageTabs label={t('page.tabs')} tabs={[
         { id: 'engines', label: t('page.tab.engines'), panel: <EnginesTab d={d} /> },
         { id: 'safety', label: t('page.tab.safety'), panel: <SafetyTab s={d.safety} /> },
-        { id: 'history', label: t('page.tab.history'), panel: <NucleiOnly><HistoryTab /></NucleiOnly> },
+        // kien G7a: the vulnerability checks (scan module), then every other run, which core lists whatever the scan module is
+        { id: 'history', label: t('page.tab.history'), panel: <><NucleiOnly><HistoryTab /></NucleiOnly><RunHistory /></> },
         { id: 'probes', label: t('page.tab.probes'), panel: <NucleiOnly><ProbesTab /></NucleiOnly> },
         // D-417: not offered in v1 (no backend); kept for after v1
         ...(CREDENTIALED_IN_UI ? [{ id: 'credentialed', label: t('page.tab.credentialed'), panel: <CredentialedTab /> }] : []),

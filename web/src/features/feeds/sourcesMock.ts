@@ -35,7 +35,7 @@ const DEFS: Def[] = [
   { id: 'hagezi-tif', name: 'hagezi TIF', kind: 'ioc', format: 'lines', url: 'https://raw.githubusercontent.com/hagezi/dns-blocklists/main/wildcard/tif.mini-onlydomains.txt', license: 'GPL-3.0, unmodified', records: 438900 },
 ]
 
-interface BuiltinState { key_last4?: string | null; enabled: boolean; interval_hours: number; url: string; last_fetch: string | null; records: number | null; status: 'ok' | 'error' | 'never'; error: string | null }
+interface BuiltinState { key_last4?: string | null; enabled: boolean; interval_hours: number; url: string; last_fetch: string | null; last_success?: string | null; records: number | null; status: 'ok' | 'error' | 'never'; error: string | null }
 interface Config { builtin: Record<string, BuiltinState>; custom: Feed[] }
 
 // The built-in feed that needs the customer's own API key: off until one is saved (D-557).
@@ -68,11 +68,14 @@ const builtinFeed = (d: Def, s: BuiltinState): Feed => ({
   auth: { type: s.key_last4 ? 'bearer' : 'none', header_name: null, username: null, secret_last4: s.key_last4 ?? null }, parser: null, last_fetch: s.last_fetch, records: s.records, status: s.status, error: s.error, license: d.license, answered_by: d.id === 'cisa-kev' && s.last_fetch ? 'CISA' : null,
 })
 /** What Home needs to know about the CISA list (D-92): turned off, loaded at least once, or never loaded (with the last error). */
+/** As modules/feeds FeedsGetFeedsStatus: the state, why the last pull failed (also once loaded), how often, when last asked and loaded. */
 export function kevStatus(): FeedStatus['kev'] {
   const s = config.get().builtin['cisa-kev']
-  if (s && !s.enabled) return { state: 'off', error: null }
-  if (!s || s.records === null) return { state: 'never_loaded', error: s?.error ?? null }
-  return { state: 'loaded', error: null }
+  const times = { interval_hours: s?.interval_hours ?? 1, checked_at: s?.last_fetch ?? null, last_success: s ? (s.last_success !== undefined ? s.last_success : s.status === 'ok' ? s.last_fetch : null) : null }
+  if (s && !s.enabled) return { state: 'off', error: null, ...times }
+  const error = s?.status === 'error' ? s.error : null
+  if (!s || s.records === null) return { state: 'never_loaded', error: error ?? s?.error ?? null, ...times }
+  return { state: 'loaded', error, ...times }
 }
 /** Whether the feed with this id is switched on (built-in or custom): what a lookup of an indicator may name (POST-4). */
 export const feedOn = (id: string) => allFeeds(config.get()).some((f) => f.id === id && f.enabled)
@@ -176,7 +179,8 @@ export const sourceHandlers = [
         else if (out.rejected) error = `${fmtNumber(out.rejected)} of ${fmtNumber(out.accepted + out.rejected)} rows were rejected.${out.reasons[0] ? ` Most often: ${mostOften(out)}.` : ''} A few bad lines in a public list are normal; they are skipped.`
       } catch (e) { status = 'error'; error = e instanceof Error ? e.message : String(e) }
     } else records = f.records
-    const patch = { last_fetch: nowIso(), records, status, error }
+    const now = nowIso()
+    const patch = { last_fetch: now, records, status, error, ...(status === 'ok' && { last_success: now }) }
     if (f.builtin) config.update((x) => ({ ...x, builtin: { ...x.builtin, [id]: { ...x.builtin[id]!, ...patch } } }))
     else config.update((x) => ({ ...x, custom: x.custom.map((y) => y.id === id ? { ...y, ...patch } : y) }))
     audit('feeds.fetch', f.name, status === 'ok' ? `${records ?? 0} records` : error ?? 'failed')

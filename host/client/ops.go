@@ -117,6 +117,14 @@ func (c *Client) StatePackages(ctx context.Context) (api.PackagesState, error) {
 	return out, err
 }
 
+// StatePorts returns GET /v1/state/ports: the ports the box listens on at an address other than loopback, with what holds each
+// (inventory INV-3). A host older than it answers 404 unknown_command.
+func (c *Client) StatePorts(ctx context.Context) (api.PortsState, error) {
+	var out api.PortsState
+	err := c.getJSON(ctx, "/v1/state/ports", &out)
+	return out, err
+}
+
 // StateHPTouches returns GET /v1/state/hp-touches: the sources that tried a new TCP or UDP connection to a decoy address in the
 // last two minutes (D-466, B2 review M2). A host older than it answers 404 unknown_command.
 func (c *Client) StateHPTouches(ctx context.Context) (api.HPTouchesState, error) {

@@ -7,6 +7,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/knt048/vedette/core/observe"
 	"github.com/knt048/vedette/host/api"
 	"github.com/knt048/vedette/host/server"
 	"github.com/knt048/vedette/host/server/servertest"
@@ -72,5 +73,29 @@ func TestBoxPackagesAreNeverCut(t *testing.T) {
 	items, err := (boxPackages{c: h.Client}).Packages(t.Context())
 	if err != nil || len(items) != len(pkgs) {
 		t.Fatalf("%d items, %v; want all %d", len(items), err, len(pkgs))
+	}
+}
+
+// INV-3 (#933 review L8): the box's listening ports from vedette-host become its open services named by what holds them; a host
+// older than the read (404 unknown_command) gives no list (nil, so the inventory keeps what it has).
+func TestBoxPortsReadsTheHostsListeningPorts(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	old := servertest.Start(t, nil)
+	if items, err := (boxPorts{c: old.Client}).Ports(ctx); items != nil || err != nil {
+		t.Fatalf("a host without the read: %v, %v; want nil, nil", items, err)
+	}
+	h := servertest.Start(t, nil, func(o *server.Options) {
+		o.Readers.Ports = func(context.Context) (any, error) {
+			return api.PortsState{Ports: []api.ListenPort{{Port: 22, Proto: api.ProtoTCP, Process: "sshd"}, {Port: 514, Proto: api.ProtoUDP, Process: "vedette-core"}}}, nil
+		}
+	})
+	items, err := (boxPorts{c: h.Client}).Ports(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []observe.Service{{Port: 22, Proto: "tcp", Name: "sshd"}, {Port: 514, Proto: "udp", Name: "vedette-core"}}
+	if !slices.Equal(items, want) {
+		t.Fatalf("items %v", items)
 	}
 }

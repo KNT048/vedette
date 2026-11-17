@@ -45,6 +45,9 @@ var columns = map[string][]string{
 	"rpm_packages": {"name", "version", "release", "arch", "epoch"},
 	"programs":     {"name", "version", "publisher", "install_date"},
 	"os_revision":  {"name", "version", "revision", "arch"}, // Windows's update revision (D-524)
+	// the listening sockets and their program (INV-22)
+	"listening_ports":         {"port", "protocol", "address", "name"},
+	"listening_ports_windows": {"port", "protocol", "address", "name"},
 }
 
 // cleanValue trims a text from a node and reports whether it can be kept: valid UTF-8, at most max runes, no control or invisible
@@ -152,7 +155,7 @@ type logIn struct {
 	result    bool             // log_type = result; status lines are read for their size only and dropped
 	snaps     map[string][]row // by query name, from the allow-list; the last event of a name wins
 	dropped   int              // rows and events that did not fit (not clean, wrong type, unknown query)
-	truncated map[string]bool  // lists cut at their cap
+	truncated map[string]bool  // lists cut at their cap, and listening lists with a row that could not be read (not whole)
 	events    int              // events in the request
 }
 
@@ -202,10 +205,14 @@ func (in *logIn) readEvent(item oas.InventoryPostIntakeOsqueryLogReqDataItem) {
 		limit = maxIfaceRows
 	}
 	rows := make([]row, 0, min(len(ev.Snapshot), limit))
+	blank := blankable[ev.Name]
 	for _, raw := range ev.Snapshot {
-		r, ok := readRow(raw, cols)
+		r, ok := readRow(raw, cols, blank)
 		if !ok {
 			in.dropped++
+			if blank != "" { // a listening row that could not be read: the list is not whole (INV-22, #933 review r2 M1)
+				in.truncated[ev.Name] = true
+			}
 			continue
 		}
 		if len(rows) >= limit {
@@ -241,8 +248,13 @@ func readEvent(item oas.InventoryPostIntakeOsqueryLogReqDataItem, ev *event) boo
 	return true
 }
 
-// readRow keeps the allow-listed columns of one row; false when one of them is not a string or not clean.
-func readRow(raw map[string]json.RawMessage, cols []string) (row, bool) {
+// blankable is, per query, the column whose bad value is blanked instead of dropping the row (INV-22, #933 review L3): a program
+// name is chosen by whoever starts the process, and a name with a control character must not hide the port it listens on.
+var blankable = map[string]string{"listening_ports": "name", "listening_ports_windows": "name"}
+
+// readRow keeps the allow-listed columns of one row; false when one of them is not a string or not clean, except the blank
+// column, which is then "".
+func readRow(raw map[string]json.RawMessage, cols []string, blank string) (row, bool) {
 	r := make(row, len(cols))
 	for _, c := range cols {
 		v, ok := raw[c]
@@ -251,10 +263,18 @@ func readRow(raw map[string]json.RawMessage, cols []string) (row, bool) {
 		}
 		var s string
 		if json.Unmarshal(v, &s) != nil {
+			if c == blank {
+				r[c] = ""
+				continue
+			}
 			return nil, false
 		}
 		s, ok = cleanValue(s, maxValue)
 		if !ok {
+			if c == blank {
+				r[c] = ""
+				continue
+			}
 			return nil, false
 		}
 		r[c] = s

@@ -11,6 +11,7 @@ import (
 
 	"github.com/knt048/vedette/core/events"
 	"github.com/knt048/vedette/core/jobs"
+	"github.com/knt048/vedette/core/observe"
 	hostapi "github.com/knt048/vedette/host/api"
 	hostclient "github.com/knt048/vedette/host/client"
 	agentintake "github.com/knt048/vedette/modules/agent-intake"
@@ -43,6 +44,7 @@ func newInventory(d *deps) *inventory.Service {
 	// host there is no decoy on the wire, and the MACs stay unknown, so nothing changes.
 	if d.HostSocket != "" {
 		cfg.Box = boxPackages{c: hostclient.New(d.HostSocket), log: d.Log}
+		cfg.BoxPorts = boxPorts{c: hostclient.New(d.HostSocket)}.Ports
 		macs := &hostMACs{r: hostclient.New(d.HostSocket), now: d.Clock}
 		cfg.BoxOwnedMACs = func(ctx context.Context, fresh bool) ([]string, error) {
 			if fresh {
@@ -117,7 +119,8 @@ func inventoryJobs(d deps) []jobs.Job {
 		if _, err := svc.EnsureBox(ctx, box); err != nil {
 			return err
 		}
-		return svc.RefreshBoxPackages(ctx)
+		// The box's open ports with its packages (INV-3): one failing does not hold the other back.
+		return errors.Join(svc.RefreshBoxPackages(ctx), svc.RefreshBoxServices(ctx))
 	}}, {Module: "inventory", Name: "agent-software-prune", Every: time.Hour, Run: svc.PruneAgentSoftware}} // a normal job (D-327)
 }
 
@@ -169,6 +172,31 @@ func (b boxPackages) Packages(ctx context.Context) ([]inventory.SoftwareItem, er
 	for i, s := range sw {
 		out[i] = inventory.SoftwareItem{Display: s.Display, Vendor: s.Vendor, Product: s.Product, Version: s.Version, CPE: s.CPE, KevKeys: s.KevKeys, Packaged: s.Packaged,
 			PkgVersion: s.PkgVersion, PkgSource: s.PkgSource}
+	}
+	return out, nil
+}
+
+// boxPorts is inventory's BoxPorts (INV-3): vedette-host's GET /v1/state/ports, the ports the box listens on at an address other
+// than loopback, as open services named by what holds them ("vedette-core", "sshd"). A host older than the read (404
+// unknown_command) gives no list: nil, and the inventory keeps what it has. The inventory validates every item (INV-23).
+type boxPorts struct{ c *hostclient.Client }
+
+// boxPortsTimeout bounds one read: a walk of /proc of a small box.
+const boxPortsTimeout = 30 * time.Second
+
+func (b boxPorts) Ports(ctx context.Context) ([]observe.Service, error) {
+	ctx, cancel := context.WithTimeout(ctx, boxPortsTimeout)
+	defer cancel()
+	st, err := b.c.StatePorts(ctx)
+	if hostclient.IsCode(err, hostapi.CodeUnknownCommand) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	out := make([]observe.Service, len(st.Ports))
+	for i, p := range st.Ports {
+		out[i] = observe.Service{Port: p.Port, Proto: p.Proto, Name: p.Process}
 	}
 	return out, nil
 }

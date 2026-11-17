@@ -730,17 +730,77 @@ func (s *Service) pullAgent(ctx context.Context, c *wazuhClient, a wzAgent, gene
 	if dropped > 0 {
 		s.cfg.Log.InfoContext(ctx, "agent-intake: wazuh rows dropped", "agent", a.ID, "rows_not_fitting", dropped)
 	}
-	if len(items) == 0 { // an agent whose syscollector is off or empty never wipes what is known (D-169 (13))
+	written, err := s.wazuhSoftware(ctx, hint, a.ID, items)
+	if err != nil {
+		return 0, err
+	}
+	// The ports after the packages, so a failed ports read (a 429, the server gone) never costs the agent its packages (#933 review L5).
+	if err := s.wazuhServices(ctx, c, a.ID, hint); err != nil {
+		return written, err
+	}
+	return written, nil
+}
+
+// wazuhSoftware writes an agent's package list. An empty one (syscollector off or empty) never wipes what is known (D-169 (13)); a list
+// the inventory refused is logged and dropped; a transient error is returned. written is the number of packages stored.
+func (s *Service) wazuhSoftware(ctx context.Context, hint observe.AssetHint, id string, items []observe.Software) (written int, err error) {
+	if len(items) == 0 {
 		return 0, nil
 	}
 	if err := s.cfg.Software.ReplaceSoftware(ctx, hint, observe.Agent, items); err != nil {
 		if transient(err) {
 			return 0, fmt.Errorf("agentintake: software: %w", err)
 		}
-		s.cfg.Log.ErrorContext(ctx, "agent-intake: the inventory refused a wazuh software list", "agent", a.ID, "error", err.Error())
+		s.cfg.Log.ErrorContext(ctx, "agent-intake: the inventory refused a wazuh software list", "agent", id, "error", err.Error())
 		return 0, nil
 	}
 	return len(items), nil
+}
+
+// wazuhServices delivers an agent's open ports (INV-22): its syscollector ports that listen (TCP in state listening, UDP with no peer),
+// through the same mapper as osquery's. An agent whose ports scan is off or not done yet gives no row, and a read cut at maxPortRows is
+// no whole list: what is known stays (as for packages). A ports read that fails (forbidden, not understood, a 429, the server gone)
+// skips the ports of that agent only and is logged: the agent's packages are already written and the pull goes on (the next call
+// meets a server that is gone on its own). Only the store being busy or the pull being stopped is returned.
+func (s *Service) wazuhServices(ctx context.Context, c *wazuhClient, id string, hint observe.AssetHint) error {
+	if s.cfg.Services == nil {
+		return nil
+	}
+	rows, complete, err := c.ports(ctx, id)
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		s.cfg.Log.InfoContext(ctx, "agent-intake: the ports of a wazuh agent were not read; its open ports stay as they were", "agent", id, "error", err.Error())
+		return nil
+	}
+	if !complete {
+		s.cfg.Log.InfoContext(ctx, "agent-intake: a wazuh agent lists more sockets than one read holds; its open ports stay as they were", "agent", id, "rows", len(rows))
+		return nil
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	if err := s.cfg.Services.ReplaceServices(ctx, hint, observe.Agent, mapServices(wazuhListening(rows))); err != nil {
+		if transient(err) {
+			return fmt.Errorf("agentintake: services: %w", err)
+		}
+		s.cfg.Log.ErrorContext(ctx, "agent-intake: the inventory refused a wazuh list of open ports", "agent", id, "error", err.Error())
+	}
+	return nil
+}
+
+// wazuhListening keeps the listening rows of an agent's syscollector ports.
+func wazuhListening(rows []wzPort) []listening {
+	out := make([]listening, 0, len(rows))
+	for _, r := range rows {
+		proto := strings.TrimSuffix(r.Protocol, "6")
+		switch {
+		case proto == "tcp" && r.State == "listening", proto == "udp" && r.Remote.Port == 0:
+			out = append(out, listening{port: r.Local.Port, proto: proto, addr: r.Local.IP, program: r.Process})
+		}
+	}
+	return out
 }
 
 // wazuhFacts turns the agent row into the os_version and system_info rows the osquery mapper reads (one mapper, plan 3.1).

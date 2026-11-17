@@ -7,3 +7,13 @@ const stamp = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short',
 export const fmtDay = (iso: string | null | undefined) => (iso ? day.format(new Date(iso)) : '–')
 /** A moment in the reader's time zone. */
 export const fmtStamp = (iso: string | null | undefined) => (iso ? stamp.format(new Date(iso)) : '–')
+/** A moment in the reader's time zone, as short as it can be: "10:54" today, else "13 Nov 2026, 10:54" (kien G11). The formatters are
+ * made per call, so they follow the zone the reader (or a test) has now; `now` comes from a clock that ticks past midnight. */
+export function fmtWhen(iso: string | null | undefined, now = new Date()) {
+  if (!iso) return '–'
+  const d = new Date(iso)
+  const ymd = (x: Date) => `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`
+  return ymd(d) === ymd(now)
+    ? new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' }).format(d)
+    : new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(d)
+}

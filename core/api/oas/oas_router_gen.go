@@ -399,19 +399,19 @@ var (
 	rn368AllowedHeaders = map[string]string{
 		"PUT": "Content-Type",
 	}
-	rn423AllowedHeaders = map[string]string{
-		"POST": "Content-Type",
-	}
-	rn422AllowedHeaders = map[string]string{
-		"PATCH": "Content-Type",
-	}
-	rn428AllowedHeaders = map[string]string{
-		"PUT": "Content-Type",
-	}
 	rn425AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
-	rn427AllowedHeaders = map[string]string{
+	rn424AllowedHeaders = map[string]string{
+		"PATCH": "Content-Type",
+	}
+	rn429AllowedHeaders = map[string]string{
+		"PUT": "Content-Type",
+	}
+	rn426AllowedHeaders = map[string]string{
+		"POST": "Content-Type",
+	}
+	rn428AllowedHeaders = map[string]string{
 		"POST": "Content-Type",
 	}
 	rn407AllowedHeaders = map[string]string{
@@ -9269,7 +9269,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 										default:
 											s.notAllowed(w, r, notAllowedParams{
 												allowedMethods: "POST",
-												allowedHeaders: rn423AllowedHeaders,
+												allowedHeaders: rn425AllowedHeaders,
 												acceptPost:     "application/json",
 												acceptPatch:    "",
 											})
@@ -9299,9 +9299,34 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "PATCH",
-											allowedHeaders: rn422AllowedHeaders,
+											allowedHeaders: rn424AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "application/json",
+										})
+									}
+
+									return
+								}
+
+							case 'h': // Prefix: "history"
+
+								if l := len("history"); len(elem) >= l && elem[0:l] == "history" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch r.Method {
+									case "GET":
+										s.handleScanningGetScanningHistoryRequest([0]string{}, elemIsEscaped, w, r)
+									default:
+										s.notAllowed(w, r, notAllowedParams{
+											allowedMethods: "GET",
+											allowedHeaders: nil,
+											acceptPost:     "",
+											acceptPatch:    "",
 										})
 									}
 
@@ -9323,7 +9348,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 									default:
 										s.notAllowed(w, r, notAllowedParams{
 											allowedMethods: "PUT",
-											allowedHeaders: rn428AllowedHeaders,
+											allowedHeaders: rn429AllowedHeaders,
 											acceptPost:     "",
 											acceptPatch:    "",
 										})
@@ -9360,7 +9385,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn425AllowedHeaders,
+													allowedHeaders: rn426AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -9385,7 +9410,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 											default:
 												s.notAllowed(w, r, notAllowedParams{
 													allowedMethods: "POST",
-													allowedHeaders: rn427AllowedHeaders,
+													allowedHeaders: rn428AllowedHeaders,
 													acceptPost:     "application/json",
 													acceptPatch:    "",
 												})
@@ -18875,6 +18900,31 @@ func (s *Server) FindPath(method string, u *url.URL) (r Route, _ bool) {
 										r.pathPattern = "/scanning/engines/{id}"
 										r.args = args
 										r.count = 1
+										return r, true
+									default:
+										return
+									}
+								}
+
+							case 'h': // Prefix: "history"
+
+								if l := len("history"); len(elem) >= l && elem[0:l] == "history" {
+									elem = elem[l:]
+								} else {
+									break
+								}
+
+								if len(elem) == 0 {
+									// Leaf node.
+									switch method {
+									case "GET":
+										r.name = ScanningGetScanningHistoryOperation
+										r.summary = "Every run of the LAN engines (discovery sweeps, device identifications, SNMP reads) and every stored scan of a public target, newest first, at most 200, with its outcome in words (kien G7a). The vulnerability checks keep their own list (GET /scans/runs). Answers whether or not the Vulnerability scans module is on"
+										r.operationID = "scanning_get_scanning_history"
+										r.operationGroup = ""
+										r.pathPattern = "/scanning/history"
+										r.args = args
+										r.count = 0
 										return r, true
 									default:
 										return

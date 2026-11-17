@@ -15,8 +15,7 @@
     "note": "Stop now halts within seconds; unscanned devices are not touched."
   },
   "last": {
-    "done_one": "Last scan {{time}}: {{total}} devices checked, {{count}} device matches a vulnerability.",
-    "done_other": "Last scan {{time}}: {{total}} devices checked, {{count}} devices match a vulnerability.",
+    "doneOutcome": "Last scan {{time}}. {{outcome}}.",
     "stopped": "Last scan was stopped {{time}}: {{done}}/{{total}} devices done."
   },
   "start": {
@@ -61,11 +60,34 @@
     "schedule": "On schedule",
     "new_kev": "New KEV with a template"
   },
+  "outcome": {
+    "running": "Running…",
+    "checked_one": "Checked 1 CVE",
+    "checked_other": "Checked {{count}} CVEs",
+    "checkedOn_one": "Checked 1 CVE on {{devices}} devices",
+    "checkedOn_other": "Checked {{count}} CVEs on {{devices}} devices",
+    "identifiedOnly_one": "Identified {{ok}} of 1 device; nothing to check",
+    "identifiedOnly_other": "Identified {{ok}} of {{count}} devices; nothing to check",
+    "nothing": "Nothing to check",
+    "stopped": "Stopped: {{reason}}.",
+    "part": {
+      "matched_one": "1 confirmed",
+      "matched_other": "{{count}} confirmed",
+      "no_template_one": "1 no check exists (still suspected)",
+      "no_template_other": "{{count}} no check exists (still suspected)",
+      "not_matched_one": "1 no match reported",
+      "not_matched_other": "{{count}} no match reported",
+      "no_response_one": "1 did not answer",
+      "no_response_other": "{{count}} did not answer",
+      "not_applicable_one": "1 no check applies",
+      "not_applicable_other": "{{count}} no check applies",
+      "skipped_one": "1 not checked",
+      "skipped_other": "{{count}} not checked"
+    }
+  },
   "hist": {
     "devicesCount_one": "{{count}} device",
     "devicesCount_other": "{{count}} devices",
-    "matchedCount_one": "{{count}} match",
-    "matchedCount_other": "{{count}} matches",
     "title": "Scan history",
     "description": "Each scan keeps per-device results and evidence.",
     "descriptionInfo": "Findings link to the What to do page.",
@@ -75,8 +97,8 @@
     "bySystem": "system",
     "devices": "Devices",
     "partial": "{{done}}/{{total}}",
-    "status": "Outcome",
-    "matched": "Matches",
+    "status": "Status",
+    "found": "What it found",
     "actions": "Actions",
     "view": "View results",
     "viewAria": "View results of the scan from {{time}}",

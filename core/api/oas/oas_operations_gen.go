@@ -342,6 +342,7 @@ const (
 	ScanPostScansRunsIDStopOperation                        OperationName = "ScanPostScansRunsIDStop"
 	ScanPutScansConfigOperation                             OperationName = "ScanPutScansConfig"
 	ScanningGetScanningOperation                            OperationName = "ScanningGetScanning"
+	ScanningGetScanningHistoryOperation                     OperationName = "ScanningGetScanningHistory"
 	ScanningPatchScanningEnginesIDOperation                 OperationName = "ScanningPatchScanningEnginesID"
 	ScanningPostScanningEnginesNmapDiscoveryRunOperation    OperationName = "ScanningPostScanningEnginesNmapDiscoveryRun"
 	ScanningPostScanningSafetyExclusionsOperation           OperationName = "ScanningPostScanningSafetyExclusions"

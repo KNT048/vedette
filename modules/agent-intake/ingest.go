@@ -218,7 +218,7 @@ func withKernel(snaps map[string][]row, kernel string) map[string][]row {
 
 // answers is the fixed order of the first report's answers (schedule.go firstReport), so the stored list is canonical.
 // "hostname" is not a query's: it records that the enrolment's host name was given to the device once (enrolHostname).
-var answers = []string{"os_version", "system_info", "interfaces", "packages", "os_revision", "hostname"}
+var answers = []string{"os_version", "system_info", "interfaces", "packages", "os_revision", "services", "hostname"}
 
 // firstReport records which answers of the first report the inventory took from this node (the config stops asking for them every
 // minute), and approves the device in the name of the token's maker once per node, as soon as the inventory has it (D-503). mac is the
@@ -370,10 +370,17 @@ type replaceState struct {
 	warned bool
 }
 
-// allowReplace says whether the source may replace a software list now; the first drop of a window is logged once.
-func (s *Service) allowReplace(ctx context.Context, src netip.Addr, node string) bool {
+// The lists one source address may replace once per sourceWindow, each with its own window: a software list and a list of open
+// ports (INV-22, #933 review L8) never hold each other back.
+const (
+	listSoftware = "software list"
+	listServices = "list of open ports"
+)
+
+// allowReplace says whether the source may replace a list of that kind now; the first drop of a window is logged once.
+func (s *Service) allowReplace(ctx context.Context, src netip.Addr, node, kind string) bool {
 	now := s.now()
-	key := srcKey(src)
+	key := kind + "|" + srcKey(src)
 	s.warnMu.Lock()
 	if len(s.replaced) > limiterKeys {
 		clear(s.replaced)
@@ -388,7 +395,7 @@ func (s *Service) allowReplace(ctx context.Context, src netip.Addr, node string)
 	st.warned = true
 	s.warnMu.Unlock()
 	if warn {
-		s.cfg.Log.WarnContext(ctx, "agent-intake: a second software list from one source address within 5 minutes was dropped", "src", key, "node", node)
+		s.cfg.Log.WarnContext(ctx, "agent-intake: a second list from one source address within 5 minutes was dropped", "list", kind, "src", srcKey(src), "node", node)
 	}
 	return false
 }
@@ -472,6 +479,13 @@ func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.Asse
 			}
 		}
 	}
+	took, err := s.deliverServices(ctx, src, hint, node, in)
+	if err != nil {
+		return nil, err
+	}
+	if took {
+		taken = append(taken, "services")
+	}
 	items, dropped := mapPackages(in.snaps, maxRows)
 	if dropped > 0 || len(in.truncated) > 0 || in.dropped > 0 {
 		s.cfg.Log.InfoContext(ctx, "agent-intake: rows dropped", "node", node, "rows_not_fitting", dropped, "events_or_rows_refused", in.dropped, "truncated", len(in.truncated))
@@ -482,7 +496,7 @@ func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.Asse
 		}
 		return taken, nil
 	}
-	if !s.allowReplace(ctx, src, node) {
+	if !s.allowReplace(ctx, src, node, listSoftware) {
 		return taken, nil
 	}
 	// A Windows list without the operating system's row (its revision not reported yet) is not the first report's package answer:
@@ -498,6 +512,40 @@ func (s *Service) deliver(ctx context.Context, src netip.Addr, hint observe.Asse
 		s.cfg.Log.ErrorContext(ctx, "agent-intake: the inventory refused a software list", "node", node, "error", err.Error())
 	}
 	return taken, nil
+}
+
+// deliverServices hands the open ports of a listening_ports answer to the inventory (INV-22): the list replaces the agent's earlier one
+// on the device, an empty one too (the machine listens on nothing reachable: osquery sends no snapshot when the query failed). took says
+// the inventory stored it (the first report's "services" answer). A list the inventory refused is dropped and logged, like a software list;
+// one source address replaces it at most once per sourceWindow, like a software list (a list the window dropped is not taken).
+func (s *Service) deliverServices(ctx context.Context, src netip.Addr, hint observe.AssetHint, node string, in logIn) (took bool, err error) {
+	var rows []row
+	answered := false
+	for _, q := range []string{"listening_ports", "listening_ports_windows"} {
+		if r, ok := in.snaps[q]; ok {
+			rows, answered = append(rows, r...), true
+		}
+	}
+	if !answered || s.cfg.Services == nil {
+		return false, nil
+	}
+	// A list that is not whole (cut at maxRows, a row that could not be read) never replaces the known one: the cut falls in osquery's
+	// row order, so it could delete real listeners (#933 review r2 M1; a domain controller's DNS socket pool alone passes 5000 rows).
+	if in.truncated["listening_ports"] || in.truncated["listening_ports_windows"] {
+		s.cfg.Log.InfoContext(ctx, "agent-intake: a list of open ports was not whole; the known open ports stay", "node", node)
+		return false, nil
+	}
+	if !s.allowReplace(ctx, src, node, listServices) {
+		return false, nil
+	}
+	if err := s.cfg.Services.ReplaceServices(ctx, hint, observe.Agent, mapServices(osqueryListening(rows))); err != nil {
+		if transient(err) {
+			return false, fmt.Errorf("agentintake: services: %w", err)
+		}
+		s.cfg.Log.ErrorContext(ctx, "agent-intake: the inventory refused a list of open ports", "node", node, "error", err.Error())
+		return false, nil
+	}
+	return true, nil
 }
 
 func hasPackageQuery(in logIn) bool {

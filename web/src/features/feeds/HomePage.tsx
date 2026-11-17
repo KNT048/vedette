@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { fmtPercent, rawProductLine } from '@/lib/format'
-import { fmtDay, fmtStamp } from './dates'
+import { fmtDay, fmtStamp, fmtWhen } from './dates'
 import { useCan } from '@/lib/session'
 import { useSetup } from '@/app/RequireSession'
 import { ApiError } from '@/lib/api'
@@ -41,6 +41,43 @@ function SearchBox() {
 }
 
 /** D-92/D-134: the sentence that replaces a count or an empty table while the CISA list is off or has never loaded; null when there is nothing to say. */
+/**
+ * kien G11: the board is not a list that ran once at install. It says how often the box checks CISA's list, when it last did, and
+ * CISA's own last addition (CISA may add nothing for days); a failed check says so, with the last good pull and the way to fix it;
+ * a list never pulled says that. All from GET /feeds/status (and the board's own `latest`), times in the reader's time zone.
+ */
+function KevFreshness({ latest }: { latest: { date_added: string; display: string } | null }) {
+  const { t } = useTranslation('feeds')
+  const kev = useFeedStatus().data?.kev
+  const now = useMinute()
+  // off, or never loaded with a reason: the board's notice says it, with the last try and the link (useKevNotice)
+  if (!kev || kev.state === 'off' || (kev.state === 'never_loaded' && kev.error)) return null
+  const every = t('fresh.every', { count: kev.interval_hours })
+  const added = latest ? ` ${t('fresh.latest', { date: fmtDay(latest.date_added), product: latest.display })}` : ''
+  const link = <Link to="/settings/feeds#feed-cisa-kev" className="text-accent underline-offset-4 hover:underline">{t('fresh.openFeeds')}</Link>
+  if (kev.error) {
+    // #938 review r1: the failed state keeps the cadence (Vedette keeps trying, backing off after failures) and CISA's last addition
+    return (
+      <p role="status" className="mb-3 text-meta text-danger [overflow-wrap:anywhere]">
+        {t('fresh.failed', { every, time: fmtWhen(kev.checked_at, now), reason: kev.error })}{' '}
+        {kev.last_success ? t('fresh.lastGood', { time: fmtWhen(kev.last_success, now) }) : t('fresh.neverGood')}{added} {link}
+      </p>
+    )
+  }
+  if (!kev.checked_at) return <p className="mb-3 text-meta text-muted">{t('fresh.never', { every })} {link}</p>
+  return <p className="mb-3 text-meta text-muted">{t('fresh.ok', { every, time: fmtWhen(kev.checked_at, now) })}{added}</p>
+}
+
+/** The time, a minute at a time: "10:54" becomes "17 Nov 2026, 10:54" after midnight without waiting for a refetch. */
+function useMinute() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000)
+    return () => clearInterval(id)
+  }, [])
+  return now
+}
+
 function useKevNotice() {
   const { t } = useTranslation('feeds')
   const status = useFeedStatus()
@@ -49,7 +86,7 @@ function useKevNotice() {
   const kev = status.data?.kev
   const link = <Link to="/settings/feeds" className="text-accent underline-offset-4 hover:underline">{t('home.kevSeeFeeds')}</Link>
   const notice = kev?.state === 'off' ? <>{t('home.kevOff')} {link}</>
-    : kev?.state === 'never_loaded' && !(never && !kev.error) ? <>{t('home.kevNever', { reason: kev.error ?? t('home.kevNoAttempt') })} {link}</> : null
+    : kev?.state === 'never_loaded' && !(never && !kev.error) ? <>{t('home.kevNever', { reason: kev.error ?? t('home.kevNoAttempt') })}{kev.checked_at ? ` ${t('fresh.lastTried', { time: fmtWhen(kev.checked_at), count: kev.interval_hours })}` : ''} {link}</> : null
   // What Home's dashboard says instead of "nothing exploited" (D-92): the notice, or, on a box that has never fetched (no notice, the
   // headline says "no data yet"), that nothing was fetched yet.
   const noClaim = notice ?? (never ? <>{t('home.kevNoData')} {link}</> : null)
@@ -92,6 +129,7 @@ function HotBoard({ noDevices }: { noDevices: boolean }) {
       actions={
         <Segmented label={t('hot.window')} value={win} onChange={setWin} options={[{ value: '24h', label: t('hot.24h') }, { value: '7d', label: t('hot.7d') }]} />
       }>
+      <KevFreshness latest={hot.data?.latest ?? null} />
       <QueryState query={hot}>
         {(d) => d.rows.length ? (
           <DataTable caption={t('hot.title')} data={d.rows} columns={columns} onRowClick={(r) => navigate(`/cve/${r.cves[0]!.cve}`)} rowTone={(r) => (r.you_have === 'yes' ? 'danger' : undefined)}

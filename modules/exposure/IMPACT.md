@@ -1,5 +1,9 @@
 # Exposure — Change Impact Map
 
+
+## Modifying: `RecentScans`, `ScanRecord` (read only, kien G7a)
+- **core** `GET /scanning/history` lists them through `cmd/vedette/scanninghistory.go` (`exposureHistory`): one row per stored snapshot, "partial" when `not_checked` has steps or `greenbone_run.state` is partial, failed or stopped. A new state of `greenbone_run` or a change to `Counts` changes those words; a scan that fails before its snapshot is stored leaves no row (the History tab says so).
+
 ## Modifying: `ScanSafety`, `Safety`, `Config.Safety`, `checkSafety`, `ScannableIP`, the web step's exclusions, the rate of `TemplateJob` (INV-31, #850)
 - **cmd/vedette** (AI-Trưởng): wires `Config.Safety` with an adapter over the one block (D-627, inventory's `active.exclusions` and the check rate that `GET /scanning` shows as `speed.requests_per_s`); until then the port is nil and exposure keeps its own rates and no exclusion. The template scanner (`exposureTemplateScan`, `exposuretemplates.go`) must send each job at its `RPS` and write its own probe row with that rate, not `nucleiargv.OwnIPRate`/`FullRate`; `baselineInstead` keeps `min(j.RPS, TemplateRPS)`.
 - **scan** (runner): its scope callback is `ScannableIP`, which now refuses excluded addresses: no change needed there.

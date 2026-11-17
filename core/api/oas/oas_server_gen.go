@@ -2272,6 +2272,15 @@ type Handler interface {
 	//
 	// GET /scanning
 	ScanningGetScanning(ctx context.Context) (*ScanningGetScanningOK, error)
+	// ScanningGetScanningHistory implements scanning_get_scanning_history operation.
+	//
+	// Every run of the LAN engines (discovery sweeps, device identifications, SNMP reads) and every stored
+	// scan of a public target, newest first, at most 200, with its outcome in words (kien G7a). The
+	// vulnerability checks keep their own list (GET /scans/runs). Answers whether or not the Vulnerability
+	// scans module is on.
+	//
+	// GET /scanning/history
+	ScanningGetScanningHistory(ctx context.Context) (*ScanningGetScanningHistoryOK, error)
 	// ScanningPatchScanningEnginesID implements scanning_patch_scanning_engines_id operation.
 	//
 	// Turn an engine on or off: its module switch (passive, osquery, wazuh, nuclei, honeypot), active

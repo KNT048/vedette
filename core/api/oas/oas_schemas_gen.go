@@ -58554,11 +58554,24 @@ func (s *FeedsGetFeedsStatusOK) SetSources(val []FeedsGetFeedsStatusOKSourcesIte
 }
 
 type FeedsGetFeedsStatusOKKev struct {
-	// One line, cleaned: why the last pull failed; null when it has not failed or has not been tried.
+	// When the box last asked for the CISA list, whether the pull worked or not; null before the first
+	// pull.
+	CheckedAt NilDateTime `json:"checked_at"`
+	// One line, cleaned: why the last pull failed (also when an earlier pull had loaded the list); null
+	// when the last pull worked, has not been tried, or the list is off.
 	Error NilString `json:"error"`
+	// How often the box pulls the CISA list (kien G11: Home says "checked every hour").
+	IntervalHours int `json:"interval_hours"`
+	// When a pull of the CISA list last worked; null when none ever did.
+	LastSuccess NilDateTime `json:"last_success"`
 	// The CISA list (cisa-kev) for the Home count (D-92): "off" when an admin turned it off, else "loaded"
 	// once a pull has ever succeeded (even if a later pull failed), else "never_loaded".
 	State FeedsGetFeedsStatusOKKevState `json:"state"`
+}
+
+// GetCheckedAt returns the value of CheckedAt.
+func (s *FeedsGetFeedsStatusOKKev) GetCheckedAt() NilDateTime {
+	return s.CheckedAt
 }
 
 // GetError returns the value of Error.
@@ -58566,14 +58579,39 @@ func (s *FeedsGetFeedsStatusOKKev) GetError() NilString {
 	return s.Error
 }
 
+// GetIntervalHours returns the value of IntervalHours.
+func (s *FeedsGetFeedsStatusOKKev) GetIntervalHours() int {
+	return s.IntervalHours
+}
+
+// GetLastSuccess returns the value of LastSuccess.
+func (s *FeedsGetFeedsStatusOKKev) GetLastSuccess() NilDateTime {
+	return s.LastSuccess
+}
+
 // GetState returns the value of State.
 func (s *FeedsGetFeedsStatusOKKev) GetState() FeedsGetFeedsStatusOKKevState {
 	return s.State
 }
 
+// SetCheckedAt sets the value of CheckedAt.
+func (s *FeedsGetFeedsStatusOKKev) SetCheckedAt(val NilDateTime) {
+	s.CheckedAt = val
+}
+
 // SetError sets the value of Error.
 func (s *FeedsGetFeedsStatusOKKev) SetError(val NilString) {
 	s.Error = val
+}
+
+// SetIntervalHours sets the value of IntervalHours.
+func (s *FeedsGetFeedsStatusOKKev) SetIntervalHours(val int) {
+	s.IntervalHours = val
+}
+
+// SetLastSuccess sets the value of LastSuccess.
+func (s *FeedsGetFeedsStatusOKKev) SetLastSuccess(val NilDateTime) {
+	s.LastSuccess = val
 }
 
 // SetState sets the value of State.
@@ -194100,6 +194138,434 @@ func (s *ScanPutScansConfigReqWindow) SetFrom(val OptString) {
 // SetTo sets the value of To.
 func (s *ScanPutScansConfigReqWindow) SetTo(val OptString) {
 	s.To = val
+}
+
+type ScanningGetScanningHistoryOK struct {
+	Items []ScanningGetScanningHistoryOKItemsItem `json:"items"`
+}
+
+// GetItems returns the value of Items.
+func (s *ScanningGetScanningHistoryOK) GetItems() []ScanningGetScanningHistoryOKItemsItem {
+	return s.Items
+}
+
+// SetItems sets the value of Items.
+func (s *ScanningGetScanningHistoryOK) SetItems(val []ScanningGetScanningHistoryOKItemsItem) {
+	s.Items = val
+}
+
+type ScanningGetScanningHistoryOKItemsItem struct {
+	EndedAt NilDateTime                                 `json:"ended_at"`
+	Engine  ScanningGetScanningHistoryOKItemsItemEngine `json:"engine"`
+	// The sa_job id of a LAN run, or the exposure snapshot id of a public scan.
+	ID string `json:"id"`
+	// Sweep: discovery of the LAN ranges; device: the identification of one device (a window's queue,
+	// Check this device now, the first step of Scan now); snmp: SNMP reads; external: a scan of a public
+	// target (one per target and day).
+	Kind ScanningGetScanningHistoryOKItemsItemKind `json:"kind"`
+	// What it scanned: "LAN 192.168.18.0/24", "192.168.18.20", "SNMP read of 3 devices", "203.0.113.10".
+	Label string `json:"label"`
+	// Partial: it ended, but part of it found nothing usable (an SNMP device that did not answer, a sweep
+	// batch or a read that failed, a public scan step not checked or an OpenVAS run that failed).
+	Outcome   ScanningGetScanningHistoryOKItemsItemOutcome `json:"outcome"`
+	StartedAt time.Time                                    `json:"started_at"`
+	// The exposure target of a public scan, for a link; null otherwise (a LAN job does not record its
+	// device).
+	TargetID NilString `json:"target_id"`
+	// The outcome in words, only from what the run stored: "Swept 254 addresses: 12 hosts answered, 2 new
+	// devices", "2 of 3 devices answered over SNMP", "Scanned 192.168.18.20: it did not answer", "Stopped:
+	// . Swept 64 addresses … before it ended", "Failed: .".
+	Text string `json:"text"`
+	// Sweep: a discovery sweep (the window, or Scan the LAN now: the row does not tell them apart);
+	// automatic: the window's queue (a new device, a weekly scan) or its SNMP round; person: a person
+	// asked (Check this device now, Read now, a public scan); scan_now: the identification step of a
+	// vulnerability check; test: an SNMP credential Test.
+	Trigger ScanningGetScanningHistoryOKItemsItemTrigger `json:"trigger"`
+}
+
+// GetEndedAt returns the value of EndedAt.
+func (s *ScanningGetScanningHistoryOKItemsItem) GetEndedAt() NilDateTime {
+	return s.EndedAt
+}
+
+// GetEngine returns the value of Engine.
+func (s *ScanningGetScanningHistoryOKItemsItem) GetEngine() ScanningGetScanningHistoryOKItemsItemEngine {
+	return s.Engine
+}
+
+// GetID returns the value of ID.
+func (s *ScanningGetScanningHistoryOKItemsItem) GetID() string {
+	return s.ID
+}
+
+// GetKind returns the value of Kind.
+func (s *ScanningGetScanningHistoryOKItemsItem) GetKind() ScanningGetScanningHistoryOKItemsItemKind {
+	return s.Kind
+}
+
+// GetLabel returns the value of Label.
+func (s *ScanningGetScanningHistoryOKItemsItem) GetLabel() string {
+	return s.Label
+}
+
+// GetOutcome returns the value of Outcome.
+func (s *ScanningGetScanningHistoryOKItemsItem) GetOutcome() ScanningGetScanningHistoryOKItemsItemOutcome {
+	return s.Outcome
+}
+
+// GetStartedAt returns the value of StartedAt.
+func (s *ScanningGetScanningHistoryOKItemsItem) GetStartedAt() time.Time {
+	return s.StartedAt
+}
+
+// GetTargetID returns the value of TargetID.
+func (s *ScanningGetScanningHistoryOKItemsItem) GetTargetID() NilString {
+	return s.TargetID
+}
+
+// GetText returns the value of Text.
+func (s *ScanningGetScanningHistoryOKItemsItem) GetText() string {
+	return s.Text
+}
+
+// GetTrigger returns the value of Trigger.
+func (s *ScanningGetScanningHistoryOKItemsItem) GetTrigger() ScanningGetScanningHistoryOKItemsItemTrigger {
+	return s.Trigger
+}
+
+// SetEndedAt sets the value of EndedAt.
+func (s *ScanningGetScanningHistoryOKItemsItem) SetEndedAt(val NilDateTime) {
+	s.EndedAt = val
+}
+
+// SetEngine sets the value of Engine.
+func (s *ScanningGetScanningHistoryOKItemsItem) SetEngine(val ScanningGetScanningHistoryOKItemsItemEngine) {
+	s.Engine = val
+}
+
+// SetID sets the value of ID.
+func (s *ScanningGetScanningHistoryOKItemsItem) SetID(val string) {
+	s.ID = val
+}
+
+// SetKind sets the value of Kind.
+func (s *ScanningGetScanningHistoryOKItemsItem) SetKind(val ScanningGetScanningHistoryOKItemsItemKind) {
+	s.Kind = val
+}
+
+// SetLabel sets the value of Label.
+func (s *ScanningGetScanningHistoryOKItemsItem) SetLabel(val string) {
+	s.Label = val
+}
+
+// SetOutcome sets the value of Outcome.
+func (s *ScanningGetScanningHistoryOKItemsItem) SetOutcome(val ScanningGetScanningHistoryOKItemsItemOutcome) {
+	s.Outcome = val
+}
+
+// SetStartedAt sets the value of StartedAt.
+func (s *ScanningGetScanningHistoryOKItemsItem) SetStartedAt(val time.Time) {
+	s.StartedAt = val
+}
+
+// SetTargetID sets the value of TargetID.
+func (s *ScanningGetScanningHistoryOKItemsItem) SetTargetID(val NilString) {
+	s.TargetID = val
+}
+
+// SetText sets the value of Text.
+func (s *ScanningGetScanningHistoryOKItemsItem) SetText(val string) {
+	s.Text = val
+}
+
+// SetTrigger sets the value of Trigger.
+func (s *ScanningGetScanningHistoryOKItemsItem) SetTrigger(val ScanningGetScanningHistoryOKItemsItemTrigger) {
+	s.Trigger = val
+}
+
+type ScanningGetScanningHistoryOKItemsItemEngine string
+
+const (
+	ScanningGetScanningHistoryOKItemsItemEnginePassive       ScanningGetScanningHistoryOKItemsItemEngine = "passive"
+	ScanningGetScanningHistoryOKItemsItemEngineNmapDiscovery ScanningGetScanningHistoryOKItemsItemEngine = "nmap-discovery"
+	ScanningGetScanningHistoryOKItemsItemEngineNmapVersions  ScanningGetScanningHistoryOKItemsItemEngine = "nmap-versions"
+	ScanningGetScanningHistoryOKItemsItemEngineSnmp          ScanningGetScanningHistoryOKItemsItemEngine = "snmp"
+	ScanningGetScanningHistoryOKItemsItemEngineOsquery       ScanningGetScanningHistoryOKItemsItemEngine = "osquery"
+	ScanningGetScanningHistoryOKItemsItemEngineWazuh         ScanningGetScanningHistoryOKItemsItemEngine = "wazuh"
+	ScanningGetScanningHistoryOKItemsItemEngineNuclei        ScanningGetScanningHistoryOKItemsItemEngine = "nuclei"
+	ScanningGetScanningHistoryOKItemsItemEngineZap           ScanningGetScanningHistoryOKItemsItemEngine = "zap"
+	ScanningGetScanningHistoryOKItemsItemEngineOpenvas       ScanningGetScanningHistoryOKItemsItemEngine = "openvas"
+	ScanningGetScanningHistoryOKItemsItemEngineHoneypot      ScanningGetScanningHistoryOKItemsItemEngine = "honeypot"
+)
+
+// AllValues returns all ScanningGetScanningHistoryOKItemsItemEngine values.
+func (ScanningGetScanningHistoryOKItemsItemEngine) AllValues() []ScanningGetScanningHistoryOKItemsItemEngine {
+	return []ScanningGetScanningHistoryOKItemsItemEngine{
+		ScanningGetScanningHistoryOKItemsItemEnginePassive,
+		ScanningGetScanningHistoryOKItemsItemEngineNmapDiscovery,
+		ScanningGetScanningHistoryOKItemsItemEngineNmapVersions,
+		ScanningGetScanningHistoryOKItemsItemEngineSnmp,
+		ScanningGetScanningHistoryOKItemsItemEngineOsquery,
+		ScanningGetScanningHistoryOKItemsItemEngineWazuh,
+		ScanningGetScanningHistoryOKItemsItemEngineNuclei,
+		ScanningGetScanningHistoryOKItemsItemEngineZap,
+		ScanningGetScanningHistoryOKItemsItemEngineOpenvas,
+		ScanningGetScanningHistoryOKItemsItemEngineHoneypot,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetScanningHistoryOKItemsItemEngine) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetScanningHistoryOKItemsItemEnginePassive:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemEngineNmapDiscovery:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemEngineNmapVersions:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemEngineSnmp:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemEngineOsquery:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemEngineWazuh:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemEngineNuclei:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemEngineZap:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemEngineOpenvas:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemEngineHoneypot:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetScanningHistoryOKItemsItemEngine) UnmarshalText(data []byte) error {
+	switch ScanningGetScanningHistoryOKItemsItemEngine(data) {
+	case ScanningGetScanningHistoryOKItemsItemEnginePassive:
+		*s = ScanningGetScanningHistoryOKItemsItemEnginePassive
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemEngineNmapDiscovery:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineNmapDiscovery
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemEngineNmapVersions:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineNmapVersions
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemEngineSnmp:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineSnmp
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemEngineOsquery:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineOsquery
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemEngineWazuh:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineWazuh
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemEngineNuclei:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineNuclei
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemEngineZap:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineZap
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemEngineOpenvas:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineOpenvas
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemEngineHoneypot:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineHoneypot
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Sweep: discovery of the LAN ranges; device: the identification of one device (a window's queue,
+// Check this device now, the first step of Scan now); snmp: SNMP reads; external: a scan of a public
+// target (one per target and day).
+type ScanningGetScanningHistoryOKItemsItemKind string
+
+const (
+	ScanningGetScanningHistoryOKItemsItemKindSweep    ScanningGetScanningHistoryOKItemsItemKind = "sweep"
+	ScanningGetScanningHistoryOKItemsItemKindDevice   ScanningGetScanningHistoryOKItemsItemKind = "device"
+	ScanningGetScanningHistoryOKItemsItemKindSnmp     ScanningGetScanningHistoryOKItemsItemKind = "snmp"
+	ScanningGetScanningHistoryOKItemsItemKindExternal ScanningGetScanningHistoryOKItemsItemKind = "external"
+)
+
+// AllValues returns all ScanningGetScanningHistoryOKItemsItemKind values.
+func (ScanningGetScanningHistoryOKItemsItemKind) AllValues() []ScanningGetScanningHistoryOKItemsItemKind {
+	return []ScanningGetScanningHistoryOKItemsItemKind{
+		ScanningGetScanningHistoryOKItemsItemKindSweep,
+		ScanningGetScanningHistoryOKItemsItemKindDevice,
+		ScanningGetScanningHistoryOKItemsItemKindSnmp,
+		ScanningGetScanningHistoryOKItemsItemKindExternal,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetScanningHistoryOKItemsItemKind) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetScanningHistoryOKItemsItemKindSweep:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemKindDevice:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemKindSnmp:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemKindExternal:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetScanningHistoryOKItemsItemKind) UnmarshalText(data []byte) error {
+	switch ScanningGetScanningHistoryOKItemsItemKind(data) {
+	case ScanningGetScanningHistoryOKItemsItemKindSweep:
+		*s = ScanningGetScanningHistoryOKItemsItemKindSweep
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemKindDevice:
+		*s = ScanningGetScanningHistoryOKItemsItemKindDevice
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemKindSnmp:
+		*s = ScanningGetScanningHistoryOKItemsItemKindSnmp
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemKindExternal:
+		*s = ScanningGetScanningHistoryOKItemsItemKindExternal
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Partial: it ended, but part of it found nothing usable (an SNMP device that did not answer, a sweep
+// batch or a read that failed, a public scan step not checked or an OpenVAS run that failed).
+type ScanningGetScanningHistoryOKItemsItemOutcome string
+
+const (
+	ScanningGetScanningHistoryOKItemsItemOutcomeOk      ScanningGetScanningHistoryOKItemsItemOutcome = "ok"
+	ScanningGetScanningHistoryOKItemsItemOutcomePartial ScanningGetScanningHistoryOKItemsItemOutcome = "partial"
+	ScanningGetScanningHistoryOKItemsItemOutcomeFailed  ScanningGetScanningHistoryOKItemsItemOutcome = "failed"
+	ScanningGetScanningHistoryOKItemsItemOutcomeStopped ScanningGetScanningHistoryOKItemsItemOutcome = "stopped"
+	ScanningGetScanningHistoryOKItemsItemOutcomeRunning ScanningGetScanningHistoryOKItemsItemOutcome = "running"
+)
+
+// AllValues returns all ScanningGetScanningHistoryOKItemsItemOutcome values.
+func (ScanningGetScanningHistoryOKItemsItemOutcome) AllValues() []ScanningGetScanningHistoryOKItemsItemOutcome {
+	return []ScanningGetScanningHistoryOKItemsItemOutcome{
+		ScanningGetScanningHistoryOKItemsItemOutcomeOk,
+		ScanningGetScanningHistoryOKItemsItemOutcomePartial,
+		ScanningGetScanningHistoryOKItemsItemOutcomeFailed,
+		ScanningGetScanningHistoryOKItemsItemOutcomeStopped,
+		ScanningGetScanningHistoryOKItemsItemOutcomeRunning,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetScanningHistoryOKItemsItemOutcome) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetScanningHistoryOKItemsItemOutcomeOk:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemOutcomePartial:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemOutcomeFailed:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemOutcomeStopped:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemOutcomeRunning:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetScanningHistoryOKItemsItemOutcome) UnmarshalText(data []byte) error {
+	switch ScanningGetScanningHistoryOKItemsItemOutcome(data) {
+	case ScanningGetScanningHistoryOKItemsItemOutcomeOk:
+		*s = ScanningGetScanningHistoryOKItemsItemOutcomeOk
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemOutcomePartial:
+		*s = ScanningGetScanningHistoryOKItemsItemOutcomePartial
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemOutcomeFailed:
+		*s = ScanningGetScanningHistoryOKItemsItemOutcomeFailed
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemOutcomeStopped:
+		*s = ScanningGetScanningHistoryOKItemsItemOutcomeStopped
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemOutcomeRunning:
+		*s = ScanningGetScanningHistoryOKItemsItemOutcomeRunning
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+// Sweep: a discovery sweep (the window, or Scan the LAN now: the row does not tell them apart);
+// automatic: the window's queue (a new device, a weekly scan) or its SNMP round; person: a person
+// asked (Check this device now, Read now, a public scan); scan_now: the identification step of a
+// vulnerability check; test: an SNMP credential Test.
+type ScanningGetScanningHistoryOKItemsItemTrigger string
+
+const (
+	ScanningGetScanningHistoryOKItemsItemTriggerSweep     ScanningGetScanningHistoryOKItemsItemTrigger = "sweep"
+	ScanningGetScanningHistoryOKItemsItemTriggerAutomatic ScanningGetScanningHistoryOKItemsItemTrigger = "automatic"
+	ScanningGetScanningHistoryOKItemsItemTriggerPerson    ScanningGetScanningHistoryOKItemsItemTrigger = "person"
+	ScanningGetScanningHistoryOKItemsItemTriggerScanNow   ScanningGetScanningHistoryOKItemsItemTrigger = "scan_now"
+	ScanningGetScanningHistoryOKItemsItemTriggerTest      ScanningGetScanningHistoryOKItemsItemTrigger = "test"
+)
+
+// AllValues returns all ScanningGetScanningHistoryOKItemsItemTrigger values.
+func (ScanningGetScanningHistoryOKItemsItemTrigger) AllValues() []ScanningGetScanningHistoryOKItemsItemTrigger {
+	return []ScanningGetScanningHistoryOKItemsItemTrigger{
+		ScanningGetScanningHistoryOKItemsItemTriggerSweep,
+		ScanningGetScanningHistoryOKItemsItemTriggerAutomatic,
+		ScanningGetScanningHistoryOKItemsItemTriggerPerson,
+		ScanningGetScanningHistoryOKItemsItemTriggerScanNow,
+		ScanningGetScanningHistoryOKItemsItemTriggerTest,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s ScanningGetScanningHistoryOKItemsItemTrigger) MarshalText() ([]byte, error) {
+	switch s {
+	case ScanningGetScanningHistoryOKItemsItemTriggerSweep:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemTriggerAutomatic:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemTriggerPerson:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemTriggerScanNow:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemTriggerTest:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *ScanningGetScanningHistoryOKItemsItemTrigger) UnmarshalText(data []byte) error {
+	switch ScanningGetScanningHistoryOKItemsItemTrigger(data) {
+	case ScanningGetScanningHistoryOKItemsItemTriggerSweep:
+		*s = ScanningGetScanningHistoryOKItemsItemTriggerSweep
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemTriggerAutomatic:
+		*s = ScanningGetScanningHistoryOKItemsItemTriggerAutomatic
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemTriggerPerson:
+		*s = ScanningGetScanningHistoryOKItemsItemTriggerPerson
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemTriggerScanNow:
+		*s = ScanningGetScanningHistoryOKItemsItemTriggerScanNow
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemTriggerTest:
+		*s = ScanningGetScanningHistoryOKItemsItemTriggerTest
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type ScanningGetScanningOK struct {

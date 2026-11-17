@@ -34,7 +34,7 @@ func (h *SNMPHandlers) actor(ctx context.Context) (string, error) {
 // credentialItem is a credential in the shape of the API.
 func credentialItem(c SNMPCredential) oas.InventoryGetInventorySnmpOKCredentialsItem {
 	out := oas.InventoryGetInventorySnmpOKCredentialsItem{
-		ID: c.ID, Name: c.Name, Version: oas.InventoryGetInventorySnmpOKCredentialsItemVersion(c.Version), SecretLast4: c.SecretLast4, PrivLast4: c.PrivLast4,
+		ID: c.ID, Name: c.Name, Version: oas.InventoryGetInventorySnmpOKCredentialsItemVersion(c.Version), SecretLast4: c.SecretLast4, PrivLast4: c.PrivLast4, Port: c.Port,
 		Scope: c.Scope, CreatedAt: c.CreatedAt, Answered: c.Answered, SecretLost: c.SecretLost, Username: oas.NilString{Null: true}, LastAnswerAt: oas.NilDateTime{Null: true},
 		Auth: oas.NilInventoryGetInventorySnmpOKCredentialsItemAuth{Null: true}, Priv: oas.NilInventoryGetInventorySnmpOKCredentialsItemPriv{Null: true},
 	}
@@ -66,8 +66,8 @@ func as[T any](c SNMPCredential) (*T, error) {
 	return &out, nil
 }
 
-func formOf(name, version string, community, user oas.OptString, auth, priv string, authPass, privPass oas.OptString, scope []string) SNMPCredentialInput {
-	in := SNMPCredentialInput{Name: name, Version: version, Username: user.Or(""), Auth: auth, Priv: priv, Scope: scope}
+func formOf(name, version string, community, user oas.OptString, auth, priv string, authPass, privPass oas.OptString, port oas.OptInt, scope []string) SNMPCredentialInput {
+	in := SNMPCredentialInput{Name: name, Version: version, Username: user.Or(""), Auth: auth, Priv: priv, Port: port.Or(0), Scope: scope}
 	in.Community, in.AuthPassword, in.PrivPassword = secrets.NewValue(community.Or("")), secrets.NewValue(authPass.Or("")), secrets.NewValue(privPass.Or(""))
 	return in
 }
@@ -99,7 +99,7 @@ func (h *SNMPHandlers) InventoryPostInventorySnmp(ctx context.Context, req *oas.
 	if err != nil {
 		return nil, err
 	}
-	in := formOf(req.Name, string(req.Version), req.Community, req.Username, string(req.Auth.Or("")), string(req.Priv.Or("")), req.AuthPassword, req.PrivPassword, req.Scope)
+	in := formOf(req.Name, string(req.Version), req.Community, req.Username, string(req.Auth.Or("")), string(req.Priv.Or("")), req.AuthPassword, req.PrivPassword, req.Port, req.Scope)
 	c, err := h.s.AddSNMP(ctx, who, in)
 	if err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func (h *SNMPHandlers) InventoryPutInventorySnmpID(ctx context.Context, req *oas
 	if err != nil {
 		return nil, err
 	}
-	in := formOf(req.Name, string(req.Version), req.Community, req.Username, string(req.Auth.Or("")), string(req.Priv.Or("")), req.AuthPassword, req.PrivPassword, req.Scope)
+	in := formOf(req.Name, string(req.Version), req.Community, req.Username, string(req.Auth.Or("")), string(req.Priv.Or("")), req.AuthPassword, req.PrivPassword, req.Port, req.Scope)
 	c, err := h.s.EditSNMP(ctx, who, params.ID, in)
 	if err != nil {
 		return nil, err

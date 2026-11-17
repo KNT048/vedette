@@ -106180,6 +106180,9 @@ type InventoryGetInventorySnmpOKCredentialsItem struct {
 	// Devices that answered with it and moved out of its scope (#829 C4); empty on add and edit responses.
 	MovedOut []InventoryGetInventorySnmpOKCredentialsItemMovedOutItem `json:"moved_out"`
 	Name     string                                                   `json:"name"`
+	// The UDP port it is sent to: 161 (the SNMP port) unless the person set another for a device that
+	// answers SNMP elsewhere.
+	Port int `json:"port"`
 	// Null for v2c.
 	Priv NilInventoryGetInventorySnmpOKCredentialsItemPriv `json:"priv"`
 	// Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8
@@ -106234,6 +106237,11 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) GetMovedOut() []InventoryGe
 // GetName returns the value of Name.
 func (s *InventoryGetInventorySnmpOKCredentialsItem) GetName() string {
 	return s.Name
+}
+
+// GetPort returns the value of Port.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) GetPort() int {
+	return s.Port
 }
 
 // GetPriv returns the value of Priv.
@@ -106304,6 +106312,11 @@ func (s *InventoryGetInventorySnmpOKCredentialsItem) SetMovedOut(val []Inventory
 // SetName sets the value of Name.
 func (s *InventoryGetInventorySnmpOKCredentialsItem) SetName(val string) {
 	s.Name = val
+}
+
+// SetPort sets the value of Port.
+func (s *InventoryGetInventorySnmpOKCredentialsItem) SetPort(val int) {
+	s.Port = val
 }
 
 // SetPriv sets the value of Priv.
@@ -108895,6 +108908,9 @@ type InventoryPostInventorySnmpCreated struct {
 	// Devices that answered with it and moved out of its scope (#829 C4); empty on add and edit responses.
 	MovedOut []InventoryPostInventorySnmpCreatedMovedOutItem `json:"moved_out"`
 	Name     string                                          `json:"name"`
+	// The UDP port it is sent to: 161 (the SNMP port) unless the person set another for a device that
+	// answers SNMP elsewhere.
+	Port int `json:"port"`
 	// Null for v2c.
 	Priv NilInventoryPostInventorySnmpCreatedPriv `json:"priv"`
 	// Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8
@@ -108949,6 +108965,11 @@ func (s *InventoryPostInventorySnmpCreated) GetMovedOut() []InventoryPostInvento
 // GetName returns the value of Name.
 func (s *InventoryPostInventorySnmpCreated) GetName() string {
 	return s.Name
+}
+
+// GetPort returns the value of Port.
+func (s *InventoryPostInventorySnmpCreated) GetPort() int {
+	return s.Port
 }
 
 // GetPriv returns the value of Priv.
@@ -109019,6 +109040,11 @@ func (s *InventoryPostInventorySnmpCreated) SetMovedOut(val []InventoryPostInven
 // SetName sets the value of Name.
 func (s *InventoryPostInventorySnmpCreated) SetName(val string) {
 	s.Name = val
+}
+
+// SetPort sets the value of Port.
+func (s *InventoryPostInventorySnmpCreated) SetPort(val int) {
+	s.Port = val
 }
 
 // SetPriv sets the value of Priv.
@@ -110101,6 +110127,9 @@ type InventoryPostInventorySnmpReq struct {
 	Community OptString `json:"community"`
 	// 1 to 64 characters, not < >; unique (case does not matter).
 	Name string `json:"name"`
+	// The UDP port the devices answer SNMP on; left out = 161. A device on another port gets a credential
+	// of its own whose scope holds it.
+	Port OptInt `json:"port"`
 	// V3; default aes128.
 	Priv OptInventoryPostInventorySnmpReqPriv `json:"priv"`
 	// V3 with aes128: 8 to 64 printable ASCII characters; blank when editing keeps the saved one.
@@ -110133,6 +110162,11 @@ func (s *InventoryPostInventorySnmpReq) GetCommunity() OptString {
 // GetName returns the value of Name.
 func (s *InventoryPostInventorySnmpReq) GetName() string {
 	return s.Name
+}
+
+// GetPort returns the value of Port.
+func (s *InventoryPostInventorySnmpReq) GetPort() OptInt {
+	return s.Port
 }
 
 // GetPriv returns the value of Priv.
@@ -110178,6 +110212,11 @@ func (s *InventoryPostInventorySnmpReq) SetCommunity(val OptString) {
 // SetName sets the value of Name.
 func (s *InventoryPostInventorySnmpReq) SetName(val string) {
 	s.Name = val
+}
+
+// SetPort sets the value of Port.
+func (s *InventoryPostInventorySnmpReq) SetPort(val OptInt) {
+	s.Port = val
 }
 
 // SetPriv sets the value of Priv.
@@ -111414,6 +111453,9 @@ type InventoryPutInventorySnmpIDOK struct {
 	// Devices that answered with it and moved out of its scope (#829 C4); empty on add and edit responses.
 	MovedOut []InventoryPutInventorySnmpIDOKMovedOutItem `json:"moved_out"`
 	Name     string                                      `json:"name"`
+	// The UDP port it is sent to: 161 (the SNMP port) unless the person set another for a device that
+	// answers SNMP elsewhere.
+	Port int `json:"port"`
 	// Null for v2c.
 	Priv NilInventoryPutInventorySnmpIDOKPriv `json:"priv"`
 	// Last 4 characters of the v3 privacy password; empty when there is none or it has fewer than 8
@@ -111468,6 +111510,11 @@ func (s *InventoryPutInventorySnmpIDOK) GetMovedOut() []InventoryPutInventorySnm
 // GetName returns the value of Name.
 func (s *InventoryPutInventorySnmpIDOK) GetName() string {
 	return s.Name
+}
+
+// GetPort returns the value of Port.
+func (s *InventoryPutInventorySnmpIDOK) GetPort() int {
+	return s.Port
 }
 
 // GetPriv returns the value of Priv.
@@ -111538,6 +111585,11 @@ func (s *InventoryPutInventorySnmpIDOK) SetMovedOut(val []InventoryPutInventoryS
 // SetName sets the value of Name.
 func (s *InventoryPutInventorySnmpIDOK) SetName(val string) {
 	s.Name = val
+}
+
+// SetPort sets the value of Port.
+func (s *InventoryPutInventorySnmpIDOK) SetPort(val int) {
+	s.Port = val
 }
 
 // SetPriv sets the value of Priv.
@@ -111761,6 +111813,9 @@ type InventoryPutInventorySnmpIDReq struct {
 	Community OptString `json:"community"`
 	// 1 to 64 characters, not < >; unique (case does not matter).
 	Name string `json:"name"`
+	// The UDP port the devices answer SNMP on; left out = 161. A device on another port gets a credential
+	// of its own whose scope holds it.
+	Port OptInt `json:"port"`
 	// V3; default aes128.
 	Priv OptInventoryPutInventorySnmpIDReqPriv `json:"priv"`
 	// V3 with aes128: 8 to 64 printable ASCII characters; blank when editing keeps the saved one.
@@ -111793,6 +111848,11 @@ func (s *InventoryPutInventorySnmpIDReq) GetCommunity() OptString {
 // GetName returns the value of Name.
 func (s *InventoryPutInventorySnmpIDReq) GetName() string {
 	return s.Name
+}
+
+// GetPort returns the value of Port.
+func (s *InventoryPutInventorySnmpIDReq) GetPort() OptInt {
+	return s.Port
 }
 
 // GetPriv returns the value of Priv.
@@ -111838,6 +111898,11 @@ func (s *InventoryPutInventorySnmpIDReq) SetCommunity(val OptString) {
 // SetName sets the value of Name.
 func (s *InventoryPutInventorySnmpIDReq) SetName(val string) {
 	s.Name = val
+}
+
+// SetPort sets the value of Port.
+func (s *InventoryPutInventorySnmpIDReq) SetPort(val OptInt) {
+	s.Port = val
 }
 
 // SetPriv sets the value of Priv.

@@ -85,12 +85,12 @@ func (s *Service) ReadSNMP(ctx context.Context, actor, id string) (SNMPRead, err
 	}
 	switch {
 	case errors.Is(st.allowed(), ErrScanningOff):
-		return SNMPRead{}, apierr.New(409, reasonScanningOff, snmpMessage(reasonScanningOff, netip.Addr{}, "", ""))
+		return SNMPRead{}, apierr.New(409, reasonScanningOff, snmpMessage(reasonScanningOff, netip.Addr{}, "", 0, ""))
 	case st.allowed() != nil:
 		return SNMPRead{}, apierr.New(409, reasonScopeNotConfirmed, "The scan scope is not set up and confirmed under Scope and sensors, so nothing is sent.")
 	}
 	if ready, msg := s.SNMPStatus(); !ready {
-		return SNMPRead{}, apierr.New(409, SNMPUnavailable, snmpMessage(SNMPUnavailable, netip.Addr{}, "", msg))
+		return SNMPRead{}, apierr.New(409, SNMPUnavailable, snmpMessage(SNMPUnavailable, netip.Addr{}, "", 0, msg))
 	}
 	busy := apierr.New(409, SNMPBusy, "Another SNMP read is running (a Test, a Read now or the scan window's round). Try again in a minute.")
 	s.mu.Lock()
@@ -293,7 +293,7 @@ func (s *Service) addReadResults(run *SNMPRead, cred snmpRow, batch []snmpTarget
 			run.Answered++
 		}
 		r.OK = r.Reason == SNMPOK
-		r.Message = snmpMessage(r.Reason, t.ip, cred.Version, "")
+		r.Message = snmpMessage(r.Reason, t.ip, cred.Version, cred.Port, "")
 		run.Results = append(run.Results, r)
 	}
 }

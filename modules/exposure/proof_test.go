@@ -181,10 +181,9 @@ func TestProof_D628_ParentCoversChild(t *testing.T) {
 	if ok, why, _ := e.svc.CheckScannable(e.ctx(), "scan", child.ID); ok || why != BlockedTxtMissing {
 		t.Fatalf("parent target removed: %v %v", ok, why)
 	}
-	// the child's own token on a parent name is not the parent's record: one rule with the executors' fence, which checks a domain's
-	// own token on that domain
+	// D-632 (reverses D-628's "only the target at that name"): the child's own token on a parent name proves the child
 	e.dns.put("beyondnetglobal.com", txtRecord(child.Token))
-	if r := e.verify(child.ID); r.Verified {
+	if r := e.verify(child.ID); !r.Verified || !strings.Contains(r.Message, "this target's own record on a parent name") {
 		t.Fatalf("the child's token on its parent: %+v", r)
 	}
 }
@@ -263,7 +262,7 @@ func TestProof_D628_VerifyLabelUnderACNAME(t *testing.T) {
 	t.Parallel()
 	e, _ := newProofEnv(t)
 	v := e.add("admin@acme.example", "git.beyondnetglobal.com")
-	if p := v.Proof; p == nil || p.Zone != "beyondnetglobal.com" || p.Host != "git" || p.AltHost == nil || *p.AltHost != "_vedette-verify.git" || p.CoveredBy != nil {
+	if p := v.Proof; p == nil || p.Zone != "beyondnetglobal.com" || p.Host != "@" || p.AltHost == nil || *p.AltHost != "_vedette-verify.git" || p.CoveredBy != nil {
 		t.Fatalf("hint %+v", p)
 	}
 	e.dns.put("beyondhcm.ddns.net", txtRecord(v.Token)) // answered through git's CNAME: the ddns.net name's record, not git's
@@ -326,9 +325,10 @@ func TestProof_D628_TheErrorSaysWhatWasAskedAndWhatCameBack(t *testing.T) {
 	git := e.add("admin@acme.example", "git.beyondnetglobal.com")
 	r := e.verify(git.ID)
 	for _, want := range []string{
-		"No TXT record vedette-verify=" + git.Token + " was found. Vedette asked git.beyondnetglobal.com, _vedette-verify.git.beyondnetglobal.com.",
-		"git.beyondnetglobal.com: a CNAME to beyondhcm.ddns.net, so a TXT record cannot sit on this name: put it on _vedette-verify.git.beyondnetglobal.com instead, or verify a parent domain.",
+		"No TXT record vedette-verify=" + git.Token + " was found. Vedette asked git.beyondnetglobal.com, _vedette-verify.git.beyondnetglobal.com, beyondnetglobal.com.",
+		"git.beyondnetglobal.com: a CNAME to beyondhcm.ddns.net, so a TXT record cannot sit on this name: put it on @ of the zone (the registered domain) or on _vedette-verify.git.beyondnetglobal.com instead.",
 		"_vedette-verify.git.beyondnetglobal.com: no TXT record.",
+		"beyondnetglobal.com: no TXT record.",
 		"No domain of this box above it covers it.",
 	} {
 		if r.Verified || !strings.Contains(r.Message, want) {

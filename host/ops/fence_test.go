@@ -238,6 +238,13 @@ func TestExposureFenceCheck(t *testing.T) {
 			}
 		})
 	}
+	// D-632: the record's parent name (ProofAt) is checked like the domain, and never a public suffix, whatever core sends
+	if j, err := fenceJob(api.ExposureFenceCheckArgs{Domain: "git.example.com", Name: "git.example.com", IP: zapTestIP, Token: zapTestTok, ProofAt: "example.com"}); err != nil || j.ProofAt != "example.com" {
+		t.Fatalf("a parent name: %+v %v", j, err)
+	}
+	if _, err := fenceJob(api.ExposureFenceCheckArgs{Domain: "x.beyondhcm.ddns.net", Name: "x.beyondhcm.ddns.net", IP: zapTestIP, Token: zapTestTok, ProofAt: "ddns.net"}); err == nil {
+		t.Fatal("a public suffix as the record's name was accepted")
+	}
 	if _, err := fenceJob(api.ExposureFenceCheckArgs{Domain: "example.com", Name: "www.evil.example", IP: zapTestIP, Token: zapTestTok}); err == nil {
 		t.Fatal("a name outside the domain was accepted")
 	}

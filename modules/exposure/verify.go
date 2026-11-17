@@ -158,6 +158,10 @@ func (s *Service) Verify(ctx context.Context, user, id string) (VerifyResult, er
 // message and audit row; one already verified and passing is left as it is. The record is checked again for each of them right
 // before each of their scans (INV-1 (c)), so a record removed, or the parent target removed with its token, covers them no more.
 func (s *Service) coverOthers(ctx context.Context, tx *sql.Tx, user string, t Target, p proof, now time.Time, emit func(string, any)) error {
+	if owner := map[bool]string{true: t.Value, false: p.via}[p.own]; p.proven != owner {
+		// D-632: t's own token on a parent name proves t only: the other targets under that parent need their own token there
+		return nil
+	}
 	all, err := listTargets(ctx, tx)
 	if err != nil {
 		return err

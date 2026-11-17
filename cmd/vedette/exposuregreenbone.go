@@ -48,7 +48,7 @@ func (g exposureGreenbone) CheckDomainIP(ctx context.Context, scope exposure.Dom
 		return err
 	}
 	_, err = g.fence.ExposureFenceCheck(ctx, api.ExposureFenceCheckArgs{Domain: scope.Domain, Name: scope.Name, IP: ip.String(), Token: scope.Token,
-		Disruptive: c.Disruptive, Recheck: c.Recheck}, id, gbActor) // review r1 M3 (the CNAME rule) and M2 (a re-check asks DNS again)
+		ProofAt: scope.ProofAt, Disruptive: c.Disruptive, Recheck: c.Recheck}, id, gbActor) // review r1 M3 (the CNAME rule) and M2 (a re-check asks DNS again)
 	return err
 }
 

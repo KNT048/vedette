@@ -365,9 +365,13 @@ func fenceJob(a api.ExposureFenceCheckArgs) (domainfence.Job, error) {
 	if err != nil || ip.String() != a.IP {
 		return domainfence.Job{}, server.Invalid(fieldIP, "must be a public IPv4 address")
 	}
-	j := domainfence.Job{Domain: a.Domain, Name: a.Name, IP: ip, Token: a.Token, Disruptive: a.Disruptive}
+	j := domainfence.Job{Domain: a.Domain, Name: a.Name, IP: ip, Token: a.Token, Disruptive: a.Disruptive, ProofAt: a.ProofAt}
 	if err := j.Valid(); err != nil {
 		return domainfence.Job{}, server.Invalid("domain", err.Error())
+	}
+	// D-632: the host trusts no core: the parent name a record is looked for on is never a public suffix (co.uk, ddns.net, github.io)
+	if s, _ := publicsuffix.PublicSuffix(j.ProofAt); j.ProofAt != "" && s == j.ProofAt {
+		return domainfence.Job{}, server.Invalid("proof_at", "is a public suffix")
 	}
 	return j, nil
 }

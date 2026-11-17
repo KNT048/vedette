@@ -73,6 +73,9 @@ type DomainScope struct {
 	Domain string // the verified domain (the target's value)
 	Name   string // the domain itself or a name under it that resolved to the address right before the step
 	Token  string // the domain's box-bound token (16 hex, D-591), from DomainFence
+	// ProofAt (D-632) is the parent name of Domain (the zone apex) where Domain's own record sits, which the executors check instead
+	// of Domain; "" when the record is on Domain (or on _vedette-verify.<Domain>).
+	ProofAt string
 	// Chain is Name's CNAME chain as core saw it right before the step ("www.acme.example -> acme.edge.example.net"; just the name
 	// without a CNAME; "" when the lookup failed), written in the step's probe-log row (review r1 M4, D-591).
 	Chain string

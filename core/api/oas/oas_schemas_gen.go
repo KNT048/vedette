@@ -43730,13 +43730,15 @@ func (s *ExposureDeleteExposureTargetsIDTermsOKOpenPortsItemIdent) UnmarshalText
 }
 
 type ExposureDeleteExposureTargetsIDTermsOKProof struct {
-	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
-	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	// The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only
+	// (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when
+	// _vedette-verify. would pass 253 characters (no such name can exist).
 	AltHost NilString `json:"alt_host"`
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
-	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	// The Name (host) to type in that zone: "@", the zone apex, for every target (D-632: the target's own
+	// record there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
 	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
 	Zone string `json:"zone"`
@@ -46080,13 +46082,15 @@ func (s *ExposureGetExposureTargetsIDOKOpenPortsItemIdent) UnmarshalText(data []
 }
 
 type ExposureGetExposureTargetsIDOKProof struct {
-	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
-	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	// The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only
+	// (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when
+	// _vedette-verify. would pass 253 characters (no such name can exist).
 	AltHost NilString `json:"alt_host"`
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
-	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	// The Name (host) to type in that zone: "@", the zone apex, for every target (D-632: the target's own
+	// record there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
 	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
 	Zone string `json:"zone"`
@@ -50000,13 +50004,15 @@ func (s *ExposureGetExposureTargetsOKItemsItemOpenPortsItemIdent) UnmarshalText(
 }
 
 type ExposureGetExposureTargetsOKItemsItemProof struct {
-	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
-	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	// The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only
+	// (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when
+	// _vedette-verify. would pass 253 characters (no such name can exist).
 	AltHost NilString `json:"alt_host"`
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
-	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	// The Name (host) to type in that zone: "@", the zone apex, for every target (D-632: the target's own
+	// record there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
 	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
 	Zone string `json:"zone"`
@@ -51062,13 +51068,15 @@ func (s *ExposurePostExposureBoxIPVerifyOKItemsItemOpenPortsItemIdent) Unmarshal
 }
 
 type ExposurePostExposureBoxIPVerifyOKItemsItemProof struct {
-	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
-	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	// The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only
+	// (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when
+	// _vedette-verify. would pass 253 characters (no such name can exist).
 	AltHost NilString `json:"alt_host"`
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
-	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	// The Name (host) to type in that zone: "@", the zone apex, for every target (D-632: the target's own
+	// record there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
 	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
 	Zone string `json:"zone"`
@@ -52664,13 +52672,15 @@ func (s *ExposurePostExposureTargetsCreatedOpenPortsItemIdent) UnmarshalText(dat
 }
 
 type ExposurePostExposureTargetsCreatedProof struct {
-	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
-	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	// The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only
+	// (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when
+	// _vedette-verify. would pass 253 characters (no such name can exist).
 	AltHost NilString `json:"alt_host"`
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
-	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	// The Name (host) to type in that zone: "@", the zone apex, for every target (D-632: the target's own
+	// record there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
 	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
 	Zone string `json:"zone"`
@@ -54452,13 +54462,15 @@ func (s *ExposurePostExposureTargetsIDVerifyOKTargetOpenPortsItemIdent) Unmarsha
 }
 
 type ExposurePostExposureTargetsIDVerifyOKTargetProof struct {
-	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
-	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	// The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only
+	// (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when
+	// _vedette-verify. would pass 253 characters (no such name can exist).
 	AltHost NilString `json:"alt_host"`
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
-	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	// The Name (host) to type in that zone: "@", the zone apex, for every target (D-632: the target's own
+	// record there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
 	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
 	Zone string `json:"zone"`
@@ -55951,13 +55963,15 @@ func (s *ExposurePutExposureTargetsIDTermsOKOpenPortsItemIdent) UnmarshalText(da
 }
 
 type ExposurePutExposureTargetsIDTermsOKProof struct {
-	// The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): "_vedette-verify" or
-	// "_vedette-verify.git"; null when _vedette-verify. would pass 253 characters (no such name can exist).
+	// The alternative Name: "_vedette-verify" or "_vedette-verify.git", which proves the target only
+	// (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when
+	// _vedette-verify. would pass 253 characters (no such name can exist).
 	AltHost NilString `json:"alt_host"`
 	// A verified domain of this box that covers this name already (its parent or the zone): a Check is
 	// enough, no second record; null when none.
 	CoveredBy NilString `json:"covered_by"`
-	// The Name (host) to type in that zone: "@" for the zone itself, "git" for git.beyondnetglobal.com.
+	// The Name (host) to type in that zone: "@", the zone apex, for every target (D-632: the target's own
+	// record there proves it, and an apex takes a record whatever the subdomain is).
 	Host string `json:"host"`
 	// The registered domain: the DNS zone the record is added in ("beyondnetglobal.com").
 	Zone string `json:"zone"`

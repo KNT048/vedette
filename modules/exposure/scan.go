@@ -77,7 +77,7 @@ func (s *Service) gate(ctx context.Context, actor, id string) (Target, BlockedRe
 			return Target{}, "", err
 		}
 		if pr.found { // the target whose record proved it now: the executors' fence checks that domain and token (D-628)
-			t.proofDomain, t.proofToken = pr.proven, pr.token
+			t.proofDomain, t.proofToken, t.proofOwn = pr.proven, pr.token, pr.own
 		}
 	}
 	return t, t.blocked(s.clock()), nil

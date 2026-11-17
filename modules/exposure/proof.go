@@ -27,10 +27,13 @@ import (
 //     label below the longest public suffix of the Public Suffix List with both its sections (golang.org/x/net/publicsuffix); the
 //     ICANN section alone would make ddns.net a registered domain whose record covers every customer's name under it. A record on
 //     a public suffix proves nothing, and a public suffix is never a target.
-//   - The token that counts at a name is a token of one of this box's domain targets at or under that name. Every token is the
-//     box's own (random, or bound to the box by the domain fence), so a record with it was put there by whoever runs that name's
-//     DNS for this box. A parent target removed from the box takes its token with it: names it covered are covered no more at
-//     their next check (before every scan, INV-1 (c)).
+//   - A target is proved by its own token on its own name, or (D-632, kien's G10 reopen) on any parent name down to its registered
+//     domain, the zone apex "@" first among them in the instructions: control of the apex TXT proves every name of the zone, the
+//     Google Workspace and Microsoft 365 model, and a name that is a CNAME can hold no TXT. It is also proved by the record of a
+//     domain target of this box on a parent name, with that target's own token (D-628). Every token is the box's own (random, or
+//     bound to the box by the domain fence), so a record with it was put there by whoever runs that name's DNS for this box. A
+//     parent target removed from the box takes its token with it: names it covered are covered no more at their next check
+//     (before every scan, INV-1 (c)).
 
 // verifyLabel is the label of the dedicated proof name: _vedette-verify.<name> (domainfence.VerifyLabel, the executors' copy).
 const verifyLabel = domainfence.VerifyLabel
@@ -87,9 +90,10 @@ func proofChain(name string) []string {
 	return out
 }
 
-// ProofHint is where the record of a domain target goes (TargetView.proof, D-628): the DNS zone (its registered domain), the Name
-// (host) to type in that zone ("@" for the zone itself, "git" for git.beyondnetglobal.com), the dedicated name ("_vedette-verify"
-// or "_vedette-verify.git") for a name that is a CNAME, and the verified domain target of this box that covers it already, if any.
+// ProofHint is where the record of a domain target goes (TargetView.proof, D-628, D-632): the DNS zone (its registered domain), the
+// Name (host) to type in that zone ("@", the zone apex, for every target: the apex proves every name of the zone and takes a record
+// whatever the subdomain is), the dedicated name ("_vedette-verify" or "_vedette-verify.git") as the alternative, and the verified
+// domain target of this box that covers it already, if any.
 type ProofHint struct {
 	Zone      string  `json:"zone"`
 	Host      string  `json:"host"`
@@ -103,11 +107,10 @@ func proofHint(t Target, others []Target) *ProofHint {
 	if t.Kind != KindDomain || !ok {
 		return nil
 	}
-	h := &ProofHint{Zone: r, Host: "@"}
+	h := &ProofHint{Zone: r, Host: "@"} // D-632: the record goes on the zone apex, which proves every name of the zone
 	alt := verifyLabel
 	if t.Value != r {
-		h.Host = strings.TrimSuffix(t.Value, "."+r)
-		alt = verifyLabel + "." + h.Host
+		alt = verifyLabel + "." + strings.TrimSuffix(t.Value, "."+r)
 	}
 	if len(verifyLabel)+1+len(t.Value) <= 253 { // review r1 L of #941: never a Name that cannot exist
 		h.AltHost = &alt
@@ -132,6 +135,8 @@ type proof struct {
 	via    string // that target's value when it is not the checked one
 	// owner and token are that target's id and token: the domain and token the executors' fence checks for the scan (D-628).
 	owner, token string
+	// own: the token is the checked target's own; with proven a parent name, its record on that parent (D-632).
+	own bool
 	// failure says, when nothing was found, which names were asked and what came back (cleaned, bounded).
 	failure string
 }
@@ -157,10 +162,12 @@ func (p proofResolver) LookupCNAME(ctx context.Context, name string) (string, er
 	return "", errors.New("exposure: the resolver cannot look up CNAMEs")
 }
 
-// candidate is a target whose record would prove the checked one: itself, or a domain target of the box on a parent name.
+// candidate is a record that would prove the checked target: a token (the checked target's own, or a parent target's) on a name of
+// its chain (its own name, or a parent name down to its registered domain).
 type candidate struct {
-	t   Target
-	got domainfence.Proof
+	name string
+	t    Target // whose token
+	got  domainfence.Proof
 }
 
 // prove looks for a record proving t (D-628) with the one rule of core/domainfence.Owned, which the executors apply too: t's own
@@ -178,10 +185,11 @@ func (s *Service) prove(ctx context.Context, t Target, all []Target) proof {
 			byValue[o.Value] = o
 		}
 	}
-	cands := []candidate{{t: t}}
-	for _, n := range chain[1:] {
+	var cands []candidate
+	for _, n := range chain { // the nearest first; on each name the target's own token (D-632), then a parent target's (D-628)
+		cands = append(cands, candidate{name: n, t: t})
 		if o, ok := byValue[n]; ok && o.ID != t.ID {
-			cands = append(cands, candidate{t: o})
+			cands = append(cands, candidate{name: n, t: o})
 		}
 	}
 	var wg sync.WaitGroup
@@ -189,7 +197,7 @@ func (s *Service) prove(ctx context.Context, t Target, all []Target) proof {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			cands[i].got = domainfence.Owned(ctx, proofResolver{s.cfg.Resolver}, cands[i].t.Value, cands[i].t.Token, dnsTimeout)
+			cands[i].got = domainfence.Owned(ctx, proofResolver{s.cfg.Resolver}, cands[i].name, cands[i].t.Token, dnsTimeout)
 		}()
 	}
 	wg.Wait()
@@ -197,8 +205,8 @@ func (s *Service) prove(ctx context.Context, t Target, all []Target) proof {
 		if c.got.At == "" {
 			continue
 		}
-		p := proof{found: true, at: c.got.At, proven: c.t.Value, owner: c.t.ID, token: c.t.Token}
-		if c.t.ID != t.ID {
+		p := proof{found: true, at: c.got.At, proven: c.name, owner: c.t.ID, token: c.t.Token, own: c.t.ID == t.ID}
+		if !p.own {
 			p.via = c.t.Value
 		}
 		return p
@@ -238,6 +246,9 @@ func (s *Service) whyNot(ctx context.Context, t Target, cands []candidate) strin
 	if alt := verifyLabel + "." + t.Value; len(alt) <= 253 {
 		names = append(names, alt)
 	}
+	if r, ok := registered(t.Value); ok && r != t.Value { // D-632: the zone apex "@", where the instructions put the record
+		names = append(names, r)
+	}
 	got := make([]answer, len(names))
 	var wg sync.WaitGroup
 	for i, n := range names {
@@ -251,16 +262,27 @@ func (s *Service) whyNot(ctx context.Context, t Target, cands []candidate) strin
 	}
 	wg.Wait()
 	var b strings.Builder
-	fmt.Fprintf(&b, "No TXT record vedette-verify=%s was found. Vedette asked %s. ", t.Token, strings.Join(names, ", "))
+	fmt.Fprintf(&b, "No TXT record vedette-verify=%s was found. Vedette asked %s", t.Token, strings.Join(names, ", "))
+	if n := len(proofChain(t.Value)) - 2; n > 0 {
+		fmt.Fprintf(&b, " (and %s between them)", plural(n, "parent name"))
+	}
+	b.WriteString(". ")
 	for i, n := range names {
 		fmt.Fprintf(&b, "%s: %s. ", n, s.outcome(ctx, n, i == 0, got[i]))
 	}
-	if d := cands[0].got.Detail; strings.Contains(d, "CNAME to another name") || strings.Contains(d, "wildcard") || cands[0].got.Unchecked {
-		b.WriteString("Not counted: " + cleanDNS(d, 200) + ". ")
+	for _, c := range cands { // a record of this token found but refused (reached through a CNAME, a wildcard), or a failed lookup
+		if c.t.ID != t.ID {
+			continue
+		}
+		if d := c.got.Detail; strings.Contains(d, "CNAME to another name") || strings.Contains(d, "wildcard") || c.got.Unchecked {
+			b.WriteString("Not counted: " + cleanDNS(d, 200) + ". ")
+		}
 	}
 	var above []string
-	for _, c := range cands[1:] {
-		above = append(above, c.t.Value)
+	for _, c := range cands {
+		if c.t.ID != t.ID {
+			above = append(above, c.t.Value)
+		}
 	}
 	if len(above) == 0 {
 		b.WriteString("No domain of this box above it covers it. ")
@@ -294,7 +316,7 @@ func (s *Service) outcome(ctx context.Context, name string, own bool, a answer) 
 	case errors.As(a.err, &de) && de.IsTimeout, errors.Is(a.err, context.DeadlineExceeded):
 		return fmt.Sprintf("no answer within %d seconds (timeout)", int(dnsTimeout.Seconds()))
 	case cname != "":
-		return fmt.Sprintf("a CNAME to %s, so a TXT record cannot sit on this name: put it on %s.%s instead, or verify a parent domain", cname, verifyLabel, name)
+		return fmt.Sprintf("a CNAME to %s, so a TXT record cannot sit on this name: put it on @ of the zone (the registered domain) or on %s.%s instead", cname, verifyLabel, name)
 	case errors.As(a.err, &de) && de.IsNotFound:
 		if own && s.cnameMissing(ctx, name) {
 			return "the name does not exist (NXDOMAIN), or has no address or TXT record"
@@ -358,6 +380,8 @@ func cleanDNS(v string, n int) string {
 // proofMessage is the check message of a found proof.
 func proofMessage(t Target, p proof) string {
 	switch {
+	case p.own && p.proven != t.Value: // D-632
+		return fmt.Sprintf("Found the TXT record %s on %s: this target's own record on a parent name, which proves %s.", txtRecord(t.Token), p.at, t.Value)
 	case p.via != "":
 		return fmt.Sprintf("Found the TXT record of %s on %s: it proves %s and every name under it, %s included.", p.via, p.at, p.proven, t.Value)
 	}

@@ -160,3 +160,8 @@
 - Ranh giới dùng danh sách PSL nhúng trong `golang.org/x/net/publicsuffix`: nâng phiên bản x/net có thể đổi tên miền đã đăng ký của một tên (hiếm; chạy `TestProof_D628_*`).
 - `TargetView.proof` là trường của `contract.ts` `Target` (`ProofHint`): đổi hình dạng thì sửa contract, mock (`proofOf`), `VerifyPanel` và `make generate`.
 - Mỗi lần kiểm hỏi: TXT ở tên và `_vedette-verify.<tên>`, CNAME của tên có bản ghi khớp, TXT của một tên ngẫu nhiên khi bản ghi ở `_vedette-verify`, cho chính mục tiêu và mỗi mục tiêu cha; khi không thấy, TXT và CNAME của tên lần nữa để nói đã nhận gì. PRIVACY luồng 9 liệt kê đủ; thêm lượt tra thì sửa cả hai chỗ.
+
+## Modifying: token của chính mục tiêu trên tên cha (D-632: `prove` candidates, `proof.own`, `Target.proofOwn`, `DomainScope.ProofAt`, `domainfence.Job.ProofAt`)
+- `ProofAt` đi qua bốn chỗ: `modules/exposure/deep.go` (đặt), `cmd/vedette/exposurefence.go` `scopeOf` → `core/sensorlink.DomainScope.ProofAt` (`proof_at`) → `modules/sensor-active/worker/domain.go`; `cmd/vedette/exposuregreenbone.go` → `host/api.ExposureFenceCheckArgs.ProofAt` → `host/ops/fence.go` `fenceJob` (từ chối hậu tố công cộng). Bỏ một chỗ thì bước sâu của mục tiêu được chứng minh ở đỉnh zone bị từ chối (fail closed); `core/`, `host/`, `sensor-active` là vùng chung (D-65): báo Trưởng.
+- `cache` của fence có `proofAt` trong khoá: câu "có" cho bản ghi trên domain không trả lời cho bản ghi trên tên cha.
+- ZAP không cần trường mới: `ScanTarget.Proof` mang tên cha và token của mục tiêu, host đi đường token cũ (`zapOwnedLegacy` → `Owned`).

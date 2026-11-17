@@ -43,7 +43,7 @@ func (w *Worker) domainJob(j sensorlink.Job) domainfence.Job {
 		disruptive = kind == nmapargv.ExternalDisruptive
 	}
 	ip, _ := netip.ParseAddr(target) // a bad one stays the zero address, which the grammar refuses
-	return domainfence.Job{Domain: d.Domain, Name: d.Name, IP: ip, Token: d.Token, Disruptive: disruptive}
+	return domainfence.Job{Domain: d.Domain, Name: d.Name, IP: ip, Token: d.Token, Disruptive: disruptive, ProofAt: d.ProofAt}
 }
 
 // domainFence is the check right before the tool: nil to go on, or the result to post (refused with the fence's reason; stopped when

@@ -6022,12 +6022,12 @@ func decodeInventoryDeleteInventoryDevicesIDSoftwareSidParams(args [2]string, ar
 	return params, nil
 }
 
-// InventoryDeleteInventorySnmpIDParams is parameters of inventory_delete_inventory_snmp_id operation.
-type InventoryDeleteInventorySnmpIDParams struct {
+// InventoryDeleteInventorySnmpDevicesIDParams is parameters of inventory_delete_inventory_snmp_devices_id operation.
+type InventoryDeleteInventorySnmpDevicesIDParams struct {
 	ID string
 }
 
-func unpackInventoryDeleteInventorySnmpIDParams(packed middleware.Parameters) (params InventoryDeleteInventorySnmpIDParams) {
+func unpackInventoryDeleteInventorySnmpDevicesIDParams(packed middleware.Parameters) (params InventoryDeleteInventorySnmpDevicesIDParams) {
 	{
 		key := middleware.ParameterKey{
 			Name: "id",
@@ -6038,7 +6038,7 @@ func unpackInventoryDeleteInventorySnmpIDParams(packed middleware.Parameters) (p
 	return params
 }
 
-func decodeInventoryDeleteInventorySnmpIDParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryDeleteInventorySnmpIDParams, _ error) {
+func decodeInventoryDeleteInventorySnmpDevicesIDParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryDeleteInventorySnmpDevicesIDParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]
@@ -7537,12 +7537,12 @@ func decodeInventoryGetInventoryExportCsvParams(args [0]string, argsEscaped bool
 	return params, nil
 }
 
-// InventoryGetInventorySnmpIDReadParams is parameters of inventory_get_inventory_snmp_id_read operation.
-type InventoryGetInventorySnmpIDReadParams struct {
+// InventoryGetInventorySnmpDevicesIDParams is parameters of inventory_get_inventory_snmp_devices_id operation.
+type InventoryGetInventorySnmpDevicesIDParams struct {
 	ID string
 }
 
-func unpackInventoryGetInventorySnmpIDReadParams(packed middleware.Parameters) (params InventoryGetInventorySnmpIDReadParams) {
+func unpackInventoryGetInventorySnmpDevicesIDParams(packed middleware.Parameters) (params InventoryGetInventorySnmpDevicesIDParams) {
 	{
 		key := middleware.ParameterKey{
 			Name: "id",
@@ -7553,7 +7553,7 @@ func unpackInventoryGetInventorySnmpIDReadParams(packed middleware.Parameters) (
 	return params
 }
 
-func decodeInventoryGetInventorySnmpIDReadParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryGetInventorySnmpIDReadParams, _ error) {
+func decodeInventoryGetInventorySnmpDevicesIDParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryGetInventorySnmpDevicesIDParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]
@@ -8370,12 +8370,12 @@ func decodeInventoryPostInventoryDevicesIDSuspiciousParams(args [1]string, argsE
 	return params, nil
 }
 
-// InventoryPostInventorySnmpIDReadParams is parameters of inventory_post_inventory_snmp_id_read operation.
-type InventoryPostInventorySnmpIDReadParams struct {
+// InventoryPostInventorySnmpDevicesIDCheckParams is parameters of inventory_post_inventory_snmp_devices_id_check operation.
+type InventoryPostInventorySnmpDevicesIDCheckParams struct {
 	ID string
 }
 
-func unpackInventoryPostInventorySnmpIDReadParams(packed middleware.Parameters) (params InventoryPostInventorySnmpIDReadParams) {
+func unpackInventoryPostInventorySnmpDevicesIDCheckParams(packed middleware.Parameters) (params InventoryPostInventorySnmpDevicesIDCheckParams) {
 	{
 		key := middleware.ParameterKey{
 			Name: "id",
@@ -8386,72 +8386,7 @@ func unpackInventoryPostInventorySnmpIDReadParams(packed middleware.Parameters) 
 	return params
 }
 
-func decodeInventoryPostInventorySnmpIDReadParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryPostInventorySnmpIDReadParams, _ error) {
-	// Decode path: id.
-	if err := func() error {
-		param := args[0]
-		if argsEscaped {
-			unescaped, err := url.PathUnescape(args[0])
-			if err != nil {
-				return errors.Wrap(err, "unescape path")
-			}
-			param = unescaped
-		}
-		if len(param) > 0 {
-			d := uri.NewPathDecoder(uri.PathDecoderConfig{
-				Param:   "id",
-				Value:   param,
-				Style:   uri.PathStyleSimple,
-				Explode: false,
-			})
-
-			if err := func() error {
-				val, err := d.DecodeValue()
-				if err != nil {
-					return err
-				}
-
-				c, err := conv.ToString(val)
-				if err != nil {
-					return err
-				}
-
-				params.ID = c
-				return nil
-			}(); err != nil {
-				return err
-			}
-		} else {
-			return validate.ErrFieldRequired
-		}
-		return nil
-	}(); err != nil {
-		return params, &ogenerrors.DecodeParamError{
-			Name: "id",
-			In:   "path",
-			Err:  err,
-		}
-	}
-	return params, nil
-}
-
-// InventoryPostInventorySnmpIDTestParams is parameters of inventory_post_inventory_snmp_id_test operation.
-type InventoryPostInventorySnmpIDTestParams struct {
-	ID string
-}
-
-func unpackInventoryPostInventorySnmpIDTestParams(packed middleware.Parameters) (params InventoryPostInventorySnmpIDTestParams) {
-	{
-		key := middleware.ParameterKey{
-			Name: "id",
-			In:   "path",
-		}
-		params.ID = packed[key].(string)
-	}
-	return params
-}
-
-func decodeInventoryPostInventorySnmpIDTestParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryPostInventorySnmpIDTestParams, _ error) {
+func decodeInventoryPostInventorySnmpDevicesIDCheckParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryPostInventorySnmpDevicesIDCheckParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]
@@ -8565,12 +8500,12 @@ func decodeInventoryPutInventoryDevicesIDSourcesParams(args [1]string, argsEscap
 	return params, nil
 }
 
-// InventoryPutInventorySnmpIDParams is parameters of inventory_put_inventory_snmp_id operation.
-type InventoryPutInventorySnmpIDParams struct {
+// InventoryPutInventorySnmpDevicesIDParams is parameters of inventory_put_inventory_snmp_devices_id operation.
+type InventoryPutInventorySnmpDevicesIDParams struct {
 	ID string
 }
 
-func unpackInventoryPutInventorySnmpIDParams(packed middleware.Parameters) (params InventoryPutInventorySnmpIDParams) {
+func unpackInventoryPutInventorySnmpDevicesIDParams(packed middleware.Parameters) (params InventoryPutInventorySnmpDevicesIDParams) {
 	{
 		key := middleware.ParameterKey{
 			Name: "id",
@@ -8581,7 +8516,7 @@ func unpackInventoryPutInventorySnmpIDParams(packed middleware.Parameters) (para
 	return params
 }
 
-func decodeInventoryPutInventorySnmpIDParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryPutInventorySnmpIDParams, _ error) {
+func decodeInventoryPutInventorySnmpDevicesIDParams(args [1]string, argsEscaped bool, r *http.Request) (params InventoryPutInventorySnmpDevicesIDParams, _ error) {
 	// Decode path: id.
 	if err := func() error {
 		param := args[0]

@@ -22,8 +22,8 @@ func TestSNMPJobWaitsForAWorkerThatSaysSNMP(t *testing.T) {
 		done := make(chan struct{})
 		go func() {
 			defer close(done)
-			_, _ = d.RunSNMP(ctx, sensorlink.SNMPJob{Rate: 10, Credentials: []sensorlink.SNMPCredential{{Version: "v2c", Community: "c"}},
-				Targets: []sensorlink.SNMPTarget{{IP: "192.168.10.20", Credentials: []int{0}}}})
+			_, _ = d.RunSNMP(ctx, sensorlink.SNMPJob{Rate: 10,
+				Targets: []sensorlink.SNMPTarget{{IP: "192.168.10.20", Credential: sensorlink.SNMPCredential{Version: "v2c", Community: "c"}}}})
 		}()
 		synctest.Wait() // RunSNMP has put the job in its slot and waits
 		d.mu.Lock()

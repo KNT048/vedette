@@ -57,13 +57,12 @@ func newBigWorld(t *testing.T, r *fakeReader, hh, mm int) (*sa.Service, *fakeInv
 	return svc, inv
 }
 
-// M1, L3: the round picks its devices and credentials when it starts; each batch reads them again, so a device set to never, one no
-// longer approved, and a credential deleted while batch 1 ran get nothing in batch 2.
-func TestSNMPEachBatchReadsTheDevicesAndCredentialsAgain(t *testing.T) {
+// M1, L3: the round picks its devices when it starts; each batch reads them again, so a device set to never, one no longer approved,
+// and one whose SNMP was removed while batch 1 ran get nothing in batch 2.
+func TestSNMPEachBatchReadsTheDevicesAgain(t *testing.T) {
 	t.Parallel()
 	var svc *sa.Service
 	var inv *fakeInv
-	var gone string
 	var second sensorlink.SNMPJob
 	batch := 0
 	r := &fakeReader{}
@@ -74,7 +73,8 @@ func TestSNMPEachBatchReadsTheDevicesAndCredentialsAgain(t *testing.T) {
 			inv.decision["a-79"] = sa.Decision{Allowed: true, Rate: 1, Reason: "first_gentle_scan", FirstGentle: true, Never: true}
 			inv.approved["a-78"] = false
 			inv.mu.Unlock()
-			if err := svc.DeleteSNMP(ctx, "a", gone); err != nil {
+			// a device of batch 2: removing its SNMP does not stop batch 1, which does not carry it (a batch that carries it is stopped)
+			if err := svc.DeleteSNMP(ctx, "a", "a-75"); err != nil {
 				t.Error(err)
 			}
 		} else {
@@ -83,33 +83,15 @@ func TestSNMPEachBatchReadsTheDevicesAndCredentialsAgain(t *testing.T) {
 		return nil, nil
 	}
 	svc, inv = newBigWorld(t, r, 2, 0)
-	if _, err := svc.AddSNMP(t.Context(), "a", v2cInput("all", "community-1")); err != nil {
-		t.Fatal(err)
-	}
-	// only for .75, a device of batch 2: deleting it does not stop batch 1, which does not carry it (r2 M1 stops a batch that does)
-	c, err := svc.AddSNMP(t.Context(), "a", v2cInput("deleted mid-round", "community-2", "192.168.10.75"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	gone = c.ID
+	setUpAll(t, svc, inv)
 	if err := svc.Tick(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if batch != 2 {
 		t.Fatalf("%d batches", batch)
 	}
-	var ips []string
-	for _, tg := range second.Targets {
-		ips = append(ips, tg.IP)
-		if !slices.Equal(tg.Credentials, []int{0}) {
-			t.Errorf("%s tries %v", tg.IP, tg.Credentials)
-		}
-	}
-	if !slices.Equal(ips, []string{"192.168.10.74", "192.168.10.75", "192.168.10.76", "192.168.10.77"}) {
+	if ips := ipsOf(second); !slices.Equal(ips, []string{"192.168.10.74", "192.168.10.76", "192.168.10.77"}) {
 		t.Errorf("batch 2 read %v", ips)
-	}
-	if len(second.Credentials) != 1 || second.Credentials[0].Community != "community-1" {
-		t.Errorf("batch 2 carried %d credentials", len(second.Credentials))
 	}
 }
 
@@ -122,40 +104,13 @@ func TestSNMPRoundEndsWithTheWindow(t *testing.T) {
 		deadline, has = ctx.Deadline()
 		return nil, nil
 	}}
-	svc, _ := newBigWorld(t, r, 4, 59) // the window closes at 05:00
-	if _, err := svc.AddSNMP(t.Context(), "a", v2cInput("all", "community-1")); err != nil {
-		t.Fatal(err)
-	}
+	svc, inv := newBigWorld(t, r, 4, 59) // the window closes at 05:00
+	setUpAll(t, svc, inv)
 	if err := svc.Tick(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	if len(r.sent()) == 0 || !has || time.Until(deadline) > 61*time.Second {
 		t.Fatalf("%d jobs, deadline in %v (has %v), want at most the minute left of the window", len(r.sent()), time.Until(deadline), has)
-	}
-}
-
-// L1, L2: a fragile device at an address of the box (a decoy) is never read; nor is an address the inventory maps to a device that
-// now has another one.
-func TestSNMPTestRefusesTheBoxAndAMovedDevice(t *testing.T) {
-	t.Parallel()
-	r := &fakeReader{}
-	w := newSNMPWorld(t, r)
-	decoy, moved := netip.MustParseAddr("192.168.10.25"), netip.MustParseAddr("192.168.10.26")
-	w.inv.mu.Lock()
-	w.inv.assets["a-decoy"], w.inv.addrs[decoy], w.inv.approved["a-decoy"] = decoy, "a-decoy", true
-	w.inv.decision["a-decoy"] = sa.Decision{Reason: "fragile_passive_only", Fragile: true}
-	w.inv.box = append(w.inv.box, decoy)
-	w.inv.addrs[moved] = "a-sw" // a stale address of the switch, which is at .20 now
-	w.inv.mu.Unlock()
-	c := w.add(v2cInput("all", "community-1"))
-	for ip, want := range map[string]string{decoy.String(): "box", moved.String(): "not_in_inventory"} {
-		res, err := w.svc.TestSNMP(t.Context(), "a", c.ID, ip)
-		if err != nil || res.Reason != want {
-			t.Errorf("%s: %v %+v, want %s", ip, err, res, want)
-		}
-	}
-	if n := len(r.sent()); n != 0 {
-		t.Fatalf("%d jobs sent", n)
 	}
 }
 
@@ -201,39 +156,35 @@ func TestMigration0004KeepsTheProbeCounter(t *testing.T) {
 
 // Review #715 round 2.
 
-// r2 M1 (A, B): a credential edited after the batch read it and before its secrets are opened stops the batch: a v3 password never
-// leaves as a v2c community, a rotated community never goes to a device the narrowed scope no longer holds.
+// A device's SNMP edited after the batch read it and before its secrets are opened stops the batch: a v3
+// password never leaves as a v2c community, a rotated community never goes to the old read address.
 func TestSNMPAnEditBetweenTheCheckAndTheJobStopsIt(t *testing.T) {
 	t.Parallel()
 	r := &fakeReader{}
 	w := newSNMPWorld(t, r)
-	toV3 := w.add(v2cInput("to v3", "s3cret-community"))
-	narrowed := w.add(v2cInput("narrowed", "old-community-1"))
-	for name, edit := range map[string]struct {
-		id string
-		in sa.SNMPCredentialInput
-	}{
-		"v2c to v3":            {toV3.ID, sa.SNMPCredentialInput{Name: "to v3", Version: "v3", Username: "u", Auth: "sha", AuthPassword: secrets.NewValue("auth-pass-XYZ"), Priv: "none", Scope: []string{worldScope}}},
-		"rotated and narrowed": {narrowed.ID, v2cInput("narrowed", "rotated-community-1", "192.168.10.30")},
+	for name, in := range map[string]sa.SNMPInput{
+		"v2c to v3":                  {Version: "v3", Username: "u", Auth: "sha", AuthPassword: secrets.NewValue("auth-pass-XYZ"), Priv: "none"},
+		"rotated and read elsewhere": {Version: "v2c", Community: secrets.NewValue("rotated-community-1"), ReadFrom: "192.168.10.30"},
 	} {
+		w.set("a-sw", v2c("s3cret-community"))
 		w.inv.mu.Lock()
 		w.inv.onInScope = func() {
-			if _, err := w.svc.EditSNMP(context.Background(), "a", edit.id, edit.in); err != nil {
+			if _, err := w.svc.SetSNMP(context.Background(), "a", "a-sw", in); err != nil {
 				t.Errorf("%s: %v", name, err)
 			}
 		}
 		w.inv.mu.Unlock()
-		if _, err := w.svc.TestSNMP(t.Context(), "a", edit.id, "192.168.10.20"); apiCode(err) != "stopped" {
+		if _, err := w.svc.CheckSNMP(t.Context(), "a", "a-sw"); apiCode(err) != "stopped" {
 			t.Errorf("%s: %v, want stopped", name, err)
 		}
 	}
 	if jobs := r.sent(); len(jobs) != 0 {
-		t.Fatalf("%d jobs left with a changed credential", len(jobs))
+		t.Fatalf("%d jobs left with changed settings", len(jobs))
 	}
 }
 
-// r2 M1 (C): a delete or a narrowing edit of a credential stops a job the worker already has.
-func TestSNMPADeleteOrANarrowingStopsAJobWithTheWorker(t *testing.T) {
+// Removing a device's SNMP, or editing it, stops a job the worker already has.
+func TestSNMPARemovalOrAnEditStopsAJobWithTheWorker(t *testing.T) {
 	t.Parallel()
 	started := make(chan struct{}, 1)
 	r := &fakeReader{answer: func(ctx context.Context, j sensorlink.SNMPJob) ([]sensorlink.SNMPAnswer, error) {
@@ -241,27 +192,26 @@ func TestSNMPADeleteOrANarrowingStopsAJobWithTheWorker(t *testing.T) {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-time.After(5 * time.Second): // only without the fix: the job runs on with the old credential
+		case <-time.After(5 * time.Second): // only without the fix: the job runs on with the old settings
 			return juniperAnswers(j), nil
 		}
 	}}
 	w := newSNMPWorld(t, r)
-	gone := w.add(v2cInput("deleted", "community-1"))
-	narrow := w.add(v2cInput("narrowed", "community-2"))
 	for name, change := range map[string]func() error{
-		gone.ID: func() error { return w.svc.DeleteSNMP(context.Background(), "a", gone.ID) },
-		narrow.ID: func() error {
-			_, err := w.svc.EditSNMP(context.Background(), "a", narrow.ID, v2cInput("narrowed", "", "192.168.10.30"))
+		"removed": func() error { return w.svc.DeleteSNMP(context.Background(), "a", "a-sw") },
+		"edited": func() error {
+			_, err := w.svc.SetSNMP(context.Background(), "a", "a-sw", sa.SNMPInput{Version: "v2c", Community: secrets.NewValue("other"), ReadFrom: "192.168.10.30"})
 			return err
 		},
 	} {
+		w.set("a-sw", v2c("community-1"))
 		go func() {
 			<-started
 			if err := change(); err != nil {
 				t.Error(err)
 			}
 		}()
-		if _, err := w.svc.TestSNMP(t.Context(), "a", name, "192.168.10.20"); apiCode(err) != "stopped" {
+		if _, err := w.svc.CheckSNMP(t.Context(), "a", "a-sw"); apiCode(err) != "stopped" {
 			t.Errorf("%s: %v, want stopped", name, err)
 		}
 	}
@@ -287,9 +237,7 @@ func TestSNMPAShorterWindowStopsTheBatch(t *testing.T) {
 		return nil, ctx.Err()
 	}
 	svc, inv = newBigWorld(t, r, 2, 0)
-	if _, err := svc.AddSNMP(t.Context(), "a", v2cInput("all", "community-1")); err != nil {
-		t.Fatal(err)
-	}
+	setUpAll(t, svc, inv)
 	if err := svc.Tick(t.Context()); err != nil {
 		t.Fatal(err)
 	}

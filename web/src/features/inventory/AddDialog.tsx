@@ -1,30 +1,19 @@
-import { createElement, useId, useMemo, useRef, useState, type FormEvent } from 'react'
+import { createElement, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Cable, FileSpreadsheet, PenLine, RadioTower, ServerCog, type LucideIcon } from 'lucide-react'
 import { Notice } from '@/components/common/PageHeader'
 import { InfoTip } from '@/components/common/InfoTip'
-import { CreatableSelect } from '@/components/common/CreatableSelect'
-import { DependencyLink } from '@/components/common/DependencyLink'
 import { QueryState } from '@/components/common/States'
-import { BusyNote } from '@/components/common/BusyNote'
-import { Button } from '@/components/ui/button'
 import { RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { Field, Input } from '@/components/ui/input'
 import { useModuleEnabled, type ModuleId } from '@/lib/modules'
 import { useMe } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import { AddForm } from './AddDeviceDialog'
 import { OsqueryEnrol, WazuhForm } from './AgentsSection'
-import { inRanges } from './AddToScopeDialog'
-import { useAgents, useDevices, useSettings, useSnmp, useSnmpActions } from './api'
+import { useAgents } from './api'
 import { TurnOnModule } from './Inline'
-import { SnmpNext } from './SnmpNext'
 import { ImportForm } from './ImportDialog'
-import { credentialLabel, errMsg } from './kinds'
-import { CredentialDialog, SnmpAnswer } from './SnmpSection'
-import type { SnmpCredential, SnmpTestResult } from './types'
-import { CIDR_RE_UI, IPV4_RE_UI, isPrivateCidr, LOCAL_RANGE_NAMES, normalizeRange, SNMP_MAX } from './validate'
 
 // "Add a device" (#849): ONE dialog with every way a device gets into the list. Manual is first and chosen on open, so the S-INV-2
 // "three clicks" path stays three clicks; ?add=<method> opens it on a method (old ?tab=add, the device page's "Add SNMP / osquery").
@@ -52,104 +41,11 @@ function useNeeds(): Record<Method, Need> {
   }
 }
 
-/** SNMP (D-512, the #829 device-page flow): a credential and an address or range. One address is read now with Test (it must be an approved
- *  device in the list: the Test reads devices, it does not create them); a range goes into the credential's scope and is read at every scan.
- *  Everything it needs is made here (kien 2026-11-16): "+ New credential" (a small dialog, selected on save, then read), Edit, the address
- *  added to a credential's scope or to the scan scope, the device approved; the full list stays in Devices › Scope, sensors and agents › SNMP. */
+/** SNMP: set up per device, on the device's own page, so this method only says where (the device-page SNMP card replaces
+ *  the credential form that was here). */
 function SnmpMethod() {
   const { t } = useTranslation('inventory')
-  const uid = useId()
-  const q = useSnmp(true)
-  const devices = useDevices()
-  const settings = useSettings()
-  const { test } = useSnmpActions()
-  const [target, setTarget] = useState('')
-  const [targetErr, setTargetErr] = useState<string | null>(null)
-  const [cred, setCred] = useState('')
-  const [form, setForm] = useState<{ current: SnmpCredential; scope?: string; widen?: boolean } | null>(null)
-  const [result, setResult] = useState<{ ip: string; r: SnmpTestResult } | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const known = useMemo(() => (devices.data?.items ?? []).filter((d) => d.approved && !d.is_box && IPV4_RE_UI.test(d.ip)).map((d) => d.ip), [devices.data])
-  const creds = q.data?.credentials ?? []
-  const chosen = creds.find((c) => c.id === cred) ?? creds[0]
-  const raw = target.trim()
-  const isIp = IPV4_RE_UI.test(raw)
-  // A range is taken as the Scope page takes it (normalizeRange): host bits cleared, "192.168.10.5/24" is 192.168.10.0/24 (#849 review M7).
-  const v = CIDR_RE_UI.test(raw) ? normalizeRange(raw).value : raw
-  const isRange = CIDR_RE_UI.test(v)
-  const notLocal = isRange && !isPrivateCidr(v)
-  const covered = !!chosen && (isIp || isRange) && inRanges(v, chosen.scope)
-  // D-601: a range outside the LAN ranges goes into the credential's scope like any other; the LAN ranges are never widened for SNMP
-  // (they govern discovery and network scans). A device there is read only once a person turns SNMP on for it on its page.
-  const lan = settings.data?.lan_ranges
-  const outsideLan = isRange && !notLocal && !!lan && !inRanges(v, lan)
-
-  const read = (id: string, ip: string) => { setResult(null); setError(null); test.mutate({ id, ip }, { onSuccess: (r) => setResult({ ip, r }), onError: (er) => setError(errMsg(er)) }) }
-  // The new credential is selected; it is read at once only when an address is typed (the customer asked for a read by making it here).
-  const saved = (c: SnmpCredential) => { setCred(c.id); if (isIp) read(c.id, raw) }
-
-  if (q.isPending) return <p className="text-meta text-muted">{t('sources.snmp.loading')}</p>
-  if (q.error) return <QueryState query={q}>{() => null}</QueryState>
-
-  function submit(e: FormEvent) {
-    e.preventDefault(); setResult(null); setError(null)
-    if (!isIp && !isRange) { setTargetErr(t('addDialog.snmp.targetBad')); return }
-    if (notLocal) { setTargetErr(t('snmp.error.scopeNotLocal', { entry: v, ranges: LOCAL_RANGE_NAMES })); return }
-    if (!chosen) { setTargetErr(t('addDialog.snmp.needCredential')); return } // Enter with no credential says what is missing (r2 L5)
-    setTargetErr(null)
-    if (isRange) { if (!covered) setForm({ current: chosen, widen: true, scope: [...chosen.scope, v].join('\n') }); return }
-    read(chosen.id, raw)
-  }
-  const targetId = `${uid}-target`
-  const credId = `${uid}-cred`
-  const label = (c: SnmpCredential) => credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`))
-  return (
-    <div className="grid min-w-0 gap-4">
-      {creds.length ? null : <p className="text-meta text-muted">{t('addDialog.snmp.first')}</p>}
-      <form onSubmit={submit} noValidate className="grid grid-cols-1 gap-4">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Field label={t('addDialog.snmp.target')} htmlFor={targetId} hint={t('addDialog.snmp.targetHint')} error={targetErr ?? undefined}>
-            <Input id={targetId} list={`${uid}-known`} value={target} maxLength={18} inputMode="decimal" autoComplete="off" placeholder="192.168.10.3"
-              onChange={(e) => { setTarget(e.target.value); setTargetErr(null); setResult(null) }} />
-            <datalist id={`${uid}-known`}>{known.map((ip) => <option key={ip} value={ip} />)}</datalist>
-          </Field>
-          <div className="grid content-start gap-1.5">
-            <Field label={t('sources.snmp.credential')} htmlFor={credId}>
-              <CreatableSelect id={credId} value={chosen?.id ?? ''} onChange={(id) => { setCred(id); setResult(null) }}
-                options={creds.map((c) => ({ value: c.id, label: label(c) }))} placeholder={creds.length ? undefined : t('addDialog.snmp.noCredential')}
-                newLabel={t('addDialog.snmp.newCredential')} canCreate={creds.length < SNMP_MAX} createDisabledReason={t('addDialog.snmp.capReason', { count: SNMP_MAX })}
-                renderCreate={(p) => (p.open ? <CredentialDialog current={null} scope={isIp || (isRange && !notLocal) ? v : undefined} onClose={() => p.onOpenChange(false)}
-                  onSaved={(c) => { p.onCreated({ value: c.id, label: label(c) }); saved(c) }} /> : null)} />
-            </Field>
-            {chosen ? <div><Button size="sm" variant="link" onClick={() => setForm({ current: chosen })}>{t('addDialog.snmp.editCredential', { name: chosen.name })}</Button></div> : null}
-            {creds.length >= SNMP_MAX ? <DependencyLink reason={t('addDialog.snmp.capWhy', { count: SNMP_MAX })} to="/devices/setup?tab=snmp#snmp" label={t('addDialog.snmp.capLink')} /> : null}
-          </div>
-        </div>
-        {q.data && !q.data.ready ? <p className="text-meta text-warn">{q.data.message ?? t('snmp.notReady')}</p> : null}
-        {outsideLan ? <Notice tone="accent" role="status" className="mb-0" title={t('addDialog.snmp.outsideLan', { range: v })}>{t('addDialog.snmp.outsideLanWhy')}</Notice> : null}
-        {isRange && covered ? <Notice tone="accent" role="status" className="mb-0" title={t('addDialog.snmp.rangeCovered', { range: v, name: chosen?.name ?? '' })}>{t('addDialog.snmp.rangeWhen')}</Notice> : null}
-        {chosen ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {/* busy-guard: for a range the form only opens a dialog (add to scope, or widen the credential), each with its own busy Save */}
-            {isRange ? (
-              covered ? null : /* busy-guard: opens the credential dialog */ <Button type="submit" variant="primary">{t('addDialog.snmp.addRange', { name: chosen.name })}</Button>
-            ) : (
-              <Button type="submit" variant="primary" busy={test.isPending} busyLabel={t('snmp.run.running')}>{t('addDialog.snmp.test')}</Button>
-            )}
-          </div>
-        ) : null}
-      </form>
-      <BusyNote busy={test.isPending}>{t('snmp.run.pending', { ip: raw })}</BusyNote>
-      {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
-      {result && !test.isPending ? <SnmpAnswer r={result.r} ip={result.ip} /> : null}
-      {result && !test.isPending && !result.r.ok ? (
-        <SnmpNext r={result.r} ip={result.ip} cred={chosen}
-          onWiden={() => chosen && setForm({ current: chosen, widen: true, scope: [...chosen.scope, result.ip].join('\n') })}
-          onEdit={() => chosen && setForm({ current: chosen })} onRetry={() => chosen && read(chosen.id, result.ip)} />
-      ) : null}
-      {form ? <CredentialDialog key={form.current.id} current={form.current} scope={form.scope} widen={form.widen} onClose={() => setForm(null)} onSaved={saved} /> : null}
-    </div>
-  )
+  return <p className="text-meta text-muted">{t('addDialog.snmp.perDevice')}</p>
 }
 
 /** osquery (S-INV-4): a token, then the one-line install for Linux or Windows servers. macOS has no installer (D-33). */

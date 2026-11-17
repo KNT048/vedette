@@ -412,3 +412,32 @@ func (s *Service) PendingGentleScans(ctx context.Context) ([]string, error) {
 	}
 	return out, rows.Err()
 }
+
+// SNMPKnown lists, for the move of SNMP credentials to devices (sensor-active), the devices (not the box) an SNMP read has
+// described (an snmp observation) and those whose SNMP switch a person stored on.
+func (s *Service) SNMPKnown(ctx context.Context) (read, on []string, err error) {
+	for _, q := range []struct {
+		sql string
+		out *[]string
+	}{
+		{`SELECT DISTINCT o.asset_id FROM inv_observation o JOIN inv_asset a ON a.id = o.asset_id WHERE o.source = 'snmp' AND a.is_box = 0 ORDER BY 1`, &read},
+		{`SELECT id FROM inv_asset WHERE snmp_source = 'on' AND is_box = 0 ORDER BY 1`, &on},
+	} {
+		rows, err := s.db.Reader().QueryContext(ctx, q.sql)
+		if err != nil {
+			return nil, nil, fmt.Errorf("inventory: read the devices SNMP knows: %w", err)
+		}
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				_ = rows.Close()
+				return nil, nil, fmt.Errorf("inventory: read the devices SNMP knows: %w", err)
+			}
+			*q.out = append(*q.out, id)
+		}
+		if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+			return nil, nil, fmt.Errorf("inventory: read the devices SNMP knows: %w", err)
+		}
+	}
+	return read, on, nil
+}

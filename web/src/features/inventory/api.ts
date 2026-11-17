@@ -5,7 +5,8 @@ import { api, ApiError } from '@/lib/api'
 import type { AssetKind } from '@/lib/types'
 import type {
   AddDeviceInput, AddDeviceResult, AgentKind, AgentReport, AgentsResponse, CatalogResponse, CreateTokenResult, DeviceDetail, DevicesResponse,
-  ImportResult, InventorySettings, KeepSeparateInput, MergeInput, RegularScan, SamePairs, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, SnmpCredential, SourcesInput, SourcesState, SnmpCredentialInput, SnmpResponse, SnmpTestResult,
+  ImportResult, InventorySettings, KeepSeparateInput, MergeInput, RegularScan, SamePairs, SampleResult, Sensor, SensorPatch, SensorsResponse, SettingsInput, SettingsSaved, SourcesInput, SourcesState, SnmpResponse,
+  DeviceSnmp, DeviceSnmpInput, SnmpCheckResult,
   WazuhConnection, WazuhInput, WazuhTestResult,
 } from './types'
 
@@ -163,14 +164,19 @@ export function useWazuhActions() {
     sample: useMutation({ mutationFn: () => api.post<SampleResult>('/inventory/agents/wazuh/sample-data'), onSuccess: inv }),
   }
 }
-/** D-512: SNMP credentials. A Test that gets an answer records it in the inventory, so it refreshes devices too. */
-export function useSnmpActions() {
-  const inv = useInvalidate()
-  const path = (id: string) => `/inventory/snmp/${encodeURIComponent(id)}`
+/** one device's SNMP (set up per device; admin). `enabled` false while sensor-active is off (its routes answer 404 then). */
+export const useDeviceSnmp = (id: string, enabled = true) =>
+  useQuery({ queryKey: ['inventory', 'snmp', 'device', id], queryFn: () => api.get<DeviceSnmp>(`/inventory/snmp/devices/${encodeURIComponent(id)}`), retry: false, enabled })
+
+/** set up or edit, copy from another device, remove, Check now. A check that gets an answer records it on the device, so it
+ *  refreshes devices too. */
+export function useDeviceSnmpActions(id: string) {
+  const qc = useQueryClient()
+  const inv = () => qc.invalidateQueries({ queryKey: ['inventory'] })
+  const path = `/inventory/snmp/devices/${encodeURIComponent(id)}`
   return {
-    create: useMutation({ mutationFn: (b: SnmpCredentialInput) => api.post<SnmpCredential>('/inventory/snmp', b), onSuccess: inv }),
-    update: useMutation({ mutationFn: ({ id, ...b }: SnmpCredentialInput & { id: string }) => api.put<SnmpCredential>(path(id), b), onSuccess: inv }),
-    remove: useMutation({ mutationFn: (id: string) => api.del(path(id)), onSuccess: inv }),
-    test: useMutation({ mutationFn: ({ id, ip }: { id: string; ip: string }) => api.post<SnmpTestResult>(`${path(id)}/test`, { ip }), onSuccess: inv }),
+    save: useMutation({ mutationFn: (b: DeviceSnmpInput) => api.put<DeviceSnmp>(path, b), onSuccess: inv }),
+    remove: useMutation({ mutationFn: () => api.del(path), onSuccess: inv }),
+    check: useMutation({ mutationFn: () => api.post<SnmpCheckResult>(`${path}/check`, {}), onSuccess: inv }),
   }
 }

@@ -1297,12 +1297,13 @@ type Handler interface {
 	//
 	// DELETE /inventory/devices/{id}/software/{sid}
 	InventoryDeleteInventoryDevicesIDSoftwareSid(ctx context.Context, params InventoryDeleteInventoryDevicesIDSoftwareSidParams) error
-	// InventoryDeleteInventorySnmpID implements inventory_delete_inventory_snmp_id operation.
+	// InventoryDeleteInventorySnmpDevicesID implements inventory_delete_inventory_snmp_devices_id operation.
 	//
-	// Delete an SNMP credential and its secrets; what devices said stays in the inventory.
+	// Remove the SNMP settings of one device and its secrets; what it said stays in the inventory; its
+	// SNMP source switch is left as it is. 404 not_found when the device has none.
 	//
-	// DELETE /inventory/snmp/{id}
-	InventoryDeleteInventorySnmpID(ctx context.Context, params InventoryDeleteInventorySnmpIDParams) error
+	// DELETE /inventory/snmp/devices/{id}
+	InventoryDeleteInventorySnmpDevicesID(ctx context.Context, params InventoryDeleteInventorySnmpDevicesIDParams) error
 	// InventoryGetInstallOsqueryFile implements inventory_get_install_osquery_file operation.
 	//
 	// The official osquery packages and SHA256SUMS the box ships (osquery_-1.linux_amd64.deb,
@@ -1398,17 +1399,19 @@ type Handler interface {
 	InventoryGetInventorySettings(ctx context.Context) (*InventoryGetInventorySettingsOK, error)
 	// InventoryGetInventorySnmp implements inventory_get_inventory_snmp operation.
 	//
-	// SNMP credentials (secrets only as their last 4 characters) and whether the scan container can read
-	// SNMP now (D-512).
+	// Whether the scan container can read SNMP now, every device with SNMP set up, and the notices of what
+	// the box changed by itself.
 	//
 	// GET /inventory/snmp
 	InventoryGetInventorySnmp(ctx context.Context) (*InventoryGetInventorySnmpOK, error)
-	// InventoryGetInventorySnmpIDRead implements inventory_get_inventory_snmp_id_read operation.
+	// InventoryGetInventorySnmpDevicesID implements inventory_get_inventory_snmp_devices_id operation.
 	//
-	// The read of this credential that runs now, or the last one; null when none since the box started.
+	// The SNMP settings and state of one device: working, not answering, waiting or not set up; read from,
+	// last answer and what answered; never a secret, only its last 4 characters. 404 not_found: no such
+	// device.
 	//
-	// GET /inventory/snmp/{id}/read
-	InventoryGetInventorySnmpIDRead(ctx context.Context, params InventoryGetInventorySnmpIDReadParams) (NilInventoryGetInventorySnmpIDReadOK, error)
+	// GET /inventory/snmp/devices/{id}
+	InventoryGetInventorySnmpDevicesID(ctx context.Context, params InventoryGetInventorySnmpDevicesIDParams) (*InventoryGetInventorySnmpDevicesIDOK, error)
 	// InventoryPatchInventoryDevicesID implements inventory_patch_inventory_devices_id operation.
 	//
 	// Rename the device in Vedette, change the type, mark as fragile, override regular scans or edit the
@@ -1568,32 +1571,21 @@ type Handler interface {
 	//
 	// POST /inventory/import
 	InventoryPostInventoryImport(ctx context.Context, req *InventoryPostInventoryImportReq) (*InventoryPostInventoryImportOK, error)
-	// InventoryPostInventorySnmp implements inventory_post_inventory_snmp operation.
+	// InventoryPostInventorySnmpDevicesIDCheck implements inventory_post_inventory_snmp_devices_id_check operation.
 	//
-	// Add an SNMP credential (v2c community or v3 user); its secrets are stored encrypted. 409 name_taken,
-	// 409 too_many (8 at most).
+	// Check now: read this device at once at its Read from address (read-only GETs from the scan
+	// container, logged in the probe log, every rule but the window) and say what it answered, or why not;
+	// an answer is recorded on this device. 404 not_found. 409 not_set_up, secret_lost, stopped (the
+	// module or scanning was turned off), changed (the settings changed while it started).
 	//
-	// POST /inventory/snmp
-	InventoryPostInventorySnmp(ctx context.Context, req *InventoryPostInventorySnmpReq) (*InventoryPostInventorySnmpCreated, error)
-	// InventoryPostInventorySnmpIDRead implements inventory_post_inventory_snmp_id_read operation.
+	// POST /inventory/snmp/devices/{id}/check
+	InventoryPostInventorySnmpDevicesIDCheck(ctx context.Context, params InventoryPostInventorySnmpDevicesIDCheckParams) (*InventoryPostInventorySnmpDevicesIDCheckOK, error)
+	// InventoryPostInventorySnmpNoticesDismiss implements inventory_post_inventory_snmp_notices_dismiss operation.
 	//
-	// Read now every approved device in this credential's scope (read-only GETs from the scan container,
-	// logged in the probe log); answers at once with the run. 409 busy while another read, a Test or the
-	// window's round runs; 409 scanning_off, scope_not_confirmed or unavailable when nothing can be sent;
-	// 409 secret_lost when its saved secret cannot be opened on this box (Edit and type it again); 409
-	// stopped when active discovery was turned off while the read started.
+	// Dismiss every SNMP notice.
 	//
-	// POST /inventory/snmp/{id}/read
-	InventoryPostInventorySnmpIDRead(ctx context.Context, params InventoryPostInventorySnmpIDReadParams) (*InventoryPostInventorySnmpIDReadAccepted, error)
-	// InventoryPostInventorySnmpIDTest implements inventory_post_inventory_snmp_id_test operation.
-	//
-	// Read one device with this credential now (read-only GETs from the scan container, logged in the
-	// probe log) and say what it answered, or why not; an answer is recorded in the inventory. 409
-	// secret_lost when its saved secret cannot be opened on this box (nothing is sent; Edit and type it
-	// again).
-	//
-	// POST /inventory/snmp/{id}/test
-	InventoryPostInventorySnmpIDTest(ctx context.Context, req *InventoryPostInventorySnmpIDTestReq, params InventoryPostInventorySnmpIDTestParams) (*InventoryPostInventorySnmpIDTestOK, error)
+	// POST /inventory/snmp/notices/dismiss
+	InventoryPostInventorySnmpNoticesDismiss(ctx context.Context) (*InventoryPostInventorySnmpNoticesDismissOK, error)
 	// InventoryPutInventoryAgentsWazuh implements inventory_put_inventory_agents_wazuh operation.
 	//
 	// Connect (or edit) a Wazuh server: verify the API login, then save; the password is stored encrypted.
@@ -1625,13 +1617,20 @@ type Handler interface {
 	//
 	// PUT /inventory/settings
 	InventoryPutInventorySettings(ctx context.Context, req *InventoryPutInventorySettingsReq) (*InventoryPutInventorySettingsOK, error)
-	// InventoryPutInventorySnmpID implements inventory_put_inventory_snmp_id operation.
+	// InventoryPutInventorySnmpDevicesID implements inventory_put_inventory_snmp_devices_id operation.
 	//
-	// Edit an SNMP credential; a blank secret keeps the saved one. 409 secret_lost when a blank secret
-	// would keep one this box cannot open (type it again).
+	// Set up or edit the SNMP of one device: version, community or v3 user, port, Read from; or copy_from
+	// another device (the secret is copied on the box). Saving is the person's consent: it turns the
+	// device's SNMP source on when it was not. A blank secret keeps the saved one, unless Read from
+	// changes. One audit row. 400 bad_version, bad_secret, secret_required (also copy_from with a
+	// read_from other than the device's IP), bad_user, bad_auth, bad_priv, bad_port, bad_read_from,
+	// read_from_not_local, copy_from_self. 404 not_found, copy_from_not_found (no such device with SNMP
+	// set up). 409 no_ip (the device has no address yet), read_from_taken (another device reads from that
+	// address; the message names it), box_device, read_from_box (the box or a trap address), secret_lost
+	// (a kept or copied secret this box cannot open), device_ignored.
 	//
-	// PUT /inventory/snmp/{id}
-	InventoryPutInventorySnmpID(ctx context.Context, req *InventoryPutInventorySnmpIDReq, params InventoryPutInventorySnmpIDParams) (*InventoryPutInventorySnmpIDOK, error)
+	// PUT /inventory/snmp/devices/{id}
+	InventoryPutInventorySnmpDevicesID(ctx context.Context, req *InventoryPutInventorySnmpDevicesIDReq, params InventoryPutInventorySnmpDevicesIDParams) (*InventoryPutInventorySnmpDevicesIDOK, error)
 	// LogsDeleteLogsSourcesID implements logs_delete_logs_sources_id operation.
 	//
 	// Delete a log source; already received logs are kept until retention expires.

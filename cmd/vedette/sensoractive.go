@@ -327,6 +327,21 @@ func (a sensorInventory) BoxIPs(ctx context.Context) ([]netip.Addr, error) {
 	return a.withBoxCards(ctx, out)
 }
 
+// SNMPKnown implements sensoractive.Inventory (the devices the old credentials are moved to).
+func (a sensorInventory) SNMPKnown(ctx context.Context) (read, on []string, err error) {
+	return a.inv.SNMPKnown(ctx)
+}
+
+// TurnSNMPOn implements sensoractive.Inventory: saving SNMP on a device stores its SNMP switch on, audited as the person.
+func (a sensorInventory) TurnSNMPOn(ctx context.Context, actor, assetID string) error {
+	on := inventory.SourceOn
+	_, err := a.inv.SetSources(ctx, actor, assetID, nil, &on)
+	if errors.Is(err, inventory.ErrNotFound) {
+		return sensoractive.ErrNotFound
+	}
+	return err
+}
+
 // boxNetworks is the IPv4 networks of the box's cards (the container's interfaces and the appliance's), for the sweep-time
 // estimate (D-523): addresses there are reached with ARP.
 func boxNetworks(ctx context.Context, hostNet *hostNetCache) []netip.Prefix {

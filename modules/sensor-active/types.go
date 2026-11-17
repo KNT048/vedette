@@ -61,6 +61,12 @@ type Inventory interface {
 	// BoxIPs lists only the addresses that are the box (its own device, its cards, the decoys): never probed, not even by an SNMP read
 	// of a fragile device (D-512).
 	BoxIPs(ctx context.Context) ([]netip.Addr, error)
+	// SNMPKnown lists the devices an SNMP read described (an snmp observation) and those whose SNMP switch a person stored on: the
+	// devices the old SNMP credentials are moved to (snmp_move.go).
+	SNMPKnown(ctx context.Context) (read, on []string, err error)
+	// TurnSNMPOn stores a device's SNMP switch on as the person (audited by the inventory): saving SNMP settings on a device is
+	// the person's consent to read it. The inventory's refusals (box_device, device_ignored) are API errors, passed on as they are.
+	TurnSNMPOn(ctx context.Context, actor, assetID string) error
 }
 
 // PendingGentle is an optional part of Inventory (D-511, review of #714 round 2): the devices whose one gentle scan is still to come

@@ -39,7 +39,7 @@ func TestTopRisksCarryTheDistroCaveatAndTheNoReleaseFallback(t *testing.T) {
 	if want := "Upgrade OpenSSH on web from 8.9p1 to 9.3p2 or later — fixes 1 exploited vulnerability (if you installed it from Ubuntu's packages, install its security updates instead)"; got[1].Action != want {
 		t.Fatalf("action = %q", got[1].Action)
 	}
-	if want := "NVD names no single release that fixes all 1 exploited vulnerability of FortiGate on gw: check the vendor advisory"; got[0].Action != want {
+	if want := "NVD names no release that fixes the exploited vulnerability of FortiGate on gw: check the vendor advisory"; got[0].Action != want { // W76-8
 		t.Fatalf("action = %q", got[0].Action)
 	}
 }

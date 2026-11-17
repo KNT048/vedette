@@ -76,6 +76,21 @@ func TestAIFindingData_M2_2_TheAIGetsThePageFacts(t *testing.T) {
 	}
 }
 
+// W76-1 (walk n76): Ask my AI said "20.4 is the fixed release" while the page said 20.4 is not the fix (end_listed). Every kind the page
+// shows reaches the AI as a fact, never as "not named".
+func TestAIFixedIn_W76_1_EveryKindIsAFact(t *testing.T) {
+	for _, kind := range []string{"fixed", "up_to", "end_listed", "distro", "feature_update", "esu"} {
+		got := aiFixedIn(&findings.FixedIn{Kind: kind, Version: "15.1R7.9", Fixed: "20.4", Source: "NVD affected versions"}, true)
+		if !strings.Contains(got, "20.4") || strings.Contains(got, "not named") {
+			t.Errorf("%s: %s", kind, got)
+		}
+	}
+	got := aiFixedIn(&findings.FixedIn{Kind: "end_listed", Version: "15.1R7.9", Fixed: "20.4", Source: "NVD affected versions"}, true)
+	if !strings.Contains(got, "20.4 is not a fix") || strings.Contains(got, "fixed in 20.4") {
+		t.Errorf("end_listed: %s", got)
+	}
+}
+
 // #897 r1 L5: the door reads the device and, for the config skill only, the firewalls of the real inventory; a device that is gone
 // leaves the device facts out and the AI still gets the rest.
 func TestAIMitigationFacts_ReadsTheInventory(t *testing.T) {

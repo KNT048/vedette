@@ -210,6 +210,9 @@ func TestContract_INV8_ChecksArePerFamilyAndClaimNothingAboutTheCVE(t *testing.T
 			t.Errorf("%s %s: family %q, checks %v, firewall %d", c.vendor, c.product, h.Family, h.Checks != nil, len(h.Firewall))
 			continue
 		}
+		if strings.Count(strings.TrimPrefix(h.Checks.Summary, "General checks"), c.family) > 1 { // W76-2: "General checks for Juniper Junos OS (Juniper Junos OS)"
+			t.Errorf("%s: the family is named twice: %s", c.product, h.Checks.Summary)
+		}
 		all := h.Checks.Summary
 		for _, in := range h.Checks.Indicators {
 			all += in.Title + in.Detail
@@ -224,6 +227,19 @@ func TestContract_INV8_ChecksArePerFamilyAndClaimNothingAboutTheCVE(t *testing.T
 		if len(h.Checks.IfFound) == 0 {
 			t.Errorf("%s: no if-found steps", c.product)
 		}
+	}
+}
+
+// W76-2 r1 L1: a KEV display name without the vendor says the family too.
+func TestSummaryForNamesTheFamilyOnce(t *testing.T) {
+	t.Parallel()
+	for sw, fam := range map[string]string{"Junos OS": "Juniper Junos OS", "FortiOS": "Fortinet FortiOS", "RouterOS": "MikroTik RouterOS", "Cisco IOS XE Software": "Cisco IOS", "OpenSSH": "OpenSSH"} {
+		if got := summaryFor(fam, sw, "CVE-1"); !strings.HasPrefix(got, "General checks for "+sw+": ") {
+			t.Errorf("%s: %s", sw, got)
+		}
+	}
+	if got := summaryFor("Web server", "Apache HTTP Server", "CVE-1"); !strings.HasPrefix(got, "General checks for Apache HTTP Server (Web server): ") {
+		t.Errorf("web: %s", got)
 	}
 }
 

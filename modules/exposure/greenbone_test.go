@@ -1296,6 +1296,7 @@ func TestContract_INV25_SnapshotFirstThenGreenbone(t *testing.T) {
 	var stored int
 	var phase string
 	var during GreenboneRun
+	var began time.Time
 	h.gvm.with(func(g *fakeGVM) {
 		g.states = []string{"Running", "Done"}
 		g.onPoll = func() {
@@ -1307,15 +1308,23 @@ func TestContract_INV25_SnapshotFirstThenGreenbone(t *testing.T) {
 						during = snap.GreenboneRun
 					}
 				}
+				began = e.clock.Now()
+				e.advance(time.Minute) // OpenVAS runs after the snapshot is stored
 			}
 		}
 	})
 	s := e.scanIP(gbOpen())
+	// W76-5: "Last scanned" is when the scan ended, not when its other steps were stored
+	var last string
+	if err := e.db.Reader().QueryRowContext(context.Background(), `SELECT last_scan_at FROM exp_target`).Scan(&last); err != nil ||
+		last != store.FormatTS(e.clock.Now()) || last == s.ScannedAt {
+		t.Fatalf("last_scan_at %q (%v), now %s, snapshot %s", last, err, store.FormatTS(e.clock.Now()), s.ScannedAt)
+	}
 	if stored != 1 || phase != PhaseGreenbone {
 		t.Fatalf("stored before Greenbone = %d, phase %q", stored, phase)
 	}
 	// N49-3, N49-2 (D-595): while it scans, the snapshot says so, with the start as a timestamp (the page formats it), and no box-time text
-	if during.State != GBRunRunning || during.StartedAt == nil || *during.StartedAt != store.FormatTS(e.clock.Now()) || s.GreenboneRun.State != GBRunDone ||
+	if during.State != GBRunRunning || during.StartedAt == nil || *during.StartedAt != store.FormatTS(began) || s.GreenboneRun.State != GBRunDone ||
 		s.GreenboneRun.StartedAt == nil || *s.GreenboneRun.StartedAt != *during.StartedAt {
 		t.Fatalf("during %+v, after %+v", during, s.GreenboneRun)
 	}

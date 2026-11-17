@@ -216,8 +216,8 @@ func TestAlpinePullOnlyWhileADeviceStatesAlpine(t *testing.T) {
 		t.Fatal("a filled alpine-osv is still loading")
 	}
 	fixes, err := e.svc.st.DistroFixes(t.Context())
-	if f := e.svc.live(t.Context(), e.feed(alpineOSVFeedID)); err != nil || o.count("/Alpine/all.zip") != 2 || f.Status != "ok" || f.Error != nil || f.Records == nil || *f.Records != 9 {
-		t.Fatalf("an Alpine device: %d requests, feed %+v, %v", o.count("/Alpine/all.zip"), f, err)
+	if f := e.svc.live(t.Context(), e.feed(alpineOSVFeedID)); err != nil || o.count("/Alpine/all.zip") != 2 || f.Status != "ok" || f.Error == nil || *f.Error != "Counts one record per package, release and CVE: 1 exploited CVE." || f.Records == nil || *f.Records != 9 {
+		t.Fatalf("an Alpine device: %d requests, feed %+v %q, %v", o.count("/Alpine/all.zip"), f, deref(f.Error), err)
 	}
 	var branches []string
 	for _, r := range fixes["CVE-2026-123158"] {

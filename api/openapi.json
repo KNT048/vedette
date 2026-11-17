@@ -48867,6 +48867,19 @@
                         "additionalProperties": false
                       }
                     },
+                    "manual_at": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ],
+                      "description": "INV-46: when a person last entered or changed something on the device: a value typed when it was added or set later (type, OS), a software row added or edited, a correction or \"not installed\"; the time it was added for a device added by hand with nothing newer; null when no person entered anything. The Manual source shows it (\"last changed 2 hours ago\")"
+                    },
                     "kinds": {
                       "type": "array",
                       "items": {
@@ -49014,6 +49027,7 @@
                     "risk",
                     "risk_unavailable",
                     "observations",
+                    "manual_at",
                     "kinds",
                     "possible_same"
                   ],

@@ -582,6 +582,14 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		rangesFirst    bool
 	)
 	finish := func(tx *sql.Tx, out outcome) error { // the outcome row and the audit entry, in the pull's last transaction
+		if out.OK { // after the data is written: what the feed holds now (heldNotes), on every good pull
+			// a sentence never costs the pull its data: a failing count is logged and the pull's own note stays
+			if note, err := withHeld(ctx, tx, src.ID, out.Note); err != nil {
+				s.Log.ErrorContext(ctx, "feeds: what the feed holds could not be counted", "feed", src.ID, "error", err)
+			} else {
+				out.Note = note
+			}
+		}
 		if err := recordOutcome(ctx, tx, src.ID, out); err != nil {
 			return err
 		}

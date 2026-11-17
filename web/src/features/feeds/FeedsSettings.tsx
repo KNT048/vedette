@@ -67,8 +67,11 @@ function Tables({ items }: { items: Feed[] }) {
     fetchNow.mutate(f.id, {
       onSuccess: (r) => {
         if (r.status === 'error') toast.error(`${r.name}: ${r.error ?? t('row.failed')}`)
+        // a good pull confirms it, with its note (what the feed holds) under it; a feed that was not pulled now (a distribution feed no
+        // device needs) or is still loading (S-FEED-4) says why instead: not a failure
+        else if (r.status === 'ok' && r.last_fetch !== f.last_fetch) toast.success(t('row.fetched', { name: r.name, count: r.records ?? 0 }), r.error ? { description: r.error } : undefined)
         else if (r.status === 'ok' && !r.error) toast.success(t('row.fetched', { name: r.name, count: r.records ?? 0 }))
-        else toast.info(`${r.name}: ${r.error ?? t('row.firstFetch')}`) // a pull still loading (S-FEED-4) or a note: not a failure
+        else toast.info(`${r.name}: ${r.error ?? t('row.firstFetch')}`)
       },
       onError: (e) => toast.error(e instanceof Error ? e.message : String(e)),
     })

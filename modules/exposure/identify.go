@@ -318,14 +318,7 @@ func (s *Service) identifyIP(ctx context.Context, st ScanTarget, ip netip.Addr, 
 		}
 		c.Services = append(c.Services, got...)
 		// Only what a probe named counts as identified; the guesses and the unknown ones are said apart
-		probed, guess, none := identifiedCounts(got)
-		read := plural(probed, "service") + " identified"
-		if guess > 0 {
-			read += fmt.Sprintf(", %d named by port number only", guess)
-		}
-		if none > 0 {
-			read += fmt.Sprintf(", %d not identified", none)
-		}
+		read := servicesRead(got)
 		text := fmt.Sprintf("Service identification (nmap -sV): %s.", read)
 		if res.Ports > 0 {
 			text = fmt.Sprintf("Service identification (nmap -sV) on %s: %s.", plural(res.Ports, "TCP port"), read)
@@ -410,6 +403,7 @@ func plural(n int, noun string) string {
 // Nothing identified: nothing to compare, and the stored lines already say why. A matcher that is missing or fails is a
 // "Not checked" line, never "no exploited CVE".
 func (s *Service) withVulns(ctx context.Context, snap *Snapshot) {
+	recountServices(snap) // the step's counts and the comparison's read the same rows the same way
 	snap.Vulns, snap.VersionGaps = []VulnRow{}, []GapRow{}
 	s.withServiceVulns(ctx, snap)
 	s.withWebVersions(ctx, snap)    // The rule list and the versions ZAP read, after the services
@@ -438,8 +432,15 @@ func (s *Service) withServiceVulns(ctx context.Context, snap *Snapshot) {
 	snap.Vulns, snap.VersionGaps = nz(m.Vulns), nz(m.Gaps)
 	markTemplates(snap.Vulns, snap.Templates) // INV-23 first: a confirmed row is not a "maybe patched"
 	backported := markBackports(snap.Vulns, snap.Services)
-	text := fmt.Sprintf("%s of %d compared with today's CISA list of exploited vulnerabilities (%d entries) and its NVD version ranges: %s.",
-		plural(m.Compared, "identified service"), len(snap.Services), m.Listed, plural(len(m.Vulns), "exploited CVE")+" matched")
+	// "N of M services", never "N identified services": the services line counts what was identified, and a service a probe named
+	// without a product the list has entries under is identified but not compared. The rows an earlier scan kept are compared
+	// too; the services line counts only what this scan read, so the kept ones are said apart
+	of := plural(len(snap.Services), "service")
+	if k := len(keptServices(*snap)); k > 0 {
+		of += fmt.Sprintf(" (%d kept from an earlier scan)", k)
+	}
+	text := fmt.Sprintf("%d of %s compared with today's CISA list of exploited vulnerabilities (%d entries) and its NVD version ranges: %s.",
+		m.Compared, of, m.Listed, plural(len(m.Vulns), "exploited CVE")+" matched")
 	if backported > 0 {
 		text = strings.TrimSuffix(text, ".") + fmt.Sprintf(", %d of them on a distribution package that may carry a backported fix.", backported)
 	}

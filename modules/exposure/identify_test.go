@@ -187,7 +187,7 @@ func TestContract_INV19_ServicesThroughTheSeamAndComparedOnRead(t *testing.T) {
 	if got := s.Checks[1].Text; got != "Service identification (nmap -sV) on 98 TCP ports: 2 services identified, 1 not identified." {
 		t.Fatalf("services line = %q", got)
 	}
-	if got := s.Checks[2].Text; got != "2 identified services of 3 compared with today's CISA list of exploited vulnerabilities (1500 entries) and its NVD version ranges: 1 exploited CVE matched. 1 service could not be checked: no version was read. 1 service gave no product to look up, so not compared." {
+	if got := s.Checks[2].Text; got != "2 of 3 services compared with today's CISA list of exploited vulnerabilities (1500 entries) and its NVD version ranges: 1 exploited CVE matched. 1 service could not be checked: no version was read. 1 service gave no product to look up, so not compared." {
 		t.Fatalf("compare line = %q", got)
 	}
 	var stored string
@@ -314,7 +314,7 @@ func TestContract_INV20_BackportsAndUnlistedNames(t *testing.T) {
 		s.Vulns[0].Summary != sum+" Debian may have backported the fix without changing the version: check the installed package version against Debian's security tracker." {
 		t.Fatalf("vuln = %+v", s.Vulns)
 	}
-	if got := s.Checks[len(s.Checks)-1].Text; got != "1 identified service of 2 compared with today's CISA list of exploited vulnerabilities (1500 entries) and its NVD version ranges: 1 exploited CVE matched, 1 of them on a distribution package that may carry a backported fix." {
+	if got := s.Checks[len(s.Checks)-1].Text; got != "1 of 2 services compared with today's CISA list of exploited vulnerabilities (1500 entries) and its NVD version ranges: 1 exploited CVE matched, 1 of them on a distribution package that may carry a backported fix." {
 		t.Fatalf("compare line = %q", got)
 	}
 	if !slices.Contains(notChecked(s), "nginx (igor_sysoev:nginx): not compared. The list of exploited vulnerabilities has no entry under the product name nmap reports for it, so Vedette cannot tell.") {
@@ -576,6 +576,95 @@ func TestServiceNamesMatchThePage(t *testing.T) {
 	for _, c := range []struct{ service, want string }{{"ssl/imap", "IMAPS"}, {"ssl/rdp", "RDP over TLS"}, {"constructor", "constructor"}, {"x", "x"}} {
 		if got := serviceName(c.service); got != c.want {
 			t.Errorf("serviceName(%q) = %q, want %q", c.service, got, c.want)
+		}
+	}
+}
+
+// A snapshot stored before a port named by its number alone was told apart said "6 services identified" while the comparison read
+// on the same page counts the same rows today: the step's counts are said again from the stored rows when the snapshot is read, so
+// the two lines never disagree. The count is measured over every shape of stored line: an IP target's, one address of a domain's
+// deep scan (rows of other addresses and rows an earlier scan kept do not count), a line with script results, a line without counts.
+func TestServicesLineRecountedOnRead(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.svc.cfg.Matcher = &fakeMatcher{m: Matches{Compared: 2, Listed: 1484}}
+	older := []ServiceRow{ // no method word: stored before it was recorded
+		{IP: ipA, Port: 10443, Name: "https", Product: "Fortinet FortiGate SSL VPN", CPE: "cpe:/o:fortinet:fortios"},
+		{IP: ipA, Port: 10022, Name: "ssh", Product: "OpenSSH", Version: "8.9", CPE: "cpe:/a:openbsd:openssh:8.9"},
+		{IP: ipA, Port: 5060, Name: "sip"},
+		{IP: ipA, Port: 2000, Name: "cisco-sccp"},
+		{IP: ipA, Port: 11080, Name: "unknown"},
+		{IP: ipA, Port: 11443, Name: "ssl/unknown"},
+	}
+	snap := Snapshot{Content: Content{Services: older, Checks: []CheckRow{
+		{Kind: "ports", Text: "TCP connect to every TCP port: 6 ports open."},
+		{Kind: "services", Text: "Service identification (nmap -sV) on 65535 TCP ports: 6 services identified."},
+	}}}
+	e.svc.withVulns(e.ctx(), &snap)
+	if got := snap.Checks[1].Text; got != "Service identification (nmap -sV) on 65535 TCP ports: 2 services identified, 2 named without a product (the scan did not record whether by a probe or by the port number), 2 not identified." {
+		t.Fatalf("services line = %q", got)
+	}
+	if got := snap.Checks[2].Text; !strings.HasPrefix(got, "2 of 6 services compared with today's CISA list") || !strings.HasSuffix(got, " 4 services gave no product to look up, so not compared.") {
+		t.Fatalf("compare line = %q", got)
+	}
+
+	// Rows that say how they were named read as a new scan says them; reading again changes nothing.
+	newer := slices.Clone(older)
+	for i, m := range []string{"probed", "probed", "table", "table", "", ""} {
+		newer[i].Method = m
+	}
+	snap = Snapshot{Content: Content{Services: newer, Checks: []CheckRow{{Kind: "services", Text: "Service identification (nmap -sV) on 65535 TCP ports: 2 services identified, 2 named by port number only, 2 not identified."}}}}
+	e.svc.withVulns(e.ctx(), &snap)
+	e.svc.withVulns(e.ctx(), &snap)
+	if got := snap.Checks[0].Text; got != "Service identification (nmap -sV) on 65535 TCP ports: 2 services identified, 2 named by port number only, 2 not identified." {
+		t.Fatalf("services line read twice = %q", got)
+	}
+
+	// A port that answered at an earlier scan and was missed once is kept with its service (INV-22): the services line counts what
+	// this scan read, the comparison line counts every row and says the kept one apart, so the two add up.
+	e.svc.cfg.Matcher = &fakeMatcher{m: Matches{Compared: 3, Listed: 1484}}
+	snap = Snapshot{Content: Content{
+		Ports: []PortRow{{IP: ipA, Port: 443}, {IP: ipA, Port: 10022}, {IP: ipA, Port: 11080}, {IP: ipA, Port: 8443, LastSeen: "2026-11-16", Misses: 1}},
+		Services: []ServiceRow{
+			{IP: ipA, Port: 443, Name: "https", Product: "nginx", Version: "1.24.0", CPE: "cpe:/a:igor_sysoev:nginx:1.24.0", Method: "probed"},
+			{IP: ipA, Port: 10022, Name: "ssh", Product: "OpenSSH", Version: "8.9", CPE: "cpe:/a:openbsd:openssh:8.9", Method: "probed"},
+			{IP: ipA, Port: 11080, Name: "unknown"},
+			{IP: ipA, Port: 8443, Name: "https", Product: "nginx", Version: "1.22.1", CPE: "cpe:/a:igor_sysoev:nginx:1.22.1", Method: "probed"},
+		},
+		Checks: []CheckRow{{Kind: "services", Text: "Service identification (nmap -sV) on 65535 TCP ports: 2 services identified, 1 not identified."}},
+	}}
+	e.svc.withVulns(e.ctx(), &snap)
+	if got := snap.Checks[0].Text; got != "Service identification (nmap -sV) on 65535 TCP ports: 2 services identified, 1 not identified." {
+		t.Fatalf("services line with a kept row = %q", got)
+	}
+	if got := snap.Checks[1].Text; got != "3 of 4 services (1 kept from an earlier scan) compared with today's CISA list of exploited vulnerabilities (1484 entries) and its NVD version ranges: 0 exploited CVEs matched. 1 service gave no product to look up, so not compared." {
+		t.Fatalf("compare line with a kept row = %q", got)
+	}
+
+	// A domain's deep scan: each address's line counts its own rows; a row an earlier scan kept is not this step's; the script
+	// results stay; a line that is not a count is left alone.
+	snap = Snapshot{Content: Content{
+		Ports: []PortRow{{IP: ipA, Port: 443}, {IP: ipA, Port: 8080, LastSeen: "2026-11-14"}, {IP: ipB, Port: 22}},
+		Services: []ServiceRow{
+			{IP: ipA, Port: 443, Name: "https", Product: "nginx", Method: "probed"},
+			{IP: ipA, Port: 8080, Name: "http-proxy", Method: "table"},
+			{IP: ipB, Port: 22, Name: "ssh"},
+		},
+		Checks: []CheckRow{
+			{Kind: "services", Text: ipA + " (www.example.com): Service identification (nmap -sV) on 65535 TCP ports: 9 services identified. nmap's scripts: 3 results, 0 saying VULNERABLE."},
+			{Kind: "services", Text: ipB + " (mail.example.com): Service identification (nmap -sV): 1 service identified."},
+			{Kind: "services", Text: "Service identification (nmap -sV) did not run: the scanner is off."},
+		},
+	}}
+	recountServices(&snap)
+	want := []string{
+		ipA + " (www.example.com): Service identification (nmap -sV) on 65535 TCP ports: 1 service identified. nmap's scripts: 3 results, 0 saying VULNERABLE.",
+		ipB + " (mail.example.com): Service identification (nmap -sV): 0 services identified, 1 named without a product (the scan did not record whether by a probe or by the port number).",
+		"Service identification (nmap -sV) did not run: the scanner is off.",
+	}
+	for i, w := range want {
+		if snap.Checks[i].Text != w {
+			t.Errorf("line %d = %q, want %q", i, snap.Checks[i].Text, w)
 		}
 	}
 }

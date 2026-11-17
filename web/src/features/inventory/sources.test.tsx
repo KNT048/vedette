@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { screen, within } from '@testing-library/react'
+import { cleanup, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
+import { server } from '@/test/server'
+import { API } from '@/mocks/http'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { assetsStore, modulesStore, sessionStore } from '@/mocks/stores'
 import { historyStore, markReached } from '@/features/scanning/mocks'
@@ -115,6 +118,52 @@ describe('Device page: Sources switches', () => {
     expect(sw(item(list, 'Network scan'))).not.toBeChecked() // that source only
     const d = (await (await api('GET', `/devices/${id}`)).json()) as { asset: { scan_source: string; snmp_source: string } }
     expect(d.asset).toMatchObject({ scan_source: 'off', snmp_source: 'on' })
+  })
+
+  // INV-46: the Manual source says when a person last entered or changed something on the device, never a "report", and never the
+  // day it was added once something changed since.
+  it('the manual source reads when a person added the device, then when they last changed it', async () => {
+    const ago = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString()
+    const old = ago(48)
+    const fw = { id: 's-fw-old', display: 'FortiGate', vendor: 'Fortinet', product: 'FortiOS', version: null, kev: [], source: 'manual' as const, confidence: 1, set_at: old }
+    assetsStore.update((l) => [{ id: 'a-hand-old', site: 'hq', ip: '192.168.10.78', mac: null, hostname: 'fw-01', kind: 'firewall', vendor: { value: 'Fortinet', source: 'manual', confidence: 1, seen_at: old },
+      model: null, os: null, software: [fw], services: [], first_seen: old, last_seen: old, approved: true, fragile: false, origin: 'manual' }, ...l])
+    const manualText = async () => {
+      renderApp('/devices/a-hand-old', { role: 'admin' })
+      const li = item(await sources(), 'Manual')
+      expect(within(li).queryByText(/last report/)).toBeNull()
+      return li
+    }
+
+    // nothing changed since it was added two days ago
+    let li = await manualText()
+    expect(within(li).getByText('added 2 days ago')).toBeInTheDocument()
+
+    // its firmware version was entered two hours ago: that time, not the day it was added
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-hand-old' ? { ...a, software: [...a.software, { ...fw, id: 's-fw-new', version: '7.2.13', set_at: ago(2) }] } : a)))
+    cleanup()
+    li = await manualText()
+    expect(within(li).getByText('last changed 2 hours ago')).toBeInTheDocument()
+
+    // an edit of the row now moves it again
+    expect((await api('PATCH', '/devices/a-hand-old/software/s-fw-old', { version: '7.2.14' })).status).toBe(200)
+    cleanup()
+    li = await manualText()
+    expect(await within(li).findByText(/^last changed (now|\d+ seconds? ago)$/, {}, T)).toBeInTheDocument()
+  })
+
+  it('a hand-added device with no manual row left still reads the manual source as in use, with its time', async () => {
+    const old = new Date(Date.now() - 48 * 3_600_000).toISOString()
+    assetsStore.update((l) => [{ id: 'a-hand-ip', site: 'hq', ip: '192.168.10.79', mac: null, hostname: null, name: 'switch-01', kind: 'unknown', vendor: null,
+      model: null, os: null, software: [], services: [], first_seen: old, last_seen: old, approved: true, fragile: false, origin: 'manual' }, ...l])
+    const d = (await (await api('GET', '/devices/a-hand-ip')).json()) as { observations: { source: string }[] }
+    // as the API answers it: no manual observation or software row, only the time it was added
+    server.use(http.get(`${API}/inventory/devices/a-hand-ip`, () => HttpResponse.json({ ...d, observations: d.observations.filter((o) => o.source !== 'manual'), manual_at: old })))
+    renderApp('/devices/a-hand-ip', { role: 'admin' })
+    const li = item(await sources(), 'Manual')
+    expect(await within(li).findByText('added 2 days ago', {}, T)).toBeInTheDocument()
+    expect(li).toHaveTextContent('Reporting')
+    expect(li).not.toHaveTextContent('Not set up')
   })
 
   it('turns the network scan of a discovered device off and on again, saying what off means', async () => {

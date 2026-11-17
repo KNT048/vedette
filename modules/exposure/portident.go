@@ -272,17 +272,93 @@ func ServiceLabel(p PortRow) string {
 	return serviceName(p.Service)
 }
 
-// identifiedCounts is how many of the rows a probe named, how many only the port number named and how many nothing named.
-func identifiedCounts(rows []ServiceRow) (probed, port, none int) {
+// identifiedCounts is how many of the rows a probe named, how many only the port number named, how many nothing named, and how
+// many were named without a product by a scan that did not record how (a row with no method word: a snapshot from an older release,
+// or an older scanner). Such a row with a product, version or CPE was named by a probe (nmap's port table gives only the service
+// name); one with a service name alone may be either, so it is counted apart and never as identified.
+func identifiedCounts(rows []ServiceRow) (probed, port, none, unsure int) {
 	for _, r := range rows {
 		switch identOf(r) {
 		case IdentPort:
 			port++
 		case IdentNone:
 			none++
-		default: // probed, or a row with no method word (older worker): as older releases did
+		case IdentProbed:
 			probed++
+		default:
+			if r.Product != "" || r.Version != "" || r.CPE != "" {
+				probed++
+			} else {
+				unsure++
+			}
 		}
 	}
-	return probed, port, none
+	return probed, port, none, unsure
+}
+
+// servicesRead is the count part of the "Service identification" line: "2 services identified, 2 named by port number only,
+// 2 not identified".
+func servicesRead(rows []ServiceRow) string {
+	probed, guess, none, unsure := identifiedCounts(rows)
+	read := plural(probed, "service") + " identified"
+	if guess > 0 {
+		read += fmt.Sprintf(", %d named by port number only", guess)
+	}
+	if unsure > 0 {
+		read += fmt.Sprintf(", %d named without a product (the scan did not record whether by a probe or by the port number)", unsure)
+	}
+	if none > 0 {
+		read += fmt.Sprintf(", %d not identified", none)
+	}
+	return read
+}
+
+// servicesLineRE is a stored "Service identification" line that has counts: an IP target's, or one address's of a domain's deep
+// scan ("203.0.113.7 (www.example.com): " in front). Group 1 is the address of that prefix, group 2 the line up to the counts, group
+// 4 what follows them (the deep scan's script results).
+var servicesLineRE = regexp.MustCompile(`^(?:(\d{1,3}(?:\.\d{1,3}){3}) \([^)]*\): )?(Service identification \(nmap -sV\)(?: on \d+ TCP ports?)?: )(\d+ services? identified[^.]*)\.((?: nmap's scripts: .*)?)$`)
+
+// keptServices is the "ip:port" of each service row an earlier scan kept (its port has LastSeen, INV-22): this scan did not read it.
+func keptServices(snap Snapshot) map[string]bool {
+	ports := map[string]bool{}
+	for _, p := range snap.Ports {
+		if p.LastSeen != "" {
+			ports[fmt.Sprintf("%s:%d", ipKey(p.IP), p.Port)] = true
+		}
+	}
+	kept := map[string]bool{}
+	for _, r := range snap.Services {
+		if k := fmt.Sprintf("%s:%d", ipKey(r.IP), r.Port); ports[k] {
+			kept[k] = true
+		}
+	}
+	return kept
+}
+
+// recountServices says the counts of each stored "Service identification" line again from the snapshot's stored rows, with today's
+// classification (servicesRead): a snapshot stored before a port named by its number alone was told apart said "6 services
+// identified" next to a comparison line that counts the same rows today, and the two must never disagree. Only the rows that
+// step read count: of the line's address, without the rows an earlier scan kept (their port has LastSeen, INV-22).
+func recountServices(snap *Snapshot) {
+	kept := keptServices(*snap)
+	for i, c := range snap.Checks {
+		if c.Kind != "services" {
+			continue
+		}
+		m := servicesLineRE.FindStringSubmatchIndex(c.Text)
+		if m == nil {
+			continue
+		}
+		ip := ""
+		if m[2] >= 0 {
+			ip = c.Text[m[2]:m[3]]
+		}
+		rows := []ServiceRow{}
+		for _, r := range snap.Services {
+			if (ip == "" || ipKey(r.IP) == ip) && !kept[fmt.Sprintf("%s:%d", ipKey(r.IP), r.Port)] {
+				rows = append(rows, r)
+			}
+		}
+		snap.Checks[i].Text = c.Text[:m[6]] + servicesRead(rows) + c.Text[m[7]:]
+	}
 }

@@ -89,6 +89,9 @@ func TestIncidentsListsEveryOpenOneBeforeTheLimit(t *testing.T) {
 		if err := ins("in-old-open", "acknowledged", "2026-11-01T00:00:00.000Z", "2026-11-01T01:00:00.000Z", 0); err != nil {
 			return err
 		}
+		if _, err := tx.ExecContext(e.ctx(), `INSERT INTO notify_incident_device (incident_id, asset_id, name) VALUES ('in-old-open', 'a1', 'PC-01')`); err != nil {
+			return err
+		}
 		for i := range notify.IncidentsLimitForTest {
 			if err := ins(fmt.Sprintf("in-r-%d", i), "resolved", "2026-11-09T01:00:00.000Z", "2026-11-09T02:00:00.000Z", i+1); err != nil {
 				return err
@@ -105,6 +108,9 @@ func TestIncidentsListsEveryOpenOneBeforeTheLimit(t *testing.T) {
 	for _, i := range list {
 		if i.Status != "resolved" {
 			listed++
+			if len(i.Devices) != 1 || i.Devices[0].Name != "PC-01" { // #931 r1 H: its devices are read with it
+				t.Fatalf("the old open incident lost its devices: %+v", i.Devices)
+			}
 		}
 	}
 	if len(list) != notify.IncidentsLimitForTest || listed != 1 || open != 1 || urgent != 1 {

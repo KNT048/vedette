@@ -189,4 +189,18 @@ func TestFeedsInventoryDistros(t *testing.T) {
 	if got := distros(); !reflect.DeepEqual(got, map[string]map[string]bool{"debian": {"openssh": true}}) {
 		t.Fatalf("the same box on Debian: %v", got)
 	}
+	// D-605: a person says the device runs Alpine Linux (inventory INV-39): alpine-osv is needed, with no package; cleared, it is not
+	alpine, none := "Alpine Linux 3.23", ""
+	if err := s.d.Inventory.PatchDevice(ctx, "it@acme.example", id, inventory.Patch{OS: &alpine}); err != nil {
+		t.Fatal(err)
+	}
+	if got := distros(); got["alpine"] == nil || len(got["alpine"]) != 0 {
+		t.Fatalf("a person's Alpine Linux: %v", got)
+	}
+	if err := s.d.Inventory.PatchDevice(ctx, "it@acme.example", id, inventory.Patch{OS: &none}); err != nil {
+		t.Fatal(err)
+	}
+	if got := distros(); got["alpine"] != nil {
+		t.Fatalf("the correction cleared: %v", got)
+	}
 }

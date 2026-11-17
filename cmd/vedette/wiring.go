@@ -97,7 +97,8 @@ func (a feedsInventory) Settle(ctx context.Context, tx *sql.Tx, committed bool) 
 
 // Distros implements feeds.DistroLister (D-570, D-622): the distributions of the devices whose deb packages an agent read, as
 // findings decides it (findings.DeviceDistro), each with those devices' source packages as the security data names them
-// (findings.DevicePackages), so a distribution feed is pulled only while a device needs it and keeps tier rows for those packages.
+// (findings.DevicePackages), so a distribution feed is pulled only while a device needs it and keeps tier rows for those packages;
+// and "alpine", with no package, while a device states Alpine Linux (findings.StatesAlpine, D-605).
 func (a feedsInventory) Distros(ctx context.Context) (map[string]map[string]bool, error) {
 	ids, err := a.inv.AssetIDs(ctx)
 	if err != nil {
@@ -112,9 +113,12 @@ func (a feedsInventory) Distros(ctx context.Context) (map[string]map[string]bool
 		if !ok {
 			continue
 		}
-		fa := findings.Asset{OS: d.OS, Software: make([]findings.Software, len(d.Software))}
+		fa := findings.Asset{OS: d.OS, AgentOS: d.AgentOS, SNMPOS: d.SNMPOS, ManualOS: d.ManualOS, Software: make([]findings.Software, len(d.Software))}
 		for i, sw := range d.Software {
 			fa.Software[i] = findings.Software{Source: sw.Source, Packaged: sw.Packaged, PkgVersion: sw.PkgVersion, PkgSource: sw.PkgSource, ReportedSource: sw.ReportedSource}
+		}
+		if findings.StatesAlpine(fa) && out[findings.DistroAlpine] == nil { // D-605: Alpine's feed keeps no package rows
+			out[findings.DistroAlpine] = map[string]bool{}
 		}
 		dist, _, pkgs := findings.DevicePackages(fa)
 		if dist == "" {

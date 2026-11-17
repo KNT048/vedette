@@ -27,7 +27,7 @@ var errDistroWaits = errors.New("feeds: the distribution feeds wait for the CISA
 var errDistroNoDevice = errors.New("feeds: no device needs this distribution feed")
 
 // distroOfFeed is the distribution each distribution feed answers for.
-var distroOfFeed = map[string]string{ubuntuOSVFeedID: DistroUbuntu, ubuntuVEXFeedID: DistroUbuntu, debianTrackerFeedID: DistroDebian}
+var distroOfFeed = map[string]string{ubuntuOSVFeedID: DistroUbuntu, ubuntuVEXFeedID: DistroUbuntu, debianTrackerFeedID: DistroDebian, alpineOSVFeedID: DistroAlpine}
 
 // distroNeeds says whether some device needs the distribution of feed id, with the source packages those devices run as the
 // security data names them (D-570, D-622). No lister, the inventory module off, or a read error: pull as before (a missed fix
@@ -133,8 +133,11 @@ func (s *Service) distroNote(id string) string {
 	if !idle {
 		return ""
 	}
-	if distroOfFeed[id] == DistroDebian {
+	switch distroOfFeed[id] {
+	case DistroDebian:
 		return "Not updated: no Debian device now. Vedette updates it on the next check after an agent reports the packages of a Debian device."
+	case DistroAlpine: // D-605: never fetched until then
+		return "Not updated: no Alpine Linux device now. Vedette fetches it on the next check after a device's agent or SNMP answer, or a person, says it runs Alpine Linux."
 	}
 	return "Not updated: no Ubuntu device now. Vedette updates it on the next check after an agent reports the packages of an Ubuntu device."
 }
@@ -143,6 +146,7 @@ var distroParsers = map[Decoder]func(io.Reader, DistroWant) (DistroResult, error
 	DecoderUbuntuOSV:     ParseUbuntuOSV,
 	DecoderUbuntuVEX:     ParseUbuntuVEX,
 	DecoderDebianTracker: ParseDebianTracker,
+	DecoderAlpineOSV:     ParseAlpineOSV,
 }
 
 // buildDistro pulls one distribution file as a stream (D-516), conditional on the validators of the last good pull, and
@@ -160,7 +164,9 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 		return p, errDistroWaits
 	}
 	need, pkgs := s.distroNeeds(ctx, src.ID)
-	if src.LastSuccess != nil { // a feed that never filled is pulled whatever the inventory says (review H1)
+	// a feed that never filled is pulled whatever the inventory says (review H1), except alpine-osv (D-605): without its rows findings
+	// asks or keeps the finding (no Alpine word is no proof either way), so a box with no Alpine device never contacts OSV.dev
+	if src.LastSuccess != nil || src.ID == alpineOSVFeedID {
 		s.setDistroIdle(src.ID, !need)
 		if !need {
 			return p, errDistroNoDevice
@@ -172,7 +178,8 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 	}
 	// ubuntu-vex keeps only "not affected", which never makes a plan item (the plan lists packages below a fixed version, and a
 	// fixed version beats not affected, D-516): its tier rows would cost 561,161 rows and 485 MB of peak RSS for nothing (2026-11-15).
-	if dec != DecoderUbuntuVEX && len(pkgs) > 0 {
+	// alpine-osv keeps none either (D-605): the plan reads no apk package, and Alpine's lister names no package.
+	if dec != DecoderUbuntuVEX && dec != DecoderAlpineOSV && len(pkgs) > 0 {
 		if want.Tier, err = s.st.tierCVEs(ctx, s.now()); err != nil {
 			return p, err
 		}
@@ -192,7 +199,11 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 	}
 	parse := distroParsers[dec]
 	var res DistroResult
-	req := Request{URL: src.URL, MaxBytes: distroMaxBytes, Stream: func(r io.Reader) error {
+	maxBytes := int64(distroMaxBytes)
+	if dec == DecoderAlpineOSV {
+		maxBytes = alpineMaxBytes
+	}
+	req := Request{URL: src.URL, MaxBytes: maxBytes, Stream: func(r io.Reader) error {
 		var err error
 		res, err = parse(r, want)
 		return err
@@ -224,7 +235,7 @@ func (s *Service) buildDistro(ctx context.Context, src sourceRow, p pullPlan, de
 }
 
 // distroFeeds are the feeds whose rows DistroFixes reads.
-var distroFeeds = map[string]bool{ubuntuOSVFeedID: true, ubuntuVEXFeedID: true, debianTrackerFeedID: true}
+var distroFeeds = map[string]bool{ubuntuOSVFeedID: true, ubuntuVEXFeedID: true, debianTrackerFeedID: true, alpineOSVFeedID: true}
 
 // distroCVEs lists the CVEs of the CISA list a distribution feed has rows for, sorted: the findings it may change (its tier rows
 // change only "Updates to plan", which the feed's switch reaches through TierStamp, D-622).

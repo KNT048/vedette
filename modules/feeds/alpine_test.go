@@ -1,0 +1,197 @@
+package feeds
+
+import (
+	"archive/zip"
+	"bytes"
+	"errors"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/knt048/vedette/core/apkver"
+)
+
+// testdata/alpine holds four records of OSV.dev's Alpine all.zip as served on 2026-11-17, unmodified (Alpine Linux security
+// database, CC BY-SA 4.0, converted by OSV.dev; THIRD_PARTY_NOTICES.md): CVE-2026-123158 (OpenSSH, BN340's CVE, every branch OSV
+// lists), CVE-2026-31431 (docker, two fixed releases per branch), CVE-2021-3156 (sudo, old branches with a release apk cannot read)
+// and CVE-2006-20001 (apache2, not on the CISA list).
+
+// alpineZip packs files (name → text) into a zip archive, in the given order.
+func alpineZip(t testing.TB, files ...[2]string) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for _, f := range files {
+		w, err := zw.Create(f[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := w.Write([]byte(f[1])); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+// alpineRecords is the zip of the four real records, with a folder and a file that is no record.
+func alpineRecords(t testing.TB) []byte {
+	t.Helper()
+	files := [][2]string{{"docs/", ""}, {"README.txt", "not read"}}
+	for _, id := range []string{"CVE-2006-20001", "CVE-2021-3156", "CVE-2026-31431", "CVE-2026-123158"} {
+		files = append(files, [2]string{"ALPINE-" + id + ".json", testFile(t, "alpine/ALPINE-"+id+".json")})
+	}
+	return alpineZip(t, files...)
+}
+
+var alpineKEV = DistroWant{KEV: map[string]bool{"CVE-2026-123158": true, "CVE-2026-31431": true, "CVE-2021-3156": true}, Tier: map[string]bool{"CVE-2006-20001": true}}
+
+// D-605: every Alpine branch the record lists is kept with its first fixed release (secdb, read 2026-11-17: v3.16 9.0_p1-r6 … v3.24
+// 10.3_p1-r2; OSV.dev lists no edge), the higher of two fixed releases, and a release apk cannot read drops only its branch.
+func TestParseAlpineOSV(t *testing.T) {
+	t.Parallel()
+	res, err := ParseAlpineOSV(bytes.NewReader(alpineRecords(t)), alpineKEV)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]map[string]string{} // CVE → branch → release
+	for _, r := range res.Rows {
+		if r.Distro != DistroAlpine || r.Status != DistroFixed {
+			t.Errorf("row %+v", r)
+		}
+		if got[r.CVE] == nil {
+			got[r.CVE] = map[string]string{}
+		}
+		got[r.CVE][r.Release] = r.Package + " " + r.Fixed
+	}
+	want := map[string]map[string]string{
+		"CVE-2026-123158": {"3.16": "openssh 9.0_p1-r6", "3.17": "openssh 9.1_p1-r7", "3.18": "openssh 9.3_p2-r4", "3.19": "openssh 9.6_p1-r3",
+			"3.20": "openssh 9.7_p1-r6", "3.21": "openssh 9.9_p2-r1", "3.22": "openssh 10.0_p1-r11", "3.23": "openssh 10.2_p1-r1", "3.24": "openssh 10.3_p1-r2"},
+		"CVE-2026-31431": {"3.23": "docker 29.4.3-r0", "3.24": "docker 29.4.3-r0"},
+		"CVE-2021-3156": {"3.11": "sudo 1.8.31-r1", "3.19": "sudo 1.9.5_p2-r0", "3.20": "sudo 1.9.5_p2-r0", "3.21": "sudo 1.9.5_p2-r0",
+			"3.22": "sudo 1.9.5_p2-r0", "3.23": "sudo 1.9.5_p2-r0", "3.24": "sudo 1.9.5_p2-r0"},
+	}
+	for cve, w := range want {
+		if !mapsEqual(got[cve], w) {
+			t.Errorf("%s: %v, want %v", cve, got[cve], w)
+		}
+	}
+	if len(got) != 3 || res.Accepted != 3 || res.Rejected != 8 || len(res.Reasons) != 1 || !strings.Contains(res.Reasons[0].Example, `1.9.5p2-r0`) {
+		t.Errorf("%d CVEs, accepted %d, rejected %d, reasons %+v", len(got), res.Accepted, res.Rejected, res.Reasons)
+	}
+}
+
+func mapsEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if b[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
+// D-605: the zip is read fail-closed: a cut or foreign archive fails the pull; a record of another CVE, a second file of the same CVE,
+// a bad package name or a file over the cap is rejected alone; secdb's "0" is "not affected".
+func TestParseAlpineOSVFailsClosed(t *testing.T) {
+	t.Parallel()
+	whole := alpineRecords(t)
+	for name, body := range map[string][]byte{"cut short": whole[:len(whole)-40], "not a zip": []byte("<html>"), "xz": xzTar(t, [2]string{"a", "b"})} {
+		if _, err := ParseAlpineOSV(bytes.NewReader(body), alpineKEV); !errors.Is(err, ErrBadSample) {
+			t.Errorf("%s: %v, want ErrBadSample", name, err)
+		}
+	}
+	rec := func(id, pkg, fixed string) string {
+		return `{"id":"ALPINE-` + id + `","affected":[{"package":{"name":"` + pkg + `","ecosystem":"Alpine:v3.23"},"ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"` + fixed + `"}]}]},` +
+			`{"package":{"name":"` + pkg + `","ecosystem":"Alpine:edge"},"ranges":[{"type":"ECOSYSTEM","events":[{"fixed":"1-r0"}]}]}]}`
+	}
+	res, err := ParseAlpineOSV(bytes.NewReader(alpineZip(t,
+		[2]string{"ALPINE-CVE-2026-123158.json", rec("CVE-2026-31431", "openssh", "10.2_p1-r1")}, // the record of another CVE
+		[2]string{"ALPINE-CVE-2026-31431.json", rec("CVE-2026-31431", "Docker Engine", "29.4.3-r0")},
+		[2]string{"ALPINE-CVE-2021-3156.json", rec("CVE-2021-3156", "sudo", "0")},
+		[2]string{"ALPINE-CVE-2021-3156.json", rec("CVE-2021-3156", "sudo", "1.9.5_p2-r0")}, // a second file of the same CVE
+	)), alpineKEV)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Rows) != 1 || res.Rows[0] != (DistroFix{Distro: DistroAlpine, Release: "3.23", Package: "sudo", CVE: "CVE-2021-3156", Status: DistroNotAffected}) ||
+		res.Accepted != 1 || res.Rejected != 3 {
+		t.Errorf("rows %+v, accepted %d, rejected %d %+v", res.Rows, res.Accepted, res.Rejected, res.Reasons)
+	}
+	big := alpineZip(t, [2]string{"ALPINE-CVE-2026-123158.json", strings.Repeat(" ", alpineMaxEntry+1) + "{}"})
+	if res, err := ParseAlpineOSV(bytes.NewReader(big), alpineKEV); err != nil || res.Rejected != 1 || len(res.Rows) != 0 {
+		t.Errorf("a file over 4 MiB: %+v %v", res, err)
+	}
+}
+
+// D-605 (D-570 without the first pull): alpine-osv is fetched only while a device states Alpine Linux, even before its first fill, so
+// a box without one never contacts OSV.dev; then it keeps the CISA list's CVEs, sends its validators back (304 keeps the rows) and
+// findings reads its rows with the others.
+func TestAlpinePullOnlyWhileADeviceStatesAlpine(t *testing.T) {
+	t.Parallel()
+	e, o := pullEnv(t)
+	e.only(alpineOSVFeedID)
+	e.mirror(alpineOSVFeedID, o.url("/Alpine/all.zip"))
+	o.body("/Alpine/all.zip", `"z1"`, string(alpineRecords(t)))
+	e.loadKEV()
+	applyV(t, e.db, e.clock(), "cisa-kev", []Vuln{vuln("CVE-2026-123158", "OpenBSD", "OpenSSH", "2026-11-06")}, false)
+	inv := &distroInv{got: map[string]map[string]bool{DistroUbuntu: {"openssh": true}}}
+	e.svc.Inventory = inv
+	const note = "Not updated: no Alpine Linux device now. Vedette fetches it on the next check after a device's agent or SNMP answer, or a person, says it runs Alpine Linux."
+	for range 2 { // never filled, no Alpine device: nothing is fetched or recorded, and the next tick asks again
+		if err := e.svc.RunPull(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+		e.setNow(e.clock().Add(10 * time.Minute))
+	}
+	f := e.svc.live(t.Context(), e.feed(alpineOSVFeedID))
+	if o.count("/Alpine/all.zip") != 0 || inv.asked != 2 || f.Status != "never" || f.Error == nil || *f.Error != note {
+		t.Fatalf("no Alpine device: %d requests, asked %d, feed %+v", o.count("/Alpine/all.zip"), inv.asked, f)
+	}
+	inv.got = map[string]map[string]bool{DistroAlpine: {}} // BN340's SNMP answer says Alpine Linux
+	if err := e.svc.RunPull(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	fixes, err := e.svc.st.DistroFixes(t.Context())
+	if f := e.svc.live(t.Context(), e.feed(alpineOSVFeedID)); err != nil || o.count("/Alpine/all.zip") != 1 || f.Status != "ok" || f.Error != nil || f.Records == nil || *f.Records != 9 {
+		t.Fatalf("an Alpine device: %d requests, feed %+v, %v", o.count("/Alpine/all.zip"), f, err)
+	}
+	var branches []string
+	for _, r := range fixes["CVE-2026-123158"] {
+		branches = append(branches, r.Release+" "+r.Fixed)
+	}
+	if len(fixes) != 1 || !slices.Contains(branches, "3.23 10.2_p1-r1") || !slices.Contains(branches, "3.20 9.7_p1-r6") || len(branches) != 9 {
+		t.Fatalf("findings reads %v", fixes) // only the CISA list's CVEs: CVE-2026-31431 and CVE-2021-3156 are not on this box's list
+	}
+	e.setNow(e.clock().Add(25 * time.Hour)) // due again, unchanged: 304, rows kept
+	if err := e.svc.RunPull(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if o.count("/Alpine/all.zip") != 2 || rowsOf(t, e.db, "feeds_distro_fix") != 9 || e.feed(alpineOSVFeedID).Status != "ok" {
+		t.Fatalf("after 304: %d requests, %d rows", o.count("/Alpine/all.zip"), rowsOf(t, e.db, "feeds_distro_fix"))
+	}
+}
+
+// FuzzParseAlpineEntry fuzzes one record of the archive (the zip layer is the library's): a bad record never fails the archive, and
+// every row is one feeds_distro_fix accepts with a release apk reads.
+func FuzzParseAlpineEntry(f *testing.F) {
+	f.Add([]byte(testFile(f, "alpine/ALPINE-CVE-2026-123158.json")))
+	f.Add([]byte(`{"id":"ALPINE-CVE-2026-123158","affected":[{"package":{"name":"a","ecosystem":"Alpine:v3.23"},"ranges":[{"events":[{"fixed":"0"}]}]}]}`))
+	f.Fuzz(func(t *testing.T, data []byte) {
+		res, err := ParseAlpineOSV(bytes.NewReader(alpineZip(t, [2]string{"ALPINE-CVE-2026-123158.json", string(data)})), alpineKEV)
+		if err != nil {
+			t.Fatalf("a bad record failed the whole archive: %v", err)
+		}
+		for _, r := range res.Rows {
+			if r.CVE != "CVE-2026-123158" || r.Distro != DistroAlpine || !apkPackageRE.MatchString(r.Package) || r.Release == "" || len(r.Release) > 8 ||
+				strings.Trim(r.Release, "0123456789.") != "" || (r.Status == DistroFixed) != apkver.Valid(r.Fixed) || (r.Status != DistroFixed && (r.Status != DistroNotAffected || r.Fixed != "")) {
+				t.Fatalf("row %+v", r)
+			}
+		}
+	})
+}

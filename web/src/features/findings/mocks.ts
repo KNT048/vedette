@@ -114,8 +114,12 @@ function tierPlan(tier: string, asset: string | null): Omit<Plan, 'counts'> {
       cves.sort((x, y) => (x.tier === y.tier ? 0 : x.tier === 'likely' ? -1 : 1)
         || (x.tier === 'likely' ? (y.epss ?? -1) - (x.epss ?? -1) || (y.score ?? -1) - (x.score ?? -1) : (y.score ?? -1) - (x.score ?? -1) || (y.epss ?? -1) - (x.epss ?? -1))
         || y.published.localeCompare(x.published))
+      // As the box: an agent row's version is the last list an agent sent once no agent reports the device (agent-intake off, or no
+      // agent row: the inventory mock binds an osquery agent to a device with one; the box reads its own packages)
+      const gone = cves.some((c) => c.basis === 'agent') && a.id !== 'a-box' && !(isOn('agent-intake') && a.software.some((s) => s.source === 'agent'))
       items.push({ group: `${a.id}/${p.software_id}`, asset: { id: a.id, name: nameOf(a) }, risk: null, software: p.software, version: p.version, fixed: p.fixed, kind: p.kind, pro: p.pro ?? false,
-        cves, likely: cves.filter((c) => c.tier === 'likely').length, recent: cves.filter((c) => c.tier === 'recent').length })
+        cves, likely: cves.filter((c) => c.tier === 'likely').length, recent: cves.filter((c) => c.tier === 'recent').length,
+        agent_gone: gone, agent_reported: gone ? p.reported ?? null : null })
     }
   }
   const top = (i: PlanItem) => Math.max(-1, ...i.cves.map((c) => c.epss ?? -1))

@@ -72,6 +72,9 @@ type Software struct {
 	// mark is that very row (INV-6c). MarkedAt is, on a row of Asset.NotInstalled, when the person said it is not installed.
 	Key      string
 	MarkedAt time.Time
+	// SeenAt is when the row's source last reported it (zero when unknown): for an agent's row, the day of the list its version
+	// comes from, which the plan names once no agent reports the device (PlanItem.Reported).
+	SeenAt time.Time
 }
 
 // builtBy is the source whose build rules the row follows: the reported row's for a person's correction of it, else its own.

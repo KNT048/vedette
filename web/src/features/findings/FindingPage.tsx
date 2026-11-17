@@ -21,7 +21,8 @@ import { useCan } from '@/lib/session'
 import { useModuleEnabled } from '@/lib/modules'
 import { AcceptUntil, FindingStatusChip } from './AcceptRisk'
 import { overdue, untilOk } from './accept'
-import { useAgentGone, useFinding, useSetStatus } from './api'
+import { useFinding, useSetStatus } from './api'
+import { useFindingAgentGone } from './agentNow'
 import { basisKey, deviceName, hasIp, isOpen, unverified } from './basis'
 import { errMsg } from './errors'
 import { AskAi, NoPack, PackView } from './Recommendation'
@@ -208,7 +209,7 @@ function Detail({ f, crumbs }: { f: FindingDetail; crumbs: { label: string; to: 
   const name = deviceName(f.asset, t('removedDevice'))
   // the agent's build is a detection; once no agent reports the device it is the last list one sent (as Updates to plan says it)
   const agentHeadline = f.status === 'suspected' && !!f.evidence?.agent
-  const agentGone = useAgentGone(f.asset?.id ?? '', agentHeadline && !!f.asset)
+  const agentGone = useFindingAgentGone(f)
   const needRole = can ? undefined : t('common:needRole', { role: t('common:role.operator') })
   const reopenButton = (
     <Button disabled={!can} busy={set.isPending} busyLabel={t('status.reopening')} title={needRole} onClick={() => set.mutate({ action: 'reopen', note: '' }, { onSuccess: () => toast.success(t('status.reopened')), onError: (e) => toast.error(errMsg(e)) })}>{t('status.reopen')}</Button>

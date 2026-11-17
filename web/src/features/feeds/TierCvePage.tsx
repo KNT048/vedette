@@ -8,12 +8,11 @@ import { ModuleOff, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
 import { fmtPercent } from '@/lib/format'
 import { useModuleEnabled } from '@/lib/modules'
-import { useAgentGone, usePlan } from '@/features/findings/api'
+import { usePlan } from '@/features/findings/api'
 import { EvidenceChip, PlanDataState } from '@/features/findings/Plan'
 import { usePlanAction } from '@/features/findings/fix'
 import { fmtDay } from './dates'
 import type { TierCve } from './types'
-import type { PlanCve } from '@/features/findings/types'
 import { RiskMarker } from '@/features/inventory/RiskMarker'
 
 export function TierCvePage({ v }: { v: TierCve }) {
@@ -55,11 +54,6 @@ export function TierCvePage({ v }: { v: TierCve }) {
   )
 }
 
-/** How Vedette knows this device has the CVE; an agent's row says so when no agent reports the device now. */
-function DeviceEvidence({ assetId, basis }: { assetId: string; basis: PlanCve['basis'] }) {
-  return <EvidenceChip basis={basis} gone={useAgentGone(assetId, basis === 'agent')} />
-}
-
 /** The devices whose updates to plan fix this CVE, with the update and the evidence. */
 function TierDevices({ cve }: { cve: string }) {
   const { t } = useTranslation('feeds')
@@ -80,7 +74,7 @@ function TierDevices({ cve }: { cve: string }) {
                 <li key={i.group} className="grid gap-1 px-4 py-2.5 text-sm">
                   <span className="flex flex-wrap items-center gap-2"><Link to={`/devices/${i.asset.id}`} className="font-medium text-accent underline-offset-4 hover:underline">{i.asset.name}</Link><RiskMarker id={i.asset.id} risk={i.risk} /></span>
                   <span className="text-meta">{action(i)}</span>
-                  <DeviceEvidence assetId={i.asset.id} basis={c.basis} />
+                  <EvidenceChip basis={c.basis} gone={i.agent_gone} />
                 </li>
               ))}
             </ul></Card>

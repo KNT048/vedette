@@ -211,6 +211,7 @@
     "step1Known": "Nothing to look up: {{device}} runs {{software}} {{version}} ({{from}}).",
     "from": {
       "agent": "its agent reports it",
+      "agentLast": "an agent last reported it; no agent reports it now",
       "snmp": "Vedette read it over SNMP",
       "stated": "it announces it on the network over LLDP",
       "scan": "a network scan read it",
@@ -222,6 +223,7 @@
     "step3": "Then press \"I updated it\" at the top of this page and type the new version: Vedette checks it and closes every finding on {{device}} that version fixes. For software a scan reads, run a scan of {{device}} instead.",
     "step3Manual": "Then press \"I updated {{software}}\" at the top of this page and type the new version: Vedette checks it and closes every finding on {{device}} that version fixes.",
     "step3Agent": "The agent reports the new version by itself, usually within two hours (after the restart the update needs). Vedette then closes the findings on {{device}} it can prove that version fixes; if this one stays open, press \"Mark as handled\" and choose Patched.",
+    "step3AgentGone": "No agent reports {{device}} to Vedette now, so the new version does not arrive by itself: install its agent again, or press \"I updated it\" at the top of this page and type the new build. Vedette then closes the findings on {{device}} it can prove that version fixes; if this one stays open, press \"Mark as handled\" and choose Patched.",
     "step3Snmp": "Then press \"Read with SNMP now\" on the page of {{device}}: Vedette reads the new version (it also does in each scan window) and closes the findings on {{device}} it can prove that version fixes. If this one stays open, press \"Mark as handled\" and choose Patched.",
     "step3Stated": "{{device}} states its new version on the network by itself after the update, and Vedette then closes the findings on {{device}} it can prove that version fixes. If this one stays open, press \"Mark as handled\" and choose Patched.",
     "step3Scan": "Then rescan {{device}} with the button under Evidence: the scan reads the new version and Vedette closes the findings on {{device}} it can prove that version fixes. If this one stays open, press \"Mark as handled\" and choose Patched.",
@@ -536,14 +538,16 @@
     "before": "Before it was closed: evidence, how to check, what to do"
   },
   "agentChip": "Detected by the agent",
-  "agentChipHint": "The device's own agent (osquery or Wazuh) reports the installed version, and that version is affected. A safe scan template has not seen it, so the status is still open, not confirmed.",
+  "agentChipHint": "The device's own agent (osquery or Wazuh) reported the installed version, and that version is affected. A safe scan template has not seen it, so the status is still open, not confirmed.",
   "fix": {
     "title_one": "1 update fixes several findings",
     "title_other": "{{count}} updates each fix several findings",
     "help": "Install it once: Vedette closes every finding it fixes.",
     "helpInfo": "One missing update often leaves many exploited vulnerabilities open. Vedette closes the findings when the device reports the new version (its agent or the next scan), or when you enter it.",
     "windowsFixed": "Install the latest cumulative update for {{software}} (from build {{version}} to {{fixed}} or later)",
+    "windowsFixedBuild": "Install the latest cumulative update for {{software}} (build {{fixed}} or later)",
     "windowsEsu": "Install the Extended Security Update for {{software}} (from build {{version}} to {{fixed}} or later; it needs an ESU subscription)",
+    "windowsEsuBuild": "Install the Extended Security Update for {{software}} (build {{fixed}} or later; it needs an ESU subscription)",
     "featureUpdate": "Upgrade {{software}} to {{fixed}}: some of these get no update for this release",
     "fixed": "Upgrade {{software}} from {{version}} to {{fixed}} or later",
     "distro": "Install {{distro}}'s security updates for {{software}}",
@@ -593,8 +597,11 @@
       "distro": "Install the distribution's security updates for {{software}} ({{version}})",
       "distroFixed": "Upgrade the {{software}} package from {{version}} to {{fixed}} or later",
       "distroPro": "Upgrade the {{software}} package from {{version}} to {{fixed}} or later (Ubuntu Pro)",
-      "windows": "Install the latest cumulative update for {{software}} (from build {{version}} to {{fixed}} or later)"
+      "windows": "Install the latest cumulative update for {{software}} (from build {{version}} to {{fixed}} or later)",
+      "windowsBuild": "Install the latest cumulative update for {{software}} (build {{fixed}} or later)"
     },
+    "lastReported": "Based on the version an agent last reported on {{date}}: no agent reports this device now.",
+    "lastReportedNoDate": "Based on the version an agent last reported: no agent reports this device now.",
     "fixes_one": "fixes {{count}} CVE",
     "fixes_other": "fixes {{count}} CVEs",
     "fixesLikely_one": "({{count}} likely to be exploited)",
@@ -724,7 +731,7 @@
       "scan": "The network scan read no version for it, or one Vedette cannot compare.",
       "passive": "Vedette saw it in network traffic, which carries no version.",
       "snmp": "The device's SNMP answer gave no version for it, or one Vedette cannot compare.",
-      "agent": "Its agent reports the version: Vedette checks it again when the agent next sends its software list.",
+      "agent": "An agent reported this version: Vedette checks it again when an agent next sends the device's software list.",
       "device": "Vedette reads it from the device itself: the next scan of the device reads it again.",
       "proof": "Meanwhile, check each CVE with the vendor's advice; if the device is not affected, mark them here.",
       "correct": "Type the version it runs: Vedette checks with yours until you clear it on the device page."

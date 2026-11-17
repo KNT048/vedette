@@ -14,9 +14,10 @@ export function useFixAction() {
     switch (f.kind) {
       case 'distro': return t(f.pro && f.distro ? 'fix.distroPro' : f.distro ? 'fix.distro' : 'fix.distroAny', v)
       case 'feature_update': return t('fix.featureUpdate', v)
-      case 'esu': return t('fix.windowsEsu', v)
+      case 'esu': return t(v.version ? 'fix.windowsEsu' : 'fix.windowsEsuBuild', v)
     }
-    return t(f.windows ? 'fix.windowsFixed' : 'fix.fixed', v)
+    if (f.windows) return t(v.version ? 'fix.windowsFixed' : 'fix.windowsFixedBuild', v) // as findings updateSentence: no build, no "from"
+    return t('fix.fixed', v)
   }
 }
 
@@ -27,8 +28,8 @@ export function usePlanAction() {
     const win = i.kind === 'windows' || i.kind === 'esu'
     const v = { software: i.software, version: win ? build(i.version) : i.version, fixed: win ? build(i.fixed) : i.fixed }
     if (i.kind === 'distro') return t(!i.fixed ? 'plan.action.distro' : i.pro ? 'plan.action.distroPro' : 'plan.action.distroFixed', v)
-    if (i.kind === 'windows') return t('plan.action.windows', v)
-    if (i.kind === 'esu') return t('fix.windowsEsu', v) // #804: never a plain "install the latest cumulative update"
+    if (i.kind === 'windows') return t(v.version ? 'plan.action.windows' : 'plan.action.windowsBuild', v)
+    if (i.kind === 'esu') return t(v.version ? 'fix.windowsEsu' : 'fix.windowsEsuBuild', v) // #804: never a plain "install the latest cumulative update"
     return t('plan.action.fixed', v)
   }
 }

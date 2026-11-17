@@ -71533,7 +71533,14 @@ func (s *FindingsGetFindingsPlanOKDataRecent) UnmarshalText(data []byte) error {
 }
 
 type FindingsGetFindingsPlanOKItemsItem struct {
-	Asset FindingsGetFindingsPlanOKItemsItemAsset `json:"asset"`
+	// A CVE of the item rests on an agent's row and no agent of this box reports the device now
+	// (agent-intake off, no agent bound, the agent silent past its stale limit; the same answer as the
+	// finding page's "No agent reports" line): `version` is the last one an agent reported.
+	AgentGone bool `json:"agent_gone"`
+	// With agent_gone: the day the agent last reported the row (YYYY-MM-DD); null otherwise or when not
+	// known.
+	AgentReported NilDate                                 `json:"agent_reported"`
+	Asset         FindingsGetFindingsPlanOKItemsItemAsset `json:"asset"`
 	// Likely first, by EPSS; then the recent ones by CVSS score, then EPSS; then newest.
 	Cves []FindingsGetFindingsPlanOKItemsItemCvesItem `json:"cves"`
 	// Fixed: the version that fixes every CVE of the item; windows, esu: the build of the cumulative
@@ -71559,6 +71566,16 @@ type FindingsGetFindingsPlanOKItemsItem struct {
 	Software string `json:"software"`
 	// The installed version.
 	Version string `json:"version"`
+}
+
+// GetAgentGone returns the value of AgentGone.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetAgentGone() bool {
+	return s.AgentGone
+}
+
+// GetAgentReported returns the value of AgentReported.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetAgentReported() NilDate {
+	return s.AgentReported
 }
 
 // GetAsset returns the value of Asset.
@@ -71614,6 +71631,16 @@ func (s *FindingsGetFindingsPlanOKItemsItem) GetSoftware() string {
 // GetVersion returns the value of Version.
 func (s *FindingsGetFindingsPlanOKItemsItem) GetVersion() string {
 	return s.Version
+}
+
+// SetAgentGone sets the value of AgentGone.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetAgentGone(val bool) {
+	s.AgentGone = val
+}
+
+// SetAgentReported sets the value of AgentReported.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetAgentReported(val NilDate) {
+	s.AgentReported = val
 }
 
 // SetAsset sets the value of Asset.

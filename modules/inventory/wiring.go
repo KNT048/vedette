@@ -111,6 +111,9 @@ type MatchSoftware struct {
 	Key string
 	// MarkedAt is, on a row of MatchDevice.NotInstalled, when the person said it is not installed (the mark's time, RFC 3339); "".
 	MarkedAt string
+	// SeenAt is when the row's source last reported it (inv_software.seen_at, RFC 3339): for an agent's row, the day of the list the
+	// version comes from (findings names it once no agent reports the device).
+	SeenAt string
 }
 
 // MatchDevice is a device with its software, for the matcher of findings.
@@ -199,6 +202,7 @@ func (s *Service) MatchInput(ctx context.Context, id string) (d MatchDevice, ok 
 			&corrects, &setBy, &seenAt, &lv, &lp, &pk, &sw.Key, &key); err != nil {
 			return MatchDevice{}, false, fmt.Errorf("inventory: read software: %w", err)
 		}
+		sw.SeenAt = seenAt
 		if corrects != "" {
 			if src, v, p, _ := correctedFrom(corrects); v == lv && p == lp { // the same product: its source's rules still hold
 				sw.ReportedSource = src

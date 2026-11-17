@@ -11,7 +11,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ApiError } from '@/lib/api'
-import { fmtPercent } from '@/lib/format'
+import { fmtDate, fmtPercent } from '@/lib/format'
 import { useCan } from '@/lib/session'
 import { useModules } from '@/lib/modules'
 import { useToggleModule } from '@/features/core/api'
@@ -19,7 +19,6 @@ import { usePatchFeed } from '@/features/feeds/api'
 import { fmtDay } from '@/features/feeds/dates'
 import { usePlanAction } from './fix'
 import type { Plan, PlanCve, PlanItem } from './types'
-import { useAgentGone } from './api'
 import { InfoTip } from '@/components/common/InfoTip'
 import { RiskMarker } from '@/features/inventory/RiskMarker'
 
@@ -123,7 +122,7 @@ function Legend({ item, gone }: { item: PlanItem; gone: boolean }) {
 /** One item: the device, the action, the count, the CVEs inside a disclosure. */
 function PlanRow({ i, action, showDevice, likelyOnly }: { i: PlanItem; action: string; showDevice: boolean; likelyOnly: boolean }) {
   const { t } = useTranslation('findings')
-  const gone = useAgentGone(i.asset.id, i.cves.some((c) => c.basis === 'agent'))
+  const gone = i.agent_gone // the box's answer for the device (no request per row)
   return (
     <li className="grid min-w-0 gap-1 px-4 py-3">
       <p className="text-sm">
@@ -135,6 +134,7 @@ function PlanRow({ i, action, showDevice, likelyOnly }: { i: PlanItem; action: s
             {i.likely > 0 ? <> <span className="text-warn">{t('plan.fixesLikely', { count: i.likely })}</span></> : null}
           </>
         )}
+        {gone ? <span className="block text-meta text-muted">{i.agent_reported ? t('plan.lastReported', { date: fmtDate(i.agent_reported) }) : t('plan.lastReportedNoDate')}</span> : null}
       </p>
       <details className="min-w-0">
         <summary className="w-fit cursor-pointer text-meta text-accent underline-offset-4 hover:underline">{t('plan.show', { count: i.cves.length })}</summary>

@@ -971,17 +971,24 @@ describe('findings: one update, one item; the agent\'s build is a detection (TUN
 
   it('the finding says the agent detected it and asks nothing to look up; the device page groups the same way', async () => {
     agentWindows()
+    // agent-intake on and the device's osquery agent calls: an agent reports the version now
+    modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: true } : m)))
+    const reportIs = (agent: string, stale = false) => server.use(http.get('*/api/v1/inventory/agents/devices/:id/report', () =>
+      HttpResponse.json({ agent, asked_at: null, ask_again_at: null, last_seen: '2026-11-10T08:00:00Z', stale, wazuh_interval_minutes: null })))
+    reportIs('osquery')
     renderApp('/findings/f-9')
     expect(await screen.findByRole('heading', { level: 1, name: 'SRV-AD has CVE-2024-43451: its agent reports an affected version' })).toBeInTheDocument()
     expect(screen.getByText(/^Nothing to look up: the agent on SRV-AD reports the installed version/)).toBeInTheDocument()
     expect(screen.queryByText(/About screen/)).toBeNull()
     cleanup()
-    // no agent of the box reports the device now: the title says the version is the last one an agent reported
-    modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: true } : m)))
-    server.use(http.get('*/api/v1/inventory/agents/devices/:id/report', () =>
-      HttpResponse.json({ agent: 'none', asked_at: null, ask_again_at: null, last_seen: null, stale: false, wazuh_interval_minutes: null })))
-    renderApp('/findings/f-9')
-    expect(await screen.findByRole('heading', { level: 1, name: 'SRV-AD has CVE-2024-43451: an agent last reported an affected version' })).toBeInTheDocument()
+    // no agent reports the device now: no agent bound, the node silent past its limit, or agent-intake off. The title says the version
+    // is the last one an agent reported, as the "I updated it" line beside it does.
+    for (const set of [() => reportIs('none'), () => reportIs('osquery', true), () => modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: false } : m)))]) {
+      set()
+      renderApp('/findings/f-9')
+      expect(await screen.findByRole('heading', { level: 1, name: 'SRV-AD has CVE-2024-43451: an agent last reported an affected version' })).toBeInTheDocument()
+      cleanup()
+    }
     cleanup()
     renderApp('/devices/a-srvad')
     // The device page shows the same To fix card as Findings (one grouping), no warning box

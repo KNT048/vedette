@@ -17,6 +17,7 @@ import { deviceName, hasIp, isOpen } from './basis'
 import { errMsg } from './errors'
 import type { FindingAsset, FindingDetail } from './types'
 import { softwareFor, useDeviceSoftware, useSetVersion, type Outcome } from './rematch'
+import { agentNow } from './agentNow'
 
 const ERRORS = ['bad_version', 'duplicate_software', 'not_manual']
 
@@ -71,13 +72,15 @@ function AgentAsk({ asset, size, os, box }: { asset: FindingAsset; size?: 'sm'; 
     const id = setTimeout(() => { void refetch() }, Math.max(0, againAt - Date.now()) + 1000)
     return () => clearTimeout(id)
   }, [againAt, refetch])
-  if (on === undefined || (on && q.isPending)) return null
+  // the one check of every "the agent reports" sentence (agentNow): the finding's title and steps, Updates to plan
+  const now = agentNow(on, q, box)
+  if (now === undefined) return null
   const r = q.data
   const line = (key: string, opts: Record<string, string> = {}) => <p className="text-meta text-muted">{t(key, { device, ...opts })}</p>
   // #953: nothing reads the device now (module off, node revoked or pruned, Wazuh disconnected): no promise
   // the box reads its own packages, whether agent-intake is on or not
-  if (box || r?.agent === 'box') return line(os ? 'updated.boxLineOs' : 'updated.boxLine')
-  if (!on || !r || r.agent === 'none') return line('updated.noAgentLine')
+  if (now === 'box') return line(os ? 'updated.boxLineOs' : 'updated.boxLine')
+  if (now === 'none' || !r) return line('updated.noAgentLine')
   if (r.agent === 'wazuh') {
     const m = r.wazuh_interval_minutes ?? 0
     return line(os ? 'updated.wazuhLineOs' : 'updated.wazuhLine', { every: WAZUH_EVERY.has(m) ? t(`updated.every.${m}`) : t('updated.every.other') })

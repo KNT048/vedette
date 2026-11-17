@@ -4,9 +4,7 @@ import { cleanup, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { tierState } from '@/mocks/tiers'
-import { modulesStore } from '@/mocks/stores'
-import { http, HttpResponse } from 'msw'
-import { server } from '@/test/server'
+import { assetsStore, modulesStore } from '@/mocks/stores'
 
 describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
   it('one item per update on one device, the CVEs with tier, published day and evidence; the filter narrows; no a11y violation', async () => {
@@ -173,29 +171,30 @@ describe('Updates to plan (S-TIER-1, S-TIER-2)', () => {
   })
 
   // The evidence follows how the version is known now: a build an agent reported reads "Last reported by an agent" once no agent of
-  // the box reports the device (agent-intake's report state, the answer "I updated it" reads), on the list and on the CVE page.
-  it('an agent row\'s evidence says when no agent reports the device now', async () => {
-    modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: true } : m)))
-    let agent = 'none'
-    server.use(http.get('*/api/v1/inventory/agents/devices/:id/report', () =>
-      HttpResponse.json({ agent, asked_at: null, ask_again_at: null, last_seen: null, stale: false, wazuh_interval_minutes: null })))
-    renderApp('/plan?tier=all')
+  // the box reports the device (the box's agent_gone, one answer for the whole list: agent-intake off, or no agent bound), with the
+  // day of that report on the row; an agent that reports the device keeps "Reported by the agent".
+  it('an agent row\'s evidence and count say when no agent reports the device now', async () => {
+    renderApp('/plan?tier=all') // agent-intake is off in the sample: nothing reads SRV-ACCOUNTS now
     const list = await screen.findByRole('list', { name: 'Recommended updates' })
     const win = within(list).getAllByRole('listitem').find((li) => li.textContent?.includes('Windows Server 2022'))!
+    expect(within(win).getByText(/^Based on the version an agent last reported on \d{1,2} \w{3} \d{4}: no agent reports this device now\.$/)).toBeInTheDocument()
     await userEvent.click(within(win).getByText('Show the 65 CVEs'))
     const table = within(win).getByRole('table')
-    expect((await within(table).findAllByText('Last reported by an agent')).length).toBe(50)
+    expect(within(table).getAllByText('Last reported by an agent')).toHaveLength(50)
     expect(within(table).queryByText('Reported by the agent')).toBeNull()
     expect(within(win).getAllByText(/No agent reports this device now: the build or package is from the last list an agent sent/).find((el) => el.closest('dl'))).toBeVisible()
     await expectNoA11yViolations()
     cleanup()
 
-    agent = 'osquery'
+    // agent-intake on and an osquery agent bound to the device: the agent reports it now
+    modulesStore.update((l) => l.map((m) => (m.id === 'agent-intake' ? { ...m, enabled: true } : m)))
+    assetsStore.update((l) => l.map((a) => (a.id === 'a-srvacc' ? { ...a, software: a.software.map((x) => (x.id === 's-srvacc' ? { ...x, source: 'agent' as const } : x)) } : a)))
     renderApp('/plan?tier=all')
     const again = await screen.findByRole('list', { name: 'Recommended updates' })
     const item = within(again).getAllByRole('listitem').find((li) => li.textContent?.includes('Windows Server 2022'))!
+    expect(within(item).queryByText(/^Based on the version an agent last reported/)).toBeNull()
     await userEvent.click(within(item).getByText('Show the 65 CVEs'))
-    expect(within(within(item).getByRole('table')).getAllByText('Reported by the agent').length).toBe(50)
+    expect(within(within(item).getByRole('table')).getAllByText('Reported by the agent')).toHaveLength(50)
     expect(within(item).queryByText('Last reported by an agent')).toBeNull()
   })
 

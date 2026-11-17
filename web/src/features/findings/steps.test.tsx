@@ -39,6 +39,15 @@ describe('NowSteps', () => {
     expect(s3).toMatch(/it can prove that version fixes[.;] [Ii]f this one stays open, press "Mark as handled" and choose Patched\.$/)
   })
 
+  it('a version an agent last reported, with no agent reporting the device now: said as the last report, no promise it arrives', () => {
+    const f = finding({ software: 'Windows Server 2025', version: '10.0.26100.1742', source: 'agent' }, 'Windows Server 2025 host')
+    render(<MemoryRouter><NowSteps finding={f} kev={kev(null)} updatable today={today} agentGone /></MemoryRouter>)
+    const [s1, , s3] = screen.getAllByRole('listitem').map((li) => li.textContent)
+    expect(s1).toBe('Nothing to look up: Windows Server 2025 host runs Windows Server 2025 10.0.26100.1742 (an agent last reported it; no agent reports it now).')
+    expect(s3).toMatch(/^No agent reports Windows Server 2025 host to Vedette now, so the new version does not arrive by itself: install its agent again, or press "I updated it"/)
+    expect(s3).not.toMatch(/by itself, usually within two hours/)
+  })
+
   it('a typed version names the real "I updated <software>" button; no version and no button names "Mark as handled"', () => {
     const [, , s3] = steps(finding({ software: 'Juniper Junos OS', version: '15.1R7.9', source: 'manual' }), { updatable: true, manual: 'Junos OS (Juniper)' })
     expect(s3).toMatch(/^Then press "I updated Junos OS \(Juniper\)" at the top of this page/) // the row's own display, as the button

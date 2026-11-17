@@ -10,7 +10,7 @@ import type { Asset, Finding } from '@/lib/types'
 import { untilOk } from './accept'
 import { compromise, packs } from './packs'
 import { mockHardening } from './hardeningMock'
-import type { AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, HomeSummary, KevInfo, KnownVersion, MitigationPack, Plan, PlanCve, PlanItem, RowFix, StatusAction } from './types'
+import type { AiResult, ApplyItem, Cvss, FindingAsset, FindingDetail, FindingRow, FirewallGuide, HomeSummary, KevInfo, KnownVersion, MitigationPack, Plan, PlanCve, PlanItem, RowFix, StatusAction, UncheckedItem } from './types'
 import { fmtDate } from '@/lib/format'
 import { displayName } from '@/features/inventory/nameOf'
 import { openIncidents, sentSince } from '@/features/notify/mocks'
@@ -324,8 +324,44 @@ export function summary(): HomeSummary {
     devices: { total: assets.length, pending: assets.filter((a) => !a.approved).length },
     alerts: isOn('notify') ? { ...sentSince(new Date(now - 7 * 864e5).toISOString()), days: 7 } : null,
     incidents: isOn('notify') ? openIncidents() : null,
+    unchecked: uncheckedCounts(),
     generated_at: nowIso(),
   }
+}
+
+const cveOf = (cve: string, name: string, added: string, ransomware: boolean, advisory: string | null) => ({ cve, name, date_added: added, ransomware, advisory })
+const UNCHECKED_SEED: { asset: string; software: string; reason: UncheckedItem['reason']; action: UncheckedItem['action']; cves: UncheckedItem['cves'] }[] = [
+  { asset: 'a-srvacc', software: 'Windows Server 2022', reason: 'no_nvd_data', action: 'none', cves: [
+    cveOf('CVE-2026-20001', 'Windows Kernel Privilege Escalation', '2026-11-12', true, 'https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-20001'),
+    cveOf('CVE-2026-20002', 'Windows SMB Remote Code Execution', '2026-11-10', false, null)] },
+  { asset: 'a-web01', software: 'WordPress website', reason: 'no_nvd_versions', action: 'none', cves: [
+    cveOf('CVE-2026-20003', 'WordPress Core Authentication Bypass', '2026-11-05', false, 'https://wordpress.org/news/category/security/')] },
+  { asset: 'a-nas01', software: 'Synology NAS (DSM)', reason: 'not_comparable', action: 'add_version', cves: [
+    cveOf('CVE-2026-20004', 'Synology DSM Command Injection', '2026-10-28', true, 'https://www.synology.com/en-global/security/advisory/Synology_SA_26_10'),
+    cveOf('CVE-2026-20005', 'Synology DSM Path Traversal', '2026-10-20', false, null),
+    cveOf('CVE-2026-20006', 'Synology DSM Authentication Bypass', '2026-10-02', false, null),
+    cveOf('CVE-2026-20007', 'Synology DSM Buffer Overflow', '2026-09-18', false, null)] },
+  { asset: 'a-rt02', software: 'MikroTik router', reason: 'not_named', action: 'none', cves: [
+    cveOf('CVE-2026-20008', 'MikroTik RouterOS Memory Corruption', '2026-09-01', false, 'https://mikrotik.com/supportsec')] },
+]
+const seedVersions = new Map<string, string | null>()
+/** #910 phase 1 mock: the unchecked list; an item leaves it once its software's version changes (the real box re-checks). */
+export function unchecked(asset?: string | null): UncheckedItem[] {
+  const out: UncheckedItem[] = []
+  for (const u of UNCHECKED_SEED) {
+    const a = assetsStore.get().find((x) => x.id === u.asset)
+    const sw = a?.software.find((x) => x.display === u.software)
+    if (!a || !sw || (asset && a.id !== asset)) continue
+    const key = `${a.id}/${sw.id}`
+    if (!seedVersions.has(key)) seedVersions.set(key, sw.version || null)
+    if (seedVersions.get(key) !== (sw.version || null)) continue
+    out.push({ asset: assetView(a), asset_id: a.id, software_id: sw.id, software: sw.display, version: sw.version || null, reason: u.reason, cves: u.cves, action: u.action })
+  }
+  return out
+}
+const uncheckedCounts = () => {
+  const l = unchecked()
+  return { cves: new Set(l.flatMap((i) => i.cves.map((c) => c.cve))).size, devices: new Set(l.map((i) => i.asset_id)).size }
 }
 
 export const handlers = [
@@ -337,7 +373,7 @@ export const handlers = [
     const version_needed = versionNeeded(asset).map(({ asset: a, software: s, cves }) => ({
       asset: assetView(a), asset_id: a.id, software_id: s.id, software: s.display, version: s.version || null, cves,
     }))
-    return HttpResponse.json({ items: list.map(row), version_needed })
+    return HttpResponse.json({ items: list.map(row), version_needed, unchecked: unchecked(asset) })
   }),
 
   // Before /findings/:id: "summary" is not a finding id.

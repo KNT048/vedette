@@ -18,6 +18,26 @@
     "confirmed": "Confirmed",
     "suspected": "Suspected or detected"
   },
+  "unchecked": {
+    "title_one": "1 exploited CVE could not be checked automatically for software you have",
+    "title_other": "{{count}} exploited CVEs could not be checked automatically for software you have",
+    "help": "Vedette created no finding for these. Read each advisory and check your device yourself.",
+    "info": "These CVEs are on an exploited list and name software you have, but Vedette cannot tell from NVD's data whether your version is affected. It shows them here instead of staying silent.",
+    "reason": {
+      "no_nvd_data": "NVD has not published which products this CVE affects yet",
+      "no_nvd_versions": "NVD names {{software}} but not which versions are affected",
+      "not_named": "Vedette cannot yet name {{software}} the way NVD does",
+      "not_comparable": "Vedette cannot compare version {{version}} with NVD's ranges",
+      "not_comparable_none": "Vedette cannot compare the version of {{software}} with NVD's ranges"
+    },
+    "ransomware": "Ransomware",
+    "advisoryLabel": "{{cve}}: open the advisory",
+    "nvdLabel": "{{cve}}: open the NVD page",
+    "more_one": "Show 1 more",
+    "more_other": "Show {{count}} more",
+    "less": "Show fewer",
+    "addVersion": "Add the version"
+  },
   "versionNeeded": {
     "title_one": "Add the version of 1 software to check it",
     "title_other": "Add the version of {{count}} software to check them",

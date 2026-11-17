@@ -12,6 +12,9 @@ export type FindingRow = z.infer<typeof C.FindingRow>
 export type RowFix = z.infer<typeof C.RowFix>
 /** D-500: a software without a usable version: one item, not one finding per CVE. */
 export type VersionNeeded = z.infer<typeof C.VersionNeeded>
+/** #910 phase 1: exploited CVEs of software the box has that it could not check. */
+export type UncheckedItem = z.infer<typeof C.UncheckedItem>
+export type UncheckedReason = z.infer<typeof C.UncheckedReason>
 export type CodeStep = z.infer<typeof C.CodeStep>
 export type FirewallVendor = z.infer<typeof C.FirewallVendor>
 export type FirewallGuide = z.infer<typeof C.FirewallGuide>

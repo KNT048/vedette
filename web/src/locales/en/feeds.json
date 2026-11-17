@@ -399,6 +399,8 @@
     "open_one": "open exploited finding on {{devices}} device",
     "open_other": "open exploited findings on {{devices}} devices",
     "openNone": "open exploited findings",
+    "unchecked_one": "You have 1 exploited CVE Vedette could not check on {{devices}} device: read it on the Findings page",
+    "unchecked_other": "You have {{count}} exploited CVEs Vedette could not check on {{devices}} devices: read them on the Findings page",
     "confirmed_one": "{{count}} confirmed by scan",
     "confirmed_other": "{{count}} confirmed by scan",
     "suspected_one": "{{count}} suspected",

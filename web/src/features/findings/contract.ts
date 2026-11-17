@@ -158,7 +158,22 @@ export const VersionNeeded = z.object({
   version: z.string().nullable().describe('null = no version; otherwise the version as entered, which Vedette cannot read'),
   cves: z.number().int().min(1).describe('Exploited CVEs of this product that the version would decide'),
 }).describe('D-500: a software on the exploited list without a usable version is ONE item, not one finding per CVE')
-export const FindingList = z.object({ items: z.array(FindingRow), version_needed: z.array(VersionNeeded) })
+export const UncheckedReason = z.enum([
+  'no_nvd_data',     // NVD has no CPE configuration for the CVE yet
+  'no_nvd_versions', // NVD names the product but gives no affected versions
+  'not_named',       // the device has the product, but Vedette cannot name it the way NVD does yet (phase 2)
+  'not_comparable',  // the device's version exists but cannot be compared with NVD's ranges (version scheme)
+])
+export const UncheckedCve = z.object({ cve: z.string(), name: z.string(), date_added: z.iso.date(), ransomware: z.boolean(), advisory: z.string().url().nullable() })
+export const UncheckedItem = z.object({
+  asset: FindingAsset.nullable(), asset_id: z.string(),
+  software_id: z.string().nullable(), software: z.string().describe('Display name, as on the device page'),
+  version: z.string().nullable(),
+  reason: UncheckedReason,
+  cves: z.array(UncheckedCve).min(1),
+  action: z.enum(['add_version', 'none']).describe('add_version: typing the version as the vendor writes it lets Vedette check these CVEs (not_comparable, and not_named once phase 2 lands); none: only the advisory decides'),
+}).describe('#910 phase 1: exploited CVEs of software the box has that it could not check; one item per device x software x reason. No finding is created from it')
+export const FindingList = z.object({ items: z.array(FindingRow), version_needed: z.array(VersionNeeded), unchecked: z.array(UncheckedItem) })
 
 // ---------- Updates to plan: CVE tiers 2 and 3 (S-TIER-1, S-TIER-2; D-613, D-615, D-616). Not findings: no status, no
 // alert, no mitigation pack; one item per update on one device, each CVE one click away.
@@ -233,6 +248,7 @@ export const HomeSummary = z.object({
   devices: z.object({ total: z.number().int().describe('Devices on the Devices page'), pending: z.number().int().describe('Devices waiting for review') }),
   alerts: z.object({ sent: z.number().int(), failed: z.number().int(), days: z.number().int() }).nullable().describe('Alert messages (incidents, vulnerabilities; not approval requests) sent and failed in the last `days` days; a failure resent later with success to the same channel is not counted as failed; null when Notifications is off'),
   incidents: z.object({ open: z.number().int().describe('Open incidents (new or acknowledged)'), urgent: z.number().int().describe('Of them, high or critical') }).nullable().describe('null when Notifications is off'),
+  unchecked: z.object({ cves: z.number().int().describe('Distinct exploited CVEs in the Findings "could not be checked" list'), devices: z.number().int() }).describe('#910 phase 1'),
   generated_at: iso.describe('When the box computed this summary (it keeps it up to 60 s, and drops it at every finding change)'),
 })
 

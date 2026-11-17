@@ -152,7 +152,7 @@ export function SourceFormDialog({ open, onOpenChange, source, sender, onAdded }
           </>) : null}
           <DialogFooter>
             <Button onClick={() => onOpenChange(false)}>{t('common:cancel')}</Button>
-            {kind ? <Button type="submit" variant="primary" disabled={pending}>{source ? t('common:save') : t('form.submitAdd')}</Button> : null}
+            {kind ? <Button type="submit" variant="primary" busy={pending} busyLabel={t(source ? 'common:busy.saving' : 'common:busy.adding')}>{source ? t('common:save') : t('form.submitAdd')}</Button> : null}
           </DialogFooter>
         </form>
       </DialogContent>
@@ -204,7 +204,7 @@ export function DeleteDialog({ source, onClose }: { source: LogSource | null; on
         <DialogContent title={t('form.deleteTitle', { name: source.name })} description={t('form.deleteBody')} info={t('form.deleteBodyInfo')}>
           <DialogFooter>
             <Button onClick={onClose}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={del.isPending} onClick={() => del.mutate(source.id, { onSuccess: () => { toast.success(t('form.deleted')); onClose() }, onError: (e) => toast.error(errMsg(e)) })}>{t('common:delete')}</Button>
+            <Button variant="danger" busy={del.isPending} busyLabel={t('common:busy.deleting')} onClick={() => del.mutate(source.id, { onSuccess: () => { toast.success(t('form.deleted')); onClose() }, onError: (e) => toast.error(errMsg(e)) })}>{t('common:delete')}</Button>
           </DialogFooter>
         </DialogContent>
       ) : null}

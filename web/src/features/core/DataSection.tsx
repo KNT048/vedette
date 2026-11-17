@@ -135,7 +135,7 @@ export default function DataSection() {
           ) : null}
           <DialogFooter>
             <Button onClick={() => setAskPurge(false)}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={typed !== org || !password || purge.isPending} onClick={() => void doPurge()}>{t('data.purge.ask.confirm')}</Button>
+            <Button variant="danger" disabled={typed !== org || !password} busy={purge.isPending} busyLabel={t('common:busy.deleting')} onClick={() => void doPurge()}>{t('data.purge.ask.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -219,7 +219,7 @@ function BoxBackups({ disabled, title }: { disabled: boolean; title?: string }) 
           {err ? <p role="alert" className="text-sm text-danger">{err}</p> : null}
           <DialogFooter>
             <Button onClick={() => setPick(null)}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={!sure || !password || restore.isPending} onClick={() => void doRestore()}>{t('data.restore.ask.confirm')}</Button>
+            <Button variant="danger" disabled={!sure || !password} busy={restore.isPending} busyLabel={t('common:busy.restoring')} onClick={() => void doRestore()}>{t('data.restore.ask.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -264,7 +264,7 @@ function KeyAside({ disabled, title }: { disabled: boolean; title?: string }) {
           {err ? <p role="alert" className="text-sm text-danger">{err}</p> : null}
           <DialogFooter>
             <Button onClick={() => setOpen(false)}>{t('common:cancel')}</Button>
-            <Button variant="primary" disabled={!password || key.isPending} onClick={() => void save()}>{t('data.key.ask.confirm')}</Button>
+            <Button variant="primary" disabled={!password} busy={key.isPending} busyLabel={t('common:busy.working')} onClick={() => void save()}>{t('data.key.ask.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

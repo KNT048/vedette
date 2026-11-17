@@ -9,6 +9,7 @@ import { Chip } from '@/components/common/StatusChip'
 import { InfoTip } from '@/components/common/InfoTip'
 import { Card } from '@/components/common/Card'
 import { QueryState } from '@/components/common/States'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
@@ -153,7 +154,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
       return (
         <div className="flex flex-wrap items-center gap-2">
           <div className="grid"><span className="font-mono text-meta">{a.version}</span><span className="max-w-xs text-caption text-muted">{a.note}</span>{includesHost(a)}</div>
-          <Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} title={admin.title} onClick={() => void apply(a.component)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button>
+          <Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} busy={m.apply.isPending && m.apply.variables === a.component} busyLabel={t('common:busy.updating')} title={admin.title} onClick={() => void apply(a.component)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button>
         </div>
       )
     } },
@@ -195,7 +196,8 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
         <Notice tone="danger" role="alert" className="mb-6" title={t('updates.advisoryBanner', { count: affected.length })}>{t('updates.advisoryFix', { id: affected[0]?.id, version: affected[0]?.fixed_in })}</Notice>
       ) : null}
 
-      <Section title={t('updates.settings')} actions={<Button onClick={() => void check()} disabled={operator.disabled || m.check.isPending} title={operator.title}><RefreshCw />{t('updates.check')}</Button>}>
+      <Section title={t('updates.settings')} actions={<Button onClick={() => void check()} disabled={operator.disabled} busy={m.check.isPending} busyLabel={t('common:busy.checking')} title={operator.title}><RefreshCw />{t('updates.check')}</Button>}>
+        <BusyNote busy={m.check.isPending} className="mb-3">{t('updates.checkWaiting')}</BusyNote>
         <fieldset disabled={!admin.ok} title={admin.title} className="m-0 grid min-w-0 gap-4 border-0 p-0 sm:grid-cols-2">
           <div className="grid gap-1.5">
             <span className="text-sm font-medium">{t('updates.channel')}</span>
@@ -229,7 +231,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
                 {c.id === 'host' ? hostHow : null}
                 <span className="font-mono text-meta">{c.version} <span className="font-sans text-caption text-muted">{fmtDateTime(c.installed_at)}</span></span>
                 {c.id === 'host' ? (hostNext ? <span className="text-meta">{t('updates.col.available')}: <span className="font-mono">{hostNext}</span></span> : <span className="text-meta text-muted">{t('updates.latest')}</span>)
-                : a ? <div className="flex flex-wrap items-center gap-2"><span className="text-meta">{t('updates.col.available')}: <span className="font-mono">{a.version}</span></span><Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} title={admin.title} onClick={() => void apply(a.component)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button></div> : <span className="text-meta text-muted">{t('updates.latest')}</span>}
+                : a ? <div className="flex flex-wrap items-center gap-2"><span className="text-meta">{t('updates.col.available')}: <span className="font-mono">{a.version}</span></span><Button size="sm" variant="primary" disabled={admin.disabled || m.apply.isPending || (running && a.component === 'software')} busy={m.apply.isPending && m.apply.variables === a.component} busyLabel={t('common:busy.updating')} title={admin.title} onClick={() => void apply(a.component)}>{t('updates.apply')} <span className="sr-only">{comp(a.component)}</span></Button></div> : <span className="text-meta text-muted">{t('updates.latest')}</span>}
                 {a ? includesHost(a) : null}
                 {c.previous ? <div><Button size="sm" disabled={admin.disabled || (running && c.id === 'software')} title={admin.title} onClick={() => askRollback(c)}>{t('updates.rollbackTo', { version: c.previous })} <span className="sr-only">{comp(c.id)}</span></Button></div> : null}
               </div>
@@ -259,7 +261,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
         <div className="flex flex-wrap items-center gap-2">
           <Button disabled={operator.disabled} title={operator.title} onClick={() => void download('/core/updates/bundle', 'vedette-bundle.json').catch((e) => toast.error(errMsg(e, t)))}><Download />{t('updates.bundle.export')}</Button>
           <input ref={file} type="file" hidden tabIndex={-1} aria-label={t('updates.bundle.file')} accept=".json,application/json" onChange={(e) => void importBundle(e.target.files?.[0])} />
-          <Button disabled={admin.disabled || m.importBundle.isPending || running} title={admin.title} onClick={() => file.current?.click()}><Upload />{t('updates.bundle.import')}</Button>
+          <Button disabled={admin.disabled || running} busy={m.importBundle.isPending} busyLabel={t('common:busy.importing')} title={admin.title} onClick={() => file.current?.click()}><Upload />{t('updates.bundle.import')}</Button>
         </div>
       </Section>
       ) : null}
@@ -278,7 +280,7 @@ const Body = memo(function Body({ s, reconnecting = false }: { s: UpdatesState; 
             </Notice>
           ) : null}
           <p className="text-sm text-muted">{t('updates.rollbackAsk.manual')}</p>
-          <DialogFooter><Button onClick={() => setRollback(null)}>{t('common:cancel')}</Button><Button variant="danger" disabled={m.rollback.isPending || (running && rollback?.id === 'software') || (!!rollback?.rollback_restores_data && !dataLossOk)} onClick={() => rollback && void doRollback(rollback)}>{t('updates.rollbackAsk.confirm')}</Button></DialogFooter>
+          <DialogFooter><Button onClick={() => setRollback(null)}>{t('common:cancel')}</Button><Button variant="danger" disabled={(running && rollback?.id === 'software') || (!!rollback?.rollback_restores_data && !dataLossOk)} busy={m.rollback.isPending} busyLabel={t('updates.rollbackAsk.rollingBack')} onClick={() => rollback && void doRollback(rollback)}>{t('updates.rollbackAsk.confirm')}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
       </section>

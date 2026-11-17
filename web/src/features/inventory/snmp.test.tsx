@@ -126,6 +126,21 @@ describe('SNMP credentials (S-INV-1, D-512)', () => {
     expect(auditStore.get()[0]).toMatchObject({ action: 'inventory.snmp_test', target: 'Core switches (v3)', detail: '192.168.10.3: ok' })
   })
 
+  it('kien G1: while a Test waits on the device, Run test is busy and a note says it can take up to 40 seconds', async () => {
+    let release = () => {}
+    const held = new Promise<void>((r) => { release = r })
+    server.use(http.post('*/api/v1/inventory/snmp/:id/test', async () => { await held; return HttpResponse.json({ error: { code: 'x', message: 'The box is not responding.' } }, { status: 503 }) }))
+    const user = userEvent.setup()
+    renderSnmp()
+    await row('Core switches (v3)')
+    const li = await runTest(user, 'Core switches (v3)', '192.168.10.3')
+    expect(await within(li).findByRole('button', { name: 'Testing…' }, T)).toHaveAttribute('aria-busy', 'true')
+    expect(within(li).getByText(/^Asking 192\.168\.10\.3… this can take up to 40 seconds\./)).toBeInTheDocument()
+    release()
+    expect(await within(li).findByRole('alert', undefined, T)).toHaveTextContent('The box is not responding.')
+    expect(within(li).getByRole('button', { name: 'Run test' })).not.toHaveAttribute('aria-busy')
+  })
+
   it('Test with a wrong community shows the plain no-answer reason; a bad IP is refused in the browser', async () => {
     expect((await call('POST', '/snmp', { name: 'Old community', version: 'v2c', community: 'wrong-community', scope: ['192.168.10.0/24'] })).status).toBe(201)
     const user = userEvent.setup()

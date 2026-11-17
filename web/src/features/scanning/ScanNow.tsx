@@ -52,8 +52,8 @@ function JobButton({ label, runningLabel, variant = 'primary', size, className, 
   const { t } = useTranslation('scanning')
   return (
     <div className={cn('grid min-w-0 gap-2', className)}>
-      <Button variant={variant} size={size} className="w-fit" onClick={onStart} disabled={!!blocked || running || pending} title={blocked ?? undefined} aria-describedby={describedBy}>
-        <Play />{running || pending ? runningLabel ?? t('scanNow.running') : label ?? t('scanNow.deep')}
+      <Button variant={variant} size={size} className="w-fit" onClick={onStart} disabled={!!blocked} busy={running || !!pending} busyLabel={runningLabel ?? t('scanNow.running')} title={blocked ?? undefined} aria-describedby={describedBy}>
+        <Play />{label ?? t('scanNow.deep')}
       </Button>
       {blocked && !describedBy ? <span className="text-meta text-muted">{blocked}</span> : null}
       {running && progress !== undefined ? <JobProgress progress={progress} /> : null}
@@ -88,9 +88,9 @@ function LanButton({ targets, label, variant = 'primary', size, className, showP
   return (
     <div className={cn('grid min-w-0 gap-2', className)}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Button variant={variant} size={size} disabled={!q.data || !!blocked || !!ours || run.isPending}
+        <Button variant={variant} size={size} disabled={!q.data || !!blocked} busy={run.isPending || !!ours} busyLabel={t('scanNow.running')}
           onClick={() => run.mutate(targets === 'lan' ? undefined : ids, { onSuccess: (j) => { setMine(j.id); toast.success(t('scanNow.started')) }, onError: (e) => toast.error(errMsg(e)) })}>
-          <Play />{ours || run.isPending ? t('scanNow.running') : text}
+          <Play />{text}
         </Button>
         {blocked && !ours ? (
           <span className="flex flex-wrap items-center gap-2 text-meta text-muted">

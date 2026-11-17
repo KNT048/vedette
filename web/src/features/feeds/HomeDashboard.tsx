@@ -209,7 +209,7 @@ function useSteps(s: HomeSummary, onAdd: () => void, onRange: () => void): Step[
       action = <><DependencyLink reason={t('start.devices.scopeWhere')} to="/devices/setup?tab=scope#scope-confirm" label={t('start.devices.confirm')} />{more}</>
     } else {
       line = discovery.next_run_at ? t('start.devices.rangeSet', { ranges, when: fmtStamp(discovery.next_run_at) }) : t('start.devices.rangeSetNoNext', { ranges })
-      action = <><Button size="sm" variant="primary" disabled={scan.isPending} onClick={() => scan.mutate()}>{t('start.devices.scanNow')}</Button>{more}</>
+      action = <><Button size="sm" variant="primary" busy={scan.isPending} busyLabel={t('common:busy.starting')} onClick={() => scan.mutate()}>{t('start.devices.scanNow')}</Button>{more}</>
     }
   }
   const steps: Step[] = [{

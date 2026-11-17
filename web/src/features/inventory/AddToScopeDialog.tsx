@@ -69,7 +69,7 @@ export function AddToScopeDialog({ entry, onClose, onDone }: { entry: string | n
           <DependencyLink reason={t('toScope.restWhy')} to="/devices/setup?tab=scope#active-from" label={t('toScope.rest')} />
           <DialogFooter>
             <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-            <Button variant="primary" disabled={!confirmed || !s || !!problem || save.isPending || add.isPending} onClick={submit}>{range ? t('toScope.add') : t('toScope.confirm')}</Button>
+            <Button variant="primary" disabled={!confirmed || !s || !!problem} busy={save.isPending || add.isPending} busyLabel={t(range ? 'common:busy.adding' : 'common:busy.confirming')} onClick={submit}>{range ? t('toScope.add') : t('toScope.confirm')}</Button>
           </DialogFooter>
         </div>
       </DialogContent>

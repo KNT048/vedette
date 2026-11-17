@@ -98,6 +98,7 @@
   "status": {
     "mark": "Mark as handled",
     "reopen": "Reopen finding",
+    "reopening": "Reopening…",
     "reopened": "Finding reopened",
     "done": "Status updated",
     "title": "Mark as handled",
@@ -297,7 +298,8 @@
     "button": "Explain"
   },
   "ai": {
-    "running": "Asking AI",
+    "running": "Asking…",
+    "waiting": "Asking your AI… this can take up to a minute.",
     "again": "{{label}} again",
     "unavailable": "The AI assistant is off, or no AI profile is assigned to this job.",
     "openSettings": "Open AI assistant settings",

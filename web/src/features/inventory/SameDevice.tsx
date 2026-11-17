@@ -123,7 +123,7 @@ function MergeDialog({ me, other, onClose }: { me: Me; other: PossibleSame; onCl
         {error ? <p role="alert" className="text-meta text-danger [overflow-wrap:anywhere]">{error}</p> : null}
         <DialogFooter>
           <DialogClose asChild><Button disabled={merge.isPending}>{t('common:cancel')}</Button></DialogClose>
-          <Button variant="danger" disabled={merge.isPending} onClick={confirm}>{t('same.mergeConfirm', { into: said(kept) })}</Button>
+          <Button variant="danger" busy={merge.isPending} busyLabel={t('same.merging')} onClick={confirm}>{t('same.mergeConfirm', { into: said(kept) })}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

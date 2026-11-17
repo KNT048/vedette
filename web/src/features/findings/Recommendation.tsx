@@ -7,6 +7,7 @@ import { AiBlock } from '@/components/common/AiBlock'
 import { Chip } from '@/components/common/StatusChip'
 import { Notice } from '@/components/common/PageHeader'
 import { InfoTip } from '@/components/common/InfoTip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Segmented } from '@/components/ui/segmented'
@@ -53,7 +54,7 @@ function ApplyButton({ finding, item }: { finding: FindingDetail; item: ApplyIte
   if (done) return <p className="text-meta text-ok">{t('rec.appliedBy', { user: done.user, time: fmtDateTime(done.ts) })}</p>
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Button size="sm" variant="primary" disabled={!can || apply.isPending} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
+      <Button size="sm" variant="primary" disabled={!can} busy={apply.isPending} busyLabel={t('common:busy.saving')} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })}
         onClick={() => apply.mutate(item, { onSuccess: () => toast.success(t('rec.appliedToast')), onError: (e) => toast.error(errMsg(e)) })}>
         {t('rec.applied')}
       </Button>
@@ -235,9 +236,9 @@ export function AskAi({ finding, skill, result, label, hint }: { finding: Findin
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        <Button variant={result ? 'secondary' : 'primary'} disabled={!usable || ask.isPending} aria-describedby={`ai-hint-${skill}`}
-          onClick={() => ask.mutate(skill, { onError: (e) => toast.error(errMsg(e)) })}>
-          {ask.isPending ? t('ai.running') : result ? t('ai.again', { label }) : label}
+        <Button variant={result ? 'secondary' : 'primary'} disabled={!usable} busy={ask.isPending} busyLabel={t('ai.running')}
+          aria-describedby={`ai-hint-${skill} ai-wait-${skill}`} onClick={() => ask.mutate(skill, { onError: (e) => toast.error(errMsg(e)) })}>
+          {result ? t('ai.again', { label }) : label}
         </Button>
         <p id={`ai-hint-${skill}`} className="max-w-xl text-meta text-muted">
           {!ready
@@ -247,6 +248,8 @@ export function AskAi({ finding, skill, result, label, hint }: { finding: Findin
         </p>
         {ready && can && !hint ? <InfoTip topic={label}>{t('ai.privacyInfo')}</InfoTip> : null}
       </div>
+      {/* kien G1: an AI answer takes 10–60 s; say so while it runs */}
+      <BusyNote id={`ai-wait-${skill}`} busy={ask.isPending}>{t('ai.waiting')}</BusyNote>
       <div aria-live="polite">{result ? <AiOutput r={result} /> : null}</div>
     </div>
   )

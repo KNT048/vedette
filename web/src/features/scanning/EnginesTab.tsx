@@ -129,7 +129,7 @@ function Runs({ e, d }: { e: Engine; d: Scanning }) {
         <DialogContent title={t('run.stopTitle')} description={t('run.stopBody')}>
           <DialogFooter>
             <Button onClick={() => setStopping(null)}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={stop.isPending} onClick={() => stopping && stop.mutate(stopping, { onSuccess: () => setStopping(null), onError: (err) => toast.error(errMsg(err)) })}>{t('run.stopConfirm')}</Button>
+            <Button variant="danger" busy={stop.isPending} busyLabel={t('common:busy.stopping')} onClick={() => stopping && stop.mutate(stopping, { onSuccess: () => setStopping(null), onError: (err) => toast.error(errMsg(err)) })}>{t('run.stopConfirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -235,7 +235,7 @@ function EngineRow({ e, d, open, onOpen }: { e: Engine; d: Scanning; open: boole
           description={ask?.off ? [e.affects.length ? t('ask.affects', { list: e.affects.map(name).join(', ') }) : '', running ? t('ask.stops') : ''].filter(Boolean).join(' ') : ask?.deps}>
           <DialogFooter>
             <Button onClick={() => setAsk(null)}>{t('common:cancel')}</Button>
-            <Button variant={ask?.off ? 'danger' : 'primary'} disabled={set.isPending} onClick={() => (ask?.off ? change(false) : change(true, true))}>{ask?.off ? t('ask.offConfirm') : t('ask.depsConfirm')}</Button>
+            <Button variant={ask?.off ? 'danger' : 'primary'} busy={set.isPending} busyLabel={t(ask?.off ? 'common:busy.turningOff' : 'common:busy.turningOn')} onClick={() => (ask?.off ? change(false) : change(true, true))}>{ask?.off ? t('ask.offConfirm') : t('ask.depsConfirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

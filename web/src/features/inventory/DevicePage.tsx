@@ -73,8 +73,8 @@ function Overview({ d }: { d: DeviceDetail }) {
             <p className="text-meta text-muted [overflow-wrap:anywhere]">{guess.evidence}</p>
             {guess.alternatives?.length ? <p className="text-caption text-muted">{t('guess.alternatives', { list: guess.alternatives.map(kindLabel).join(', ') })}</p> : null}
             <span className="flex flex-wrap gap-2">
-              <Button size="sm" disabled={!can || act.patch.isPending} title={needRole} onClick={() => setKind(guess.kind)}>{t('guess.confirm', { kind: kindLabel(guess.kind) })}</Button>
-              {(guess.alternatives ?? []).map((k) => <Button key={k} size="sm" variant="ghost" disabled={!can || act.patch.isPending} title={needRole} onClick={() => setKind(k)}>{t('guess.instead', { kind: kindLabel(k) })}</Button>)}
+              <Button size="sm" disabled={!can || act.patch.isPending} busy={act.patch.isPending && act.patch.variables?.kind === guess.kind} busyLabel={t('common:busy.saving')} title={needRole} onClick={() => setKind(guess.kind)}>{t('guess.confirm', { kind: kindLabel(guess.kind) })}</Button>
+              {(guess.alternatives ?? []).map((k) => <Button key={k} size="sm" variant="ghost" disabled={!can || act.patch.isPending} busy={act.patch.isPending && act.patch.variables?.kind === k} busyLabel={t('common:busy.saving')} title={needRole} onClick={() => setKind(k)}>{t('guess.instead', { kind: kindLabel(k) })}</Button>)}
             </span>
           </div>
         ) : null}
@@ -212,7 +212,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-warn">
             {t('software.seen', { version: v, source: t(`common:source.${seen.source}`) })}
             {VERSION_RE.test(v) ? (
-              <Button size="sm" variant="secondary" disabled={!can || act.setVersion.isPending} title={needRole} aria-label={t('software.acceptLabel', { version: v, name: sw.display })}
+              <Button size="sm" variant="secondary" disabled={!can || act.setVersion.isPending} busy={act.setVersion.isPending && act.setVersion.variables?.sid === sw.id} busyLabel={t('common:busy.saving')} title={needRole} aria-label={t('software.acceptLabel', { version: v, name: sw.display })}
                 onClick={() => act.setVersion.mutate({ sid: sw.id, version: v }, { onSuccess: () => toast.success(t('software.edited', { name: sw.display, version: v })), onError: (e) => toast.error(errMsg(e)) })}>
                 {t('software.accept', { version: v })}
               </Button>
@@ -225,7 +225,7 @@ function SoftwareList({ d }: { d: DeviceDetail }) {
   const actions = (sw: SoftwareView) => (sw.source === 'manual' ? (
     <div className="flex">
       <Button size="sm" variant="ghost" disabled={!can} aria-label={t('software.edit', { name: sw.display })} title={needRole ?? t('software.edit', { name: sw.display })} onClick={() => setEditing(sw)}><Pencil /></Button>
-      <Button size="sm" variant="ghost" disabled={!can || act.removeSoftware.isPending} aria-label={t('software.remove', { name: sw.display })} title={t('software.remove', { name: sw.display })}
+      <Button size="sm" variant="ghost" disabled={!can || act.removeSoftware.isPending} busy={act.removeSoftware.isPending && act.removeSoftware.variables === sw.id} aria-label={t('software.remove', { name: sw.display })} title={t('software.remove', { name: sw.display })}
         onClick={() => act.removeSoftware.mutate(sw.id, { onSuccess: () => toast.success(t('software.removed', { name: sw.display })), onError: (e) => toast.error(errMsg(e)) })}><Trash2 /></Button>
     </div>
   ) : null)
@@ -269,7 +269,7 @@ function Notes({ d }: { d: DeviceDetail }) {
     <div className="grid max-w-2xl gap-2">
       <Label htmlFor="device-notes" className="sr-only">{t('notes.label')}</Label>
       <Textarea id="device-notes" value={text} maxLength={2000} disabled={!can} title={can ? undefined : t('common:needRole', { role: t('common:role.operator') })} placeholder={t('notes.placeholder')} onChange={(e) => setText(e.target.value)} />
-      <div><Button disabled={!can || text === saved || act.patch.isPending} onClick={() => act.patch.mutate({ notes: text }, { onSuccess: () => toast.success(t('notes.saved')), onError: (e) => toast.error(errMsg(e)) })}>{t('notes.save')}</Button></div>
+      <div><Button disabled={!can || text === saved || act.patch.isPending} busy={act.patch.isPending && act.patch.variables?.notes !== undefined} busyLabel={t('common:busy.saving')} onClick={() => act.patch.mutate({ notes: text }, { onSuccess: () => toast.success(t('notes.saved')), onError: (e) => toast.error(errMsg(e)) })}>{t('notes.save')}</Button></div>
     </div>
   )
 }
@@ -284,8 +284,8 @@ function Approval({ d }: { d: DeviceDetail }) {
   const fail = (e: unknown) => toast.error(errMsg(e))
   return (
     <Notice tone="warn" title={d.suspicious ? t('approval.suspicious') : t('approval.pending')} info={t('approval.bodyInfo')} actions={<>
-        <Button variant="primary" disabled={!can || act.approve.isPending} onClick={() => act.approve.mutate(undefined, { onSuccess: () => toast.success(t('pending.approved', { name }), { description: t('pending.findLater') }), onError: fail })}>{t('pending.approve')}</Button>
-        <Button disabled={!can || act.suspicious.isPending} onClick={() => act.suspicious.mutate(!d.suspicious, { onSuccess: () => toast.success(d.suspicious ? t('pending.unmarked', { name }) : t('pending.marked', { name })), onError: fail })}>{d.suspicious ? t('pending.unmark') : t('pending.mark')}</Button>
+        <Button variant="primary" disabled={!can} busy={act.approve.isPending} busyLabel={t('common:busy.approving')} onClick={() => act.approve.mutate(undefined, { onSuccess: () => toast.success(t('pending.approved', { name }), { description: t('pending.findLater') }), onError: fail })}>{t('pending.approve')}</Button>
+        <Button disabled={!can} busy={act.suspicious.isPending} busyLabel={t('common:busy.saving')} onClick={() => act.suspicious.mutate(!d.suspicious, { onSuccess: () => toast.success(d.suspicious ? t('pending.unmarked', { name }) : t('pending.marked', { name })), onError: fail })}>{d.suspicious ? t('pending.unmark') : t('pending.mark')}</Button>
         <Button disabled={!can} onClick={() => setDel(true)}>{t('pending.delete')}</Button>
       </>}>
       {t('approval.body')}

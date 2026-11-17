@@ -39,7 +39,7 @@ export function RemoveDialog({ target, onClose, onDone }: { target: Target | nul
           </div>
           <DialogFooter>
             <Button onClick={onClose}>{t('common:cancel')}</Button>
-            <Button variant="danger" disabled={del.isPending} onClick={() => { del.mutateAsync({ id: target.id, ignore }).then(() => { toast.success(t(ignore ? 'boxIp.remove.toastIgnored' : 'boxIp.remove.toast', { value: target.value })); onClose(); onDone?.() }, (e: unknown) => toast.error(errMsg(e))) }}>{t('boxIp.remove.confirm')}</Button>
+            <Button variant="danger" busy={del.isPending} busyLabel={t('common:busy.removing')} onClick={() => { del.mutateAsync({ id: target.id, ignore }).then(() => { toast.success(t(ignore ? 'boxIp.remove.toastIgnored' : 'boxIp.remove.toast', { value: target.value })); onClose(); onDone?.() }, (e: unknown) => toast.error(errMsg(e))) }}>{t('boxIp.remove.confirm')}</Button>
           </DialogFooter>
         </DialogContent>
       ) : null}

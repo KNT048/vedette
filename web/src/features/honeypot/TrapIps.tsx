@@ -107,7 +107,7 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
                   <Switch checked={d.enabled} disabled={!admin || toggle.isPending} title={needAdmin} aria-label={t('trapIp.switchLabel', { name: d.name })}
                     onCheckedChange={(v) => toggle.mutate({ id: d.id, enabled: v }, { onError: (e) => toast.error(errMsg(e)) })} />
                   <Button size="sm" variant="ghost" disabled={!admin} title={needAdmin} aria-label={t('trapIp.editLabel', { name: d.name })} onClick={() => open({ mode: 'edit', item: d })}><Pencil /></Button>
-                  <Button size="sm" variant="ghost" disabled={!admin || del.isPending} aria-label={t('trapIp.deleteLabel', { name: d.name })} title={needAdmin}
+                  <Button size="sm" variant="ghost" disabled={!admin || del.isPending} busy={del.isPending && del.variables === d.id} aria-label={t('trapIp.deleteLabel', { name: d.name })} title={needAdmin}
                     onClick={() => del.mutate(d.id, { onSuccess: () => { toast.success(t('trapIp.deleted', { name: d.name })); if (editing?.mode === 'edit' && editing.item.id === d.id) setEditing(null) }, onError: (e) => toast.error(errMsg(e)) })}><Trash2 /></Button>
                 </span>
               </div>
@@ -129,7 +129,7 @@ function Inner({ data, hits, smbName }: { data: TrapIPsResponse; hits: Hit[]; sm
             <p className="text-meta text-muted">{t('trapIp.scan.body')}</p>
             <p className="text-meta text-muted">{lastScan ? t('trapIp.scan.last', { when: fmtRelative(lastScan.ts), src: lastScan.src_name ?? lastScan.src_ip, trapIps: lastScan.trap_hostname || lastScan.trap_ip }) : t('trapIp.scan.never')}</p>
           </div>
-          <Button size="sm" disabled={!!scanReason || scan.isPending} title={scanReason} onClick={() => scan.mutate(undefined, { onSuccess: () => toast.success(t('trapIp.scan.testToast')), onError: (e) => toast.error(errMsg(e)) })}>
+          <Button size="sm" disabled={!!scanReason} busy={scan.isPending} busyLabel={t('common:busy.testing')} title={scanReason} onClick={() => scan.mutate(undefined, { onSuccess: () => toast.success(t('trapIp.scan.testToast')), onError: (e) => toast.error(errMsg(e)) })}>
             <FlaskConical />{t('trapIp.scan.test')}
           </Button>
         </div>
@@ -227,7 +227,7 @@ function TrapIpForm({ data, editing, onDone }: { data: TrapIPsResponse; editing:
         </fieldset>
         {errors.form ? <Notice tone="danger" role="alert" className="mb-0" title={errors.form} /> : null}
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="primary" disabled={busy}>{cur ? t('trapIp.form.save') : t('trapIp.form.add')}</Button>
+          <Button type="submit" variant="primary" busy={busy} busyLabel={t(cur ? 'common:busy.saving' : 'common:busy.adding')}>{cur ? t('trapIp.form.save') : t('trapIp.form.add')}</Button>
           <Button type="button" onClick={onDone}>{t('trapIp.form.cancel')}</Button>
         </div>
       </form>

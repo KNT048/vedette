@@ -39,7 +39,7 @@ function LiveDialog({ rule, onClose }: { rule: Rule; onClose: () => void }) {
         {toLive && rule.pre_approved ? <Notice tone="danger" role="alert" className="mb-0" title={t('editor.preWarning')} info={t('editor.preWarningInfo')} /> : null}
         <DialogFooter>
           <Button onClick={onClose}>{t('common:cancel')}</Button>
-          <Button variant={toLive ? 'danger' : 'primary'} disabled={save.isPending} onClick={() => save.mutate({ id: rule.id, rule: { ...toInput(rule), live: toLive } }, { onSuccess: () => { toast.success(toLive ? t('rules.nowLive') : t('rules.nowDry')); onClose() }, onError: (e) => toast.error(errText(e)) })}>{toLive ? t('rules.goLive') : t('rules.backToDry')}</Button>
+          <Button variant={toLive ? 'danger' : 'primary'} busy={save.isPending} busyLabel={t('common:busy.saving')} onClick={() => save.mutate({ id: rule.id, rule: { ...toInput(rule), live: toLive } }, { onSuccess: () => { toast.success(toLive ? t('rules.nowLive') : t('rules.nowDry')); onClose() }, onError: (e) => toast.error(errText(e)) })}>{toLive ? t('rules.goLive') : t('rules.backToDry')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -57,7 +57,7 @@ function ManualRun({ rule }: { rule: Rule }) {
       <Field htmlFor={`man-${rule.id}`} label={t('rules.manualPick')} className="min-w-56">
         <Select id={`man-${rule.id}`} value={asset} onChange={(e) => setAsset(e.target.value)}><option value="">{t('rules.manualChoose')}</option>{(assets.data?.items ?? []).map((a) => <option key={a.id} value={a.id}>{a.hostname ?? a.ip} ({a.ip})</option>)}</Select>
       </Field>
-      <Button disabled={!operator || !asset || !rule.enabled || run.isPending} title={!rule.enabled ? t('rules.manualOff') : undefined}
+      <Button disabled={!operator || !asset || !rule.enabled} busy={run.isPending} busyLabel={t('common:busy.running')} title={!rule.enabled ? t('rules.manualOff') : undefined}
         onClick={() => run.mutate({ id: rule.id, asset_id: asset }, { onSuccess: (r) => toast.success(t('det.ran', r)), onError: (e) => toast.error(errText(e)) })}><Play className="size-4" aria-hidden />{t('rules.manualRun')}</Button>
     </div>
   )
@@ -90,13 +90,13 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
           {rule.template_id ? <Chip tone="off">{t('rules.fromTemplate')}</Chip> : null}
         </div>
         <div className="flex flex-wrap gap-1">
-          <Button size="sm" variant="ghost" disabled={!operator || sim.isPending} aria-label={t('rules.simulate', { name: rule.name })}
+          <Button size="sm" variant="ghost" disabled={!operator} busy={sim.isPending} busyLabel={t('simulating')} aria-label={t('rules.simulate', { name: rule.name })}
             onClick={() => sim.mutate(toInput(rule), { onSuccess: setResult, onError: (e) => toast.error(errText(e)) })}><FlaskConical className="size-4" aria-hidden />{t('rules.simulateShort')}</Button>
           {admin ? (
             <>
               {frozen && !rule.live ? null : <Button size="sm" variant="ghost" onClick={() => setLive(true)} aria-label={t(rule.live ? 'rules.backToDryFor' : 'rules.goLiveFor', { name: rule.name })}>{rule.live ? t('rules.backToDry') : t('rules.goLive')}</Button>}
               {frozen ? null : <Button size="sm" variant="ghost" onClick={onEdit} aria-label={t('rules.edit', { name: rule.name })}><Pencil className="size-4" aria-hidden />{t('common:edit')}</Button>}
-              <Button size="sm" variant="ghost" disabled={del.isPending} aria-label={t('rules.delete', { name: rule.name })} onClick={() => { del.reset(); setConfirmDel(true) }}><Trash2 className="size-4" aria-hidden />{t('common:delete')}</Button>
+              <Button size="sm" variant="ghost" busy={del.isPending} busyLabel={t('common:busy.deleting')} aria-label={t('rules.delete', { name: rule.name })} onClick={() => { del.reset(); setConfirmDel(true) }}><Trash2 className="size-4" aria-hidden />{t('common:delete')}</Button>
             </>
           ) : null}
         </div>
@@ -118,7 +118,7 @@ function RuleCard({ rule, onEdit }: { rule: Rule; onEdit: () => void }) {
             {del.error ? <Notice tone="danger" role="alert" className="mb-0" title={errText(del.error)} /> : null}
             <DialogFooter>
               <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-              <Button variant="danger" disabled={del.isPending} onClick={() => del.mutate(rule.id, { onSuccess: () => { setConfirmDel(false); toast.success(t('rules.deleted')) } })}>{t('common:delete')}</Button>
+              <Button variant="danger" busy={del.isPending} busyLabel={t('common:busy.deleting')} onClick={() => del.mutate(rule.id, { onSuccess: () => { setConfirmDel(false); toast.success(t('rules.deleted')) } })}>{t('common:delete')}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -148,7 +148,7 @@ function Templates() {
                 <div className="flex flex-wrap items-start justify-between gap-2"><h3 className="text-sm font-semibold">{tp.name}</h3><div className="flex gap-2"><RiskChip risk={tp.risk} />{tp.approvals > 1 ? <Chip tone="warn">{t('request.twoApprovers')}</Chip> : null}</div></div>
                 <p className="text-meta text-muted">{tp.description}</p>
                 {gone ? <p className="text-meta text-warn">{t('templates.notHere')}</p> : null}
-                <div><Button size="sm" disabled={!admin || gone || clone.isPending} title={!admin ? t('common:needRole', { role: t('common:role.admin') }) : gone ? t('templates.notHere') : undefined} aria-label={t('templates.cloneFor', { name: tp.name })}
+                <div><Button size="sm" disabled={!admin || gone || clone.isPending} busy={clone.isPending && clone.variables === tp.id} busyLabel={t('templates.cloning')} title={!admin ? t('common:needRole', { role: t('common:role.admin') }) : gone ? t('templates.notHere') : undefined} aria-label={t('templates.cloneFor', { name: tp.name })}
                   onClick={() => clone.mutate(tp.id, { onSuccess: () => toast.success(t('templates.cloned')), onError: (e) => toast.error(errText(e)) })}><Copy className="size-4" aria-hidden />{t('templates.clone')}</Button></div>
               </Card>
             </li>
@@ -174,7 +174,7 @@ function Events() {
   ]
   return (
     <Section title={t('det.title')} description={t('det.description')} info={t(noHoneypot ? 'det.descriptionNoTrapsInfo' : 'det.descriptionInfo')} stories={['S-RESP-3']}
-      actions={import.meta.env.VITE_API_MOCK !== 'off' && !frozen ? <Button disabled={!operator || run.isPending} title={!operator ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
+      actions={import.meta.env.VITE_API_MOCK !== 'off' && !frozen ? <Button disabled={!operator} busy={run.isPending} busyLabel={t('common:busy.checking')} title={!operator ? t('common:needRole', { role: t('common:role.operator') }) : undefined}
         onClick={() => run.mutate(undefined, { onSuccess: (r) => toast.success(t('det.ran', r)), onError: (e) => toast.error(errText(e)) })}>{t('det.run')}</Button> : undefined}>
       {q.isPending ? <Loading /> : q.error ? <ErrorState error={q.error} onRetry={() => void q.refetch()} /> : q.data.items.length ? (
         <>

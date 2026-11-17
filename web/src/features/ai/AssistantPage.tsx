@@ -8,6 +8,7 @@ import { AiBlock } from '@/components/common/AiBlock'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { EmptyState, ModuleOff, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { Field, Input } from '@/components/ui/input'
 import { fmtDate, fmtDateTime, fmtNumber } from '@/lib/format'
@@ -79,18 +80,19 @@ function Ask() {
             <Field label={t('ask.label')} htmlFor="ai-q" hint={t('ask.hint')} info={t('ask.hintInfo')} error={long ? t('ask.tooLong', { max: ASK_MAX, n: q.length }) : undefined}>
               <div className="flex flex-wrap gap-2">
                 <Input id="ai-q" className="min-w-0 flex-1 basis-72" value={q} onChange={(e) => setQ(e.target.value)} maxLength={ASK_MAX} placeholder={t('ask.placeholder')} disabled={!gate.canRun} aria-invalid={long ? true : undefined} aria-describedby={long ? 'ai-q-error' : q.length >= ASK_MAX * 0.8 ? 'ai-q-hint ai-q-count' : 'ai-q-hint'} />
-                <Button type="submit" variant="primary" disabled={!gate.canRun || ask.isPending || q.trim().length < 3 || long} title={gate.reason}>{ask.isPending ? t('ask.asking') : t('ask.submit')}</Button>
+                <Button type="submit" variant="primary" disabled={!gate.canRun || q.trim().length < 3 || long} busy={ask.isPending} busyLabel={t('common:busy.asking')} title={gate.reason}>{t('ask.submit')}</Button>
               </div>
             </Field>
             {q.length >= ASK_MAX * 0.8 && !long ? <p id="ai-q-count" className="-mt-2 text-caption text-muted">{t('ask.count', { n: q.length, max: ASK_MAX })}</p> : null}
             <div role="group" aria-label={t('ask.suggested')} className="flex flex-wrap items-center gap-2">
               <span className="text-meta text-muted">{t('ask.suggested')}</span>
               {SUGGESTED.map((k) => (
-                <Button key={k} size="sm" className="h-auto min-h-8 whitespace-normal py-1 text-left" disabled={!gate.canRun || ask.isPending} title={gate.reason} onClick={() => { setQ(t(`ask.q.${k}`)); run(t(`ask.q.${k}`)) }}>{t(`ask.q.${k}`)}</Button>
+                <Button key={k} size="sm" className="h-auto min-h-8 whitespace-normal py-1 text-left" disabled={!gate.canRun || ask.isPending} busy={ask.isPending && ask.variables === t(`ask.q.${k}`)} busyLabel={t('common:busy.asking')} title={gate.reason} onClick={() => { setQ(t(`ask.q.${k}`)); run(t(`ask.q.${k}`)) }}>{t(`ask.q.${k}`)}</Button>
               ))}
             </div>
           </form>
-          {ask.isPending ? <p role="status" className="text-sm text-muted">{t('ask.working')}</p> : null}
+          {/* kien G1: a question can take up to two minutes (modules/ai askDefaultTimeout); say so while it runs */}
+          <BusyNote busy={ask.isPending}>{t('ask.working')}</BusyNote>
           {failed ? (
             <div className="grid gap-2" role="region" aria-label={t('ask.answerFor', { q: ask.variables ?? '' })}>
               <p className="text-sm"><span className="text-muted">{t('ask.you')}</span> {ask.variables}</p>

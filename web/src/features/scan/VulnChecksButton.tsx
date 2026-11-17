@@ -44,9 +44,9 @@ export function VulnChecksButton({ targets, size = 'sm', label, showProgress = t
   return (
     <div className="grid min-w-0 gap-2">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <Button size={size} disabled={!!blocked || !!ours || start.isPending || (targets === 'lan' && !all.data)}
+        <Button size={size} disabled={!!blocked || (targets === 'lan' && !all.data)} busy={start.isPending || !!ours} busyLabel={t('checks.running')}
           onClick={() => start.mutate(ids, { onSuccess: (r) => { setMine(r.id); toast.success(t('start.started')) }, onError: (e) => toast.error(errMsg(e)) })}>
-          <ShieldCheck />{ours || start.isPending ? t('checks.running') : label ?? t('checks.button')}
+          <ShieldCheck />{label ?? t('checks.button')}
         </Button>
         {blocked && !ours ? <span className="text-meta text-muted">{blocked}{live && !ours ? <> <Link to={runHref(live.id)} className="text-accent underline-offset-4 hover:underline">{t('checks.openRun')}</Link></> : null}</span> : null}
       </div>

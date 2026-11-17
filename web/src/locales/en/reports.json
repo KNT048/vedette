@@ -29,7 +29,8 @@
     },
     "ai": {
       "button": "Write AI commentary",
-      "working": "Writing",
+      "working": "Writing…",
+      "waiting": "Asking your AI to write the commentary… this can take up to a minute.",
       "done": "AI commentary added to the report",
       "unavailable": "Connect AI in Settings, AI assistant",
       "why": "AI commentary needs an AI profile for this job.",
@@ -45,7 +46,7 @@
       "noRecipients": "No recipients yet. Add emails under Schedule and recipients.",
       "flow": "The content leaves through the email channel you configured, not through any Vedette server.",
       "confirm": "Send",
-      "sending": "Sending",
+      "waiting": "Sending the report through your email channel… this can take up to a minute.",
       "sent": "Weekly report sent"
     },
     "schedule": {
@@ -76,7 +77,6 @@
       "noChannel": "No email channel is on, so nothing will be sent until you set one up.",
       "setupChannel": "Set up the email channel",
       "saved": "Schedule saved",
-      "saving": "Saving",
       "badEmail": "The email is not valid. Use the form name@company.com.",
       "longEmail": "An email address has {{max}} characters at most; this one has {{count}}.",
       "badSaved": "The box did not accept \"{{email}}\": it is not a valid email address. Remove it, then save.",
@@ -163,7 +163,6 @@
       "contactEmail": "Contact email",
       "contactPhone": "Contact phone",
       "saved": "Organisation details saved",
-      "saving": "Saving",
       "save": "Save details",
       "size": "Organisation size",
       "sizeHint": "By the criteria of Vietnamese law on small and medium enterprises.",
@@ -178,7 +177,7 @@
       "needOrg": "Save the organisation details first",
       "generate": "Generate report",
       "regenerate": "Regenerate from new data",
-      "generating": "Generating",
+      "waiting": "Building the report from your inventory and findings… this takes a few seconds.",
       "generated": "Assessment report generated",
       "at": "Generated {{time}} from inventory and findings at that moment.",
       "empty": "No report yet",

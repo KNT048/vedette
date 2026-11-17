@@ -3,8 +3,8 @@
 // box: the dialog only keeps the sign-in id, which the save sends.
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { LoaderCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Field, Input } from '@/components/ui/input'
 import { ApiError } from '@/lib/api'
 import { useCheckEmailSignin, useStartEmailSignin } from './api'
@@ -74,7 +74,7 @@ export function EmailSignin({ prov, fields, saved, error, onSignedIn, onFieldErr
         <div className="grid gap-1.5 text-meta">
           <p>{t('signin.deviceOpen')} <a className="text-accent underline underline-offset-4" href={s.verification_uri} target="_blank" rel="noopener noreferrer">{s.verification_uri}</a></p>
           <p>{t('signin.deviceCode')} <code aria-label={t('signin.codeLabel')} className="rounded-sm bg-sunken px-2 py-1 font-mono text-base tracking-widest">{s.user_code}</code></p>
-          <div><Button size="sm" disabled={busy} onClick={() => poll()}>{check.isPending ? <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden /> : null}{t('signin.checkNow')}</Button></div>
+          <div><Button size="sm" disabled={start.isPending} busy={check.isPending} busyLabel={t('common:busy.checking')} onClick={() => poll()}>{t('signin.checkNow')}</Button></div>
         </div>
       ) : null}
       {s?.flow === 'paste' && s.status === 'waiting' ? (
@@ -87,16 +87,17 @@ export function EmailSignin({ prov, fields, saved, error, onSignedIn, onFieldErr
           <Field label={t('signin.pasteLabel')} htmlFor="ch-email-pasted">
             <Input id="ch-email-pasted" value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder="http://127.0.0.1:…/?state=…&code=…" autoComplete="off" />
           </Field>
-          <div><Button size="sm" disabled={busy || !pasted.trim()} onClick={() => poll(pasted)}>{t('signin.finish')}</Button></div>
+          <div><Button size="sm" disabled={start.isPending || !pasted.trim()} busy={check.isPending} busyLabel={t('common:busy.signingIn')} onClick={() => poll(pasted)}>{t('signin.finish')}</Button></div>
         </div>
       ) : null}
       {err || error ? <p role="alert" className="text-meta text-danger [overflow-wrap:anywhere]">{err ?? error}</p> : null}
       <div>
-        <Button id="ch-email-secret" disabled={busy} onClick={begin}>
-          {start.isPending ? <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden /> : null}
+        <Button id="ch-email-secret" disabled={check.isPending} busy={start.isPending} busyLabel={t('common:busy.starting')} onClick={begin}>
           {s || saved ? t('signin.again', { who }) : t('signin.start', { who })}
         </Button>
       </div>
+      {/* kien G1: each step asks Microsoft or Google (15 s per request at most) */}
+      <BusyNote busy={busy}>{t('signin.waiting', { who })}</BusyNote>
     </div>
   )
 }

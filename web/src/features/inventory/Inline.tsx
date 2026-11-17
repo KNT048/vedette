@@ -23,7 +23,7 @@ export function TurnOnModule({ id, reason }: { id: ModuleId; reason: string }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <p className="text-meta text-muted">{reason}{deps.length ? ` ${t('inline.alsoOn', { list: deps.map((d) => t(`common:modules.${d}.name`)).join(', ') })}` : ''}</p>
-      <Button size="sm" variant="primary" disabled={toggle.isPending}
+      <Button size="sm" variant="primary" busy={toggle.isPending} busyLabel={t('common:busy.turningOn')}
         onClick={() => toggle.mutate({ id, enabled: true, withDependencies: true }, {
           onSuccess: (r) => { if (r.kind === 'ok') toast.success(t('inline.moduleOn', { name })) },
           onError: (e) => toast.error(errMsg(e)),

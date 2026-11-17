@@ -6,6 +6,7 @@ import { InfoTip } from '@/components/common/InfoTip'
 import { CreatableSelect } from '@/components/common/CreatableSelect'
 import { DependencyLink } from '@/components/common/DependencyLink'
 import { QueryState } from '@/components/common/States'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { RadioGroup, RadioItem } from '@/components/ui/checkbox'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
@@ -133,12 +134,12 @@ function SnmpMethod() {
               outsideLan ? <Button type="submit" variant="primary">{t('snmpNext.addToScope', { ip: v })}</Button>
                 : covered ? null : <Button type="submit" variant="primary">{t('addDialog.snmp.addRange', { name: chosen.name })}</Button>
             ) : (
-              <Button type="submit" variant="primary" disabled={test.isPending}>{test.isPending ? t('snmp.run.running') : t('addDialog.snmp.test')}</Button>
+              <Button type="submit" variant="primary" busy={test.isPending} busyLabel={t('snmp.run.running')}>{t('addDialog.snmp.test')}</Button>
             )}
           </div>
         ) : null}
       </form>
-      {test.isPending ? <p role="status" aria-live="polite" className="text-meta text-muted">{t('snmp.run.pending', { ip: raw })}</p> : null}
+      <BusyNote busy={test.isPending}>{t('snmp.run.pending', { ip: raw })}</BusyNote>
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       {result && !test.isPending ? <SnmpAnswer r={result.r} ip={result.ip} /> : null}
       {result && !test.isPending && !result.r.ok ? (

@@ -706,16 +706,32 @@ describe('Connections: the dialog', () => {
     expect(await within(edit).findByText('Enter the secret again: the address changed.')).toBeInTheDocument()
   })
 
+  it('a test that waits shows the busy state and says how long it can take (docs/UI.md §8)', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((r) => { release = r })
+    server.use(http.post(`${API}/core/connections/:id/test`, async () => { await gate })) // holds the request, then lets the mock answer
+    const u = userEvent.setup()
+    renderApp('/settings/connections')
+    await loaded()
+    await u.click(within(card('File server')).getByRole('button', { name: 'Test connection File server (read-only SSH)' }))
+    await waitFor(() => expect(within(card('File server')).getByRole('button', { name: 'Test connection File server (read-only SSH)' })).toHaveAttribute('aria-busy', 'true'))
+    expect(within(card('File server')).getByText('Testing the connection… this can take up to 30 seconds.')).toBeInTheDocument()
+    release()
+    await waitFor(() => expect(within(card('File server')).queryByText('Testing the connection… this can take up to 30 seconds.')).toBeNull())
+  })
+
   it('the old test result disappears after the connection is edited', async () => {
     const u = userEvent.setup()
     renderApp('/settings/connections')
     await loaded()
     await u.click(within(card('File server')).getByRole('button', { name: 'Test connection File server (read-only SSH)' }))
-    expect(await within(card('File server')).findByRole('status')).toBeInTheDocument()
+    // the result line (the card's busy note is a status region too, empty when idle)
+    const result = () => within(card('File server')).queryAllByRole('status').filter((s) => s.textContent)
+    await waitFor(() => expect(result()).toHaveLength(1))
     await u.click(within(card('File server')).getByRole('button', { name: 'Edit File server (read-only SSH)' }))
     await u.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-    expect(within(card('File server')).queryByRole('status')).toBeNull()
+    expect(result()).toEqual([])
   })
 
   it('the pin_mismatch message tells how to forget the pin', async () => {

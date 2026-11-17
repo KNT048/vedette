@@ -220,7 +220,6 @@
     "email": "Email",
     "password": "Password",
     "signIn": "Sign in",
-    "signingIn": "Signing in",
     "demoHint": "Sample-data build: sign in as admin@acme.example, it@acme.example or director@acme.example with the password vedette-demo."
   },
   "notFound": {
@@ -250,5 +249,40 @@
   },
   "creatable": {
     "added": "{{label}} added and selected."
+  },
+  "busy": {
+    "elapsed": "{{count}} s",
+    "saving": "Saving…",
+    "adding": "Adding…",
+    "creating": "Creating…",
+    "deleting": "Deleting…",
+    "removing": "Removing…",
+    "updating": "Updating…",
+    "applying": "Applying…",
+    "sending": "Sending…",
+    "testing": "Testing…",
+    "checking": "Checking…",
+    "starting": "Starting…",
+    "stopping": "Stopping…",
+    "running": "Running…",
+    "scanning": "Scanning…",
+    "connecting": "Connecting…",
+    "signingIn": "Signing in…",
+    "uploading": "Uploading…",
+    "importing": "Importing…",
+    "restoring": "Restoring…",
+    "generating": "Generating…",
+    "asking": "Asking…",
+    "approving": "Approving…",
+    "rejecting": "Rejecting…",
+    "turningOn": "Turning on…",
+    "turningOff": "Turning off…",
+    "resetting": "Resetting…",
+    "verifying": "Verifying…",
+    "linking": "Linking…",
+    "unlinking": "Unlinking…",
+    "restarting": "Restarting…",
+    "confirming": "Confirming…",
+    "working": "Working…"
   }
 }

@@ -41,8 +41,8 @@ export default function MemoryTab() {
                 <List label={t('harness.memory.queueTitle', { n: m.suggestions.length })}>
                   {m.suggestions.map((s) => (
                     <Row key={s.id} actions={<>
-                      <Button size="sm" variant="primary" disabled={answer.isPending} onClick={() => answer.mutate({ id: s.id, accept: true }, { onSuccess: () => toast.success(t('harness.memory.accepted')), onError: fail })} aria-label={t('harness.memory.acceptNamed', { text: s.text.slice(0, 40) })}>{t('harness.memory.accept')}</Button>
-                      <Button size="sm" disabled={answer.isPending} onClick={() => answer.mutate({ id: s.id, accept: false }, { onError: fail })} aria-label={t('harness.memory.rejectNamed', { text: s.text.slice(0, 40) })}>{t('harness.memory.reject')}</Button>
+                      <Button size="sm" variant="primary" disabled={answer.isPending} busy={answer.isPending && answer.variables?.id === s.id && answer.variables.accept} onClick={() => answer.mutate({ id: s.id, accept: true }, { onSuccess: () => toast.success(t('harness.memory.accepted')), onError: fail })} aria-label={t('harness.memory.acceptNamed', { text: s.text.slice(0, 40) })}>{t('harness.memory.accept')}</Button>
+                      <Button size="sm" disabled={answer.isPending} busy={answer.isPending && answer.variables?.id === s.id && !answer.variables.accept} onClick={() => answer.mutate({ id: s.id, accept: false }, { onError: fail })} aria-label={t('harness.memory.rejectNamed', { text: s.text.slice(0, 40) })}>{t('harness.memory.reject')}</Button>
                     </>}>
                       <p>{s.text}</p>
                       <p className="text-meta text-muted">{t('harness.memory.noticed', { evidence: s.evidence, when: fmtRelative(s.created_at) })}</p>
@@ -105,7 +105,7 @@ function MemoryDialog({ entry, onClose }: { entry: MemoryEntry | null; onClose: 
           <ActionError error={q.error} />
           <DialogFooter>
             <DialogClose asChild><Button type="button">{t('common:cancel')}</Button></DialogClose>
-            <Button type="submit" variant="primary" disabled={q.isPending}>{q.isPending ? t('harness.saving') : t('common:save')}</Button>
+            <Button type="submit" variant="primary" busy={q.isPending} busyLabel={t('common:busy.saving')}>{t('common:save')}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

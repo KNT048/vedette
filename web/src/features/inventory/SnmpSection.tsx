@@ -6,6 +6,7 @@ import { Plus } from 'lucide-react'
 import { Notice, Section } from '@/components/common/PageHeader'
 import { EmptyState, QueryState } from '@/components/common/States'
 import { Chip } from '@/components/common/StatusChip'
+import { BusyNote } from '@/components/common/BusyNote'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { Field, Input, Select, Textarea } from '@/components/ui/input'
@@ -167,7 +168,7 @@ export function CredentialForm({ current, scope, widen = false, onCancel, onSave
           {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
           <DialogFooter>
             <Button onClick={onCancel}>{t('common:cancel')}</Button>
-            <Button type="submit" variant="primary" disabled={pending}>{current ? t('snmp.form.save') : t('snmp.form.create')}</Button>
+            <Button type="submit" variant="primary" busy={pending} busyLabel={t(current ? 'common:busy.saving' : 'common:busy.creating')}>{current ? t('snmp.form.save') : t('snmp.form.create')}</Button>
           </DialogFooter>
         </form>
   )
@@ -227,11 +228,11 @@ function TestPanel({ cred, onClose }: { cred: SnmpCredential; onClose: () => voi
           <Input id={id} value={ip} maxLength={15} inputMode="decimal" autoComplete="off" placeholder="192.168.10.3" onChange={(e) => setIp(e.target.value)} aria-invalid={!!ipErr} aria-describedby={ipErr ? `${id}-error` : `${id}-hint`} />
         </Field>
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" variant="primary" size="sm" disabled={test.isPending}>{test.isPending ? t('snmp.run.running') : t('snmp.run.submit')}</Button>
+          <Button type="submit" variant="primary" size="sm" busy={test.isPending} busyLabel={t('snmp.run.running')}>{t('snmp.run.submit')}</Button>
           <Button size="sm" onClick={onClose}>{t('snmp.run.close')}</Button>
         </div>
       </form>
-      {test.isPending ? <p role="status" aria-live="polite" className="text-meta text-muted">{t('snmp.run.pending', { ip: ip.trim() })}</p> : null}
+      <BusyNote busy={test.isPending}>{t('snmp.run.pending', { ip: ip.trim() })}</BusyNote>
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}
       {result && !test.isPending ? <SnmpAnswer r={result.r} ip={result.ip} /> : null}
     </div>
@@ -326,7 +327,7 @@ export function SnmpSection() {
         <DialogContent title={t('snmp.deleteTitle', { name: deleting?.name ?? '' })} description={t('snmp.deleteBody')}>
           <DialogFooter>
             <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-            <Button variant="danger" disabled={remove.isPending} onClick={() => deleting && remove.mutate(deleting.id, { onSuccess: () => { toast.success(t('snmp.deleted', { name: deleting.name })); setDeleting(null) }, onError: (e) => toast.error(errMsg(e)) })}>{t('snmp.deleteConfirm')}</Button>
+            <Button variant="danger" busy={remove.isPending} busyLabel={t('common:busy.deleting')} onClick={() => deleting && remove.mutate(deleting.id, { onSuccess: () => { toast.success(t('snmp.deleted', { name: deleting.name })); setDeleting(null) }, onError: (e) => toast.error(errMsg(e)) })}>{t('snmp.deleteConfirm')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

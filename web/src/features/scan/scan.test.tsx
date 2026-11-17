@@ -209,7 +209,9 @@ describe('scan: quét ngay, tiến độ, dừng ngay (S-SCAN-4)', () => {
     expect(screen.getByRole('progressbar', { name: 'Finding the device' })).not.toHaveAttribute('aria-valuenow')
     expect(screen.getByText(/Scanning WEB01|Scanning SRV-AD/)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Stop now' }))
-    expect(await screen.findByRole('button', { name: 'Stopping' })).toBeDisabled()
+    const stopping = await screen.findByRole('button', { name: 'Stopping…' }) // kien G1: the shared busy state
+    expect(stopping).toBeDisabled()
+    expect(stopping).toHaveAttribute('aria-busy', 'true')
     const t0 = Date.now()
     await waitFor(() => expect(screen.getByText(/Last scan was stopped .*: 0\/2 devices done/)).toBeInTheDocument(), { timeout: 5000 })
     expect(Date.now() - t0).toBeLessThan(5000)

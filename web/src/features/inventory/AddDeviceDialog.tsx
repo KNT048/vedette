@@ -89,7 +89,7 @@ export function AddForm({ mode, onDone, deviceId, listOpenRef }: { mode: AddMode
         actions={dup ? <Link to={`/devices/${encodeURIComponent(dup.id)}`} onClick={onDone} className="text-sm font-medium text-accent underline-offset-4 hover:underline">{t('add.openExisting', { name: dup.name })}</Link> : undefined} /> : null}
       <DialogFooter>
         <DialogClose asChild><Button>{t('common:cancel')}</Button></DialogClose>
-        <Button type="submit" variant="primary" disabled={!product || pending}>{t('add.submit')}</Button>
+        <Button type="submit" variant="primary" disabled={!product} busy={pending} busyLabel={t('common:busy.adding')}>{t('add.submit')}</Button>
       </DialogFooter>
     </form>
   )

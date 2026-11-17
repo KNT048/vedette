@@ -47,6 +47,7 @@ type Asset struct {
 	Model     *string      `json:"model"`
 	OS        *string      `json:"os"`
 	Approved  bool         `json:"approved"`
+	Ignored   bool         `json:"ignored"` // a person said it needs no watching (inventory D-630)
 	FirstSeen string       `json:"first_seen"`
 	LastSeen  string       `json:"last_seen"`
 	Services  []NetService `json:"services"`

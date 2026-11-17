@@ -226,6 +226,7 @@ const (
 	InventoryPostInventoryAgentsWazuhTestOperation          OperationName = "InventoryPostInventoryAgentsWazuhTest"
 	InventoryPostInventoryDevicesOperation                  OperationName = "InventoryPostInventoryDevices"
 	InventoryPostInventoryDevicesIDApproveOperation         OperationName = "InventoryPostInventoryDevicesIDApprove"
+	InventoryPostInventoryDevicesIDIgnoreOperation          OperationName = "InventoryPostInventoryDevicesIDIgnore"
 	InventoryPostInventoryDevicesIDKeepSeparateOperation    OperationName = "InventoryPostInventoryDevicesIDKeepSeparate"
 	InventoryPostInventoryDevicesIDMergeOperation           OperationName = "InventoryPostInventoryDevicesIDMerge"
 	InventoryPostInventoryDevicesIDSoftwareOperation        OperationName = "InventoryPostInventoryDevicesIDSoftware"

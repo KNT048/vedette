@@ -11,7 +11,7 @@ import (
 	"github.com/knt048/vedette/core/server"
 )
 
-// Handlers implements the 20 operations of the inventory module. Embed it in the composite handler of
+// Handlers implements the 21 operations of the inventory module. Embed it in the composite handler of
 // cmd/vedette. The role of each route comes from the route table, so nothing here checks roles.
 //
 // ogen generates a separate struct per operation for the same schema, so the answers are built from the
@@ -53,7 +53,7 @@ func fail(err error) error {
 
 // InventoryGetInventoryDevices implements GET /inventory/devices (viewer): the devices the search keeps (#849).
 func (h *Handlers) InventoryGetInventoryDevices(ctx context.Context, p oas.InventoryGetInventoryDevicesParams) (*oas.InventoryGetInventoryDevicesOK, error) {
-	f, err := ParseDeviceFilter(string(p.Approved.Value), string(p.Fragile.Value), string(p.HasFindings.Value), p.Type.Value, p.Source.Value, p.Q.Value)
+	f, err := ParseDeviceFilter(string(p.Approved.Value), string(p.Fragile.Value), string(p.HasFindings.Value), string(p.Ignored.Value), p.Type.Value, p.Source.Value, p.Q.Value)
 	if err != nil {
 		return nil, err
 	}
@@ -203,6 +203,18 @@ func (h *Handlers) InventoryPostInventoryDevicesIDKeepSeparate(ctx context.Conte
 	return &oas.InventoryPostInventoryDevicesIDKeepSeparateOK{Ok: true}, nil
 }
 
+// InventoryPostInventoryDevicesIDIgnore implements POST /inventory/devices/{id}/ignore (operator, D-630).
+func (h *Handlers) InventoryPostInventoryDevicesIDIgnore(ctx context.Context, req *oas.InventoryPostInventoryDevicesIDIgnoreReq, params oas.InventoryPostInventoryDevicesIDIgnoreParams) (*oas.InventoryPostInventoryDevicesIDIgnoreOK, error) {
+	who, err := actor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.svc.SetIgnored(ctx, who, params.ID, req.Ignored); err != nil {
+		return nil, fail(err)
+	}
+	return &oas.InventoryPostInventoryDevicesIDIgnoreOK{Ok: true}, nil
+}
+
 // InventoryPostInventoryDevicesIDSuspicious implements POST /inventory/devices/{id}/suspicious (operator).
 func (h *Handlers) InventoryPostInventoryDevicesIDSuspicious(ctx context.Context, req *oas.InventoryPostInventoryDevicesIDSuspiciousReq, params oas.InventoryPostInventoryDevicesIDSuspiciousParams) (*oas.InventoryPostInventoryDevicesIDSuspiciousOK, error) {
 	who, err := actor(ctx)
@@ -267,7 +279,7 @@ func (h *Handlers) InventoryGetInventoryExportCsv(ctx context.Context, p oas.Inv
 	if err != nil {
 		return oas.InventoryGetInventoryExportCsvOK{}, err
 	}
-	f, err := ParseDeviceFilter(string(p.Approved.Value), string(p.Fragile.Value), string(p.HasFindings.Value), p.Type.Value, p.Source.Value, p.Q.Value)
+	f, err := ParseDeviceFilter(string(p.Approved.Value), string(p.Fragile.Value), string(p.HasFindings.Value), string(p.Ignored.Value), p.Type.Value, p.Source.Value, p.Q.Value)
 	if err != nil {
 		return oas.InventoryGetInventoryExportCsvOK{}, err
 	}

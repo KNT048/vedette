@@ -26,6 +26,7 @@ const (
 	EventAssetDiscovered      = "inventory.asset.discovered"
 	EventAssetDeleted         = "inventory.asset.deleted"
 	EventAssetApproved        = "inventory.asset.approved" // B9 (D-474): {asset_id, actor}
+	EventAssetIgnored         = "inventory.asset.ignored"  // D-630: {asset_id, actor}: a person said the device needs no watching
 	EventAssetUpdated         = "inventory.asset.updated"  // {asset_id}: also what a person's Approve publishes today (D-552)
 	EventAssetMerged          = "inventory.asset.merged"   // {from, into}: inventory joined two rows of one device (D-515, D-554)
 	EventNewKEV               = "feeds.vuln.new_kev"
@@ -67,6 +68,7 @@ func (s *Service) Subscribe(bus Bus) (unsubscribe func()) {
 	on(EventAssetDiscovered, s.assetEvent)
 	on(EventAssetDeleted, s.assetDeleted)
 	on(EventAssetApproved, s.assetApproved)
+	on(EventAssetIgnored, s.assetIgnored)
 	on(EventAssetUpdated, s.assetUpdated)
 	on(EventAssetMerged, s.assetMerged)
 	on(EventHoneypotHit, s.hitEvent)
@@ -113,6 +115,9 @@ func (s *Service) findingEvent(ctx context.Context, data any, statusChange bool)
 		return err
 	}
 	if e.FindingID == "" {
+		return nil
+	}
+	if statusChange && (e.Reason == "device_ignored" || e.Reason == "device_watched") { // D-630: a person ignored the device or watches it again
 		return nil
 	}
 	if statusChange && e.Reason == "matches_again" { // Vedette reopened a finding it had closed as not affected (D-530)
@@ -492,6 +497,20 @@ func (s *Service) assetApproved(ctx context.Context, data any) error {
 	})
 }
 
+// assetIgnored takes a device a person ignored in Devices (inventory.asset.ignored {asset_id, actor}, D-630: a staff phone, known and
+// not watched) off the open new-device incidents the way an approval does: there is nothing left to review. Only the new-device
+// incidents: a trap hit or an intrusion-detection incident from the device stays open and new ones still come (D-630).
+func (s *Service) assetIgnored(ctx context.Context, data any) error {
+	var e struct {
+		AssetID string `json:"asset_id"`
+		Actor   string `json:"actor"`
+	}
+	if err := decode(data, &e); err != nil {
+		return err
+	}
+	return s.leaveDeviceIncidents(ctx, e.AssetID, "Closed by Vedette: the device was ignored"+byActor(e.Actor)+".")
+}
+
 // deletedInDevices starts the reason of a device's own new-device incident closed by inventory.asset.deleted (assetDeleted).
 const deletedInDevices = "Closed by Vedette: the device was deleted in Devices"
 
@@ -616,9 +635,9 @@ func (s *Service) leaveDevice(ctx context.Context, tx *sql.Tx, assetID, reason s
 		}
 		n := max(rows-1, count-1)
 		if n == 0 {
-			why := "Closed by Vedette: every device on it was approved or deleted in Devices."
+			why := "Closed by Vedette: every device on it was approved, ignored or deleted in Devices."
 			if strings.HasPrefix(reason, mergedInto) { // the last one was merged: say where it went (D-554)
-				why = "Closed by Vedette: every device on it was approved or deleted in Devices, the last one " + strings.TrimPrefix(reason, "Closed by Vedette: ")
+				why = "Closed by Vedette: every device on it was approved, ignored or deleted in Devices, the last one " + strings.TrimPrefix(reason, "Closed by Vedette: ")
 			}
 			if err := s.closeBySystem(ctx, tx, o.id, o.title, why); err != nil {
 				return err

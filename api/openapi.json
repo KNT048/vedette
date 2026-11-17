@@ -21744,10 +21744,10 @@
                                   },
                                   "host": {
                                     "type": "string",
-                                    "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                                    "description": "The Name (host) to type in that zone: \"@\", the zone apex, for every target (D-632: the target's own record there proves it, and an apex takes a record whatever the subdomain is)"
                                   },
                                   "alt_host": {
-                                    "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                                    "description": "The alternative Name: \"_vedette-verify\" or \"_vedette-verify.git\", which proves the target only (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
                                     "type": [
                                       "string",
                                       "null"
@@ -23350,10 +23350,10 @@
                                   },
                                   "host": {
                                     "type": "string",
-                                    "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                                    "description": "The Name (host) to type in that zone: \"@\", the zone apex, for every target (D-632: the target's own record there proves it, and an apex takes a record whatever the subdomain is)"
                                   },
                                   "alt_host": {
-                                    "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                                    "description": "The alternative Name: \"_vedette-verify\" or \"_vedette-verify.git\", which proves the target only (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
                                     "type": [
                                       "string",
                                       "null"
@@ -24030,10 +24030,10 @@
                             },
                             "host": {
                               "type": "string",
-                              "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                              "description": "The Name (host) to type in that zone: \"@\", the zone apex, for every target (D-632: the target's own record there proves it, and an apex takes a record whatever the subdomain is)"
                             },
                             "alt_host": {
-                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                              "description": "The alternative Name: \"_vedette-verify\" or \"_vedette-verify.git\", which proves the target only (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
                               "type": [
                                 "string",
                                 "null"
@@ -24601,10 +24601,10 @@
                             },
                             "host": {
                               "type": "string",
-                              "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                              "description": "The Name (host) to type in that zone: \"@\", the zone apex, for every target (D-632: the target's own record there proves it, and an apex takes a record whatever the subdomain is)"
                             },
                             "alt_host": {
-                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                              "description": "The alternative Name: \"_vedette-verify\" or \"_vedette-verify.git\", which proves the target only (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
                               "type": [
                                 "string",
                                 "null"
@@ -26934,10 +26934,10 @@
                             },
                             "host": {
                               "type": "string",
-                              "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                              "description": "The Name (host) to type in that zone: \"@\", the zone apex, for every target (D-632: the target's own record there proves it, and an apex takes a record whatever the subdomain is)"
                             },
                             "alt_host": {
-                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                              "description": "The alternative Name: \"_vedette-verify\" or \"_vedette-verify.git\", which proves the target only (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
                               "type": [
                                 "string",
                                 "null"
@@ -27479,10 +27479,10 @@
                             },
                             "host": {
                               "type": "string",
-                              "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                              "description": "The Name (host) to type in that zone: \"@\", the zone apex, for every target (D-632: the target's own record there proves it, and an apex takes a record whatever the subdomain is)"
                             },
                             "alt_host": {
-                              "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                              "description": "The alternative Name: \"_vedette-verify\" or \"_vedette-verify.git\", which proves the target only (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
                               "type": [
                                 "string",
                                 "null"
@@ -28011,10 +28011,10 @@
                                 },
                                 "host": {
                                   "type": "string",
-                                  "description": "The Name (host) to type in that zone: \"@\" for the zone itself, \"git\" for git.beyondnetglobal.com"
+                                  "description": "The Name (host) to type in that zone: \"@\", the zone apex, for every target (D-632: the target's own record there proves it, and an apex takes a record whatever the subdomain is)"
                                 },
                                 "alt_host": {
-                                  "description": "The dedicated name, for a name that is a CNAME (no TXT may sit beside a CNAME): \"_vedette-verify\" or \"_vedette-verify.git\"; null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
+                                  "description": "The alternative Name: \"_vedette-verify\" or \"_vedette-verify.git\", which proves the target only (never the name itself when it is a CNAME: no TXT may sit beside a CNAME); null when _vedette-verify.<name> would pass 253 characters (no such name can exist)",
                                   "type": [
                                     "string",
                                     "null"
@@ -76933,6 +76933,18 @@
           "S-INV-1"
         ],
         "x-min-role": "viewer",
+        "parameters": [
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "A device id (kien G7b/c, the device page's Last checks): only the runs that reached its address now, the identifications of that address (kind device) and the SNMP reads that asked it, at most 200 of each kind: the identifications from the year of runs the box keeps, the SNMP reads among its newest 1000 reads; no sweep, no public scan. The jobs record addresses, so a run of the device under an earlier address is not listed. An unknown device, or one without an address, gives an empty list",
+              "type": "string",
+              "maxLength": 96
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -79223,7 +79235,7 @@
     "/scans/runs": {
       "get": {
         "operationId": "scan_get_scans_runs",
-        "summary": "Scan history and the running scan, with per-device results",
+        "summary": "Scan history and the running scan, with per-device results: the newest 100 runs",
         "tags": [
           "scan"
         ],
@@ -79233,6 +79245,18 @@
           "S-SCAN-4"
         ],
         "x-min-role": "viewer",
+        "parameters": [
+          {
+            "name": "asset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "description": "A device id (kien G7b/c, the device page's Last checks): only the runs that had this device among their targets, the newest 100 of them, however many runs of other devices came after",
+              "type": "string",
+              "maxLength": 96
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",

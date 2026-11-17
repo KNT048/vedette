@@ -40,6 +40,7 @@ Nguồn hành vi: `web/src/features/scan/{contract,mocks}.ts`. Phần `/scans/cr
 - **DEPENDED ON BY**: `scan-credentialed` (cửa sổ/phạm vi), `mitigation` (xác nhận), `reports`.
 
 ## Endpoints owned (role tối thiểu)
+- `GET /scans/runs?asset=<device id>` (viewer, kien G7b/c, `RunsOf`): only the runs whose `target_ids` hold that device, the newest 100 of them however many runs of other devices came after (the device page's Last checks). `TestRunsOf_TheDevicesRunsPastTheNewest100`.
 - `GET /scans/runs` (viewer): History words each run from its stored `results`, `identification` and `stop_reason` (kien G7a, `runOutcome`), never from `matched` alone: a run whose CVEs have no template says "no check exists (still suspected)", not "0 matches".
 
 | Route | Vai |

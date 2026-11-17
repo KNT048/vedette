@@ -3,6 +3,7 @@ import type { Feature } from '@/app/feature'
 import { Loading } from '@/components/common/States'
 import { ScansRunningIndicator } from './ScanNow'
 import { DeviceActions, DevicesActions } from './DeviceActions'
+import { LastChecks } from './LastChecks'
 
 const ScanningPage = lazy(() => import('./ScanningPage'))
 
@@ -17,6 +18,8 @@ export const feature: Feature = {
     'shell.status': ScansRunningIndicator as ComponentType<Record<string, unknown>>,
     'devices.actions': DevicesActions as unknown as ComponentType<Record<string, unknown>>,
     'device.actions': DeviceActions as unknown as ComponentType<Record<string, unknown>>,
+    // kien G7b/c: the last device check, vulnerability check and SNMP read of the device, on its Overview tab
+    'device.panels': LastChecks as ComponentType<Record<string, unknown>>,
   },
   settings: [{ id: 'scanning', label: 'scanning:nav', module: 'core', minRole: 'viewer', order: 22, element: <Suspense fallback={<Loading />}><ScanningPage /></Suspense> }],
 }

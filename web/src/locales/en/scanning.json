@@ -339,9 +339,59 @@
     "descriptionInfo": "The vulnerability checks are listed above with their results. Each line says only what the run stored. A LAN check lists the address it scanned; what the device runs is on its device page. A public target keeps one scan a day: a second scan the same day replaces the first; a public scan that failed before its results were stored is not kept, and who started a public scan is in the audit log. A sweep of the window and Scan the LAN now look the same here.",
     "caption": "History of discovery runs and public scans",
     "empty": "No run yet. Runs appear here as soon as discovery, a device check or a public scan starts.",
-    "col": { "started": "Started", "what": "What ran", "outcome": "Outcome" },
-    "kind": { "sweep": "Discovery sweep", "device": "Device check", "snmp": "SNMP read", "external": "Public scan" },
-    "trigger": { "sweep": "in the window or Scan the LAN now", "automatic": "automatic", "person": "started by a person", "scan_now": "first step of Scan now", "test": "credential test" },
-    "outcome": { "ok": "Done", "partial": "Partly done", "failed": "Failed", "stopped": "Stopped", "running": "Running" }
+    "col": {
+      "started": "Started",
+      "what": "What ran",
+      "outcome": "Outcome"
+    },
+    "kind": {
+      "sweep": "Discovery sweep",
+      "device": "Device check",
+      "snmp": "SNMP read",
+      "external": "Public scan"
+    },
+    "trigger": {
+      "sweep": "in the window or Scan the LAN now",
+      "automatic": "automatic",
+      "person": "started by a person",
+      "scan_now": "first step of Scan now",
+      "test": "credential test"
+    },
+    "outcome": {
+      "ok": "Done",
+      "partial": "Partly done",
+      "failed": "Failed",
+      "stopped": "Stopped",
+      "running": "Running"
+    },
+    "opened": "The run you opened",
+    "openedGone": "That run is no longer kept: the box keeps a year of runs.",
+    "oneDevice": "Only the runs that reached this device: its device checks and the SNMP reads that asked it.",
+    "seeDevice": "See the device",
+    "showAll": "Show every run",
+    "emptyDevice": "No device check or SNMP read has reached this device yet."
+  },
+  "hint": {
+    "identify": "Finds its open ports, services, operating system and software versions. Does not test whether a flaw can be exploited. Usually 1 to 5 minutes.",
+    "vuln": "Tries Vedette’s checks for the exploited flaws this device may have, to confirm or rule them out. Identifies it first; patches nothing. Usually 5 to 15 minutes."
+  },
+  "lastChecks": {
+    "title": "Last checks",
+    "description": "When Vedette last checked this device and what it found, as Settings, Scanning, History lists it.",
+    "when": "{{time}} ({{ago}})",
+    "see": "See it in History",
+    "never": "Never",
+    "off": "Off",
+    "kind": {
+      "identify": "Device check: ports, services, software",
+      "vuln": "Vulnerability check: does a known exploit work",
+      "snmp": "SNMP read: model and firmware"
+    },
+    "neverIdentify": "“Check this device now” above runs it. Network discovery also checks each new device, and every device weekly, in the scan window.",
+    "neverVuln": "“Run vulnerability checks now” above runs it. A newly exploited flaw that matches this device can start one too.",
+    "vulnOff": "The vulnerability checks (Preview) are off, so none runs.",
+    "vulnOffLink": "Turn them on: Settings, Scanning, Engines",
+    "neverSnmp": "An SNMP read runs in the scan window once an SNMP credential covers this device’s address.",
+    "neverSnmpLink": "Add one on the SNMP card"
   }
 }

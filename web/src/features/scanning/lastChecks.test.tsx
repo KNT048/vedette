@@ -1,0 +1,108 @@
+import { describe, expect, it } from 'vitest'
+import { screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { http, HttpResponse } from 'msw'
+import { renderApp } from '@/test/render'
+import { server } from '@/test/server'
+import { modulesStore, sessionStore } from '@/mocks/stores'
+import type { ScanRun } from '@/features/scan/types'
+import { historyStore, markReached } from './mocks'
+
+// kien G7b/c (BN340 walk): he could not tell what the device page's two check buttons do, nor whether a check had run.
+const T = { timeout: 5000 }
+const IDENT = 'Device check: ports, services, software'
+const VULN = 'Vulnerability check: does a known exploit work'
+const SNMP = 'SNMP read: model and firmware'
+const run = (over: Partial<ScanRun>): ScanRun => ({
+  id: 'run-nas', trigger: 'manual', trigger_note: null, started_at: '2026-11-17T03:18:00.000Z', started_by: 'kien@acme.example', ended_at: '2026-11-17T03:25:00.000Z',
+  status: 'done', total: 1, done: 1, current: null, progress: null, results: [], matched: 0, stop_reason: null, identification: [], ...over,
+})
+const result = (target: string, cve: string) => ({ target_id: target, label: target, ip: '192.168.10.21', template: null, result: 'no_template' as const, finding_id: null, note: cve })
+
+describe('the device page says what each check does and when each last ran (kien G7b/c)', () => {
+  it('each check button has a line under it: what it does, what it does not, how long', async () => {
+    sessionStore.set({ userId: 'u-admin' })
+    renderApp('/devices/a-nas02')
+    const identify = await screen.findByRole('button', { name: 'Check this device now' }, T)
+    expect(identify).toHaveAccessibleDescription(/open ports, services, operating system and software versions\. Does not test whether a flaw can be exploited\. Usually 1 to 5 minutes\./)
+    const vuln = await screen.findByRole('button', { name: 'Run vulnerability checks now' }, T)
+    expect(vuln).toHaveAccessibleDescription(/exploited flaws this device may have.*patches nothing\. Usually 5 to 15 minutes\./)
+  })
+
+  it('Last checks: each kind with when, the History sentence and a link; the vulnerability check counts only this device', async () => {
+    // review r1 of #965 M2: the device's runs come by ?asset=, so a run older than the newest 100 of the LAN is still found
+    server.use(http.get('*/api/v1/scans/runs', ({ request }) => new URL(request.url).searchParams.get('asset') === 'a-nas02'
+      ? HttpResponse.json({ engine_busy: false, items: [run({ total: 2, results: [result('a-nas02', 'CVE-2026-1001'), result('a-other', 'CVE-2026-1002'), result('a-other', 'CVE-2026-1003')] })] })
+      : HttpResponse.json({ engine_busy: false, items: Array.from({ length: 100 }, (_, i) => run({ id: `run-other-${i}`, results: [result('a-other', 'CVE-2026-1002')] })) })))
+    renderApp('/devices/a-nas02')
+    const ident = await screen.findByRole('group', { name: IDENT }, T)
+    expect(within(ident).getByText('Scanned 192.168.10.21: it answered; what it runs is on its device page')).toBeInTheDocument()
+    expect(within(ident).getByText('Done')).toBeInTheDocument()
+    const vuln = screen.getByRole('group', { name: VULN })
+    expect(within(vuln).getByText('Checked 1 CVE: 1 no check exists (still suspected)')).toBeInTheDocument()
+    expect(within(vuln).getByRole('link', { name: 'See it in History' })).toHaveAttribute('href', '/settings/scanning?tab=history&run=run-nas')
+    const snmp = screen.getByRole('group', { name: SNMP })
+    expect(within(snmp).getByText('2 of 3 devices answered over SNMP')).toBeInTheDocument()
+    expect(within(snmp).getByText('Partly done')).toBeInTheDocument()
+    expect(within(snmp).getByRole('link', { name: 'See it in History' })).toHaveAttribute('href', '/settings/scanning?tab=history&asset=a-nas02&job=saj-h3')
+  })
+
+  it('a kind that never ran says "Never" and what runs it; the checks module off says so', async () => {
+    server.use(http.get('*/api/v1/scans/runs', () => HttpResponse.json({ engine_busy: false, items: [] })))
+    renderApp('/devices/a-nas01')
+    const ident = await screen.findByRole('group', { name: IDENT }, T)
+    expect(within(ident).getByText('Never')).toBeInTheDocument()
+    expect(within(ident).getByText(/Check this device now” above runs it/)).toBeInTheDocument()
+    expect(within(ident).queryByRole('link', { name: 'See it in History' })).toBeNull()
+    expect(within(screen.getByRole('group', { name: VULN })).getByText(/Run vulnerability checks now” above runs it/)).toBeInTheDocument()
+    const snmp = screen.getByRole('group', { name: SNMP })
+    expect(within(snmp).getByText('Never')).toBeInTheDocument()
+    expect(within(snmp).getByRole('link', { name: 'Add one on the SNMP card' })).toHaveAttribute('href', '/settings/scanning#snmp')
+  })
+
+  it('the vulnerability checks module off: "Off", with where to turn it on', async () => {
+    modulesStore.update((l) => l.map((m) => (m.id === 'scan' ? { ...m, enabled: false } : m)))
+    renderApp('/devices/a-nas01')
+    const vuln = await screen.findByRole('group', { name: VULN }, T)
+    expect(within(vuln).getByText('Off')).toBeInTheDocument()
+    expect(within(vuln).getByRole('link', { name: 'Turn them on: Settings, Scanning, Engines' })).toBeInTheDocument()
+  })
+
+  it('a failed device check says Failed and why, and its link opens that run on top of the device\'s History', async () => {
+    historyStore.set([{ id: 'saj-fail', kind: 'device', engine: 'nmap-versions', trigger: 'person', label: '192.168.10.21', target_id: null, started_at: new Date().toISOString(), ended_at: new Date().toISOString(), outcome: 'failed', text: 'Failed: nmap gave up.' }, ...historyStore.get()])
+    markReached('saj-fail', ['192.168.10.21'])
+    renderApp('/devices/a-nas02')
+    const ident = await screen.findByRole('group', { name: IDENT }, T)
+    expect(within(ident).getByText('Failed')).toBeInTheDocument()
+    expect(within(ident).getByText('Failed: nmap gave up.')).toBeInTheDocument()
+    const link = within(ident).getByRole('link', { name: 'See it in History' })
+    expect(link).toHaveAttribute('href', '/settings/scanning?tab=history&asset=a-nas02&job=saj-fail')
+    await userEvent.click(link)
+    const opened = await screen.findByRole('region', { name: 'The run you opened' }, T)
+    expect(within(opened).getByText('Failed: nmap gave up.')).toBeInTheDocument()
+    expect(screen.getByText('Only the runs that reached this device: its device checks and the SNMP reads that asked it.')).toBeInTheDocument()
+    // only this device's runs: its two checks and the SNMP read that asked it, never the sweep
+    const table = await screen.findByRole('table', { name: 'History of discovery runs and public scans' }, T)
+    expect(within(table).queryByText(/Swept 254 addresses/)).toBeNull()
+    expect(within(table).getByText('2 of 3 devices answered over SNMP')).toBeInTheDocument()
+  })
+
+  // review r1 of #965 M1, M3: a read that failed or has not answered is never shown as "Never"
+  it('History failing shows the error with Try again, never "Never"', async () => {
+    server.use(http.get('*/api/v1/scanning/history', () => HttpResponse.json({ error: { code: 'internal', message: 'The box could not read its runs.' } }, { status: 500 })))
+    renderApp('/devices/a-nas02')
+    const section = await screen.findByRole('region', { name: 'Last checks' }, T)
+    expect(await within(section).findByRole('alert', {}, T)).toHaveTextContent('The box could not read its runs.')
+    expect(within(section).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    expect(within(section).queryByText('Never')).toBeNull()
+  })
+
+  it('only the vulnerability checks failing: that row shows the error, the others still answer', async () => {
+    server.use(http.get('*/api/v1/scans/runs', () => HttpResponse.json({ error: { code: 'internal', message: 'The scan list did not answer.' } }, { status: 500 })))
+    renderApp('/devices/a-nas01')
+    const vuln = await screen.findByRole('group', { name: VULN }, T)
+    expect(await within(vuln).findByRole('alert', {}, T)).toHaveTextContent('The scan list did not answer.')
+    expect(within(vuln).queryByText('Never')).toBeNull()
+  })
+
+})

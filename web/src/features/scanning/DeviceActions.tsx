@@ -103,14 +103,23 @@ function SelectedVulnChecks({ selectedIds }: { selectedIds: string[] }) {
 
 /** #850 H3, slot `device.actions` of the device page: "Check this device now" (nmap identification), and "Run vulnerability
  *  checks now" while the vulnerability checks (Preview) are on (review r2 N4). A device the nmap check always refuses (the box, added
- *  by hand, never scan, no IP, outside the scope) gets the reason instead of a button that can only fail (#877 r1 L6). */
+ *  by hand, never scan, no IP, outside the scope) gets the reason instead of a button that can only fail (#877 r1 L6).
+ *  kien G7b/c: he could not tell the two apart. Each button has one line under it: what it does, what it does not, how long. They
+ *  stay two buttons: the vulnerability check sends exploit checks to the device and is a person's own pick (D-126), the device
+ *  check only identifies it; one merged button would hide that difference. */
 export function DeviceActions({ assetId, asset: d }: { assetId: string; /** The device page's own read (no second read of it here). */ asset?: Facts }) {
   const { t } = useTranslation('scanning')
   const safety = useScanning().data?.safety
+  const hint = useId()
   const r = d ? nmapRefusal(d, safety) : null
   return (
     <div className="flex flex-wrap items-start gap-3">
-      {r ? <p className="text-meta text-muted">{t(`selection.device.${r}`)}</p> : <ScanNowButton targets={[assetId]} size="sm" />}
+      {r ? <p className="text-meta text-muted">{t(`selection.device.${r}`)}</p> : (
+        <div className="grid max-w-xs gap-1">
+          <ScanNowButton targets={[assetId]} size="sm" describedBy={hint} />
+          <p id={hint} className="text-meta text-muted">{t('hint.identify')}</p>
+        </div>
+      )}
       <DeviceVulnChecks assetId={assetId} />
     </div>
   )
@@ -122,7 +131,13 @@ function DeviceVulnChecks({ assetId }: { assetId: string }) {
   const { t } = useTranslation('scanning')
   const on = useModuleEnabled('scan') === true
   const x = useTargets(on).data?.items.find((i) => i.id === assetId)
+  const hint = useId()
   if (!on) return null
   if (x && !x.selectable) return <p className="text-meta text-muted">{t(`scan:reason.${x.reason ?? 'out_of_scope'}`)}</p>
-  return <VulnChecksButton targets={[assetId]} />
+  return (
+    <div className="grid max-w-xs gap-1">
+      <VulnChecksButton targets={[assetId]} describedBy={hint} />
+      <p id={hint} className="text-meta text-muted">{t('hint.vuln')}</p>
+    </div>
+  )
 }

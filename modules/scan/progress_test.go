@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/knt048/vedette/core/api/oas"
 	"github.com/knt048/vedette/core/progress"
 	"github.com/knt048/vedette/modules/scan/nucleiout"
 )
@@ -41,7 +42,7 @@ func TestRunShowsTheProgressOfItsDevice(t *testing.T) {
 	}
 	// the list carries it too, and it goes through the API types
 	h := NewScanHandlers(r.svc)
-	list, err := h.ScanGetScansRuns(r.ctx())
+	list, err := h.ScanGetScansRuns(r.ctx(), oas.ScanGetScansRunsParams{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +54,7 @@ func TestRunShowsTheProgressOfItsDevice(t *testing.T) {
 	if end := r.run(v.ID); end.Status != "done" || end.Progress != nil {
 		t.Fatalf("after the run: status %s, progress %+v", end.Status, end.Progress)
 	}
-	list, err = h.ScanGetScansRuns(r.ctx())
+	list, err = h.ScanGetScansRuns(r.ctx(), oas.ScanGetScansRunsParams{})
 	if err != nil {
 		t.Fatal(err)
 	}

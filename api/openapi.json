@@ -45677,6 +45677,10 @@
                                       "stated",
                                       "guess"
                                     ]
+                                  },
+                                  "software_id": {
+                                    "description": "The software row the value is read from: the OS or firmware row a person declared (a device added by hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an observation gives it",
+                                    "type": "string"
                                   }
                                 },
                                 "required": [
@@ -45728,6 +45732,10 @@
                                       "stated",
                                       "guess"
                                     ]
+                                  },
+                                  "software_id": {
+                                    "description": "The software row the value is read from: the OS or firmware row a person declared (a device added by hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an observation gives it",
+                                    "type": "string"
                                   }
                                 },
                                 "required": [
@@ -45779,6 +45787,10 @@
                                       "stated",
                                       "guess"
                                     ]
+                                  },
+                                  "software_id": {
+                                    "description": "The software row the value is read from: the OS or firmware row a person declared (a device added by hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an observation gives it",
+                                    "type": "string"
                                   }
                                 },
                                 "required": [
@@ -46789,6 +46801,10 @@
                                     "stated",
                                     "guess"
                                   ]
+                                },
+                                "software_id": {
+                                  "description": "The software row the value is read from: the OS or firmware row a person declared (a device added by hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an observation gives it",
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -46840,6 +46856,10 @@
                                     "stated",
                                     "guess"
                                   ]
+                                },
+                                "software_id": {
+                                  "description": "The software row the value is read from: the OS or firmware row a person declared (a device added by hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an observation gives it",
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -46891,6 +46911,10 @@
                                     "stated",
                                     "guess"
                                   ]
+                                },
+                                "software_id": {
+                                  "description": "The software row the value is read from: the OS or firmware row a person declared (a device added by hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an observation gives it",
+                                  "type": "string"
                                 }
                               },
                               "required": [
@@ -47273,6 +47297,10 @@
                                         "stated",
                                         "guess"
                                       ]
+                                    },
+                                    "software_id": {
+                                      "description": "The software row the value is read from: the OS or firmware row a person declared (a device added by hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an observation gives it",
+                                      "type": "string"
                                     }
                                   },
                                   "required": [

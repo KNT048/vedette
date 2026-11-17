@@ -114,12 +114,16 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 	if err := loadServices(ctx, q, sub, idx, out, args); err != nil {
 		return nil, err
 	}
+	for i := range out {
+		out[i].observedHW = &[2]string{obsValue(out[i].Vendor), obsValue(out[i].Model)}
+		applyDeclared(&out[i])
+	}
 	return out, nil
 }
 
 func (s *Service) loadSoftware(ctx context.Context, q querier, sub string, idx map[string]int, out []Device, args []any) error {
 	rows, err := q.QueryContext(ctx, `SELECT s.asset_id, s.id, s.display, s.vendor, s.product, s.version, s.source, s.confidence, k.kev_key, `+notInstalledSW+`,
-		`+fingerprintRow+`
+		`+fingerprintRow+`, `+liveSW+`, s.seen_at
 		FROM inv_software s LEFT JOIN inv_software_kev k ON k.software_id = s.id
 		WHERE s.asset_id IN `+sub+` AND NOT `+hiddenGuess+` ORDER BY s.asset_id, s.display, s.id, k.kev_key`, args...)
 	if err != nil {
@@ -131,7 +135,7 @@ func (s *Service) loadSoftware(ctx context.Context, q querier, sub string, idx m
 		var sw Software
 		var ver sql.NullString
 		var guess bool
-		if err := rows.Scan(&asset, &sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &ver, &sw.Source, &sw.Confidence, &key, &sw.NotInstalled, &guess); err != nil {
+		if err := rows.Scan(&asset, &sw.ID, &sw.Display, &sw.Vendor, &sw.Product, &ver, &sw.Source, &sw.Confidence, &key, &sw.NotInstalled, &guess, &sw.live, &sw.seenAt); err != nil {
 			return fmt.Errorf("inventory: read software: %w", err)
 		}
 		d := &out[idx[asset.String]]
@@ -519,7 +523,11 @@ func (d Device) Name() string {
 	if len(d.Software) > 0 {
 		product = d.Software[0].Display
 	}
-	return DisplayName(deref(d.UserName), deref(d.Hostname), obsValue(d.Vendor), obsValue(d.Model), d.IP, d.Origin, product)
+	vendor, model := obsValue(d.Vendor), obsValue(d.Model)
+	if d.observedHW != nil {
+		vendor, model = d.observedHW[0], d.observedHW[1]
+	}
+	return DisplayName(deref(d.UserName), deref(d.Hostname), vendor, model, d.IP, d.Origin, product)
 }
 
 // firstSoftware selects the display name of a device's first software, in the order the pages list it; never an nmap

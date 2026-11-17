@@ -99830,8 +99830,12 @@ type InventoryGetInventoryDevicesIDOKAssetModel struct {
 	Basis      OptInventoryGetInventoryDevicesIDOKAssetModelBasis `json:"basis"`
 	Confidence float64                                            `json:"confidence"`
 	SeenAt     time.Time                                          `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesIDOKAssetModelSource   `json:"source"`
-	Value      string                                             `json:"value"`
+	// The software row the value is read from: the OS or firmware row a person declared (a device added by
+	// hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an
+	// observation gives it.
+	SoftwareID OptString                                        `json:"software_id"`
+	Source     InventoryGetInventoryDevicesIDOKAssetModelSource `json:"source"`
+	Value      string                                           `json:"value"`
 }
 
 // GetBasis returns the value of Basis.
@@ -99847,6 +99851,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetModel) GetConfidence() float64 {
 // GetSeenAt returns the value of SeenAt.
 func (s *InventoryGetInventoryDevicesIDOKAssetModel) GetSeenAt() time.Time {
 	return s.SeenAt
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesIDOKAssetModel) GetSoftwareID() OptString {
+	return s.SoftwareID
 }
 
 // GetSource returns the value of Source.
@@ -99872,6 +99881,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetModel) SetConfidence(val float64) 
 // SetSeenAt sets the value of SeenAt.
 func (s *InventoryGetInventoryDevicesIDOKAssetModel) SetSeenAt(val time.Time) {
 	s.SeenAt = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesIDOKAssetModel) SetSoftwareID(val OptString) {
+	s.SoftwareID = val
 }
 
 // SetSource sets the value of Source.
@@ -100045,8 +100059,12 @@ type InventoryGetInventoryDevicesIDOKAssetOs struct {
 	Basis      OptInventoryGetInventoryDevicesIDOKAssetOsBasis `json:"basis"`
 	Confidence float64                                         `json:"confidence"`
 	SeenAt     time.Time                                       `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesIDOKAssetOsSource   `json:"source"`
-	Value      string                                          `json:"value"`
+	// The software row the value is read from: the OS or firmware row a person declared (a device added by
+	// hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an
+	// observation gives it.
+	SoftwareID OptString                                     `json:"software_id"`
+	Source     InventoryGetInventoryDevicesIDOKAssetOsSource `json:"source"`
+	Value      string                                        `json:"value"`
 }
 
 // GetBasis returns the value of Basis.
@@ -100062,6 +100080,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOs) GetConfidence() float64 {
 // GetSeenAt returns the value of SeenAt.
 func (s *InventoryGetInventoryDevicesIDOKAssetOs) GetSeenAt() time.Time {
 	return s.SeenAt
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesIDOKAssetOs) GetSoftwareID() OptString {
+	return s.SoftwareID
 }
 
 // GetSource returns the value of Source.
@@ -100087,6 +100110,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOs) SetConfidence(val float64) {
 // SetSeenAt sets the value of SeenAt.
 func (s *InventoryGetInventoryDevicesIDOKAssetOs) SetSeenAt(val time.Time) {
 	s.SeenAt = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesIDOKAssetOs) SetSoftwareID(val OptString) {
+	s.SoftwareID = val
 }
 
 // SetSource sets the value of Source.
@@ -100200,8 +100228,12 @@ type InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected struct {
 	Basis      OptInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedBasis `json:"basis"`
 	Confidence float64                                                           `json:"confidence"`
 	SeenAt     time.Time                                                         `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource   `json:"source"`
-	Value      string                                                            `json:"value"`
+	// The software row the value is read from: the OS or firmware row a person declared (a device added by
+	// hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an
+	// observation gives it.
+	SoftwareID OptString                                                       `json:"software_id"`
+	Source     InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource `json:"source"`
+	Value      string                                                          `json:"value"`
 }
 
 // GetBasis returns the value of Basis.
@@ -100217,6 +100249,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) GetConfidenc
 // GetSeenAt returns the value of SeenAt.
 func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) GetSeenAt() time.Time {
 	return s.SeenAt
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) GetSoftwareID() OptString {
+	return s.SoftwareID
 }
 
 // GetSource returns the value of Source.
@@ -100242,6 +100279,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetConfidenc
 // SetSeenAt sets the value of SeenAt.
 func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetSeenAt(val time.Time) {
 	s.SeenAt = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetSoftwareID(val OptString) {
+	s.SoftwareID = val
 }
 
 // SetSource sets the value of Source.
@@ -101264,8 +101306,12 @@ type InventoryGetInventoryDevicesIDOKAssetVendor struct {
 	Basis      OptInventoryGetInventoryDevicesIDOKAssetVendorBasis `json:"basis"`
 	Confidence float64                                             `json:"confidence"`
 	SeenAt     time.Time                                           `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesIDOKAssetVendorSource   `json:"source"`
-	Value      string                                              `json:"value"`
+	// The software row the value is read from: the OS or firmware row a person declared (a device added by
+	// hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an
+	// observation gives it.
+	SoftwareID OptString                                         `json:"software_id"`
+	Source     InventoryGetInventoryDevicesIDOKAssetVendorSource `json:"source"`
+	Value      string                                            `json:"value"`
 }
 
 // GetBasis returns the value of Basis.
@@ -101281,6 +101327,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendor) GetConfidence() float64 {
 // GetSeenAt returns the value of SeenAt.
 func (s *InventoryGetInventoryDevicesIDOKAssetVendor) GetSeenAt() time.Time {
 	return s.SeenAt
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesIDOKAssetVendor) GetSoftwareID() OptString {
+	return s.SoftwareID
 }
 
 // GetSource returns the value of Source.
@@ -101306,6 +101357,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetVendor) SetConfidence(val float64)
 // SetSeenAt sets the value of SeenAt.
 func (s *InventoryGetInventoryDevicesIDOKAssetVendor) SetSeenAt(val time.Time) {
 	s.SeenAt = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesIDOKAssetVendor) SetSoftwareID(val OptString) {
+	s.SoftwareID = val
 }
 
 // SetSource sets the value of Source.
@@ -105164,8 +105220,12 @@ type InventoryGetInventoryDevicesOKItemsItemModel struct {
 	Basis      OptInventoryGetInventoryDevicesOKItemsItemModelBasis `json:"basis"`
 	Confidence float64                                              `json:"confidence"`
 	SeenAt     time.Time                                            `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesOKItemsItemModelSource   `json:"source"`
-	Value      string                                               `json:"value"`
+	// The software row the value is read from: the OS or firmware row a person declared (a device added by
+	// hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an
+	// observation gives it.
+	SoftwareID OptString                                          `json:"software_id"`
+	Source     InventoryGetInventoryDevicesOKItemsItemModelSource `json:"source"`
+	Value      string                                             `json:"value"`
 }
 
 // GetBasis returns the value of Basis.
@@ -105181,6 +105241,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItemModel) GetConfidence() float64 {
 // GetSeenAt returns the value of SeenAt.
 func (s *InventoryGetInventoryDevicesOKItemsItemModel) GetSeenAt() time.Time {
 	return s.SeenAt
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesOKItemsItemModel) GetSoftwareID() OptString {
+	return s.SoftwareID
 }
 
 // GetSource returns the value of Source.
@@ -105206,6 +105271,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItemModel) SetConfidence(val float64
 // SetSeenAt sets the value of SeenAt.
 func (s *InventoryGetInventoryDevicesOKItemsItemModel) SetSeenAt(val time.Time) {
 	s.SeenAt = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesOKItemsItemModel) SetSoftwareID(val OptString) {
+	s.SoftwareID = val
 }
 
 // SetSource sets the value of Source.
@@ -105379,8 +105449,12 @@ type InventoryGetInventoryDevicesOKItemsItemOs struct {
 	Basis      OptInventoryGetInventoryDevicesOKItemsItemOsBasis `json:"basis"`
 	Confidence float64                                           `json:"confidence"`
 	SeenAt     time.Time                                         `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesOKItemsItemOsSource   `json:"source"`
-	Value      string                                            `json:"value"`
+	// The software row the value is read from: the OS or firmware row a person declared (a device added by
+	// hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an
+	// observation gives it.
+	SoftwareID OptString                                       `json:"software_id"`
+	Source     InventoryGetInventoryDevicesOKItemsItemOsSource `json:"source"`
+	Value      string                                          `json:"value"`
 }
 
 // GetBasis returns the value of Basis.
@@ -105396,6 +105470,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOs) GetConfidence() float64 {
 // GetSeenAt returns the value of SeenAt.
 func (s *InventoryGetInventoryDevicesOKItemsItemOs) GetSeenAt() time.Time {
 	return s.SeenAt
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesOKItemsItemOs) GetSoftwareID() OptString {
+	return s.SoftwareID
 }
 
 // GetSource returns the value of Source.
@@ -105421,6 +105500,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItemOs) SetConfidence(val float64) {
 // SetSeenAt sets the value of SeenAt.
 func (s *InventoryGetInventoryDevicesOKItemsItemOs) SetSeenAt(val time.Time) {
 	s.SeenAt = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesOKItemsItemOs) SetSoftwareID(val OptString) {
+	s.SoftwareID = val
 }
 
 // SetSource sets the value of Source.
@@ -106356,8 +106440,12 @@ type InventoryGetInventoryDevicesOKItemsItemVendor struct {
 	Basis      OptInventoryGetInventoryDevicesOKItemsItemVendorBasis `json:"basis"`
 	Confidence float64                                               `json:"confidence"`
 	SeenAt     time.Time                                             `json:"seen_at"`
-	Source     InventoryGetInventoryDevicesOKItemsItemVendorSource   `json:"source"`
-	Value      string                                                `json:"value"`
+	// The software row the value is read from: the OS or firmware row a person declared (a device added by
+	// hand as FortiGate, FortiOS v7.2.13 has os FortiOS 7.2.13, model FortiGate); absent when an
+	// observation gives it.
+	SoftwareID OptString                                           `json:"software_id"`
+	Source     InventoryGetInventoryDevicesOKItemsItemVendorSource `json:"source"`
+	Value      string                                              `json:"value"`
 }
 
 // GetBasis returns the value of Basis.
@@ -106373,6 +106461,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendor) GetConfidence() float64 
 // GetSeenAt returns the value of SeenAt.
 func (s *InventoryGetInventoryDevicesOKItemsItemVendor) GetSeenAt() time.Time {
 	return s.SeenAt
+}
+
+// GetSoftwareID returns the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesOKItemsItemVendor) GetSoftwareID() OptString {
+	return s.SoftwareID
 }
 
 // GetSource returns the value of Source.
@@ -106398,6 +106491,11 @@ func (s *InventoryGetInventoryDevicesOKItemsItemVendor) SetConfidence(val float6
 // SetSeenAt sets the value of SeenAt.
 func (s *InventoryGetInventoryDevicesOKItemsItemVendor) SetSeenAt(val time.Time) {
 	s.SeenAt = val
+}
+
+// SetSoftwareID sets the value of SoftwareID.
+func (s *InventoryGetInventoryDevicesOKItemsItemVendor) SetSoftwareID(val OptString) {
+	s.SoftwareID = val
 }
 
 // SetSource sets the value of Source.

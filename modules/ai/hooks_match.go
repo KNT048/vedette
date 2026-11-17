@@ -590,7 +590,7 @@ func allPorts(s string) bool {
 		}
 		i = j
 	}
-	return !(three == runs && (runs == 3 || runs == 4))
+	return three != runs || (runs != 3 && runs != 4)
 }
 
 // blankLink blanks the parts of a link (linkRE) whose digits are never a person's ID: the scheme, the host and every path segment

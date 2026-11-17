@@ -132,13 +132,24 @@ func TestAIPickWalls_OnlyFirewallsOnTheDevicePath(t *testing.T) {
 				t.Errorf("%s: a firewall line does not say which traffic a rule there filters: %s", c.name, l)
 			}
 		}
-		scope := []string{"filters only the traffic routed through it", "reach the device directly", "protects the device only from other networks",
-			"only the change on the device itself", "test from a host on another network"}
+		scope := []string{"filters only the traffic routed through it", "reach the device directly", "protects the device only from the traffic that crosses it",
+			"only the change on the device itself", "test from a host whose traffic passes that firewall"}
 		if c.devNet != "" {
 			scope = append(scope, "This device's network: "+c.devNet)
 		}
 		if c.boxOnNet {
 			scope = append(scope, "a scan from the box does not show a gateway rule")
+		} else { // a guessed or unknown network: the test host is found by the route, not by the guessed range
+			scope = append(scope, "a traceroute or tracert to the device lists the firewall as a hop")
+		}
+		for i, l := range strings.Split(block, "\n") {
+			// a guessed /24 (/64) stays a guess on every firewall line built on it
+			if strings.HasPrefix(l, "- ") && strings.HasPrefix(c.devNet, "likely ") && !strings.Contains(l, "hosts on "+c.devNet+" (an assumed size)") {
+				t.Errorf("%s: firewall line %d states the guessed network as fact: %s", c.name, i, l)
+			}
+			if strings.HasPrefix(l, "- ") && strings.Contains(l, "the box's default gateway") && !strings.Contains(l, "test a rule here from a host on the box's network") {
+				t.Errorf("%s: the box's gateway line does not say where its rule is tested from: %s", c.name, l)
+			}
 		}
 		for _, w := range scope {
 			switch {
@@ -149,7 +160,7 @@ func TestAIPickWalls_OnlyFirewallsOnTheDevicePath(t *testing.T) {
 				t.Errorf("%s: the network block lacks %q:\n%s", c.name, w, block)
 			}
 		}
-		if !c.boxOnNet && strings.Contains(block, "a scan from the box") {
+		if !c.boxOnNet && strings.Contains(block, "a scan from the box does not show") {
 			t.Errorf("%s: the box is not on the device's network, yet the block says a scan from it does not show the rule", c.name)
 		}
 		switch {

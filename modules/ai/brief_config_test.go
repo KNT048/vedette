@@ -181,17 +181,26 @@ func TestBriefConfig_VerifyMatchesTheRuleActionAndWhereTrafficPasses(t *testing.
 		"When you write a firewall or router rule, say which traffic it stops, as the network block gives it",
 		"it protects the device only from other networks, hosts on the device's own network still reach the device directly",
 		"only the change on the device itself protects it from them",
-		// the rule's action, per platform
-		`Such a rule refuses the connection where the product has an action for that (nftables "reject with tcp reset"`,
-		"where the product's deny is a silent drop (a FortiGate policy with action deny, a pfSense block rule), use that deny as it is",
+		// the rule's action, per protocol and per source: a TCP reset only on TCP ports, internal traffic refused, Internet traffic dropped
+		"Choose such a rule's action by where the blocked traffic comes from and by each port's protocol",
+		`TCP ports with a TCP reset (nftables "reject with tcp reset"`, `a Junos firewall filter term "then reject tcp-reset"`,
+		`a FortiGate deny policy with "set send-deny-packet enable"`,
+		`UDP ports with an ICMP reject (nftables plain "reject", iptables "-p udp -j REJECT") in a rule of their own, never a TCP reset, and never TCP and UDP ports in one match with a TCP reset`,
+		"Traffic that arrives from the Internet (the device is reachable through a port forward or a public address) is dropped silently in a rule of its own placed before the reject",
+		"a FortiGate deny policy drops unless send-deny-packet is enabled; a pfSense Block rule drops",
 		// the verify step: the observable result matches the action, and where to test from
-		"Every verify step says where to test from and the result the person sees, matching the action of the rule it checks",
-		`a silent drop or deny (nftables "drop", a FortiGate deny, a Junos "discard") makes the connection time out with no answer`,
-		`a TCP reset ("reject with tcp reset") makes it refused at once`,
+		"Every verify step says where to test from and the result the person sees, matching the action of the rule it checks and the network tested from",
+		`a silent drop or deny (nftables "drop", a FortiGate deny without send-deny-packet, a pfSense Block, a Junos "discard") makes the connection time out with no answer`,
+		"a TCP reset makes a TCP connection refused at once", `a UDP port is never "refused"`,
 		"Never call a timeout refused, or a refusal a timeout.",
-		"Test a firewall or router rule from a host on another network whose traffic passes that firewall, never from the device's own network",
+		"Test a firewall or router rule from a host whose traffic crosses that firewall, as its line in the network block says, never from the device's own network",
+		"pick the test host by its route to the device (a traceroute or tracert lists the firewall as a hop), not by an address range",
 		"never tell the person to check that rule with a scan from Vedette",
-		"Test the device's own change from any host, one on the device's own network included.",
+		// the device's own change: where to test depends on the change
+		"Test the device's own change from a host it is meant to block",
+		"a service turned off answers no host, so it is refused from any host, the device's own network included",
+		"an access restriction on the device (an allowed admin network, trusted hosts, a local-in policy, a host firewall rule) is tested from a host outside the allowed sources, with the result its action gives",
+		"from an allowed host the port still answers, as expected",
 	} {
 		if !strings.Contains(all, w) {
 			t.Errorf("the instructions lack %q", w)

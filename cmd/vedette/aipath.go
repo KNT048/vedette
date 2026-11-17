@@ -147,32 +147,45 @@ func (p aiPath) label() string {
 	return "path to this device: not known"
 }
 
-// filters is the traffic to the device a rule on a firewall at this place filters, as the AI reads it. A firewall sees only what is
-// routed through it: hosts on the device's own network (net) reach the device directly, so a rule on its gateway leaves them out.
+// filters is the traffic to the device a rule on a firewall at this place filters, and where a rule there is tested from, as the AI
+// reads it. A firewall sees only what is routed through it: hosts on the device's own network (net) reach the device directly, so a rule
+// on its gateway leaves them out.
 func (p aiPath) filters(net string) string {
 	switch p {
 	case pathGateway:
 		return "a rule here filters only traffic to this device from other networks (other subnets, VPN, the Internet); hosts on " + net + " reach the device directly, not through it"
 	case pathBoxGateway:
-		return "a rule here filters only traffic from the box's network that leaves by it; hosts on " + net + " reach the device without it"
+		return "a rule here filters only traffic from the box's network that leaves by it, not traffic from the Internet; hosts on " + net + " reach the device without it; test a rule here from a host on the box's network, a scan from the box included"
 	}
 	return "if it is this device's gateway, a rule here filters only traffic to this device from other networks; hosts on " + net + " reach the device directly, not through it"
 }
 
-// aiOwnNetwork is what the network block says of the device's own network and of the traffic a gateway sees, so that the answer says
+// aiNetName is the device's network as a firewall line names it: the box's subnet as it is, a guessed /24 (/64) marked as one.
+func aiNetName(f aiFirewalls) string {
+	switch {
+	case f.NetKnown:
+		return f.Net.String()
+	case f.Net.IsValid():
+		return "likely " + f.Net.String() + " (an assumed size)"
+	}
+	return "this device's own network"
+}
+
+// aiOwnNetwork is what the network block says of the device's own network and of the traffic a firewall sees, so that the answer says
 // what a firewall rule protects from and where it is tested from: a rule on the gateway filters only routed traffic, a host on the
 // device's subnet (the box too, when it is on that subnet) still reaches the port, and only the change on the device protects it there.
+// A guessed network size is said to be one, with how to find a test host whose traffic does cross the firewall.
 func aiOwnNetwork(f aiFirewalls) string {
 	var b strings.Builder
 	switch {
 	case f.NetKnown:
 		fmt.Fprintf(&b, "This device's network: %s, a subnet the box is on.\n", f.Net)
 	case f.Net.IsValid():
-		fmt.Fprintf(&b, "This device's network: likely %s (the usual size of one network; an assumption).\n", f.Net)
+		fmt.Fprintf(&b, "This device's network: likely %s (the usual size of one network; an assumption). The real network may be larger or smaller, which changes which hosts reach the device directly: a test host must be one whose traffic is known to cross the firewall (a traceroute or tracert to the device lists the firewall as a hop), not merely one outside this range.\n", f.Net)
 	default:
-		b.WriteString("This device's network: not known.\n")
+		b.WriteString("This device's network: not known. A test host must be one whose traffic is known to cross the firewall (a traceroute or tracert to the device lists the firewall as a hop).\n")
 	}
-	b.WriteString("A firewall or router filters only the traffic routed through it. Hosts on the device's own network reach the device directly, never through its gateway, so a rule on a gateway or firewall protects the device only from other networks (other subnets, VPN, the Internet); only the change on the device itself also protects it from hosts on its own network. To verify a gateway or firewall rule, test from a host on another network whose traffic passes that firewall; from the device's own network the port still answers, as expected.\n")
+	b.WriteString("A firewall or router filters only the traffic routed through it. Hosts on the device's own network reach the device directly, never through its gateway, so a rule on a gateway or firewall protects the device only from the traffic that crosses it (each firewall line above says which); only the change on the device itself also protects it from hosts on its own network. To verify a gateway or firewall rule, test from a host whose traffic passes that firewall; from the device's own network the port still answers, as expected.\n")
 	if f.NetKnown {
 		b.WriteString("The box is on the device's own network, so a scan from the box does not show a gateway rule: it shows only the change on the device itself.\n")
 	}
@@ -339,10 +352,7 @@ func aiNetReader(r netStateReader) func(context.Context) aiNet {
 // what was left out.
 func aiNetworkBlock(f aiFirewalls) string {
 	var b strings.Builder
-	net := "this device's own network"
-	if f.Net.IsValid() {
-		net = f.Net.String()
-	}
+	net := aiNetName(f)
 	list := func() {
 		for i, w := range f.Walls {
 			fmt.Fprintf(&b, "- %s, IP %s, kind %s; %s; %s; %s", aiName(w), aiIP(w.IP), aiVal(w.Kind, 30), aiWallFacts(w), f.Paths[i].label(), f.Paths[i].filters(net))

@@ -449,6 +449,8 @@ func TestNmapTextDecodesEscapedUTF8(t *testing.T) {
 		`bad \xFF\xFE end`:         `bad \xFF\xFE end`,
 		`half \xC2 then`:           `half \xC2 then`,
 		`plain \x4 and \\path`:     `plain \x4 and \\path`,
+		`a\x0Ab \x2C c`:            `a\x0Ab \x2C c`,   // r1 L2: nmap never escapes ASCII, so this is the page's own text
+		`mixed \xC2\xB7\xFF end`:   `mixed ·\xFF end`, // r1 L3: the valid part is decoded
 	} {
 		if got := nmapText(in); got != want {
 			t.Errorf("nmapText(%q) = %q, want %q", in, got, want)

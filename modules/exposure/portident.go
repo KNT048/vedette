@@ -1,6 +1,7 @@
 package exposure
 
 import (
+	"fmt"
 	"regexp"
 	"slices"
 	"strconv"
@@ -152,10 +153,11 @@ func scriptHints(scripts []ScriptRow, ip string) map[int]portHints {
 
 // nmapEscape is a byte nmap's script output escaped: it prints every byte outside printable ASCII as \xNN (W76-4: a GitLab page
 // title "Sign in \xC2\xB7 GitLab").
-var nmapEscape = regexp.MustCompile(`(?:\\x[0-9A-Fa-f]{2})+`)
+var nmapEscape = regexp.MustCompile(`(?:\\x[89A-Fa-f][0-9A-Fa-f])+`)
 
-// nmapText decodes the \xNN runs of a script's output back to the bytes the service sent, when they form UTF-8 text; a run that does
-// not is left as nmap printed it. field still refuses control characters.
+// nmapText decodes the \xNN runs of a script's output (bytes 0x80 and up: nmap prints the others as they are, so a literal "\x0A" in a
+// title stays text) back to the UTF-8 the service sent; a byte that is not part of UTF-8 stays as nmap printed it. field still
+// refuses control characters.
 func nmapText(s string) string {
 	return nmapEscape.ReplaceAllStringFunc(s, func(run string) string {
 		b := make([]byte, 0, len(run)/4)
@@ -163,10 +165,17 @@ func nmapText(s string) string {
 			v, _ := strconv.ParseUint(run[i+2:i+4], 16, 8)
 			b = append(b, byte(v))
 		}
-		if !utf8.Valid(b) {
-			return run
+		var out strings.Builder
+		for len(b) > 0 {
+			r, n := utf8.DecodeRune(b)
+			if r == utf8.RuneError && n == 1 {
+				fmt.Fprintf(&out, `\x%02X`, b[0])
+			} else {
+				out.WriteRune(r)
+			}
+			b = b[n:]
 		}
-		return string(b)
+		return out.String()
 	})
 }
 

@@ -230,6 +230,19 @@ func TestContract_INV8_ChecksArePerFamilyAndClaimNothingAboutTheCVE(t *testing.T
 	}
 }
 
+// W76-2 r1 L1: a KEV display name without the vendor says the family too.
+func TestSummaryForNamesTheFamilyOnce(t *testing.T) {
+	t.Parallel()
+	for sw, fam := range map[string]string{"Junos OS": "Juniper Junos OS", "FortiOS": "Fortinet FortiOS", "RouterOS": "MikroTik RouterOS", "Cisco IOS XE Software": "Cisco IOS", "OpenSSH": "OpenSSH"} {
+		if got := summaryFor(fam, sw, "CVE-1"); !strings.HasPrefix(got, "General checks for "+sw+": ") {
+			t.Errorf("%s: %s", sw, got)
+		}
+	}
+	if got := summaryFor("Web server", "Apache HTTP Server", "CVE-1"); !strings.HasPrefix(got, "General checks for Apache HTTP Server (Web server): ") {
+		t.Errorf("web: %s", got)
+	}
+}
+
 // POST-1: a confirmed pack's own firewall guides and compromise signs win; the general block fills only what the pack leaves out.
 func TestContract_INV8_TheConfirmedPackWinsWhereItHasItsOwn(t *testing.T) {
 	t.Parallel()

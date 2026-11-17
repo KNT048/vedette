@@ -22,8 +22,8 @@ func certAt(host string, d time.Duration) CertRow {
 func sampleContent() Content {
 	return Content{
 		Hosts:       []HostRow{{Name: "acme.example", IP: ipA}, {Name: "www.acme.example", IP: ipA}, {Name: "mail.acme.example", IP: ipB}},
-		Ports:       []PortRow{{ipA, 80, "http", "nginx", "", 0, false, "", nil, "", ""}, {ipA, 443, "https", "nginx", "", 0, false, "", nil, "", ""}, {ipB, 25, "smtp", "", "", 0, false, "", nil, "", ""}},
-		AdminPanels: []AdminRow{{"https://acme.example:10443", "FortiGate (admin)", ipA, 10443, "danger"}},
+		Ports:       []PortRow{{ipA, 80, "http", "nginx", "", 0, false, "", nil, "", "", nil}, {ipA, 443, "https", "nginx", "", 0, false, "", nil, "", "", nil}, {ipB, 25, "smtp", "", "", 0, false, "", nil, "", "", nil}},
+		AdminPanels: []AdminRow{{"https://acme.example:10443", "FortiGate (admin)", ipA, 10443, "danger", nil}},
 		Certs:       []CertRow{certAt("acme.example", 62*day), certAt("mail.acme.example", 9*day)},
 	}
 }
@@ -583,7 +583,7 @@ func TestContract_INV8_SnapshotsAndDiff(t *testing.T) {
 	e.advance(day)
 	c2 := sampleContent()
 	c2.Hosts = append(c2.Hosts, HostRow{Name: "staging.acme.example", IP: ipB})
-	c2.Ports = append(c2.Ports, PortRow{ipB, 8080, "http", "Jenkins", "", 0, false, "", nil, "", ""})
+	c2.Ports = append(c2.Ports, PortRow{ipB, 8080, "http", "Jenkins", "", 0, false, "", nil, "", "", nil})
 	c2.AdminPanels = nil
 	c2.Certs[1] = certAt("mail.acme.example", 100*day)
 	run.content = c2
@@ -629,7 +629,7 @@ func TestContract_INV8_SnapshotsAndDiff(t *testing.T) {
 func TestContract_INV8_IPTargetCountsItsOwnAddress(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
-	e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{ipA, 443, "https", "", "", 0, false, "", nil, "", ""}}}})
+	e.svc.SetRunner(&fakeRunner{content: Content{Ports: []PortRow{{ipA, 443, "https", "", "", 0, false, "", nil, "", "", nil}}}})
 	ip := e.detect(ipA)[0]
 	if _, err := e.commit(ip.ID); err != nil {
 		t.Fatal(err)
@@ -648,8 +648,8 @@ func TestContract_INV10_ScanContentIsLimited(t *testing.T) {
 	for i := range maxContentRows + 50 {
 		big.Hosts = append(big.Hosts, HostRow{Name: "h" + strings.Repeat("x", i%3), IP: ipA})
 	}
-	big.Ports = []PortRow{{ipA, 0, "bad", "", "", 0, false, "", nil, "", ""}, {ipA, 65536, "bad", "", "", 0, false, "", nil, "", ""}, {ipA, 22, "ssh\x00\xff" + strings.Repeat("é", 2*maxContentText), "OpenSSH", "", 0, false, "", nil, "", ""}}
-	big.AdminPanels = []AdminRow{{"https://x/", "p", ipA, 443, "<script>"}, {"https://y/", "p", ipA, 0, "danger"}}
+	big.Ports = []PortRow{{ipA, 0, "bad", "", "", 0, false, "", nil, "", "", nil}, {ipA, 65536, "bad", "", "", 0, false, "", nil, "", "", nil}, {ipA, 22, "ssh\x00\xff" + strings.Repeat("é", 2*maxContentText), "OpenSSH", "", 0, false, "", nil, "", "", nil}}
+	big.AdminPanels = []AdminRow{{"https://x/", "p", ipA, 443, "<script>", nil}, {"https://y/", "p", ipA, 0, "danger", nil}}
 	big.Certs = []CertRow{{"a.example", "R11", "not a date"}, certAt("b.example", day)}
 	got := sanitize(big)
 	if len(got.Hosts) != maxContentRows || len(got.Ports) != 1 || len(got.AdminPanels) != 1 || len(got.Certs) != 1 {

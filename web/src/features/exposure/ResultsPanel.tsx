@@ -16,6 +16,7 @@ import { WebSection } from './WebPanel'
 import { GreenboneSection } from './GreenbonePanel'
 import { DeepSection } from './DeepPanel'
 import { PortMark, PortMarkNote } from './PortMark'
+import { ApplianceNote } from './ApplianceNote'
 import { PORT_NOT_SEEN, VERSION_NOT_READ } from './contract'
 import { CERT_WARN_DAYS, type AdminRow, type CertRow, type DiffItem, type DiffChange, type HostRow, type PortRow, type Snapshot, type Target } from './types'
 
@@ -80,7 +81,9 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
   ]
   const adminCols: ColumnDef<AdminRow>[] = [
     { id: 'url', header: t('col.url'), accessorFn: (r) => r.url },
-    { id: 'product', header: t('col.product'), accessorFn: (r) => r.product },
+    { id: 'product', header: t('col.product'), accessorFn: (r) => r.product, cell: ({ row }) => (
+      <span className="grid gap-1">{row.original.product}{row.original.appliance ? <ApplianceNote a={row.original.appliance} className="text-caption" /> : null}</span>
+    ) },
     { id: 'risk', header: t('col.risk'), accessorFn: (r) => r.risk, cell: ({ row }) => <Chip tone={row.original.risk}>{t(`admin.risk.${row.original.risk}`)}</Chip> },
   ]
   const certCols: ColumnDef<CertRow>[] = [

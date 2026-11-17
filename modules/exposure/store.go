@@ -137,7 +137,8 @@ func countTargets(ctx context.Context, q querier) (int, error) {
 	return n, nil
 }
 
-// latestResult is what the target list shows of a target's newest snapshot: its counts and its first open ports.
+// latestResult is what the target list shows of a target's newest snapshot: its counts and its first open ports, each with the
+// appliance it names (appliance.go; the devices are added by the service).
 type latestResult struct {
 	Counts Counts
 	Ports  []PortRow
@@ -145,7 +146,7 @@ type latestResult struct {
 
 // latestResults returns the counts and the first MaxOpenPorts open ports of the newest snapshot of every target that has one.
 func latestResults(ctx context.Context, q querier) (map[string]latestResult, error) {
-	rows, err := q.QueryContext(ctx, `SELECT s.target_id, s.counts, s.ports FROM exp_snapshot s
+	rows, err := q.QueryContext(ctx, `SELECT s.target_id, s.counts, s.ports, s.admin_panels, s.services FROM exp_snapshot s
 		WHERE s.date = (SELECT max(date) FROM exp_snapshot WHERE target_id = s.target_id)`)
 	if err != nil {
 		return nil, fmt.Errorf("latest counts: %w", err)
@@ -153,20 +154,30 @@ func latestResults(ctx context.Context, q querier) (map[string]latestResult, err
 	defer func() { _ = rows.Close() }()
 	out := map[string]latestResult{}
 	for rows.Next() {
-		var id, doc, ports string
+		var id, doc, ports, admin, services string
 		var r latestResult
-		if err := rows.Scan(&id, &doc, &ports); err != nil {
+		if err := rows.Scan(&id, &doc, &ports, &admin, &services); err != nil {
 			return nil, fmt.Errorf("latest counts: %w", err)
 		}
-		if err := json.Unmarshal([]byte(doc), &r.Counts); err != nil {
-			return nil, fmt.Errorf("latest counts of %s: %w", id, err)
+		var admins []AdminRow
+		var stored []storedService
+		for _, d := range []struct {
+			doc string
+			to  any
+		}{{doc, &r.Counts}, {ports, &r.Ports}, {admin, &admins}, {services, &stored}} {
+			if err := json.Unmarshal([]byte(d.doc), d.to); err != nil {
+				return nil, fmt.Errorf("latest result of %s: %w", id, err)
+			}
 		}
-		if err := json.Unmarshal([]byte(ports), &r.Ports); err != nil {
-			return nil, fmt.Errorf("latest ports of %s: %w", id, err)
+		svc := make([]ServiceRow, 0, len(stored))
+		for _, x := range stored {
+			svc = append(svc, x.ServiceRow)
 		}
+		r.Counts.AdminPanels = len(applianceAdmins(admins, r.Ports, svc)) // as loadSnapshot counts it
 		if len(r.Ports) > MaxOpenPorts {
 			r.Ports = r.Ports[:MaxOpenPorts]
 		}
+		nameAppliances(r.Ports, nil, svc)
 		out[id] = r
 	}
 	return out, rows.Err()
@@ -370,6 +381,9 @@ func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapsh
 	s.Content = Content{Hosts: nz(s.Hosts), Ports: nz(s.Ports), AdminPanels: nz(s.AdminPanels), Certs: nz(s.Certs),
 		Services: s.Services, Templates: s.Templates, Checks: nz(s.Checks), NotChecked: nz(s.NotChecked), WebFindings: nz(s.WebFindings), Greenbone: nz(s.Greenbone),
 		Scripts: nz(s.Scripts)}
+	// An appliance's admin page that a snapshot of an older release (or an older rule) did not list counts when it is read.
+	s.AdminPanels = applianceAdmins(s.AdminPanels, s.Ports, s.Services)
+	s.Counts.AdminPanels = len(s.AdminPanels)
 	s.GreenboneRun = storedGreenboneRun(s.GreenboneRun, s.Content)
 	if s.GreenboneRun.State == GBRunStopped {
 		s.NotChecked = gbCutOff(s.NotChecked)

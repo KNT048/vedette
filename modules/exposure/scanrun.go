@@ -289,6 +289,7 @@ func (s *Service) saveScan(ctx context.Context, user string, t Target, content C
 	if ok {
 		content = carryNotSeen(content, prev, s.coveredBy(wctx, user, t, content, prev))
 	}
+	content.AdminPanels = applianceAdmins(content.AdminPanels, content.Ports, content.Services) // an appliance's admin page on any port
 	snap.Content, snap.Counts = content, countsOf(content, extra, at)
 	err = s.write(wctx, func(tx *sql.Tx, emit func(string, any)) error {
 		if _, err := loadTarget(wctx, tx, t.ID); err != nil { // deleted while the scan ran

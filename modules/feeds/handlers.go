@@ -277,7 +277,12 @@ func (s *Service) withoutNotAffected(ctx context.Context, v VulnRow, m []Matched
 	for i, a := range m {
 		ids[i] = a.ID
 	}
-	out, err := pc.NotAffected(ctx, v.CVE, v.Vendor, v.Product, ids)
+	distro, err := s.st.DistroFixesOf(ctx, v.CVE)
+	if err != nil {
+		s.Log.WarnContext(ctx, "reading the distribution data of a CVE failed; answering by product", "cve", v.CVE, "error", err)
+		return m
+	}
+	out, err := pc.NotAffected(ctx, v.CVE, v.Vendor, v.Product, distro, ids)
 	if err != nil {
 		s.Log.WarnContext(ctx, "the platform check of a CVE failed; answering by product", "cve", v.CVE, "error", err)
 		return m

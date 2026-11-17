@@ -43,15 +43,20 @@ type platformLimit struct {
 }
 
 // platformFix is the distribution's first fixed package release per branch (D-604): once a row's platform is that distribution,
-// its package release decides the CVE. Only Alpine's apk releases are read (apkver.go).
+// its package release decides the CVE. Only Alpine's apk releases are read (apkver.go). The catalog names the package; the releases
+// come from the distribution's own data, the feed alpine-osv (Vuln.Distro), never from a hand copy (distroFixes).
 type platformFix struct {
 	Distro  string `json:"distro"`  // the platform id of Only it is about ("alpine")
 	Package string `json:"package"` // the package as the device's package manager names it ("openssh-server")
-	Command string `json:"command"` // what prints its release on the device ("apk info -e -v openssh-server" → "openssh-server-10.2_p1-r1")
+	// SourcePackage is the package the distribution's security data lists the fix under ("openssh", the origin of openssh-server).
+	SourcePackage string `json:"source_package"`
+	Command       string `json:"command"` // what prints its release on the device ("apk info -e -v openssh-server" → "openssh-server-10.2_p1-r1")
 	// BranchCommand prints the device's branch ("cat /etc/alpine-release" → "3.23.2"), for the platform question (review r2 L4 of #961).
-	BranchCommand string            `json:"branch_command"`
-	Releases      map[string]string `json:"releases"` // branch ("3.23", "edge") -> first fixed release ("10.2_p1-r1")
-	Source        string            `json:"source"`
+	BranchCommand string `json:"branch_command"`
+	// HandReleases must stay empty: a release list copied by hand is refused, the feed gives them.
+	HandReleases map[string]string `json:"releases"`
+	Releases     map[string]string `json:"-"` // branch ("3.23") -> first fixed release ("10.2_p1-r1"), from the feed (distroFixes)
+	Source       string            `json:"source"`
 }
 
 var branchKeyRE = regexp.MustCompile(`^(edge|\d{1,2}\.\d{1,3})$`)
@@ -282,11 +287,12 @@ func ruledOut(l platformLimit, e platformEvidence, cve string) (string, bool) {
 // asks it so it agrees with the device's findings (D-549, KF-CVEPAGE): an Ubuntu box whose OpenSSH finding of an Alpine-only CVE is
 // closed is not listed as running it. It reads no NVD range and no distribution data (feeds has the entry only): the distribution's
 // word (D-516), which could say its own package is affected after all, is not read here; no entry of the list has such a word today.
-func PlatformRuledOut(a Asset, cve, vendor, product string, now time.Time) bool {
+// distro is the distributions' word on the CVE (feeds' rows of it): the package release a person gave is read against it.
+func PlatformRuledOut(a Asset, cve, vendor, product string, distro []DistroFix, now time.Time) bool {
 	if !HasPlatformLimit(cve) {
 		return false
 	}
-	r := MatchAsset(a, []Vuln{{CVE: cve, Vendor: vendor, Product: product}}, map[string]bool{cve: true}, now)
+	r := MatchAsset(a, []Vuln{{CVE: cve, Vendor: vendor, Product: product, Distro: distro}}, map[string]bool{cve: true}, now)
 	return len(r.OtherPlatform) > 0
 }
 
@@ -316,21 +322,36 @@ func (f *platformFix) valid(only []string) error {
 	if f.Distro != "alpine" || !slices.Contains(only, f.Distro) {
 		return fmt.Errorf("distro %q: only alpine (apk releases), and one of only", f.Distro)
 	}
-	if f.Package == "" || f.Command == "" || f.BranchCommand == "" || len(f.Releases) == 0 || !strings.HasPrefix(f.Source, "https://") || !strings.Contains(f.Source, "{branch}") {
-		return errors.New("needs package, command, releases and an https source naming {branch}")
+	if f.Package == "" || f.SourcePackage == "" || f.Command == "" || f.BranchCommand == "" || !strings.HasPrefix(f.Source, "https://") || !strings.Contains(f.Source, "{branch}") {
+		return errors.New("needs package, source_package, command, branch_command and an https source naming {branch}")
 	}
-	for b, r := range f.Releases {
-		if _, ok := parseAPK(r); !branchKeyRE.MatchString(b) || !ok {
-			return fmt.Errorf("release %q: %q is not a branch and an apk release", b, r)
-		}
+	if len(f.HandReleases) > 0 {
+		return errors.New("releases come from the distribution's feed, not from the catalog")
 	}
 	return nil
 }
 
 // distroFixes is the distribution's first fixed release per branch of a platform-limited CVE, nil when none (D-604). The one place the
-// decision reads that data from: today the hand list (platform-limits.json `fixed`); a feed can replace it here (PR C, OSV's Alpine data).
-func distroFixes(cve string) *platformFix {
-	return platformLimits[cve].Fixed
+// decision reads that data from: the catalog's package (platform-limits.json `fixed`) with the releases the distribution's feed
+// gives for its source package (rows: Vuln.Distro, feeds' alpine-osv: every branch OSV.dev lists, which has no edge), each the full
+// release (upstream and -rN) unchanged. A branch the feed has no fixed release for has none here (secdb's "not affected" included: no
+// proof is read from it); no release at all is nil, as for a CVE without a fixed list (NVD decides), never a guess.
+func distroFixes(cve string, rows []DistroFix) *platformFix {
+	spec := platformLimits[cve].Fixed
+	if spec == nil {
+		return nil
+	}
+	f := *spec
+	f.Releases = map[string]string{}
+	for _, r := range rows {
+		if _, ok := parseAPK(r.Fixed); ok && r.Distro == f.Distro && r.Package == f.SourcePackage && r.Status == "fixed" && branchKeyRE.MatchString(r.Release) {
+			f.Releases[r.Release] = r.Fixed
+		}
+	}
+	if len(f.Releases) == 0 {
+		return nil
+	}
+	return &f
 }
 
 // branches are the fixed list's branches, newest first ("edge", "3.24", …).
@@ -364,11 +385,12 @@ func (f *platformFix) fixList() string {
 }
 
 // sourceFor is the source of one branch's release ("https://secdb.alpinelinux.org/v3.23/main.json").
+// It names the data's licence and the way it came (CC BY-SA 4.0 asks for the attribution where the data decides).
 func (f *platformFix) sourceFor(branch string) string {
 	if branch != "edge" {
 		branch = "v" + branch
 	}
-	return strings.ReplaceAll(f.Source, "{branch}", branch)
+	return platformName(f.Distro) + "'s security database, " + strings.ReplaceAll(f.Source, "{branch}", branch) + " (CC BY-SA 4.0), through OSV.dev"
 }
 
 // belowEvery says whether the release is below every branch's fixed release: no branch has a fix for it.
@@ -447,7 +469,9 @@ func pkgRelease(s Software, in swInfo) (rel apkVer, text, given string) {
 // platformCheck is the state of a platform-limited CVE on a row platformRuledOut did not rule out (D-604). Not on the list: zero.
 // Every outcome ends in a finding, a proof, or a question one of its answers settles (review r1 H1 of #961: never the same question
 // again after an answer).
-func platformCheck(a Asset, s Software, in swInfo, cve string) platformState {
+// rows and loading are the distributions' word on the CVE (Vuln.Distro) and the distributions whose feed is on but holds no row yet
+// (Vuln.DistroLoading).
+func platformCheck(a Asset, s Software, in swInfo, cve string, rows []DistroFix, loading map[string]bool) platformState {
 	l, ok := platformLimits[cve]
 	if !ok {
 		return platformState{}
@@ -462,9 +486,18 @@ func platformCheck(a Asset, s Software, in swInfo, cve string) platformState {
 		}
 		osText = dev
 	}
-	f := distroFixes(cve)
+	f := distroFixes(cve, rows)
+	if f == nil && l.Fixed != nil && slices.Contains(ids, l.Fixed.Distro) && loading[l.Fixed.Distro] {
+		// the distribution's feed is on but its fixed releases are not loaded yet (never filled, or every pull
+		// failed): only they can decide, so the question stays; NVD decides only once the feed is off. A device that does not state Alpine
+		// itself (only the software's own text names it) is asked its OS: the answer is what lets feeds fetch the data (StatesAlpine).
+		if !StatesAlpine(a) {
+			return platformState{ask: askPlatform}
+		}
+		return platformState{ask: askPackage}
+	}
 	if f == nil || !slices.Contains(ids, f.Distro) {
-		return platformState{} // a platform it affects, no fixed list: like any CVE (NVD decides)
+		return platformState{} // a platform it affects, no fixed list (or its feed off): like any CVE (NVD decides)
 	}
 	name, pkg, dist := clean(a.Name), clean(f.Package), platformName(f.Distro)
 	osBranch := alpineBranch(osText)
@@ -582,12 +615,12 @@ func platformAnswers(l platformLimit, f *platformFix) []UncheckedAnswer {
 
 // platformQuestion is the question of an unchecked CVE of reason platform_unknown or package_unknown on a device (D-604); nil for
 // another reason or a CVE not on the list. answer is the release a person gave that Vedette could not read, "" when none.
-func platformQuestion(cve, device string, reason UncheckedReason, answer string) *UncheckedQuestion {
+func platformQuestion(cve, device string, reason UncheckedReason, answer string, rows []DistroFix) *UncheckedQuestion {
 	l, ok := platformLimits[cve]
 	if !ok {
 		return nil
 	}
-	f := distroFixes(cve)
+	f := distroFixes(cve, rows)
 	device = cmp.Or(clean(device), "this device")
 	switch reason {
 	case UncheckedPlatformUnknown:
@@ -600,7 +633,21 @@ func platformQuestion(cve, device string, reason UncheckedReason, answer string)
 		return q
 	case UncheckedPackageUnknown:
 		if f == nil {
-			return nil
+			if l.Fixed == nil {
+				return nil
+			}
+			// the feed is on and not loaded yet (a question only stays then)
+			cmd := l.Fixed.Command
+			q := &UncheckedQuestion{
+				Text: fmt.Sprintf("%s's fixed releases of %s are not loaded yet (the built-in feed \"%s\" in Settings → Feeds); Vedette decides as soon as they are. Which %s package release does %s have?",
+					platformName(l.Fixed.Distro), cve, alpineFeedName, l.Fixed.Package, device),
+				Command: &cmd, Answers: []UncheckedAnswer{{Label: "Enter the package release", Ask: []string{"pkg_version"}}},
+			}
+			if answer != "" {
+				e := fmt.Sprintf("Vedette could not read the release you entered (%q): enter it as %s prints it.", clean(answer), cmd)
+				q.Error = &e
+			}
+			return q
 		}
 		cmd := f.Command
 		q := &UncheckedQuestion{
@@ -622,12 +669,18 @@ func platformQuestion(cve, device string, reason UncheckedReason, answer string)
 const AskedNote = "Closed: needs your answer."
 
 // askGap says, in the closing note, what is not known.
-func askGap(k askKind, cve string) string {
-	if f := distroFixes(cve); k == askPackage && f != nil {
+func askGap(k askKind, cve string, f *platformFix) string {
+	switch spec := platformLimits[cve].Fixed; {
+	case k == askPackage && f != nil:
 		return fmt.Sprintf("the device runs %s, so the %s package release decides (%s fixed it in %s)", platformName(f.Distro), f.Package, platformName(f.Distro), f.fixList())
+	case k == askPackage && spec != nil: // the feed on, not loaded yet
+		return fmt.Sprintf("the device runs %s, and %s's fixed releases are not loaded yet (the built-in feed \"%s\")", platformName(spec.Distro), platformName(spec.Distro), alpineFeedName)
 	}
 	return "nothing Vedette reads says which system or build this software runs on"
 }
+
+// alpineFeedName is how Settings → Feeds names feeds' alpine-osv.
+const alpineFeedName = "Alpine fixed versions"
 
 // reason is the could-not-check reason of a question.
 func (k askKind) reason() UncheckedReason {
@@ -654,5 +707,5 @@ func (m Match) AskedWhy() string {
 	if !ok || m.ask == askNone {
 		return ""
 	}
-	return fmt.Sprintf("%s affects only %s, and %s: %s", m.CVE, l.Affects, askGap(m.ask, m.CVE), l.Check)
+	return fmt.Sprintf("%s affects only %s, and %s: %s", m.CVE, l.Affects, askGap(m.ask, m.CVE, m.fix), l.Check)
 }

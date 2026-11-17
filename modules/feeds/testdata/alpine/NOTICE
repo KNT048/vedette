@@ -1,0 +1,5 @@
+The four ALPINE-CVE-*.json files here are records of OSV.dev's Alpine ecosystem
+(https://osv-vulnerabilities.storage.googleapis.com/Alpine/all.zip), as served on 2026-11-17, unmodified.
+They are OSV.dev's conversion of the Alpine Linux security database (secdb), licensed CC BY-SA 4.0 by Alpine Linux:
+https://secdb.alpinelinux.org/license.txt (https://creativecommons.org/licenses/by-sa/4.0/).
+Used only as a test fixture of modules/feeds (ParseAlpineOSV). See THIRD_PARTY_NOTICES.md.

@@ -326747,6 +326747,8 @@ func (s *ScanningGetScanningHistoryOKItemsItemOutcome) Decode(d *jx.Decoder) err
 	switch ScanningGetScanningHistoryOKItemsItemOutcome(v) {
 	case ScanningGetScanningHistoryOKItemsItemOutcomeOk:
 		*s = ScanningGetScanningHistoryOKItemsItemOutcomeOk
+	case ScanningGetScanningHistoryOKItemsItemOutcomePartial:
+		*s = ScanningGetScanningHistoryOKItemsItemOutcomePartial
 	case ScanningGetScanningHistoryOKItemsItemOutcomeFailed:
 		*s = ScanningGetScanningHistoryOKItemsItemOutcomeFailed
 	case ScanningGetScanningHistoryOKItemsItemOutcomeStopped:

@@ -126,8 +126,8 @@ export const HistoryRun = z.object({
   label: z.string().describe('What it scanned: "LAN 192.168.18.0/24", "192.168.18.20", "SNMP read of 3 devices", "203.0.113.10"'),
   target_id: z.string().nullable().describe('The exposure target of a public scan, for a link; null otherwise (a LAN job does not record its device)'),
   started_at: z.iso.datetime(), ended_at: z.iso.datetime().nullable(),
-  outcome: z.enum(['ok', 'failed', 'stopped', 'running']),
-  text: z.string().describe('The outcome in words, from the stored result: "Swept 254 addresses, 2 new devices", "Scanned 192.168.18.20: 1 host up", "Failed: <reason>", "Stopped: <reason>"'),
+  outcome: z.enum(['ok', 'partial', 'failed', 'stopped', 'running']).describe('partial: it ended, but part of it found nothing usable (an SNMP device that did not answer, a sweep batch or a read that failed, a public scan step not checked or an OpenVAS run that failed)'),
+  text: z.string().describe('The outcome in words, only from what the run stored: "Swept 254 addresses: 12 hosts answered, 2 new devices", "2 of 3 devices answered over SNMP", "Scanned 192.168.18.20: it did not answer", "Stopped: <reason>. Swept 64 addresses … before it ended", "Failed: <reason>."'),
 })
 
 export const endpoints = defineEndpoints([

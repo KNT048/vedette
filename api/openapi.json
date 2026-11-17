@@ -76301,14 +76301,16 @@
                             "type": "string",
                             "enum": [
                               "ok",
+                              "partial",
                               "failed",
                               "stopped",
                               "running"
-                            ]
+                            ],
+                            "description": "partial: it ended, but part of it found nothing usable (an SNMP device that did not answer, a sweep batch or a read that failed, a public scan step not checked or an OpenVAS run that failed)"
                           },
                           "text": {
                             "type": "string",
-                            "description": "The outcome in words, from the stored result: \"Swept 254 addresses, 2 new devices\", \"Scanned 192.168.18.20: 1 host up\", \"Failed: <reason>\", \"Stopped: <reason>\""
+                            "description": "The outcome in words, only from what the run stored: \"Swept 254 addresses: 12 hosts answered, 2 new devices\", \"2 of 3 devices answered over SNMP\", \"Scanned 192.168.18.20: it did not answer\", \"Stopped: <reason>. Swept 64 addresses … before it ended\", \"Failed: <reason>.\""
                           }
                         },
                         "required": [

@@ -192772,14 +192772,17 @@ type ScanningGetScanningHistoryOKItemsItem struct {
 	// target (one per target and day).
 	Kind ScanningGetScanningHistoryOKItemsItemKind `json:"kind"`
 	// What it scanned: "LAN 192.168.18.0/24", "192.168.18.20", "SNMP read of 3 devices", "203.0.113.10".
-	Label     string                                       `json:"label"`
+	Label string `json:"label"`
+	// Partial: it ended, but part of it found nothing usable (an SNMP device that did not answer, a sweep
+	// batch or a read that failed, a public scan step not checked or an OpenVAS run that failed).
 	Outcome   ScanningGetScanningHistoryOKItemsItemOutcome `json:"outcome"`
 	StartedAt time.Time                                    `json:"started_at"`
 	// The exposure target of a public scan, for a link; null otherwise (a LAN job does not record its
 	// device).
 	TargetID NilString `json:"target_id"`
-	// The outcome in words, from the stored result: "Swept 254 addresses, 2 new devices", "Scanned
-	// 192.168.18.20: 1 host up", "Failed: ", "Stopped: ".
+	// The outcome in words, only from what the run stored: "Swept 254 addresses: 12 hosts answered, 2 new
+	// devices", "2 of 3 devices answered over SNMP", "Scanned 192.168.18.20: it did not answer", "Stopped:
+	// . Swept 64 addresses … before it ended", "Failed: .".
 	Text string `json:"text"`
 	// Sweep: a discovery sweep (the window, or Scan the LAN now: the row does not tell them apart);
 	// automatic: the window's queue (a new device, a weekly scan) or its SNMP round; person: a person
@@ -193043,10 +193046,13 @@ func (s *ScanningGetScanningHistoryOKItemsItemKind) UnmarshalText(data []byte) e
 	}
 }
 
+// Partial: it ended, but part of it found nothing usable (an SNMP device that did not answer, a sweep
+// batch or a read that failed, a public scan step not checked or an OpenVAS run that failed).
 type ScanningGetScanningHistoryOKItemsItemOutcome string
 
 const (
 	ScanningGetScanningHistoryOKItemsItemOutcomeOk      ScanningGetScanningHistoryOKItemsItemOutcome = "ok"
+	ScanningGetScanningHistoryOKItemsItemOutcomePartial ScanningGetScanningHistoryOKItemsItemOutcome = "partial"
 	ScanningGetScanningHistoryOKItemsItemOutcomeFailed  ScanningGetScanningHistoryOKItemsItemOutcome = "failed"
 	ScanningGetScanningHistoryOKItemsItemOutcomeStopped ScanningGetScanningHistoryOKItemsItemOutcome = "stopped"
 	ScanningGetScanningHistoryOKItemsItemOutcomeRunning ScanningGetScanningHistoryOKItemsItemOutcome = "running"
@@ -193056,6 +193062,7 @@ const (
 func (ScanningGetScanningHistoryOKItemsItemOutcome) AllValues() []ScanningGetScanningHistoryOKItemsItemOutcome {
 	return []ScanningGetScanningHistoryOKItemsItemOutcome{
 		ScanningGetScanningHistoryOKItemsItemOutcomeOk,
+		ScanningGetScanningHistoryOKItemsItemOutcomePartial,
 		ScanningGetScanningHistoryOKItemsItemOutcomeFailed,
 		ScanningGetScanningHistoryOKItemsItemOutcomeStopped,
 		ScanningGetScanningHistoryOKItemsItemOutcomeRunning,
@@ -193066,6 +193073,8 @@ func (ScanningGetScanningHistoryOKItemsItemOutcome) AllValues() []ScanningGetSca
 func (s ScanningGetScanningHistoryOKItemsItemOutcome) MarshalText() ([]byte, error) {
 	switch s {
 	case ScanningGetScanningHistoryOKItemsItemOutcomeOk:
+		return []byte(s), nil
+	case ScanningGetScanningHistoryOKItemsItemOutcomePartial:
 		return []byte(s), nil
 	case ScanningGetScanningHistoryOKItemsItemOutcomeFailed:
 		return []byte(s), nil
@@ -193083,6 +193092,9 @@ func (s *ScanningGetScanningHistoryOKItemsItemOutcome) UnmarshalText(data []byte
 	switch ScanningGetScanningHistoryOKItemsItemOutcome(data) {
 	case ScanningGetScanningHistoryOKItemsItemOutcomeOk:
 		*s = ScanningGetScanningHistoryOKItemsItemOutcomeOk
+		return nil
+	case ScanningGetScanningHistoryOKItemsItemOutcomePartial:
+		*s = ScanningGetScanningHistoryOKItemsItemOutcomePartial
 		return nil
 	case ScanningGetScanningHistoryOKItemsItemOutcomeFailed:
 		*s = ScanningGetScanningHistoryOKItemsItemOutcomeFailed

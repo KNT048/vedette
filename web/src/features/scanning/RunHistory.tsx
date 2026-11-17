@@ -9,7 +9,7 @@ import { fmtDateTime } from '@/lib/format'
 import { useScanningHistory } from './api'
 import type { HistoryRun } from './types'
 
-const tone = { ok: 'ok', failed: 'danger', stopped: 'warn', running: 'accent' } as const
+const tone = { ok: 'ok', partial: 'warn', failed: 'danger', stopped: 'warn', running: 'accent' } as const
 
 /**
  * kien G7a: Settings › Scanning › History lists every run, not only the vulnerability checks: discovery sweeps, the identification

@@ -49,10 +49,14 @@ func (e scanningEngines) history(ctx context.Context) ([]core.HistoryRun, error)
 	return out, nil
 }
 
-// probeUp reads nmap's one-line result of a probe ("ok: 1 hosts up").
-var probeUp = regexp.MustCompile(`^ok: (\d+) hosts? up`)
+// probeUp reads nmap's one-line result of a probe ("ok: 1 hosts up"); snmpAnswered an SNMP read's ("ok: 2 of 3 answered").
+var (
+	probeUp      = regexp.MustCompile(`^ok: (\d+) hosts? up`)
+	snmpAnswered = regexp.MustCompile(`^ok: (\d+) of (\d+) answered`)
+)
 
-// jobHistory is an sa_job row as a History row.
+// jobHistory is an sa_job row as a History row. Its words come from what it stored (#940 review r1 H1, M3): the hosts that answered
+// each sweep batch, the devices that answered each SNMP read, the row's own status and error; never the targets it only meant to reach.
 func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 	start, ok := parseTS(j.StartedAt)
 	if !ok {
@@ -67,18 +71,37 @@ func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 			r.EndedAt = &at
 		}
 	}
+	failedProbes, probeErr := 0, ""
+	for _, p := range j.Probes {
+		if strings.HasPrefix(p.Result, "failed") {
+			failedProbes++
+			if probeErr == "" {
+				probeErr = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(p.Result, "failed"), ":"))
+			}
+		}
+	}
+	var found string // what the stored probes say it did, "" when it sent none
 	switch j.Kind {
 	case sensoractive.KindSweep:
-		r.Engine, r.Trigger, r.Label = "nmap-discovery", "sweep", "LAN"
-		if j.Address != "" {
-			r.Label = "LAN " + j.Address
+		r.Engine, r.Trigger, r.Label = "nmap-discovery", "sweep", "LAN sweep"
+		up := 0
+		for _, p := range j.Probes {
+			if m := probeUp.FindStringSubmatch(p.Result); m != nil {
+				n, _ := strconv.Atoi(m[1])
+				up += n
+			}
 		}
-		r.Text = fmt.Sprintf("Swept %d addresses, %d new %s", j.Targets, j.NewDevices, plural(j.NewDevices, "device", "devices"))
+		switch len(j.Probes) {
+		case 0:
+		case 1:
+			r.Label = "LAN sweep of " + j.Probes[0].Targets
+			found = fmt.Sprintf("swept %d addresses: %s answered, %d new %s", j.Targets, count(up, "host", "hosts"), j.NewDevices, plural(j.NewDevices, "device", "devices"))
+		default:
+			r.Label = fmt.Sprintf("LAN sweep in %d batches", len(j.Probes))
+			found = fmt.Sprintf("swept %d addresses in %d batches: %s answered, %d new %s", j.Targets, len(j.Probes), count(up, "host", "hosts"), j.NewDevices, plural(j.NewDevices, "device", "devices"))
+		}
 	case sensoractive.KindDevice:
-		r.Engine, r.Label = "nmap-versions", j.Address
-		if r.Label == "" {
-			r.Label = "A device"
-		}
+		r.Engine, r.Label = "nmap-versions", "A device"
 		switch j.Reason {
 		case "check_now":
 			r.Trigger = "person"
@@ -87,19 +110,20 @@ func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 		default:
 			r.Trigger = "automatic"
 		}
-		switch m := probeUp.FindStringSubmatch(j.Result); {
-		case j.Address == "":
-			r.Text = "Nothing was sent to the device"
-		case m != nil && m[1] == "0":
-			r.Text = "Scanned " + j.Address + ": it did not answer"
-		case m != nil:
-			r.Text = "Scanned " + j.Address + ": it answered; what it runs is on its device page"
-		default:
-			r.Text = "Scanned " + j.Address
+		if len(j.Probes) > 0 {
+			addr := j.Probes[0].Targets
+			r.Label = addr
+			switch m := probeUp.FindStringSubmatch(j.Probes[0].Result); {
+			case m != nil && m[1] == "0":
+				found = "scanned " + addr + ": it did not answer"
+			case m != nil:
+				found = "scanned " + addr + ": it answered; what it runs is on its device page"
+			default:
+				found = "scanned " + addr
+			}
 		}
 	case sensoractive.KindSNMP:
-		r.Engine = "snmp"
-		r.Label = fmt.Sprintf("SNMP read of %d %s", j.Targets, plural(j.Targets, "device", "devices"))
+		r.Engine, r.Label = "snmp", "SNMP read"
 		switch j.Reason {
 		case "snmp_test":
 			r.Trigger, r.Label = "test", "SNMP test"
@@ -108,23 +132,62 @@ func jobHistory(j sensoractive.JobRow) (core.HistoryRun, bool) {
 		default:
 			r.Trigger = "person"
 		}
-		r.Text = fmt.Sprintf("Read %d %s over SNMP", j.Targets, plural(j.Targets, "device", "devices"))
+		answered, asked, read := 0, 0, false
+		for _, p := range j.Probes {
+			if m := snmpAnswered.FindStringSubmatch(p.Result); m != nil {
+				a, _ := strconv.Atoi(m[1])
+				b, _ := strconv.Atoi(m[2])
+				answered, asked, read = answered+a, asked+b, true
+			}
+		}
+		if read {
+			found = fmt.Sprintf("%d of %s answered over SNMP", answered, count(asked, "device", "devices"))
+			if r.Outcome == "ok" && answered < asked {
+				r.Outcome = "partial"
+			}
+		}
 	default:
 		return core.HistoryRun{}, false
+	}
+	switch {
+	case failedProbes > 0 && found != "":
+		found += fmt.Sprintf("; %s failed", count(failedProbes, "part", "parts"))
+		if r.Outcome == "ok" {
+			r.Outcome = "partial"
+		}
+	case failedProbes > 0 && r.Outcome == "ok": // it sent something and every part failed: nothing it found is stored
+		r.Outcome = "failed"
+	}
+	// what it did, from the probes; "" when it sent something but nothing usable was stored
+	did := found
+	if did == "" && len(j.Probes) == 0 {
+		did = "nothing was sent"
 	}
 	switch r.Outcome {
 	case "running":
 		r.Text = "Running"
-	case "failed":
-		r.Text = "Failed: " + orDefault(j.Error, "the box did not record why")
-	case "stopped":
-		r.Text = "Stopped: " + orDefault(j.Error, "stopped before the end")
+		if found != "" {
+			r.Text += ": " + found + " so far"
+		}
+	case "failed", "stopped":
+		why := orDefault(j.Error, orDefault(probeErr, map[string]string{"failed": "the box did not record why", "stopped": "stopped before the end"}[r.Outcome]))
+		r.Text = upper(r.Outcome) + ": " + strings.TrimSuffix(why, ".") + "."
+		if did != "" {
+			r.Text += " " + upper(did)
+			if found != "" {
+				r.Text += " before it ended"
+			}
+		}
+	default:
+		r.Text = upper(orDefault(did, "nothing usable was recorded"))
 	}
 	r.Text = clipText(r.Text, 300)
 	return r, true
 }
 
-// exposureHistory is a stored scan of a public target as a History row (one per target and day).
+// exposureHistory is a stored scan of a public target as a History row (one per target and day). Public scans run only when a person
+// presses Scan now (exposure INV-30), so the trigger is a person; who is in the audit log, not in the snapshot. A scan that failed
+// before it stored its snapshot is not kept anywhere and cannot be listed (the History tab says so).
 func exposureHistory(s exposure.ScanRecord) (core.HistoryRun, bool) {
 	at, ok := parseTS(s.ScannedAt)
 	if !ok {
@@ -141,9 +204,23 @@ func exposureHistory(s exposure.ScanRecord) (core.HistoryRun, bool) {
 	if c.Subdomains > 0 {
 		parts = append(parts, count(c.Subdomains, "subdomain", "subdomains"))
 	}
+	outcome, text := "ok", "Scanned "+s.Target+": "+strings.Join(parts, ", ")
+	if g := map[string]string{"partial": "OpenVAS scanned part of it", "failed": "OpenVAS failed", "stopped": "OpenVAS was stopped"}[s.Greenbone]; g != "" {
+		outcome, text = "partial", text+"; "+g
+	}
+	if s.NotChecked > 0 {
+		outcome, text = "partial", text+"; "+count(s.NotChecked, "step", "steps")+" not checked (see the target)"
+	}
 	end := at
 	return core.HistoryRun{ID: "exp-" + s.TargetID + "-" + at.Format(time.DateOnly), Kind: "external", Engine: "nuclei", Trigger: "person", Label: s.Target, TargetID: s.TargetID,
-		StartedAt: at, EndedAt: &end, Outcome: "ok", Text: "Scanned " + s.Target + ": " + strings.Join(parts, ", ")}, true
+		StartedAt: at, EndedAt: &end, Outcome: outcome, Text: text}, true
+}
+
+func upper(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 func plural(n int, one, many string) string {

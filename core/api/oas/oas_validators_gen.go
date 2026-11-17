@@ -94136,6 +94136,8 @@ func (s ScanningGetScanningHistoryOKItemsItemOutcome) Validate() error {
 	switch s {
 	case "ok":
 		return nil
+	case "partial":
+		return nil
 	case "failed":
 		return nil
 	case "stopped":

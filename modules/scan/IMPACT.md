@@ -1,5 +1,9 @@
 # Scan — Change Impact Map
 
+
+## Modifying: the results of a run (`RunRow.Result`, `scan_run.results`, `stop_reason`, `identification`; kien G7a)
+- **The SPA** words a run from them (`web/src/features/scan/shared.tsx` `runOutcome`: "Checked 3 CVEs: 1 confirmed, 2 no check exists (still suspected)"; History's "What it found" and the "Last scan" line). A new result kind needs its words there (`scan.json` `outcome.part.*`), or History says less than the run found.
+
 ## Modifying: the shared window, rate and exclusions (`SharedChecks`, `settings`, `LegacyChecks`, `Engine`; #850, INV-16)
 - **inventory** owns the values (INV-32): `PUT /scans/config` writes there through `SaveChecks`; Settings › Scanning (`PUT /scanning/safety`) and Devices › Scope write the same keys, so a change there moves nuclei's window, speed and exclusions too.
 - **`Checks.Version` / `ConfigView.Version` / `Patch.Version`** (review #860 M1): the inventory's version of the shared block passes through `SharedChecks`; `PUT /scans/config` with a stale one is 409 `safety_changed` from the inventory's `SaveChecks`, inside this module's transaction (its own row rolls back too).

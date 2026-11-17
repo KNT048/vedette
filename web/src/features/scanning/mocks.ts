@@ -26,8 +26,8 @@ const ago = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString()
 /** GET /scanning/history (kien G7a), as cmd/vedette scanninghistory.go builds it: the LAN jobs and the public scans, newest first. */
 export const historyStore = collection<HistoryRow[]>('scanning_history', () => [
   { id: 'saj-h1', kind: 'device', engine: 'nmap-versions', trigger: 'person', label: '192.168.10.21', target_id: null, started_at: ago(3), ended_at: ago(2.98), outcome: 'ok', text: 'Scanned 192.168.10.21: it answered; what it runs is on its device page' },
-  { id: 'saj-h2', kind: 'sweep', engine: 'nmap-discovery', trigger: 'sweep', label: 'LAN 192.168.10.0/24', target_id: null, started_at: ago(20), ended_at: ago(19.9), outcome: 'ok', text: 'Swept 254 addresses, 2 new devices' },
-  { id: 'saj-h3', kind: 'snmp', engine: 'snmp', trigger: 'automatic', label: 'SNMP read of 3 devices', target_id: null, started_at: ago(21), ended_at: ago(20.95), outcome: 'failed', text: 'Failed: no answer from 192.168.10.1 on UDP 161' },
+  { id: 'saj-h2', kind: 'sweep', engine: 'nmap-discovery', trigger: 'sweep', label: 'LAN 192.168.10.0/24', target_id: null, started_at: ago(20), ended_at: ago(19.9), outcome: 'ok', text: 'Swept 254 addresses: 12 hosts answered, 2 new devices' },
+  { id: 'saj-h3', kind: 'snmp', engine: 'snmp', trigger: 'automatic', label: 'SNMP read', target_id: null, started_at: ago(21), ended_at: ago(20.95), outcome: 'partial', text: '2 of 3 devices answered over SNMP' },
 ], () => [])
 
 interface Def { id: Id; group: EngineT['group']; module: ModuleId & EngineT['module']; follows?: Id; affects?: Id[]; preview?: boolean; cost: EngineT['cost'] }
@@ -287,7 +287,7 @@ export const handlers = [
     // its jobs as History lists them: one per device checked, or the sweep (the mock ends them at once)
     const rows: HistoryRow[] = picked.length
       ? picked.map((a) => ({ id: newId('saj'), kind: 'device' as const, engine: 'nmap-versions' as const, trigger: 'person' as const, label: a.ip, target_id: null, started_at: started, ended_at: started, outcome: 'ok' as const, text: `Scanned ${a.ip}: it answered; what it runs is on its device page` }))
-      : [{ id: newId('saj'), kind: 'sweep', engine: 'nmap-discovery', trigger: 'sweep', label: `LAN ${st.lan_ranges.join(', ')}`, target_id: null, started_at: started, ended_at: started, outcome: 'ok', text: `Swept ${st.lan_ranges.length * 254} addresses, 0 new devices` }]
+      : [{ id: newId('saj'), kind: 'sweep', engine: 'nmap-discovery', trigger: 'sweep', label: `LAN sweep of ${st.lan_ranges.join(', ')}`, target_id: null, started_at: started, ended_at: started, outcome: 'ok', text: `Swept ${st.lan_ranges.length * 254} addresses: 0 hosts answered, 0 new devices` }]
     historyStore.set([...rows, ...historyStore.get()])
     const { ends_ms: _, ...out } = run
     return HttpResponse.json(out, { status: 202 })

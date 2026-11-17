@@ -602,12 +602,16 @@ func nullIf(s string) any {
 type ScanRecord struct {
 	TargetID, Target, ScannedAt string
 	Counts                      Counts
+	NotChecked                  int    // steps the scan stored as not checked (OpenVAS off, a page ZAP could not scan, …)
+	Greenbone                   string // the OpenVAS run's state as stored (done, partial, failed, stopped, not_run); "" when none
 }
 
-// RecentScans lists the newest stored scans of every target, newest first, at most limit (1..500). Read only.
+// RecentScans lists the newest stored scans of every target, newest first, at most limit (1..500). Read only. Only a scan that
+// reached its snapshot is stored: one that failed before has no row (the run lives in memory, INV-8).
 func (s *Service) RecentScans(ctx context.Context, limit int) ([]ScanRecord, error) {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT s.target_id, t.value, s.scanned_at, s.counts FROM exp_snapshot s JOIN exp_target t ON t.id = s.target_id
-ORDER BY s.scanned_at DESC LIMIT ?`, max(1, min(500, limit)))
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT s.target_id, t.value, s.scanned_at, s.counts,
+  coalesce(json_array_length(s.not_checked), 0), coalesce(json_extract(s.greenbone_run, '$.state'), '')
+FROM exp_snapshot s JOIN exp_target t ON t.id = s.target_id ORDER BY s.scanned_at DESC LIMIT ?`, max(1, min(500, limit)))
 	if err != nil {
 		return nil, fmt.Errorf("exposure: recent scans: %w", err)
 	}
@@ -616,7 +620,7 @@ ORDER BY s.scanned_at DESC LIMIT ?`, max(1, min(500, limit)))
 	for rows.Next() {
 		var r ScanRecord
 		var doc string
-		if err := rows.Scan(&r.TargetID, &r.Target, &r.ScannedAt, &doc); err != nil {
+		if err := rows.Scan(&r.TargetID, &r.Target, &r.ScannedAt, &doc, &r.NotChecked, &r.Greenbone); err != nil {
 			return nil, fmt.Errorf("exposure: recent scans: %w", err)
 		}
 		if err := json.Unmarshal([]byte(doc), &r.Counts); err != nil {

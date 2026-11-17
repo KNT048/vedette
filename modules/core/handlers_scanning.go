@@ -160,7 +160,7 @@ type HistoryRun struct {
 	TargetID                         string // "" when none
 	StartedAt                        time.Time
 	EndedAt                          *time.Time
-	Outcome                          string // ok, failed, stopped, running
+	Outcome                          string // ok, partial, failed, stopped, running
 	Text                             string
 }
 

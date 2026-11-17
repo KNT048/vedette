@@ -23,8 +23,7 @@ var versionStrings = []string{
 	"FortiOS 7.2.13", "7.2.13", "v7.2.13 build1749", "v7.4.5,build2702", "FortiOS 7.4.5 build2702 (GA.M)", "7.0.15 build0632 (GA)",
 	"FG-IR-24-015", "PAN-OS 10.2.9-h1", "NetScaler 14.1-29.72", "ESXi 8.0 Update 3 build 24022510", "vCenter 8.0.3.00300 build 24305161",
 	"QTS 5.2.1.2930 build 20241025", "DSM 7.2.2-72806 Update 2", "SonicOS 7.0.1-5145", "Ivanti Connect Secure 22.7R2.3",
-	"Cisco IOS XE 17.9.4a", "15.2(7)E10", "ASA 9.18(4)24", "version 2024.003.20180", "build 100.234.567", "release 2402.123.456",
-	"v123.456.789", "firmware 1.234.567.890",
+	"Cisco IOS XE 17.9.4a", "15.2(7)E10", "ASA 9.18(4)24", "version 2024.003.20180", "release 2402.123.456", "firmware 1.234.567.890",
 	// Junos
 	"Junos OS 21.4R3-S5.4", "22.4R3.25", "23.2R2-S1", "15.1R7.9", "20.4R3-S9", "JSA88100",
 	// Linux and other packages
@@ -45,8 +44,12 @@ var versionStrings = []string{
 	"ports 8080 8443 9443", "port 3389 8443 9100 open", "ports 22 443 3389 8443", "443/tcp 8443/tcp 9443/tcp", "cổng 8080 8443 9443",
 	"192.168.100.200", "fe80::1c2b:3a4d:5e6f:7081", "10.0.26.100",
 	"sha256:9f3a123456789e0b44c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3", "md5 123456789abcdef0123456789abcdef0",
-	"sha384-oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K/uxy9rx7HNQlGYl1kPzQ123456789JwY8wC", "sha512-Abc123456789defGHI123456789jklMNO==",
+	"sha384-oqVuAfXRKap7fdgcCY5uykM6+R9GqQ8K/uxy9rx7HNQlGYl1kPzQho1wx4JwY8wC", "sha512-z4PhNX7vuL3xVChQ1m2AB9Yg5AULVxXcg/SpIdNs6c5H0NE8XYXysP+DGNKHfuwvY7kxvUdBeoGlODJ6+SfaPg==",
 	"sha1=123456789abcdef0123456789abcdef012345678",
+	// a build next to another number, in a list or a table
+	"26100.1742\n- 120 devices", "22631.4460 - 120", "26100.1742   312", "build 26100.1742\n- 120 devices", "publicsuffix 20260129.1928",
+	// counts with thousands separators, and port lists written with commas
+	"123,456,789 lines", "1,234,567,890 events", "ports 135, 139, 445", "ports 135, 139 and 445 are open",
 }
 
 // TestVersionStringsAreNotPersonalData: every version, build, update and advisory identifier goes through the personal-data hook
@@ -89,6 +92,29 @@ func TestPersonalDataNextToVersionsIsStillFound(t *testing.T) {
 		"cpe:2.3:o:microsoft:windows_11:10.0.26100.1742:*:*:*:*:*:*:* 079201234567", "ports 8080 8443, owner 079 201 234 567",
 		"version 7.2.13 079 201 234 567", "port 8443 079 201 234 567", "sha256:9f3a123456789e0b44c1d2e3 079201234567",
 		"2023-36844", "owner 2012-34567", "x 123456789 y", "ab123456789",
+		// a 12-digit ID split into two groups by one dot, and a 9-digit ID split 3/6 (not a build: a first group of 4-5 digits not
+		// starting with 0)
+		"079201.234567", "0792.01234567", "0792012.34567", "Số CCCD của tôi là 079201.234567", "271.234567",
+		// after a version word: a first group with a leading zero, or groups of three digits, is an ID
+		"firmware 0792.0123.4567", "v079.201.234.567", "rev.079.201.234.567", "ver 123.456.789", "build: 123.456.789",
+		"build 079.201.234.567", "release 079.201.234.567", "Kernel: 079.201.234.567", "version 7.2.13 and my ID 079.201.234.567",
+		"build 100.234.567", "v123.456.789",
+		// next to a bare build
+		"26100.1742 079201234567", "079201234567 26100.1742",
+		// after a port word: three 3-digit groups, or a list cut short by a group that is not a port
+		"port 271 234 567", "cổng 271 234 567", "ports 22 and 271 234 567", "ports 123 456 789/tcp", "port 271 034 567",
+		// after KB: a KB number never starts with 0
+		"KB 079201 234567", "KB 0792012 34567",
+		// an abbreviation that is not an advisory source
+		"HN-2012-34567", "SO-2012-34567", "MST-2012-34567", "ID: AB-2012-34567", "VN-201234-567", "HCM-20120345-6789",
+		// glued to a CPE or a digest
+		"cpe:/a:x:y:079201234567", "cpe:2.3:a:x:y:1.0|cmd:079201234567", "md5=079201234567/home",
+		// next to another number: the ID is read on its own
+		"Windows 11 079201234567", "room 5 079201234567", "079201234567 2", "079 201 234 567 2", "room 5 079 201 234 567",
+		"1234 079201234567", "ports 22 079201234567", "CMND AS201234567 5", "079 201 234 567 1234", "8443 079-201 234-567",
+		// separators: dashes of every kind, slash, underscore, and a comma in a number that starts with 0
+		"079–201–234–567", "079—201—234—567", "079‐201‐234‐567", "079−201−234−567", "079/201/234/567", "079_201_234_567",
+		"079,201,234,567", "123–456–789",
 	}
 	for _, s := range blocked {
 		if res := run(t, r, BeforeAI, s); res.Outcome != OutcomeBlocked {

@@ -200,15 +200,46 @@ func TestService_ReconcileWithoutTheIgnoredListStillMatchesWatchedDevices(t *tes
 	t.Parallel()
 	e := newEnv(t)
 	e.feeds.vulns = append(e.feeds.vulns, Vuln{CVE: "CVE-2024-0001", Vendor: "QNAP", Product: "Photo Station", HasTemplate: true})
+	// review r1 L3 of #948: an ignored device (a-2, still known to the inventory) and a deleted one (a-9) with open findings
+	seed := func(id string) {
+		t.Helper()
+		a := nas("6.1.1")
+		a.ID = id
+		e.inv.mu.Lock()
+		e.inv.match[id] = a
+		e.inv.mu.Unlock()
+		if res, err := e.svc.OnMatchChanged(t.Context(), id); err != nil || len(res.Created) != 2 {
+			t.Fatalf("seed %s: %+v %v", id, res, err)
+		}
+		e.inv.mu.Lock()
+		delete(e.inv.match, id) // out of AssetIDs and MatchInput, as the inventory leaves an ignored or deleted device out
+		e.inv.mu.Unlock()
+	}
+	seed("a-2")
+	seed("a-9")
 	e.inv.mu.Lock()
+	e.inv.assets["a-2"] = AssetView{ID: "a-2", IP: "192.168.10.22", Kind: "phone"} // ignored: the inventory still has it (Assets)
+	e.inv.ignored = map[string]bool{"a-2": true}
 	e.inv.ignoredErr = errors.New("disk busy")
 	e.inv.mu.Unlock()
 	r, err := e.svc.Reconcile(t.Context())
 	if err == nil || !strings.Contains(err.Error(), "disk busy") {
 		t.Fatalf("the failed read is not reported: %v", err)
 	}
-	if r.Devices != 1 || r.Created != 2 || r.Orphans != 0 {
+	if r.Devices != 1 || r.Created != 2 || r.IgnoreHealed != 0 {
 		t.Fatalf("reconcile without the ignored list = %+v", r)
+	}
+	if r.Orphans != 2 || e.count(`SELECT count(*) FROM fnd_finding WHERE asset_id = 'a-9'`) != 0 {
+		t.Fatalf("the deleted device's findings stay: %+v", r)
+	}
+	if n := e.count(`SELECT count(*) FROM fnd_finding WHERE asset_id = 'a-2' AND status = 'suspected'`); n != 2 {
+		t.Fatalf("the ignored device's findings = %d open, want 2 left for the next pass (never removed, not closed without the list)", n)
+	}
+	e.inv.mu.Lock()
+	e.inv.ignoredErr = nil
+	e.inv.mu.Unlock()
+	if r, err := e.svc.Reconcile(t.Context()); err != nil || r.IgnoreHealed != 2 || r.Orphans != 0 {
+		t.Fatalf("the next pass = %+v %v", r, err)
 	}
 }
 

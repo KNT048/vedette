@@ -670,10 +670,11 @@ func sameMAC(ctx context.Context, tx *sql.Tx, id string, now time.Time) (from, i
 	return from, into, "a sensor saw both last with the MAC " + shared, nil
 }
 
-// keptOrder orders two rows of one machine (D-598): the row that stays is an approved row a person watches when the other is ignored
-// (D-630, review r2 N2 of #945: a join never hides a watched server's findings behind an ignored duplicate), else one a person
-// declared, else an approved one, else the older one (first_seen, then the smaller id); so a person's approval, an enrolment's and a
-// declared address stay where they are. "" when both were declared (a person keeps them apart).
+// keptOrder orders two rows of one machine (D-598): the row that stays is one a person declared, else an approved row a person
+// watches when the other is ignored (D-630, review r2 N2 of #945: a join never hides a watched server's findings behind an ignored
+// duplicate; a declared row that is ignored stays and joinAs watches it again, review r1 L1 of #948), else an approved one, else the
+// older one (first_seen, then the smaller id); so a person's approval, an enrolment's and a declared address stay where they are. ""
+// when both were declared (a person keeps them apart).
 func keptOrder(ctx context.Context, tx *sql.Tx, x, y string) (from, into string, err error) {
 	type row struct {
 		id, origin, first string
@@ -700,10 +701,10 @@ func keptOrder(ctx context.Context, tx *sql.Tx, x, y string) (from, into string,
 	}
 	stays := func(p, q row) bool { // p is kept over q
 		switch {
+		case (p.origin == "manual") != (q.origin == "manual"): // a declared row first: it keeps its origin and typed address; joinAs
+			return p.origin == "manual" // watches it again when the other row is approved and watched
 		case p.ignored != q.ignored && (!p.ignored && p.approved || !q.ignored && q.approved): // a watched, approved row over an ignored one
 			return !p.ignored
-		case (p.origin == "manual") != (q.origin == "manual"):
-			return p.origin == "manual"
 		case p.approved != q.approved:
 			return p.approved
 		case p.first != q.first:

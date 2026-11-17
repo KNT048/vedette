@@ -140,8 +140,9 @@ func ProductKey(vendor, product string) string {
 	return strings.ToLower(vendor) + "|" + strings.ToLower(product)
 }
 
-// KEVMirrorURL is CISA's own GitHub mirror of the KEV catalog (the cisagov/kev-data repository), where the box looks when
-// the CISA address answers 403, a server error or nothing in time (D-91). Same file, same parser, same limits.
+// KEVMirrorURL is CISA's own GitHub mirror of the KEV catalog (the cisagov/kev-data repository). Every check of the CISA list at its
+// built-in address asks it as well as cisa.gov and keeps the newer catalog (D-91 as amended 2026-11-17, kien G13). Same file, same
+// parser, same limits.
 const KEVMirrorURL = "https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json"
 
 // What a pull of the CISA list records as the address that answered (feeds_source.answered_by, Feed.answered_by).

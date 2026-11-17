@@ -2,16 +2,18 @@ package feeds
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
-	"net/http"
 	"net/url"
 	"slices"
 	"strconv"
-	"strings"
+	"syscall"
 	"time"
 	"unicode/utf8"
 
@@ -49,6 +51,7 @@ func (s *Service) RunPull(ctx context.Context) error {
 		return err
 	}
 	pulled := false
+	var kevPulled *sourceRow
 	for _, r := range rows {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -91,7 +94,10 @@ func (s *Service) RunPull(ctx context.Context) error {
 			continue
 		}
 		pulled = true
-		_, err := s.pull(ctx, r.ID, "") // pull brings the EPSS scores after a CISA list load
+		row, err := s.pull(ctx, r.ID, "") // pull brings the EPSS scores after a CISA list load
+		if r.ID == kevFeedID && err == nil {
+			kevPulled = &row // D-629: only the job's own checks count toward the run of both-failed checks
+		}
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -102,6 +108,9 @@ func (s *Service) RunPull(ctx context.Context) error {
 			s.Log.ErrorContext(ctx, "pulling a feed failed", "feed", r.ID, "error", err)
 			continue
 		}
+	}
+	if err := s.watchKEV(ctx, kevPulled); err != nil && ctx.Err() == nil { // D-629: after the pulls, so a box that was off pulls before it judges
+		s.Log.ErrorContext(ctx, "the stale watch of the CISA list failed", "error", err)
 	}
 	if err := s.reconcileDevices(ctx); err != nil && ctx.Err() == nil {
 		s.Log.ErrorContext(ctx, "adding the devices of \"I have it\" failed", "error", err)
@@ -307,40 +316,23 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 	if err != nil {
 		return p, err
 	}
-	viaCISA := src.ID == "cisa-kev" && src.URL == s.kevPrimary() // the built-in address of the CISA list: D-91 applies
-	// Conditional only after a good pull, each address with its own validators (D-91, D-485): the CISA list is pulled
-	// every hour, and a 304 keeps that cheap on the mirror too while CISA refuses the box.
-	// After the mirror answered, CISA is asked without validators once, so the list and answered_by come from CISA again.
-	ok := src.Status == "ok"
-	mirrorHeldIt := src.AnsweredBy != nil && *src.AnsweredBy == AnsweredMirror
+	if src.ID == kevFeedID && src.URL == s.kevPrimary() { // D-91 as amended (kien G13): both copies of the CISA list, every check
+		return s.buildKEVBoth(ctx, src, p)
+	}
+	// Conditional only after a good pull (D-485): a list pulled every hour stays cheap with a 304.
 	req := Request{URL: src.URL, Auth: auth}
-	if ok && !mirrorHeldIt {
+	if src.Status == "ok" {
 		req.ETag, req.LastModified = orEmpty(src.ETag), orEmpty(src.LastModified)
 	}
 	resp, err := s.get(ctx, req)
-	answered, viaMirror := "", false
-	if viaCISA {
-		answered = AnsweredCISA
-		if err != nil && fallbackWorthy(err) {
-			mreq := Request{URL: s.kevFallback()} // no credentials
-			if ok {
-				mreq.ETag, mreq.LastModified = orEmpty(src.MirrorETag), orEmpty(src.MirrorLastModified)
-			}
-			mresp, merr := s.get(ctx, mreq)
-			if merr != nil {
-				return p, &Error{Err: merr, Detail: userError(err, src.URL) + " The CISA GitHub mirror failed too: " + userError(merr, s.kevFallback())}
-			}
-			resp, err, answered, viaMirror, req = mresp, nil, AnsweredMirror, true, mreq
-		}
-	}
 	if err != nil {
 		return p, err
 	}
 	if resp.NotModified {
-		p.out = outcome{OK: true, NotModified: true, ETag: req.ETag, LastModif: req.LastModified, AnsweredBy: answered, Mirror: viaMirror}
+		p.out = outcome{OK: true, NotModified: true, ETag: req.ETag, LastModif: req.LastModified}
 		return p, nil
 	}
-	p.out = outcome{OK: true, Bytes: len(resp.Body), ETag: resp.ETag, LastModif: resp.LastModified, AnsweredBy: answered, Mirror: viaMirror}
+	p.out = outcome{OK: true, Bytes: len(resp.Body), ETag: resp.ETag, LastModif: resp.LastModified}
 	switch dec {
 	case DecoderKEV:
 		cat, err := ParseKEV(resp.Body)
@@ -350,14 +342,9 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 		if err := accepted(cat.Stats); err != nil {
 			return p, err
 		}
-		if answered == AnsweredMirror && src.CatalogVersion != nil && kevOlder(cat.Version, *src.CatalogVersion) { // never roll back (D-91)
-			// the mirror's validators are kept, so the same older file is a 304 next hour
-			p.out = outcome{OK: true, NotModified: true, ETag: resp.ETag, LastModif: resp.LastModified, Mirror: true, Note: fmt.Sprintf("The CISA GitHub mirror has an older list (%s) than this box (%s), so the list on the box was kept.", cat.Version, *src.CatalogVersion)}
-			return p, nil
-		}
 		p.vulns, p.hasVulns = cat.Vulns, true
 		p.out.fill(cat.Stats, cat.Accepted)
-		p.out.CatalogVersion = cat.Version
+		p.out.CatalogVersion, p.out.CatalogReleased = cat.Version, cat.ReleasedAt
 	case DecoderNuclei:
 		n, err := ParseNucleiCVEs(resp.Body)
 		if err != nil {
@@ -545,7 +532,7 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	}
 	if perr != nil {
 		s.Log.WarnContext(ctx, "feed pull failed", "feed", src.ID, "name", src.Name, "error", perr) // the name too: an admin knows the feed by it (D-420 (2))
-		p = pullPlan{out: outcome{Err: userError(perr, src.URL)}}
+		p = pullPlan{out: outcome{Err: userError(perr, src.URL), Copies: p.out.Copies}}             // what each copy of the CISA list said is kept (kien G13)
 	}
 	p.out.Started, p.out.Finished = started, s.now()
 
@@ -785,41 +772,37 @@ func (s *Service) pull(ctx context.Context, id, actor string) (sourceRow, error)
 	return row, err
 }
 
-// fallbackWorthy says whether a failed pull of the CISA address is one the GitHub mirror can answer (D-91): the address
-// is blocked for this box (403), the server is sick (5xx) or nothing came back in time.
-func fallbackWorthy(err error) bool {
-	var se *StatusError
-	switch {
-	case errors.As(err, &se):
-		return se.Code == http.StatusForbidden || se.Code >= 500
-	case errors.Is(err, context.DeadlineExceeded):
-		return true
-	}
+// isTimeout is a pull that got no answer in time.
+func isTimeout(err error) bool {
 	var ne net.Error
-	return errors.As(err, &ne) && ne.Timeout()
+	return errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout())
 }
 
-// kevOlder reports whether catalog version a (such as "2026.11.04") is older than b. A version that is not dotted numbers is
-// never older: unknown is taken, not refused.
-func kevOlder(a, b string) bool {
-	pa, pb := strings.Split(a, "."), strings.Split(b, ".")
-	for i := 0; i < max(len(pa), len(pb)); i++ {
-		x, y := 0, 0
-		var e1, e2 error
-		if i < len(pa) {
-			x, e1 = strconv.Atoi(pa[i])
-		}
-		if i < len(pb) {
-			y, e2 = strconv.Atoi(pb[i])
-		}
-		if e1 != nil || e2 != nil || a == "" || b == "" {
-			return false
-		}
-		if x != y {
-			return x < y
-		}
+// unreached says how the box failed to get to the server at all, as words that follow its name ("cisa.gov refused the connection");
+// "" for any other failure.
+func unreached(err error) string {
+	var dns *net.DNSError
+	switch {
+	case errors.As(err, &dns):
+		return "did not resolve on this box"
+	case errors.Is(err, ErrBlockedAddress), errors.Is(err, ErrBoxAddrsUnknown):
+		return "resolved to an address Vedette does not connect to"
+	case errors.Is(err, syscall.ECONNREFUSED):
+		return "refused the connection"
+	case errors.Is(err, syscall.ECONNRESET), errors.Is(err, io.ErrUnexpectedEOF):
+		return "cut the connection"
+	case errors.Is(err, syscall.EHOSTUNREACH), errors.Is(err, syscall.ENETUNREACH):
+		return "could not be reached from this box"
 	}
-	return false
+	var cv *tls.CertificateVerificationError
+	var rh tls.RecordHeaderError
+	var ua x509.UnknownAuthorityError
+	var hn x509.HostnameError
+	var ci x509.CertificateInvalidError
+	if errors.As(err, &cv) || errors.As(err, &rh) || errors.As(err, &ua) || errors.As(err, &hn) || errors.As(err, &ci) {
+		return "failed the secure connection (TLS certificate or handshake)"
+	}
+	return ""
 }
 
 func (s *Service) kevPrimary() string {

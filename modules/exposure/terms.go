@@ -257,7 +257,7 @@ func (s *Service) stopRunAbove(ctx context.Context, id, value string, m ScanMode
 	r := s.run
 	stop := r != nil && r.view.Status == RunRunning && r.view.TargetID == id && r.mode.above(m)
 	if stop {
-		r.cancel(&stoppedBy{by: user + " (" + why + ")", why: why})
+		r.cancel(&stoppedBy{by: user + " (" + why + ")", why: why, reason: StopTerms, person: user})
 	}
 	s.runMu.Unlock()
 	if !stop {

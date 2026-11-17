@@ -67,6 +67,15 @@ export function useScan() {
     // the 202 run goes into the cache at once, so a run that ends before the first poll still ends a "running" the page has seen
     onSuccess: (run) => { qc.setQueryData(['exposure', 'scan'], run); return inv() }, onError: inv })
 }
+/** OpenVAS again, on its own, for the newest scan of a public IP whose OpenVAS step did not finish (operator). Its outcome replaces that
+ *  step in the same scan; the page follows the run like a scan (GET /exposure/scan). */
+export function useOpenVasAgain() {
+  const qc = useQueryClient()
+  const inv = useInvalidate()
+  return useMutation({
+    mutationFn: (id: string) => api.post<ScanRun>(`/exposure/targets/${encodeURIComponent(id)}/openvas`),
+    onSuccess: (run) => { qc.setQueryData(['exposure', 'scan'], run); return inv() }, onError: inv })
+}
 /** Stop the scan that runs now (operator). */
 export function useStopScan() {
   const inv = useInvalidate()

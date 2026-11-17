@@ -350,7 +350,7 @@ func deepCandidates(hosts []HostRow, domain string, last, tried map[string]strin
 // the others are marked and get their lines. It returns the addresses whose service identification finished, for OpenVAS after the
 // snapshot is stored. Only a stop of the run ends it with an error.
 func (s *Service) deepDomain(ctx context.Context, st ScanTarget, c Content) (Content, []deepAddr, error) {
-	prev, ok, err := previousSnapshot(ctx, s.cfg.DB.Reader(), st.ID, s.clock().In(s.cfg.Location).Format(dayFormat))
+	prev, ok, err := previousSnapshot(ctx, s.cfg.DB.Reader(), st.ID, s.clock().In(s.loc()).Format(dayFormat))
 	if err != nil {
 		return c, nil, err
 	}

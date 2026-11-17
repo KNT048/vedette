@@ -1,6 +1,7 @@
 package exposure
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -37,6 +38,15 @@ func optTS(s sql.NullString) (time.Time, error) {
 		return time.Time{}, nil
 	}
 	return parseTS(s.String)
+}
+
+// optText is a nullable text column as a pointer: nil for NULL.
+func optText(s sql.NullString) *string {
+	if !s.Valid {
+		return nil
+	}
+	v := s.String
+	return &v
 }
 
 func tsOrNil(t time.Time) any {
@@ -139,13 +149,14 @@ func countTargets(ctx context.Context, q querier) (int, error) {
 
 // latestResult is what the target list shows of a target's newest snapshot: its counts and its first open ports.
 type latestResult struct {
-	Counts Counts
-	Ports  []PortRow
+	Counts     Counts
+	Ports      []PortRow
+	FinishedAt *string // when the newest scan ended; nil while its OpenVAS step runs or when not known
 }
 
 // latestResults returns the counts and the first MaxOpenPorts open ports of the newest snapshot of every target that has one.
 func latestResults(ctx context.Context, q querier) (map[string]latestResult, error) {
-	rows, err := q.QueryContext(ctx, `SELECT s.target_id, s.counts, s.ports FROM exp_snapshot s
+	rows, err := q.QueryContext(ctx, `SELECT s.target_id, s.counts, s.ports, s.finished_at FROM exp_snapshot s
 		WHERE s.date = (SELECT max(date) FROM exp_snapshot WHERE target_id = s.target_id)`)
 	if err != nil {
 		return nil, fmt.Errorf("latest counts: %w", err)
@@ -154,8 +165,9 @@ func latestResults(ctx context.Context, q querier) (map[string]latestResult, err
 	out := map[string]latestResult{}
 	for rows.Next() {
 		var id, doc, ports string
+		var fin sql.NullString
 		var r latestResult
-		if err := rows.Scan(&id, &doc, &ports); err != nil {
+		if err := rows.Scan(&id, &doc, &ports, &fin); err != nil {
 			return nil, fmt.Errorf("latest counts: %w", err)
 		}
 		if err := json.Unmarshal([]byte(doc), &r.Counts); err != nil {
@@ -167,6 +179,7 @@ func latestResults(ctx context.Context, q querier) (map[string]latestResult, err
 		if len(r.Ports) > MaxOpenPorts {
 			r.Ports = r.Ports[:MaxOpenPorts]
 		}
+		r.FinishedAt = optText(fin)
 		out[id] = r
 	}
 	return out, rows.Err()
@@ -306,20 +319,22 @@ func upsertSnapshot(ctx context.Context, tx *sql.Tx, targetID string, snap Snaps
 	if _, err := tx.ExecContext(ctx, `DELETE FROM exp_snapshot WHERE target_id = ? AND date = ?`, targetID, snap.Date); err != nil {
 		return fmt.Errorf("replacing snapshot: %w", err)
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO exp_snapshot (id, target_id, date, scanned_at, hosts, ports, admin_panels, certs, counts, services, checks, not_checked, web_findings, greenbone, scripts, greenbone_run)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		snap.ID, targetID, snap.Date, snap.ScannedAt, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10], string(run))
+	started := cmp.Or(snap.StartedAt, snap.ScannedAt)
+	_, err = tx.ExecContext(ctx, `INSERT INTO exp_snapshot (id, target_id, date, scanned_at, hosts, ports, admin_panels, certs, counts, services, checks, not_checked, web_findings, greenbone, scripts, greenbone_run, started_at, finished_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		snap.ID, targetID, snap.Date, snap.ScannedAt, d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], d[9], d[10], string(run), started, snap.FinishedAt)
 	if err != nil {
 		return fmt.Errorf("inserting snapshot: %w", err)
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE exp_target SET last_scan_at = ? WHERE id = ?`, snap.ScannedAt, targetID); err != nil {
+	// "Last scanned" is the start of the newest scan, the time every page names a scan by
+	if _, err := tx.ExecContext(ctx, `UPDATE exp_target SET last_scan_at = ? WHERE id = ?`, started, targetID); err != nil {
 		return fmt.Errorf("updating last scan: %w", err)
 	}
 	return nil
 }
 
 func listSnapshotMetas(ctx context.Context, q querier, targetID string) ([]SnapshotMeta, error) {
-	rows, err := q.QueryContext(ctx, `SELECT id, date, scanned_at, counts FROM exp_snapshot WHERE target_id = ? ORDER BY date DESC`, targetID)
+	rows, err := q.QueryContext(ctx, `SELECT id, date, scanned_at, coalesce(started_at, scanned_at), finished_at, counts FROM exp_snapshot WHERE target_id = ? ORDER BY date DESC`, targetID)
 	if err != nil {
 		return nil, fmt.Errorf("snapshots: %w", err)
 	}
@@ -328,12 +343,14 @@ func listSnapshotMetas(ctx context.Context, q querier, targetID string) ([]Snaps
 	for rows.Next() {
 		var m SnapshotMeta
 		var doc string
-		if err := rows.Scan(&m.ID, &m.Date, &m.ScannedAt, &doc); err != nil {
+		var fin sql.NullString
+		if err := rows.Scan(&m.ID, &m.Date, &m.ScannedAt, &m.StartedAt, &fin, &doc); err != nil {
 			return nil, fmt.Errorf("snapshots: %w", err)
 		}
 		if err := json.Unmarshal([]byte(doc), &m.Counts); err != nil {
 			return nil, fmt.Errorf("snapshot %s counts: %w", m.ID, err)
 		}
+		m.FinishedAt = optText(fin)
 		out = append(out, m)
 	}
 	return out, rows.Err()
@@ -343,9 +360,10 @@ func listSnapshotMetas(ctx context.Context, q querier, targetID string) ([]Snaps
 func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapshot, bool, error) {
 	var s Snapshot
 	var hosts, ports, admin, certs, counts, services, checks, notChecked, web, gb, scripts, gbRun string
+	var fin sql.NullString
 	var stored []storedService
-	err := q.QueryRowContext(ctx, `SELECT id, date, scanned_at, hosts, ports, admin_panels, certs, counts, services, checks, not_checked, web_findings, greenbone, scripts, greenbone_run FROM exp_snapshot WHERE target_id = ? AND date = ?`, targetID, date).
-		Scan(&s.ID, &s.Date, &s.ScannedAt, &hosts, &ports, &admin, &certs, &counts, &services, &checks, &notChecked, &web, &gb, &scripts, &gbRun)
+	err := q.QueryRowContext(ctx, `SELECT id, date, scanned_at, coalesce(started_at, scanned_at), finished_at, hosts, ports, admin_panels, certs, counts, services, checks, not_checked, web_findings, greenbone, scripts, greenbone_run FROM exp_snapshot WHERE target_id = ? AND date = ?`, targetID, date).
+		Scan(&s.ID, &s.Date, &s.ScannedAt, &s.StartedAt, &fin, &hosts, &ports, &admin, &certs, &counts, &services, &checks, &notChecked, &web, &gb, &scripts, &gbRun)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Snapshot{}, false, nil
 	}
@@ -370,6 +388,7 @@ func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapsh
 	s.Content = Content{Hosts: nz(s.Hosts), Ports: nz(s.Ports), AdminPanels: nz(s.AdminPanels), Certs: nz(s.Certs),
 		Services: s.Services, Templates: s.Templates, Checks: nz(s.Checks), NotChecked: nz(s.NotChecked), WebFindings: nz(s.WebFindings), Greenbone: nz(s.Greenbone),
 		Scripts: nz(s.Scripts)}
+	s.FinishedAt = optText(fin)
 	s.GreenboneRun = storedGreenboneRun(s.GreenboneRun, s.Content)
 	if s.GreenboneRun.State == GBRunStopped {
 		s.NotChecked = gbCutOff(s.NotChecked)
@@ -382,13 +401,9 @@ func loadSnapshot(ctx context.Context, q querier, targetID, date string) (Snapsh
 // domain's lines carry the address in front): a check row is done; the old waiting line or the stop line is stopped (nothing
 // runs it any more); a failure line is failed; else it did not run.
 func storedGreenboneRun(r GreenboneRun, c Content) GreenboneRun {
-	if r.StartedAt != nil {
-		if t, err := time.Parse(time.RFC3339Nano, *r.StartedAt); err != nil {
-			r.StartedAt = nil
-		} else {
-			at := store.FormatTS(t)
-			r.StartedAt = &at
-		}
+	r.StartedAt, r.EndedAt = storedTS(r.StartedAt), storedTS(r.EndedAt)
+	if r.Stop != nil && (r.State != GBRunStopped || !slices.Contains(stopReasons, r.Stop.Reason)) {
+		r.Stop = nil
 	}
 	addrs := []GreenboneAddr{}
 	for _, a := range r.Addresses {
@@ -415,6 +430,19 @@ func storedGreenboneRun(r GreenboneRun, c Content) GreenboneRun {
 		r.State = GBRunDone
 	}
 	return r
+}
+
+// storedTS is a stored time of the OpenVAS state, checked: one that is not a time is not believed (nil).
+func storedTS(v *string) *string {
+	if v == nil {
+		return nil
+	}
+	t, err := time.Parse(time.RFC3339Nano, *v)
+	if err != nil {
+		return nil
+	}
+	at := store.FormatTS(t)
+	return &at
 }
 
 // maxGBAddrs bounds the addresses of a stored OpenVAS state (a domain's run reaches at most MaxDeepIPs).
@@ -609,6 +637,8 @@ func nullIf(s string) any {
 // Scanning › History.
 type ScanRecord struct {
 	TargetID, Target, ScannedAt string
+	StartedAt                   string  // when the scan started (ScannedAt on a snapshot older than the column)
+	FinishedAt                  *string // when its last step ended; nil while OpenVAS runs or when not known
 	Counts                      Counts
 	NotChecked                  int    // steps the scan stored as not checked (OpenVAS off, a page ZAP could not scan, …)
 	Greenbone                   string // the OpenVAS run's state as stored (done, partial, failed, stopped, not_run); "" when none
@@ -617,9 +647,9 @@ type ScanRecord struct {
 // RecentScans lists the newest stored scans of every target, newest first, at most limit (1..500). Read only. Only a scan that
 // reached its snapshot is stored: one that failed before has no row (the run lives in memory, INV-8).
 func (s *Service) RecentScans(ctx context.Context, limit int) ([]ScanRecord, error) {
-	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT s.target_id, t.value, s.scanned_at, s.counts,
+	rows, err := s.cfg.DB.Reader().QueryContext(ctx, `SELECT s.target_id, t.value, s.scanned_at, coalesce(s.started_at, s.scanned_at), s.finished_at, s.counts,
   coalesce(json_array_length(s.not_checked), 0), coalesce(json_extract(s.greenbone_run, '$.state'), '')
-FROM exp_snapshot s JOIN exp_target t ON t.id = s.target_id ORDER BY s.scanned_at DESC LIMIT ?`, max(1, min(500, limit)))
+FROM exp_snapshot s JOIN exp_target t ON t.id = s.target_id ORDER BY coalesce(s.started_at, s.scanned_at) DESC LIMIT ?`, max(1, min(500, limit)))
 	if err != nil {
 		return nil, fmt.Errorf("exposure: recent scans: %w", err)
 	}
@@ -628,12 +658,14 @@ FROM exp_snapshot s JOIN exp_target t ON t.id = s.target_id ORDER BY s.scanned_a
 	for rows.Next() {
 		var r ScanRecord
 		var doc string
-		if err := rows.Scan(&r.TargetID, &r.Target, &r.ScannedAt, &doc, &r.NotChecked, &r.Greenbone); err != nil {
+		var fin sql.NullString
+		if err := rows.Scan(&r.TargetID, &r.Target, &r.ScannedAt, &r.StartedAt, &fin, &doc, &r.NotChecked, &r.Greenbone); err != nil {
 			return nil, fmt.Errorf("exposure: recent scans: %w", err)
 		}
 		if err := json.Unmarshal([]byte(doc), &r.Counts); err != nil {
 			return nil, fmt.Errorf("exposure: recent scan of %s: %w", r.TargetID, err)
 		}
+		r.FinishedAt = optText(fin)
 		out = append(out, r)
 	}
 	return out, rows.Err()

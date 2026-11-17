@@ -51,7 +51,7 @@ function SurfaceView({ s }: { s: Snapshot }) {
   return (
     <div className="grid gap-6">
       <Panel className="p-4">
-        <p className="mb-3 text-meta text-muted">{t('surface.from', { date: dateText(s.scanned_at) })}</p>
+        <p className="mb-3 text-meta text-muted">{t('surface.from', { date: dateText(s.started_at ?? s.scanned_at) })}</p>
         <KeyValue items={[
           { label: t('surface.count.names'), value: s.hosts.length },
           { label: t('count.ips'), value: s.counts.ips },

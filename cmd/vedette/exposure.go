@@ -43,6 +43,8 @@ func exposureService(d deps) *exposure.Service {
 		panic("vedette: " + err.Error())
 	}
 	cfg := exposure.Config{DB: d.DB, Audit: d.Audit, Resolver: net.DefaultResolver, Prober: prober, Runner: scanRunner(d), Outside: outside, Log: d.Log, Clock: d.Clock}
+	// A snapshot's day and the times in the API's messages are those of the organization's time zone (Settings › General)
+	cfg.Zone = orgLocationAt(d)
 	if d.Auth != nil { // The first scan of a target records the commitment only for an administrator with two-step sign-in
 		cfg.TwoStep = exposureTwoStep(d.Auth)
 	}

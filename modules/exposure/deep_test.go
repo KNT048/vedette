@@ -837,7 +837,8 @@ func TestContract_INV28_Deep_OpenVASStoppedKeepsTheFinishedAddress(t *testing.T)
 	if len(s.Greenbone) == 0 || slices.ContainsFunc(s.Greenbone, func(r GreenboneRow) bool { return r.IP != addrs[0].IP }) {
 		t.Fatalf("rows %+v of %s", s.Greenbone, addrs[0].IP)
 	}
-	if !slices.Contains(notChecked(s), notGBStoppedSome) || slices.Contains(notChecked(s), notGBStopped) { // never "not shown" over rows it shows
+	stop := personStop("admin@acme.example")
+	if !slices.Contains(notChecked(s), gbStoppedLine(stop, true)) || slices.Contains(notChecked(s), gbStoppedLine(stop, false)) { // never "not shown" over rows it shows
 		t.Fatalf("not checked %q", notChecked(s))
 	}
 }

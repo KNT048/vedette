@@ -7,7 +7,7 @@ import { SourceBadge } from '@/components/common/SourceBadge'
 import { DataTable, type ColumnDef } from '@/components/common/DataTable'
 import { Field, Select } from '@/components/ui/input'
 import { InfoTip } from '@/components/common/InfoTip'
-import { dateText, dateTimeText } from './dates'
+import { dateText, dateTimeText, endText } from './dates'
 import { identOf, riskOf, serviceText } from './services'
 import { PortHints, RiskChip, ServiceCell } from './PortIdent'
 import { useDiff, useSnapshot, useSnapshots } from './api'
@@ -18,6 +18,9 @@ import { DeepSection } from './DeepPanel'
 import { PortMark, PortMarkNote } from './PortMark'
 import { PORT_NOT_SEEN, VERSION_NOT_READ } from './contract'
 import { CERT_WARN_DAYS, type AdminRow, type CertRow, type DiffItem, type DiffChange, type HostRow, type PortRow, type Snapshot, type Target } from './types'
+
+/** A scan is named by its start; a snapshot read from a box older than started_at has only the time its results were stored. */
+const startOf = (s: Pick<Snapshot, 'scanned_at'> & { started_at?: string }) => s.started_at ?? s.scanned_at
 
 const daysLeft = (iso: string) => Math.ceil((new Date(iso).getTime() - Date.now()) / 864e5)
 
@@ -42,21 +45,21 @@ export function ResultsPanel({ target, blockedText }: { target: Target; blockedT
             <div className="grid gap-4">
               <Field label={t('results.pick')} htmlFor="ex-snap" className="max-w-xs">
                 <Select id="ex-snap" value={date ?? ''} onChange={(e) => setDate(e.target.value)}>
-                  {l.items.map((s) => <option key={s.id} value={s.date}>{dateTimeText(s.scanned_at)}</option>)}
+                  {l.items.map((s) => <option key={s.id} value={s.date}>{dateTimeText(startOf(s))}</option>)}
                 </Select>
               </Field>
-              {snap.isPending ? <Loading /> : snap.error ? <ErrorState error={snap.error} onRetry={() => void snap.refetch()} /> : snap.data ? <SnapshotView target={target} s={snap.data} /> : null}
+              {snap.isPending ? <Loading /> : snap.error ? <ErrorState error={snap.error} onRetry={() => void snap.refetch()} /> : snap.data ? <SnapshotView target={target} s={snap.data} newest={snap.data.date === latest} /> : null}
             </div>
           )}
         </QueryState>
       </Section>
-      {/* A scan's time, not only its day: the box keeps a snapshot per day of its own time zone, so two can read as the same day here */}
-      {list.data && list.data.items.length > 0 ? <Compare target={target} dates={dates} label={Object.fromEntries(list.data.items.map((s) => [s.date, dateTimeText(s.scanned_at)]))} /> : null}
+      {/* A scan is named by its start everywhere (header, pickers, compare, history), in the viewer's time zone */}
+      {list.data && list.data.items.length > 0 ? <Compare target={target} dates={dates} label={Object.fromEntries(list.data.items.map((s) => [s.date, dateTimeText(startOf(s))]))} /> : null}
     </>
   )
 }
 
-function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
+function SnapshotView({ target, s, newest }: { target: Target; s: Snapshot; newest: boolean }) {
   const { t } = useTranslation('exposure')
   const c = s.counts
   const hostCols: ColumnDef<HostRow>[] = [
@@ -74,7 +77,7 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
       const risk = riskOf(row.original)
       if (!risk && !row.original.last_seen) return null
       return <span className="grid gap-1">
-        {row.original.last_seen ? <><PortMark p={row.original} /><PortMarkNote p={row.original} at={s.scanned_at} /></> : null}
+        {row.original.last_seen ? <><PortMark p={row.original} /><PortMarkNote p={row.original} at={startOf(s)} /></> : null}
         <RiskChip p={row.original} purpose />
       </span>
     } },
@@ -97,7 +100,9 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
     <div className="grid gap-8">
       <Panel className="p-4">
         <div className="mb-3 flex flex-wrap items-center gap-x-2 text-meta text-muted">
-          <SourceBadge source="nmap" at={s.scanned_at} />
+          <SourceBadge source="nmap" />
+          <span>{s.greenbone_run?.state === 'running' ? t('results.spanRunning', { start: dateTimeText(startOf(s)) })
+            : s.finished_at ? t('results.span', { start: dateTimeText(startOf(s)), end: endText(startOf(s), s.finished_at) }) : t('results.spanStart', { start: dateTimeText(startOf(s)) })}</span>
           <InfoTip topic={t('results.scopeTopic')}><p>{t(!target.full_scan ? 'results.scopeBasic' : target.kind === 'domain' ? 'results.scopeDeepDomain' : 'results.scopeDeepIp')}</p><p>{t('results.sourceNote')}</p></InfoTip>
         </div>
         <KeyValue items={[
@@ -120,7 +125,7 @@ function SnapshotView({ target, s }: { target: Target; s: Snapshot }) {
       {target.kind === 'domain' ? <DeepSection s={s} /> : null /* the deep scan per address, with the names that led to it */}
       {target.kind === 'ip' || s.vulns.length > 0 || s.services.length > 0 ? <VulnSection s={s} domain={target.kind === 'domain'} /> : null /* a domain's page can carry versions ZAP read; and its addresses' services */}
       <WebSection s={s} />
-      {target.kind === 'ip' || (s.greenbone ?? []).length > 0 ? <GreenboneSection s={s} /> : null}
+      {target.kind === 'ip' || (s.greenbone ?? []).length > 0 ? <GreenboneSection s={s} again={newest && target.kind === 'ip' ? target : undefined} /> : null}
       <ChecksSection s={s} />
     </div>
   )

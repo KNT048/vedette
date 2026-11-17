@@ -1,6 +1,12 @@
 # Exposure — Change Impact Map
 
 
+## Modifying: `exp_snapshot.started_at`/`finished_at`, `exp_target.last_scan_at`, `Config.Zone`, `GreenboneRun.ended_at|stop|again`, `StartOpenVAS`, `openVASPart`, `stoppedBy` (INV-33)
+- **web/features/exposure**: `TargetPage` (header "Last scanned <start>, finished <end>"), `ResultsPanel` (pickers, compare labels, the result line), `SurfacePanel`, `GreenbonePanel` (stop reason with its time, "Run OpenVAS again"), `ScanProgress` (`openvas_only`), mocks and `data.ts`. A new stop reason = `GreenboneStop` in `contract.ts`, `greenbone.results.stop.*` in `locales/en/exposure.json`, `stopWhy`.
+- **cmd/vedette** `scanninghistory.go` (`exposureHistory`) names a scan by `StartedAt` and ends it at `FinishedAt`; `exposure.go` wires `Config.Zone` to the organization's time zone (`orgLocation`). `modules/core/export_policy.go` exports the two new columns (`TestExport`).
+- **response** bridge (`exposureports.go`) relies on one snapshot per target and day: still true, the day is now the organization's.
+- **core/server** `contractRoutes` and `api/route-modules.json` carry `POST /exposure/targets/{id}/openvas`.
+
 ## Modifying: `RecentScans`, `ScanRecord` (read only)
 - **core** `GET /scanning/history` lists them through `cmd/vedette/scanninghistory.go` (`exposureHistory`): one row per stored snapshot, "partial" when `not_checked` has steps or `greenbone_run.state` is partial, failed or stopped. A new state of `greenbone_run` or a change to `Counts` changes those words; a scan that fails before its snapshot is stored leaves no row (the History tab says so).
 

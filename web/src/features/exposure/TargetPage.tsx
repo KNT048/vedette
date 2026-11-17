@@ -9,7 +9,7 @@ import { QueryState, RequireModule } from '@/components/common/States'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { InfoTip } from '@/components/common/InfoTip'
-import { dateTimeText } from './dates'
+import { dateTimeText, endText } from './dates'
 import { useCan } from '@/lib/session'
 import { useDeleteTarget, useScan, useScanRun, useTarget } from './api'
 import { AnchorRedirect, ScrollToHash } from './anchors'
@@ -92,7 +92,8 @@ function TargetView({ target }: { target: Target }) {
   return (
     <>
       <PageHeader title={title} stories={['S-EXP-1']}
-        meta={<span className="flex flex-wrap items-center gap-2"><OwnerChip target={target} /><CommitChip target={target} />{target.last_scan_at ? t('target.lastScan', { time: dateTimeText(target.last_scan_at) }) : t('targets.neverScanned')}</span>}
+        meta={<span className="flex flex-wrap items-center gap-2"><OwnerChip target={target} /><CommitChip target={target} />{target.last_scan_at ? (target.last_scan_finished_at ? t('target.lastScanEnd', { time: dateTimeText(target.last_scan_at), end: endText(target.last_scan_at, target.last_scan_finished_at) })
+          : t('target.lastScan', { time: dateTimeText(target.last_scan_at) })) : t('targets.neverScanned')}</span>}
         actions={<>
           {/* #850: the contextual Scan now; its progress is the ScanProgress row under the header, with Stop */}
           <ScanNowButton label={target.full_scan ? t('scan.deepButton') : t('scan.button')} onStart={run} running={running} pending={scan.isPending} runningLabel={t('scan.running')}

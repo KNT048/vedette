@@ -174,7 +174,7 @@ function settledRun(): ScanRun | null {
   }
   const snap = m.snap
   snapshots.update((all) => ({ ...all, [r.target_id]: [...(all[r.target_id] ?? []).filter((x) => x.date !== snap.date), snap] }))
-  targets.update((l) => l.map((x) => (x.id === r.target_id ? { ...x, last_scan_at: snap.scanned_at } : x)))
+  targets.update((l) => l.map((x) => (x.id === r.target_id ? { ...x, last_scan_at: snap.started_at } : x)))
   audit('exposure.scan', r.target_value, `${snap.counts.subdomains} subdomains, ${snap.counts.ports} ports`)
   const next: ScanRun = { ...r, status: 'done', phase: 'done', finished_at: nowIso(), snapshot_id: snap.id, progress: null }
   mockRunStore.set({ ...m, run: next })
@@ -225,7 +225,7 @@ function view(t: StoredTarget): Target {
     verified_at: t.verified_at, expires_at: t.expires_at, validity, last_check: t.last_check, commitment,
     commitment_notice: current ? null : { version: NOTICE_VERSION, text: NOTICE_TEMPLATE.replace('{value}', t.value) },
     terms, terms_notice: { version: TERMS_VERSION, text: (t.kind === 'domain' ? TERMS_TEMPLATE_DOMAIN : TERMS_TEMPLATE).replaceAll('{value}', t.value), disruptive: TERMS_DISRUPTIVE }, full_scan: terms?.version === TERMS_VERSION,
-    scannable: blocked === null, blocked_reason: blocked, created_at: t.created_at, last_scan_at: t.last_scan_at, latest: last ? last.counts : null, open_ports: last ? last.ports.slice(0, 20) : null,
+    scannable: blocked === null, blocked_reason: blocked, created_at: t.created_at, last_scan_at: t.last_scan_at, last_scan_finished_at: last?.finished_at ?? null, latest: last ? last.counts : null, open_ports: last ? last.ports.slice(0, 20) : null,
     proof: proofOf(t),
   }
 }
@@ -643,6 +643,30 @@ export const handlers = [
     return HttpResponse.json(stopped)
   }),
 
+  // OpenVAS again for the newest scan of a public IP whose OpenVAS step did not finish (operator). The box runs it in the background;
+  // the mock finishes it at once with what a deep scan's OpenVAS finds, in the same snapshot, and keeps the other results as they are.
+  http.post(`${API}/exposure/targets/:id/openvas`, ({ params }) => {
+    const denied = guard('operator'); if (denied) return denied
+    const t = find(params.id)
+    if (!t) return notFound()
+    if (t.kind !== 'ip') return fail(400, 'bad_value', 'OpenVAS runs again on its own only on a public IP of this box. For a domain, run its deep scan again.')
+    if (settledRun()?.status === 'running') return fail(409, 'busy', 'Another external scan is running on this box. Wait for it to finish, then try again.')
+    const last = (snapshots.get()[t.id] ?? []).slice().sort((a, b) => b.date.localeCompare(a.date))[0]
+    if (!last || !['stopped', 'failed', 'ended'].includes(last.greenbone_run.state)) return fail(409, 'nothing_to_rerun', 'The newest scan of this target has no OpenVAS step that was stopped or did not finish, so there is nothing to run again. Run a deep scan instead.')
+    const fresh = makeSnapshot(last.id, last.scanned_at, { ...scanContent(t), ...greenboneFor(t.value, view(t).full_scan) }, t.value)
+    if (fresh.greenbone_run.state !== 'done') return fail(503, 'scanner_unavailable', `OpenVAS cannot run now. ${fresh.not_checked.find((n) => n.kind === 'greenbone')?.text ?? ''}`.trim())
+    const at = nowIso()
+    const snap: Snapshot = { ...last, greenbone: fresh.greenbone, vulns: fresh.vulns, finished_at: at,
+      checks: [...last.checks.filter((c) => c.kind !== 'greenbone'), ...fresh.checks.filter((c) => c.kind === 'greenbone')],
+      not_checked: last.not_checked.filter((n) => n.kind !== 'greenbone'),
+      greenbone_run: { state: 'done', started_at: at, ended_at: at, addresses: [], again: true } }
+    snapshots.update((all) => ({ ...all, [t.id]: (all[t.id] ?? []).map((x) => (x.id === last.id ? snap : x)) }))
+    audit('exposure.scan', t.value, `OpenVAS again, on the open ports the scan of ${last.date} found`)
+    const run: ScanRun = { id: newId('sr'), target_id: t.id, target_value: t.value, by: currentUser()?.email ?? '', started_at: at, finished_at: at, status: 'done', phase: 'done', snapshot_id: snap.id, error: null, progress: null, openvas_only: true }
+    mockRunStore.set({ run, startedMs: Date.now(), snap })
+    return HttpResponse.json(run, { status: 202 })
+  }),
+
   // What the Internet sees: reading sends nothing.
   http.get(`${API}/exposure/targets/:id/outside`, ({ params }) => {
     const denied = guard('viewer'); if (denied) return denied
@@ -690,13 +714,14 @@ export const handlers = [
     const denied = guard('viewer'); if (denied) return denied
     if (!find(params.id)) return notFound()
     const l = (snapshots.get()[String(params.id)] ?? []).slice().sort((a, b) => b.date.localeCompare(a.date))
-    return HttpResponse.json({ items: l.map((s) => ({ id: s.id, date: s.date, scanned_at: s.scanned_at, counts: s.counts })) })
+    return HttpResponse.json({ items: l.map((s) => ({ id: s.id, date: s.date, scanned_at: s.scanned_at, started_at: s.started_at ?? s.scanned_at, finished_at: s.finished_at ?? null, counts: s.counts })) })
   }),
 
   http.get(`${API}/exposure/targets/:id/snapshots/:date`, ({ params }) => {
     const denied = guard('viewer'); if (denied) return denied
     const s = (snapshots.get()[String(params.id)] ?? []).find((x) => x.date === params.date)
-    return s ? HttpResponse.json(s) : fail(404, 'not_found', 'No snapshot for this day.')
+    // a snapshot this browser stored before scans kept their start and end reads as the box reads one: its start is its store time
+    return s ? HttpResponse.json({ ...s, started_at: s.started_at ?? s.scanned_at, finished_at: s.finished_at ?? null }) : fail(404, 'not_found', 'No snapshot for this day.')
   }),
 
   http.get(`${API}/exposure/targets/:id/diff`, ({ params, request }) => {

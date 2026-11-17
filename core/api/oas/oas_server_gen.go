@@ -955,6 +955,21 @@ type Handler interface {
 	//
 	// POST /exposure/targets
 	ExposurePostExposureTargets(ctx context.Context, req *ExposurePostExposureTargetsReq) (*ExposurePostExposureTargetsCreated, error)
+	// ExposurePostExposureTargetsIDOpenvas implements exposure_post_exposure_targets_id_openvas operation.
+	//
+	// Run OpenVAS again, on its own, for the newest scan of a public IP of this box whose OpenVAS step
+	// started and did not finish (stopped, cut by a restart, failed, or ended by OpenVAS). It checks the
+	// open TCP ports that scan found, and its outcome replaces that step in the same snapshot; the other
+	// results are kept. Answers at once with 202 and the run (openvas_only, phase greenbone); the page
+	// polls GET /exposure/scan and can stop it. The same refusals as Scan now come first (409
+	// not_verified, expired, ip_not_current; 400 commitment_required when the target has no current
+	// commitment; 400 out_of_scope; 409 busy; 429 rate_limited), then 400 bad_value for a domain (run its
+	// deep scan again), 409 nothing_to_rerun when the newest scan has no such step, 503
+	// scanner_unavailable when OpenVAS cannot scan now (off, starting, loading its feed, testing terms not
+	// accepted). Every attempt is audited as exposure.scan.
+	//
+	// POST /exposure/targets/{id}/openvas
+	ExposurePostExposureTargetsIDOpenvas(ctx context.Context, params ExposurePostExposureTargetsIDOpenvasParams) (*ExposurePostExposureTargetsIDOpenvasAccepted, error)
 	// ExposurePostExposureTargetsIDOutside implements exposure_post_exposure_targets_id_outside operation.
 	//
 	// Ask Shodan InternetDB what it has seen on this public IP. Only an administrator's click sends it: no

@@ -174,6 +174,20 @@ func (h *ExposureHandlers) ExposurePostExposureTargetsIDScan(ctx context.Context
 	return into[oas.ExposurePostExposureTargetsIDScanAccepted](run)
 }
 
+// ExposurePostExposureTargetsIDOpenvas implements exposure_post_exposure_targets_id_openvas (operator): OpenVAS again for the newest
+// scan of a public IP of the box whose OpenVAS step did not finish; 202 with the run, which goes on in the background.
+func (h *ExposureHandlers) ExposurePostExposureTargetsIDOpenvas(ctx context.Context, params oas.ExposurePostExposureTargetsIDOpenvasParams) (*oas.ExposurePostExposureTargetsIDOpenvasAccepted, error) {
+	p, ok := server.PrincipalFrom(ctx)
+	if !ok {
+		return nil, apierr.Unauthenticated()
+	}
+	run, err := h.svc.StartOpenVAS(ctx, Actor{ID: p.ID, Email: p.Email, Admin: p.Role == routes.Admin}, params.ID)
+	if err != nil {
+		return nil, ToAPIError(err)
+	}
+	return into[oas.ExposurePostExposureTargetsIDOpenvasAccepted](run)
+}
+
 // ExposurePutExposureTargetsIDTerms implements exposure_put_exposure_targets_id_terms (admin with two-step): accept the testing terms
 // of a verified target, with or without the disruptive tick.
 func (h *ExposureHandlers) ExposurePutExposureTargetsIDTerms(ctx context.Context, req *oas.ExposurePutExposureTargetsIDTermsReq, params oas.ExposurePutExposureTargetsIDTermsParams) (*oas.ExposurePutExposureTargetsIDTermsOK, error) {

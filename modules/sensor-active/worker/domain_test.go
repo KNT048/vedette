@@ -25,7 +25,8 @@ var (
 	domainAddr = "8.8.4.4"
 )
 
-// fakeZone is the DNS of acme.example: its TXT records, www's addresses and CNAMEs; failing makes every lookup a server failure.
+// fakeZone is the DNS of acme.example: its TXT records (on acme.example itself), www's addresses and CNAME (acme.example itself is no
+// CNAME: D-628's ownership rule reads a record only at a name that is not one); failing makes every lookup a server failure.
 type fakeZone struct {
 	mu      sync.Mutex
 	txt     []string
@@ -48,7 +49,13 @@ func (z *fakeZone) err(name string) error {
 func (z *fakeZone) LookupTXT(_ context.Context, name string) ([]string, error) {
 	z.mu.Lock()
 	defer z.mu.Unlock()
-	return z.txt, z.err(name)
+	if err := z.err(name); err != nil {
+		return nil, err
+	}
+	if name != "acme.example" { // the record is the domain's own; no other name of the zone has one (no wildcard)
+		return nil, &net.DNSError{Err: "no such host", Name: name, IsNotFound: true}
+	}
+	return z.txt, nil
 }
 
 func (z *fakeZone) LookupNetIP(_ context.Context, _, name string) ([]netip.Addr, error) {
@@ -60,6 +67,9 @@ func (z *fakeZone) LookupNetIP(_ context.Context, _, name string) ([]netip.Addr,
 func (z *fakeZone) LookupCNAME(_ context.Context, name string) (string, error) {
 	z.mu.Lock()
 	defer z.mu.Unlock()
+	if name == "acme.example" { // the domain is not a CNAME; www is
+		return name + ".", z.err(name)
+	}
 	return z.cname + ".", z.err(name)
 }
 

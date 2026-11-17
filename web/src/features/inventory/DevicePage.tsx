@@ -23,15 +23,17 @@ import type { AssetKind, Service } from '@/lib/types'
 import { categoryLabel, categoryOf, kindLabel, TYPES_BY_CATEGORY } from '@/lib/deviceTypes'
 import { AddDeviceDialog } from './AddDeviceDialog'
 import { useDevice, useDeviceAction } from './api'
-import { useInstallKind, useModuleEnabled } from '@/lib/modules'
+import { useModuleEnabled } from '@/lib/modules'
 import { useFindings } from '@/features/findings/api'
 import { isOpen } from '@/features/findings/basis'
+import { useDeviceFindingCounts } from '@/features/findings/notRelevant'
 import { DeleteDialog } from './DeleteDialog'
 import { VersionDialog } from './VersionDialog'
 import { errMsg } from './kinds'
 import { badUserName, declaredSoftwareOnly, nameOf } from './nameOf'
 import { DeviceSources } from './DeviceSources'
 import { PossibleSameNotice } from './SameDevice'
+import { BoxNotice } from './BoxNotice'
 import type { DeviceDetail, Observation, RegularScan, SoftwareView } from './types'
 
 function Overview({ d }: { d: DeviceDetail }) {
@@ -371,23 +373,6 @@ function Approval({ d }: { d: DeviceDetail }) {
   )
 }
 
-/** D-53: the box is the first device; its findings are fixed by updating the operating system, not by a device vendor. */
-function BoxNotice({ findings }: { findings: number }) {
-  const { t } = useTranslation('inventory')
-  const install = useInstallKind() // D-381; undefined while GET /modules loads: then neither claim about packages is made
-  const packages = install === 'container' ? t('box.packagesContainer') : install === 'appliance' ? t('box.packagesAppliance') : ''
-  return (
-    <Notice tone="accent" title={t('box.title')} info={[t('box.lead'), packages].filter(Boolean).join(' ')}>
-      <p>{t('box.matched')}</p>
-      <p className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-ink">
-        <Link to="/settings/updates" className="font-medium text-accent underline-offset-4 hover:underline">{t('box.fix')}</Link>
-        <span className="text-meta text-muted">{t('box.noDelete')}</span>
-        {findings ? <Link to="/findings" className="text-accent underline-offset-4 hover:underline">{t('box.findings', { count: findings })}</Link> : null}
-      </p>
-    </Notice>
-  )
-}
-
 function Body() {
   const { t } = useTranslation('inventory')
   const { id = '' } = useParams()
@@ -427,7 +412,7 @@ function Body() {
           <Slot name="device.actions" props={{ assetId: a.id, asset: a }} />
           <Button disabled={!can || a.is_box} title={a.is_box ? t('box.noDelete') : needRole} onClick={() => setDel(true)}><Trash2 />{t('detail.delete')}</Button>
         </>} />
-      {a.is_box ? <BoxNotice findings={d.findings_count} /> : null}
+      {a.is_box ? <BoxNotice assetId={a.id} /> : null}
       {/* D-599 (#829): before the approval, since merging a new row into the known device answers its approval too */}
       <PossibleSameNotice me={{ id: a.id, name, approved: a.approved }} list={d.possible_same ?? []} />
       {!a.approved ? <Approval d={d} /> : null}
@@ -468,10 +453,11 @@ function Body() {
 function DeviceKpis({ d }: { d: DeviceDetail }) {
   const { t } = useTranslation('inventory')
   const findingsOn = useModuleEnabled('findings')
+  const counts = useDeviceFindingCounts(d.asset.id) // kien G5: the open findings the link opens, as the findings list counts them
   const id = encodeURIComponent(d.asset.id)
   return (
     <KpiStrip label={t('detail.kpi.label')} items={[
-      ...(findingsOn ? [{ value: d.findings_count, label: t('detail.kpi.findings'), to: `/findings?device=${id}` }] : []),
+      ...(findingsOn ? [{ value: counts ? counts.open : '–', label: t('detail.kpi.findings'), to: `/findings?device=${id}` }] : []),
       { value: d.asset.software.length, label: t('detail.kpi.software'), to: '?tab=software' },
       { value: d.asset.services.length, label: t('detail.kpi.services'), to: '?tab=services' },
     ]} />

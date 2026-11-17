@@ -126,6 +126,13 @@ describe('KpiStrip (D-464)', () => {
     await expectNoA11yViolations()
   })
 
+  it('a 0 is plain text, not a link to an empty list (kien G5)', () => {
+    render(<RouterProvider router={createMemoryRouter([{ path: '/', element: <KpiStrip label="Zero" items={[{ value: 0, label: 'Critical', to: '/x' }, { value: 2, label: 'Open', to: '/y' }]} /> }])} />)
+    expect(screen.queryByRole('link', { name: /Critical/ })).toBeNull()
+    expect(screen.getByRole('list', { name: 'Zero' })).toHaveTextContent('0 Critical')
+    expect(screen.getByRole('link', { name: '2 Open' })).toHaveAttribute('href', '/y')
+  })
+
   it('more than four numbers: a console error while developing, the first four shown, the page keeps working', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {})
     const five = [...kpis, { value: 1, label: 'D', to: '/' }, { value: 1, label: 'E', to: '/' }]

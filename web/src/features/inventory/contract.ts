@@ -40,12 +40,18 @@ export const Asset = z.object({
 /** Một lần quan sát một trường. Không bao giờ bị ghi đè: giá trị mới thêm vào, "đang dùng" chọn theo khai tay > tin cậy cao > mới hơn (ARCHITECTURE §4). */
 export const Observation = z.object({ id: z.string(), field: ObsField, value: z.string(), source: ObsSource, confidence, seen_at: dt, current: z.boolean() })
 
+/** D-601: a person turns each active source of the box on or off per device, on its Sources card. */
+export const SourceState = z.enum(['on', 'off'])
+export const SourcesInput = z.object({ scan: SourceState.optional(), snmp: SourceState.optional() }).describe('At least one; a source left out is left alone')
+export const SourcesState = z.object({ scan_source: SourceState, snmp_source: SourceState })
 export const RegularScan = z.enum(['follow', 'allow', 'never']).describe('Per-device override of the type setting for regular scans after the one gentle scan (D-45); never = never actively scanned again, for every kind of device (D-74)')
 /** D-45, D-84: a fragile device, or one of unknown kind, gets ONE gentle scan when first seen (lowest speed, no service/OS detection), then it is passive-only until classified or allowed; regular_scan=never means never for every kind; discovery never scans the box itself (only a person's pick in Scan now does, D-470). */
 const ScanInfo = z.object({
   is_box: z.boolean().describe('true for the Vedette box itself: the first device, always present, cannot be deleted (409)'),
   first_scan_at: dt.nullable().describe('When the one gentle first scan happened; null = no gentle scan (declared by hand, the box itself, or a known kind that is not fragile and not set to never)'),
   regular_scan: RegularScan,
+  scan_source: SourceState.describe('D-601: the box\'s network scan of this device (discovery\'s nmap and the vulnerability scans). on: the box\'s own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor found, off for one added by hand. Off is answered as regular_scan_never by the scan refusals'),
+  snmp_source: SourceState.describe('D-601: the box\'s SNMP reads of this device, as scan_source (default on for a device a sensor found, off for one added by hand). Off: no SNMP read goes to it (Test answers snmp_off)'),
   approved_at: dt.nullable().describe('When a person approved the device, or osquery enrolment did (D-471: "Approved in the last 24 h"); approving again does not move it; null = not approved, added by hand, or approved before this field existed'),
 })
 /** #849: what feeds a device, in the words of the Devices search (source:…). scan = nmap or a vulnerability scan; osquery and Wazuh are
@@ -237,7 +243,7 @@ export const SnmpResponse = z.object({
 })
 export const SnmpTestReason = z.enum([
   'ok', 'no_answer', 'auth_failed', 'unknown_user', 'error', 'not_in_inventory', 'not_approved', 'out_of_scope', 'not_for_this_credential',
-  'scanning_off', 'scope_not_confirmed', 'declared_by_hand', 'box', 'regular_scan_never', 'unavailable', 'busy',
+  'scanning_off', 'scope_not_confirmed', 'declared_by_hand', 'box', 'regular_scan_never', 'unavailable', 'busy', 'snmp_off', 'excluded',
 ])
 export const SnmpAnswer = z.object({
   sys_descr: z.string(), sys_object_id: z.string(), sys_name: z.string().describe('What the device said, cleaned; empty when it has none'),
@@ -273,6 +279,7 @@ export const endpoints = defineEndpoints([
       name: z.string().max(200).optional().describe('The name in Vedette (G2): trimmed, at most 64 characters, no < or >; empty clears it (back to the default name). The host name the network reports is not changed'),
       kind: AssetKind.optional(), fragile: z.boolean().optional(), regular_scan: RegularScan.optional(), notes: z.string().max(2000).optional(),
     }), response: ok },
+  { method: 'put', path: '/inventory/devices/{id}/sources', summary: 'Turn the network scan or the SNMP reads of one device on or off (D-601). On is the person\'s consent to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the device for the next window. Off stops it for any device (the run on it stops); what the source found stays and manual values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself', stories: ['S-INV-1', 'S-INV-4'], role: 'admin', params: id, body: SourcesInput, response: SourcesState },
   { method: 'delete', path: '/inventory/devices/{id}', summary: 'Delete a device from the inventory, along with its findings (409 for the Vedette box itself, which is always the first device)', stories: ['S-INV-3'], role: 'operator', params: id, response: null },
   { method: 'post', path: '/inventory/devices/{id}/approve', summary: 'Approve a new device', stories: ['S-INV-3'], role: 'operator', params: id, response: ok },
   { method: 'get', path: '/inventory/possible-same', summary: 'Every pair of devices that may be the same machine, for a person to merge or keep separate (D-599)', stories: ['S-INV-3'], role: 'viewer', response: SamePairs },

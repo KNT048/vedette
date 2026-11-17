@@ -322,34 +322,19 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     expect(within(dlg).queryByText(/Enter one IP address/)).toBeNull()
   })
 
-  it('#849, #860: a range outside the scan scope is added from the SNMP method, append-only with what the dialog showed', async () => {
+  it('D-601 (review r1 M3): a range outside the LAN ranges goes into the credential only; the scan scope is never widened for SNMP', async () => {
     const user = userEvent.setup()
-    const bodies: unknown[] = []
-    server.events.on('request:start', async ({ request }) => { if (request.method === 'POST' && new URL(request.url).pathname.endsWith('/scanning/safety/ranges')) bodies.push(await request.clone().json()) })
+    const widened: string[] = []
+    server.events.on('request:start', ({ request }) => { if (request.method === 'POST' && new URL(request.url).pathname.endsWith('/scanning/safety/ranges')) widened.push(request.url) })
     renderApp('/devices?add=snmp')
     const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
     await user.type(await within(dlg).findByLabelText('IP address or range', undefined, T), '10.50.0.0/24')
-    await user.click(await within(dlg).findByRole('button', { name: 'Add 10.50.0.0/24 to the scan scope' }, T))
-    const scope = await screen.findByRole('dialog', { name: 'Add 10.50.0.0/24 to the scan scope' }, T)
-    const shown = inventorySettingsStore.get().lan_ranges
-    await user.click(within(scope).getByRole('checkbox'))
-    await user.click(within(scope).getByRole('button', { name: 'Add to scope' }))
-    await waitFor(() => expect(inventorySettingsStore.get().lan_ranges).toContain('10.50.0.0/24'), T)
-    expect(bodies).toEqual([expect.objectContaining({ range: '10.50.0.0/24', confirm: true, shown_ranges: shown })])
-  })
-
-  it('#860: when the scope changed meanwhile (409 scope_changed) the dialog says so and asks for the tick again; nothing is overwritten', async () => {
-    const user = userEvent.setup()
-    server.use(http.post('*/api/v1/scanning/safety/ranges', () => HttpResponse.json({ error: { code: 'scope_changed', message: 'The scope changed.' } }, { status: 409 })))
-    renderApp('/devices?add=snmp')
-    const dlg = await screen.findByRole('dialog', { name: 'Add a device' }, T)
-    await user.type(await within(dlg).findByLabelText('IP address or range', undefined, T), '10.50.0.0/24')
-    await user.click(await within(dlg).findByRole('button', { name: 'Add 10.50.0.0/24 to the scan scope' }, T))
-    const scope = await screen.findByRole('dialog', { name: 'Add 10.50.0.0/24 to the scan scope' }, T)
-    await user.click(within(scope).getByRole('checkbox'))
-    await user.click(within(scope).getByRole('button', { name: 'Add to scope' }))
-    expect(await within(scope).findByText(/Someone changed the scan scope meanwhile/, undefined, T)).toBeInTheDocument()
-    expect(within(scope).getByRole('checkbox')).not.toBeChecked()
+    expect(await within(dlg).findByText('10.50.0.0/24 is outside the LAN ranges', undefined, T)).toBeInTheDocument()
+    expect(within(dlg).getByText(/the LAN ranges are not widened/)).toBeInTheDocument()
+    expect(within(dlg).queryByRole('button', { name: /to the scan scope/ })).toBeNull()
+    await user.click(within(dlg).getByRole('button', { name: /^Add range to / }))
+    expect(((await screen.findByLabelText('Send only to', undefined, T)) as HTMLTextAreaElement).value).toContain('10.50.0.0/24')
+    expect(widened).toEqual([])
     expect(inventorySettingsStore.get().lan_ranges).not.toContain('10.50.0.0/24')
   })
 
@@ -753,7 +738,7 @@ describe('inventory: device detail (S-INV-1)', () => {
     expect(screen.getByRole('switch', { name: 'Fragile device' })).toBeChecked()
     // D-543: the page frame: numbers that link to the detail, then one tab per area of the device
     const kpis = screen.getByRole('list', { name: 'This device at a glance' })
-    expect(within(kpis).getByRole('link', { name: /Findings/ })).toHaveAttribute('href', '/findings?device=a-nas02')
+    expect(within(kpis).getByRole('link', { name: /Open findings/ })).toHaveAttribute('href', '/findings?device=a-nas02')
     expect(within(kpis).getByRole('link', { name: '3 Open services' })).toHaveAttribute('href', '/devices/a-nas02?tab=services')
     expect(screen.getAllByRole('tab').map((x) => x.textContent?.trim())).toEqual(['Overview', 'Software', 'Services', 'Observations'])
     await expectNoA11yViolations()
@@ -2145,11 +2130,10 @@ describe('inventory: the box is the first device (S-INV-5, D-53)', () => {
     expect(within(table).getAllByRole('row')[1]).toBe(row) // first row
   })
 
-  it('it is matched against exploited vulnerabilities like any device, and the device page points to the operating system update', async () => {
+  it('it is matched against exploited vulnerabilities like any device (the fix line: boxNotice.test.tsx)', async () => {
     renderApp(`/devices/${BOX_ID}?tab=software`)
     expect(await screen.findByText('This is the Vedette box itself', undefined, T)).toBeInTheDocument()
     expect(findingsStore.get().some((f) => f.asset_id === BOX_ID)).toBe(true)
-    expect(screen.getByRole('link', { name: 'Fix by updating the operating system' })).toHaveAttribute('href', '/settings/updates')
     const sw = screen.getByRole('table', { name: 'Software on the device' })
     expect(within(sw).getAllByText('This box').length).toBeGreaterThan(5)
     expect(screen.getAllByText('This box').length).toBeGreaterThan(1) // badge and software sources

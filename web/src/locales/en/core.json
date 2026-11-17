@@ -568,6 +568,7 @@
       "inventory.set_kind": "Change device kind",
       "inventory.set_notes": "Change device notes",
       "inventory.set_regular_scan": "Change regular scanning of a device",
+      "inventory.set_source": "Turn a source of a device on or off (network scan, SNMP)",
       "inventory.settings": "Change device discovery settings",
       "inventory.software_expired": "Agent software no longer reported was removed",
       "inventory.software_sync": "Software list synced",
@@ -853,7 +854,9 @@
       "installAllConfirm": "Install all",
       "helper": "A separate privileged helper, vedette-host, runs a fixed list of apt commands. The web app never runs shell commands. A database backup is taken before every run, and only one run can go at a time.",
       "checked": "Checked the package mirrors.",
-      "pending": "{{count}} updates waiting, {{security}} of them security",
+      "pending_one": "1 update waiting, {{security}} of them security",
+      "pending_other": "{{count}} updates waiting, {{security}} of them security",
+      "pendingNone": "Updates waiting",
       "pendingCaption": "Pending operating system updates",
       "pendingEmpty": "Nothing waiting. The operating system is up to date.",
       "col": {

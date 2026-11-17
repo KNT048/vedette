@@ -57,6 +57,13 @@ func (h *hookInv) ScanPolicy(ctx context.Context, id string) (sa.Decision, error
 	return h.fakeInv.ScanPolicy(ctx, id)
 }
 
+func (h *hookInv) SNMPPolicy(ctx context.Context, id string) (sa.Decision, error) {
+	if _, ok := h.snmpDecision[id]; ok {
+		return h.fakeInv.SNMPPolicy(ctx, id)
+	}
+	return h.ScanPolicy(ctx, id)
+}
+
 func buildWith(t *testing.T, e *env, inv sa.Inventory) *sa.Service {
 	t.Helper()
 	svc, err := sa.New(sa.Config{DB: e.db, Inventory: inv, Observe: e.sink, Software: e.sink, Events: e.ev, NmapPath: e.nm.path, Prober: e.prober(), Clock: e.clock})

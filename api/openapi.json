@@ -30874,16 +30874,51 @@
                           "description": "The CISA list (cisa-kev) for the Home count (D-92): \"off\" when an admin turned it off, else \"loaded\" once a pull has ever succeeded (even if a later pull failed), else \"never_loaded\""
                         },
                         "error": {
-                          "description": "One line, cleaned: why the last pull failed; null when it has not failed or has not been tried",
+                          "description": "One line, cleaned: why the last pull failed (also when an earlier pull had loaded the list); null when the last pull worked, has not been tried, or the list is off",
                           "type": [
                             "string",
                             "null"
                           ]
+                        },
+                        "interval_hours": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "How often the box pulls the CISA list (kien G11: Home says \"checked every hour\")"
+                        },
+                        "checked_at": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When the box last asked for the CISA list, whether the pull worked or not; null before the first pull"
+                        },
+                        "last_success": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ],
+                          "description": "When a pull of the CISA list last worked; null when none ever did"
                         }
                       },
                       "required": [
                         "state",
-                        "error"
+                        "error",
+                        "interval_hours",
+                        "checked_at",
+                        "last_success"
                       ],
                       "additionalProperties": false
                     }
@@ -45504,6 +45539,22 @@
                             ],
                             "description": "Per-device override of the type setting for regular scans after the one gentle scan (D-45); never = never actively scanned again, for every kind of device (D-74)"
                           },
+                          "scan_source": {
+                            "type": "string",
+                            "enum": [
+                              "on",
+                              "off"
+                            ],
+                            "description": "D-601: the box's network scan of this device (discovery's nmap and the vulnerability scans). on: the box's own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor found, off for one added by hand. Off is answered as regular_scan_never by the scan refusals"
+                          },
+                          "snmp_source": {
+                            "type": "string",
+                            "enum": [
+                              "on",
+                              "off"
+                            ],
+                            "description": "D-601: the box's SNMP reads of this device, as scan_source (default on for a device a sensor found, off for one added by hand). Off: no SNMP read goes to it (Test answers snmp_off)"
+                          },
                           "approved_at": {
                             "anyOf": [
                               {
@@ -45599,6 +45650,8 @@
                           "is_box",
                           "first_scan_at",
                           "regular_scan",
+                          "scan_source",
+                          "snmp_source",
                           "approved_at",
                           "sources",
                           "suspicious",
@@ -46440,6 +46493,22 @@
                           ],
                           "description": "Per-device override of the type setting for regular scans after the one gentle scan (D-45); never = never actively scanned again, for every kind of device (D-74)"
                         },
+                        "scan_source": {
+                          "type": "string",
+                          "enum": [
+                            "on",
+                            "off"
+                          ],
+                          "description": "D-601: the box's network scan of this device (discovery's nmap and the vulnerability scans). on: the box's own scan settings decide; off: no scan packet goes to it. Default: on for a device a sensor found, off for one added by hand. Off is answered as regular_scan_never by the scan refusals"
+                        },
+                        "snmp_source": {
+                          "type": "string",
+                          "enum": [
+                            "on",
+                            "off"
+                          ],
+                          "description": "D-601: the box's SNMP reads of this device, as scan_source (default on for a device a sensor found, off for one added by hand). Off: no SNMP read goes to it (Test answers snmp_off)"
+                        },
                         "approved_at": {
                           "anyOf": [
                             {
@@ -46536,6 +46605,8 @@
                         "is_box",
                         "first_scan_at",
                         "regular_scan",
+                        "scan_source",
+                        "snmp_source",
                         "approved_at",
                         "software"
                       ],
@@ -47356,6 +47427,101 @@
                   },
                   "required": [
                     "ok"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/devices/{id}/sources": {
+      "put": {
+        "operationId": "inventory_put_inventory_devices_id_sources",
+        "summary": "Turn the network scan or the SNMP reads of one device on or off (D-601). On is the person's consent to that traffic: a device added by hand gets it from then on, inside every other safety rule (scope, exclusions, window, fragile, never scan); turning the network scan on queues the device for the next window. Off stops it for any device (the run on it stops); what the source found stays and manual values still win. One audit row per source changed. 400 bad_source: neither, or not on/off. 404 not_found. 409 box_device: the Vedette box itself",
+        "tags": [
+          "inventory"
+        ],
+        "x-stories": [
+          "S-INV-1",
+          "S-INV-4"
+        ],
+        "x-min-role": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scan": {
+                    "type": "string",
+                    "enum": [
+                      "on",
+                      "off"
+                    ]
+                  },
+                  "snmp": {
+                    "type": "string",
+                    "enum": [
+                      "on",
+                      "off"
+                    ]
+                  }
+                },
+                "additionalProperties": false,
+                "description": "At least one; a source left out is left alone"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "scan_source": {
+                      "type": "string",
+                      "enum": [
+                        "on",
+                        "off"
+                      ]
+                    },
+                    "snmp_source": {
+                      "type": "string",
+                      "enum": [
+                        "on",
+                        "off"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "scan_source",
+                    "snmp_source"
                   ],
                   "additionalProperties": false
                 }
@@ -49701,7 +49867,9 @@
                                   "box",
                                   "regular_scan_never",
                                   "unavailable",
-                                  "busy"
+                                  "busy",
+                                  "snmp_off",
+                                  "excluded"
                                 ]
                               },
                               "message": {
@@ -49946,7 +50114,9 @@
                               "box",
                               "regular_scan_never",
                               "unavailable",
-                              "busy"
+                              "busy",
+                              "snmp_off",
+                              "excluded"
                             ]
                           },
                           "message": {
@@ -50140,7 +50310,9 @@
                         "box",
                         "regular_scan_never",
                         "unavailable",
-                        "busy"
+                        "busy",
+                        "snmp_off",
+                        "excluded"
                       ]
                     },
                     "message": {

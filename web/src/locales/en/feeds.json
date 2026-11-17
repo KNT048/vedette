@@ -27,6 +27,19 @@
     "placeholder": "CVE, product, IP or domain",
     "submit": "Look up"
   },
+  "fresh": {
+    "every_one": "Checked every hour",
+    "every_other": "Checked every {{count}} hours",
+    "ok": "{{every}}, last at {{time}}.",
+    "latest": "CISA's last addition: {{date}}, {{product}}.",
+    "failed": "{{every}}; the last check, at {{time}}, failed: {{reason}}. Vedette keeps trying.",
+    "lastTried_one": "Last tried at {{time}}; it is checked every hour.",
+    "lastTried_other": "Last tried at {{time}}; it is checked every {{count}} hours.",
+    "lastGood": "The list shown is from the last good pull, at {{time}}.",
+    "neverGood": "No pull has worked yet, so nothing is shown.",
+    "never": "{{every}}; the first check has not run yet.",
+    "openFeeds": "Open Settings, Feeds"
+  },
   "hot": {
     "title": "Newly exploited",
     "description": "Newly exploited vulnerabilities (CISA KEV), grouped by product.",
@@ -61,6 +74,7 @@
     "descriptionInfo": "Click \"I have this\" to get alerts for that product: this flaw and every new one from now on. Add the product with its version to the right device for an exact check.",
     "have": "I have this",
     "notRelevant": "Not relevant",
+    "none": "Nothing new to answer this week.",
     "added": "Alerts on for this product",
     "addedToast": "Done. This flaw is now a finding, and you will get alerts for new exploited flaws in this product. Add the product with its version to the right device for an exact check.",
     "hiddenToast": "Item hidden."
@@ -115,7 +129,8 @@
     "matched": "Your devices",
     "matchedNone": "No matching devices found",
     "matchedNoneBody": "Have it but not listed? Add it on the Devices page.",
-    "toFindings": "See findings and what to do",
+    "toFindings_one": "See the open finding and what to do",
+    "toFindings_other": "See the {{count}} open findings and what to do",
     "tryLookup": "Look up this ID",
     "notAnId": "“{{id}}” is not a CVE ID",
     "notAnIdBody": "CVE IDs look like CVE-2021-44228: the letters CVE, a year, and a number.",

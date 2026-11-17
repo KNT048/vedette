@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
@@ -140,14 +140,14 @@ describe('Last checks never points at a button the device page does not show', (
   }
   const lastChecks = () => screen.findByRole('region', { name: 'Last checks' }, T)
 
-  it('a device added by hand: neither button, and the hints say to turn its network scan on under Sources', async () => {
+  it('a device added by hand: neither button, and the hints point at Sources, where its network scan is turned on', async () => {
     noRuns()
     addDevice({ origin: 'manual' })
     renderApp('/devices/a-man1')
     const section = await lastChecks()
     const ident = await within(section).findByRole('group', { name: IDENT }, T)
-    expect(within(ident).getByText('Added by hand: network discovery checks it only once you turn its network scan on under Sources on this page.')).toBeInTheDocument()
-    expect(within(screen.getByRole('group', { name: VULN })).getByText('Added by hand: vulnerability checks run on it only once you turn its network scan on under Sources on this page.')).toBeInTheDocument()
+    await vi.waitFor(() => expect(ident).toHaveTextContent('Network scan off: see Sources'), T)
+    await vi.waitFor(() => expect(screen.getByRole('group', { name: VULN })).toHaveTextContent('Network scan off: see Sources'), T)
     expect(screen.queryAllByRole('button', { name: 'Check this device now' })).toHaveLength(0)
     expect(screen.queryAllByRole('button', { name: 'Run vulnerability checks now' })).toHaveLength(0)
     expect(within(section).queryByText(/above/)).toBeNull()
@@ -157,7 +157,7 @@ describe('Last checks never points at a button the device page does not show', (
     addDevice({ origin: 'manual' })
     renderApp('/devices/a-man1?tab=services')
     const tip = await screen.findByRole('button', { name: 'About No open port seen yet' }, T)
-    expect(tip).toHaveAccessibleDescription('Added by hand: network discovery checks it only once you turn its network scan on under Sources on this page.')
+    expect(tip).toHaveAccessibleDescription('Its network scan is off: Sources, on the Overview tab, turns it on.')
   })
 
   it('the Services tab of a device that can be checked names the button at the top of the page', async () => {

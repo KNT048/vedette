@@ -17,7 +17,8 @@ import { useScanning, useScanningHistory } from './api'
 import { scanRefusal, useDeviceButtons, type DeviceRefusal } from './canScan'
 import { historyRowHref } from './places'
 import { HistoryOutcome } from './RunHistory'
-import { hasSnmpCard } from '@/features/inventory/nameOf'
+import { hasSnmpCard, hasSourcesCard } from '@/features/inventory/nameOf'
+import { ScanOffSeeSources } from './DeviceActions'
 
 const link = 'text-accent underline-offset-4 hover:underline'
 
@@ -46,7 +47,7 @@ function Row({ title, when, children, href }: { title: string; when: string | nu
 
 /** The words for a vulnerability check that cannot run on this device, from the scan list's reason the device page shows in place
  *  of its button. A device added by hand is "never" to that list until its network scan is on; the device rule (deviceRefusal)
- *  says what a person changes first: its address, or its network scan under Sources. */
+ *  says what a person changes first: its address, or its network scan under Sources ('manual': a pointer to Sources). */
 function vulnWhy(reason: string, origin: string | undefined, device: DeviceRefusal | null): string {
   if (reason === 'regular_scan_never' && origin === 'manual' && (device === 'no_ip' || device === 'manual')) return device
   return ['unapproved', 'excluded', 'out_of_scope', 'no_ip', 'regular_scan_never'].includes(reason) ? reason : 'out_of_scope'
@@ -91,8 +92,12 @@ export function LastChecks(props: Record<string, unknown>) {
   const a = device.data?.asset
   // why "Check this device now" is not there (the device: the same rule as the button) or cannot start (the box's ranges, discovery)
   const refusal = a ? scanRefusal(a, scanning.data) : null
-  const neverIdentify = refusal ? t(`selection.device.${refusal}`) : admin ? t('lastChecks.neverIdentify') : t('lastChecks.neverIdentifyRole')
-  const neverVuln = buttons.vuln && buttons.vuln !== 'off' ? t(`lastChecks.vulnWhy.${vulnWhy(buttons.vuln, a?.origin, buttons.identify)}`)
+  // a device added by hand with its network scan off: the note is on its Sources card; here only a pointer to it
+  const seeSources = <ScanOffSeeSources link={!!a && hasSourcesCard(a)} />
+  const neverIdentify = refusal === 'manual' ? seeSources : refusal ? t(`selection.device.${refusal}`) : admin ? t('lastChecks.neverIdentify') : t('lastChecks.neverIdentifyRole')
+  const vulnReason = buttons.vuln && buttons.vuln !== 'off' ? vulnWhy(buttons.vuln, a?.origin, buttons.identify) : null
+  const neverVuln = vulnReason === 'manual' ? seeSources
+    : vulnReason ? t(`lastChecks.vulnWhy.${vulnReason}`)
     : !operator ? t('lastChecks.neverVulnRole')
     : cfg.data && !cfg.data.can_scan && cfg.data.block_reason ? cfg.data.block_reason
     : t('lastChecks.neverVuln')

@@ -1,4 +1,5 @@
 import { useId, useState } from 'react'
+import { Link } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/input'
@@ -107,19 +108,21 @@ function SelectedVulnChecks({ selectedIds }: { selectedIds: string[] }) {
  *  He could not tell the two apart. Each button has one line under it: what it does, what it does not, how long. They
  *  stay two buttons: the vulnerability check sends exploit checks to the device and is a person's own pick, the device
  *  check only identifies it; one merged button would hide that difference. */
-export function DeviceActions({ assetId, asset: d }: { assetId: string; /** The device page's own read (no second read of it here). */ asset?: Facts }) {
+export function DeviceActions({ assetId, asset: d }: { assetId: string; /** The device page's own read (no second read of it here). */ asset?: Facts & { ignored_at?: string | null } }) {
   const { t } = useTranslation('scanning')
   const hint = useId()
   const { identify: r, vuln } = useDeviceButtons(assetId, d)
   return (
     <div className="flex flex-wrap items-start gap-3">
-      {r ? <p className="text-meta text-muted">{t(`selection.device.${r}`)}</p> : (
+      {r === 'manual' ? <p className="text-meta text-muted"><ScanOffSeeSources link={!d?.ignored_at} /></p>
+        : r ? <p className="text-meta text-muted">{t(`selection.device.${r}`)}</p> : (
         <div className="grid max-w-xs gap-1">
           <ScanNowButton targets={[assetId]} size="sm" describedBy={hint} />
           <p id={hint} className="text-meta text-muted">{t('hint.identify')}</p>
         </div>
       )}
-      <DeviceVulnChecks assetId={assetId} vuln={vuln} />
+      {/* a device added by hand with its network scan off: the scan list's reason is that same switch, already pointed at */}
+      {r === 'manual' && vuln === 'regular_scan_never' ? null : <DeviceVulnChecks assetId={assetId} vuln={vuln} />}
     </div>
   )
 }
@@ -137,4 +140,13 @@ function DeviceVulnChecks({ assetId, vuln }: { assetId: string; vuln: VulnButton
       <p id={hint} className="text-meta text-muted">{t('hint.vuln')}</p>
     </div>
   )
+}
+
+/** A device added by hand whose network scan is off: the full note is on its Sources card, next to the switch that turns the scan
+ *  on; every other place on the device page (the check buttons, Last checks) only points there. No link where the page shows no
+ *  Sources card (an ignored device). */
+export function ScanOffSeeSources({ link = true }: { link?: boolean }) {
+  const { t } = useTranslation('scanning')
+  if (!link) return <>{t('selection.device.manualOff')}</>
+  return <>{t('selection.device.manualSee')} <Link to="?tab=overview#sources" className="text-accent underline-offset-4 hover:underline">{t('selection.device.manualSeeLink')}</Link></>
 }

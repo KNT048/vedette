@@ -33,7 +33,7 @@ import { DeleteDialog } from './DeleteDialog'
 import { VersionDialog } from './VersionDialog'
 import { NotInstalledDialog } from './NotInstalledDialog'
 import { errMsg } from './kinds'
-import { badUserName, declaredSoftwareOnly, nameOf, neverSeen } from './nameOf'
+import { badUserName, declaredSoftwareOnly, hasSourcesCard, nameOf, neverSeen } from './nameOf'
 import { DeviceSources } from './DeviceSources'
 import { DeviceSnmpCard } from './SnmpCard'
 import { PossibleSameNotice } from './SameDevice'
@@ -44,9 +44,11 @@ import { RiskMarker } from './RiskMarker'
 
 /** #944: the fragile line promises a scan only when Vedette may scan the device now, by the one rule
  *  "Check this device now" uses (scanning/canScan.ts: the device, the ranges and exclusions, the ranges confirmed, discovery on);
- *  otherwise it says why. */
+ *  otherwise it says why. A device added by hand with its network scan off gets what fragile means instead: why it is not scanned
+ *  is said once, on its Sources card. */
 function scanHint(a: DeviceDetail['asset'], scanning: Scanning | undefined, t: (k: string) => string): string {
   const r = scanRefusal(a, scanning)
+  if (r === 'manual') return t('detail.fragileInfo')
   if (r) return t(`scanning:selection.device.${r}`)
   return a.fragile ? t('detail.fragileOnHint') : t('detail.fragileOffHint')
 }
@@ -97,7 +99,7 @@ function Overview({ d }: { d: DeviceDetail }) {
           </div>
         ) : null}
       </dd>
-      <dt className="flex items-center gap-1 text-meta text-muted"><Label htmlFor="device-fragile" className="text-meta font-normal text-muted">{t('detail.fragile')}</Label><InfoTip topic={t('detail.fragile')}>{t('detail.fragileInfo')}</InfoTip></dt>
+      <dt className="flex items-center gap-1 text-meta text-muted"><Label htmlFor="device-fragile" className="text-meta font-normal text-muted">{t('detail.fragile')}</Label>{scanRefusal(a, scanning) === 'manual' ? null : <InfoTip topic={t('detail.fragile')}>{t('detail.fragileInfo')}</InfoTip>}</dt>
       <dd className="flex flex-wrap items-center gap-3">
         <Switch id="device-fragile" checked={a.fragile} disabled={!can || act.patch.isPending} title={needRole}
           onCheckedChange={(v) => act.patch.mutate({ fragile: v }, { onSuccess: () => toast.success(v ? t('detail.fragileOn') : t('detail.fragileOff')), onError: fail })} />
@@ -251,7 +253,7 @@ function Services({ list, by, asset }: { list: Service[]; by: PortsBy; asset: De
       agent: [t('services.emptyAgent'), t('services.emptyAgentInfo')],
       fragile: [t('services.emptyFragile'), t('services.emptyFragileInfo')],
       // "Check this device now" is named only when this page shows it (the button's rule, scanning/canScan.ts); otherwise why not
-      scan: [t('services.emptyBody'), ((r) => r ? t(`scanning:selection.device.${r}`) : t('services.emptyBodyInfo'))(scanRefusal(asset, scanning))],
+      scan: [t('services.emptyBody'), ((r) => r === 'manual' ? t('scanning:selection.device.manualServices') : r ? t(`scanning:selection.device.${r}`) : t('services.emptyBodyInfo'))(scanRefusal(asset, scanning))],
     }[by]
     return <EmptyState title={t('services.empty')} info={info}>{body}</EmptyState>
   }
@@ -479,7 +481,7 @@ function Body() {
         { id: 'overview', label: t('detail.tabs.overview'), panel: (
           <>
             <Section id="overview" title={t('detail.overview')}><Card><Overview d={d} /></Card></Section>
-            {a.is_box || declaredSoftwareOnly(a) || a.ignored_at ? null : <><DeviceSources d={d} /><DeviceSnmpCard d={d} /></>}
+            {hasSourcesCard(a) ? <><DeviceSources d={d} /><DeviceSnmpCard d={d} /></> : null}
             <Slot name="device.panels" props={{ assetId: a.id }} />
             <Section id="notes" title={t('notes.title')}><Notes key={a.notes ?? ''} d={d} /></Section>
           </>

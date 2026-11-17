@@ -324,7 +324,11 @@
     "device": {
       "box": "The Vedette box itself is never part of a network scan.",
       "no_ip": "No IP address yet, so network discovery cannot check it. Add its IP on this page.",
-      "manual": "Added by hand: network discovery checks it only once you turn its network scan on under Sources on this page.",
+      "manual": "Added by hand: network discovery checks it only once you turn its network scan on under Sources on its device page.",
+      "manualSee": "Network scan off:",
+      "manualSeeLink": "see Sources",
+      "manualOff": "Network scan off.",
+      "manualServices": "Its network scan is off: Sources, on the Overview tab, turns it on.",
       "never": "Set to never scan, or its network scan is off under Sources: network discovery does not check it.",
       "out_of_scope": "Outside the network ranges or excluded: network discovery does not check it. Settings, Scanning, Safety holds the ranges.",
       "scope": "The network ranges are not confirmed yet, so network discovery checks no device. Settings, Scanning, Safety confirms them.",
@@ -390,7 +394,6 @@
     "neverVuln": "“Run vulnerability checks now” above runs it. A newly exploited flaw that matches this device can start one too.",
     "neverVulnRole": "An operator can run it with “Run vulnerability checks now” above. A newly exploited flaw that matches this device can start one too.",
     "vulnWhy": {
-      "manual": "Added by hand: vulnerability checks run on it only once you turn its network scan on under Sources on this page.",
       "no_ip": "No IP address yet, so no vulnerability check can run on it. Add its IP on this page.",
       "regular_scan_never": "Set to never scan, or its network scan is off under Sources: no vulnerability check runs on it.",
       "unapproved": "Not approved yet: vulnerability checks run on it only once you approve it on this page.",

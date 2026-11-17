@@ -210,7 +210,7 @@ Each box downloads these files itself, keeps on its own disk only the rows of th
 
 | Source | Terms | How it is used |
 |---|---|---|
-| Alpine Linux security database (secdb, `secdb.alpinelinux.org/<branch>/main.json`) and Alpine's advisory | CC BY-SA 4.0, Alpine Linux (https://secdb.alpinelinux.org/license.txt) | facts only, with attribution: the first fixed `openssh` release per Alpine branch for CVE-2026-123158 (five release numbers) in `content/catalog/platform-limits.json` (`fixed`, its `source` names the file), read against the package release a person gives (D-604). The box does not download secdb; no file of it is in the repository (post-v1 #957 would read it on the box like D-516's trackers). |
+| Alpine Linux security database (secdb, `secdb.alpinelinux.org/<branch>/main.json`) and Alpine's advisory | CC BY-SA 4.0, Alpine Linux (https://secdb.alpinelinux.org/license.txt) | facts only, with attribution: the first fixed `openssh` release per Alpine branch for CVE-2026-123158 (ten release numbers: edge and 3.24 to 3.16) in `content/catalog/platform-limits.json` (`fixed`, its `source` names the file), read against the package release a person gives (D-604). The box does not download secdb; no file of it is in the repository (post-v1 #957 would read it on the box like D-516's trackers). |
 
 ## Public pages each box reads for CVE news (only when a person presses the button; S-AI-3, D-280, D-281)
 

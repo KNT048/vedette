@@ -70276,6 +70276,9 @@ type FindingsGetFindingsOKUncheckedItemQuestion struct {
 	Answers []FindingsGetFindingsOKUncheckedItemQuestionAnswersItem `json:"answers"`
 	// What shows the answer on the device ("apk info -v openssh-server"), null when none.
 	Command NilString `json:"command"`
+	// The last answer could not be read: "Vedette could not read the release you entered (…)"; show it
+	// at the field.
+	Error OptString `json:"error"`
 	// "Is the OpenSSH on BN340 Alpine Linux's openssh-server package, or another build …? CVE-…
 	// affects only …".
 	Text string `json:"text"`
@@ -70289,6 +70292,11 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestion) GetAnswers() []FindingsGetF
 // GetCommand returns the value of Command.
 func (s *FindingsGetFindingsOKUncheckedItemQuestion) GetCommand() NilString {
 	return s.Command
+}
+
+// GetError returns the value of Error.
+func (s *FindingsGetFindingsOKUncheckedItemQuestion) GetError() OptString {
+	return s.Error
 }
 
 // GetText returns the value of Text.
@@ -70306,15 +70314,21 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestion) SetCommand(val NilString) {
 	s.Command = val
 }
 
+// SetError sets the value of Error.
+func (s *FindingsGetFindingsOKUncheckedItemQuestion) SetError(val OptString) {
+	s.Error = val
+}
+
 // SetText sets the value of Text.
 func (s *FindingsGetFindingsOKUncheckedItemQuestion) SetText(val string) {
 	s.Text = val
 }
 
 type FindingsGetFindingsOKUncheckedItemQuestionAnswersItem struct {
-	// The person types it: os → PATCH /inventory/devices/{asset_id} {os}; pkg_version → PATCH
-	// /inventory/devices/{asset_id}/software/{software_id} {pkg_version}.
-	Ask OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk `json:"ask"`
+	// What the person types: os → PATCH /inventory/devices/{asset_id} {os}; pkg_version → PATCH
+	// /inventory/devices/{asset_id}/software/{software_id} {pkg_version} (apk info -v output is read as
+	// is). "Another system" asks both: on a row a scan saw only the row's release rules it out.
+	Ask []FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem `json:"ask"`
 	// The button: "Alpine Linux 3.23", "Another system", "Enter the package release".
 	Label string `json:"label"`
 	// One click: PATCH /inventory/devices/{asset_id} {os} with this value (INV-39).
@@ -70322,7 +70336,7 @@ type FindingsGetFindingsOKUncheckedItemQuestionAnswersItem struct {
 }
 
 // GetAsk returns the value of Ask.
-func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItem) GetAsk() OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk {
+func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItem) GetAsk() []FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem {
 	return s.Ask
 }
 
@@ -70337,7 +70351,7 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItem) GetOs() OptStrin
 }
 
 // SetAsk sets the value of Ask.
-func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItem) SetAsk(val OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) {
+func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItem) SetAsk(val []FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem) {
 	s.Ask = val
 }
 
@@ -70351,29 +70365,27 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItem) SetOs(val OptStr
 	s.Os = val
 }
 
-// The person types it: os → PATCH /inventory/devices/{asset_id} {os}; pkg_version → PATCH
-// /inventory/devices/{asset_id}/software/{software_id} {pkg_version}.
-type FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk string
+type FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem string
 
 const (
-	FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskOs         FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk = "os"
-	FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskPkgVersion FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk = "pkg_version"
+	FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemOs         FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem = "os"
+	FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemPkgVersion FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem = "pkg_version"
 )
 
-// AllValues returns all FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk values.
-func (FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) AllValues() []FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk {
-	return []FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk{
-		FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskOs,
-		FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskPkgVersion,
+// AllValues returns all FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem values.
+func (FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem) AllValues() []FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem {
+	return []FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem{
+		FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemOs,
+		FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemPkgVersion,
 	}
 }
 
 // MarshalText implements encoding.TextMarshaler.
-func (s FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) MarshalText() ([]byte, error) {
+func (s FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem) MarshalText() ([]byte, error) {
 	switch s {
-	case FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskOs:
+	case FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemOs:
 		return []byte(s), nil
-	case FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskPkgVersion:
+	case FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemPkgVersion:
 		return []byte(s), nil
 	default:
 		return nil, errors.Errorf("invalid value: %q", s)
@@ -70381,13 +70393,13 @@ func (s FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) MarshalText() 
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) UnmarshalText(data []byte) error {
-	switch FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk(data) {
-	case FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskOs:
-		*s = FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskOs
+func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem(data) {
+	case FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemOs:
+		*s = FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemOs
 		return nil
-	case FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskPkgVersion:
-		*s = FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskPkgVersion
+	case FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemPkgVersion:
+		*s = FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemPkgVersion
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -144348,52 +144360,6 @@ func (o OptFindingsGetFindingsOKUncheckedItemQuestion) Get() (v FindingsGetFindi
 
 // Or returns value if set, or given parameter if does not.
 func (o OptFindingsGetFindingsOKUncheckedItemQuestion) Or(d FindingsGetFindingsOKUncheckedItemQuestion) FindingsGetFindingsOKUncheckedItemQuestion {
-	if v, ok := o.Get(); ok {
-		return v
-	}
-	return d
-}
-
-// NewOptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk returns new OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk with value set to v.
-func NewOptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk(v FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk {
-	return OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk{
-		Value: v,
-		Set:   true,
-	}
-}
-
-// OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk is optional FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk.
-type OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk struct {
-	Value FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk
-	Set   bool
-}
-
-// IsSet returns true if OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk was set.
-func (o OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) IsSet() bool { return o.Set }
-
-// Reset unsets value.
-func (o *OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) Reset() {
-	var v FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk
-	o.Value = v
-	o.Set = false
-}
-
-// SetTo sets value to v.
-func (o *OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) SetTo(v FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) {
-	o.Set = true
-	o.Value = v
-}
-
-// Get returns value and boolean that denotes whether value was set.
-func (o OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) Get() (v FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk, ok bool) {
-	if !o.Set {
-		return v, false
-	}
-	return o.Value, true
-}
-
-// Or returns value if set, or given parameter if does not.
-func (o OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) Or(d FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk {
 	if v, ok := o.Get(); ok {
 		return v
 	}

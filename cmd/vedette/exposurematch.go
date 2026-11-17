@@ -138,7 +138,7 @@ func (m exposureMatcher) Match(ctx context.Context, svcs []exposure.ServiceRow) 
 		for _, x := range res.Asked { // D-604: a platform-limited CVE whose platform the banner does not name is not listed, with why
 			s := where[x.SoftwareID]
 			out.RuledOut = append(out.RuledOut, exposure.RuledOutRow{IP: s.IP, Port: s.Port, CVE: x.CVE,
-				Reason: x.AskedWhy() + ". Vedette lists it once a version, a package release or the system decides it."})
+				Reason: x.AskedWhy() + ". This page cannot tell; if the port is a device you watch, answer the question in its Could not be checked list."})
 		}
 		for _, n := range res.NeedVersion {
 			s := where[n.SoftwareID]

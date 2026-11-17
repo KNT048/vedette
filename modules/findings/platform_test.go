@@ -17,14 +17,18 @@ func TestPlatformLimits_DataIsValid(t *testing.T) {
 		t.Fatalf("CVE-2026-123158 = %+v, want only alpine", l)
 	}
 	// D-604: Alpine's secdb (https://secdb.alpinelinux.org/<branch>/main.json, package openssh, read 2026-11-17)
-	want := map[string]string{"edge": "10.6_p2-r0", "3.24": "10.3_p1-r2", "3.23": "10.2_p1-r1", "3.22": "10.0_p1-r11", "3.21": "9.9_p2-r1"}
-	if f := platformLimits["CVE-2026-123158"].Fixed; f == nil || !maps.Equal(f.Releases, want) || f.fixList() != "10.6_p2-r0 (edge), 10.3_p1-r2 (3.24), 10.2_p1-r1 (3.23), 10.0_p1-r11 (3.22), 9.9_p2-r1 (3.21)" {
+	// every branch with a fix (review r1 H1 of #961); v3.15 and older have none
+	want := map[string]string{"edge": "10.6_p2-r0", "3.24": "10.3_p1-r2", "3.23": "10.2_p1-r1", "3.22": "10.0_p1-r11", "3.21": "9.9_p2-r1",
+		"3.20": "9.7_p1-r6", "3.19": "9.6_p1-r3", "3.18": "9.3_p2-r4", "3.17": "9.1_p1-r7", "3.16": "9.0_p1-r6"}
+	if f := distroFixes("CVE-2026-123158"); f == nil || !maps.Equal(f.Releases, want) || !strings.HasPrefix(f.fixList(), "10.6_p2-r0 (edge), 10.3_p1-r2 (3.24), ") ||
+		!strings.HasSuffix(f.fixList(), "9.1_p1-r7 (3.17), 9.0_p1-r6 (3.16)") || f.sourceFor("3.20") != "https://secdb.alpinelinux.org/v3.20/main.json" {
 		t.Fatalf("fixed list %+v", f)
 	}
 	for _, bad := range []string{
 		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Is it Alpine?", "source": "https://e"}}`,                                        // no {device}
 		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "ubuntu"}}}`, // not apk
-		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "alpine", "package": "p", "command": "c", "source": "https://e", "releases": {"3.23": "10.2p1"}}}}`,
+		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "alpine", "package": "p", "command": "c", "source": "https://e/{branch}", "releases": {"3.23": "10.2p1"}}}}`,
+		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "alpine", "package": "p", "command": "c", "source": "https://e", "releases": {"3.23": "10.2_p1-r1"}}}}`,
 	} {
 		if _, err := loadPlatformLimits([]byte(bad)); err == nil {
 			t.Errorf("accepted %s", bad)
@@ -124,7 +128,9 @@ func TestPlatform_D604_UnknownPlatformAsks(t *testing.T) {
 
 // D-604: once the platform is Alpine, the package release decides against Alpine's fixed list for the device's branch: the OS a
 // person set (one click on the question) or the one the device states (SNMP's "Alpine Linux", no branch: the branch whose fix has the
-// same upstream version), with the release a person gave on the row (inventory's correction) or an agent's apk release.
+// same upstream version), with the release a person gave on the row (inventory's correction) or an agent's apk release. Review r1 of
+// #961: every branch secdb fixes (H1: patched and unpatched 3.20/3.19, a branch with no fix, no loop after "Another system"), a
+// person's OS never rules a scanned row out (M1: the Docker host), and what `apk info -v` prints is read (M2).
 func TestPlatform_D604_PackageReleaseDecides(t *testing.T) {
 	t.Parallel()
 	mine := func(pkg string) Software { // inventory's correction of the scanned row (INV-39): manual, the scan's version, the release
@@ -132,12 +138,19 @@ func TestPlatform_D604_PackageReleaseDecides(t *testing.T) {
 		s.ID, s.PkgVersion, s.ReportedSource = "s-mine", pkg, "nmap"
 		return s
 	}
+	mineAt := func(ver, pkg string) Software {
+		s := mine(pkg)
+		s.Version = ver
+		return s
+	}
 	agentAPK := func(v string) Software { return sshRow(v, "", "agent") }
+	scanned := func(v string) Software { return sshRow(v, "protocol 2.0", "nmap") }
 	type want int
 	const (
 		fixed want = iota
 		affected
-		asked
+		askedPlatform
+		askedPackage
 		other
 	)
 	for _, tc := range []struct {
@@ -147,14 +160,24 @@ func TestPlatform_D604_PackageReleaseDecides(t *testing.T) {
 		words string
 	}{
 		{"BN340: SNMP says Alpine Linux, release 10.2_p1-r1 given", Asset{SNMPOS: "Alpine Linux", Software: []Software{mine("10.2_p1-r1")}}, fixed, "Alpine Linux 3.23 fixed it in openssh-server 10.2_p1-r1 (the branch whose fixed release has the same upstream version"},
-		{"BN340: the person says Alpine Linux 3.23", Asset{ManualOS: "Alpine Linux 3.23", SNMPOS: "Alpine Linux 3.23", Software: []Software{mine("10.2_p1-r1")}}, fixed, "BN340 has openssh-server 10.2_p1-r1 (the package release a person gave)"},
+		{"BN340: the person says Alpine Linux 3.23", Asset{ManualOS: "Alpine Linux 3.23", SNMPOS: "Alpine Linux 3.23", Software: []Software{mine("10.2_p1-r1")}}, fixed, "BN340 has openssh-server 10.2_p1-r1 (the package release a person gave). Source: https://secdb.alpinelinux.org/v3.23/main.json"},
+		{"BN340: the line apk info -v prints", Asset{SNMPOS: "Alpine Linux", Software: []Software{mine("openssh-server-10.2_p1-r1")}}, fixed, "BN340 has openssh-server 10.2_p1-r1"},
+		{"BN340: apk info -v's first line with its word after", Asset{SNMPOS: "Alpine Linux", Software: []Software{mine("openssh-server-10.2_p1-r1 description:")}}, fixed, "10.2_p1-r1"},
+		{"a release Vedette cannot read is said, not ignored", Asset{SNMPOS: "Alpine Linux", Software: []Software{mine("10.2p1")}}, askedPackage, "package_unknown 10.2p1"},
 		{"one revision before the fix", Asset{ManualOS: "Alpine Linux 3.23", Software: []Software{mine("10.2_p1-r0")}}, affected, "Update openssh-server to 10.2_p1-r1 or later"},
 		{"3.24 has a later fix", Asset{ManualOS: "Alpine Linux v3.24", Software: []Software{mine("10.2_p1-r1")}}, affected, "Alpine Linux 3.24 fixed it in openssh-server 10.3_p1-r2"},
-		{"no branch and no fix with that upstream", Asset{SNMPOS: "Alpine Linux", Software: []Software{mine("10.1_p1-r0")}}, asked, ""},
+		{"no branch and no fix with that upstream: NVD's range decides, with why", Asset{SNMPOS: "Alpine Linux", Software: []Software{mine("10.1_p1-r0")}}, affected, "do not say which one applies"},
+		{"patched 3.20, scanned row: the package question", Asset{ManualOS: "Alpine Linux 3.20", Software: []Software{scanned("9.7p1")}}, askedPackage, "package_unknown"},
+		{"patched 3.20, release given", Asset{ManualOS: "Alpine Linux 3.20", Software: []Software{mineAt("9.7p1", "9.7_p1-r6")}}, fixed, "Alpine Linux 3.20 fixed it in openssh-server 9.7_p1-r6"},
+		{"unpatched 3.20, release given", Asset{ManualOS: "Alpine Linux 3.20", Software: []Software{mineAt("9.7p1", "9.7_p1-r5")}}, affected, "Update openssh-server to 9.7_p1-r6"},
+		{"unpatched 3.19, release given, SNMP names no branch", Asset{SNMPOS: "Alpine Linux", Software: []Software{mineAt("9.6p1", "9.6_p1-r2")}}, affected, "Alpine Linux 3.19 fixed it in openssh-server 9.6_p1-r3"},
+		{"older than every fix, release given (3.15 has none)", Asset{ManualOS: "Alpine Linux 3.15", Software: []Software{mineAt("8.8p1", "8.8_p1-r9")}}, affected, "is older than every release Alpine Linux fixed it in"},
+		{"older than every fix, no release", Asset{AgentOS: "Alpine Linux v3.15", Software: []Software{agentAPK("8.8")}}, affected, "older than every release Alpine Linux fixed it in"},
+		{"a branch with no fix, no release: NVD's range decides", Asset{ManualOS: "Alpine Linux 3.15", Software: []Software{scanned("9.0p1")}}, affected, "Alpine Linux 3.15 has no fixed release of openssh-server"},
 		{"agent's apk release on 3.21, fixed", Asset{AgentOS: "Alpine Linux v3.21", Software: []Software{agentAPK("9.9_p2-r1")}}, fixed, "the release the device's agent reports"},
 		{"agent's apk release on 3.21, before the fix", Asset{AgentOS: "Alpine Linux v3.21", Software: []Software{agentAPK("9.9_p1-r5")}}, affected, "Update openssh-server to 9.9_p2-r1"},
-		{"older than every fix, no release", Asset{AgentOS: "Alpine Linux v3.20", Software: []Software{agentAPK("9.7")}}, affected, "older than every release Alpine Linux fixed it in"},
-		{"the person says Ubuntu: a scanned row is ruled out", Asset{ManualOS: "Ubuntu 26.04", Software: []Software{sshRow("10.2", "", "nmap")}}, other, "this device runs Ubuntu 26.04"},
+		{"Docker host: the person's Ubuntu never rules out a forwarded port", Asset{ManualOS: "Ubuntu 24.04", Software: []Software{scanned("10.2")}}, askedPlatform, "platform_unknown"},
+		{"Another system: the person's OS and the row's release rule it out", Asset{ManualOS: "Ubuntu 24.04", Software: []Software{mine("1:9.6p1-3ubuntu13.14")}}, other, "this device runs Ubuntu 24.04"},
 		{"a Debian release a person gave on a device that states Ubuntu", Asset{SNMPOS: "Ubuntu 24.04", Software: []Software{mine("1:9.6p1-3ubuntu13.14")}}, other, ""},
 	} {
 		tc.a.ID, tc.a.Name = "a", "BN340"
@@ -167,12 +190,41 @@ func TestPlatform_D604_PackageReleaseDecides(t *testing.T) {
 		case len(res.Existing) == 1 && res.Existing[0].Basis == BasisVersion:
 			got, text = affected, res.Existing[0].Evidence.Summary
 		case len(res.Asked) == 1 && len(res.Unchecked) == 1:
-			got = asked
+			got, text = askedPlatform, string(res.Unchecked[0].Reason)+" "+res.Unchecked[0].Answer
+			if res.Unchecked[0].Reason == UncheckedPackageUnknown {
+				got = askedPackage
+			}
 		case len(res.NotAffected) == 1 && len(res.OtherPlatform) == 1:
 			got, text = other, res.NotAffected[0].Evidence.Summary
 		}
 		if got != tc.want || !strings.Contains(text, tc.words) {
 			t.Errorf("%s: got %d (%q), want %d with %q; %+v", tc.name, got, text, tc.want, tc.words, res)
+		}
+	}
+}
+
+// Review r1 H1 of #961: an answer always moves the question on. Every one-click answer of the platform question (an Alpine branch),
+// applied as the device's OS, gives the package question, and the release for that branch then decides.
+func TestPlatform_D604_EveryAnswerSettles(t *testing.T) {
+	t.Parallel()
+	f := distroFixes("CVE-2026-123158")
+	q := platformQuestion("CVE-2026-123158", "BN340", UncheckedPlatformUnknown, "")
+	for _, ans := range q.Answers {
+		if ans.OS == nil {
+			continue
+		}
+		a := Asset{ID: "a", Name: "BN340", ManualOS: *ans.OS, Software: []Software{sshRow("9.0p1", "", "nmap")}}
+		res := MatchAsset(a, []Vuln{sshhole()}, nil, t0)
+		if len(res.Unchecked) != 1 || res.Unchecked[0].Reason != UncheckedPackageUnknown {
+			t.Errorf("%s: %+v, want the package question", *ans.OS, res)
+			continue
+		}
+		fix := f.Releases[alpineBranch(*ans.OS)]
+		row := sshRow("9.0p1", "", "manual")
+		row.PkgVersion, row.ReportedSource = fix, "nmap"
+		a.Software = []Software{row}
+		if res := MatchAsset(a, []Vuln{sshhole()}, map[string]bool{"CVE-2026-123158": true}, t0); len(res.NotAffected) != 1 {
+			t.Errorf("%s with %s: %+v, want not affected", *ans.OS, fix, res)
 		}
 	}
 }

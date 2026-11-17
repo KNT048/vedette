@@ -40,6 +40,8 @@ type Unchecked struct {
 	Version    string // the row's version as stored, "" when none
 	Source     string // Software.Source: "manual" lets a person retype the version (action add_version)
 	Reason     UncheckedReason
+	// Answer: package_unknown only, the release a person gave that Vedette could not read as one (D-604); "" otherwise.
+	Answer string
 	// NVDPending: no_nvd_data while NVD has not answered for the CVE (Vuln.NVDAnswered false: a new box, the NVD feed off or failing):
 	// Vedette is waiting for NVD's data, NVD has not said it has none (review r2 M1 of #939).
 	NVDPending bool
@@ -169,8 +171,8 @@ func replaceUnchecked(ctx context.Context, tx *sql.Tx, assetID string, items []U
 			continue
 		}
 		seen[k] = true
-		if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_unchecked (asset_id, software_id, software, version, source, reason, cve, updated_at, nvd_pending) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			assetID, u.SoftwareID, u.Software, u.Version, u.Source, string(u.Reason), u.CVE, store.FormatTS(now), u.NVDPending); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO fnd_unchecked (asset_id, software_id, software, version, source, reason, cve, updated_at, nvd_pending, answer) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			assetID, u.SoftwareID, u.Software, u.Version, u.Source, string(u.Reason), u.CVE, store.FormatTS(now), u.NVDPending, u.Answer); err != nil {
 			return fmt.Errorf("findings: storing an unchecked row: %w", err)
 		}
 	}
@@ -234,7 +236,7 @@ type UncheckedRow struct {
 // ListUnchecked returns the unchecked rows of one device, or of every device when assetID is empty, without those the device
 // has a finding for.
 func (s *Service) ListUnchecked(ctx context.Context, assetID string) ([]UncheckedRow, error) {
-	q := `SELECT u.asset_id, u.software_id, u.software, u.version, u.source, u.reason, u.cve, u.nvd_pending` + uncheckedLive
+	q := `SELECT u.asset_id, u.software_id, u.software, u.version, u.source, u.reason, u.cve, u.nvd_pending, u.answer` + uncheckedLive
 	var args []any
 	if assetID != "" {
 		q += ` AND u.asset_id = ?`
@@ -249,7 +251,7 @@ func (s *Service) ListUnchecked(ctx context.Context, assetID string) ([]Unchecke
 	for rows.Next() {
 		var r UncheckedRow
 		var reason string
-		if err := rows.Scan(&r.AssetID, &r.SoftwareID, &r.Software, &r.Version, &r.Source, &reason, &r.CVE, &r.NVDPending); err != nil {
+		if err := rows.Scan(&r.AssetID, &r.SoftwareID, &r.Software, &r.Version, &r.Source, &reason, &r.CVE, &r.NVDPending, &r.Answer); err != nil {
 			return nil, fmt.Errorf("findings: reading unchecked rows: %w", err)
 		}
 		r.Reason = UncheckedReason(reason)
@@ -328,18 +330,20 @@ type UncheckedItem struct {
 // UncheckedQuestion is contract.ts UncheckedQuestion (D-604): the question of a platform-limited CVE and the answers that settle it.
 // Every answer is a correction of inventory (INV-39), so the next match decides.
 type UncheckedQuestion struct {
-	Text    string            `json:"text"`
+	Text string `json:"text"`
+	// Error says the last answer could not be read ("Vedette could not read the release you entered …"), nil otherwise.
+	Error   *string           `json:"error,omitempty"`
 	Command *string           `json:"command"` // what to run on the device to read the answer ("apk info -v openssh-server"), nil when none
 	Answers []UncheckedAnswer `json:"answers"`
 }
 
-// UncheckedAnswer is one answer: OS set → one click sets the device's OS to it (PATCH /inventory/devices/{asset_id} {os}); Ask "os" →
+// UncheckedAnswer is one answer: OS set → one click sets the device's OS to it (PATCH /inventory/devices/{asset_id} {os}); Ask holds "os" →
 // the person types the OS (same call); Ask "pkg_version" → the person types the package release of the row (PATCH
 // /inventory/devices/{asset_id}/software/{software_id} {pkg_version}).
 type UncheckedAnswer struct {
-	Label string  `json:"label"`
-	OS    *string `json:"os,omitempty"`
-	Ask   string  `json:"ask,omitempty"`
+	Label string   `json:"label"`
+	OS    *string  `json:"os,omitempty"`
+	Ask   []string `json:"ask,omitempty"` // "os", "pkg_version": what the person types (both for "Another system")
 }
 
 // UncheckedItems groups rows into items, with the CISA name, date and advisory (its first link, a web address) of each CVE (kev)
@@ -394,7 +398,7 @@ func UncheckedItems(rows []UncheckedRow, kev map[string]KevInfo, assets map[stri
 				if it.Asset != nil {
 					name = it.Asset.Name
 				}
-				if q := platformQuestion(r.CVE, name, r.Reason); q != nil {
+				if q := platformQuestion(r.CVE, name, r.Reason, r.Answer); q != nil {
 					it.Question, it.Action = q, "answer_platform"
 				}
 			}

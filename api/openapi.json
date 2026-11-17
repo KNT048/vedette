@@ -32490,6 +32490,10 @@
                                 "type": "string",
                                 "description": "\"Is the OpenSSH on BN340 Alpine Linux's openssh-server package, or another build …? CVE-… affects only …\""
                               },
+                              "error": {
+                                "description": "The last answer could not be read: \"Vedette could not read the release you entered (…)\"; show it at the field",
+                                "type": "string"
+                              },
                               "command": {
                                 "description": "What shows the answer on the device (\"apk info -v openssh-server\"), null when none",
                                 "type": [
@@ -32512,12 +32516,15 @@
                                       "type": "string"
                                     },
                                     "ask": {
-                                      "description": "The person types it: os → PATCH /inventory/devices/{asset_id} {os}; pkg_version → PATCH /inventory/devices/{asset_id}/software/{software_id} {pkg_version}",
-                                      "type": "string",
-                                      "enum": [
-                                        "os",
-                                        "pkg_version"
-                                      ]
+                                      "description": "What the person types: os → PATCH /inventory/devices/{asset_id} {os}; pkg_version → PATCH /inventory/devices/{asset_id}/software/{software_id} {pkg_version} (apk info -v output is read as is). \"Another system\" asks both: on a row a scan saw only the row's release rules it out",
+                                      "type": "array",
+                                      "items": {
+                                        "type": "string",
+                                        "enum": [
+                                          "os",
+                                          "pkg_version"
+                                        ]
+                                      }
                                     }
                                   },
                                   "required": [

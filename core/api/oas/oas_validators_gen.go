@@ -38083,15 +38083,22 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItem) Validate() error
 
 	var failures []validate.FieldError
 	if err := func() error {
-		if value, ok := s.Ask.Get(); ok {
+		var failures []validate.FieldError
+		for i, elem := range s.Ask {
 			if err := func() error {
-				if err := value.Validate(); err != nil {
+				if err := elem.Validate(); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return err
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
 			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
 		}
 		return nil
 	}(); err != nil {
@@ -38106,7 +38113,7 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItem) Validate() error
 	return nil
 }
 
-func (s FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) Validate() error {
+func (s FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem) Validate() error {
 	switch s {
 	case "os":
 		return nil

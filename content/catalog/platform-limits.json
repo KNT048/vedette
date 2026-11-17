@@ -1,5 +1,5 @@
 {
- "_about": "D-547: exploited CVEs that affect a product only on some platforms, which no machine-readable feed says (KEV says 'on Linux', the CVE.org record lists the platform 'Linux', NVD's configuration names only the product). Reviewed by hand from the vendor's or the distribution's advisory: 'only' lists the platforms it affects (ids of findings/platform.go platformWords), 'affects' ends 'It affects only …', 'check' is what to look at on a device whose platform is not known, 'source' the advisory, 'ask' the question a person answers when the platform of a device is not known ({device} is its name; D-604: such a CVE is then not a finding but 'Could not be checked'), and 'fixed' (optional) the distribution's first fixed package release per branch of the distribution that 'only' names, read against the package release a person or an agent gives once the platform is known (D-604; apk releases only, checked against Alpine's secdb when added). A device or service whose OS, banner or package database names another platform is ruled out; one that names none keeps the finding with the condition (KF-4, KF-5). Read by modules/findings (platformLimits); checked by TestPlatformLimits_DataIsValid. Before adding an entry, re-check D-620's two paths that are not covered (a forged LLDP Junos claim on a Juniper-made Linux appliance, a forged ARP binding to a Juniper MAC): each entry is a CVE a LAN attacker could hide that way.",
+ "_about": "D-547: exploited CVEs that affect a product only on some platforms, which no machine-readable feed says (KEV says 'on Linux', the CVE.org record lists the platform 'Linux', NVD's configuration names only the product). Reviewed by hand from the vendor's or the distribution's advisory: 'only' lists the platforms it affects (ids of findings/platform.go platformWords), 'affects' ends 'It affects only …', 'check' is what to look at on a device whose platform is not known, 'source' the advisory, 'ask' the question a person answers when the platform of a device is not known ({device} is its name; D-604: such a CVE is then not a finding but 'Could not be checked'), and 'fixed' (optional) the distribution's first fixed package release per branch of the distribution that 'only' names, read against the package release a person or an agent gives once the platform is known (D-604; apk releases only: every branch Alpine's secdb lists a fix for, checked when added; 'source' names the file with {branch}; findings reads it only through distroFixes). A device or service whose OS, banner or package database names another platform is ruled out; one that names none is not a finding but 'Could not be checked' with the question (D-604, amends KF-5). Read by modules/findings (platformLimits); checked by TestPlatformLimits_DataIsValid. Before adding an entry, re-check D-620's two paths that are not covered (a forged LLDP Junos claim on a Juniper-made Linux appliance, a forged ARP binding to a Juniper MAC): each entry is a CVE a LAN attacker could hide that way.",
  "CVE-2026-123158": {
   "only": [
    "alpine"
@@ -17,9 +17,14 @@
     "3.24": "10.3_p1-r2",
     "3.23": "10.2_p1-r1",
     "3.22": "10.0_p1-r11",
-    "3.21": "9.9_p2-r1"
+    "3.21": "9.9_p2-r1",
+    "3.20": "9.7_p1-r6",
+    "3.19": "9.6_p1-r3",
+    "3.18": "9.3_p2-r4",
+    "3.17": "9.1_p1-r7",
+    "3.16": "9.0_p1-r6"
    },
-   "source": "https://secdb.alpinelinux.org/v3.23/main.json"
+   "source": "https://secdb.alpinelinux.org/{branch}/main.json"
   }
  },
  "CVE-2025-2783": {

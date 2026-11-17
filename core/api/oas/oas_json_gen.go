@@ -136277,15 +136277,22 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestion) encodeFields(e *jx.Encoder)
 		s.Command.Encode(e)
 	}
 	{
+		if s.Error.Set {
+			e.FieldStart("error")
+			s.Error.Encode(e)
+		}
+	}
+	{
 		e.FieldStart("text")
 		e.Str(s.Text)
 	}
 }
 
-var jsonFieldsNameOfFindingsGetFindingsOKUncheckedItemQuestion = [3]string{
+var jsonFieldsNameOfFindingsGetFindingsOKUncheckedItemQuestion = [4]string{
 	0: "answers",
 	1: "command",
-	2: "text",
+	2: "error",
+	3: "text",
 }
 
 // Decode decodes FindingsGetFindingsOKUncheckedItemQuestion from json.
@@ -136325,8 +136332,18 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestion) Decode(d *jx.Decoder) error
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"command\"")
 			}
+		case "error":
+			if err := func() error {
+				s.Error.Reset()
+				if err := s.Error.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"error\"")
+			}
 		case "text":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 3
 			if err := func() error {
 				v, err := d.Str()
 				s.Text = string(v)
@@ -136347,7 +136364,7 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestion) Decode(d *jx.Decoder) error
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000111,
+		0b00001011,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -136403,9 +136420,13 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItem) Encode(e *jx.Enc
 // encodeFields encodes fields.
 func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItem) encodeFields(e *jx.Encoder) {
 	{
-		if s.Ask.Set {
+		if s.Ask != nil {
 			e.FieldStart("ask")
-			s.Ask.Encode(e)
+			e.ArrStart()
+			for _, elem := range s.Ask {
+				elem.Encode(e)
+			}
+			e.ArrEnd()
 		}
 	}
 	{
@@ -136437,8 +136458,15 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItem) Decode(d *jx.Dec
 		switch string(k) {
 		case "ask":
 			if err := func() error {
-				s.Ask.Reset()
-				if err := s.Ask.Decode(d); err != nil {
+				s.Ask = make([]FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Ask = append(s.Ask, elem)
+					return nil
+				}); err != nil {
 					return err
 				}
 				return nil
@@ -136523,42 +136551,42 @@ func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItem) UnmarshalJSON(da
 	return s.Decode(d)
 }
 
-// Encode encodes FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk as json.
-func (s FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) Encode(e *jx.Encoder) {
+// Encode encodes FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem as json.
+func (s FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem) Encode(e *jx.Encoder) {
 	e.Str(string(s))
 }
 
-// Decode decodes FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk from json.
-func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) Decode(d *jx.Decoder) error {
+// Decode decodes FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem from json.
+func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk to nil")
+		return errors.New("invalid: unable to decode FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem to nil")
 	}
 	v, err := d.StrBytes()
 	if err != nil {
 		return err
 	}
 	// Try to use constant string.
-	switch FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk(v) {
-	case FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskOs:
-		*s = FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskOs
-	case FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskPkgVersion:
-		*s = FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskPkgVersion
+	switch FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem(v) {
+	case FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemOs:
+		*s = FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemOs
+	case FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemPkgVersion:
+		*s = FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItemPkgVersion
 	default:
-		*s = FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk(v)
+		*s = FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem(v)
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) MarshalJSON() ([]byte, error) {
+func (s FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) UnmarshalJSON(data []byte) error {
+func (s *FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAskItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -237931,39 +237959,6 @@ func (s OptFindingsGetFindingsOKUncheckedItemQuestion) MarshalJSON() ([]byte, er
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
 func (s *OptFindingsGetFindingsOKUncheckedItemQuestion) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode encodes FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk as json.
-func (o OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) Encode(e *jx.Encoder) {
-	if !o.Set {
-		return
-	}
-	e.Str(string(o.Value))
-}
-
-// Decode decodes FindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk from json.
-func (o *OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) Decode(d *jx.Decoder) error {
-	if o == nil {
-		return errors.New("invalid: unable to decode OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk to nil")
-	}
-	o.Set = true
-	if err := o.Value.Decode(d); err != nil {
-		return err
-	}
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *OptFindingsGetFindingsOKUncheckedItemQuestionAnswersItemAsk) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

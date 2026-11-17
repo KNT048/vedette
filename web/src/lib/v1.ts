@@ -1,4 +1,4 @@
-// D-624 (SHIP.md): the v1 promise covers the v1 modules only. Two other groups ship in the same build:
+// D-624: the v1 promise covers the v1 modules only. Two other groups ship in the same build:
 // - Preview (#818): off by default, labelled "Preview" on their nav entry, their row in Settings → Modules and their page header.
 // - After v1 (#819): while POST_V1_IN_UI is false the GUI does not offer them: no nav entry, no row in Settings → Modules, no
 //   Settings section, no setup wizard choice, no switch elsewhere. A box that already has one on still sees it, read-only, with

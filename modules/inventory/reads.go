@@ -111,7 +111,7 @@ func (s *Service) loadDevices(ctx context.Context, q querier, where string, limi
 func (s *Service) loadSoftware(ctx context.Context, q querier, sub string, idx map[string]int, out []Device, args []any) error {
 	rows, err := q.QueryContext(ctx, `SELECT s.asset_id, s.id, s.display, s.vendor, s.product, s.version, s.source, s.confidence, k.kev_key, `+notInstalledSW+`
 		FROM inv_software s LEFT JOIN inv_software_kev k ON k.software_id = s.id
-		WHERE s.asset_id IN `+sub+` ORDER BY s.asset_id, s.display, s.id, k.kev_key`, args...)
+		WHERE s.asset_id IN `+sub+` AND NOT `+hiddenGuess+` ORDER BY s.asset_id, s.display, s.id, k.kev_key`, args...)
 	if err != nil {
 		return fmt.Errorf("inventory: read software: %w", err)
 	}
@@ -346,8 +346,11 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 	}
 	db := s.db.Reader()
 	var cur [6]sql.NullString
-	if err := db.QueryRowContext(ctx, `SELECT kind_obs_id, hostname_obs_id, mac_obs_id, vendor_obs_id, model_obs_id, os_obs_id FROM inv_asset WHERE id = ?`, id).
-		Scan(&cur[0], &cur[1], &cur[2], &cur[3], &cur[4], &cur[5]); err != nil {
+	var kind string
+	var kindSrc sql.NullString
+	if err := db.QueryRowContext(ctx, `SELECT a.kind_obs_id, a.hostname_obs_id, a.mac_obs_id, a.vendor_obs_id, a.model_obs_id, a.os_obs_id, a.kind, k.source
+		FROM inv_asset a LEFT JOIN inv_observation k ON k.id = a.kind_obs_id WHERE a.id = ?`, id).
+		Scan(&cur[0], &cur[1], &cur[2], &cur[3], &cur[4], &cur[5], &kind, &kindSrc); err != nil {
 		return Detail{}, fmt.Errorf("inventory: read device: %w", err)
 	}
 	current := map[string]bool{}
@@ -368,6 +371,7 @@ func (s *Service) Detail(ctx context.Context, id string) (Detail, error) {
 			return Detail{}, fmt.Errorf("inventory: read observations: %w", err)
 		}
 		o.Current = current[o.ID]
+		o.ContradictsType = o.Field == "os" && o.Source == "nmap" && guessContradicts(kind, kindSrc.String, o.Value)
 		list = append(list, o)
 	}
 	if err := rows.Err(); err != nil {
@@ -486,8 +490,9 @@ func (d Device) Name() string {
 	return DisplayName(deref(d.UserName), deref(d.Hostname), obsValue(d.Vendor), obsValue(d.Model), d.IP, d.Origin, product)
 }
 
-// firstSoftware selects the display name of a device's first software, in the order the pages list it (D-471 naming).
-const firstSoftware = `(SELECT display FROM inv_software WHERE asset_id = a.id ORDER BY display, id LIMIT 1)`
+// firstSoftware selects the display name of a device's first software, in the order the pages list it; never an nmap
+// OS guess the device does not use (hiddenGuess).
+var firstSoftware = `(SELECT s.display FROM inv_software s WHERE s.asset_id = a.id AND NOT ` + hiddenGuess + ` ORDER BY s.display, s.id LIMIT 1)`
 
 // Names maps device ids to the name to show (DisplayName; the id when nothing is known) for findings, notify, honeypot
 // and reports.

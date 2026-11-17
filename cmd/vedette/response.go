@@ -25,7 +25,7 @@ import (
 )
 
 // Adapters between the response module's ports and the modules that provide them. They live here because only the binary
-// knows both sides (modules/response imports no other module's service, rules/modules.md; only the stdlib-only address check
+// knows both sides (modules/response imports no other module's service; only the stdlib-only address check
 // modules/logs/signature, D-384).
 
 // ---- core/auth -> response.Users ----

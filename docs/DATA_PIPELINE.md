@@ -117,4 +117,4 @@ release: chỉ nhận status: confirmed → đóng vào bản cập nhật đã 
     "inventory_counts": {"synology:dsm:7.1": 12, "fortinet:fortios:7.2": 1}}
    ```
    Dùng để: cột "đang bị đánh ở VN" trên bảng nóng; trọng số `hot_score` theo thứ SMB VN thực dùng; phát hiện rollout dữ liệu lỗi theo cohort. Payload nguyên văn hiện trong Cài đặt → Chia sẻ tín hiệu; README và `PRIVACY.md` nêu rõ. Trung tâm giữ **tổng hợp**, xoá bản ghi thô sau 30 ngày.
-3. Spamhaus DROP/CINS/ThreatView: trung tâm hay hộp tự kéo — chờ trả lời Spamhaus (`.ai/deferred`).
+3. Spamhaus DROP/CINS/ThreatView: trung tâm hay hộp tự kéo — chờ trả lời Spamhaus.

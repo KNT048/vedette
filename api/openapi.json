@@ -47338,6 +47338,10 @@
                           },
                           "current": {
                             "type": "boolean"
+                          },
+                          "contradicts_type": {
+                            "description": "An nmap OS guess the device type rules out (Android on a firewall): kept, never the device OS; absent otherwise",
+                            "type": "boolean"
                           }
                         },
                         "required": [
@@ -65853,7 +65857,7 @@
                     },
                     "ai_generated": {
                       "type": "boolean",
-                      "description": "true when an AI proposed the request: the page shows the AI-generated label (rules/legal.md). false unless state is ready"
+                      "description": "true when an AI proposed the request: the page shows the AI-generated label. false unless state is ready"
                     }
                   },
                   "required": [
@@ -75827,7 +75831,7 @@
                           },
                           "preview": {
                             "type": "boolean",
-                            "description": "Its module ships as Preview in v1 (SHIP.md: scan, honeypot)"
+                            "description": "Its module ships as Preview in v1 (scan, honeypot)"
                           },
                           "cost": {
                             "type": "object",
@@ -76554,7 +76558,7 @@
                           },
                           "preview": {
                             "type": "boolean",
-                            "description": "Its module ships as Preview in v1 (SHIP.md: scan, honeypot)"
+                            "description": "Its module ships as Preview in v1 (scan, honeypot)"
                           },
                           "cost": {
                             "type": "object",

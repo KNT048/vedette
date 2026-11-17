@@ -1,44 +1,36 @@
-<!-- Branch names: feat/..., fix/..., docs/.... Never push to main. See docs/ENGINEERING.md. -->
+<!-- Branch names: feat/..., fix/..., docs/.... Never push to main. -->
 
 ## What and why
 
 <!-- One or two sentences. The "why" matters more than the "what". -->
 
-- v1: <!-- the journey (J1–J7) or release gate this unblocks, with its `v1` issue (SHIP.md), or "post-v1" -->
-
 ## Trace
 
-- Story ID(s): <!-- e.g. S-FEED-1 (docs/USER_STORIES.md). Docs/infra-only: write "none" and give the decision. -->
-- Decision(s): <!-- e.g. D-18 (docs/DECISIONS.md), or "none" -->
+- Issue(s): <!-- e.g. #123, or "none" -->
 - Module(s) touched: <!-- e.g. feeds -->
-
-## Authorship
-
-- [ ] Written (fully or partly) by an AI agent. A human has read the whole diff and approves it.
 
 ## Definition of Done
 
-- [ ] Every feature, screen and button traces to a story ID above (no imagined features).
+- [ ] Every feature, screen and button traces to an issue or user story.
 - [ ] `CONTRACT.md` and `IMPACT.md` read before, and updated after, any module change (or: no module touched).
 - [ ] Unit tests added or updated. For module changes: `go test ./modules/<id>/... -run Contract` is green.
-- [ ] `origin/main` merged in; the changed packages build and lint on my machine (gofmt/tsc included, D-413); CI green before merge (D-63). Paste the commands run below.
+- [ ] `origin/main` merged in; the changed packages build and lint on my machine (gofmt/tsc included); CI green before merge. Paste the commands run below.
 
 ## Local checks
 
-<!-- Commit SHA checked, then the build and lint commands run and their tail (D-413). -->
-- [ ] Work left for later filed as a GitHub issue labelled `v1` or `post-v1` (or: none).
+<!-- Commit SHA checked, then the build and lint commands run and their tail. -->
+- [ ] Work left for later filed as a GitHub issue (or: none).
 - [ ] Build output cleaned (`make clean`); no `bin/`, `web/dist/`, or reports committed.
 - [ ] Nothing new in logs or UI exposes secrets; external input validated at the boundary.
 
-## UI changes: follow docs/QA.md
+## UI changes
 
 Skip this section if no UI changed.
 
-- [ ] Form matrix test added for every form with a selector that changes the meaning of other fields (QA.md step 2).
-- [ ] Walkthrough scenario written per story, run step by step on desktop and phone, light and dark, with screenshots attached (QA.md step 3).
-- [ ] Verified by someone other than the author, or an independent agent (QA.md step 1). Reviewer: <!-- name -->
-- [ ] QA.md section 4 form catalogue updated in this PR.
-- [ ] English-only copy (D-28); no emoji, no raw colour-only meaning (docs/FRONTEND.md section 4).
+- [ ] Form matrix test added for every form with a selector that changes the meaning of other fields.
+- [ ] Checked step by step on desktop and phone, light and dark, with screenshots attached.
+- [ ] Verified by someone other than the author. Reviewer: <!-- name -->
+- [ ] English-only copy; no emoji, no raw colour-only meaning (docs/FRONTEND.md section 4).
 
 ## Privacy and legal
 
@@ -54,5 +46,3 @@ Skip this section if no UI changed.
 ## Screenshots / evidence
 
 <!-- Before/after screenshots, test output, or the steps you ran. -->
-
-<!-- If an AI agent opened this PR, add the attribution line it was told to use here. -->

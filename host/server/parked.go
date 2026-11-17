@@ -8,8 +8,8 @@ import (
 	"github.com/knt048/vedette/host/api"
 )
 
-// Runs parked across the host's own restart (D-316, docs/specs/host-api.md section 6.14, plan
-// docs/plans/2026-11-12-host-self-update.md slice 1).
+// Runs parked across the host's own restart (D-316, docs/specs/host-api.md section 6.14,
+// slice 1).
 //
 // A command declared Spec.Parks returns Parked from Run: the run stays running with
 // parked_deadline and keeps the write lock, but its goroutine ends, so Spec.Timeout no longer

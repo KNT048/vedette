@@ -244,7 +244,7 @@ func knownRecheck(r findings.Row, k *findings.KnownVersion, device string, hasTe
 	return findings.Recheck{Steps: steps}
 }
 
-// hostRE is the host name rule of the product (rules/security.md): letters, digits, dot, dash, underscore.
+// hostRE is the host name rule of the product: letters, digits, dot, dash, underscore.
 var hostRE = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$`)
 
 // deviceReplacer builds the {IP} and {HOST} substitution (INV-4). Device values are untrusted data

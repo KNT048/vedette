@@ -17,8 +17,8 @@ func TestDecide(t *testing.T) {
 		diffOK  bool
 		want    Outputs
 	}{
-		"docs only":                {"pull_request", []string{"docs/DECISIONS.md", "docs/plans/x.md"}, true, Outputs{}},
-		".ai only":                 {"pull_request", []string{".ai/tasks/kien.md", "docs/project-map/lessons.md"}, true, Outputs{}},
+		"docs only":                {"pull_request", []string{"docs/ROADMAP.md", "docs/specs/x.md"}, true, Outputs{}},
+		"brand (web test reads)":   {"pull_request", []string{"docs/brand/mark.svg"}, true, Outputs{Web: true, WebAll: true}},
 		"root markdown":            {"pull_request", []string{"README.md", "SECURITY.md"}, true, Outputs{}},
 		"notices (notices-check)":  {"pull_request", []string{"THIRD_PARTY_NOTICES.md"}, true, Outputs{Go: true, Tests: true, Vuln: true}},
 		"docs a test reads":        {"pull_request", []string{"docs/API_CONVENTIONS.md"}, true, Outputs{Go: true, Tests: true, Vuln: true}},
@@ -44,7 +44,7 @@ func TestDecide(t *testing.T) {
 		"deleted go file":    {"pull_request", []string{"modules/old/old.go"}, true, Outputs{Go: true, Tests: true, Vuln: true}},
 		"empty diff":         {"pull_request", nil, true, all},
 		"diff failed":        {"pull_request", nil, false, all},
-		"push docs only":     {"push", []string{"docs/DECISIONS.md"}, true, Outputs{Go: true, Tests: true, Web: true, WebAll: true}}, // main runs the full suite (D-413)
+		"push docs only":     {"push", []string{"docs/ROADMAP.md"}, true, Outputs{Go: true, Tests: true, Web: true, WebAll: true}}, // main runs the full suite (D-413)
 		"dispatch":           {"workflow_dispatch", nil, false, all},
 		"unknown event":      {"merge_group", []string{"docs/a.md"}, true, all},
 		"schedule":           {"schedule", []string{"core/a.go"}, true, Outputs{Go: true, Tests: true, Web: true, WebAll: true, Vuln: true, Audit: true}},

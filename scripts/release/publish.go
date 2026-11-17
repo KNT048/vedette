@@ -401,7 +401,7 @@ func (e publishEnv) liveIndex(ctx context.Context, p *publishPlan) (live []byte,
 		return nil, false, err
 	}
 	if r == nil || r.IsDraft {
-		return nil, false, fmt.Errorf("no published release %q: kien creates it once by hand (docs/plans/2026-11-12-wp08k-release-job.md §3)", indexTag)
+		return nil, false, fmt.Errorf("no published release %q: create it once by hand (gh release create %s --latest=false) before the first publish", indexTag, indexTag)
 	}
 	if !r.has(indexFile) {
 		if !e.firstRelease || e.prevDir != "" {
@@ -425,7 +425,7 @@ func (e publishEnv) liveIndex(ctx context.Context, p *publishPlan) (live []byte,
 		live = append(live, b...)
 		ours = ours && digestBytes(b) == "sha256:"+p.Record[n].SHA256
 	}
-	const halfReplaced = "if an earlier run stopped while uploading the index, follow docs/plans/2026-11-12-wp08k-release-job.md §2, row \"publish 7\""
+	const halfReplaced = "if an earlier run stopped while uploading the index, download index.json and index.json.minisig from the release, check that each equals this run's or -prev-index's, upload this run's pair with --clobber and run release-publish again"
 	if _, err := LoadPrevIndex(tmp, e.trust); err != nil {
 		return nil, false, fmt.Errorf("the live index does not verify (%w); %s", err, halfReplaced)
 	}
@@ -569,7 +569,7 @@ func Publish(ctx context.Context, e publishEnv, p *publishPlan, doRun bool) erro
 			return err
 		}
 		if err := long(index); err != nil {
-			return fmt.Errorf("%w (the index may be half replaced: boxes refuse it until both files are up; follow docs/plans/2026-11-12-wp08k-release-job.md §2, row \"publish 7\")", err)
+			return fmt.Errorf("%w (the index may be half replaced: boxes refuse it until both files are up; upload this run's index.json and index.json.minisig again with --clobber and run release-publish once more)", err)
 		}
 	}
 	r, err := e.readBack(ctx, indexTag)

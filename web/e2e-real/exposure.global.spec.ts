@@ -3,7 +3,7 @@
 // (afterEach removes every domain by name and checks the status; afterAll puts the settings back and reads them back).
 // NO TEST HERE TURNS AUTO-DETECT ON, presses Detect now or Verify again, or presses the DNS Check: those make the box call the public IP services or real DNS, and the box has no setting
 // that points them at a loopback fake. Turning auto-detect on runs a detection in the same request (INV-11). So the settings are changed only with auto-detect OFF, as the seed leaves it,
-// and the file refuses to run if it is on. See .ai/deferred/feat-e2e-real-exposure.md.
+// and the file refuses to run if it is on.
 import { expect, test } from '@playwright/test'
 import { ACCOUNTS, api, authFile } from './box'
 import { as, audit, auditIds, autoLine, domain, headline, list, made, refused, snapshot, sweep, type ApiErr, type BoxIp } from './exposure-shared'

@@ -17,8 +17,8 @@ import (
 	"github.com/knt048/vedette/host/server/servertest"
 )
 
-// Tests of the framework support for runs parked across the host's own restart (D-316, plan
-// docs/plans/2026-11-12-host-self-update.md slice 1). The commands here exist only in this file:
+// Tests of the framework support for runs parked across the host's own restart (D-316,
+// slice 1). The commands here exist only in this file:
 // production registers none of them yet (host.self_update comes in slice 2).
 
 // parkArgs drives test.self_park, which behaves as host.self_update will: it parks first, and the

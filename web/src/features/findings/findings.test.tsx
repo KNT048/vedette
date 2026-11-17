@@ -483,7 +483,7 @@ describe('findings: slot device.panels', () => {
   })
 })
 
-describe('findings: Mark as handled form matrix (docs/QA.md §2, QA walk 2026-11-12)', () => {
+describe('findings: Mark as handled form matrix (QA walk 2026-11-12)', () => {
   it('Cancel drops the draft: the next opening starts at Patched with an empty note', async () => {
     renderApp('/findings/f-1')
     const open = async () => { await userEvent.click(await screen.findByRole('button', { name: 'Mark as handled' })); return screen.findByRole('dialog', { name: 'Mark as handled' }) }

@@ -46,8 +46,6 @@ func Marshal(doc map[string]any) ([]byte, error) {
 //  3. oneOf whose members all carry properties.kind.const -> members hoisted to
 //     components.schemas with a discriminator (propertyName kind) and mapping.
 //  4. pattern on format date-time removed: ogen ignores it anyway (time.Time parsing enforces RFC 3339).
-//
-// Contract-side fixes that make this step unnecessary are listed in .ai/deferred/feat-core-codegen.md.
 func Normalise(doc map[string]any) Stats {
 	var st Stats
 	comps := ensureMap(ensureMap(doc, "components"), "schemas")

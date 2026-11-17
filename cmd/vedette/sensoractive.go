@@ -206,7 +206,7 @@ func sensorActiveJobs(d deps) []jobs.Job {
 }
 
 // sensorInventory implements sensoractive.Inventory over inventory.Service: it converts the inventory's neutral
-// types to the module's port types so sensor-active never imports the inventory (rules/modules.md).
+// types to the module's port types so sensor-active never imports the inventory.
 type sensorInventory struct {
 	inv *inventory.Service
 	// hostNet is deps.HostNet: the addresses of the appliance's cards, which core's container cannot see. nil without a host.

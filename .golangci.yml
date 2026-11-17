@@ -1,4 +1,4 @@
-# golangci-lint v2, pinned in tools/go.mod. Policy: docs/ENGINEERING.md §2.6.
+# golangci-lint v2, pinned in tools/go.mod.
 # Run: make lint-go  (go tool -modfile=tools/go.mod golangci-lint run)
 version: "2"
 

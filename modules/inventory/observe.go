@@ -1116,6 +1116,7 @@ func (s *Service) RecomputeAsset(ctx context.Context, tx *sql.Tx, assetID string
 		list = slices.DeleteFunc(list, func(o obs) bool { return o.field == "mac" && o.source != string(observe.Agent) })
 	}
 	best := winners(list)
+	dropContradictedOS(list, best) // nmap's OS guess never wins against the device's type (Android on a firewall)
 	// A MAC another device already owns cannot become this device's MAC: take the best one that is free.
 	if _, ok := best["mac"]; ok {
 		cands := slices.DeleteFunc(slices.Clone(list), func(o obs) bool { return o.field != "mac" })

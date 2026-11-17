@@ -194,7 +194,7 @@ function Observations({ list }: { list: Observation[] }) {
     { id: 'value', header: t('obs.value'), accessorFn: (o) => (o.field === 'kind' ? kindLabel(o.value) : o.value) },
     { id: 'source', header: t('obs.source'), accessorFn: (o) => o.confidence, cell: ({ row }) => <SourceBadge source={row.original.source} confidence={row.original.confidence} /> },
     { id: 'at', header: t('obs.at'), accessorFn: (o) => new Date(o.seen_at).getTime(), cell: ({ row }) => <time dateTime={row.original.seen_at} className="whitespace-nowrap text-meta text-muted">{fmtDateTime(row.original.seen_at)}</time> },
-    { id: 'current', header: t('obs.state'), enableSorting: false, accessorFn: (o) => Number(o.current), cell: ({ row }) => (row.original.current ? <Chip tone="ok">{t('obs.current')}</Chip> : <span className="text-meta text-muted">{t('obs.kept')}</span>) },
+    { id: 'current', header: t('obs.state'), enableSorting: false, accessorFn: (o) => Number(o.current), cell: ({ row }) => (row.original.current ? <Chip tone="ok">{t('obs.current')}</Chip> : <span className="text-meta text-muted">{t(row.original.contradicts_type ? 'obs.notUsedType' : 'obs.kept')}</span>) },
   ]
   return (
     <DataTable caption={t('obs.caption')} data={list} columns={columns} pageSize={100}
@@ -207,7 +207,7 @@ function Observations({ list }: { list: Observation[] }) {
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-muted">
             <SourceBadge source={o.source} confidence={o.confidence} />
             <time dateTime={o.seen_at}>{fmtDateTime(o.seen_at)}</time>
-            {o.current ? null : <span>{t('obs.kept')}</span>}
+            {o.current ? null : <span>{t(o.contradicts_type ? 'obs.notUsedType' : 'obs.kept')}</span>}
           </div>
         </div>
       )} />

@@ -40,9 +40,9 @@ var correctionLive = `EXISTS (SELECT 1 FROM inv_software r WHERE r.asset_id = s.
 
 // liveSW is the SQL condition on a software row (alias s) that counts for matching and the "Do you have it?" lists (INV-41): a row a
 // person declared; a correction in use (correctionLive) that is not a "not installed" one (INV-41 (6): it replaces its row with
-// nothing); a reported row no correction in use replaces.
-var liveSW = `(CASE WHEN s.corrects IS NOT NULL THEN s.not_installed = 0 AND ` + correctionLive + ` WHEN s.source = 'manual' THEN 1
-	ELSE NOT EXISTS (SELECT 1 FROM inv_software c WHERE c.asset_id = s.asset_id AND c.corrects = ` + rowKey("s") + `) END)`
+// nothing); a reported row no correction in use replaces; never an nmap OS guess the device does not use (hiddenGuess).
+var liveSW = `(NOT ` + hiddenGuess + ` AND (CASE WHEN s.corrects IS NOT NULL THEN s.not_installed = 0 AND ` + correctionLive + ` WHEN s.source = 'manual' THEN 1
+	ELSE NOT EXISTS (SELECT 1 FROM inv_software c WHERE c.asset_id = s.asset_id AND c.corrects = ` + rowKey("s") + `) END))`
 
 // notInstalledSW is the SQL condition on a software row (alias s) that a person said it is not installed (INV-41 (6)): the mark itself,
 // or the reported row a mark covers (a mark whose corrects is the row's key).

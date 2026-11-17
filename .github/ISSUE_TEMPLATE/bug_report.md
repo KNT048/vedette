@@ -30,9 +30,9 @@ Do not paste secrets, API keys, tokens, or real customer data.
 - Browser (for UI bugs):
 - Modules enabled:
 
-## Related story or decision (if you know it)
+## Related issue (if you know it)
 
-<!-- e.g. S-FEED-1, D-18 -->
+<!-- e.g. #123 -->
 
 ## Evidence
 

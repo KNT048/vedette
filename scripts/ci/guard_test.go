@@ -18,7 +18,7 @@ import (
 // The guard (D-140). classify.go lets a pull request skip a suite when it only touches paths "no test reads".
 // This test finds every repo path that Go code (string literals, filepath.Join runs, //go:embed) or web code
 // (relative "../" strings) reads, and fails when one is classified as not affecting that side. So a test that
-// starts reading docs/, .ai/ or web/ files breaks verify-go in the same PR (which touches Go, so it runs).
+// starts reading docs/ or web/ files breaks verify-go in the same PR (which touches Go, so it runs).
 const repoRoot = "../.."
 
 type read struct{ from, lit, path string }

@@ -892,7 +892,7 @@ describe('ai: log digest panel (S-AI-4)', () => {
   })
 })
 
-describe('ai: Add AI profile form matrix (docs/QA.md §2)', () => {
+describe('ai: Add AI profile form matrix', () => {
   it('each provider type shows only its own fields, keeps no default or key from another, and locks "Inside your network" for cloud providers', async () => {
     clearProfiles()
     const v = renderUi(<AiSettings />)
@@ -1034,7 +1034,7 @@ describe('ai: Add AI profile order and the OpenCode preset (D-475)', () => {
   })
 })
 
-describe('AI profile form matrix (docs/QA.md §2, QA walk 2026-11-12)', () => {
+describe('AI profile form matrix (QA walk 2026-11-12)', () => {
   it('"Connected" holds only for what was tested; choosing Inside your network clears the https error', async () => {
     const v = renderUi(<AiSettings />)
     await v.ready

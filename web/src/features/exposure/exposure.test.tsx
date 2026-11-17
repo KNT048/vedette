@@ -639,7 +639,7 @@ describe('exposure: auto-detect of the box public IPs (kien 2026-11-09)', () => 
     await expectNoA11yViolations()
   })
 
-  it('form matrix (docs/QA.md §2): auto on shows the interval, auto off hides it, the list and Detect now stay', async () => {
+  it('form matrix: auto on shows the interval, auto off hides it, the list and Detect now stay', async () => {
     renderApp('/exposure')
     const toggle = await screen.findByRole('switch', { name: "Detect the box's public IPs automatically" })
     const rows = () => within(screen.getByRole('table', { name: 'Public IPs of this box' })).getAllByRole('row').length
@@ -731,7 +731,7 @@ describe('exposure: the Ignored list (D-79 (3))', () => {
     await expectNoA11yViolations()
   })
 
-  it('removing an IP: the box "Don\'t add it again if detected" is ticked by default, comes back for the next IP, and the hint follows it (form matrix, QA.md section 2)', async () => {
+  it('removing an IP: the box "Don\'t add it again if detected" is ticked by default, comes back for the next IP, and the hint follows it (form matrix)', async () => {
     await clean()
     setEgress('198.51.100.7,198.51.100.8')
     renderApp('/exposure')
@@ -999,7 +999,7 @@ describe('exposure: delete and roles', () => {
   })
 })
 
-describe('exposure: add target form matrix (docs/QA.md §2)', () => {
+describe('exposure: add target form matrix', () => {
   it('a domain is typed in; an IP has its own button with no input, so the Add dialog never offers an IP field, and it can be cancelled', async () => {
     renderApp('/exposure')
     await userEvent.click(await screen.findByRole('button', { name: 'Add domain' }))
@@ -1190,7 +1190,7 @@ describe('exposure: QA pass fixes (paused IP, copy, dates, IPv6, remove dialog, 
   })
 })
 
-describe('exposure: Add a domain form matrix (docs/QA.md §2, QA walk 2026-11-12)', () => {
+describe('exposure: Add a domain form matrix (QA walk 2026-11-12)', () => {
   it('Cancel drops the text and its error: the next opening is empty', async () => {
     renderApp('/exposure')
     const add = await screen.findByRole('button', { name: 'Add domain' })

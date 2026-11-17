@@ -333,6 +333,8 @@ type ObservationRow struct {
 	Confidence float64 `json:"confidence"`
 	SeenAt     string  `json:"seen_at"`
 	Current    bool    `json:"current"`
+	// ContradictsType: an nmap OS guess the device's type rules out (osguess.go): kept and shown, never the device's OS.
+	ContradictsType bool `json:"contradicts_type,omitempty"`
 }
 
 // Detail is GET /inventory/devices/{id} (contract.ts DeviceDetail).

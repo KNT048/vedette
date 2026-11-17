@@ -251,7 +251,7 @@ test.describe('findings: no pack yet, and the AI (S-MIT-1, S-AI-2)', () => {
 })
 
 test.describe('findings: status dialog (S-MIT-1)', () => {
-  // The form matrix of QA.md section 2: the chosen status decides whether a note is needed; each is saved, shown, kept after a reload, and reopened.
+  // The form matrix: the chosen status decides whether a note is needed; each is saved, shown, kept after a reload, and reopened.
   const ACTIONS = [
     { radio: /^Patched/, headline: /is patched/, note: false },
     { radio: /^Mitigated/, headline: /is mitigated/, note: false },

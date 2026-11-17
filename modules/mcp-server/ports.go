@@ -6,7 +6,7 @@ import (
 )
 
 // Source is the read-only view of the box the tools answer from: devices (inventory), findings and the vulnerability feeds.
-// cmd/vedette implements it on top of those modules' own services and handlers (rules/modules.md: no module reads another's
+// cmd/vedette implements it on top of those modules' own services and handlers (no module reads another's
 // tables). Every value it returns is already reduced to the fields below: an allow-list, so a field a source module adds later
 // never reaches an agent by accident (INV-7, D-233). Text fields are data, never instructions.
 type Source interface {

@@ -43,6 +43,6 @@ kien, 2026-11-06: mọi thứ liên quan luật pháp, giấy phép, cookie ph�
 
 Vedette dùng TLS và AES-GCM chuẩn (Go stdlib). Không có khoá/thuật toán riêng. Phân phối toàn cầu qua GitHub theo điều khoản GitHub.
 
-## 7. Quy tắc cho người đóng góp (`.claude/rules/legal.md`)
+## 7. Quy tắc cho người đóng góp
 
 Thêm dependency/feed/luồng dữ liệu ra ngoài = cập nhật `THIRD_PARTY_NOTICES.md` hoặc `PRIVACY.md` trong **cùng commit**; CI chặn dependency không có giấy phép được phép.

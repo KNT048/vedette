@@ -1,6 +1,6 @@
 # Third-party components
 
-Updated whenever a dependency, external tool or data source is added (rule `.claude/rules/legal.md`).
+Updated whenever a dependency, external tool or data source is added.
 
 ## Libraries bundled in the web app (`web/`, measured with `pnpm --dir web licenses list --prod`)
 

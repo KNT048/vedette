@@ -15,7 +15,7 @@ import (
 
 // This file is what other modules read and ask through their own ports (feeds.Inventory, findings.Inventory,
 // mitigation.Vendors). The adapters live in cmd/vedette; they convert these neutral types to the port types,
-// so no module imports another (rules/modules.md).
+// so no module imports another.
 
 // DeviceRef is a device as other modules name it.
 type DeviceRef struct {
@@ -47,7 +47,7 @@ func (s *Service) DeviceRefs(ctx context.Context, ids []string) (map[string]Devi
 			args[i] = id
 		}
 		rows, err := s.db.Reader().QueryContext(ctx, `SELECT a.id, a.hostname, a.user_name, a.is_box, a.ip, a.mac, a.vendor, a.kind, a.approved, a.model, a.origin, a.approved_at, a.os,
-			(SELECT display FROM inv_software WHERE asset_id = a.id ORDER BY display, id LIMIT 1)
+			`+firstSoftware+`
 			FROM inv_asset a WHERE a.id IN (?`+strings.Repeat(`, ?`, len(chunk)-1)+`)`, args...)
 		if err != nil {
 			return nil, fmt.Errorf("inventory: read devices: %w", err)
@@ -331,7 +331,7 @@ func (s *Service) HasDevice(ctx context.Context, kinds []string, vendor string) 
 	args = append(args, vendor, vendor)
 	var n int
 	err := s.db.Reader().QueryRowContext(ctx, `SELECT count(*) FROM inv_asset a WHERE a.kind IN (?`+strings.Repeat(`, ?`, len(kinds)-1)+`)
-		AND (lower(a.vendor) = ? OR EXISTS (SELECT 1 FROM inv_software s WHERE s.asset_id = a.id AND lower(s.vendor) = ?))`, args...).Scan(&n)
+		AND (lower(a.vendor) = ? OR EXISTS (SELECT 1 FROM inv_software s WHERE s.asset_id = a.id AND lower(s.vendor) = ? AND NOT `+hiddenGuess+`))`, args...).Scan(&n)
 	if err != nil {
 		return false, fmt.Errorf("inventory: read vendors: %w", err)
 	}

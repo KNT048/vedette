@@ -238,6 +238,13 @@ func TestExposureFenceCheck(t *testing.T) {
 			}
 		})
 	}
+	// D-632: the record's parent name (ProofAt) is checked like the domain, and never a public suffix, whatever core sends
+	if j, err := fenceJob(api.ExposureFenceCheckArgs{Domain: "git.example.com", Name: "git.example.com", IP: zapTestIP, Token: zapTestTok, ProofAt: "example.com"}); err != nil || j.ProofAt != "example.com" {
+		t.Fatalf("a parent name: %+v %v", j, err)
+	}
+	if _, err := fenceJob(api.ExposureFenceCheckArgs{Domain: "x.beyondhcm.ddns.net", Name: "x.beyondhcm.ddns.net", IP: zapTestIP, Token: zapTestTok, ProofAt: "ddns.net"}); err == nil {
+		t.Fatal("a public suffix as the record's name was accepted")
+	}
 	if _, err := fenceJob(api.ExposureFenceCheckArgs{Domain: "example.com", Name: "www.evil.example", IP: zapTestIP, Token: zapTestTok}); err == nil {
 		t.Fatal("a name outside the domain was accepted")
 	}
@@ -444,5 +451,58 @@ func TestFenceScanCopyIsRewrittenAndSurvivesABadKey(t *testing.T) {
 	}
 	if _, err := os.Lstat(filepath.Join(dir2, fenceKeyName)); err == nil {
 		t.Fatal("a key copy was written from an unusable key")
+	}
+}
+
+// D-632 (review r1 M2 and L1 of #960): a page of git.example.com whose own record sits on example.com goes through the domain fence
+// with ProofAt (git's box-bound token, git on the host's list), never through the older-token path; a ProofAt with a token that is
+// not git's bound one is refused, and so is one outside git's registered domain.
+func TestZapBaselineProofAtGoesThroughTheFence(t *testing.T) {
+	t.Parallel()
+	git := domainfence.Token(zapTestKey, "git.example.com")
+	txt := func(_ context.Context, name string) ([]string, error) {
+		if strings.TrimSuffix(name, ".") == "example.com" { // the zone apex holds git's own record
+			return []string{"v=spf1 -all", "vedette-verify=" + git}, nil
+		}
+		return nil, &net.DNSError{Err: "no such host", Name: name, IsNotFound: true}
+	}
+	args := api.ZapBaselineArgs{URL: "https://git.example.com/", Host: "git.example.com", IP: zapTestIP, Port: 443, Kind: api.ZapKindDomain, Domain: "git.example.com", TXTToken: git, ProofAt: "example.com"}
+	p, err := zapArgs(args)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := newZapWorld(t, Deps{ZapTXT: txt})
+	w.o.fenceMu.Lock()
+	w.o.fenceList["git.example.com"] = true // the host issued git's token
+	w.o.fenceMu.Unlock()
+	var log []string
+	if _, err := w.o.zapBaseline(t.Context(), func(l string) { log = append(log, l) }, p); err != nil {
+		t.Fatalf("git's own record on the apex: %v (log %q)", err, log)
+	}
+	for _, l := range log {
+		if strings.HasPrefix(l, "legacy_token") {
+			t.Fatalf("went the older-token path: %q", log)
+		}
+	}
+	old := p
+	old.token = "00112233aabbccdd" // an older token: no parent-name proof outside the fence
+	if _, err := w.o.zapBaseline(t.Context(), nolog, old); fenceCode(err) != api.CodeTokenForeign {
+		t.Fatalf("an older token with ProofAt: %v", err)
+	}
+	for _, bad := range []struct{ domain, host, at string }{
+		{"bucket.s3.amazonaws.com", "bucket.s3.amazonaws.com", "amazonaws.com"},
+		{"x.beyondhcm.ddns.net", "x.beyondhcm.ddns.net", "ddns.net"},
+		{"victim.github.io", "victim.github.io", "github.io"},
+		{"a.b.co.uk", "a.b.co.uk", "co.uk"},
+		{"git.example.com", "git.example.com", "git.example.com"},
+	} {
+		a := args
+		a.URL, a.Host, a.Domain, a.ProofAt = "https://"+bad.host+"/", bad.host, bad.domain, bad.at
+		if _, err := zapArgs(a); err == nil {
+			t.Fatalf("zap proof_at %s for %s accepted", bad.at, bad.domain)
+		}
+		if _, err := fenceJob(api.ExposureFenceCheckArgs{Domain: bad.domain, Name: bad.host, IP: zapTestIP, Token: zapTestTok, ProofAt: bad.at}); err == nil {
+			t.Fatalf("fence_check proof_at %s for %s accepted", bad.at, bad.domain)
+		}
 	}
 }

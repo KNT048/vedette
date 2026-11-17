@@ -303,28 +303,29 @@ describe('exposure: domain ownership = DNS TXT only', () => {
     expect(await screen.findByRole('note', { name: 'Pressing Scan now records this confirmation' })).toBeInTheDocument()
   })
 
-  // D-628 (kien G10): the Name to type is the host in the domain's zone: @ for the zone itself, "git" for a subdomain, never "@" for
-  // a subdomain; a subdomain also gets the _vedette-verify name for a CNAME and the parent-domain way; a verified parent covers it.
+  // D-632 (kien G10 reopen: "Name (host) phải là @ hoặc beyondnetglobal.com mới đúng!"): the main Name is "@" of the registered
+  // domain for every target, the subdomain too; a subdomain gets _vedette-verify.<host> as the alternative, never its own name.
   it.each([
-    ['beyondnetglobal.com', '@ (the zone itself, beyondnetglobal.com)', null],
-    ['git.beyondnetglobal.com', 'git (that is git.beyondnetglobal.com)', '_vedette-verify.git'],
-    ['a.b.beyondnetglobal.com', 'a.b (that is a.b.beyondnetglobal.com)', '_vedette-verify.a.b'],
-  ])('D-628: %s shows the Name %s', async (value, host, alt) => {
+    ['beyondnetglobal.com', 'Add a TXT record at @ of the DNS zone beyondnetglobal.com.', null],
+    ['git.beyondnetglobal.com', 'Add a TXT record at @ of the DNS zone beyondnetglobal.com, where you manage git.beyondnetglobal.com: a record there proves git.beyondnetglobal.com, and git.beyondnetglobal.com itself needs no record.', '_vedette-verify.git'],
+    ['a.b.beyondnetglobal.com', 'Add a TXT record at @ of the DNS zone beyondnetglobal.com, where you manage a.b.beyondnetglobal.com: a record there proves a.b.beyondnetglobal.com, and a.b.beyondnetglobal.com itself needs no record.', '_vedette-verify.a.b'],
+  ])('D-632: %s shows the Name @ of its zone', async (value, intro, alt) => {
     renderApp('/exposure')
     await userEvent.click(await screen.findByRole('button', { name: 'Add domain' }))
     await userEvent.type(screen.getByRole('textbox', { name: 'Domain' }), value)
     await userEvent.click(screen.getByRole('button', { name: 'Add' }))
     await userEvent.click(await screen.findByRole('tab', { name: /Ownership/ }))
-    expect(await screen.findByTestId('proof-host')).toHaveTextContent(host)
-    expect(screen.getByText(`Add a TXT record in the DNS zone beyondnetglobal.com, where you manage ${value}.`)).toBeInTheDocument()
+    expect(await screen.findByTestId('proof-host')).toHaveTextContent('@ (that is beyondnetglobal.com)')
+    expect(screen.getByText(intro)).toBeInTheDocument()
     if (alt) {
-      expect(screen.getByTestId('proof-cname')).toHaveTextContent(`If ${value} is a CNAME, your DNS provider refuses this record`)
-      expect(screen.getByTestId('proof-cname')).toHaveTextContent(`Use the Name ${alt} instead`)
-      expect(screen.getByText(`Or verify beyondnetglobal.com itself: a verified domain covers every name under it, so ${value} needs no record of its own.`)).toBeInTheDocument()
+      expect(screen.getByTestId('proof-cname')).toHaveTextContent(`If you cannot add a record at @ of beyondnetglobal.com, use the Name ${alt} instead`)
+      expect(screen.getByTestId('proof-cname')).toHaveTextContent(`Not on ${value} itself if it is a CNAME`)
+      expect(screen.getByTestId('proof-delegated')).toHaveTextContent(`If ${value} sits in a sub-zone of beyondnetglobal.com whose DNS is managed separately, add the record at @ of that sub-zone instead`)
     } else {
       expect(screen.queryByTestId('proof-cname')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('proof-delegated')).not.toBeInTheDocument()
     }
-    expect(screen.queryByText(/@ \(or /)).not.toBeInTheDocument()
+    expect(screen.queryByText(/^git \(that is|@ \(or /)).not.toBeInTheDocument()
   })
 
   it('D-628: a subdomain of a verified domain says it is covered, and one Check verifies it', async () => {

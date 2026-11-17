@@ -58,7 +58,7 @@ func (f hostDomainFence) Forget(ctx context.Context, domain string) error {
 
 // scopeOf is the wire form of exposure's domain scope.
 func scopeOf(d *exposure.DomainScope) sensorlink.DomainScope {
-	return sensorlink.DomainScope{Domain: d.Domain, Name: d.Name, Token: d.Token}
+	return sensorlink.DomainScope{Domain: d.Domain, Name: d.Name, Token: d.Token, ProofAt: d.ProofAt}
 }
 
 // chainText is the CNAME chain of a scope for a probe-log row.
@@ -120,7 +120,11 @@ func domainErr(err error, d *exposure.DomainScope, ip string) (*exposure.Unavail
 	case domainfence.TokenForeign:
 		return &exposure.Unavailable{Reason: domainForeign}, true
 	case domainfence.NotOwned:
-		return &exposure.Unavailable{Reason: fmt.Sprintf(domainNotOwn, d.Domain, d.Token)}, true
+		at := d.Domain
+		if d.ProofAt != "" { // D-632: the record the worker looked for is the target's own on the parent name
+			at = d.ProofAt
+		}
+		return &exposure.Unavailable{Reason: fmt.Sprintf(domainNotOwn, at, d.Token)}, true
 	case domainfence.NameMoved:
 		return &exposure.Unavailable{Reason: fmt.Sprintf(domainMoved, d.Name, ip)}, true
 	case domainfence.CNAMEOutside:

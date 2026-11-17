@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/knt048/vedette/core/domainfence"
+	"github.com/knt048/vedette/core/domainfence/proofat"
 	"github.com/knt048/vedette/core/egressip"
 	vexec "github.com/knt048/vedette/core/exec"
 	"github.com/knt048/vedette/host/api"
@@ -116,13 +117,14 @@ var (
 
 // zapPage is a validated zap.baseline request.
 type zapPage struct {
-	url    string
-	host   string
-	ip     netip.Addr
-	port   int
-	kind   string
-	domain string
-	token  string
+	url     string
+	host    string
+	ip      netip.Addr
+	port    int
+	kind    string
+	domain  string
+	token   string
+	proofAt string // D-632: the parent name where the domain's own record sits; "" = on the domain
 }
 
 // zapURL checks that raw is exactly http(s)://host[:port]/ as exposure writes it (the port only when it is not the scheme's own) and
@@ -184,7 +186,10 @@ func zapArgs(a api.ZapBaselineArgs) (zapPage, error) {
 		if !zapTokenRE.MatchString(a.TXTToken) {
 			return zapPage{}, server.Invalid("txt_token", "must be the hex token of the domain")
 		}
-		p.domain, p.token = a.Domain, a.TXTToken
+		if a.ProofAt != "" && (a.ProofAt == a.Domain || !proofat.Within(a.Domain, a.ProofAt)) { // the same bound as core (review r1 L1 of #960)
+			return zapPage{}, server.Invalid("proof_at", "must be a parent name of the domain, down to its registered domain")
+		}
+		p.domain, p.token, p.proofAt = a.Domain, a.TXTToken, a.ProofAt
 	default:
 		return zapPage{}, server.Invalid("kind", "must be ip or domain")
 	}
@@ -612,11 +617,15 @@ func (o *Ops) zapOwned(ctx context.Context, logf func(string), p zapPage) error 
 	// D-591: a page of a domain whose token is the box-bound one (a domain added since the fence) goes through the domain fence: the
 	// host's list, the TXT record, the name's address. A domain verified before it keeps its own token for this passive scan, exactly as
 	// before D-591 (review r1 H2: the plan keeps today's scope on the old token; only the new domain_ip jobs need the box-bound one).
-	if o.fence == nil || p.token != o.fence.Token(p.domain) {
+	bound := o.fence != nil && p.token == o.fence.Token(p.domain)
+	switch {
+	case !bound && p.proofAt != "": // review r1 M2 of #960: a record on a parent name proves a page only through the fence, never the legacy path
+		return refuse412(api.CodeTokenForeign, p.domain+"'s token is not the one this box binds to it, so its record on "+p.proofAt+" cannot prove its pages, and they were not scanned.")
+	case !bound:
 		logf("legacy_token: " + p.domain + "'s token is not the box-bound one; checked as before D-591 (TXT record and the name's address)")
 		return o.zapOwnedLegacy(cctx, p)
 	}
-	res := o.fence.Check(cctx, domainfence.Job{Domain: p.domain, Name: p.host, IP: p.ip, Token: p.token}, true)
+	res := o.fence.Check(cctx, domainfence.Job{Domain: p.domain, Name: p.host, IP: p.ip, Token: p.token, ProofAt: p.proofAt}, true)
 	logf("domain fence of " + p.host + " (" + p.domain + ") at " + p.ip.String() + ", CNAME chain " + res.ChainText() + ": " + orYes(res.Reason))
 	switch res.Reason {
 	case "":

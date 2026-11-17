@@ -64,8 +64,9 @@ type ScanTarget struct {
 	Proof *ProofOwner
 }
 
-// ProofOwner is the domain whose record proves a scanned domain, and that domain's stored token.
-type ProofOwner struct{ Domain, Token string }
+// ProofOwner is the domain whose record proves a scanned domain, and that domain's stored token. ProofAt (D-632) is set when the
+// record is the domain's own on a parent name of it (the zone apex): Domain is then the scanned target itself.
+type ProofOwner struct{ Domain, Token, ProofAt string }
 
 // DomainScope is the domain_ip scope of one deep step (D-571, plan 2026-11-14 §5): the job fields {domain, name, ip, token} without the
 // address and ports, which the seam call carries.
@@ -73,6 +74,9 @@ type DomainScope struct {
 	Domain string // the verified domain (the target's value)
 	Name   string // the domain itself or a name under it that resolved to the address right before the step
 	Token  string // the domain's box-bound token (16 hex, D-591), from DomainFence
+	// ProofAt (D-632) is the parent name of Domain (the zone apex) where Domain's own record sits, which the executors check instead
+	// of Domain; "" when the record is on Domain (or on _vedette-verify.<Domain>).
+	ProofAt string
 	// Chain is Name's CNAME chain as core saw it right before the step ("www.acme.example -> acme.edge.example.net"; just the name
 	// without a CNAME; "" when the lookup failed), written in the step's probe-log row (review r1 M4, D-591).
 	Chain string

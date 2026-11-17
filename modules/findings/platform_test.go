@@ -34,10 +34,10 @@ func TestPlatformLimits_DataIsValid(t *testing.T) {
 		t.Fatal("a list without rows, or for a CVE without a fixed list")
 	}
 	for _, bad := range []string{
-		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Is it Alpine?", "source": "https://e"}}`,                                        // no {device}
-		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "ubuntu"}}}`, // not apk
+		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Is it Alpine?", "source": "https://e"}}`,                                                                                                                                                                   // no {device}
+		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "ubuntu"}}}`,                                                                                                                            // not apk
 		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "alpine", "package": "p", "source_package": "p", "command": "c", "source": "https://e/{branch}", "releases": {"3.23": "10.2_p1-r1"}}}}`, // a hand copy (D-605)
-		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "alpine", "package": "p", "command": "c", "source": "https://e/{branch}"}}}`, // no source_package
+		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "alpine", "package": "p", "command": "c", "source": "https://e/{branch}"}}}`,                                                            // no source_package
 		`{"CVE-2099-0001": {"only": ["alpine"], "affects": "x", "check": "y", "ask": "Does {device} run it?", "source": "https://e", "fixed": {"distro": "alpine", "package": "p", "command": "c", "source": "https://e", "releases": {"3.23": "10.2_p1-r1"}}}}`,
 	} {
 		if _, err := loadPlatformLimits([]byte(bad)); err == nil {

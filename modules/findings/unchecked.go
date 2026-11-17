@@ -289,7 +289,9 @@ func (h *FindingHandlers) unchecked(ctx context.Context, assetID string) ([]Unch
 		return nil, fmt.Errorf("findings: reading devices: %w", err)
 	}
 	var distro map[string][]DistroFix // D-605: the fixed releases a question names come from the distribution's feed
-	if slices.ContainsFunc(rows, func(r UncheckedRow) bool { return r.Reason == UncheckedPlatformUnknown || r.Reason == UncheckedPackageUnknown }) {
+	if slices.ContainsFunc(rows, func(r UncheckedRow) bool {
+		return r.Reason == UncheckedPlatformUnknown || r.Reason == UncheckedPackageUnknown
+	}) {
 		vulns, err := h.feed.Vulns(ctx) // the list the matcher reads (cached per feeds stamp in cmd/vedette)
 		if err != nil {
 			return nil, fmt.Errorf("findings: reading the exploited list: %w", err)

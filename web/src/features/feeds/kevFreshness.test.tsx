@@ -49,6 +49,35 @@ describe('Home: how fresh the exploited list is (kien G11)', () => {
     expect(line.querySelector('a')).toHaveAttribute('href', '/settings/feeds#feed-cisa-kev')
   })
 
+  // kien G13 (D-91 as amended): both copies of the CISA list are asked every check; Home says which one the newest list came from, and a
+  // copy that failed alone is a quiet note (cisa.gov answers 403 to Vietnamese addresses)
+  const copies = (cisa: string | null, mirror: string | null) => [
+    { name: 'CISA', url: 'https://www.cisa.gov/kev.json', checked_at: '2026-11-17T03:54:00Z', error: cisa, catalog_version: cisa ? null : '2026.11.17' },
+    { name: 'CISA GitHub mirror', url: 'https://raw.githubusercontent.com/cisagov/kev-data/develop/kev.json', checked_at: '2026-11-17T03:54:00Z', error: mirror, catalog_version: mirror ? null : '2026.11.17' },
+  ]
+  it('says the newest list came from CISA\'s GitHub copy, with cisa.gov\'s refusal as a quiet note', async () => {
+    status({ state: 'loaded', error: null, interval_hours: 1, checked_at: '2026-11-17T03:54:00Z', last_success: '2026-11-17T03:54:00Z', answered_by: 'CISA GitHub mirror', copies: copies('cisa.gov refused this box (HTTP 403)', null) })
+    latest()
+    renderApp('/')
+    const line = await screen.findByText(/^Checked every hour at cisa\.gov and at CISA's GitHub copy, last at 10:54; the newest list came from CISA's GitHub copy\./, undefined, T)
+    expect(line).toHaveTextContent('At that check cisa.gov refused this box (HTTP 403); the other copy answered. CISA\'s last addition: 13 Nov 2026, Check Point Multiple Products.')
+    expect(line).not.toHaveClass('text-danger') // a note, not an alarm
+  })
+
+  it('says the newest list came from cisa.gov, with no note when both copies answered', async () => {
+    status({ state: 'loaded', error: null, interval_hours: 1, checked_at: '2026-11-17T03:54:00Z', last_success: '2026-11-17T03:54:00Z', answered_by: 'CISA', copies: copies(null, null) })
+    latest()
+    renderApp('/')
+    expect(await screen.findByText('Checked every hour at cisa.gov and at CISA\'s GitHub copy, last at 10:54; the newest list came from cisa.gov. CISA\'s last addition: 13 Nov 2026, Check Point Multiple Products.', undefined, T)).toBeInTheDocument()
+  })
+
+  it('both copies failing: the failure with both reasons, and since when the list is stale', async () => {
+    status({ state: 'loaded', error: 'cisa.gov refused this box (HTTP 403), and CISA\'s GitHub copy answered HTTP 502', interval_hours: 1, checked_at: '2026-11-17T04:54:00Z', last_success: '2026-11-16T21:05:00Z', answered_by: 'CISA GitHub mirror', copies: copies('cisa.gov refused this box (HTTP 403)', 'CISA\'s GitHub copy answered HTTP 502') }, '2026-11-16T21:05:00Z')
+    renderApp('/')
+    const line = await screen.findByText(/^Checked every hour; the last check, at 11:54, failed: cisa\.gov refused this box \(HTTP 403\), and CISA's GitHub copy answered HTTP 502\. Vedette keeps trying\./, undefined, T)
+    expect(line).toHaveTextContent('The list shown is from the last good pull, at 04:05.')
+  })
+
   it('never pulled: it says the first check has not run yet', async () => {
     status({ state: 'never_loaded', error: null, interval_hours: 1, checked_at: null, last_success: null }, '1970-01-01T00:00:00Z')
     renderApp('/')

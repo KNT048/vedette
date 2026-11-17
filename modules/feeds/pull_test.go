@@ -44,6 +44,7 @@ type origin struct {
 	mu     sync.Mutex
 	routes map[string]http.HandlerFunc
 	hits   []hit
+	date   func() time.Time // the Date header every answer carries (the env's clock, #946 r2); nil: the server's own
 }
 
 func newOrigin(t *testing.T) *origin {
@@ -52,7 +53,11 @@ func newOrigin(t *testing.T) *origin {
 		o.mu.Lock()
 		o.hits = append(o.hits, hit{r.URL.Path, r.URL.RawQuery, r.Header.Clone()})
 		h := o.routes[r.URL.Path]
+		date := o.date
 		o.mu.Unlock()
+		if date != nil {
+			w.Header().Set("Date", date().UTC().Format(http.TimeFormat))
+		}
 		if h == nil {
 			t.Errorf("request to an undeclared path %s", r.URL.Path)
 			http.NotFound(w, r)
@@ -116,7 +121,9 @@ func testFile(t testing.TB, name string) string {
 // pullEnv is an env whose fetcher reaches only the origin.
 func pullEnv(t *testing.T) (*env, *origin) {
 	t.Helper()
-	return newEnvFetcher(t, Fetcher{Client: &http.Client{Transport: onlyLoopback{t}}, Version: "test"}), newOrigin(t)
+	e, o := newEnvFetcher(t, Fetcher{Client: &http.Client{Transport: onlyLoopback{t}}, Version: "test"}), newOrigin(t)
+	o.date = e.clock // the servers' clock is the env's, so a test's dates are judged as the box judges them
+	return e, o
 }
 
 // only turns every built-in feed off except the given ones (so the job contacts nothing else).

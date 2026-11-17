@@ -101,3 +101,6 @@ func (s *Service) WaitRotationsForTest() { s.rotations.Wait() }
 
 // SetZaloSaveFaultForTest makes the save of a rotated Zalo OA grant fail while f returns an error.
 func (s *Service) SetZaloSaveFaultForTest(f func() error) { s.zaloSaveFault = f }
+
+// IncidentsLimitForTest is incidentsLimit, the most rows GET /notify/incidents returns.
+const IncidentsLimitForTest = incidentsLimit

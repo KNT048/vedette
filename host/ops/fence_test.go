@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -70,6 +71,12 @@ func TestExposureTokenIsListedCappedAndAudited(t *testing.T) {
 	w.o.noteOnly = rec
 	if _, err := w.o.exposureToken(api.ExposureTokenArgs{Domain: "Acme.example;reboot"}); err == nil {
 		t.Fatal("a bad domain was accepted")
+	}
+	for _, suffix := range []string{"co.uk", "ddns.net", "github.io"} { // D-628 (review r2 L4 of #941): never a public suffix
+		got, err := w.o.exposureToken(api.ExposureTokenArgs{Domain: suffix})
+		if l, _ := w.o.loadFenceList(); err == nil || got != nil || l[suffix] {
+			t.Fatalf("%s: %+v %v, listed %v", suffix, got, err, l[suffix])
+		}
 	}
 	got, err := w.o.exposureToken(api.ExposureTokenArgs{Domain: "example.com"})
 	if res, ok := got.(api.ExposureTokenResult); err != nil || !ok || res.Token != zapTestTok || len(rec.codes) != 0 {
@@ -161,6 +168,35 @@ func TestZapBaselineKeepsAnOldDomainsToken(t *testing.T) {
 	w2 := newZapWorld(t, Deps{ZapTXT: func(context.Context, string) ([]string, error) { return nil, nil }})
 	if _, err := w2.o.zapBaseline(t.Context(), nolog, p); fenceCode(err) != api.CodeTargetNotOwned {
 		t.Fatalf("an old domain without its record: %v", err)
+	}
+}
+
+// D-628 (review r2 L2 of #941): the older-token path of zap.baseline asks the one ownership rule (domainfence.Owned): the record on
+// _vedette-verify.<domain> proves the domain, and a record reached through a CNAME on that name does not.
+func TestZapBaselineOldTokenUsesTheOwnershipRule(t *testing.T) {
+	t.Parallel()
+	const old = "00112233aabbccdd"
+	txt := func(_ context.Context, name string) ([]string, error) {
+		if strings.TrimSuffix(name, ".") == "_vedette-verify.example.com" {
+			return []string{"vedette-verify=" + old}, nil
+		}
+		return nil, &net.DNSError{Err: "no such host", Name: name, IsNotFound: true}
+	}
+	p := zapDomainPage(t)
+	p.token = old
+	w := newZapWorld(t, Deps{ZapTXT: txt})
+	if _, err := w.o.zapBaseline(t.Context(), nolog, p); err != nil {
+		t.Fatalf("the record on _vedette-verify.example.com: %v", err)
+	}
+	cname := func(_ context.Context, name string) (string, error) {
+		if strings.TrimSuffix(name, ".") == "_vedette-verify.example.com" {
+			return "lb.lapsed-vendor.example.", nil
+		}
+		return name, nil
+	}
+	w2 := newZapWorld(t, Deps{ZapTXT: txt, FenceCNAME: cname})
+	if _, err := w2.o.zapBaseline(t.Context(), nolog, p); fenceCode(err) != api.CodeTargetNotOwned {
+		t.Fatalf("through a CNAME: %v", err)
 	}
 }
 

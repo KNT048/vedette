@@ -40,6 +40,7 @@ func (f *fakeDNS) look(name string) error {
 }
 
 func (f *fakeDNS) LookupTXT(_ context.Context, name string) ([]string, error) {
+	name = strings.TrimSuffix(name, ".") // Owned asks rooted names
 	if err := f.look(name); err != nil {
 		return nil, err
 	}
@@ -69,6 +70,7 @@ func (f *fakeDNS) LookupNetIP(_ context.Context, _, name string) ([]netip.Addr, 
 }
 
 func (f *fakeDNS) LookupCNAME(_ context.Context, name string) (string, error) {
+	name = strings.TrimSuffix(name, ".")
 	if err := f.look("cname:" + name); err != nil {
 		return "", err
 	}
@@ -362,5 +364,44 @@ func TestFileListReadsAMissingCopyAgain(t *testing.T) {
 	}
 	if listed("other.example") || waited != 1 {
 		t.Fatalf("a readable list that lacks the domain waited (%d)", waited)
+	}
+}
+
+// rootedDNS records the names asked.
+type rootedDNS struct {
+	mu    sync.Mutex
+	names []string
+}
+
+func (r *rootedDNS) LookupTXT(_ context.Context, name string) ([]string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.names = append(r.names, name)
+	if name == "acme.example." {
+		return []string{"vedette-verify=" + Token(key1, "acme.example")}, nil
+	}
+	return nil, &net.DNSError{Err: "no such host", Name: name, IsNotFound: true}
+}
+
+func (r *rootedDNS) LookupCNAME(_ context.Context, name string) (string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.names = append(r.names, "cname:"+name)
+	return name, nil
+}
+
+// Review r2 L3 of #941: Owned asks every name rooted (a trailing dot), so the resolver's search domains never apply.
+func TestOwnedAsksRootedNames(t *testing.T) {
+	t.Parallel()
+	r := &rootedDNS{}
+	if p := Owned(t.Context(), r, "acme.example", Token(key1, "acme.example"), time.Second); p.At != "acme.example" {
+		t.Fatalf("%+v", p)
+	}
+	r2 := &rootedDNS{}
+	Owned(t.Context(), r2, "other.example", "0123456789abcdef", time.Second)
+	for _, n := range append(r.names, r2.names...) {
+		if !strings.HasSuffix(n, ".") {
+			t.Fatalf("asked %q, not rooted (all: %v %v)", n, r.names, r2.names)
+		}
 	}
 }

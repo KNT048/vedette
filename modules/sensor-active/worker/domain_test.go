@@ -47,6 +47,7 @@ func (z *fakeZone) err(name string) error {
 }
 
 func (z *fakeZone) LookupTXT(_ context.Context, name string) ([]string, error) {
+	name = strings.TrimSuffix(name, ".") // the ownership rule asks rooted names
 	z.mu.Lock()
 	defer z.mu.Unlock()
 	if err := z.err(name); err != nil {
@@ -65,6 +66,7 @@ func (z *fakeZone) LookupNetIP(_ context.Context, _, name string) ([]netip.Addr,
 }
 
 func (z *fakeZone) LookupCNAME(_ context.Context, name string) (string, error) {
+	name = strings.TrimSuffix(name, ".")
 	z.mu.Lock()
 	defer z.mu.Unlock()
 	if name == "acme.example" { // the domain is not a CNAME; www is

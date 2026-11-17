@@ -207,6 +207,14 @@ func (s *Service) deepGate(ctx context.Context, st ScanTarget, ip netip.Addr, na
 		s.cfg.Log.ErrorContext(ctx, "exposure: the domain fence gave no token", "target", st.Value, "error", err)
 		return st, deepFenceDown, nil
 	}
+	if fd != st.Value { // review r2 L6 of #941: the parent deleted since the gate: the host just listed it again, so give its slot back
+		if _, ok, err := loadTargetByValue(ctx, s.cfg.DB.Reader(), fd); err != nil || !ok {
+			if err == nil {
+				s.forgetDomain(ctx, fd)
+			}
+			return st, deepGone, nil
+		}
+	}
 	out.Domain = &DomainScope{Domain: fd, Name: name, Token: tok, Chain: s.cnameChain(ctx, name)}
 	if out.Mode.Disruptive { // r2-M1: fail closed: the disruptive checks only when the name is seen to stay inside the domain now
 		out.Mode.Disruptive = s.cnameInZone(ctx, []string{name}, st.Value)

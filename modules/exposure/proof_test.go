@@ -50,6 +50,7 @@ func (d *cnameDNS) canonical(name string) string {
 }
 
 func (d *cnameDNS) LookupTXT(ctx context.Context, name string) ([]string, error) {
+	name = strings.TrimSuffix(name, ".")
 	if d.onTXT != nil {
 		d.onTXT(name)
 	}
@@ -82,6 +83,7 @@ func (d *cnameDNS) LookupTXT(ctx context.Context, name string) ([]string, error)
 }
 
 func (d *cnameDNS) LookupCNAME(_ context.Context, name string) (string, error) {
+	name = strings.TrimSuffix(name, ".")
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if d.nx[name] {

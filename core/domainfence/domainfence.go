@@ -279,10 +279,12 @@ func Owned(ctx context.Context, r ProofResolver, domain, token string, timeout t
 	has := func(vals []string) bool {
 		return slices.ContainsFunc(vals, func(v string) bool { return strings.TrimSpace(v) == want })
 	}
+	// Every name is asked rooted (a trailing dot), so the resolver's search list (resolv.conf "search lan") never applies: a name
+	// with no address would otherwise be tried again as <name>.<search domain>, whose answer is not the domain's (review r2 L3 of #941).
 	txt := func(name string) ([]string, error) {
 		c, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
-		return r.LookupTXT(c, name)
+		return r.LookupTXT(c, name+".")
 	}
 	names := []string{domain}
 	if alt := VerifyLabel + "." + domain; len(alt) <= 253 {
@@ -299,9 +301,9 @@ func Owned(ctx context.Context, r ProofResolver, domain, token string, timeout t
 			continue
 		}
 		c, cancel := context.WithTimeout(ctx, timeout)
-		cn, err := r.LookupCNAME(c, at)
+		cn, err := r.LookupCNAME(c, at+".")
 		cancel()
-		cn = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(cn), "."))
+		cn = strings.ToLower(strings.TrimRight(strings.TrimSpace(cn), "."))
 		switch {
 		case err != nil && !notFound(err):
 			failed = at

@@ -246,7 +246,7 @@ func (s *Service) whyNot(ctx context.Context, t Target, cands []candidate) strin
 			defer wg.Done()
 			lctx, cancel := context.WithTimeout(ctx, dnsTimeout)
 			defer cancel()
-			got[i].vals, got[i].err = s.cfg.Resolver.LookupTXT(lctx, n)
+			got[i].vals, got[i].err = s.cfg.Resolver.LookupTXT(lctx, n+".") // rooted: no search domain (as domainfence.Owned)
 		}()
 	}
 	wg.Wait()
@@ -314,8 +314,8 @@ func (s *Service) cnameOf(ctx context.Context, name string) string {
 	}
 	lctx, cancel := context.WithTimeout(ctx, dnsTimeout)
 	defer cancel()
-	cn, err := r.LookupCNAME(lctx, name)
-	cn = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(cn), "."))
+	cn, err := r.LookupCNAME(lctx, name+".")
+	cn = strings.ToLower(strings.TrimRight(strings.TrimSpace(cn), "."))
 	if err != nil || cn == "" || cn == name || len(cn) > 253 || !domainRE.MatchString(cn) {
 		return ""
 	}
@@ -331,7 +331,7 @@ func (s *Service) cnameMissing(ctx context.Context, name string) bool {
 	}
 	lctx, cancel := context.WithTimeout(ctx, dnsTimeout)
 	defer cancel()
-	_, err := r.LookupCNAME(lctx, name)
+	_, err := r.LookupCNAME(lctx, name+".")
 	var de *net.DNSError
 	return errors.As(err, &de) && de.IsNotFound
 }

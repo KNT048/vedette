@@ -30,6 +30,7 @@ var testFenceKey = []byte(strings.Repeat("k", domainfence.KeySize))
 type zoneDNS struct{ txt string }
 
 func (z zoneDNS) LookupTXT(_ context.Context, name string) ([]string, error) {
+	name = strings.TrimSuffix(name, ".") // the ownership rule asks rooted names
 	if name != "acme.example" {
 		return nil, &net.DNSError{Err: "no such host", Name: name, IsNotFound: true}
 	}
@@ -39,6 +40,7 @@ func (zoneDNS) LookupNetIP(context.Context, string, string) ([]netip.Addr, error
 	return []netip.Addr{boxIP}, nil
 }
 func (zoneDNS) LookupCNAME(_ context.Context, name string) (string, error) {
+	name = strings.TrimSuffix(name, ".")
 	if name == "acme.example" {
 		return name + ".", nil
 	}

@@ -36,11 +36,13 @@ type fakeInv struct {
 	// notAffected: CVE -> device ids the platform rules rule out (PlatformChecker, D-549); platformErr makes the check fail.
 	notAffected map[string][]string
 	platformErr error
+	distro      []DistroFix // the distribution rows the last check got
 }
 
-func (f *fakeInv) NotAffected(_ context.Context, cve, _, _ string, ids []string) (map[string]bool, error) {
+func (f *fakeInv) NotAffected(_ context.Context, cve, _, _ string, distro []DistroFix, ids []string) (map[string]bool, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.distro = distro
 	if f.platformErr != nil {
 		return nil, f.platformErr
 	}
@@ -426,9 +428,20 @@ func TestCVEPage_D549_PlatformRulesAgreeWithFindings(t *testing.T) {
 	e.loadKEV()
 	e.inv.matches["synology|diskstation manager"] = []MatchedAsset{{ID: "a1", IP: "10.0.0.5", Display: "NAS", How: HaveYes}, {ID: "a2", IP: "10.0.0.6", Display: "NAS 2", How: HaveYes}}
 	e.inv.notAffected = map[string][]string{"CVE-2026-10001": {"a1"}}
+	// the check gets the distribution feeds' rows of that CVE (an Alpine branch's fixed release), and only those
+	write(t, e.db, func(tx *sql.Tx) error {
+		_, err := tx.ExecContext(t.Context(), `INSERT INTO feeds_distro_fix (source_id, distro, release, package, cve, status, fixed_version) VALUES
+('alpine-osv', 'alpine', '3.23', 'openssh', 'CVE-2026-10001', 'fixed', '10.2_p1-r1'), ('alpine-osv', 'alpine', '3.23', 'openssh', 'CVE-2026-10002', 'fixed', '10.2_p1-r1')`)
+		return err
+	})
 	if _, b := e.get("/feeds/cve/CVE-2026-10001"); len(at(b, "matched").([]any)) != 1 || at(b, "matched", 0, "id") != "a2" || at(b, "not_affected") != 1.0 {
 		t.Fatalf("ruled-out device listed: %v", b["matched"])
 	}
+	e.inv.mu.Lock()
+	if len(e.inv.distro) != 1 || e.inv.distro[0] != (DistroFix{Distro: DistroAlpine, Release: "3.23", Package: "openssh", CVE: "CVE-2026-10001", Status: DistroFixed, Fixed: "10.2_p1-r1"}) {
+		t.Errorf("the check got %+v", e.inv.distro)
+	}
+	e.inv.mu.Unlock()
 	e.inv.mu.Lock()
 	e.inv.platformErr = errors.New("inventory busy")
 	e.inv.mu.Unlock()
@@ -577,12 +590,12 @@ func TestStatusAndSourcesListing(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t)
 	c, b := e.get("/feeds/sources")
-	if c != 200 || at(b, "items", 16, "id") != "hagezi-tif" || at(b, "items", 17) != nil {
+	if c != 200 || at(b, "items", 17, "id") != "hagezi-tif" || at(b, "items", 18) != nil {
 		t.Fatalf("%d %v", c, b)
 	}
 	f := at(b, "items", 0)
 	if at(f, "id") != "cisa-kev" || at(f, "builtin") != true || at(f, "status") != "never" || at(f, "last_fetch") != nil || at(f, "records") != nil || at(f, "parser") != nil ||
-		at(f, "default_url") != at(f, "url") || at(f, "interval_hours") != 1.0 || at(f, "auth", "type") != "none" || at(f, "license") != "CC0" || at(b, "items", 12, "interval_hours") != 6.0 {
+		at(f, "default_url") != at(f, "url") || at(f, "interval_hours") != 1.0 || at(f, "auth", "type") != "none" || at(f, "license") != "CC0" || at(b, "items", 13, "interval_hours") != 6.0 {
 		t.Errorf("feed: %v", f)
 	}
 	_, s := e.get("/feeds/status")

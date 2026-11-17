@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/knt048/vedette/modules/inventory"
 )
 
 // D-606 on the wire, N100's DESKTOP-55UKKFV: one programs snapshot with SQL Server 2022's own Uninstall entry (no DisplayVersion),
@@ -37,63 +39,41 @@ func TestContract_D606_SQLServerVersionFromTheMachine(t *testing.T) {
 		prog("SQL Server 2022 XEvent", rtm),
 		prog("SQL Server Management Studio 21", "21.6.17"),
 	}
-	type sqlRow struct {
-		display, version string
-		confidence       float64
-	}
-	// agent is the device's software rows the agent reported, read through inventory's own reads (INV-2: no SQL on inv_* outside
-	// inventory): the device detail for display, version and confidence, MatchInput for the KEV keys of each row.
-	type agentRow struct {
-		sqlRow
-		keys []string
-	}
-	agent := func() []agentRow {
+	type sqlRow struct{ display, version string }
+	// read through inventory's own API, never its tables (inventory FORBID-4)
+	agentRows := func() []inventory.MatchSoftware {
 		t.Helper()
 		d, ok := w.device(peerA)
 		if !ok {
 			t.Fatal("no device")
 		}
-		det, err := w.inv.Detail(t.Context(), d.ID)
-		if err != nil {
-			t.Fatal(err)
-		}
 		in, _, err := w.inv.MatchInput(t.Context(), d.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
-		keys := map[string][]string{}
+		var out []inventory.MatchSoftware
 		for _, s := range in.Software {
-			keys[s.ID] = s.KevKeys
-		}
-		var out []agentRow
-		for _, s := range det.Asset.Software {
-			if s.Source != "agent" {
-				continue
+			if s.Source == "agent" {
+				out = append(out, s)
 			}
-			r := agentRow{sqlRow: sqlRow{display: s.Display, confidence: s.Confidence}, keys: keys[s.ID]}
-			if s.Version != nil {
-				r.version = *s.Version
-			}
-			out = append(out, r)
 		}
 		return out
 	}
-	rows := func() []sqlRow { // the rows keyed to SQL Server
+	rows := func() []sqlRow {
 		t.Helper()
 		var out []sqlRow
-		for _, r := range agent() {
-			if slices.Contains(r.keys, "microsoft|sql server") {
-				out = append(out, r.sqlRow)
+		for _, s := range agentRows() {
+			if slices.Contains(s.KevKeys, "microsoft|sql server") {
+				out = append(out, sqlRow{s.Display, s.Version})
 			}
 		}
-		slices.SortFunc(out, func(a, b sqlRow) int { return strings.Compare(a.display, b.display) })
 		return out
 	}
-	without := func(bad func(agentRow) bool) int {
+	count := func(keep func(inventory.MatchSoftware) bool) int {
 		t.Helper()
 		n := 0
-		for _, r := range agent() {
-			if bad(r) {
+		for _, s := range agentRows() {
+			if keep(s) {
 				n++
 			}
 		}
@@ -105,7 +85,7 @@ func TestContract_D606_SQLServerVersionFromTheMachine(t *testing.T) {
 	if got := rows(); len(got) != 1 || got[0].version != rtm {
 		t.Fatalf("components: %+v", got)
 	}
-	if n := without(func(r agentRow) bool { return r.version == "" }); n != 0 {
+	if n := count(func(s inventory.MatchSoftware) bool { return s.Version == "" }); n != 0 {
 		t.Fatalf("%d agent rows without a version", n)
 	}
 
@@ -114,15 +94,15 @@ func TestContract_D606_SQLServerVersionFromTheMachine(t *testing.T) {
 		"sql_setup": `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Microsoft SQL Server\MSSQL16.MSSQLSERVER\Setup`}
 	w.clock.Advance(6 * time.Minute) // past the source's list window
 	w.post("/intake/osquery/log", peerA, logBody(key, snap("interfaces", ifaceRow(macA, peerA)), snap("programs", append([]map[string]string{setup}, list...)...)))
-	if got := rows(); len(got) != 1 || got[0] != (sqlRow{"Microsoft SQL Server 2022 (64-bit)", "16.0.4135.4", 0.95}) {
+	if got := rows(); len(got) != 1 || got[0] != (sqlRow{"Microsoft SQL Server 2022 (64-bit)", "16.0.4135.4"}) {
 		t.Fatalf("setup registry: %+v", got)
 	}
-	if n := without(func(r agentRow) bool {
-		return strings.HasPrefix(r.display, "HKEY") || strings.HasPrefix(r.version, "HKEY") || r.display == ""
+	if n := count(func(s inventory.MatchSoftware) bool {
+		return strings.HasPrefix(s.Display, "HKEY") || strings.HasPrefix(s.Version, "HKEY") || s.Display == ""
 	}); n != 0 {
 		t.Fatalf("the setup value became %d software rows", n)
 	}
-	if n := len(agent()); n != len(list) {
+	if n := count(func(inventory.MatchSoftware) bool { return true }); n != len(list) {
 		t.Fatalf("%d agent rows for %d programs", n, len(list))
 	}
 }

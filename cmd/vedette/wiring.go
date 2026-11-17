@@ -67,18 +67,22 @@ func (a feedsInventory) MatchProducts(ctx context.Context, products []feeds.Prod
 
 // NotAffected implements feeds.PlatformChecker (D-549, KF-CVEPAGE): the devices the findings matcher's platform rules (D-547) prove are
 // not affected by the CVE, read as findings reads them (findingsInventory.MatchInput), so the CVE page agrees with their findings.
-func (a feedsInventory) NotAffected(ctx context.Context, cve, vendor, product string, ids []string) (map[string]bool, error) {
+func (a feedsInventory) NotAffected(ctx context.Context, cve, vendor, product string, distro []feeds.DistroFix, ids []string) (map[string]bool, error) {
 	out := map[string]bool{}
 	if !findings.HasPlatformLimit(cve) { // review r1 #9: only a platform-limited CVE reads the devices
 		return out, nil
 	}
 	now := time.Now()
+	fixes := make([]findings.DistroFix, len(distro)) // the release a person gave is read against the distribution's feed
+	for i, d := range distro {
+		fixes[i] = findings.DistroFix{Distro: d.Distro, Release: d.Release, Package: d.Package, Status: d.Status, Fixed: d.Fixed, Pro: d.Pro}
+	}
 	for _, id := range ids {
 		d, ok, err := findingsInventory(a).MatchInput(ctx, id)
 		if err != nil {
 			return nil, err
 		}
-		if ok && findings.PlatformRuledOut(d, cve, vendor, product, now) {
+		if ok && findings.PlatformRuledOut(d, cve, vendor, product, fixes, now) {
 			out[id] = true
 		}
 	}
@@ -97,7 +101,8 @@ func (a feedsInventory) Settle(ctx context.Context, tx *sql.Tx, committed bool) 
 
 // Distros implements feeds.DistroLister (D-570, D-622): the distributions of the devices whose deb packages an agent read, as
 // findings decides it (findings.DeviceDistro), each with those devices' source packages as the security data names them
-// (findings.DevicePackages), so a distribution feed is pulled only while a device needs it and keeps tier rows for those packages.
+// (findings.DevicePackages), so a distribution feed is pulled only while a device needs it and keeps tier rows for those packages;
+// and "alpine", with no package, while a device states Alpine Linux (findings.StatesAlpine).
 func (a feedsInventory) Distros(ctx context.Context) (map[string]map[string]bool, error) {
 	ids, err := a.inv.AssetIDs(ctx)
 	if err != nil {
@@ -112,9 +117,12 @@ func (a feedsInventory) Distros(ctx context.Context) (map[string]map[string]bool
 		if !ok {
 			continue
 		}
-		fa := findings.Asset{OS: d.OS, Software: make([]findings.Software, len(d.Software))}
+		fa := findings.Asset{OS: d.OS, AgentOS: d.AgentOS, SNMPOS: d.SNMPOS, ManualOS: d.ManualOS, Software: make([]findings.Software, len(d.Software))}
 		for i, sw := range d.Software {
 			fa.Software[i] = findings.Software{Source: sw.Source, Packaged: sw.Packaged, PkgVersion: sw.PkgVersion, PkgSource: sw.PkgSource, ReportedSource: sw.ReportedSource}
+		}
+		if findings.StatesAlpine(fa) && out[findings.DistroAlpine] == nil { // Alpine's feed keeps no package rows
+			out[findings.DistroAlpine] = map[string]bool{}
 		}
 		dist, _, pkgs := findings.DevicePackages(fa)
 		if dist == "" {
@@ -420,13 +428,18 @@ func (a findingsFeeds) readVulns(ctx context.Context) ([]findings.Vuln, error) {
 	if err != nil {
 		return nil, err
 	}
+	loading, err := a.st.DistroLoading(ctx) // a feed on but not loaded keeps Alpine's questions (NVD would raise a false finding)
+	if err != nil {
+		return nil, err
+	}
 	published, err := a.st.KevPublished(ctx) // D-615: an old KEV CVE is a finding only on confirmed evidence
 	if err != nil {
 		return nil, err
 	}
 	out := make([]findings.Vuln, len(rows))
 	for i, v := range rows {
-		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware, Source: v.SourceID, HasTemplate: v.HasTemplate}
+		out[i] = findings.Vuln{CVE: v.CVE, Vendor: v.Vendor, Product: v.Product, Name: v.Name, Ransomware: v.Ransomware, Source: v.SourceID, HasTemplate: v.HasTemplate,
+			DistroLoading: loading}
 		_, out[i].NVDAnswered = affected[v.CVE] // KevAffected has an entry, even empty, for every CVE feeds_affected_cve records
 		out[i].RangesFrom = rangesFrom(fromCVEOrg[v.CVE])
 		for _, r := range affected[v.CVE] {
@@ -751,6 +764,11 @@ func subscribe(d deps) {
 		return scanService(d).DeviceChanged(ctx, ev.AssetID)
 	}))
 	d.Bus.Subscribe(feeds.EventVulnUpdated, on("inventory", rematchUpdated(d))) // D-328: a CVE whose vendor or product changed
+	// The first device that states Alpine Linux (its SNMP answer, its agent, a person's OS) pulls alpine-osv
+	// now, not at the next feeds check: until it is loaded that device's Alpine-only CVEs stay questions.
+	for _, name := range []string{inventory.EventAssetDiscovered, inventory.EventAssetUpdated} {
+		d.Bus.Subscribe(name, on("feeds", alpineWake(d)))
+	}
 	// D-500: new NVD affected versions decide findings again for every device; the first fill is backlog, like D-78.
 	// Review H3: one event per device; after a later update only the devices of the changed CVEs.
 	d.Bus.Subscribe(feeds.EventRangesUpdated, on("inventory", func(ctx context.Context, data any) error {
@@ -784,6 +802,32 @@ func subscribe(d deps) {
 		return err
 	}))
 	d.Bus.Subscribe(exposure.EventSnapshotCreated, on("response", exposurePortsOpened(d))) // D-384: new_port, the one reader of a new port
+}
+
+// alpineWake wakes the feeds pull job when a device whose OS changed states Alpine Linux and alpine-osv is on but not loaded yet
+// (feeds' DistroLoading): the job pulls it at once, the gate (feedsInventory.Distros) now finding the device. Only a change of what the
+// matcher reads of the device (AssetEvent.Match) reads it, so a scan's routine updates cost nothing.
+func alpineWake(d deps) func(ctx context.Context, data any) error {
+	return func(ctx context.Context, data any) error {
+		ev, ok := data.(inventory.AssetEvent)
+		if !ok || !ev.Match || d.Wake == nil {
+			return nil
+		}
+		st, ok := feedsKEV{&d}.store()
+		if !ok {
+			return nil
+		}
+		loading, err := st.DistroLoading(ctx)
+		if err != nil || !loading[feeds.DistroAlpine] {
+			return err
+		}
+		a, ok, err := findingsInventory{d.Inventory}.MatchInput(ctx, ev.AssetID)
+		if err != nil || !ok || !findings.StatesAlpine(a) {
+			return err
+		}
+		d.Wake("feeds", "pull")
+		return nil
+	}
 }
 
 // rematchUpdated handles feeds.vuln.updated (D-328): the payload names the CISA entries that changed, any field, and the has_template flips

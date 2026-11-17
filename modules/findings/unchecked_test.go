@@ -154,7 +154,7 @@ func TestUnchecked_910_ItemsActionAndOrder(t *testing.T) {
 		"CVE-2026-0003": {Name: "Three", DateAdded: "2026-02-01", Links: []string{"not a url"}},
 	}
 	assets := map[string]AssetView{"a1": {ID: "a1", Name: "Zulu"}, "a2": {ID: "a2", Name: "alpha"}}
-	items := UncheckedItems(rows, kev, assets)
+	items := UncheckedItems(rows, kev, assets, nil)
 	type got struct {
 		asset, sw, action string
 		swID              bool
@@ -307,33 +307,44 @@ func TestUnchecked_910_DistroPackageTheTrackerDoesNotCover(t *testing.T) {
 func TestUncheckedItems_D604_Question(t *testing.T) {
 	t.Parallel()
 	kev := map[string]KevInfo{"CVE-2026-123158": {Name: "OpenBSD OpenSSH", DateAdded: "2026-11-06"}, "CVE-2099-0001": {Name: "x", DateAdded: "2026-01-01"}}
-	assets := map[string]AssetView{"a-1": {ID: "a-1", Name: "BN340"}}
+	assets := map[string]AssetView{"a-1": {ID: "a-1", Name: "gw-alpine"}}
 	row := func(cve string, r UncheckedReason) UncheckedRow {
 		return UncheckedRow{AssetID: "a-1", Unchecked: Unchecked{CVE: cve, SoftwareID: "s-1", Software: "OpenSSH", Version: "10.2", Source: "nmap", Reason: r}}
 	}
-	items := UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPlatformUnknown), row("CVE-2099-0001", UncheckedNoNVDVersions)}, kev, assets)
+	items := UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPlatformUnknown), row("CVE-2099-0001", UncheckedNoNVDVersions)}, kev, assets, map[string][]DistroFix{"CVE-2026-123158": alpineSSH()})
 	if len(items) != 2 || items[0].Reason != UncheckedPlatformUnknown || items[0].Action != "answer_platform" || items[1].Question != nil || items[1].Action != "none" {
 		t.Fatalf("items %+v", items)
 	}
 	q := items[0].Question
-	if q == nil || !strings.HasPrefix(q.Text, "Is the OpenSSH on BN340 Alpine Linux's openssh-server package") || q.Command == nil || *q.Command != "cat /etc/alpine-release" {
+	if q == nil || !strings.HasPrefix(q.Text, "Is the OpenSSH on gw-alpine Alpine Linux's openssh-server package") || q.Command == nil || *q.Command != "cat /etc/alpine-release" {
 		t.Fatalf("question %+v", q)
 	}
 	last := q.Answers[len(q.Answers)-1]
-	if len(q.Answers) != 11 || q.Answers[2].Label != "Alpine Linux 3.23" || q.Answers[2].OS == nil || *q.Answers[2].OS != "Alpine Linux 3.23" ||
-		q.Answers[9].Label != "Alpine Linux 3.16" || !slices.Equal(last.Ask, []string{"os", "pkg_version"}) || last.OS != nil {
+	// one per branch the feed has a fixed release for (OSV.dev's nine, no edge)
+	if len(q.Answers) != 10 || q.Answers[1].Label != "Alpine Linux 3.23" || q.Answers[1].OS == nil || *q.Answers[1].OS != "Alpine Linux 3.23" ||
+		q.Answers[8].Label != "Alpine Linux 3.16" || !slices.Equal(last.Ask, []string{"os", "pkg_version"}) || last.OS != nil {
 		t.Fatalf("answers %+v", q.Answers)
 	}
-	items = UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPackageUnknown)}, kev, assets)
+	items = UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPackageUnknown)}, kev, assets, map[string][]DistroFix{"CVE-2026-123158": alpineSSH()})
 	q = items[0].Question
 	if q == nil || q.Command == nil || *q.Command != "apk info -e -v openssh-server" || len(q.Answers) != 1 || !slices.Equal(q.Answers[0].Ask, []string{"pkg_version"}) || q.Error != nil ||
-		!strings.Contains(q.Text, "Which openssh-server package release does BN340 have?") || !strings.Contains(q.Text, "10.2_p1-r1 (3.23)") {
+		!strings.Contains(q.Text, "Which openssh-server package release does gw-alpine have?") || !strings.Contains(q.Text, "10.2_p1-r1 (3.23)") {
 		t.Fatalf("package question %+v", q)
 	}
 	bad := row("CVE-2026-123158", UncheckedPackageUnknown)
 	bad.Answer = "10.2p1" // review r1 M2 of #961: a release Vedette could not read is said
-	q = UncheckedItems([]UncheckedRow{bad}, kev, assets)[0].Question
-	if q == nil || q.Error == nil || !strings.Contains(*q.Error, `could not read the release you entered ("10.2p1")`) || !strings.Contains(*q.Error, "openssh-server-10.6_p2-r0") {
+	q = UncheckedItems([]UncheckedRow{bad}, kev, assets, map[string][]DistroFix{"CVE-2026-123158": alpineSSH()})[0].Question
+	if q == nil || q.Error == nil || !strings.Contains(*q.Error, `could not read the release you entered ("10.2p1")`) || !strings.Contains(*q.Error, "openssh-server-10.3_p1-r2") {
 		t.Fatalf("unreadable answer %+v", q)
+	}
+	// without the feed's rows (a package question stays only while alpine-osv is on and not loaded) the
+	// question says so and lists no release; the platform question offers only Alpine Linux and another system, never releases made up
+	if q := UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPackageUnknown)}, kev, assets, nil)[0].Question; q == nil ||
+		!strings.HasPrefix(q.Text, "Alpine Linux's fixed releases of CVE-2026-123158 are not loaded yet") || strings.Contains(q.Text, "_p") || q.Command == nil {
+		t.Fatalf("package question without rows %+v", q)
+	}
+	q = UncheckedItems([]UncheckedRow{row("CVE-2026-123158", UncheckedPlatformUnknown)}, kev, assets, nil)[0].Question
+	if q == nil || len(q.Answers) != 2 || q.Answers[0].Label != "Alpine Linux" {
+		t.Fatalf("platform question without rows %+v", q)
 	}
 }

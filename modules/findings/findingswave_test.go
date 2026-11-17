@@ -74,7 +74,7 @@ func TestPlatformRuledOut_D549(t *testing.T) {
 		{"firewall that says nothing", Asset{ID: "fw", Software: []Software{sshRow("10.2", "protocol 2.0", "nmap")}}, "CVE-2026-123158", false},
 		{"a CVE not on the list", Asset{ID: "a", AgentOS: "Ubuntu 24.04.3 LTS", Software: []Software{sshRow("9.6p1", "", "agent")}}, "CVE-2024-6387", false},
 	} {
-		if got := PlatformRuledOut(tc.a, tc.cve, "OpenBSD", "OpenSSH", t0); got != tc.want {
+		if got := PlatformRuledOut(tc.a, tc.cve, "OpenBSD", "OpenSSH", alpineSSH(), t0); got != tc.want {
 			t.Errorf("%s: %v, want %v", tc.name, got, tc.want)
 		}
 	}

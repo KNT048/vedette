@@ -79,7 +79,7 @@ func TestKevLinks_EveryLinkOfTheCatalogIsClean(t *testing.T) {
 	if file == "" {
 		file = "testdata/kev.json"
 	}
-	raw, err := os.ReadFile(file)
+	raw, err := os.ReadFile(file) //nolint:gosec // the test reads the catalog file the developer names
 	if err != nil {
 		t.Fatal(err)
 	}

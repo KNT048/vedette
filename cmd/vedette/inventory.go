@@ -215,16 +215,15 @@ func (f findingCounts) CountByAsset(ctx context.Context) (map[string]int, error)
 	return f.d.Findings.CountByAsset(ctx)
 }
 
-// RiskByAsset is inventory's RiskSource (G4): what findings' "To fix" shows for each device (findings.RiskByAsset: its exploited
-// findings to fix, else its recommended updates for a likely-exploited or High+ CVE), from findings (built after inventory, looked up
-// when asked). Findings off or not built: no device is marked. The feeds
+// RiskByAsset is inventory's RiskSource (G4): findings.RiskMap, one cached batch with To fix's tests (its exploited findings to fix,
+// else its recommended updates for a likely-exploited or High+ CVE), from findings (built after inventory, looked up when asked). Findings off or not built: no device is marked. The feeds
 // module off: no update counts, as GET /findings/plan then lists none.
-func (f findingCounts) RiskByAsset(ctx context.Context, assetID string) (map[string]inventory.RiskCounts, error) {
+func (f findingCounts) RiskByAsset(ctx context.Context) (map[string]inventory.RiskCounts, error) {
 	out := map[string]inventory.RiskCounts{}
 	if f.d == nil || f.d.Findings == nil || (f.d.Reg != nil && !f.d.Reg.Enabled("findings")) {
 		return out, nil
 	}
-	m, err := f.d.Findings.RiskByAsset(ctx, f.d.Reg == nil || f.d.Reg.Enabled(findings.FeedsModule), assetID)
+	m, err := f.d.Findings.RiskMap(ctx, f.d.Reg == nil || f.d.Reg.Enabled(findings.FeedsModule))
 	if err != nil {
 		return nil, err
 	}

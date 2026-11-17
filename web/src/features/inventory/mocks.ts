@@ -668,6 +668,7 @@ export const handlers = [
       counts: { all: all.length, pending: all.filter((a) => !a.approved).length, fragile: all.filter((a) => a.fragile).length, manual: all.filter((a) => a.origin === 'manual').length, ignored: rows.length - all.length },
       notify_new: notifyStore.get().enabled,
       notify_available: isOn('notify'),
+      risk_unavailable: false,
     } satisfies DevicesResponse)
   }),
 
@@ -697,7 +698,7 @@ export const handlers = [
     if (!a) return notFound(request)
     const software: SoftwareView[] = a.software.map((s) => ({ id: s.id, display: s.display, vendor: s.vendor, product: s.product, version: s.version, source: s.source, confidence: s.confidence, kev_cves: cvesFor(s.kev) }))
     const observations = markCurrent(obsOf(a)).sort((x, y) => FIELD_ORDER.indexOf(x.field) - FIELD_ORDER.indexOf(y.field) || new Date(y.seen_at).getTime() - new Date(x.seen_at).getTime())
-    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), observations, kinds: KINDS, possible_same: possibleSameAs(a.id) } satisfies DeviceDetail)
+    return HttpResponse.json({ asset: { ...live(a), ...scanInfo(a), software }, suspicious: !!metaStore.get()[a.id]?.suspicious, findings_count: findingsOf(a.id), risk: deviceRisk(a.id), risk_unavailable: false, observations, kinds: KINDS, possible_same: possibleSameAs(a.id) } satisfies DeviceDetail)
   }),
 
   http.get(`${API}/inventory/possible-same`, () => {

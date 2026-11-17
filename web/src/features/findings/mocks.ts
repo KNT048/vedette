@@ -64,12 +64,15 @@ function kevInfo(cve: string): KevInfo | null {
  *  rule): its open exploited findings To fix lists (an update named, or proved), else its recommended updates with a likely CVE or of
  *  High or Critical severity. null when clean, and while the findings module is off. */
 type Risk = { level: 'exploited' | 'update'; exploited: number; updates: number }
+/** The box (inventory's BOX_ID) is never marked (G4); its updates stay in To fix. */
+const MOCK_BOX = 'a-box'
 export function deviceRisk(assetId: string): Risk | null {
-  if (!isOn('findings')) return null
-  return toFix(assetId).devices[0]?.risk ?? null
+  if (!isOn('findings') || assetId === MOCK_BOX) return null
+  return riskOfCard(toFix(assetId).devices[0] ?? null)
 }
 /** findings.RiskOf of one To fix card. */
-function riskOfCard(d: Omit<ToFixDevice, 'risk'>): Risk | null {
+function riskOfCard(d: Omit<ToFixDevice, 'risk'> | null): Risk | null {
+  if (!d || d.asset.id === MOCK_BOX) return null
   const exploited = [...d.exploited, ...d.no_update.filter((x) => x.confirmed + x.detected > 0)].reduce((n, x) => n + Math.max(x.finding_ids.length, x.cves.length), 0)
   const updates = d.planned.filter((x) => x.likely > 0 || sevRank(x.worst) >= sevRank('high')).length
   if (exploited > 0) return { level: 'exploited', exploited, updates }
@@ -79,7 +82,9 @@ function riskOfCard(d: Omit<ToFixDevice, 'risk'>): Risk | null {
 /** GET /findings/plan (D-613, D-615): the sample items, filtered by tier and device; a CVE older than 12 months only with basis scan. */
 function plan(tier: string, asset: string | null): Plan {
   const n = (t: string) => tierPlan(t, asset).items.length // M2-9: every tab's number in one answer, as the box gives it
-  return { ...tierPlan(tier, asset), counts: { likely: n('likely'), recent: n('recent'), all: n('all') } }
+  const base = tierPlan(tier, asset)
+  // G4: each item carries its device's risk marker, so the page needs no device list
+  return { ...base, items: base.items.map((i) => ({ ...i, risk: deviceRisk(i.asset.id) })), counts: { likely: n('likely'), recent: n('recent'), all: n('all') } }
 }
 
 function tierPlan(tier: string, asset: string | null): Omit<Plan, 'counts'> {
@@ -109,7 +114,7 @@ function tierPlan(tier: string, asset: string | null): Omit<Plan, 'counts'> {
       cves.sort((x, y) => (x.tier === y.tier ? 0 : x.tier === 'likely' ? -1 : 1)
         || (x.tier === 'likely' ? (y.epss ?? -1) - (x.epss ?? -1) || (y.score ?? -1) - (x.score ?? -1) : (y.score ?? -1) - (x.score ?? -1) || (y.epss ?? -1) - (x.epss ?? -1))
         || y.published.localeCompare(x.published))
-      items.push({ group: `${a.id}/${p.software_id}`, asset: { id: a.id, name: nameOf(a) }, software: p.software, version: p.version, fixed: p.fixed, kind: p.kind, pro: p.pro ?? false,
+      items.push({ group: `${a.id}/${p.software_id}`, asset: { id: a.id, name: nameOf(a) }, risk: null, software: p.software, version: p.version, fixed: p.fixed, kind: p.kind, pro: p.pro ?? false,
         cves, likely: cves.filter((c) => c.tier === 'likely').length, recent: cves.filter((c) => c.tier === 'recent').length })
     }
   }

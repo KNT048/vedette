@@ -26,6 +26,7 @@ type planState struct {
 	fullAt  time.Time // when the last full pass finished
 	lastRun time.Time // when the job last ran: a longer gap (the findings module was off) makes the next run a full pass
 	devices map[string]planDevice
+	ver     uint64          // moves on every change of devices: the risk marker's cache (RiskMap) is dropped when it does
 	dirty   map[string]bool // devices to compare again at the next run
 	dropped map[string]bool // devices deleted since the run started: never written back by it (review r1 #4 of #804)
 }
@@ -82,6 +83,7 @@ func (s *Service) dropPlan(id string) {
 	s.plan.mu.Lock()
 	defer s.plan.mu.Unlock()
 	delete(s.plan.devices, id)
+	s.plan.ver++
 	delete(s.plan.dirty, id)
 	if s.plan.dropped == nil {
 		s.plan.dropped = map[string]bool{}
@@ -196,7 +198,9 @@ func (s *Service) RefreshPlan(ctx context.Context) error {
 			}
 		}
 		s.plan.devices, s.plan.ran, s.plan.stamp, s.plan.fullAt = got, true, stamp, now
+		s.plan.ver++
 	} else {
+		s.plan.ver++
 		if s.plan.devices == nil {
 			s.plan.devices = map[string]planDevice{}
 		}

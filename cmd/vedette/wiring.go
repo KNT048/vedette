@@ -190,7 +190,7 @@ func (a findingsInventory) Assets(ctx context.Context, ids []string) (map[string
 	}
 	out := make(map[string]findings.AssetView, len(refs))
 	for id, r := range refs {
-		out[id] = findings.AssetView{ID: r.ID, Name: names[id], Hostname: r.Hostname, IP: r.IP, Kind: r.Kind, Display: assetDisplay(r)}
+		out[id] = findings.AssetView{ID: r.ID, Name: names[id], Hostname: r.Hostname, IP: r.IP, Kind: r.Kind, Display: assetDisplay(r), Box: r.IsBox}
 	}
 	return out, nil
 }

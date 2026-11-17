@@ -199,10 +199,11 @@ func (f DeviceFilter) where(sources map[string][]string, counts map[string]int, 
 				out = append(out, id)
 			}
 		}
+		// the box is never marked (G4): it is "none" whatever findings say of it
 		if slices.Contains(f.Risks, RiskNone) {
-			add("a.id NOT IN (SELECT value FROM json_each(?))", jsonList(out))
+			add("(a.is_box = 1 OR a.id NOT IN (SELECT value FROM json_each(?)))", jsonList(out))
 		} else {
-			add("a.id IN (SELECT value FROM json_each(?))", jsonList(in))
+			add("(a.is_box = 0 AND a.id IN (SELECT value FROM json_each(?)))", jsonList(in))
 		}
 	}
 	if f.Q != "" {

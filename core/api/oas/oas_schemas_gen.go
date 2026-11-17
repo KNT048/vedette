@@ -71938,6 +71938,10 @@ type FindingsGetFindingsPlanOKItemsItem struct {
 	// Distro only: `fixed` is in Ubuntu Pro (ESM) only; false otherwise.
 	Pro    bool `json:"pro"`
 	Recent int  `json:"recent"`
+	// The device's risk marker (G4): exploited = open exploited findings To fix lists; update = none, but
+	// a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when
+	// clean, for the Vedette box itself, or when it could not be read.
+	Risk NilFindingsGetFindingsPlanOKItemsItemRisk `json:"risk"`
 	// Display name of the software row.
 	Software string `json:"software"`
 	// The installed version.
@@ -71982,6 +71986,11 @@ func (s *FindingsGetFindingsPlanOKItemsItem) GetPro() bool {
 // GetRecent returns the value of Recent.
 func (s *FindingsGetFindingsPlanOKItemsItem) GetRecent() int {
 	return s.Recent
+}
+
+// GetRisk returns the value of Risk.
+func (s *FindingsGetFindingsPlanOKItemsItem) GetRisk() NilFindingsGetFindingsPlanOKItemsItemRisk {
+	return s.Risk
 }
 
 // GetSoftware returns the value of Software.
@@ -72032,6 +72041,11 @@ func (s *FindingsGetFindingsPlanOKItemsItem) SetPro(val bool) {
 // SetRecent sets the value of Recent.
 func (s *FindingsGetFindingsPlanOKItemsItem) SetRecent(val int) {
 	s.Recent = val
+}
+
+// SetRisk sets the value of Risk.
+func (s *FindingsGetFindingsPlanOKItemsItem) SetRisk(val NilFindingsGetFindingsPlanOKItemsItemRisk) {
+	s.Risk = val
 }
 
 // SetSoftware sets the value of Software.
@@ -72387,6 +72401,83 @@ func (s *FindingsGetFindingsPlanOKItemsItemKind) UnmarshalText(data []byte) erro
 		return nil
 	case FindingsGetFindingsPlanOKItemsItemKindEsu:
 		*s = FindingsGetFindingsPlanOKItemsItemKindEsu
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
+type FindingsGetFindingsPlanOKItemsItemRisk struct {
+	Exploited int                                         `json:"exploited"`
+	Level     FindingsGetFindingsPlanOKItemsItemRiskLevel `json:"level"`
+	Updates   int                                         `json:"updates"`
+}
+
+// GetExploited returns the value of Exploited.
+func (s *FindingsGetFindingsPlanOKItemsItemRisk) GetExploited() int {
+	return s.Exploited
+}
+
+// GetLevel returns the value of Level.
+func (s *FindingsGetFindingsPlanOKItemsItemRisk) GetLevel() FindingsGetFindingsPlanOKItemsItemRiskLevel {
+	return s.Level
+}
+
+// GetUpdates returns the value of Updates.
+func (s *FindingsGetFindingsPlanOKItemsItemRisk) GetUpdates() int {
+	return s.Updates
+}
+
+// SetExploited sets the value of Exploited.
+func (s *FindingsGetFindingsPlanOKItemsItemRisk) SetExploited(val int) {
+	s.Exploited = val
+}
+
+// SetLevel sets the value of Level.
+func (s *FindingsGetFindingsPlanOKItemsItemRisk) SetLevel(val FindingsGetFindingsPlanOKItemsItemRiskLevel) {
+	s.Level = val
+}
+
+// SetUpdates sets the value of Updates.
+func (s *FindingsGetFindingsPlanOKItemsItemRisk) SetUpdates(val int) {
+	s.Updates = val
+}
+
+type FindingsGetFindingsPlanOKItemsItemRiskLevel string
+
+const (
+	FindingsGetFindingsPlanOKItemsItemRiskLevelExploited FindingsGetFindingsPlanOKItemsItemRiskLevel = "exploited"
+	FindingsGetFindingsPlanOKItemsItemRiskLevelUpdate    FindingsGetFindingsPlanOKItemsItemRiskLevel = "update"
+)
+
+// AllValues returns all FindingsGetFindingsPlanOKItemsItemRiskLevel values.
+func (FindingsGetFindingsPlanOKItemsItemRiskLevel) AllValues() []FindingsGetFindingsPlanOKItemsItemRiskLevel {
+	return []FindingsGetFindingsPlanOKItemsItemRiskLevel{
+		FindingsGetFindingsPlanOKItemsItemRiskLevelExploited,
+		FindingsGetFindingsPlanOKItemsItemRiskLevelUpdate,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s FindingsGetFindingsPlanOKItemsItemRiskLevel) MarshalText() ([]byte, error) {
+	switch s {
+	case FindingsGetFindingsPlanOKItemsItemRiskLevelExploited:
+		return []byte(s), nil
+	case FindingsGetFindingsPlanOKItemsItemRiskLevelUpdate:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *FindingsGetFindingsPlanOKItemsItemRiskLevel) UnmarshalText(data []byte) error {
+	switch FindingsGetFindingsPlanOKItemsItemRiskLevel(data) {
+	case FindingsGetFindingsPlanOKItemsItemRiskLevelExploited:
+		*s = FindingsGetFindingsPlanOKItemsItemRiskLevelExploited
+		return nil
+	case FindingsGetFindingsPlanOKItemsItemRiskLevelUpdate:
+		*s = FindingsGetFindingsPlanOKItemsItemRiskLevelUpdate
 		return nil
 	default:
 		return errors.Errorf("invalid value: %q", data)
@@ -73935,9 +74026,9 @@ type FindingsGetFindingsToFixOKDevicesItem struct {
 	PlanCompared bool `json:"plan_compared"`
 	// Recommended updates (D-613): CVEs on no exploited list, as GET /findings/plan lists them.
 	Planned []FindingsGetFindingsToFixOKDevicesItemPlannedItem `json:"planned"`
-	// The device's risk marker (G4, the same as GET /inventory/devices gives): exploited = open exploited
-	// findings this list shows to fix; update = none, but a recommended update fixes a CVE likely to be
-	// exploited or of High or Critical severity.
+	// The device's risk marker (G4): exploited = open exploited findings To fix lists; update = none, but
+	// a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when
+	// clean, for the Vedette box itself, or when it could not be read.
 	Risk NilFindingsGetFindingsToFixOKDevicesItemRisk `json:"risk"`
 }
 
@@ -99337,7 +99428,9 @@ type InventoryGetInventoryDevicesIDOK struct {
 	// while the other was.
 	PossibleSame []InventoryGetInventoryDevicesIDOKPossibleSameItem `json:"possible_same"`
 	Risk         NilInventoryGetInventoryDevicesIDOKRisk            `json:"risk"`
-	Suspicious   bool                                               `json:"suspicious"`
+	// G4: the risk marker could not be read (the findings module failed).
+	RiskUnavailable bool `json:"risk_unavailable"`
+	Suspicious      bool `json:"suspicious"`
 }
 
 // GetAsset returns the value of Asset.
@@ -99368,6 +99461,11 @@ func (s *InventoryGetInventoryDevicesIDOK) GetPossibleSame() []InventoryGetInven
 // GetRisk returns the value of Risk.
 func (s *InventoryGetInventoryDevicesIDOK) GetRisk() NilInventoryGetInventoryDevicesIDOKRisk {
 	return s.Risk
+}
+
+// GetRiskUnavailable returns the value of RiskUnavailable.
+func (s *InventoryGetInventoryDevicesIDOK) GetRiskUnavailable() bool {
+	return s.RiskUnavailable
 }
 
 // GetSuspicious returns the value of Suspicious.
@@ -99403,6 +99501,11 @@ func (s *InventoryGetInventoryDevicesIDOK) SetPossibleSame(val []InventoryGetInv
 // SetRisk sets the value of Risk.
 func (s *InventoryGetInventoryDevicesIDOK) SetRisk(val NilInventoryGetInventoryDevicesIDOKRisk) {
 	s.Risk = val
+}
+
+// SetRiskUnavailable sets the value of RiskUnavailable.
+func (s *InventoryGetInventoryDevicesIDOK) SetRiskUnavailable(val bool) {
+	s.RiskUnavailable = val
 }
 
 // SetSuspicious sets the value of Suspicious.
@@ -103641,8 +103744,8 @@ func (s *InventoryGetInventoryDevicesIDOKPossibleSameItem) SetWhy(val string) {
 	s.Why = val
 }
 
-// The device's risk marker (G4): null when it has no open exploited finding and no such update;
-// computed by the findings module, none while it is off.
+// The device's risk marker (G4, findings.RiskMap): null when it has no open exploited finding To fix
+// lists and no such update, for the Vedette box itself, and while the findings module is off.
 type InventoryGetInventoryDevicesIDOKRisk struct {
 	// Open exploited findings of the device that Findings › To fix lists: an update is named for them,
 	// or the box proved them (a product-only guess is in Needs your input, not here).
@@ -103772,6 +103875,9 @@ type InventoryGetInventoryDevicesOK struct {
 	// False when the notify module is off.
 	NotifyAvailable bool `json:"notify_available"`
 	NotifyNew       bool `json:"notify_new"`
+	// G4: the risk markers could not be read (the findings module failed): no row has one and a risk
+	// filter was not applied.
+	RiskUnavailable bool `json:"risk_unavailable"`
 }
 
 // GetCounts returns the value of Counts.
@@ -103794,6 +103900,11 @@ func (s *InventoryGetInventoryDevicesOK) GetNotifyNew() bool {
 	return s.NotifyNew
 }
 
+// GetRiskUnavailable returns the value of RiskUnavailable.
+func (s *InventoryGetInventoryDevicesOK) GetRiskUnavailable() bool {
+	return s.RiskUnavailable
+}
+
 // SetCounts sets the value of Counts.
 func (s *InventoryGetInventoryDevicesOK) SetCounts(val InventoryGetInventoryDevicesOKCounts) {
 	s.Counts = val
@@ -103812,6 +103923,11 @@ func (s *InventoryGetInventoryDevicesOK) SetNotifyAvailable(val bool) {
 // SetNotifyNew sets the value of NotifyNew.
 func (s *InventoryGetInventoryDevicesOK) SetNotifyNew(val bool) {
 	s.NotifyNew = val
+}
+
+// SetRiskUnavailable sets the value of RiskUnavailable.
+func (s *InventoryGetInventoryDevicesOK) SetRiskUnavailable(val bool) {
+	s.RiskUnavailable = val
 }
 
 type InventoryGetInventoryDevicesOKCounts struct {
@@ -106667,8 +106783,8 @@ func (s *InventoryGetInventoryDevicesOKItemsItemRegularScan) UnmarshalText(data 
 	}
 }
 
-// The device's risk marker (G4): null when it has no open exploited finding and no such update;
-// computed by the findings module, none while it is off.
+// The device's risk marker (G4, findings.RiskMap): null when it has no open exploited finding To fix
+// lists and no such update, for the Vedette box itself, and while the findings module is off.
 type InventoryGetInventoryDevicesOKItemsItemRisk struct {
 	// Open exploited findings of the device that Findings › To fix lists: an update is named for them,
 	// or the box proved them (a product-only guess is in Needs your input, not here).
@@ -128300,6 +128416,51 @@ func (o NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity) Get() (v Findings
 
 // Or returns value if set, or given parameter if does not.
 func (o NilFindingsGetFindingsPlanOKItemsItemCvesItemSeverity) Or(d FindingsGetFindingsPlanOKItemsItemCvesItemSeverity) FindingsGetFindingsPlanOKItemsItemCvesItemSeverity {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilFindingsGetFindingsPlanOKItemsItemRisk returns new NilFindingsGetFindingsPlanOKItemsItemRisk with value set to v.
+func NewNilFindingsGetFindingsPlanOKItemsItemRisk(v FindingsGetFindingsPlanOKItemsItemRisk) NilFindingsGetFindingsPlanOKItemsItemRisk {
+	return NilFindingsGetFindingsPlanOKItemsItemRisk{
+		Value: v,
+	}
+}
+
+// NilFindingsGetFindingsPlanOKItemsItemRisk is nullable FindingsGetFindingsPlanOKItemsItemRisk.
+type NilFindingsGetFindingsPlanOKItemsItemRisk struct {
+	Value FindingsGetFindingsPlanOKItemsItemRisk
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilFindingsGetFindingsPlanOKItemsItemRisk) SetTo(v FindingsGetFindingsPlanOKItemsItemRisk) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilFindingsGetFindingsPlanOKItemsItemRisk) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilFindingsGetFindingsPlanOKItemsItemRisk) SetToNull() {
+	o.Null = true
+	var v FindingsGetFindingsPlanOKItemsItemRisk
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilFindingsGetFindingsPlanOKItemsItemRisk) Get() (v FindingsGetFindingsPlanOKItemsItemRisk, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilFindingsGetFindingsPlanOKItemsItemRisk) Or(d FindingsGetFindingsPlanOKItemsItemRisk) FindingsGetFindingsPlanOKItemsItemRisk {
 	if v, ok := o.Get(); ok {
 		return v
 	}

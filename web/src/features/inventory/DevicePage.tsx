@@ -399,7 +399,7 @@ function Body() {
       <PageHeader breadcrumbs={crumbs} title={<span className="[overflow-wrap:anywhere]">{name}</span>} stories={['S-INV-1', 'S-INV-2', 'S-INV-3']}
         meta={renaming
           ? <span id="device-name-hint" className="max-w-xl">{t('detail.renameHint', { name: nameOf({ ...a, name: null }, kindLabel(a.kind)) })}</span>
-          : <span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<RiskMarker id={a.id} risk={d.risk} /><span>{t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
+          : <span className="inline-flex flex-wrap items-center gap-2">{a.is_box ? <Chip tone="accent">{t('box.badge')}</Chip> : null}<RiskMarker id={a.id} risk={d.risk} />{d.risk_unavailable ? <span>{t('risk.unavailableOne')}</span> : null}<span>{t('detail.metaLine', { kind: kindLabel(a.kind), when: fmtRelative(a.last_seen) })}</span><SampleDataNote /></span>}
         titleAction={<RenameDevice key="rename" d={d} editing={false} setEditing={setRenaming} button={renameButton} />}
         editing={renaming ? <RenameDevice key="edit" d={d} editing setEditing={setRenaming} button={renameButton} /> : undefined}
         actions={<>

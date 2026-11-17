@@ -1,9 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { http, HttpResponse } from 'msw'
+import { server } from '@/test/server'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderApp, expectNoA11yViolations } from '@/test/render'
 import { sessionStore } from '@/mocks/stores'
-import { ensureBox } from './mocks'
+import { BOX_ID, ensureBox } from './mocks'
 import type { DeviceRow } from './types'
 
 // G4 (kien): every list shows which devices carry risk, read from what Findings › To fix shows for each device (one rule): red = open
@@ -11,6 +13,7 @@ import type { DeviceRow } from './types'
 
 vi.setConfig({ testTimeout: 30_000 })
 beforeEach(() => { ensureBox(); sessionStore.set({ userId: 'u-admin' }) })
+afterEach(() => { server.events.removeAllListeners() })
 
 const T = { timeout: 5000 }
 const get = async (path: string) => {
@@ -53,9 +56,9 @@ describe('inventory: G4 risk marker', () => {
     const red = list.find((d) => d.risk?.level === 'exploited')!
     renderApp('/devices')
     const table = await screen.findByRole('table', { name: 'Device list' }, T)
-    const marker = await waitFor(() => within(table).getAllByRole('link', { name: new RegExp(`^${red.risk!.exploited} open exploited finding`) }).find((a) => a.getAttribute('href') === `/findings?tab=fix&device=${red.id}`)!, T)
+    const marker = await waitFor(() => within(table).getAllByRole('link', { name: new RegExp(`^${red.risk!.exploited} exploited: ${red.risk!.exploited} open exploited finding`) }).find((a) => a.getAttribute('href') === `/findings?tab=fix&device=${red.id}`)!, T)
     expect(marker).toHaveTextContent(`${red.risk!.exploited} exploited`)
-    expect(within(table).getAllByRole('link', { name: /recommended update/ }).length).toBeGreaterThan(0)
+    expect(within(table).getAllByRole('link', { name: /^Update recommended: / }).length).toBeGreaterThan(0)
     await expectNoA11yViolations()
     // sort: worst first on the first click
     await user.click(within(table).getByRole('button', { name: /Risk/ }))
@@ -83,5 +86,29 @@ describe('inventory: G4 risk marker', () => {
     renderApp('/findings?tab=fix')
     const card = await screen.findByRole('listitem', { name: new RegExp(red.name ?? red.hostname ?? red.ip) }, T)
     expect(await within(card).findByRole('link', { name: /open exploited finding/ }, T)).toBeInTheDocument()
+  })
+
+  it('the Vedette box itself is never marked, and is in risk=none', async () => {
+    const box = (await rows()).find((d) => d.id === BOX_ID)!
+    expect(box.risk).toBeNull()
+    expect(((await get('/inventory/devices?risk=none')).json.items as DeviceRow[]).some((d) => d.id === BOX_ID)).toBe(true)
+  })
+
+  it('Recommended updates and the To fix cards read the marker from their own answer, never the device list', async () => {
+    const seen: string[] = []
+    server.events.on('request:start', ({ request }) => { seen.push(new URL(request.url).pathname) })
+    renderApp('/plan?tier=all')
+    expect((await screen.findAllByRole('link', { name: /^(\d+ exploited|Update recommended): / }, T)).length).toBeGreaterThan(0)
+    expect(seen).not.toContain('/api/v1/inventory/devices')
+  })
+
+  it('a list whose risk marks could not be read says so quietly and shows none', async () => {
+    const real = (await get('/inventory/devices')).json
+    server.use(http.get(`${location.origin}/api/v1/inventory/devices`, () =>
+      HttpResponse.json({ ...real, risk_unavailable: true, items: (real.items as DeviceRow[]).map((d) => ({ ...d, risk: null })) })))
+    renderApp('/devices')
+    expect(await screen.findByText(/^Risk marks could not be read just now/, undefined, T)).toBeInTheDocument()
+    const table = await screen.findByRole('table', { name: 'Device list' }, T)
+    expect(within(table).queryByRole('link', { name: /exploited: |Update recommended: / })).toBeNull()
   })
 })

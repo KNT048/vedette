@@ -137,10 +137,10 @@ type FindingCounter interface {
 // Recommended updates (findings INV-20) that fix a CVE likely to be exploited (EPSS ≥ 10%) or of High or Critical severity.
 type RiskCounts struct{ Exploited, Updates int }
 
-// RiskSource says which devices carry risk (owned by findings; inventory may not read fnd_* tables). assetID "" asks for every
-// device, else that one only. A device that is absent, or whose counts are both 0, is clean.
+// RiskSource says which devices carry risk (owned by findings; inventory may not read fnd_* tables): one batch for every device
+// (findings.RiskMap, cached there). A device that is absent, or whose counts are both 0, is clean.
 type RiskSource interface {
-	RiskByAsset(ctx context.Context, assetID string) (map[string]RiskCounts, error)
+	RiskByAsset(ctx context.Context) (map[string]RiskCounts, error)
 }
 
 // Risk levels of a device (G4), worst first: the words of DeviceRisk.level and of the Devices search's risk filter ("none" = clean).
@@ -314,13 +314,15 @@ type ObservationRow struct {
 
 // Detail is GET /inventory/devices/{id} (contract.ts DeviceDetail).
 type Detail struct {
-	Asset         DetailAsset      `json:"asset"`
-	Suspicious    bool             `json:"suspicious"`
-	FindingsCount int              `json:"findings_count"`
-	Risk          *Risk            `json:"risk"` // G4: the device's risk marker, nil when clean
-	Observations  []ObservationRow `json:"observations"`
-	Kinds         []string         `json:"kinds"`
-	PossibleSame  []PossibleSame   `json:"possible_same"` // devices that may be the same machine (D-599)
+	Asset         DetailAsset `json:"asset"`
+	Suspicious    bool        `json:"suspicious"`
+	FindingsCount int         `json:"findings_count"`
+	Risk          *Risk       `json:"risk"` // G4: the device's risk marker, nil when clean, for the box, or when not read
+	// RiskUnavailable: the marker could not be read (findings failed, G4).
+	RiskUnavailable bool             `json:"risk_unavailable"`
+	Observations    []ObservationRow `json:"observations"`
+	Kinds           []string         `json:"kinds"`
+	PossibleSame    []PossibleSame   `json:"possible_same"` // devices that may be the same machine (D-599)
 }
 
 // Counts are the numbers behind the filter chips of the device list.
@@ -339,4 +341,6 @@ type DeviceList struct {
 	Counts          Counts   `json:"counts"`
 	NotifyNew       bool     `json:"notify_new"`
 	NotifyAvailable bool     `json:"notify_available"`
+	// RiskUnavailable: the risk markers could not be read (findings failed, G4): no row has one and a risk filter was not applied.
+	RiskUnavailable bool `json:"risk_unavailable"`
 }

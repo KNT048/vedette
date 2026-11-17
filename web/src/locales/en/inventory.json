@@ -1188,7 +1188,9 @@
     "column": "Risk",
     "chipExploited": "Exploited",
     "chipUpdate": "Update recommended",
-    "info": "Red: the device has open findings, CVEs that are being exploited. Amber: none of those, but a recommended update fixes a CVE likely to be exploited (EPSS 10% or more) or of high or critical severity (CVSS 7 or more). No mark: neither."
+    "info": "Red: the device has open findings, CVEs that are being exploited. Amber: none of those, but a recommended update fixes a CVE likely to be exploited (EPSS 10% or more) or of high or critical severity (CVSS 7 or more). No mark: neither.",
+    "unavailable": "Risk marks could not be read just now, so none are shown and the risk filter is not applied. Findings still lists what to fix.",
+    "unavailableOne": "Risk mark not available right now."
   },
   "ignore": {
     "title": "Ignore {{name}}?",

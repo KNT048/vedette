@@ -3,6 +3,7 @@ package inventory_test
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"net/netip"
 	"testing"
 
@@ -17,11 +18,21 @@ import (
 
 type fakeRisk map[string]inventory.RiskCounts
 
-func (f fakeRisk) RiskByAsset(_ context.Context, id string) (map[string]inventory.RiskCounts, error) {
-	if id == "" {
-		return f, nil
+func (f fakeRisk) RiskByAsset(context.Context) (map[string]inventory.RiskCounts, error) { return f, nil }
+
+// countingRisk counts the calls and fails when err is set.
+type countingRisk struct {
+	calls atomic.Int64
+	err   error
+	m     fakeRisk
+}
+
+func (c *countingRisk) RiskByAsset(context.Context) (map[string]inventory.RiskCounts, error) {
+	c.calls.Add(1)
+	if c.err != nil {
+		return nil, c.err
 	}
-	return map[string]inventory.RiskCounts{id: f[id]}, nil
+	return c.m, nil
 }
 
 func withRisk(r inventory.RiskSource) opt { return func(c *inventory.Config) { c.Risk = r } }
@@ -137,5 +148,87 @@ func TestHandlers_G4_RiskThroughTheAPI(t *testing.T) {
 	}
 	if _, ok := a.want("GET", "/inventory/devices/"+id, "viewer", "", 200, "")["risk"]; !ok {
 		t.Fatal("detail has no risk field")
+	}
+}
+
+// Review r1 of #949 (High): only the Devices page, the device page and the export with a risk filter read the markers. The other
+// readers (honeypot ingest, scans, reports, MCP: Devices, AllDevices, Device, Detail) never call the risk port, and a failing port
+// never fails a list: the rows have no marker and RiskUnavailable says so.
+func TestContract_G4_RiskIsOptInAndNeverFailsTheList(t *testing.T) {
+	t.Parallel()
+	src := &countingRisk{m: fakeRisk{}}
+	e := newEnv(t, withRisk(src))
+	x, _, c := riskDevices(e)
+	src.m[x] = inventory.RiskCounts{Exploited: 1}
+	if _, err := e.svc.Devices(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.AllDevices(e.ctx()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Device(e.ctx(), x); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.Detail(e.ctx(), x); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.svc.ExportCSV(e.ctx(), "it@acme.example", inventory.DeviceFilter{}); err != nil {
+		t.Fatal(err)
+	}
+	if n := src.calls.Load(); n != 0 {
+		t.Fatalf("internal device reads called the risk port %d times", n)
+	}
+	if _, err := e.svc.DevicesPage(e.ctx(), inventory.DeviceFilter{}); err != nil || src.calls.Load() != 1 {
+		t.Fatalf("the Devices page reads it once: %d calls, %v", src.calls.Load(), err)
+	}
+
+	src.err = errors.New("findings: database is locked")
+	f, _ := inventory.ParseDeviceSearch("", "", "", "", "", "", "exploited", "")
+	l, err := e.svc.DevicesPage(e.ctx(), f)
+	if err != nil {
+		t.Fatalf("a failing risk source failed the list: %v", err)
+	}
+	if !l.RiskUnavailable || len(l.Items) < 3 {
+		t.Errorf("unavailable = %v, %d rows: want the list, unfiltered by risk, saying so", l.RiskUnavailable, len(l.Items))
+	}
+	for _, d := range l.Items {
+		if d.Risk != nil {
+			t.Errorf("%s marked while the source failed", d.ID)
+		}
+	}
+	d, err := e.svc.DetailPage(e.ctx(), c)
+	if err != nil || !d.RiskUnavailable || d.Risk != nil {
+		t.Errorf("detail: %+v, %v", d.Risk, err)
+	}
+	if _, err := e.svc.ExportCSV(e.ctx(), "it@acme.example", f); err != nil {
+		t.Errorf("export with a risk filter: %v", err)
+	}
+}
+
+// The Vedette box itself is never marked (the owner's done check: boxkien shows nothing); its updates stay in To fix.
+func TestContract_G4_TheBoxIsNeverMarked(t *testing.T) {
+	t.Parallel()
+	src := fakeRisk{}
+	e := newEnv(t, withRisk(src))
+	box, err := e.svc.EnsureBox(e.ctx(), inventory.BoxInfo{Hostname: "boxkien", IP: "192.168.18.2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	src[box] = inventory.RiskCounts{Exploited: 1, Updates: 3}
+	l, err := e.svc.DevicesPage(e.ctx(), inventory.DeviceFilter{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range l.Items {
+		if d.IsBox && d.Risk != nil {
+			t.Errorf("the box is marked %+v", d.Risk)
+		}
+	}
+	if d, err := e.svc.DetailPage(e.ctx(), box); err != nil || d.Risk != nil {
+		t.Errorf("box detail: %+v, %v", d.Risk, err)
+	}
+	f, _ := inventory.ParseDeviceSearch("", "", "", "", "", "", "none", "")
+	if l, _ := e.svc.DevicesPage(e.ctx(), f); len(l.Items) != 1 || !l.Items[0].IsBox {
+		t.Errorf("risk=none: %+v", l.Items)
 	}
 }

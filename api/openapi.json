@@ -39823,6 +39823,42 @@
                             ],
                             "additionalProperties": false
                           },
+                          "risk": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "level": {
+                                    "type": "string",
+                                    "enum": [
+                                      "exploited",
+                                      "update"
+                                    ]
+                                  },
+                                  "exploited": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "updates": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "level",
+                                  "exploited",
+                                  "updates"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ],
+                            "description": "The device's risk marker (G4): exploited = open exploited findings To fix lists; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when clean, for the Vedette box itself, or when it could not be read"
+                          },
                           "software": {
                             "type": "string",
                             "description": "Display name of the software row"
@@ -39967,6 +40003,7 @@
                         "required": [
                           "group",
                           "asset",
+                          "risk",
                           "software",
                           "version",
                           "fixed",
@@ -40895,7 +40932,7 @@
                                 "type": "null"
                               }
                             ],
-                            "description": "The device's risk marker (G4, the same as GET /inventory/devices gives): exploited = open exploited findings this list shows to fix; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity"
+                            "description": "The device's risk marker (G4): exploited = open exploited findings To fix lists; update = none, but a recommended update fixes a CVE likely to be exploited or of High or Critical severity; null when clean, for the Vedette box itself, or when it could not be read"
                           },
                           "open": {
                             "type": "integer",
@@ -46633,7 +46670,7 @@
                                   "updates"
                                 ],
                                 "additionalProperties": false,
-                                "description": "The device's risk marker (G4): null when it has no open exploited finding and no such update; computed by the findings module, none while it is off"
+                                "description": "The device's risk marker (G4, findings.RiskMap): null when it has no open exploited finding To fix lists and no such update, for the Vedette box itself, and while the findings module is off"
                               },
                               {
                                 "type": "null"
@@ -46756,13 +46793,18 @@
                     "notify_available": {
                       "type": "boolean",
                       "description": "false when the notify module is off"
+                    },
+                    "risk_unavailable": {
+                      "type": "boolean",
+                      "description": "G4: the risk markers could not be read (the findings module failed): no row has one and a risk filter was not applied"
                     }
                   },
                   "required": [
                     "items",
                     "counts",
                     "notify_new",
-                    "notify_available"
+                    "notify_available",
+                    "risk_unavailable"
                   ],
                   "additionalProperties": false
                 }
@@ -47723,12 +47765,16 @@
                             "updates"
                           ],
                           "additionalProperties": false,
-                          "description": "The device's risk marker (G4): null when it has no open exploited finding and no such update; computed by the findings module, none while it is off"
+                          "description": "The device's risk marker (G4, findings.RiskMap): null when it has no open exploited finding To fix lists and no such update, for the Vedette box itself, and while the findings module is off"
                         },
                         {
                           "type": "null"
                         }
                       ]
+                    },
+                    "risk_unavailable": {
+                      "type": "boolean",
+                      "description": "G4: the risk marker could not be read (the findings module failed)"
                     },
                     "observations": {
                       "type": "array",
@@ -47929,6 +47975,7 @@
                     "suspicious",
                     "findings_count",
                     "risk",
+                    "risk_unavailable",
                     "observations",
                     "kinds",
                     "possible_same"

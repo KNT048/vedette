@@ -150,7 +150,7 @@ func preRank(open map[string][]Record, plan map[string]planRank, ransom map[stri
 	for id, rs := range open {
 		p := &pre{id: id, plan: plan[id]}
 		for _, r := range rs {
-			if r.Basis == BasisProduct && (r.Evidence == nil || !r.Evidence.Agent) {
+			if !somethingToFix(r) {
 				continue // a product-only match: no update is named, nothing proved (Needs your input)
 			}
 			p.act = 1
@@ -184,6 +184,12 @@ func preRank(open map[string][]Record, plan map[string]planRank, ransom map[stri
 		ids[i] = p.id
 	}
 	return ids
+}
+
+// somethingToFix is To fix's test of one open finding (preRank, and the risk marker's RiskMap, G4): any basis but a product-only match,
+// or the agent's evidence; a product-only match names no update and proves nothing (Needs your input).
+func somethingToFix(r Record) bool {
+	return r.Basis != BasisProduct || (r.Evidence != nil && r.Evidence.Agent)
 }
 
 // urgent is how urgent a device is: what it has to fix (exploited, proved or with a named update) before what it may plan.

@@ -67,7 +67,7 @@ export const DeviceRisk = z.object({
   level: RiskLevel,
   exploited: z.number().int().describe('Open exploited findings of the device that Findings › To fix lists: an update is named for them, or the box proved them (a product-only guess is in Needs your input, not here)'),
   updates: z.number().int().describe('Recommended updates of the device that fix a CVE likely to be exploited (EPSS ≥ 10%) or of High or Critical severity'),
-}).describe('The device\'s risk marker (G4): null when it has no open exploited finding and no such update; computed by the findings module, none while it is off')
+}).describe('The device\'s risk marker (G4, findings.RiskMap): null when it has no open exploited finding To fix lists and no such update, for the Vedette box itself, and while the findings module is off')
 export const DeviceRow = Asset.extend(ScanInfo.shape).extend({
   sources: z.array(DeviceSource).describe('Every source that told Vedette something about the device and is still kept (its details, software or open ports), plus manual for a device added manually, in the order of DeviceSource (#849 source: filter, #829 sources of the device page)'),
   suspicious: z.boolean(),
@@ -91,6 +91,7 @@ export const DevicesResponse = z.object({
   counts: z.object({ all: z.number().int(), pending: z.number().int(), fragile: z.number().int(), manual: z.number().int(), ignored: z.number().int().describe('Ignored devices (D-630); no other count includes them') }),
   notify_new: z.boolean(),
   notify_available: z.boolean().describe('false when the notify module is off'),
+  risk_unavailable: z.boolean().describe('G4: the risk markers could not be read (the findings module failed): no row has one and a risk filter was not applied'),
 })
 export const SoftwareView = Software.omit({ kev: true }).extend({ kev_cves: z.array(z.string()) })
 /** D-599 (#829, J2): when the inventory cannot be sure two rows are one machine (a phone or laptop with a new private Wi-Fi address and a
@@ -106,6 +107,7 @@ export const DeviceDetail = z.object({
   suspicious: z.boolean(),
   findings_count: z.number().int().describe('Number of findings attached to the device; deleting the device also deletes these findings'),
   risk: DeviceRisk.nullable(),
+  risk_unavailable: z.boolean().describe('G4: the risk marker could not be read (the findings module failed)'),
   observations: z.array(Observation),
   kinds: z.array(AssetKind),
   possible_same: z.array(PossibleSame).describe('Devices that may be this same machine (D-599), the 5 seen last, the one seen last first; empty for the box and when none. A pair is offered when the rows share a MAC, or a host name or stated model while one uses a private Wi-Fi address; never when a person kept them separate, two agents or two different burned-in MACs say two machines, they state another name, model or OS, or one was seen while the other was'),

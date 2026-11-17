@@ -3,23 +3,19 @@
 // (the server's findings.RiskOf, one rule): red = open exploited findings To fix lists (with the count), amber = none of those but a
 // Recommended update fixes a CVE likely to be exploited (EPSS ≥ 10%) or of High or Critical severity; nothing when clean. Words, not
 // colour only; it links to the device's To fix.
-import { useMemo } from 'react'
 import { Link } from 'react-router'
-import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ArrowUpCircle, ShieldAlert } from 'lucide-react'
 import { Chip } from '@/components/common/StatusChip'
-import { api } from '@/lib/api'
-import { useModuleEnabled } from '@/lib/modules'
 import { cn } from '@/lib/utils'
-import type { DeviceRisk, DevicesResponse } from './types'
+import type { DeviceRisk } from './types'
 
 /** The marker of device `id`, or nothing when `risk` is null (a clean device). */
 export function RiskMarker({ id, risk, className }: { id: string; risk: DeviceRisk | null | undefined; className?: string }) {
   const { t } = useTranslation('inventory')
   if (!risk) return null
   const exploited = risk.level === 'exploited'
-  const aria = riskDescription(t, risk)
+  const aria = `${riskWord(t, risk)}: ${riskDescription(t, risk)}` // WCAG 2.5.3: the name starts with the words shown
   const to = `/findings?tab=fix&device=${encodeURIComponent(id)}` // the device's To fix: its updates to install, then the recommended ones
   return (
     <Link to={to} aria-label={aria} title={aria} data-risk={risk.level} onClick={(e) => e.stopPropagation()}
@@ -43,27 +39,3 @@ export const riskDescription = (t: T, risk: DeviceRisk) =>
 /** Sort key: exploited above update above clean; more exploited findings (then updates) first within a level. */
 export const riskRank = (risk: DeviceRisk | null | undefined) =>
   !risk ? 0 : risk.level === 'exploited' ? 1_000_000 + risk.exploited * 1000 + risk.updates : 1000 + risk.updates
-
-// One map per answer of the device list, whatever number of markers read it.
-const maps = new WeakMap<DevicesResponse, Map<string, DeviceRisk | null>>()
-function riskMap(d: DevicesResponse | undefined): Map<string, DeviceRisk | null> {
-  if (!d) return new Map()
-  let m = maps.get(d)
-  if (!m) maps.set(d, (m = new Map(d.items.map((x) => [x.id, x.risk ?? null]))))
-  return m
-}
-
-/** The risk of every device, for the pages that name devices without reading the inventory (Findings, Home, Recommended updates, the
- *  CVE pages): one read of GET /inventory/devices, shared with the Devices page's cache. Nothing while the inventory is off. */
-export function useDeviceRisk(): (id: string | null | undefined) => DeviceRisk | null {
-  const on = useModuleEnabled('inventory')
-  const q = useQuery({ queryKey: ['inventory', 'devices'], queryFn: () => api.get<DevicesResponse>('/inventory/devices'), enabled: on === true })
-  const byId = useMemo(() => riskMap(q.data), [q.data])
-  return (id) => (id ? byId.get(id) ?? null : null)
-}
-
-/** The marker of device `id` for a page that has only its id (useDeviceRisk). */
-export function DeviceRiskMarker({ id, className }: { id: string | null | undefined; className?: string }) {
-  const risk = useDeviceRisk()(id)
-  return id ? <RiskMarker id={id} risk={risk} className={className} /> : null
-}

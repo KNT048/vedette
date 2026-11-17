@@ -364,6 +364,8 @@ function Body() {
               {all === 1 && lists.approved[0]?.is_box ? (
                 <div className="mb-6"><NoDevices boxOnly canOp={canOp} canAdmin={canAdmin} needRole={needRole} onAdd={setAdd} /></div>
               ) : null}
+              {/* G4 (review r1 of #949): findings could not answer; the list still shows, quietly without risk marks */}
+              {d.risk_unavailable ? <p role="status" className="mb-3 text-meta text-muted">{t('risk.unavailable')}</p> : null}
               <PageTabs label={t('tabs.label')} tabs={[
                 { id: 'devices', label: t('tabs.devices'), panel: <DevicesList rows={lists.approved} now={now} query={query} same={same} /> },
                 { id: 'review', label: t('tabs.review'), panel: <ReviewList rows={lists.pending} now={now} notifyNew={d.notify_new} notifyAvailable={d.notify_available} query={query} same={same} />, badge: { count: pending, label: t('tabs.reviewBadge') } },

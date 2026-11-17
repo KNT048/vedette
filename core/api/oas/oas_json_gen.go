@@ -329211,6 +329211,542 @@ func (s *ScanPutScansConfigReqWindow) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *ScanningGetScanningHistoryOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ScanningGetScanningHistoryOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("items")
+		e.ArrStart()
+		for _, elem := range s.Items {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfScanningGetScanningHistoryOK = [1]string{
+	0: "items",
+}
+
+// Decode decodes ScanningGetScanningHistoryOK from json.
+func (s *ScanningGetScanningHistoryOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ScanningGetScanningHistoryOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "items":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Items = make([]ScanningGetScanningHistoryOKItemsItem, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem ScanningGetScanningHistoryOKItemsItem
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Items = append(s.Items, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"items\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ScanningGetScanningHistoryOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfScanningGetScanningHistoryOK) {
+					name = jsonFieldsNameOfScanningGetScanningHistoryOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ScanningGetScanningHistoryOK) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ScanningGetScanningHistoryOK) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *ScanningGetScanningHistoryOKItemsItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *ScanningGetScanningHistoryOKItemsItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("ended_at")
+		s.EndedAt.Encode(e, json.EncodeDateTime)
+	}
+	{
+		e.FieldStart("engine")
+		s.Engine.Encode(e)
+	}
+	{
+		e.FieldStart("id")
+		e.Str(s.ID)
+	}
+	{
+		e.FieldStart("kind")
+		s.Kind.Encode(e)
+	}
+	{
+		e.FieldStart("label")
+		e.Str(s.Label)
+	}
+	{
+		e.FieldStart("outcome")
+		s.Outcome.Encode(e)
+	}
+	{
+		e.FieldStart("started_at")
+		json.EncodeDateTime(e, s.StartedAt)
+	}
+	{
+		e.FieldStart("target_id")
+		s.TargetID.Encode(e)
+	}
+	{
+		e.FieldStart("text")
+		e.Str(s.Text)
+	}
+	{
+		e.FieldStart("trigger")
+		s.Trigger.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfScanningGetScanningHistoryOKItemsItem = [10]string{
+	0: "ended_at",
+	1: "engine",
+	2: "id",
+	3: "kind",
+	4: "label",
+	5: "outcome",
+	6: "started_at",
+	7: "target_id",
+	8: "text",
+	9: "trigger",
+}
+
+// Decode decodes ScanningGetScanningHistoryOKItemsItem from json.
+func (s *ScanningGetScanningHistoryOKItemsItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ScanningGetScanningHistoryOKItemsItem to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "ended_at":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.EndedAt.Decode(d, json.DecodeDateTime); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"ended_at\"")
+			}
+		case "engine":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Engine.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"engine\"")
+			}
+		case "id":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.ID = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "kind":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				if err := s.Kind.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"kind\"")
+			}
+		case "label":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Str()
+				s.Label = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"label\"")
+			}
+		case "outcome":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				if err := s.Outcome.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"outcome\"")
+			}
+		case "started_at":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := json.DecodeDateTime(d)
+				s.StartedAt = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"started_at\"")
+			}
+		case "target_id":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				if err := s.TargetID.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"target_id\"")
+			}
+		case "text":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Text = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"text\"")
+			}
+		case "trigger":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				if err := s.Trigger.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"trigger\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode ScanningGetScanningHistoryOKItemsItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfScanningGetScanningHistoryOKItemsItem) {
+					name = jsonFieldsNameOfScanningGetScanningHistoryOKItemsItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *ScanningGetScanningHistoryOKItemsItem) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ScanningGetScanningHistoryOKItemsItem) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ScanningGetScanningHistoryOKItemsItemEngine as json.
+func (s ScanningGetScanningHistoryOKItemsItemEngine) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ScanningGetScanningHistoryOKItemsItemEngine from json.
+func (s *ScanningGetScanningHistoryOKItemsItemEngine) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ScanningGetScanningHistoryOKItemsItemEngine to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ScanningGetScanningHistoryOKItemsItemEngine(v) {
+	case ScanningGetScanningHistoryOKItemsItemEnginePassive:
+		*s = ScanningGetScanningHistoryOKItemsItemEnginePassive
+	case ScanningGetScanningHistoryOKItemsItemEngineNmapDiscovery:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineNmapDiscovery
+	case ScanningGetScanningHistoryOKItemsItemEngineNmapVersions:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineNmapVersions
+	case ScanningGetScanningHistoryOKItemsItemEngineSnmp:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineSnmp
+	case ScanningGetScanningHistoryOKItemsItemEngineOsquery:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineOsquery
+	case ScanningGetScanningHistoryOKItemsItemEngineWazuh:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineWazuh
+	case ScanningGetScanningHistoryOKItemsItemEngineNuclei:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineNuclei
+	case ScanningGetScanningHistoryOKItemsItemEngineZap:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineZap
+	case ScanningGetScanningHistoryOKItemsItemEngineOpenvas:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineOpenvas
+	case ScanningGetScanningHistoryOKItemsItemEngineHoneypot:
+		*s = ScanningGetScanningHistoryOKItemsItemEngineHoneypot
+	default:
+		*s = ScanningGetScanningHistoryOKItemsItemEngine(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ScanningGetScanningHistoryOKItemsItemEngine) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ScanningGetScanningHistoryOKItemsItemEngine) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ScanningGetScanningHistoryOKItemsItemKind as json.
+func (s ScanningGetScanningHistoryOKItemsItemKind) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ScanningGetScanningHistoryOKItemsItemKind from json.
+func (s *ScanningGetScanningHistoryOKItemsItemKind) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ScanningGetScanningHistoryOKItemsItemKind to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ScanningGetScanningHistoryOKItemsItemKind(v) {
+	case ScanningGetScanningHistoryOKItemsItemKindSweep:
+		*s = ScanningGetScanningHistoryOKItemsItemKindSweep
+	case ScanningGetScanningHistoryOKItemsItemKindDevice:
+		*s = ScanningGetScanningHistoryOKItemsItemKindDevice
+	case ScanningGetScanningHistoryOKItemsItemKindSnmp:
+		*s = ScanningGetScanningHistoryOKItemsItemKindSnmp
+	case ScanningGetScanningHistoryOKItemsItemKindExternal:
+		*s = ScanningGetScanningHistoryOKItemsItemKindExternal
+	default:
+		*s = ScanningGetScanningHistoryOKItemsItemKind(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ScanningGetScanningHistoryOKItemsItemKind) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ScanningGetScanningHistoryOKItemsItemKind) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ScanningGetScanningHistoryOKItemsItemOutcome as json.
+func (s ScanningGetScanningHistoryOKItemsItemOutcome) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ScanningGetScanningHistoryOKItemsItemOutcome from json.
+func (s *ScanningGetScanningHistoryOKItemsItemOutcome) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ScanningGetScanningHistoryOKItemsItemOutcome to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ScanningGetScanningHistoryOKItemsItemOutcome(v) {
+	case ScanningGetScanningHistoryOKItemsItemOutcomeOk:
+		*s = ScanningGetScanningHistoryOKItemsItemOutcomeOk
+	case ScanningGetScanningHistoryOKItemsItemOutcomePartial:
+		*s = ScanningGetScanningHistoryOKItemsItemOutcomePartial
+	case ScanningGetScanningHistoryOKItemsItemOutcomeFailed:
+		*s = ScanningGetScanningHistoryOKItemsItemOutcomeFailed
+	case ScanningGetScanningHistoryOKItemsItemOutcomeStopped:
+		*s = ScanningGetScanningHistoryOKItemsItemOutcomeStopped
+	case ScanningGetScanningHistoryOKItemsItemOutcomeRunning:
+		*s = ScanningGetScanningHistoryOKItemsItemOutcomeRunning
+	default:
+		*s = ScanningGetScanningHistoryOKItemsItemOutcome(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ScanningGetScanningHistoryOKItemsItemOutcome) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ScanningGetScanningHistoryOKItemsItemOutcome) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode encodes ScanningGetScanningHistoryOKItemsItemTrigger as json.
+func (s ScanningGetScanningHistoryOKItemsItemTrigger) Encode(e *jx.Encoder) {
+	e.Str(string(s))
+}
+
+// Decode decodes ScanningGetScanningHistoryOKItemsItemTrigger from json.
+func (s *ScanningGetScanningHistoryOKItemsItemTrigger) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode ScanningGetScanningHistoryOKItemsItemTrigger to nil")
+	}
+	v, err := d.StrBytes()
+	if err != nil {
+		return err
+	}
+	// Try to use constant string.
+	switch ScanningGetScanningHistoryOKItemsItemTrigger(v) {
+	case ScanningGetScanningHistoryOKItemsItemTriggerSweep:
+		*s = ScanningGetScanningHistoryOKItemsItemTriggerSweep
+	case ScanningGetScanningHistoryOKItemsItemTriggerAutomatic:
+		*s = ScanningGetScanningHistoryOKItemsItemTriggerAutomatic
+	case ScanningGetScanningHistoryOKItemsItemTriggerPerson:
+		*s = ScanningGetScanningHistoryOKItemsItemTriggerPerson
+	case ScanningGetScanningHistoryOKItemsItemTriggerScanNow:
+		*s = ScanningGetScanningHistoryOKItemsItemTriggerScanNow
+	case ScanningGetScanningHistoryOKItemsItemTriggerTest:
+		*s = ScanningGetScanningHistoryOKItemsItemTriggerTest
+	default:
+		*s = ScanningGetScanningHistoryOKItemsItemTrigger(v)
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s ScanningGetScanningHistoryOKItemsItemTrigger) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *ScanningGetScanningHistoryOKItemsItemTrigger) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *ScanningGetScanningOK) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)

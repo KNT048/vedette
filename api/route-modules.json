@@ -147,6 +147,7 @@
   "GET /response/templates": "response",
   "GET /response/triggers": "response",
   "GET /scanning": "core",
+  "GET /scanning/history": "core",
   "GET /scans/config": "scan",
   "GET /scans/credentialed": "scan-credentialed",
   "GET /scans/events": "scan",

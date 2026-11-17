@@ -37,6 +37,7 @@ func scanningHandlers(d deps) *core.ScanningHandlers {
 		Safety:    scanningSafety{inv: d.Inventory},
 		Engines:   e.list(),
 		Discovery: discoveryRunner{e},
+		History:   e.history, // kien G7a: scanninghistory.go
 		TimeZone: func(ctx context.Context) string {
 			if d.Core == nil {
 				return ""

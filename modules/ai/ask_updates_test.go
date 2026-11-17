@@ -61,7 +61,7 @@ func TestAskDeviceUpdates_G9_OneCallByIP(t *testing.T) {
 	if c := list(got["tool_calls"]); len(c) != 1 {
 		t.Fatalf("one call answers it: %v", c)
 	}
-	if rows := list(got["table"].(map[string]any)["rows"]); len(rows) != 1 || !strings.Contains(fmt.Sprint(rows[0]), "Mozilla Firefox") {
+	if rows := list(got["table"].(map[string]any)["rows"]); len(rows) != 3 || !strings.Contains(fmt.Sprint(rows[0]), "Mozilla Firefox") || !strings.Contains(fmt.Sprint(rows[2]), "recommended") {
 		t.Fatalf("table %v", got["table"])
 	}
 }

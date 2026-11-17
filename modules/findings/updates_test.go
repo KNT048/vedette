@@ -3,6 +3,7 @@ package findings
 import (
 	"slices"
 	"testing"
+	"time"
 )
 
 // G9 (J4, kien: "an osquery device needs confirming too? I want which apps to update"): many exploited CVEs of one product on a device
@@ -37,7 +38,7 @@ func TestDeviceUpdates_G9_OneActionPerUpdateAgentIsDetected(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	u, ok, err := e.svc.DeviceUpdates(t.Context(), "a-1")
+	u, ok, err := e.svc.DeviceUpdates(t.Context(), "a-1", true)
 	if err != nil || !ok {
 		t.Fatalf("%v %v", ok, err)
 	}
@@ -52,21 +53,34 @@ func TestDeviceUpdates_G9_OneActionPerUpdateAgentIsDetected(t *testing.T) {
 	if x.Detected != 4 || x.Suspected != 0 || x.Confirmed != 0 {
 		t.Fatalf("the agent reported the version: detected, never suspected: %+v", x)
 	}
-	if !u.PlanRan || len(u.Planned) != 1 || u.Planned[0].SoftwareID != "s-ng" || u.Planned[0].Fixed != "1.26.0" || len(u.Planned[0].CVEs) != 2 ||
+	if !u.PlanRan || !u.PlanCompared || u.PlanOff || len(u.Planned) != 1 || u.Planned[0].SoftwareID != "s-ng" || u.Planned[0].Fixed != "1.26.0" || len(u.Planned[0].CVEs) != 2 ||
 		u.Planned[0].Likely != 1 || u.Planned[0].Worst != "high" || u.Planned[0].Action != "Upgrade nginx from 1.18.0 to 1.26.0 or later" {
 		t.Fatalf("planned %+v", u.Planned)
 	}
 
-	g, _, err := e.svc.DeviceUpdates(t.Context(), "a-2")
+	g, _, err := e.svc.DeviceUpdates(t.Context(), "a-2", true)
 	if err != nil || len(g.Exploited) != 1 || g.Exploited[0].Suspected != 4 || g.Exploited[0].Detected != 0 {
 		t.Fatalf("a banner's version is a network guess: suspected: %+v %v", g, err)
 	}
-	if _, ok, err := e.svc.DeviceUpdates(t.Context(), "a-none"); ok || err != nil {
+	if !g.PlanRan || g.PlanCompared || len(g.Planned) != 0 {
+		t.Fatalf("review r1 M4 of #935: a device the plan could not compare says so, it is not 0 updates: %+v", g)
+	}
+	// review r1 L1: the feeds module off lists no recommended update, as GET /findings/plan
+	if off, _, _ := e.svc.DeviceUpdates(t.Context(), "a-1", false); !off.PlanOff || off.Planned != nil || len(off.Exploited) != 1 {
+		t.Fatalf("feeds off: %+v", off)
+	}
+	// review r1 L5: a recommended CVE that crossed the 12-month line since the pass is left out, as on the page
+	e.advance(310 * 24 * time.Hour) // the 60-day-old CVE is now older than 12 months, the 30-day-old one is not
+	if late, _, _ := e.svc.DeviceUpdates(t.Context(), "a-1", true); len(late.Planned) != 1 || !slices.Equal(late.Planned[0].CVEs, []string{"CVE-2026-41001"}) || late.Planned[0].Likely != 0 {
+		t.Fatalf("12-month cut: %+v", late.Planned)
+	}
+	if _, ok, err := e.svc.DeviceUpdates(t.Context(), "a-none", true); ok || err != nil {
 		t.Fatalf("unknown device: %v %v", ok, err)
 	}
 }
 
-// A product-only finding names no update: it is listed apart, by its software row, and an agent's row is still detected (D-612).
+// A product-only finding names no update: it is listed apart, by its software row; on an agent's row it is "reported" (the agent gave
+// the version, Vedette could not compare it: review r1 M1 of #935), never suspected nor "inside the range".
 func TestDeviceUpdates_G9_ProductOnlyIsNoNamedUpdate(t *testing.T) {
 	t.Parallel()
 	e := newEnv(t) // qnapVuln has no ranges: a product match on Photo Station
@@ -76,12 +90,37 @@ func TestDeviceUpdates_G9_ProductOnlyIsNoNamedUpdate(t *testing.T) {
 	e.inv.match["a-1"] = pc
 	e.inv.mu.Unlock()
 	e.seed()
-	u, _, err := e.svc.DeviceUpdates(t.Context(), "a-1")
+	u, _, err := e.svc.DeviceUpdates(t.Context(), "a-1", true)
 	if err != nil || len(u.Exploited) != 0 || len(u.NoUpdate) != 1 {
 		t.Fatalf("%+v %v", u, err)
 	}
 	n := u.NoUpdate[0]
-	if n.Kind != "none" || n.SoftwareID != "s-1" || !slices.Equal(n.CVEs, []string{"CVE-2022-27593"}) || n.Detected != 1 || n.Suspected != 0 {
+	if n.Kind != "none" || n.SoftwareID != "s-1" || !slices.Equal(n.CVEs, []string{"CVE-2022-27593"}) || n.Reported != 1 || n.Detected != 0 || n.Suspected != 0 {
 		t.Fatalf("no named update %+v", n)
+	}
+}
+
+// Review r1 L2, L5 of #935: a version a person typed is one the plan trusts (tierSource): detected; a finding whose CVE left the
+// exploited list has no row and no update: it is listed under no named update with an empty software row, and the counts still sum.
+func TestDeviceUpdates_G9_ManualRowIsDetectedAndALeftCVEStays(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	v := Vuln{CVE: "CVE-2099-0001", Vendor: "QNAP", Product: "Photo Station", Affected: []Affected{{CPE: "cpe:2.3:a:qnap:photo_station:*:*:*:*:*:*:*:*", Range: VersionRange{EndExcl: "6.2.0"}}}}
+	e.feeds.vulns = []Vuln{v, qnapVuln()}
+	typed := nas("6.1.1")
+	typed.Software[0].Source = "manual"
+	e.inv.mu.Lock()
+	e.inv.match["a-1"] = typed
+	e.inv.mu.Unlock()
+	if _, err := e.svc.OnMatchChanged(t.Context(), "a-1"); err != nil {
+		t.Fatal(err)
+	}
+	e.feeds.vulns = []Vuln{v} // CVE-2022-27593 left the list; its finding stays open
+	u, _, err := e.svc.DeviceUpdates(t.Context(), "a-1", true)
+	if err != nil || u.Open != 2 || len(u.Exploited) != 1 || u.Exploited[0].Detected != 1 || u.Exploited[0].Suspected != 0 {
+		t.Fatalf("manual row: %+v %v", u, err)
+	}
+	if len(u.NoUpdate) != 1 || u.NoUpdate[0].Group != "a-1/" || u.NoUpdate[0].SoftwareID != "" || !slices.Equal(u.NoUpdate[0].CVEs, []string{"CVE-2022-27593"}) {
+		t.Fatalf("left the list: %+v", u.NoUpdate)
 	}
 }

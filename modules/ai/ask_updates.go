@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/netip"
+	"regexp"
 	"strings"
 )
 
@@ -17,21 +18,26 @@ import (
 const (
 	// Every turn sends the descriptions again (D-482, TestAskBetaBoxQuestionStaysInBudget): the words are few, statusWords in the
 	// result says the rest.
-	deviceUpdatesDesc   = "What to install on one device to clear its CVEs, in one call (device: IP, name or asset_id): open exploited findings grouped by the update that fixes them, those with no named update, and recommended updates. Use it for what to upgrade. status: detected = the device's agent reported the version (not a guess, never \"needs confirming\"); suspected = a network guess; confirmed = a scan proved it."
-	deviceUpdatesSchema = `{"type":"object","properties":{"device":{"type":"string","maxLength":96}},"required":["device"],"additionalProperties":false}`
+	deviceUpdatesDesc   = "What to install on one device to clear its CVEs, in one call (device: IP, name or asset_id): open exploited findings grouped by the update that fixes them, those with no named update, and recommended updates. Use it for what to upgrade; part and offset page one list. status: detected = the agent reported the version (never say it needs confirming); suspected = a network guess."
+	deviceUpdatesSchema = `{"type":"object","properties":{"device":{"type":"string","minLength":1,"maxLength":96},"part":{"type":"string","enum":["exploited","no_named_update","recommended"]},"offset":{"type":"integer","minimum":0,"maximum":1000}},"required":["device"],"additionalProperties":false}`
 	// statusWords is sent with every answer, so the model reads the words from the data and not only from the description.
-	statusWords = "confirmed = a scan proved it. detected = the device's own agent or another trusted source reported the installed version and it is inside the affected range: not a guess, do not say it needs confirming. suspected = a network guess (banner, fingerprint, product name only): only these need confirming."
+	statusWords = "confirmed = a scan proved it. detected = the device's own agent or another trusted source reported the installed version and it is inside the affected range: not a guess, do not say it needs confirming. reported = the agent reported the installed version but Vedette could not compare it with the vulnerability data: not a guess, but not proved affected either; the vendor's advice decides. suspected = a network guess (banner, fingerprint, product name only): only these need confirming."
+	// updatesPage is how many rows of one list a call with part returns at most (then what fits askResultBytes).
+	updatesPage = 25
 )
 
-var deviceUpdatesArgs = map[string]argSpec{"device": {kind: "string", max: 96}}
+var (
+	updateParts       = []string{"exploited", "no_named_update", "recommended"}
+	deviceUpdatesArgs = map[string]argSpec{"device": {kind: "string", re: regexp.MustCompile(`\S`), max: 96}, "part": {kind: "string", enum: updateParts},
+		"offset": {kind: "int", min: 0, max: 1000}}
+)
 
-// findDevice finds the device a model names by asset_id, IP address or name: an exact id, IP or name (any case) first, else the one
-// device whose name contains it. more lists the candidates when several match (none is picked).
+// findDevice finds the device a model names (review r1 M2, L4 of #935). An IP address matches only a device with that IP, never a
+// name that contains it ("192.168.1.10" is not "192.168.1.100"). Otherwise an exact id is the device; then a name: the one device
+// whose name is the text (any case) or contains it. When several devices match, by IP, by exact name, or one exact name beside other
+// names that contain the text ("ws-07" and "ws-07.corp.local"), none is picked: more lists them, exact matches first.
 func findDevice(all []AssetRow, q string) (one AssetRow, more []AssetRow, ok bool) {
 	q = strings.TrimSpace(q)
-	if ip, err := netip.ParseAddr(q); err == nil {
-		q = ip.Unmap().String()
-	}
 	pick := func(match func(AssetRow) bool) []AssetRow {
 		var out []AssetRow
 		for _, a := range all {
@@ -41,20 +47,30 @@ func findDevice(all []AssetRow, q string) (one AssetRow, more []AssetRow, ok boo
 		}
 		return out
 	}
-	for _, match := range []func(AssetRow) bool{
-		func(a AssetRow) bool { return a.ID == q },
-		func(a AssetRow) bool { return a.IP != "" && a.IP == q },
-		func(a AssetRow) bool { return strings.EqualFold(a.Name, q) },
-		func(a AssetRow) bool { return q != "" && strings.Contains(strings.ToLower(a.Name), strings.ToLower(q)) },
-	} {
-		switch hit := pick(match); {
-		case len(hit) == 1:
+	decide := func(hit []AssetRow) (AssetRow, []AssetRow, bool) {
+		if len(hit) == 1 {
 			return hit[0], nil, true
-		case len(hit) > 1:
-			return AssetRow{}, hit, false
 		}
+		return AssetRow{}, hit, false
 	}
-	return AssetRow{}, nil, false
+	if ip, err := netip.ParseAddr(q); err == nil {
+		q = ip.Unmap().String()
+		return decide(pick(func(a AssetRow) bool { return a.IP == q }))
+	}
+	if q == "" {
+		return AssetRow{}, nil, false
+	}
+	if hit := pick(func(a AssetRow) bool { return a.ID == q }); len(hit) == 1 {
+		return hit[0], nil, true
+	}
+	exact := pick(func(a AssetRow) bool { return strings.EqualFold(a.Name, q) })
+	part := pick(func(a AssetRow) bool {
+		return !strings.EqualFold(a.Name, q) && strings.Contains(strings.ToLower(a.Name), strings.ToLower(q))
+	})
+	if len(exact) > 0 {
+		return decide(append(exact, part...))
+	}
+	return decide(part)
 }
 
 // knownAs says how the findings of an update are known, in the words of statusWords.
@@ -63,7 +79,7 @@ func knownAs(u UpdateRow) string {
 	for _, p := range []struct {
 		n    int
 		word string
-	}{{u.Confirmed, "confirmed"}, {u.Detected, "detected"}, {u.Suspected, "suspected"}} {
+	}{{u.Confirmed, "confirmed"}, {u.Detected, "detected"}, {u.Reported, "reported"}, {u.Suspected, "suspected"}} {
 		if p.n > 0 {
 			parts = append(parts, fmt.Sprintf("%d %s", p.n, p.word))
 		}
@@ -90,7 +106,57 @@ func updateMap(u UpdateRow, exploited bool) map[string]any {
 	return m
 }
 
+// planNote says why the recommended list is empty or not known, so the model never reads "0" as "nothing to update" (review r1 M4,
+// L1 of #935).
+func planNote(u DeviceUpdates) string {
+	switch {
+	case u.PlanOff:
+		return "Recommended updates are off (the feeds module is off): say they are not available, not that there are none."
+	case !u.PlanRan:
+		return "The recommended updates are not compared yet (the box compares them a few minutes after it starts): say so, do not say there are none."
+	case !u.PlanCompared:
+		return "This device was not compared for recommended updates: no version reported by its agent, a person or SNMP (or it is newer than the last comparison). Say they are not known, not that there are none."
+	}
+	return ""
+}
+
+// updateList is one list of the answer: its rows from start, n of them shown.
+type updateList struct {
+	name      string
+	rows      []UpdateRow
+	exploited bool
+	start, n  int
+}
+
+func (l updateList) shown() []map[string]any {
+	out := []map[string]any{}
+	for _, x := range l.rows[l.start : l.start+l.n] {
+		out = append(out, updateMap(x, l.exploited))
+	}
+	return out
+}
+
+// pageNote says which rows of a list are shown and how to read the rest (review r1 M3 of #935: every row is readable through this
+// tool, never through get_finding one by one).
+func (l updateList) pageNote(paged bool) string {
+	total, end := len(l.rows), l.start+l.n
+	switch {
+	case total == 0 || !paged && end >= total:
+		return ""
+	case l.n == 0 && l.start >= total:
+		return fmt.Sprintf("%s has %d rows; offset %d is past the end. ", l.name, total, l.start)
+	case end >= total:
+		return fmt.Sprintf("%s: rows %d to %d of %d, the last ones. ", l.name, l.start+1, end, total)
+	}
+	return fmt.Sprintf("%s: rows %d to %d of %d (say \"%d (showing %d)\"); call again with part \"%s\" and offset %d for the next. ", l.name, l.start+1, end, total, total, l.n, l.name, end)
+}
+
 func (s *Service) toolDeviceUpdates(ctx context.Context, d Data, up Updates, raw map[string]any) (toolOut, error) {
+	partArg := str(raw, "part")
+	offset, hasOffset := raw["offset"].(int)
+	if hasOffset && partArg == "" {
+		return toolOut{}, errBadArgs{"offset needs part: the list to page through"}
+	}
 	all, err := d.Assets(ctx)
 	if err != nil {
 		return toolOut{}, readFailed(err)
@@ -104,7 +170,7 @@ func (s *Service) toolDeviceUpdates(ctx context.Context, d Data, up Updates, raw
 				put(c, "ip", clip(a.IP, 45))
 				cands = append(cands, c)
 			}
-			b, _ := json.Marshal(map[string]any{"found": false, "note": fmt.Sprintf("%d devices match; call again with the asset_id of one.", len(more)), "candidates": cands})
+			b, _ := json.Marshal(map[string]any{"found": false, "note": fmt.Sprintf("%d devices match; none was picked. Call again with the asset_id of the one meant (ask the person when unsure).", len(more)), "candidates": cands})
 			return toolOut{Text: string(b), Summary: plural(len(more), "device matches", "devices match"), Cite: inventoryCite(all)}, nil
 		}
 		return toolOut{Text: `{"found":false,"note":"No device has that IP address, name or id. search_assets finds devices by other words."}`, Summary: "no such device", Cite: inventoryCite(all)}, nil
@@ -116,14 +182,17 @@ func (s *Service) toolDeviceUpdates(ctx context.Context, d Data, up Updates, raw
 	if !ok {
 		return toolOut{Text: `{"found":false,"note":"That device is no longer in the inventory."}`, Summary: "no such device", Cite: inventoryCite(all)}, nil
 	}
-	rows := func(us []UpdateRow, exploited bool) []map[string]any {
-		out := []map[string]any{}
-		for _, x := range us[:min(len(us), askRowsDefault)] {
-			out = append(out, updateMap(x, exploited))
+	lists := []updateList{{name: "exploited", rows: u.Exploited, exploited: true}, {name: "no_named_update", rows: u.NoUpdate, exploited: true}, {name: "recommended", rows: u.Planned}}
+	for i := range lists {
+		l := &lists[i]
+		switch partArg {
+		case "":
+			l.n = min(len(l.rows), askRowsDefault)
+		case l.name:
+			l.start = min(offset, len(l.rows))
+			l.n = min(len(l.rows)-l.start, updatesPage)
 		}
-		return out
 	}
-	ex, none, plan := rows(u.Exploited, true), rows(u.NoUpdate, true), rows(u.Planned, false)
 	device := map[string]any{"asset_id": clip(dev.ID, 96), "name": clip(dev.Name, 80)}
 	put(device, "ip", clip(dev.IP, 45))
 	put(device, "os", clip(dev.OS, 80))
@@ -131,39 +200,38 @@ func (s *Service) toolDeviceUpdates(ctx context.Context, d Data, up Updates, raw
 	for _, x := range u.Exploited {
 		exCVEs += len(x.CVEs)
 	}
-	planNote := ""
-	if !u.PlanRan {
-		planNote = "The recommended updates are not compared yet (the box compares them a few minutes after it starts): say so, do not say there are none."
-	}
-	build := func(ne, nn, np int) any {
+	build := func(ls []updateList) any {
 		note := fmt.Sprintf("%d open exploited findings: %d of them are fixed by the %d updates in exploited, %d have no named update. ", u.Open, exCVEs, len(u.Exploited), u.Open-exCVEs)
-		for _, l := range []struct {
-			what         string
-			shown, total int
-		}{{"exploited", ne, len(u.Exploited)}, {"no_named_update", nn, len(u.NoUpdate)}, {"recommended", np, len(u.Planned)}} {
-			if l.shown < l.total {
-				note += fmt.Sprintf("%s lists the first %d of %d: say \"%d (showing %d)\". ", l.what, l.shown, l.total, l.total, l.shown)
+		for _, l := range ls {
+			if partArg == "" || partArg == l.name {
+				note += l.pageNote(partArg != "")
 			}
 		}
 		return struct {
-			Found          bool             `json:"found"`
-			Device         map[string]any   `json:"device"`
-			OpenFindings   int              `json:"open_exploited_findings"`
-			Note           string           `json:"note"`
-			StatusWords    string           `json:"status_words"`
-			Updates        int              `json:"exploited_updates_total"`
-			NoUpdates      int              `json:"no_named_update_total"`
-			Recommended    int              `json:"recommended_total"`
-			PlanNote       string           `json:"recommended_note,omitempty"`
-			Exploited      []map[string]any `json:"exploited"`
-			NoUpdate       []map[string]any `json:"no_named_update"`
-			RecommendedTop []map[string]any `json:"recommended"`
-		}{true, device, u.Open, strings.TrimSpace(note), statusWords, len(u.Exploited), len(u.NoUpdate), len(u.Planned), planNote, ex[:ne], none[:nn], plan[:np]}
+			Found        bool             `json:"found"`
+			Device       map[string]any   `json:"device"`
+			OpenFindings int              `json:"open_exploited_findings"`
+			Note         string           `json:"note"`
+			StatusWords  string           `json:"status_words"`
+			Updates      int              `json:"exploited_updates_total"`
+			NoUpdates    int              `json:"no_named_update_total"`
+			Recommended  int              `json:"recommended_total"`
+			PlanNote     string           `json:"recommended_note,omitempty"`
+			Exploited    []map[string]any `json:"exploited,omitempty"`
+			NoUpdate     []map[string]any `json:"no_named_update,omitempty"`
+			RecTop       []map[string]any `json:"recommended,omitempty"`
+		}{true, device, u.Open, strings.TrimSpace(note), statusWords, len(u.Exploited), len(u.NoUpdate), len(u.Planned), planNote(u), ls[0].shown(), ls[1].shown(), ls[2].shown()}
 	}
-	text, ne := fitUpdates(len(ex), len(none), len(plan), build)
-	t := &AskTable{Columns: []string{"Update", "Fixes", "Worst", "Status"}, Rows: []AskRow{}}
-	for _, x := range u.Exploited[:ne] {
-		t.Rows = append(t.Rows, AskRow{Href: "/devices/" + clip(dev.ID, 96), Cells: []string{clip(x.Action, 200), plural(len(x.CVEs), "exploited CVE", "exploited CVEs"), clip(x.Worst, 12), knownAs(x)}})
+	text, lists := fitUpdates(lists, build)
+	t := &AskTable{Columns: []string{"Update", "CVEs", "Worst", "Status"}, Rows: []AskRow{}}
+	for _, l := range lists {
+		for _, x := range l.rows[l.start : l.start+l.n] {
+			status := "recommended"
+			if l.exploited {
+				status = knownAs(x)
+			}
+			t.Rows = append(t.Rows, AskRow{Href: "/devices/" + clip(dev.ID, 96), Cells: []string{clip(x.Action, 200), plural(len(x.CVEs), "CVE", "CVEs"), clip(x.Worst, 12), status}})
+		}
 	}
 	out := toolOut{Text: text, Summary: fmt.Sprintf("%s, %s", plural(len(u.Exploited), "update", "updates"), plural(len(u.Planned), "recommended", "recommended")),
 		Cite: "Findings and Recommended updates: " + clip(dev.Name, 80)}
@@ -173,30 +241,30 @@ func (s *Service) toolDeviceUpdates(ctx context.Context, d Data, up Updates, raw
 	return out, nil
 }
 
-// fitUpdates returns the JSON of build with as many rows of the three lists as fit askResultBytes: the recommended ones go first,
-// then the ones with no named update, then the exploited updates; the totals and the note are never cut (W1-27). ne is how many
-// exploited rows were kept.
-func fitUpdates(ne, nn, np int, build func(ne, nn, np int) any) (string, int) {
+// fitUpdates returns the JSON of build with as many rows as fit askResultBytes, and the lists as kept: the recommended rows go first,
+// then those with no named update, then the exploited updates (each down to a few, then to none); the totals and the note, which
+// says where the next call starts, are never cut (W1-27).
+func fitUpdates(lists []updateList, build func([]updateList) any) (string, []updateList) {
+	floor := []int{5, 3, 3}
 	for {
-		b, err := json.Marshal(build(ne, nn, np))
+		b, err := json.Marshal(build(lists))
 		if err == nil && len(b) <= askResultBytes {
-			return string(b), ne
+			return string(b), lists
 		}
-		switch {
-		case np > 3:
-			np--
-		case nn > 3:
-			nn--
-		case ne > 5:
-			ne--
-		case np > 0:
-			np--
-		case nn > 0:
-			nn--
-		case ne > 0:
-			ne--
-		default:
-			return string(b), 0
+		cut := false
+		for _, keep := range []bool{true, false} {
+			for i := len(lists) - 1; i >= 0 && !cut; i-- {
+				if f := floor[i]; lists[i].n > 0 && (!keep || lists[i].n > f) {
+					lists[i].n--
+					cut = true
+				}
+			}
+			if cut {
+				break
+			}
+		}
+		if !cut {
+			return string(b), lists
 		}
 	}
 }

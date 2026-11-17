@@ -19,10 +19,13 @@ import (
 const (
 	// ProofConfirmed: a safe scan proved it (basis scan).
 	ProofConfirmed = "confirmed"
-	// ProofDetected: the device itself reported the installed version: its agent (osquery, Wazuh, the box's package list:
-	// evidence.agent or evidence.agent_row, D-548, D-612), or a version the plan also trusts (tierSource: a person's entry, the
-	// device's SNMP answer, the OS the device states), and that version is inside the affected range.
+	// ProofDetected: the device itself reported the installed version (its agent: osquery, Wazuh, the box's package list,
+	// evidence.agent, D-548; or a version the plan also trusts, tierSource: a person's entry, the device's SNMP answer, the OS the
+	// device states) and that version is inside the affected range.
 	ProofDetected = "detected"
+	// ProofReported: the device's agent reported the installed version, but Vedette could not compare it with the vulnerability's
+	// data (a product-only match on an agent row, evidence.agent_row, D-612): not a guess, and not proved inside the range either.
+	ProofReported = "reported"
 	// ProofSuspected: a network guess: a version read from a banner or a fingerprint, or the product name only.
 	ProofSuspected = "suspected"
 )
@@ -57,7 +60,7 @@ type UpdateAction struct {
 	// likely to be exploited soon.
 	Ransomware, Likely int
 	// How each exploited finding is known (Proof*); zero for planned ones (every plan CVE is compared on a trusted version).
-	Confirmed, Detected, Suspected int
+	Confirmed, Detected, Reported, Suspected int
 }
 
 // DeviceUpdates is the answer for one device.
@@ -72,10 +75,16 @@ type DeviceUpdates struct {
 	// Planned: the device's "Updates to plan" items (CVEs on no exploited list), as GET /findings/plan lists them.
 	Planned []UpdateAction
 	PlanRan bool // the plan job compared the devices since the start; false: Planned is not known yet
+	// PlanCompared: the last plan pass compared this device (it has a row the plan trusts, and it existed at that pass). False with
+	// PlanRan: Planned is empty because nothing was compared, not because nothing is to plan (the page's unchecked devices).
+	PlanCompared bool
+	// PlanOff: the feeds module is off, so, as on GET /findings/plan, no recommended update is listed.
+	PlanOff bool
 }
 
-// DeviceUpdates returns what to install on one device to clear its CVEs. ok is false when the device does not exist.
-func (s *Service) DeviceUpdates(ctx context.Context, assetID string) (DeviceUpdates, bool, error) {
+// DeviceUpdates returns what to install on one device to clear its CVEs. ok is false when the device does not exist. feedsOn says the
+// feeds module is on: while it is off the recommended updates are not listed, as GET /findings/plan lists none.
+func (s *Service) DeviceUpdates(ctx context.Context, assetID string, feedsOn bool) (DeviceUpdates, bool, error) {
 	a, ok, err := s.cfg.Inventory.MatchInput(ctx, assetID)
 	if err != nil {
 		return DeviceUpdates{}, false, fmt.Errorf("findings: device updates: reading the device: %w", err)
@@ -102,7 +111,11 @@ func (s *Service) DeviceUpdates(ctx context.Context, assetID string) (DeviceUpda
 		}
 		out.Exploited, out.NoUpdate = exploitedUpdates(a, open, vulns, s.now())
 	}
-	out.Planned, out.PlanRan = s.plannedUpdates(assetID)
+	if feedsOn {
+		out.Planned, out.PlanRan, out.PlanCompared = s.plannedUpdates(assetID)
+	} else {
+		out.PlanOff = true
+	}
 	return out, true, nil
 }
 
@@ -149,11 +162,11 @@ func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time) (fixe
 	members := map[string][]member{}
 	var order []string
 	for _, r := range open {
-		row, known := rowOf[r.CVE]
+		row, known := rowOf[r.CVE] // the row the finding matched on: its source says how it is known (review r1 L2 of #935)
 		var key string
 		var act UpdateAction
 		if f := fixes[r.CVE]; f != nil {
-			if sw, ok := sws[f.SoftwareID]; ok {
+			if sw, ok := sws[f.SoftwareID]; ok && !known {
 				row, known = sw, true
 			}
 			key = "fix:" + f.Group
@@ -174,6 +187,8 @@ func exploitedUpdates(a Asset, open []Record, vulns []Vuln, now time.Time) (fixe
 			g.Confirmed++
 		case ProofDetected:
 			g.Detected++
+		case ProofReported:
+			g.Reported++
 		default:
 			g.Suspected++
 		}
@@ -206,19 +221,23 @@ func proofOf(r Record, row Software, known bool) string {
 	switch {
 	case r.Basis == BasisScan:
 		return ProofConfirmed
-	case r.Evidence != nil && (r.Evidence.Agent || r.Evidence.AgentRow):
+	case r.Evidence != nil && r.Evidence.Agent:
 		return ProofDetected
 	case r.Basis == BasisVersion && known && tierSource(row):
 		return ProofDetected
+	case r.Evidence != nil && r.Evidence.AgentRow:
+		return ProofReported
 	}
 	return ProofSuspected
 }
 
 // plannedUpdates are the device's plan items of the last pass, with the CVEs GET /findings/plan still lists (a CVE that crossed the
-// 12-month line since the pass is left out, review r1 #2 of #804), in the plan's order.
-func (s *Service) plannedUpdates(assetID string) ([]UpdateAction, bool) {
+// 12-month line since the pass is left out, review r1 #2 of #804), in the plan's order. compared: the last pass compared the device.
+func (s *Service) plannedUpdates(assetID string) (out []UpdateAction, ran, compared bool) {
 	s.plan.mu.RLock()
-	ran, items := s.plan.ran, slices.Clone(s.plan.devices[assetID].items)
+	d := s.plan.devices[assetID]
+	ran, compared = s.plan.ran, d.compared
+	items := slices.Clone(d.items)
 	s.plan.mu.RUnlock()
 	cut := s.now().Add(-AgeLimit).UTC().Format(time.DateOnly)
 	var kept []PlanItem
@@ -235,7 +254,6 @@ func (s *Service) plannedUpdates(assetID string) ([]UpdateAction, bool) {
 		}
 	}
 	sortPlanItems(kept)
-	var out []UpdateAction
 	for _, it := range kept {
 		u := UpdateAction{Group: it.Group, SoftwareID: it.SoftwareID, Software: it.Software, Version: it.Version, Fixed: it.Fixed, Kind: it.Kind,
 			Windows: it.Kind == "windows" || it.Kind == "esu", Pro: it.Pro}
@@ -252,7 +270,7 @@ func (s *Service) plannedUpdates(assetID string) ([]UpdateAction, bool) {
 		u.Action = updateSentence(u)
 		out = append(out, u)
 	}
-	return out, ran
+	return out, ran, compared
 }
 
 // sortUpdates orders actions worst first, then by how many CVEs they clear, then ransomware, then the software's name.

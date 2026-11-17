@@ -93,8 +93,9 @@ type UpdateRow struct {
 	Ransomware int      // exploited: CVEs known to be used in ransomware
 	Likely     int      // planned: CVEs likely to be exploited soon (EPSS)
 	// How each exploited finding is known: confirmed (a scan proved it), detected (the device's agent or another trusted source
-	// reported the version), suspected (a network guess: a banner, a fingerprint, the product name only).
-	Confirmed, Detected, Suspected int
+	// reported the version and it is inside the affected range), reported (the agent reported the version, Vedette could not compare
+	// it), suspected (a network guess: a banner, a fingerprint, the product name only).
+	Confirmed, Detected, Reported, Suspected int
 }
 
 // DeviceUpdates is what to install on one device to clear its CVEs (findings.DeviceUpdates).
@@ -104,6 +105,10 @@ type DeviceUpdates struct {
 	NoUpdate  []UpdateRow // open exploited findings no update is named for, one row per software
 	Planned   []UpdateRow // recommended updates: CVEs on no exploited list ("Recommended updates")
 	PlanRan   bool        // false: the recommended updates are not compared yet
+	// PlanCompared: the last comparison included this device; false: it has no version the comparison trusts (or is newer than
+	// the last comparison), so no recommended update is known, which is not "none".
+	PlanCompared bool
+	PlanOff      bool // the feeds module is off: recommended updates are not listed
 }
 
 // Updates is the door of the device_updates tool. A nil Updates in Config leaves the tool out.

@@ -169,4 +169,4 @@
 ## Modifying: `Service.DeviceUpdates`, `UpdateAction`, `Proof*`, `RowFix.SoftwareID`, `PlanItem.SoftwareID` (INV-24, G9)
 - Người gọi: `cmd/vedette` `aiAsk.DeviceUpdates` (công cụ `device_updates` của Ask my AI, ai INV-22c); sắp tới G8 (trang Findings, tab Software của thiết bị nối theo `SoftwareID`). Đổi trường → sửa adapter và mô tả công cụ.
 - Gộp theo `RowFixes`/`PlanItem`: đổi INV-18 hay INV-20 là đổi câu trả lời này cùng lúc (cố ý: một cách gộp). `SoftwareID` của `RowFix`/`PlanItem` là `json:"-"`, không vào API.
-- `proofOf` đọc `basis`, `evidence.agent`/`agent_row` và `tierSource`: đổi một trong ba là đổi lời "detected"/"suspected" khách đọc.
+- `DeviceUpdates` nhận `feedsOn` (người gọi đọc công tắc feeds như handler plan). `proofOf` đọc `basis`, `evidence.agent`/`agent_row` và `tierSource`: đổi một trong ba là đổi lời "detected"/"suspected" khách đọc.

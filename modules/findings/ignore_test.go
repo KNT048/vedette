@@ -1,6 +1,7 @@
 package findings
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -190,5 +191,55 @@ func TestService_ReconcileHealsALostIgnoreEitherWay(t *testing.T) {
 		if f, _ := e.svc.Get(t.Context(), id); !f.Status.Open() {
 			t.Fatalf("not reopened: %+v", f.Finding)
 		}
+	}
+}
+
+// Review r2 N1 of #945: when the ignored devices cannot be read the hourly pass still matches the watched devices (and says the
+// error), and only skips what needs that list: no ignore close, no orphan pass (an ignored device would look deleted).
+func TestService_ReconcileWithoutTheIgnoredListStillMatchesWatchedDevices(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.feeds.vulns = append(e.feeds.vulns, Vuln{CVE: "CVE-2024-0001", Vendor: "QNAP", Product: "Photo Station", HasTemplate: true})
+	e.inv.mu.Lock()
+	e.inv.ignoredErr = errors.New("disk busy")
+	e.inv.mu.Unlock()
+	r, err := e.svc.Reconcile(t.Context())
+	if err == nil || !strings.Contains(err.Error(), "disk busy") {
+		t.Fatalf("the failed read is not reported: %v", err)
+	}
+	if r.Devices != 1 || r.Created != 2 || r.Orphans != 0 {
+		t.Fatalf("reconcile without the ignored list = %+v", r)
+	}
+}
+
+// Review r2 N3 of #945: a scan result that lands after the Ignore (the run started before) leaves the closed finding as it is: the
+// same record back, no history row, no event.
+func TestService_AScanResultAfterTheIgnoreChangesNothing(t *testing.T) {
+	t.Parallel()
+	e := newEnv(t)
+	e.feeds.vulns = append(e.feeds.vulns, Vuln{CVE: "CVE-2024-0001", Vendor: "QNAP", Product: "Photo Station", HasTemplate: true})
+	res, err := e.svc.OnMatchChanged(t.Context(), "a-1")
+	if err != nil || len(res.Created) == 0 {
+		t.Fatalf("seed: %+v %v", res, err)
+	}
+	e.ignoreA1(true)
+	if n, err := e.svc.OnAssetIgnored(t.Context(), "a-1", "it@acme.example"); err != nil || n == 0 {
+		t.Fatalf("ignore closed %d, %v", n, err)
+	}
+	before, err := e.svc.Get(t.Context(), res.Created[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.pub.take()
+	got, err := e.svc.ConfirmFromScan(t.Context(), "a-1", before.CVE, Evidence{Template: before.CVE, CheckedAt: t0, Summary: "matched"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, _ := e.svc.Get(t.Context(), before.ID)
+	if got.Status != StatusNotRelevant || after.Status != StatusNotRelevant || len(after.History) != len(before.History) || !after.ClosedForIgnore() {
+		t.Fatalf("a scan after the Ignore changed the finding: returned %+v, stored %+v", got.Finding, after.Finding)
+	}
+	if ev := e.pub.take(); len(ev) != 0 {
+		t.Fatalf("events = %+v", ev)
 	}
 }

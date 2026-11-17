@@ -1167,7 +1167,12 @@
     "keepConfirm": "Keep separate",
     "hint": "Possibly the same device as {{name}}",
     "hintMany_one": "Possibly the same device as {{name}} or {{count}} other",
-    "hintMany_other": "Possibly the same device as {{name}} or {{count}} others"
+    "hintMany_other": "Possibly the same device as {{name}} or {{count}} others",
+    "watch": {
+      "staysIgnored": "{{into}} stays ignored: it is not scanned and the open findings that move from {{from}} close.",
+      "staysWatched": "{{into}} stays watched: the findings of {{from}} that closed when it was ignored reopen.",
+      "watchedAgain": "{{into}} is watched again, because {{from}} is an approved device you watch: its findings that closed when it was ignored reopen."
+    }
   },
   "ignore": {
     "title": "Ignore {{name}}?",

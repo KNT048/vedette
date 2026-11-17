@@ -37,10 +37,18 @@
 - **cmd/vedette**: `Store.MatchStamp` thêm `cve-org`; export policy (`feeds_affected_cve.source`, `feeds_cveorg_checked`) trong `modules/core/export_policy.go`.
 - **PRIVACY.md** luồng 1, Settings → Privacy (`locales/en/core.json` `privacy.flow.1`), `THIRD_PARTY_NOTICES.md` (điều khoản CVE Program), `sourcesMock.ts` và `conformance.test.ts` (danh sách có sẵn: 13).
 
+## Modifying: những gì một feed lưu hay cách nó đọc nguồn (`contentVersions`, `feeds_source.content_version`, INV-32)
+
+- **Mọi feed**: thêm bảng/cột mà lượt kéo ghi, đổi parser, đổi trang hay tệp đọc ⇒ tăng số của decoder trong `contentVersions` **cùng thay đổi**; mọi hộp đọc lại feed đó ở lần kiểm 5 phút sau khi cập nhật (feed đọc trọn: không `ETag`/`Last-Modified`; feed tăng dần: lượt nạp lại của nó qua `contentResets`). Quên tăng số ⇒ dữ liệu cũ ở lại tới chu kỳ kế, hoặc mãi mãi khi nguồn trả 304 hay feed chỉ hỏi phần đổi. Không cần migration riêng chỉ để kích kéo lại (trước đây 0011, 0013, 0015 làm việc này từng lần).
+- Feed tăng dần mới: thêm hàm nạp lại vào `contentResets` (một giao dịch cùng số mới) và vào lớp trong `TestContentVersion_EveryFeedHasAReloadPath`.
+- **findings**: kế hoạch so lại khi `TierStamp` đổi, khớp lại theo sự kiện và lượt kiểm mỗi giờ: không đổi gì phía findings.
+- **Quyền riêng tư**: một lượt đọc thêm mỗi feed sau một bản cập nhật như vậy (cùng địa chỉ, cùng luật bật/tắt và thiết bị); PRIVACY.md luồng 1 + Settings → Privacy (`core.json` `privacy.flow.1`) nói câu này. Lượt nạp lại NVD tốn như ngày đầu (`nvd-kev` khoảng 20 request, `nvd-recent` khoảng 105): chỉ tăng số đó khi thật cần.
+- **core** export policy: cột `content_version` (xuất).
+
 ## Modifying: feed `windows-releases`, `parseWinRelPage`, `winRelReleases`, `feeds_winrel`
 - **core/winrel** (`Learn`): mọi bản `winRelReleases` suy ra đi vào `ByBuild`/`ByProduct`/`Releases` sau bảng tay. Đổi cách đặt tên NVD, line hay GA ⇒ đổi dòng hệ điều hành mà agent-intake `windowsRow` ghi (CPE `windows_11_26h2`) và cách findings `windowsDecide` đọc hàng NVD (anh em cùng line, luật tháng, bằng chứng "ra sau khi CISA liệt kê" theo GA). Line sai = so revision với line khác: chỉ gán line khi cùng KB **và** cùng revision.
 - **agent-intake**: dòng hệ điều hành của máy có build mới đổi ở lần báo kế (programs, 3600 s) từ "Windows (build 26300)" sang "Windows 11 26H2" có CPE; inventory đánh dấu, findings khớp lại máy đó.
-- **findings**: `feeds.ranges.updated` sau lượt đổi bảng; câu "could not be checked" của build không biết nói "not a Windows release Vedette knows (an Insider …)".
+- **findings**: `feeds.ranges.updated` sau lượt đổi bảng phát hành **hoặc** bảng bản vá hằng tháng (`applyWinRel` so cả hai: bản vá mới đổi build so sánh của máy hotpatch `core/winrel.Baseline` và build/KB đích); câu "could not be checked" của build không biết nói "not a Windows release Vedette knows (an Insider …)".
 - **findings** (`winLatest`): bản vá hằng tháng (`parseWinRelUpdates`, `feeds_winrel_update` → `core/winrel.LearnUpdates`/`Updates`) là build đích của mục kế hoạch Windows, `RowFix` và `ToFixAction` khi mới hơn build vá của NVD, và `nvd_lag` ("fixes at least N CVEs"). Đổi loại hàng giữ (chỉ `B`), cách gán build hay server/client ⇒ build đích đổi (`TestParseWinRelUpdates`, `TestWinRelPull_MonthlyUpdates`, findings `TestPlan_WindowsTargetIsMicrosoftsNewestUpdate`). `TierStamp` có `windows-releases`: mỗi lượt kéo (một lần/ngày) cho findings một lượt so đầy đủ.
 - **Pháp lý/quyền riêng tư**: host `learn.microsoft.com` (ba trang: Windows 11, Windows Server, Windows 10) trong PRIVACY.md luồng 1 + Settings → Privacy (`core.json`), THIRD_PARTY_NOTICES (điều khoản Microsoft, chỉ dữ kiện).
 

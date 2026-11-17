@@ -154,8 +154,14 @@ func NewService(d Deps) (*Service, error) {
 // Store gives other modules the read methods (VulnByCVE, VulnsByProductKey, HasTemplate, IOCLookup, KevPairs).
 func (s *Service) Store() *Store { return s.st }
 
-// Seed merges the built-in feeds into the database. Call it after the migrations, every start.
-func (s *Service) Seed(ctx context.Context) error { return s.st.SeedBuiltins(ctx, s.Clock()) }
+// Seed merges the built-in feeds into the database and gives every feed never pulled the code's content version (it holds no data
+// another code read: INV-32). Call it after the migrations, every start.
+func (s *Service) Seed(ctx context.Context) error {
+	if err := s.st.SeedBuiltins(ctx, s.Clock()); err != nil {
+		return err
+	}
+	return s.st.stampUnpulled(ctx)
+}
 
 func (s *Service) now() time.Time { return s.Clock().UTC() }
 

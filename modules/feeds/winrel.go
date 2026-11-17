@@ -269,10 +269,14 @@ func (s *Service) buildWinRel(ctx context.Context, src sourceRow, p pullPlan) (p
 }
 
 // applyWinRel replaces the stored releases (feeds_winrel) and the stored monthly updates of every release the pull read
-// (feeds_winrel_update); when the releases changed, it returns the CVEs NVD lists Windows rows for, for findings to match again
-// (EventRangesUpdated). A change of the updates only moves the plan's target builds, which findings reads at its next plan pass
-// (TierStamp has this feed).
+// (feeds_winrel_update); when the releases or the updates changed, it returns the CVEs NVD lists Windows rows for, for findings to
+// match again (EventRangesUpdated): an update moves the build a hotpatched device is compared at (core/winrel.Baseline) and the target
+// and KB of the fix. The plan's target builds follow at its next plan pass (TierStamp has this feed).
 func applyWinRel(ctx context.Context, tx *sql.Tx, rels []winrel.Release, ups []winrel.Update) (changedCVEs []string, err error) {
+	updsBefore, err := winRelUpdateRows(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
 	read := map[[2]int]bool{}
 	for _, u := range ups {
 		k := [2]int{u.Build, boolInt(u.Server)}
@@ -304,7 +308,11 @@ ON CONFLICT DO NOTHING`, r.Build, boolInt(r.Server), r.Product, r.Display, r.Lin
 	if err != nil {
 		return nil, err
 	}
-	if slices.Equal(before, after) {
+	updsAfter, err := winRelUpdateRows(ctx, tx)
+	if err != nil {
+		return nil, err
+	}
+	if slices.Equal(before, after) && slices.Equal(updsBefore, updsAfter) {
 		return nil, nil
 	}
 	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT cve FROM feeds_affected WHERE cpe GLOB 'cpe:2.3:o:microsoft:windows*' ORDER BY cve`)

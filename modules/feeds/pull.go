@@ -41,7 +41,8 @@ func (s *Service) Jobs() []jobs.Job {
 }
 
 // RunPull is one tick of the pull job: every enabled feed that is due (INV-8, INV-9: State.Due with the feed's
-// interval and its back-off after errors; nvd-recent with an unfinished pull only its back-off, INV-24) is pulled in turn,
+// interval and its back-off after errors; nvd-recent with an unfinished pull, and a feed whose stored data this code reads again
+// (INV-32), only its back-off) is pulled in turn,
 // vulnerabilities first. A failed pull is recorded on
 // the feed and never fails the job; only a cancelled context or a database failure does.
 func (s *Service) RunPull(ctx context.Context) error {
@@ -49,6 +50,20 @@ func (s *Service) RunPull(ctx context.Context) error {
 	rows, err := s.sources(ctx)
 	if err != nil {
 		return err
+	}
+	versions, err := s.st.contentVersionsStored(ctx)
+	if err != nil {
+		return err
+	}
+	for i := range rows {
+		rows[i].ContentVersion = versions[rows[i].ID]
+	}
+	reloads, err := s.startReloads(ctx, rows) // an incremental feed read by other code starts its full reload now (INV-32)
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		s.Log.ErrorContext(ctx, "starting the reload of a feed failed", "error", err) // the plain schedule this tick; the next one tries again
 	}
 	pulled := false
 	var kevPulled *sourceRow
@@ -58,10 +73,15 @@ func (s *Service) RunPull(ctx context.Context) error {
 		}
 		if pulled { // an earlier pull of this tick may have filled it (EPSS after the CISA list); a tick that pulled nothing reads no row twice
 			if cur, err := s.st.source(ctx, r.ID); err == nil {
-				r = cur
+				if cur, err = s.st.withVersion(ctx, cur); err == nil {
+					r = cur
+				}
 			}
 		}
 		due := r.state().Due(now, r.IntervalHours)
+		if r.Enabled && (reloads[r.ID] || contentResets[decoderOf(r)] == nil && r.reload()) {
+			due = reloadDue(r, now) // its stored data was read by other code: now, not after its interval (INV-32)
+		}
 		if r.ID == recentFeedID && r.Enabled { // A fill the cursor says is unfinished (a migration reset it) goes on now, not a day after the last success
 			cur, err := s.st.recentCursor(ctx)
 			if err != nil { // the plain schedule this tick, as the re-read above falls back (review 1 #4 of #805)
@@ -320,9 +340,9 @@ func (s *Service) build(ctx context.Context, src sourceRow) (pullPlan, error) {
 	if src.ID == kevFeedID && src.URL == s.kevPrimary() { // Both copies of the CISA list, every check
 		return s.buildKEVBoth(ctx, src, p)
 	}
-	// Conditional only after a good pull: a list pulled every hour stays cheap with a 304.
+	// Conditional only after a good pull: a list pulled every hour stays cheap with a 304. Never when this code reads it again (INV-32).
 	req := Request{URL: src.URL, Auth: auth}
-	if src.Status == "ok" {
+	if src.Status == "ok" && !src.reload() {
 		req.ETag, req.LastModified = orEmpty(src.ETag), orEmpty(src.LastModified)
 	}
 	resp, err := s.get(ctx, req)
@@ -512,6 +532,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 	if !src.Enabled {
 		return sourceRow{}, 0, nil, ErrFeedDisabled
 	}
+	if src, err = s.st.withVersion(ctx, src); err != nil { // which code read the stored data: a reload sends no validators (INV-32)
+		return sourceRow{}, 0, nil, err
+	}
 	started := s.now()
 	bctx, cancel := context.WithTimeout(ctx, pullBudget)
 	p, perr := s.build(bctx, src)
@@ -536,6 +559,9 @@ func (s *Service) pullOne(ctx context.Context, id, actor string) (sourceRow, int
 		p = pullPlan{out: outcome{Err: userError(perr, src.URL), Copies: p.out.Copies}}             // what each copy of the CISA list said is kept
 	}
 	p.out.Started, p.out.Finished = started, s.now()
+	if p.out.OK && contentResets[decoderOf(src)] == nil && (!p.out.NotModified || src.reload()) {
+		p.out.ContentVersion = contentVersionOf(src) // the whole source was read by this code (a reload sends no validators: INV-32)
+	}
 
 	var (
 		fresh          []VulnRow

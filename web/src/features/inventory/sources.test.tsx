@@ -82,6 +82,42 @@ describe('Device page: Sources (D-598)', () => {
     expect(await within(dialog).findByText(COMMUNITY_REQUIRED, undefined, T)).toBeInTheDocument() // blank community: asked again, not kept
   })
 
+  // n82 (BN340 at 192.168.18.1): the read preselected the first credential, whose scope does not hold the address, so the first press failed.
+  const onlyCredentials = async (...scopes: [string, string][]) => {
+    const list = (await (await api('GET', '/snmp')).json()) as { credentials: { id: string }[] }
+    for (const c of list.credentials) expect((await api('DELETE', `/snmp/${c.id}`)).status).toBe(204)
+    for (const [name, scope] of scopes) expect((await api('POST', '/snmp', { name, version: 'v2c', community: 'public', scope: [scope] })).status).toBe(201)
+  }
+
+  it('preselects the credential whose scope holds the address, not the first one', async () => {
+    await onlyCredentials(['Lab Ubuntu servers', '192.168.20.0/24'], ['Office', '192.168.10.0/24'])
+    const user = userEvent.setup()
+    renderApp('/devices/a-nas02', { role: 'admin' })
+    const snmp = item(await sources(), 'SNMP')
+    await user.click(within(snmp).getByRole('button', { name: 'Add SNMP' }))
+    const select = (await within(snmp).findByLabelText('Credential', undefined, T)) as HTMLSelectElement
+    expect(select.selectedOptions[0]).toHaveTextContent(/Office/)
+    expect(within(snmp).queryByText(/None of your SNMP credentials covers/)).toBeNull()
+    await user.click(within(snmp).getByRole('button', { name: 'Read this device now' }))
+    expect(await within(snmp).findByText(/192\.168\.10\.21 (answered|was not read)\./, undefined, T)).toBeInTheDocument()
+  })
+
+  it('with no credential whose scope holds the address, says so before the read and preselects none', async () => {
+    await onlyCredentials(['Lab Ubuntu servers', '192.168.20.0/24'])
+    const user = userEvent.setup()
+    renderApp('/devices/a-nas02', { role: 'admin' })
+    const snmp = item(await sources(), 'SNMP')
+    await user.click(within(snmp).getByRole('button', { name: 'Add SNMP' }))
+    const select = (await within(snmp).findByLabelText('Credential', undefined, T)) as HTMLSelectElement
+    expect(select.value).toBe('')
+    expect(within(snmp).getByText(/^None of your SNMP credentials covers 192\.168\.10\.21, so a read with one of them is refused\./)).toBeInTheDocument()
+    expect(within(snmp).getByRole('button', { name: 'Read this device now' })).toBeDisabled()
+    await user.selectOptions(select, within(select).getByRole('option', { name: /Lab Ubuntu servers/ }))
+    await user.click(within(snmp).getByRole('button', { name: 'Add 192.168.10.21 to Lab Ubuntu servers' }))
+    const dialog = await screen.findByRole('dialog', undefined, T)
+    expect((within(dialog).getByLabelText('Send only to') as HTMLTextAreaElement).value).toBe('192.168.20.0/24\n192.168.10.21')
+  })
+
   it('?snmp_ip= does not open the add form when the 8 credentials are saved', async () => {
     for (let i = 0; i < 8; i++) await api('POST', '/snmp', { name: `Extra ${i}`, version: 'v2c', community: 'public-ro', scope: ['192.168.10.0/24'] })
     renderSnmp('/?snmp_ip=192.168.10.21')

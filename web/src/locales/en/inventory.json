@@ -61,6 +61,8 @@
       "addToScope": "Add {{ip}} to {{name}}",
       "addToScopeHint": "Vedette asks for the credential's community or passwords again before it sends them to one more address.",
       "credential": "Credential",
+      "choose": "Choose a credential",
+      "noneCovers": "None of your SNMP credentials covers {{ip}}, so a read with one of them is refused. Choose one and add {{ip}} to its scope, or choose \"+ New credential\" to add one for {{ip}}.",
       "read": "Read this device now",
       "scopeHint": "In the scan window Vedette reads the device again with every credential whose scope holds its address. A credential whose scope does not hold it says so here.",
       "addTurnsOn": "Add SNMP",
@@ -580,8 +582,8 @@
     "title": "Agents on servers",
     "description": "An agent tells Vedette exactly which software runs on a server.",
     "descriptionInfo": "With an agent, alerts say \"confirmed\" instead of \"suspected\".",
-    "recommendation": "Use osquery on your Linux and Windows servers. Already run Wazuh? Connect its API instead.",
-    "serverOnly": "Vedette supports server operating systems only: Linux and Windows Server.",
+    "recommendation": "Use osquery on your Linux and Windows PCs and servers. Already run Wazuh? Connect its API instead.",
+    "serverOnly": "Vedette supports Linux and Windows, on PCs and servers. macOS is not supported yet.",
     "boxAddress": {
       "uses": "Install commands use {{url}}.",
       "change": "Change it in Settings → Box network",
@@ -666,14 +668,14 @@
     "platform": {
       "label": "Operating system",
       "linux": "Linux",
-      "windows": "Windows Server"
+      "windows": "Windows"
     },
     "install": {
       "title": "Install with one command",
-      "linuxHow": "Run as root, or with sudo, on the server.",
+      "linuxHow": "Run as root, or with sudo, on the machine.",
       "linuxHowInfo": "Debian, Ubuntu, RHEL, Rocky, AlmaLinux; x86_64 or arm64.",
-      "windowsHow": "Run in PowerShell as Administrator on the server.",
-      "windowsHowInfo": "Windows Server 2019 or later, Windows PowerShell 5.1 or later. Not yet proven on a real Windows Server: its first run found a certificate problem, fixed since and to be run again.",
+      "windowsHow": "Run in PowerShell as Administrator on the machine.",
+      "windowsHowInfo": "Windows 10 or 11, or Windows Server 2019 or later; Windows PowerShell 5.1 or later. Not yet proven on a real Windows Server: its first run found a certificate problem, fixed since and to be run again.",
       "linuxLabel": "Linux shell",
       "windowsLabel": "PowerShell (Administrator)",
       "sha": "Expected SHA-256 of the script",
@@ -709,7 +711,7 @@
       "format": {
         "deb": "Debian, Ubuntu",
         "rpm": "RHEL, Rocky, AlmaLinux",
-        "msi": "Windows Server"
+        "msi": "Windows"
       },
       "none": "This box has no copy of the osquery packages for this operating system.",
       "noneInfo": "So the command below stops at the package download. Update Vedette to the release, which ships them."

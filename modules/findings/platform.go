@@ -174,7 +174,7 @@ func platformsIn(text string) []string {
 // Juniper network card (a Junos switch, networkStated), that statement counts for every row, since such gear runs no container behind
 // its own address.
 func platformOS(s Software, a Asset) string {
-	switch s.Source {
+	switch s.builtBy() { // a person's correction of an agent or SNMP row keeps that row's evidence (review r1 M1 of #950)
 	case "agent":
 		return a.AgentOS
 	case "snmp":

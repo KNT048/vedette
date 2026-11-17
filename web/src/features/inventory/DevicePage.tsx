@@ -219,6 +219,8 @@ type PortsBy = 'box' | 'boxContainer' | 'agent' | 'fragile' | 'scan'
 
 function Services({ list, by }: { list: Service[]; by: PortsBy }) {
   const { t } = useTranslation('inventory')
+  // n82: on the box its own ports (source agent, host INV-9b) are read by the box itself, as its software is: "This box", not "Agent".
+  const source = (sv: Service) => (by === 'box' && sv.source === 'agent' ? <span className="text-caption text-muted">{t('box.source')}</span> : <SourceBadge source={sv.source} confidence={sv.confidence} />)
   if (!list.length) {
     const [body, info] = {
       box: [t('services.emptyBox'), t('services.emptyBoxInfo')],
@@ -234,7 +236,7 @@ function Services({ list, by }: { list: Service[]; by: PortsBy }) {
     { id: 'product', header: t('services.product'), accessorFn: (s) => s.product ?? '', cell: ({ getValue }) => (getValue() as string) || <span className="text-muted">–</span> },
     { id: 'version', header: t('services.version'), accessorFn: (s) => s.version ?? '', cell: ({ getValue }) => (getValue() as string) || <span className="text-muted">–</span> },
     { id: 'detail', header: t('services.detail'), accessorFn: (s) => s.detail ?? '', cell: ({ getValue }) => <span className="text-meta [overflow-wrap:anywhere]">{(getValue() as string) || <span className="text-muted">–</span>}</span> },
-    { id: 'source', header: t('obs.source'), accessorFn: (s) => s.confidence, cell: ({ row }) => <SourceBadge source={row.original.source} confidence={row.original.confidence} /> },
+    { id: 'source', header: t('obs.source'), accessorFn: (s) => s.confidence, cell: ({ row }) => source(row.original) },
   ]
   return (
     <DataTable caption={t('services.caption')} data={list} columns={columns}
@@ -243,7 +245,7 @@ function Services({ list, by }: { list: Service[]; by: PortsBy }) {
           <span className="text-sm font-medium">{sv.port}/{sv.proto} {sv.name}</span>
           {sv.product || sv.version ? <span className="text-meta [overflow-wrap:anywhere]">{[sv.product, sv.version].filter(Boolean).join(' ')}</span> : null}
           {sv.detail ? <span className="text-meta text-muted [overflow-wrap:anywhere]">{sv.detail}</span> : null}
-          <span className="text-caption text-muted"><SourceBadge source={sv.source} confidence={sv.confidence} /></span>
+          <span className="text-caption text-muted">{source(sv)}</span>
         </div>
       )} />
   )

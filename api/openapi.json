@@ -46965,6 +46965,102 @@
                                 "items": {
                                   "type": "string"
                                 }
+                              },
+                              "pkg_version": {
+                                "description": "The full package release: an agent's packaged row (\"1:9.6p1-3ubuntu13.14\", D-516) or a person's correction (\"10.2_p1-r1\"); absent when none",
+                                "type": "string"
+                              },
+                              "corrected_by": {
+                                "description": "On a row a sensor or agent reported: the id of the person's correction that replaces it for matching (INV-41). Show it as replaced; Clear on the correction brings it back",
+                                "type": "string"
+                              },
+                              "correction": {
+                                "description": "On a person's correction of a reported row (INV-41): when it was set and what the sources read now. Clear = DELETE the row",
+                                "type": "object",
+                                "properties": {
+                                  "set_at": {
+                                    "type": "string",
+                                    "format": "date-time",
+                                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$",
+                                    "description": "When the person set it (or last changed it)"
+                                  },
+                                  "set_by": {
+                                    "type": "string",
+                                    "description": "Who set it (email); \"\" for a correction stored without one"
+                                  },
+                                  "detected": {
+                                    "anyOf": [
+                                      {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "display": {
+                                            "type": "string"
+                                          },
+                                          "version": {
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "pkg_version": {
+                                            "type": [
+                                              "string",
+                                              "null"
+                                            ]
+                                          },
+                                          "source": {
+                                            "type": "string",
+                                            "enum": [
+                                              "manual",
+                                              "agent",
+                                              "snmp",
+                                              "nmap",
+                                              "passive",
+                                              "scan"
+                                            ]
+                                          },
+                                          "seen_at": {
+                                            "type": "string",
+                                            "format": "date-time",
+                                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                          }
+                                        },
+                                        "required": [
+                                          "id",
+                                          "display",
+                                          "version",
+                                          "pkg_version",
+                                          "source",
+                                          "seen_at"
+                                        ],
+                                        "additionalProperties": false
+                                      },
+                                      {
+                                        "type": "null"
+                                      }
+                                    ],
+                                    "description": "The corrected row when its source still reports it (it does not match while the correction stands), else that source's newest row of the product at another version (that one matches on its own: a second install or an update); null when the source reports the product no more: say \"no scan or agent reports it now\""
+                                  },
+                                  "disagrees": {
+                                    "type": "boolean",
+                                    "description": "The source reads another product, version or package release than the person (always true while active is false): show \"You set X on <date>; the last scan reads Y\""
+                                  },
+                                  "active": {
+                                    "type": "boolean",
+                                    "description": "true: the row it corrects is still reported and matching uses the correction. false: the source moved on (detected = what it reads now) or reports the product no more (detected null); matching uses the source's reading until the person sets the correction again (PATCH on detected.id, or on this row, which moves it onto what the source reads now). Show it as not in use: \"You set X on <date>; the scan now reads Y (Vedette uses that)\" with Set again and Clear"
+                                  }
+                                },
+                                "required": [
+                                  "set_at",
+                                  "set_by",
+                                  "detected",
+                                  "disagrees",
+                                  "active"
+                                ],
+                                "additionalProperties": false
                               }
                             },
                             "required": [
@@ -46979,6 +47075,75 @@
                             ],
                             "additionalProperties": false
                           }
+                        },
+                        "os_correction": {
+                          "description": "The OS a person set (PATCH os, INV-41); absent when none: os is then what the sources read",
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "type": "string"
+                            },
+                            "set_at": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            },
+                            "detected": {
+                              "anyOf": [
+                                {
+                                  "type": "object",
+                                  "properties": {
+                                    "value": {
+                                      "type": "string"
+                                    },
+                                    "source": {
+                                      "type": "string",
+                                      "enum": [
+                                        "manual",
+                                        "agent",
+                                        "snmp",
+                                        "nmap",
+                                        "passive",
+                                        "scan"
+                                      ]
+                                    },
+                                    "confidence": {
+                                      "type": "number",
+                                      "minimum": 0,
+                                      "maximum": 1
+                                    },
+                                    "seen_at": {
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                                    }
+                                  },
+                                  "required": [
+                                    "value",
+                                    "source",
+                                    "confidence",
+                                    "seen_at"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ],
+                              "description": "The OS the sources read without the correction (the value that would win); null when none reads one"
+                            },
+                            "disagrees": {
+                              "type": "boolean",
+                              "description": "The sources read another OS: show \"You set X on <date>; the last scan reads Y\""
+                            }
+                          },
+                          "required": [
+                            "value",
+                            "set_at",
+                            "detected",
+                            "disagrees"
+                          ],
+                          "additionalProperties": false
                         }
                       },
                       "required": [
@@ -47430,6 +47595,11 @@
                   "notes": {
                     "type": "string",
                     "maxLength": 2000
+                  },
+                  "os": {
+                    "description": "Correct the operating system (INV-41): trimmed, at most 200 characters, no < or >; it wins over every sensor and agent and drives matching until cleared. Empty clears it (back to what the sources read). 400 bad_os",
+                    "type": "string",
+                    "maxLength": 400
                   }
                 },
                 "additionalProperties": false
@@ -47843,7 +48013,7 @@
     "/inventory/devices/{id}/software/{sid}": {
       "delete": {
         "operationId": "inventory_delete_inventory_devices_id_software_sid",
-        "summary": "Remove manually declared software from a device",
+        "summary": "Remove manually declared software from a device; on a correction (INV-41) this clears it and the reported row matches again (audit inventory.clear_software_correction)",
         "tags": [
           "inventory"
         ],
@@ -47887,7 +48057,7 @@
       },
       "patch": {
         "operationId": "inventory_patch_inventory_devices_id_software_sid",
-        "summary": "Change the version of manually declared software (400 not_manual for software a sensor or agent saw); an empty version removes it; the device is matched again (D-471)",
+        "summary": "Change a software row (D-471, INV-41). A row a person declared changes in place. A row a sensor or agent reported is corrected: the values go in a manual correction row (source manual, correction set) that replaces exactly that row (its source, product and version, and its re-reports) for matching until it is deleted; another install of the product (another version or source) keeps matching. Fields left out keep their value (the CPE, the packaged flag, the source package; the package release while the version stays); another product starts clean. The device is matched again. 400 bad_edit (nothing to change), bad_version, bad_pkg_version, unknown_product, incomplete_product, bad_product. 409 duplicate_software",
         "tags": [
           "inventory"
         ],
@@ -47921,14 +48091,30 @@
                 "type": "object",
                 "properties": {
                   "version": {
+                    "description": "Letters, digits, . - + ( ) and spaces; empty removes the version",
                     "type": "string",
-                    "maxLength": 40,
-                    "description": "Letters, digits, . - + ( ) and spaces; empty removes the version"
+                    "maxLength": 40
+                  },
+                  "pkg_version": {
+                    "description": "The package release the device's package manager shows (\"10.2_p1-r1\", \"1:9.6p1-3ubuntu13.14\"); empty removes it",
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "catalog_id": {
+                    "description": "Another product, from GET /inventory/catalog",
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "vendor": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "product": {
+                    "description": "Another product typed by hand (both vendor and product)",
+                    "type": "string",
+                    "maxLength": 64
                   }
                 },
-                "required": [
-                  "version"
-                ],
                 "additionalProperties": false
               }
             }

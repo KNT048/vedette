@@ -269,8 +269,8 @@ func (s *Service) RemoveSoftware(ctx context.Context, actor, assetID, softwareID
 		if !ok {
 			return notFoundDevice()
 		}
-		var display, source string
-		err = tx.QueryRowContext(ctx, `SELECT display, source FROM inv_software WHERE id = ? AND asset_id = ?`, softwareID, assetID).Scan(&display, &source)
+		var display, source, corrects string
+		err = tx.QueryRowContext(ctx, `SELECT display, source, ifnull(corrects, '') FROM inv_software WHERE id = ? AND asset_id = ?`, softwareID, assetID).Scan(&display, &source, &corrects)
 		if errors.Is(err, sql.ErrNoRows) {
 			return apierr.New(404, apierr.CodeNotFound, "No such software on this device.")
 		} else if err != nil {
@@ -283,6 +283,9 @@ func (s *Service) RemoveSoftware(ctx context.Context, actor, assetID, softwareID
 			return fmt.Errorf("inventory: remove software: %w", err)
 		}
 		o.add(EventSoftwareChanged, AssetEvent{AssetID: assetID})
+		if corrects != "" { // clearing a correction (INV-41): the device is back to what its sources report
+			return s.auditTx(ctx, tx, actor, "inventory.clear_software_correction", deviceName(ctx, tx, assetID)+": "+display, "back to detected")
+		}
 		return s.auditTx(ctx, tx, actor, "inventory.remove_software", deviceName(ctx, tx, assetID)+": "+display, "")
 	})
 }
@@ -352,6 +355,7 @@ type Patch struct {
 	RegularScan *string
 	Notes       *string
 	Name        *string // the name in Vedette (G2): trimmed; "" clears it, back to the naming rule (D-471)
+	OS          *string // the person's OS (INV-41): trimmed; "" clears the correction, back to what the sources read
 }
 
 // PatchDevice changes the name in Vedette, type, fragile flag, regular-scan override or notes of a device (PRE-4, POST-4).
@@ -367,6 +371,13 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 			return badRequest("bad_name", badUserName)
 		}
 		p.Name = &n
+	}
+	if p.OS != nil {
+		v := strings.TrimSpace(*p.OS)
+		if v != "" && !osText(v) {
+			return badRequest("bad_os", badOS)
+		}
+		p.OS = &v
 	}
 	if p.RegularScan != nil && !slices.Contains([]string{"follow", "allow", "never"}, *p.RegularScan) {
 		return badRequest("bad_regular_scan", "Regular scans must be: follow type setting, allow or never.")
@@ -404,6 +415,13 @@ func (s *Service) PatchDevice(ctx context.Context, actor, id string, p Patch) er
 				// The findings' evidence names the device (MatchDevice.Name): matching it again writes the new name there too.
 				name, match = renamed, true
 			}
+		}
+		if p.OS != nil {
+			changed, err := s.setOSTx(ctx, tx, actor, id, name, *p.OS)
+			if err != nil {
+				return err
+			}
+			match = match || changed // the OS decides OS and platform findings (D-510): match the device again
 		}
 		if p.RegularScan != nil {
 			if _, err := tx.ExecContext(ctx, `UPDATE inv_asset SET regular_scan = ? WHERE id = ?`, *p.RegularScan, id); err != nil {

@@ -97293,6 +97293,8 @@ type InventoryGetInventoryDevicesIDOKAsset struct {
 	Notes  OptString                                   `json:"notes"`
 	Origin InventoryGetInventoryDevicesIDOKAssetOrigin `json:"origin"`
 	Os     NilInventoryGetInventoryDevicesIDOKAssetOs  `json:"os"`
+	// The OS a person set (PATCH os, INV-41); absent when none: os is then what the sources read.
+	OsCorrection OptInventoryGetInventoryDevicesIDOKAssetOsCorrection `json:"os_correction"`
 	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
 	// never actively scanned again, for every kind of device (D-74).
 	RegularScan InventoryGetInventoryDevicesIDOKAssetRegularScan `json:"regular_scan"`
@@ -97407,6 +97409,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) GetOrigin() InventoryGetInventor
 // GetOs returns the value of Os.
 func (s *InventoryGetInventoryDevicesIDOKAsset) GetOs() NilInventoryGetInventoryDevicesIDOKAssetOs {
 	return s.Os
+}
+
+// GetOsCorrection returns the value of OsCorrection.
+func (s *InventoryGetInventoryDevicesIDOKAsset) GetOsCorrection() OptInventoryGetInventoryDevicesIDOKAssetOsCorrection {
+	return s.OsCorrection
 }
 
 // GetRegularScan returns the value of RegularScan.
@@ -97542,6 +97549,11 @@ func (s *InventoryGetInventoryDevicesIDOKAsset) SetOrigin(val InventoryGetInvent
 // SetOs sets the value of Os.
 func (s *InventoryGetInventoryDevicesIDOKAsset) SetOs(val NilInventoryGetInventoryDevicesIDOKAssetOs) {
 	s.Os = val
+}
+
+// SetOsCorrection sets the value of OsCorrection.
+func (s *InventoryGetInventoryDevicesIDOKAsset) SetOsCorrection(val OptInventoryGetInventoryDevicesIDOKAssetOsCorrection) {
+	s.OsCorrection = val
 }
 
 // SetRegularScan sets the value of RegularScan.
@@ -99869,6 +99881,172 @@ func (s *InventoryGetInventoryDevicesIDOKAssetOs) SetValue(val string) {
 	s.Value = val
 }
 
+// The OS a person set (PATCH os, INV-41); absent when none: os is then what the sources read.
+type InventoryGetInventoryDevicesIDOKAssetOsCorrection struct {
+	// The OS the sources read without the correction (the value that would win); null when none reads one.
+	Detected NilInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected `json:"detected"`
+	// The sources read another OS: show "You set X on ; the last scan reads Y".
+	Disagrees bool      `json:"disagrees"`
+	SetAt     time.Time `json:"set_at"`
+	Value     string    `json:"value"`
+}
+
+// GetDetected returns the value of Detected.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrection) GetDetected() NilInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected {
+	return s.Detected
+}
+
+// GetDisagrees returns the value of Disagrees.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrection) GetDisagrees() bool {
+	return s.Disagrees
+}
+
+// GetSetAt returns the value of SetAt.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrection) GetSetAt() time.Time {
+	return s.SetAt
+}
+
+// GetValue returns the value of Value.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrection) GetValue() string {
+	return s.Value
+}
+
+// SetDetected sets the value of Detected.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrection) SetDetected(val NilInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) {
+	s.Detected = val
+}
+
+// SetDisagrees sets the value of Disagrees.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrection) SetDisagrees(val bool) {
+	s.Disagrees = val
+}
+
+// SetSetAt sets the value of SetAt.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrection) SetSetAt(val time.Time) {
+	s.SetAt = val
+}
+
+// SetValue sets the value of Value.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrection) SetValue(val string) {
+	s.Value = val
+}
+
+type InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected struct {
+	Confidence float64                                                         `json:"confidence"`
+	SeenAt     time.Time                                                       `json:"seen_at"`
+	Source     InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource `json:"source"`
+	Value      string                                                          `json:"value"`
+}
+
+// GetConfidence returns the value of Confidence.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) GetConfidence() float64 {
+	return s.Confidence
+}
+
+// GetSeenAt returns the value of SeenAt.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) GetSeenAt() time.Time {
+	return s.SeenAt
+}
+
+// GetSource returns the value of Source.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) GetSource() InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource {
+	return s.Source
+}
+
+// GetValue returns the value of Value.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) GetValue() string {
+	return s.Value
+}
+
+// SetConfidence sets the value of Confidence.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetConfidence(val float64) {
+	s.Confidence = val
+}
+
+// SetSeenAt sets the value of SeenAt.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetSeenAt(val time.Time) {
+	s.SeenAt = val
+}
+
+// SetSource sets the value of Source.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetSource(val InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource) {
+	s.Source = val
+}
+
+// SetValue sets the value of Value.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetValue(val string) {
+	s.Value = val
+}
+
+type InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource string
+
+const (
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceManual  InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "manual"
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceAgent   InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "agent"
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceSnmp    InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "snmp"
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceNmap    InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "nmap"
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourcePassive InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "passive"
+	InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceScan    InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource = "scan"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource values.
+func (InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource) AllValues() []InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource {
+	return []InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource{
+		InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceManual,
+		InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceAgent,
+		InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceSnmp,
+		InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceNmap,
+		InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourcePassive,
+		InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceScan,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceAgent:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceSnmp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceNmap:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourcePassive:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceScan:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSource(data) {
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceManual:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceAgent:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceAgent
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceSnmp:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceSnmp
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceNmap:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceNmap
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourcePassive:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourcePassive
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceScan:
+		*s = InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetectedSourceScan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
+}
+
 type InventoryGetInventoryDevicesIDOKAssetOsSource string
 
 const (
@@ -100280,19 +100458,38 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSnmpSource) UnmarshalText(data []b
 
 type InventoryGetInventoryDevicesIDOKAssetSoftwareItem struct {
 	Confidence float64 `json:"confidence"`
+	// On a row a sensor or agent reported: the id of the person's correction that replaces it for matching
+	// (INV-41). Show it as replaced; Clear on the correction brings it back.
+	CorrectedBy OptString `json:"corrected_by"`
+	// On a person's correction of a reported row (INV-41): when it was set and what the sources read now.
+	// Clear = DELETE the row.
+	Correction OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection `json:"correction"`
 	// Commercial name the user recognizes.
-	Display string                                                  `json:"display"`
-	ID      string                                                  `json:"id"`
-	KevCves []string                                                `json:"kev_cves"`
-	Product string                                                  `json:"product"`
-	Source  InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource `json:"source"`
-	Vendor  string                                                  `json:"vendor"`
-	Version NilString                                               `json:"version"`
+	Display string   `json:"display"`
+	ID      string   `json:"id"`
+	KevCves []string `json:"kev_cves"`
+	// The full package release: an agent's packaged row ("1:9.6p1-3ubuntu13.14", D-516) or a person's
+	// correction ("10.2_p1-r1"); absent when none.
+	PkgVersion OptString                                               `json:"pkg_version"`
+	Product    string                                                  `json:"product"`
+	Source     InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource `json:"source"`
+	Vendor     string                                                  `json:"vendor"`
+	Version    NilString                                               `json:"version"`
 }
 
 // GetConfidence returns the value of Confidence.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetConfidence() float64 {
 	return s.Confidence
+}
+
+// GetCorrectedBy returns the value of CorrectedBy.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetCorrectedBy() OptString {
+	return s.CorrectedBy
+}
+
+// GetCorrection returns the value of Correction.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetCorrection() OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection {
+	return s.Correction
 }
 
 // GetDisplay returns the value of Display.
@@ -100308,6 +100505,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetID() string {
 // GetKevCves returns the value of KevCves.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetKevCves() []string {
 	return s.KevCves
+}
+
+// GetPkgVersion returns the value of PkgVersion.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) GetPkgVersion() OptString {
+	return s.PkgVersion
 }
 
 // GetProduct returns the value of Product.
@@ -100335,6 +100537,16 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetConfidence(val fl
 	s.Confidence = val
 }
 
+// SetCorrectedBy sets the value of CorrectedBy.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetCorrectedBy(val OptString) {
+	s.CorrectedBy = val
+}
+
+// SetCorrection sets the value of Correction.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetCorrection(val OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) {
+	s.Correction = val
+}
+
 // SetDisplay sets the value of Display.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetDisplay(val string) {
 	s.Display = val
@@ -100348,6 +100560,11 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetID(val string) {
 // SetKevCves sets the value of KevCves.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetKevCves(val []string) {
 	s.KevCves = val
+}
+
+// SetPkgVersion sets the value of PkgVersion.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetPkgVersion(val OptString) {
+	s.PkgVersion = val
 }
 
 // SetProduct sets the value of Product.
@@ -100368,6 +100585,217 @@ func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetVendor(val string
 // SetVersion sets the value of Version.
 func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItem) SetVersion(val NilString) {
 	s.Version = val
+}
+
+// On a person's correction of a reported row (INV-41): when it was set and what the sources read now.
+// Clear = DELETE the row.
+type InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection struct {
+	// True: the row it corrects is still reported and matching uses the correction. false: the source
+	// moved on (detected = what it reads now) or reports the product no more (detected null); matching
+	// uses the source's reading until the person sets the correction again (PATCH on detected.id, or on
+	// this row, which moves it onto what the source reads now). Show it as not in use: "You set X on ; the
+	// scan now reads Y (Vedette uses that)" with Set again and Clear.
+	Active bool `json:"active"`
+	// The corrected row when its source still reports it (it does not match while the correction stands),
+	// else that source's newest row of the product at another version (that one matches on its own: a
+	// second install or an update); null when the source reports the product no more: say "no scan or
+	// agent reports it now".
+	Detected NilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected `json:"detected"`
+	// The source reads another product, version or package release than the person (always true while
+	// active is false): show "You set X on ; the last scan reads Y".
+	Disagrees bool `json:"disagrees"`
+	// When the person set it (or last changed it).
+	SetAt time.Time `json:"set_at"`
+	// Who set it (email); "" for a correction stored without one.
+	SetBy string `json:"set_by"`
+}
+
+// GetActive returns the value of Active.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) GetActive() bool {
+	return s.Active
+}
+
+// GetDetected returns the value of Detected.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) GetDetected() NilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected {
+	return s.Detected
+}
+
+// GetDisagrees returns the value of Disagrees.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) GetDisagrees() bool {
+	return s.Disagrees
+}
+
+// GetSetAt returns the value of SetAt.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) GetSetAt() time.Time {
+	return s.SetAt
+}
+
+// GetSetBy returns the value of SetBy.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) GetSetBy() string {
+	return s.SetBy
+}
+
+// SetActive sets the value of Active.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) SetActive(val bool) {
+	s.Active = val
+}
+
+// SetDetected sets the value of Detected.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) SetDetected(val NilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) {
+	s.Detected = val
+}
+
+// SetDisagrees sets the value of Disagrees.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) SetDisagrees(val bool) {
+	s.Disagrees = val
+}
+
+// SetSetAt sets the value of SetAt.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) SetSetAt(val time.Time) {
+	s.SetAt = val
+}
+
+// SetSetBy sets the value of SetBy.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) SetSetBy(val string) {
+	s.SetBy = val
+}
+
+type InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected struct {
+	Display    string                                                                    `json:"display"`
+	ID         string                                                                    `json:"id"`
+	PkgVersion NilString                                                                 `json:"pkg_version"`
+	SeenAt     time.Time                                                                 `json:"seen_at"`
+	Source     InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource `json:"source"`
+	Version    NilString                                                                 `json:"version"`
+}
+
+// GetDisplay returns the value of Display.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) GetDisplay() string {
+	return s.Display
+}
+
+// GetID returns the value of ID.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) GetID() string {
+	return s.ID
+}
+
+// GetPkgVersion returns the value of PkgVersion.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) GetPkgVersion() NilString {
+	return s.PkgVersion
+}
+
+// GetSeenAt returns the value of SeenAt.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) GetSeenAt() time.Time {
+	return s.SeenAt
+}
+
+// GetSource returns the value of Source.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) GetSource() InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource {
+	return s.Source
+}
+
+// GetVersion returns the value of Version.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) GetVersion() NilString {
+	return s.Version
+}
+
+// SetDisplay sets the value of Display.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) SetDisplay(val string) {
+	s.Display = val
+}
+
+// SetID sets the value of ID.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) SetID(val string) {
+	s.ID = val
+}
+
+// SetPkgVersion sets the value of PkgVersion.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) SetPkgVersion(val NilString) {
+	s.PkgVersion = val
+}
+
+// SetSeenAt sets the value of SeenAt.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) SetSeenAt(val time.Time) {
+	s.SeenAt = val
+}
+
+// SetSource sets the value of Source.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) SetSource(val InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource) {
+	s.Source = val
+}
+
+// SetVersion sets the value of Version.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) SetVersion(val NilString) {
+	s.Version = val
+}
+
+type InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource string
+
+const (
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceManual  InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "manual"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceAgent   InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "agent"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceSnmp    InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "snmp"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceNmap    InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "nmap"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourcePassive InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "passive"
+	InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceScan    InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource = "scan"
+)
+
+// AllValues returns all InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource values.
+func (InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource) AllValues() []InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource {
+	return []InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource{
+		InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceManual,
+		InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceAgent,
+		InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceSnmp,
+		InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceNmap,
+		InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourcePassive,
+		InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceScan,
+	}
+}
+
+// MarshalText implements encoding.TextMarshaler.
+func (s InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource) MarshalText() ([]byte, error) {
+	switch s {
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceManual:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceAgent:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceSnmp:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceNmap:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourcePassive:
+		return []byte(s), nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceScan:
+		return []byte(s), nil
+	default:
+		return nil, errors.Errorf("invalid value: %q", s)
+	}
+}
+
+// UnmarshalText implements encoding.TextUnmarshaler.
+func (s *InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource) UnmarshalText(data []byte) error {
+	switch InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSource(data) {
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceManual:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceManual
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceAgent:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceAgent
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceSnmp:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceSnmp
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceNmap:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceNmap
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourcePassive:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourcePassive
+		return nil
+	case InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceScan:
+		*s = InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetectedSourceScan
+		return nil
+	default:
+		return errors.Errorf("invalid value: %q", data)
+	}
 }
 
 type InventoryGetInventoryDevicesIDOKAssetSoftwareItemSource string
@@ -107440,6 +107868,10 @@ type InventoryPatchInventoryDevicesIDReq struct {
 	// default name). The host name the network reports is not changed.
 	Name  OptString `json:"name"`
 	Notes OptString `json:"notes"`
+	// Correct the operating system (INV-41): trimmed, at most 200 characters, no < or >; it wins over
+	// every sensor and agent and drives matching until cleared. Empty clears it (back to what the sources
+	// read). 400 bad_os.
+	Os OptString `json:"os"`
 	// Per-device override of the type setting for regular scans after the one gentle scan (D-45); never =
 	// never actively scanned again, for every kind of device (D-74).
 	RegularScan OptInventoryPatchInventoryDevicesIDReqRegularScan `json:"regular_scan"`
@@ -107465,6 +107897,11 @@ func (s *InventoryPatchInventoryDevicesIDReq) GetNotes() OptString {
 	return s.Notes
 }
 
+// GetOs returns the value of Os.
+func (s *InventoryPatchInventoryDevicesIDReq) GetOs() OptString {
+	return s.Os
+}
+
 // GetRegularScan returns the value of RegularScan.
 func (s *InventoryPatchInventoryDevicesIDReq) GetRegularScan() OptInventoryPatchInventoryDevicesIDReqRegularScan {
 	return s.RegularScan
@@ -107488,6 +107925,11 @@ func (s *InventoryPatchInventoryDevicesIDReq) SetName(val OptString) {
 // SetNotes sets the value of Notes.
 func (s *InventoryPatchInventoryDevicesIDReq) SetNotes(val OptString) {
 	s.Notes = val
+}
+
+// SetOs sets the value of Os.
+func (s *InventoryPatchInventoryDevicesIDReq) SetOs(val OptString) {
+	s.Os = val
 }
 
 // SetRegularScan sets the value of RegularScan.
@@ -108211,17 +108653,65 @@ func (s *InventoryPatchInventoryDevicesIDSoftwareSidOK) SetOk(val bool) {
 }
 
 type InventoryPatchInventoryDevicesIDSoftwareSidReq struct {
+	// Another product, from GET /inventory/catalog.
+	CatalogID OptString `json:"catalog_id"`
+	// The package release the device's package manager shows ("10.2_p1-r1", "1:9.6p1-3ubuntu13.14"); empty
+	// removes it.
+	PkgVersion OptString `json:"pkg_version"`
+	// Another product typed by hand (both vendor and product).
+	Product OptString `json:"product"`
+	Vendor  OptString `json:"vendor"`
 	// Letters, digits, . - + ( ) and spaces; empty removes the version.
-	Version string `json:"version"`
+	Version OptString `json:"version"`
+}
+
+// GetCatalogID returns the value of CatalogID.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) GetCatalogID() OptString {
+	return s.CatalogID
+}
+
+// GetPkgVersion returns the value of PkgVersion.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) GetPkgVersion() OptString {
+	return s.PkgVersion
+}
+
+// GetProduct returns the value of Product.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) GetProduct() OptString {
+	return s.Product
+}
+
+// GetVendor returns the value of Vendor.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) GetVendor() OptString {
+	return s.Vendor
 }
 
 // GetVersion returns the value of Version.
-func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) GetVersion() string {
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) GetVersion() OptString {
 	return s.Version
 }
 
+// SetCatalogID sets the value of CatalogID.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) SetCatalogID(val OptString) {
+	s.CatalogID = val
+}
+
+// SetPkgVersion sets the value of PkgVersion.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) SetPkgVersion(val OptString) {
+	s.PkgVersion = val
+}
+
+// SetProduct sets the value of Product.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) SetProduct(val OptString) {
+	s.Product = val
+}
+
+// SetVendor sets the value of Vendor.
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) SetVendor(val OptString) {
+	s.Vendor = val
+}
+
 // SetVersion sets the value of Version.
-func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) SetVersion(val string) {
+func (s *InventoryPatchInventoryDevicesIDSoftwareSidReq) SetVersion(val OptString) {
 	s.Version = val
 }
 
@@ -129332,6 +129822,98 @@ func (o NilInventoryGetInventoryDevicesIDOKAssetOs) Or(d InventoryGetInventoryDe
 	return d
 }
 
+// NewNilInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected returns new NilInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected with value set to v.
+func NewNilInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected(v InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) NilInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected {
+	return NilInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected is nullable InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected.
+type NilInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected struct {
+	Value InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetTo(v InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) IsNull() bool { return o.Null }
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) Get() (v InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) Or(d InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected) InventoryGetInventoryDevicesIDOKAssetOsCorrectionDetected {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewNilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected returns new NilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected with value set to v.
+func NewNilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected(v InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) NilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected {
+	return NilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected{
+		Value: v,
+	}
+}
+
+// NilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected is nullable InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected.
+type NilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected struct {
+	Value InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected
+	Null  bool
+}
+
+// SetTo sets value to v.
+func (o *NilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) SetTo(v InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) {
+	o.Null = false
+	o.Value = v
+}
+
+// IsNull returns true if value is Null.
+func (o NilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) IsNull() bool {
+	return o.Null
+}
+
+// SetToNull sets value to null.
+func (o *NilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) SetToNull() {
+	o.Null = true
+	var v InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o NilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) Get() (v InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected, ok bool) {
+	if o.Null {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o NilInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) Or(d InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected) InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrectionDetected {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
 // NewNilInventoryGetInventoryDevicesIDOKAssetVendor returns new NilInventoryGetInventoryDevicesIDOKAssetVendor with value set to v.
 func NewNilInventoryGetInventoryDevicesIDOKAssetVendor(v InventoryGetInventoryDevicesIDOKAssetVendor) NilInventoryGetInventoryDevicesIDOKAssetVendor {
 	return NilInventoryGetInventoryDevicesIDOKAssetVendor{
@@ -144868,6 +145450,98 @@ func (o OptInventoryGetInventoryDevicesHasFindings) Get() (v InventoryGetInvento
 
 // Or returns value if set, or given parameter if does not.
 func (o OptInventoryGetInventoryDevicesHasFindings) Or(d InventoryGetInventoryDevicesHasFindings) InventoryGetInventoryDevicesHasFindings {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesIDOKAssetOsCorrection returns new OptInventoryGetInventoryDevicesIDOKAssetOsCorrection with value set to v.
+func NewOptInventoryGetInventoryDevicesIDOKAssetOsCorrection(v InventoryGetInventoryDevicesIDOKAssetOsCorrection) OptInventoryGetInventoryDevicesIDOKAssetOsCorrection {
+	return OptInventoryGetInventoryDevicesIDOKAssetOsCorrection{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesIDOKAssetOsCorrection is optional InventoryGetInventoryDevicesIDOKAssetOsCorrection.
+type OptInventoryGetInventoryDevicesIDOKAssetOsCorrection struct {
+	Value InventoryGetInventoryDevicesIDOKAssetOsCorrection
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesIDOKAssetOsCorrection was set.
+func (o OptInventoryGetInventoryDevicesIDOKAssetOsCorrection) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesIDOKAssetOsCorrection) Reset() {
+	var v InventoryGetInventoryDevicesIDOKAssetOsCorrection
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesIDOKAssetOsCorrection) SetTo(v InventoryGetInventoryDevicesIDOKAssetOsCorrection) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesIDOKAssetOsCorrection) Get() (v InventoryGetInventoryDevicesIDOKAssetOsCorrection, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesIDOKAssetOsCorrection) Or(d InventoryGetInventoryDevicesIDOKAssetOsCorrection) InventoryGetInventoryDevicesIDOKAssetOsCorrection {
+	if v, ok := o.Get(); ok {
+		return v
+	}
+	return d
+}
+
+// NewOptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection returns new OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection with value set to v.
+func NewOptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection(v InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection {
+	return OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection{
+		Value: v,
+		Set:   true,
+	}
+}
+
+// OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection is optional InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection.
+type OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection struct {
+	Value InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection
+	Set   bool
+}
+
+// IsSet returns true if OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection was set.
+func (o OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) IsSet() bool { return o.Set }
+
+// Reset unsets value.
+func (o *OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) Reset() {
+	var v InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection
+	o.Value = v
+	o.Set = false
+}
+
+// SetTo sets value to v.
+func (o *OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) SetTo(v InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) {
+	o.Set = true
+	o.Value = v
+}
+
+// Get returns value and boolean that denotes whether value was set.
+func (o OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) Get() (v InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection, ok bool) {
+	if !o.Set {
+		return v, false
+	}
+	return o.Value, true
+}
+
+// Or returns value if set, or given parameter if does not.
+func (o OptInventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) Or(d InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection) InventoryGetInventoryDevicesIDOKAssetSoftwareItemCorrection {
 	if v, ok := o.Get(); ok {
 		return v
 	}

@@ -15,7 +15,7 @@ import { AddDialog } from './AddDialog'
 import { TurnOnModule } from './Inline'
 import { CreatableSelect } from '@/components/common/CreatableSelect'
 import { SnmpNext } from './SnmpNext'
-import { SNMP_MAX } from './validate'
+import { CIDR_RE_UI, IPV4_RE_UI, SNMP_MAX } from './validate'
 import { useDeviceAction, useDeviceSources, useSettings, useSnmp, useSnmpActions } from './api'
 import { inRanges } from './AddToScopeDialog'
 import { nameOf } from './nameOf'
@@ -47,6 +47,9 @@ function feedsOf(d: DeviceDetail): Map<Feed, string | null> {
 
 const IPV4 = /^\d{1,3}(\.\d{1,3}){3}$/
 
+/** Whether a credential's scope holds the address, as the box decides it (sensor-active snmpRow.covers: each IPv4 address or CIDR range
+ *  of the scope; anything else holds nothing), so the read is not sent first with a credential the box refuses for this address. */
+const credCovers = (scope: string[], ip: string) => scope.some((s) => (IPV4_RE_UI.test(s) || CIDR_RE_UI.test(s)) && inRanges(ip, [s]))
 
 /** Read this device now with one saved SNMP credential (the same Test as Scope and sensors → SNMP, with this device's address); add a
  *  credential for this address, or add the address to a credential whose scope does not hold it, without leaving the page. */
@@ -72,22 +75,28 @@ function SnmpRead({ ip }: { ip: string }) {
       </div>
     )
   }
-  const chosen = cred || (creds[0]?.id ?? '')
+  // n82: the first credential (in the order they are tried) whose scope holds this address, never one the box refuses for it.
+  const covering = creds.find((c) => credCovers(c.scope, ip))
+  const chosen = cred || (covering?.id ?? '')
   const chosenCred = creds.find((c) => c.id === chosen)
   function submit(e: FormEvent) { e.preventDefault(); read(chosen) }
   return (
     <div className="grid min-w-0 gap-2">
       <form onSubmit={submit} noValidate className="flex flex-wrap items-end gap-2">
         <Field label={t('sources.snmp.credential')} htmlFor="device-snmp-cred">
-          <CreatableSelect id="device-snmp-cred" className="w-auto" value={chosen} onChange={(id) => { setCred(id); setResult(null) }}
+          <CreatableSelect id="device-snmp-cred" className="w-auto" value={chosen} placeholder={covering ? undefined : t('sources.snmp.choose')} onChange={(id) => { setCred(id); setResult(null) }}
             options={creds.map((c) => ({ value: c.id, label: credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`)) }))}
             newLabel={t('addDialog.snmp.newCredential')} canCreate={creds.length < SNMP_MAX} createDisabledReason={t('addDialog.snmp.capReason', { count: SNMP_MAX })}
             renderCreate={(p) => (p.open ? <CredentialDialog current={null} scope={ip} onClose={() => p.onOpenChange(false)}
               onSaved={(c) => { p.onCreated({ value: c.id, label: credentialLabel(c.name, c.version, t(`snmp.version.${c.version}`)) }); saved(c) }} /> : null)} />
         </Field>
-        <Button type="submit" size="sm" variant="primary" busy={test.isPending} busyLabel={t('snmp.run.running')}>{t('sources.snmp.read')}</Button>
+        <Button type="submit" size="sm" variant="primary" disabled={!chosen} busy={test.isPending} busyLabel={t('snmp.run.running')}>{t('sources.snmp.read')}</Button>
         {chosenCred ? <Button size="sm" variant="link" onClick={() => setForm({ current: chosenCred, scope: chosenCred.scope.join('\n'), widen: false })}>{t('addDialog.snmp.editCredential', { name: chosenCred.name })}</Button> : null}
       </form>
+      {covering ? null : <p className="text-meta text-muted">{t('sources.snmp.noneCovers', { ip })}</p>}
+      {chosenCred && !result && !credCovers(chosenCred.scope, ip) && chosenCred.scope.length < 16 ? (
+        <div><Button size="sm" onClick={() => setForm({ current: chosenCred, scope: [...chosenCred.scope, ip].join('\n'), widen: true })}>{t('sources.snmp.addToScope', { ip, name: chosenCred.name })}</Button></div>
+      ) : null}
       {q.data && !q.data.ready ? <p className="text-meta text-warn">{q.data.message ?? t('snmp.notReady')}</p> : null}
       <BusyNote busy={test.isPending}>{t('snmp.run.pending', { ip })}</BusyNote>
       {error ? <Notice tone="danger" role="alert" className="mb-0" title={error} /> : null}

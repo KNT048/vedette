@@ -380,7 +380,7 @@ describe('inventory: device list (S-INV-1, S-INV-3)', () => {
     await user.click(within(dlg).getByRole('button', { name: /Create/ }))
     expect(await within(dlg).findByText(/^vdt_osquery_/, undefined, T)).toBeInTheDocument()
     expect(within(dlg).queryByRole('radiogroup', { name: 'How to add it' })).toBeNull() // the only copy of the secret stays on screen
-    expect(within(dlg).getByRole('button', { name: 'Windows Server' })).toBeInTheDocument()
+    expect(within(dlg).getByRole('button', { name: 'Windows' })).toBeInTheDocument()
   })
 
   it('the operator role gets the add button enabled and the setup link hidden (admin only)', async () => {
@@ -1557,7 +1557,7 @@ describe('inventory: agents (S-INV-4)', () => {
     const table = await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     expect(within(table).getByText(OSQ)).toBeInTheDocument()
     expect(within(table).getByText('••••k3Pq')).toBeInTheDocument()
-    expect(screen.getByText('Use osquery on your Linux and Windows servers. Already run Wazuh? Connect its API instead.')).toBeInTheDocument()
+    expect(screen.getByText('Use osquery on your Linux and Windows PCs and servers. Already run Wazuh? Connect its API instead.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Connect Wazuh' })).toBeInTheDocument()
     expect(screen.queryByText(/Trivy/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/macOS/i)).not.toBeInTheDocument()
@@ -1579,7 +1579,7 @@ describe('inventory: agents (S-INV-4)', () => {
       expect(row).toHaveTextContent(`${(p.size / 1e6).toFixed(1)} MB`)
       expect(row).toHaveTextContent(`${hint[p.format]} ${p.file}`)
     }
-    expect(within(table).getByRole('link', { name: `Download osquery-${OSQUERY_VERSION}.msi` }).closest('tr')).toHaveTextContent('Windows Server · x64')
+    expect(within(table).getByRole('link', { name: `Download osquery-${OSQUERY_VERSION}.msi` }).closest('tr')).toHaveTextContent('Windows · x64')
     expect(screen.getByRole('heading', { level: 4, name: '1. Download osquery' })).toBeInTheDocument()
     expect(screen.getByText(new RegExp(`official osquery ${OSQUERY_VERSION.replace(/\./g, '\\.')} packages`))).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 4, name: '2. Then create a token so the agent can report to this box' })).toBeInTheDocument()
@@ -1636,9 +1636,9 @@ describe('inventory: agents (S-INV-4)', () => {
     expect(amd).toHaveTextContent(pkgs[0]!.sha256)
     expect(within(dialog).queryByText(/osquery\.io|choco/)).not.toBeInTheDocument()
     expect(within(dialog).queryByText(/has no copy of the osquery packages/)).not.toBeInTheDocument()
-    await user.click(within(dialog).getByRole('button', { name: 'Windows Server' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Windows' }))
     expect(downloads().map((a) => a.getAttribute('download'))).toEqual([`osquery-${OSQUERY_VERSION}.msi`])
-    expect(within(dialog).getByRole('link', { name: `Download osquery-${OSQUERY_VERSION}.msi` }).closest('tr')).toHaveTextContent('Windows Server · x64')
+    expect(within(dialog).getByRole('link', { name: `Download osquery-${OSQUERY_VERSION}.msi` }).closest('tr')).toHaveTextContent('Windows · x64')
     expect(within(dialog).getByText(new RegExp(`-Token '${secret}'`))).toBeInTheDocument()
     expect(within(dialog).getAllByText(/Get-FileHash \$f -Algorithm SHA256/).length).toBeGreaterThan(0)
     expect(within(dialog).getByText(/curl\.exe -k for that one download only/)).toBeInTheDocument()
@@ -1659,7 +1659,7 @@ describe('inventory: agents (S-INV-4)', () => {
     await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     await clickUntil(user, () => screen.getAllByRole('button', { name: `Show setup for ${OSQ}` })[0]!, () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', undefined, T)
-    for (const platform of ['Linux', 'Windows Server']) {
+    for (const platform of ['Linux', 'Windows']) {
       await user.click(within(dialog).getByRole('button', { name: platform }))
       // the D-465 note may name the page's own host (jsdom: localhost) to say agents will NOT use it; every command and script must not
       const text = (dialog.textContent ?? '').replace(/You opened Vedette at [^,]+, but agents will use [^.]+\./, '')
@@ -1680,7 +1680,7 @@ describe('inventory: agents (S-INV-4)', () => {
     await screen.findByRole('table', { name: 'Enrollment tokens' }, T)
     await clickUntil(user, () => screen.getAllByRole('button', { name: `Show setup for ${OSQ}` })[0]!, () => screen.getByRole('dialog'))
     const dialog = await screen.findByRole('dialog', undefined, T)
-    for (const platform of ['Linux', 'Windows Server']) {
+    for (const platform of ['Linux', 'Windows']) {
       await user.click(within(dialog).getByRole('button', { name: platform }))
       expect(within(dialog).getByText(/This box has no copy of the osquery packages/)).toBeInTheDocument()
       expect(within(dialog).queryByRole('table', { name: 'osquery packages this box serves' })).not.toBeInTheDocument()
@@ -2189,6 +2189,14 @@ describe('inventory: the box is the first device (S-INV-5, D-53)', () => {
     expect(within(sw).getAllByText('This box').length).toBeGreaterThan(5)
     expect(screen.getAllByText('This box').length).toBeGreaterThan(1) // badge and software sources
     await expectNoA11yViolations()
+  })
+
+  it('n82: the box\'s own open services are read by the box itself: "This box", not "Agent"', async () => {
+    renderApp(`/devices/${BOX_ID}?tab=services`)
+    const table = await screen.findByRole('table', { name: 'Services open on the device' }, T)
+    const ssh = within(table).getByText('sshd').closest('tr')!
+    expect(within(ssh).getByText('This box')).toBeInTheDocument()
+    expect(within(table).queryByText('Agent')).toBeNull()
   })
 
   it('S-CORE-9 G3: on the appliance the box page says its packages are read with dpkg', async () => {
